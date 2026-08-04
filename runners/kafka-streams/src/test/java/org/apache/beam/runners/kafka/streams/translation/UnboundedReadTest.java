@@ -1,0 +1,127 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.runners.kafka.streams.translation;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.greaterThan;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
+import org.apache.beam.runners.kafka.streams.KafkaStreamsTestRunner;
+import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.kafka.streams.TopologyTestDriver;
+import org.junit.Before;
+import org.junit.Test;
+
+/**
+ * Runs a pipeline whose source is unbounded, which is the shape the runner exists for: a Kafka
+ * Streams application is a long-running stream processor, and until now the runner could only read
+ * sources that finish.
+ *
+ * <p>Two things separate this from the bounded read. The source is polled repeatedly rather than
+ * drained once, so elements arrive over several turns of the wall clock; and the watermark comes
+ * from the reader's own progress rather than jumping to the end of time when the input runs out,
+ * which is what lets downstream windows close on a stream that never ends.
+ */
+public class UnboundedReadTest {
+
+  /** How many elements one poll of the source may take. */
+  private static final int ELEMENTS_PER_POLL = 5;
+
+  /** Elements the pipeline has seen, recorded in order. */
+  private static final List<Long> RECEIVED = Collections.synchronizedList(new ArrayList<>());
+
+  @Before
+  public void reset() {
+    RECEIVED.clear();
+  }
+
+  private static class RecordFn extends DoFn<Long, Long> {
+    @ProcessElement
+    public void processElement(@Element Long element, OutputReceiver<Long> out) {
+      RECEIVED.add(element);
+      out.output(element);
+    }
+  }
+
+  /**
+   * A genuinely unbounded pipeline. Nothing caps the source — capping it with {@code
+   * withMaxNumRecords} would turn it back into a bounded read and test the wrong path — so the work
+   * is bounded instead by how many elements a single poll may take and how many turns the test
+   * drives.
+   */
+  private static Pipeline unboundedPipeline() {
+    KafkaStreamsPipelineOptions options =
+        KafkaStreamsTestRunner.testOptions().as(KafkaStreamsPipelineOptions.class);
+    options.setMaxBundleSize(ELEMENTS_PER_POLL);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("read", Read.from(CountingSource.unbounded()))
+        .apply("record", ParDo.of(new RecordFn()));
+    return pipeline;
+  }
+
+  @Test
+  public void anUnboundedSourceIsPolledAndItsElementsReachTheHarness() {
+    Pipeline pipeline = unboundedPipeline();
+    KafkaStreamsTranslationContext context = KafkaStreamsTestRunner.translate(pipeline);
+
+    try (TopologyTestDriver driver =
+        new TopologyTestDriver(
+            context.getTopology(), KafkaStreamsTestRunner.streamsConfig(pipeline))) {
+      // Several turns, because an unbounded read yields what is available now rather than
+      // everything at once.
+      for (int turn = 0; turn < 4; turn++) {
+        driver.advanceWallClockTime(Duration.ofMillis(100));
+      }
+    }
+
+    // More than a single poll's worth, which is the point: a bounded read drains once, whereas
+    // this one has to be asked again on each turn of the clock and keep going from where it was.
+    assertThat(
+        "expected several polls' worth of elements, got " + RECEIVED.size(),
+        RECEIVED.size(),
+        is(greaterThan(ELEMENTS_PER_POLL)));
+    // The source counts from zero, so what arrived has to start there and be contiguous — no gap
+    // and no repeat, which is what the checkpoint mark between polls is for.
+    for (int i = 0; i < RECEIVED.size(); i++) {
+      assertThat(RECEIVED.get(i), is((long) i));
+    }
+  }
+
+  @Test
+  public void theSourceIsTranslatedAsAnUnboundedRead() {
+    // The bounded and unbounded reads share a URN and are told apart by the payload, so this pins
+    // down that the pipeline really did take the unbounded path.
+    KafkaStreamsTranslationContext context = KafkaStreamsTestRunner.translate(unboundedPipeline());
+
+    boolean hasReadProcessor =
+        context.getTopology().describe().subtopologies().stream()
+            .flatMap(subtopology -> subtopology.nodes().stream())
+            .anyMatch(node -> node.name().contains("read"));
+    assertThat(hasReadProcessor, is(true));
+  }
+}

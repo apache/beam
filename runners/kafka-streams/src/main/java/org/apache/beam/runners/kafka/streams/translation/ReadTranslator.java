@@ -24,6 +24,7 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.fnexecution.wire.WireCoders;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.util.construction.ReadTranslation;
 import org.apache.beam.sdk.util.construction.RehydratedComponents;
 import org.apache.beam.sdk.util.construction.graph.PipelineNode;
@@ -77,23 +78,97 @@ class ReadTranslator implements PTransformTranslator {
     // Read produces exactly one output PCollection; downstream consumers are separate PTransforms
     // whose inputs reference this PCollection id and are wired by their own translators.
     String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
+    RunnerApi.ReadPayload payload = readPayload(transform);
+    // The same URN carries both kinds of source; the payload says which, and they need different
+    // processors. A bounded source is drained once and ends time; an unbounded one is polled
+    // forever and moves the watermark as its reader reports progress.
+    if (payload.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED) {
+      addUnboundedReadNodes(
+          transformId,
+          ReadTranslation.unboundedSourceFromProto(payload),
+          pipeline.getComponents(),
+          outputPCollectionId,
+          context);
+      return;
+    }
     addReadNodes(
         transformId,
-        boundedSource(transform),
+        boundedSource(payload, transform),
         pipeline.getComponents(),
         outputPCollectionId,
         context);
   }
 
-  private static BoundedSource<?> boundedSource(RunnerApi.PTransform transform) {
+  private static RunnerApi.ReadPayload readPayload(RunnerApi.PTransform transform) {
     try {
-      RunnerApi.ReadPayload payload =
-          RunnerApi.ReadPayload.parseFrom(transform.getSpec().getPayload());
+      return RunnerApi.ReadPayload.parseFrom(transform.getSpec().getPayload());
+    } catch (IOException e) {
+      throw new RuntimeException(
+          "Failed to read the ReadPayload from transform " + transform.getUniqueName(), e);
+    }
+  }
+
+  private static BoundedSource<?> boundedSource(
+      RunnerApi.ReadPayload payload, RunnerApi.PTransform transform) {
+    try {
       return ReadTranslation.boundedSourceFromProto(payload);
     } catch (IOException e) {
       throw new RuntimeException(
           "Failed to read the BoundedSource from transform " + transform.getUniqueName(), e);
     }
+  }
+
+  /**
+   * Adds the source, {@link UnboundedReadProcessor}, and the store holding its checkpoint mark.
+   *
+   * <p>The store keeps encoded bytes rather than the mark itself, since the mark's coder comes from
+   * the source and is only known here.
+   */
+  private <T, CheckpointT extends UnboundedSource.CheckpointMark> void addUnboundedReadNodes(
+      String transformId,
+      UnboundedSource<T, CheckpointT> source,
+      RunnerApi.Components components,
+      String outputPCollectionId,
+      KafkaStreamsTranslationContext context) {
+    PCollectionNode outputNode =
+        PipelineNode.pCollection(
+            outputPCollectionId, components.getPcollectionsOrThrow(outputPCollectionId));
+    Coder<WindowedValue<T>> sdkWireCoder = sdkWireCoder(outputNode, components);
+    Coder<WindowedValue<?>> runnerWireCoder = runnerWireCoder(outputNode, components);
+
+    Topology topology = context.getTopology();
+    String sourceNodeName = transformId + SOURCE_SUFFIX;
+    String stateStoreName = transformId + STATE_STORE_SUFFIX;
+    String bootstrapTopic = context.getReadBootstrapTopic(transformId);
+    SerializablePipelineOptions options =
+        new SerializablePipelineOptions(context.getPipelineOptions());
+    Coder<CheckpointT> checkpointCoder = source.getCheckpointMarkCoder();
+    int maxElementsPerPoll = context.getPipelineOptions().getMaxBundleSize();
+
+    topology.addSource(
+        sourceNodeName,
+        Serdes.ByteArray().deserializer(),
+        Serdes.ByteArray().deserializer(),
+        bootstrapTopic);
+    topology.addProcessor(
+        transformId,
+        () ->
+            new UnboundedReadProcessor<>(
+                source,
+                options,
+                sdkWireCoder,
+                runnerWireCoder,
+                checkpointCoder,
+                stateStoreName,
+                transformId,
+                maxElementsPerPoll),
+        sourceNodeName);
+    topology.addStateStore(
+        Stores.keyValueStoreBuilder(
+            Stores.persistentKeyValueStore(stateStoreName), Serdes.String(), Serdes.ByteArray()),
+        transformId);
+
+    context.registerPCollectionProducer(outputPCollectionId, transformId);
   }
 
   /**
