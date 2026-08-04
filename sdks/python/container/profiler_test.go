@@ -52,8 +52,10 @@ func TestActivePidsRegistry(t *testing.T) {
 
 func TestSetupProfilerConfig(t *testing.T) {
 	st, err := structpb.NewStruct(map[string]interface{}{
-		"profiler_agent": "coredump",
-		"jobId":          "test-job",
+		"options": map[string]interface{}{
+			"profiler_agent": "coredump",
+			"jobId":          "test-job",
+		},
 	})
 	if err != nil {
 		t.Fatalf("Failed to create structpb: %v", err)
