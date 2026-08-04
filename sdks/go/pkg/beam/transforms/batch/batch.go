@@ -600,7 +600,7 @@ func GroupIntoBatches(s beam.Scope, params Params, col beam.PCollection) beam.PC
 			"GroupIntoBatches: key coder for type %v is not deterministic. "+
 				"Register a deterministic custom coder with "+
 				"coder.RegisterDeterministicCoder, or use a deterministic key "+
-				"type (string, []byte, bool, integer, float).", keyFT.Type()))
+				"type (string, []byte, bool, integer, float)", keyFT.Type()))
 	}
 
 	sizerKind := sizerNone
@@ -608,7 +608,7 @@ func GroupIntoBatches(s beam.Scope, params Params, col beam.PCollection) beam.PC
 		if !isBuiltinSizeable(valFT.Type()) {
 			panic(fmt.Errorf(
 				"GroupIntoBatches: BatchSizeBytes > 0 requires value type %v "+
-					"to be a built-in primitive ([]byte, string, numeric, bool).",
+					"to be a built-in primitive ([]byte, string, numeric, bool)",
 				valFT.Type()))
 		}
 		sizerKind = sizerPrimitive
