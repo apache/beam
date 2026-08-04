@@ -116,8 +116,8 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
           "Trying to queue commit on shutdown, failing commit=[systemName={}, shardingKey={},"
               + " workId={} ].",
           commit.systemName(),
-          commit.work().getShardedKey(),
-          commit.work().id());
+          commit.workBatch().get(0).getShardedKey(),
+          commit.workBatch().get(0).id());
       drainCommitQueue();
     }
   }
