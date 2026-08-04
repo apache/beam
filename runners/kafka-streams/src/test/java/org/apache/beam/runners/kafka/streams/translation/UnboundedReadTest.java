@@ -17,10 +17,12 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
+import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -28,11 +30,16 @@ import java.util.List;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsPipelineOptions;
 import org.apache.beam.runners.kafka.streams.KafkaStreamsTestRunner;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.CountingSource.CounterMark;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.kafka.streams.TopologyTestDriver;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -140,6 +147,51 @@ public class UnboundedReadTest {
     // Every element exactly once: the source finished, and the turns after it finished added
     // nothing.
     assertThat(RECEIVED.size(), is(ELEMENTS));
+  }
+
+  /** A source that ignores the requested split count and always returns two parts. */
+  private static class TwoSplitSource extends UnboundedSource<Long, CounterMark> {
+    private final UnboundedSource<Long, CounterMark> delegate = CountingSource.unbounded();
+
+    @Override
+    public List<? extends UnboundedSource<Long, CounterMark>> split(
+        int desiredNumSplits, PipelineOptions options) throws Exception {
+      return delegate.split(2, options);
+    }
+
+    @Override
+    public UnboundedReader<Long> createReader(
+        PipelineOptions options, @Nullable CounterMark checkpointMark) throws IOException {
+      return delegate.createReader(options, checkpointMark);
+    }
+
+    @Override
+    public Coder<CounterMark> getCheckpointMarkCoder() {
+      return delegate.getCheckpointMarkCoder();
+    }
+
+    @Override
+    public Coder<Long> getOutputCoder() {
+      return delegate.getOutputCoder();
+    }
+  }
+
+  @Test
+  public void aSourceThatSplitsIntoSeveralPartsIsRejectedRatherThanTruncated() {
+    // The count passed to split() is only a hint. Reading the first part of several and ignoring
+    // the rest would silently drop their data, so translation has to fail instead.
+    Pipeline pipeline = Pipeline.create(KafkaStreamsTestRunner.testOptions());
+    pipeline
+        .apply("read", Read.from(new TwoSplitSource()))
+        .apply("record", ParDo.of(new RecordFn()));
+
+    try {
+      KafkaStreamsTestRunner.translate(pipeline);
+      throw new AssertionError("expected a multi-split source to be rejected");
+    } catch (UnsupportedOperationException e) {
+      assertThat(e.getMessage(), containsString("split into 2 parts"));
+      assertThat(e.getMessage(), containsString("drop the data"));
+    }
   }
 
   @Test

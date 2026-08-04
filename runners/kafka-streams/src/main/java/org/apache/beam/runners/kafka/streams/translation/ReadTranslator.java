@@ -18,6 +18,7 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import java.io.IOException;
+import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.ExecutableStagePayload.WireCoderSetting;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -129,7 +130,11 @@ class ReadTranslator implements PTransformTranslator {
     String bootstrapTopic = context.getReadBootstrapTopic(transformId);
     SerializablePipelineOptions options =
         new SerializablePipelineOptions(context.getPipelineOptions());
-    Coder<CheckpointT> checkpointCoder = source.getCheckpointMarkCoder();
+    // Split here rather than in the processor: splitting belongs to translation, where it happens
+    // once for the pipeline instead of once per task instance, and the contract says nothing about
+    // splitting a source that has already been split.
+    UnboundedSource<T, CheckpointT> readableSource = singleSplitOf(source, context);
+    Coder<CheckpointT> checkpointCoder = readableSource.getCheckpointMarkCoder();
     int maxElementsPerPoll = context.getPipelineOptions().getMaxBundleSize();
     int checkpointEveryNPolls = context.getPipelineOptions().getReadCheckpointNumBundles();
 
@@ -142,7 +147,7 @@ class ReadTranslator implements PTransformTranslator {
         transformId,
         () ->
             new UnboundedReadProcessor<>(
-                source,
+                readableSource,
                 options,
                 sdkWireCoder,
                 runnerWireCoder,
@@ -200,6 +205,38 @@ class ReadTranslator implements PTransformTranslator {
         Stores.keyValueStoreBuilder(storeSupplier, Serdes.String(), Serdes.Boolean()), transformId);
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);
+  }
+
+  /**
+   * Splits an unbounded source into the single part this runner reads.
+   *
+   * <p>A source is not obliged to be readable in its unsplit form — {@code split} is where several
+   * of them do their setup — so it is asked to split even though only one part is wanted. The count
+   * passed to {@code split} is only a hint, so what comes back has to be checked: taking the first
+   * of several splits would quietly drop whatever the others would have produced, which is data
+   * loss rather than a missing feature, so it fails instead.
+   */
+  private static <T, CheckpointT extends UnboundedSource.CheckpointMark>
+      UnboundedSource<T, CheckpointT> singleSplitOf(
+          UnboundedSource<T, CheckpointT> source, KafkaStreamsTranslationContext context) {
+    List<? extends UnboundedSource<T, CheckpointT>> splits;
+    try {
+      splits = source.split(1, context.getPipelineOptions());
+    } catch (Exception e) {
+      throw new RuntimeException("Failed to split unbounded source " + source, e);
+    }
+    if (splits.size() != 1) {
+      throw new UnsupportedOperationException(
+          "Unbounded source "
+              + source
+              + " split into "
+              + splits.size()
+              + " parts, but the Kafka Streams runner reads a source with a single reader and"
+              + " would therefore drop the data of every part but the first. Reading several"
+              + " splits in parallel is not supported yet; see"
+              + " https://github.com/apache/beam/issues/18479.");
+    }
+    return splits.get(0);
   }
 
   /** The coder the SDK harness would use on the wire, keeping unknown element coders intact. */
