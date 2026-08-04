@@ -28,9 +28,10 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 )
 
-// Each input element is a (user, event) pair. After GroupIntoBatches,
-// each batch holds up to 100 events for a single user, ready to be
-// written to a BigQuery sink that accepts bulk inserts.
+// ExampleGroupIntoBatches is an example of using the GroupIntoBatches
+// transform. Each input element is a (user, event) pair. After
+// GroupIntoBatches, each batch holds up to 100 events for a single user,
+// ready to be written to a BigQuery sink that accepts bulk inserts.
 func ExampleGroupIntoBatches() {
 	p := beam.NewPipeline()
 	s := p.Root()
