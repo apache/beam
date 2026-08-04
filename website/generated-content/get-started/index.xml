@@ -6039,7 +6039,7 @@ by the runner, giving it the flexibility to do efficient, distributed execution.
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">gsutil ls gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
+&lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">gcloud storage ls gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
 &lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
@@ -6105,7 +6105,7 @@ word.&lt;/li>
 &lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
 &lt;img src="/images/copy-icon.svg"/>
 &lt;/a>
-&lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">gsutil cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
+&lt;pre tabindex="0">&lt;code class="language-dataflow" data-lang="dataflow">gcloud storage cat gs://&amp;lt;your-gcs-bucket&amp;gt;/counts*
 &lt;/code>&lt;/pre>
 &lt;/div>
 &lt;/div>
