@@ -54,14 +54,14 @@ type PipelineOptions struct {
 }
 
 // ParseOptionsFromProto creates normalized PipelineOptions directly from a protobuf Struct.
-func ParseOptionsFromProto(opt *structpb.Struct) (*PipelineOptions, error) {
+func ParseOptionsFromProto(opt *structpb.Struct, sdkNamespace string) (*PipelineOptions, error) {
 	if opt == nil {
 		return &PipelineOptions{options: make(map[string]any), experiments: make(map[string]string)}, nil
 	}
 	raw := opt.AsMap()
 	flat := make(map[string]any)
 
-	// 1. Extract nested options if present (Dataflow style)
+	// 1. Extract nested options if present (Dataflow runner uses this structure)
 	if optsVal, ok := raw["options"]; ok {
 		if optsMap, ok := optsVal.(map[string]any); ok {
 			for k, v := range optsMap {
@@ -70,7 +70,7 @@ func ParseOptionsFromProto(opt *structpb.Struct) (*PipelineOptions, error) {
 		}
 	}
 
-	// 2. Extract flat options and URN keys (Portable runner style)
+	// 2. Extract standard URN keys (Portable runners use this structure)
 	for k, v := range raw {
 		if k == "options" || k == "display_data" {
 			continue
@@ -79,19 +79,21 @@ func ParseOptionsFromProto(opt *structpb.Struct) (*PipelineOptions, error) {
 			name := strings.TrimPrefix(k, "beam:option:")
 			name = strings.TrimSuffix(name, ":v1")
 			flat[name] = v
+		}
+	}
 
-			// If the URN option has a nested "options" map, promote its keys.
-			// This is required to support the Go SDK, which wraps all of its pipeline options
-			// inside the URN namespace "beam:option:go_options:v1" -> "options".
-			if urnMap, ok := v.(map[string]any); ok {
+	// 3. Promote specified SDK namespace options (Highest precedence, may overwrite earlier entries).
+	// Beam Go SDK uses this structure.
+	if sdkNamespace != "" {
+		sdkURN := fmt.Sprintf("beam:option:%s:v1", sdkNamespace)
+		if sdkVal, ok := raw[sdkURN]; ok {
+			if urnMap, ok := sdkVal.(map[string]any); ok {
 				if nestedOpts, ok := urnMap["options"].(map[string]any); ok {
 					for nk, nv := range nestedOpts {
 						flat[nk] = nv
 					}
 				}
 			}
-		} else {
-			flat[k] = v
 		}
 	}
 

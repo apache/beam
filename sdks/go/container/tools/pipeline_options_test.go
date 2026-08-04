@@ -35,7 +35,7 @@ func parseOptionsForTest(t *testing.T, options string) *PipelineOptions {
 	if err != nil {
 		t.Fatalf("failed to create structpb for test: %v", err)
 	}
-	po, err := ParseOptionsFromProto(st)
+	po, err := ParseOptionsFromProto(st, "go_options")
 	if err != nil {
 		t.Fatalf("ParseOptionsFromProto failed: %v", err)
 	}
@@ -169,7 +169,7 @@ func TestPipelineOptions(t *testing.T) {
 
 func TestPipelineOptions_Errors(t *testing.T) {
 	t.Run("malformed integer", func(t *testing.T) {
-		po := parseOptionsForTest(t, `{"profile_upload_interval_sec": "invalid"}`)
+		po := parseOptionsForTest(t, `{"options": {"profile_upload_interval_sec": "invalid"}}`)
 		_, err := po.GetInt("profile_upload_interval_sec")
 		if err == nil {
 			t.Errorf("expected error, got nil")
@@ -177,7 +177,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 	})
 
 	t.Run("malformed bool", func(t *testing.T) {
-		po := parseOptionsForTest(t, `{"profiler_stop_after_crash": "maybe"}`)
+		po := parseOptionsForTest(t, `{"options": {"profiler_stop_after_crash": "maybe"}}`)
 		_, err := po.GetBool("profiler_stop_after_crash")
 		if err == nil {
 			t.Errorf("expected error, got nil")
@@ -185,7 +185,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 	})
 
 	t.Run("type mismatch int expected got bool", func(t *testing.T) {
-		po := parseOptionsForTest(t, `{"profile_upload_interval_sec": true}`)
+		po := parseOptionsForTest(t, `{"options": {"profile_upload_interval_sec": true}}`)
 		_, err := po.GetInt("profile_upload_interval_sec")
 		if err == nil {
 			t.Errorf("expected error, got nil")
@@ -202,7 +202,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 	})
 
 	t.Run("HasOption", func(t *testing.T) {
-		po := parseOptionsForTest(t, `{"profile_upload_interval_sec": 10}`)
+		po := parseOptionsForTest(t, `{"options": {"profile_upload_interval_sec": 10}}`)
 		if !po.HasOption("profile_upload_interval_sec") {
 			t.Errorf("HasOption(profile_upload_interval_sec) = false, want true")
 		}
@@ -212,7 +212,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 	})
 
 	t.Run("HasExperiment", func(t *testing.T) {
-		po := parseOptionsForTest(t, `{"experiments": ["exp1", "exp2=val2"]}`)
+		po := parseOptionsForTest(t, `{"options": {"experiments": ["exp1", "exp2=val2"]}}`)
 		if !po.HasExperiment("exp1") {
 			t.Errorf("HasExperiment(exp1) = false, want true")
 		}
@@ -225,7 +225,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 	})
 
 	t.Run("LookupExperiment", func(t *testing.T) {
-		po := parseOptionsForTest(t, `{"experiments": ["exp1", "exp2=val2", "exp3=val3=val4"]}`)
+		po := parseOptionsForTest(t, `{"options": {"experiments": ["exp1", "exp2=val2", "exp3=val3=val4"]}}`)
 		
 		val, ok := po.LookupExperiment("exp1")
 		if !ok || val != "" {
@@ -266,7 +266,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 			t.Fatalf("failed to create proto Struct: %v", err)
 		}
 
-		po, err := ParseOptionsFromProto(optionsStruct)
+		po, err := ParseOptionsFromProto(optionsStruct, "go_options")
 		if err != nil {
 			t.Fatalf("ParseOptionsFromProto failed: %v", err)
 		}

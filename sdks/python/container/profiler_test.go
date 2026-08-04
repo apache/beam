@@ -59,7 +59,7 @@ func TestSetupProfilerConfig(t *testing.T) {
 		t.Fatalf("Failed to create structpb: %v", err)
 	}
 
-	po, err := tools.ParseOptionsFromProto(st)
+	po, err := tools.ParseOptionsFromProto(st, "")
 	if err != nil {
 		t.Fatalf("Failed to parse pipeline options: %v", err)
 	}

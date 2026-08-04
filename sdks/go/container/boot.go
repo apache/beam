@@ -159,7 +159,8 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
-	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions())
+	// Go SDK wraps pipeline options inside the URN namespace: "beam:option:go_options:v1".
+	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "go_options")
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to parse pipeline options: %v", err)
 	}
