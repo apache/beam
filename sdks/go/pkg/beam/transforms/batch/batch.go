@@ -55,14 +55,6 @@
 //   - BatchSizeBytes is limited to primitive value types ([]byte,
 //     string, numeric, bool) in this release; opaque V types panic at
 //     build time if BatchSizeBytes > 0.
-//   - GroupIntoBatchesWithShardedKey returns PCollection<KV<K, []V>>
-//     (same shape as GroupIntoBatches), with sharding applied
-//     internally. The Java/Python variants expose ShardedKey<K> to the
-//     user; Go does not because the SDK's type-binding engine does not
-//     accept custom generic structs as DoFn output types. The
-//     cross-SDK beam:coder:sharded_key:v1 coder is nevertheless wired
-//     in typex + core/graph/coder so cross-language pipelines can
-//     round-trip ShardedKey values.
 package batch
 
 import (
