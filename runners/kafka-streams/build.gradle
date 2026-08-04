@@ -113,8 +113,9 @@ def sickbayTests = [
   // Merging (session) windows are not supported yet: ReduceFnRunner drives them through a merging
   // window set that moves per-window state as windows merge, which this first windowing pass does
   // not implement. Non-merging windows (fixed, sliding), the default trigger and timestamp
-  // combiners do work. Lands with the follow-up windowing PR.
+  // combiners do work, for both GroupByKey and Combine. Lands with the follow-up windowing PR.
   'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows',
+  'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine',
   // A DoFn whose @StartBundle throws never gets to report its error: SdkHarnessClient.newBundle
   // sends the ProcessBundleRequest and then blocks in GrpcDataService.createOutboundAggregator
   // waiting for the SDK harness to open its data stream, which a bundle that failed during setup
@@ -177,6 +178,7 @@ tasks.register("validatesRunner", Test) {
     includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest'
     includeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest*'
     includeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest*'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest*'
     for (String test : sickbayTests) {
       excludeTestsMatching test
     }

@@ -57,8 +57,14 @@ class FlattenTranslator implements PTransformTranslator {
     Set<String> seenInputs = new HashSet<>();
     List<String> parentProcessors = new ArrayList<>();
     Set<String> upstreamTransformIds = new HashSet<>();
-    // Kafka Streams puts a processor and the parents it is wired to in one subtopology, so the
-    // inputs are co-partitioned and this Flatten runs at their partition count.
+    // How many instances this Flatten runs as. Kafka Streams merges the subtopologies of every
+    // parent a processor is wired to and gives the merged subtopology as many tasks as its largest
+    // source topic has partitions, so the max is what that comes to. In practice the inputs agree:
+    // a Flatten whose branches could disagree — one through a GroupByKey, one straight from a
+    // source — is fused into the harness stage instead of becoming a node here, and the runner
+    // Flattens that do reach this translator come from the fuser deduplicating partial outputs of
+    // one PCollection. The max is kept as the cheap conservative choice rather than asserting that
+    // agreement, which is not enforced anywhere.
     int partitionCount = 1;
     for (String inputPCollectionId : transform.getInputsMap().values()) {
       if (!seenInputs.add(inputPCollectionId)) {

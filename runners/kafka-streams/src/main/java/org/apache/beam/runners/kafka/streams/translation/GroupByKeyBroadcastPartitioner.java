@@ -56,7 +56,10 @@ class GroupByKeyBroadcastPartitioner<T> implements StreamPartitioner<byte[], KSt
       }
       return Optional.of(all);
     }
-    int partition = Utils.toPositive(Utils.murmur2(key)) % numPartitions;
+    // A keyless record — a stateless stage carries no key — has nowhere in particular to go, so
+    // send it to partition 0 rather than hashing a null. This is the method Kafka Streams calls,
+    // so the guard has to be here and not only on partition() above.
+    int partition = key == null ? 0 : Utils.toPositive(Utils.murmur2(key)) % numPartitions;
     return Optional.of(Collections.singleton(partition));
   }
 }
