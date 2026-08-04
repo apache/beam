@@ -78,43 +78,30 @@ class ReadTranslator implements PTransformTranslator {
     // Read produces exactly one output PCollection; downstream consumers are separate PTransforms
     // whose inputs reference this PCollection id and are wired by their own translators.
     String outputPCollectionId = Iterables.getOnlyElement(transform.getOutputsMap().values());
-    RunnerApi.ReadPayload payload = readPayload(transform);
-    // The same URN carries both kinds of source; the payload says which, and they need different
-    // processors. A bounded source is drained once and ends time; an unbounded one is polled
-    // forever and moves the watermark as its reader reports progress.
-    if (payload.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED) {
-      addUnboundedReadNodes(
-          transformId,
-          ReadTranslation.unboundedSourceFromProto(payload),
-          pipeline.getComponents(),
-          outputPCollectionId,
-          context);
-      return;
-    }
-    addReadNodes(
-        transformId,
-        boundedSource(payload, transform),
-        pipeline.getComponents(),
-        outputPCollectionId,
-        context);
-  }
-
-  private static RunnerApi.ReadPayload readPayload(RunnerApi.PTransform transform) {
     try {
-      return RunnerApi.ReadPayload.parseFrom(transform.getSpec().getPayload());
+      RunnerApi.ReadPayload payload =
+          RunnerApi.ReadPayload.parseFrom(transform.getSpec().getPayload());
+      // The same URN carries both kinds of source; the payload says which, and they need different
+      // processors. A bounded source is drained once and ends time; an unbounded one is polled
+      // repeatedly and moves the watermark as its reader reports progress.
+      if (payload.getIsBounded() == RunnerApi.IsBounded.Enum.UNBOUNDED) {
+        addUnboundedReadNodes(
+            transformId,
+            ReadTranslation.unboundedSourceFromProto(payload),
+            pipeline.getComponents(),
+            outputPCollectionId,
+            context);
+      } else {
+        addReadNodes(
+            transformId,
+            ReadTranslation.boundedSourceFromProto(payload),
+            pipeline.getComponents(),
+            outputPCollectionId,
+            context);
+      }
     } catch (IOException e) {
       throw new RuntimeException(
-          "Failed to read the ReadPayload from transform " + transform.getUniqueName(), e);
-    }
-  }
-
-  private static BoundedSource<?> boundedSource(
-      RunnerApi.ReadPayload payload, RunnerApi.PTransform transform) {
-    try {
-      return ReadTranslation.boundedSourceFromProto(payload);
-    } catch (IOException e) {
-      throw new RuntimeException(
-          "Failed to read the BoundedSource from transform " + transform.getUniqueName(), e);
+          "Failed to read the source from transform " + transform.getUniqueName(), e);
     }
   }
 
@@ -144,6 +131,7 @@ class ReadTranslator implements PTransformTranslator {
         new SerializablePipelineOptions(context.getPipelineOptions());
     Coder<CheckpointT> checkpointCoder = source.getCheckpointMarkCoder();
     int maxElementsPerPoll = context.getPipelineOptions().getMaxBundleSize();
+    int checkpointEveryNPolls = context.getPipelineOptions().getReadCheckpointNumBundles();
 
     topology.addSource(
         sourceNodeName,
@@ -161,7 +149,8 @@ class ReadTranslator implements PTransformTranslator {
                 checkpointCoder,
                 stateStoreName,
                 transformId,
-                maxElementsPerPoll),
+                maxElementsPerPoll,
+                checkpointEveryNPolls),
         sourceNodeName);
     topology.addStateStore(
         Stores.keyValueStoreBuilder(

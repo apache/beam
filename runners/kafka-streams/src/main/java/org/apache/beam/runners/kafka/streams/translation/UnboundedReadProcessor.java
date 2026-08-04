@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.kafka.streams.processor.Cancellable;
 import org.apache.kafka.streams.processor.PunctuationType;
 import org.apache.kafka.streams.processor.api.Processor;
 import org.apache.kafka.streams.processor.api.ProcessorContext;
@@ -87,12 +88,17 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
   private final String stateStoreName;
   private final String transformId;
   private final int maxElementsPerPoll;
+  private final int checkpointEveryNPolls;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable KeyValueStore<String, byte[]> checkpointStore;
   private @Nullable UnboundedReader<T> reader;
   private boolean readerStarted;
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
+  /** Set once the source's watermark reaches the end of time; it will produce nothing more. */
+  private boolean exhausted;
+
+  private @Nullable Cancellable scheduledPunctuator;
 
   UnboundedReadProcessor(
       UnboundedSource<T, CheckpointT> source,
@@ -102,7 +108,8 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
       Coder<CheckpointT> checkpointCoder,
       String stateStoreName,
       String transformId,
-      int maxElementsPerPoll) {
+      int maxElementsPerPoll,
+      int checkpointEveryNPolls) {
     this.source = source;
     this.options = options;
     this.sdkWireCoder = sdkWireCoder;
@@ -111,13 +118,15 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     this.stateStoreName = stateStoreName;
     this.transformId = transformId;
     this.maxElementsPerPoll = maxElementsPerPoll;
+    this.checkpointEveryNPolls = checkpointEveryNPolls;
   }
 
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
     this.checkpointStore = context.getStateStore(stateStoreName);
-    context.schedule(POLL_INTERVAL, PunctuationType.WALL_CLOCK_TIME, timestamp -> poll());
+    this.scheduledPunctuator =
+        context.schedule(POLL_INTERVAL, PunctuationType.WALL_CLOCK_TIME, timestamp -> poll());
   }
 
   @Override
@@ -127,10 +136,58 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     poll();
   }
 
-  /** Reads up to a bounded number of elements, forwards them, then publishes the watermark. */
+  /**
+   * Drains what the source currently has, in batches, then publishes the watermark.
+   *
+   * <p>A batch is capped at {@link #maxElementsPerPoll} so that the checkpoint mark and the
+   * watermark are updated as the reader progresses rather than only at the end. Batches run back to
+   * back while the source keeps filling them, since returning after every batch would cap
+   * throughput at one batch per punctuation interval.
+   *
+   * <p>The run is bounded all the same. A source that always has data — which is the normal case
+   * for one that is keeping up — would otherwise never let this method return, and the Kafka
+   * Streams thread would never get back to committing or to the rest of the topology. So at most
+   * {@link #checkpointEveryNPolls} batches are taken before yielding, which is also where the
+   * checkpoint mark is stored, and the next punctuation carries on from there.
+   */
   private void poll() {
+    if (exhausted) {
+      return;
+    }
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     UnboundedReader<T> currentReader = ensureReader();
+    for (int batch = 0; batch < checkpointEveryNPolls; batch++) {
+      int emitted = readBatch(ctx, currentReader);
+      Instant watermark = currentReader.getWatermark();
+      forwardWatermarkIfAdvanced(ctx, watermark);
+      if (!watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        // The source has declared it will produce nothing further, so stop polling it. Store the
+        // final position first, since the loop will not come back to it.
+        storeCheckpoint(currentReader);
+        exhausted = true;
+        Cancellable punctuator = scheduledPunctuator;
+        if (punctuator != null) {
+          punctuator.cancel();
+          scheduledPunctuator = null;
+        }
+        return;
+      }
+      if (emitted < maxElementsPerPoll) {
+        // Short batch: the source has nothing more for now, so store what was read and wait for
+        // the next punctuation rather than spinning on a reader that keeps returning false.
+        if (emitted > 0) {
+          storeCheckpoint(currentReader);
+        }
+        return;
+      }
+    }
+    // Yielded on the batch bound rather than on an empty source, so record the position reached.
+    storeCheckpoint(currentReader);
+  }
+
+  /** Forwards up to {@link #maxElementsPerPoll} elements, returning how many were available. */
+  private int readBatch(
+      ProcessorContext<byte[], KStreamsPayload<?>> ctx, UnboundedReader<T> currentReader) {
     int emitted = 0;
     try {
       while (emitted < maxElementsPerPoll) {
@@ -153,12 +210,7 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     } catch (IOException e) {
       throw new RuntimeException("Failed to read unbounded source for transform " + transformId, e);
     }
-    if (emitted > 0) {
-      // Record the position only after the elements it covers have been forwarded, so the stored
-      // mark can never claim more progress than was actually emitted.
-      storeCheckpoint(currentReader);
-    }
-    forwardWatermarkIfAdvanced(ctx, currentReader.getWatermark());
+    return emitted;
   }
 
   /** Publishes the reader's watermark, which is what lets downstream windows close. */

@@ -51,6 +51,9 @@ public class UnboundedReadTest {
   /** How many elements one poll of the source may take. */
   private static final int ELEMENTS_PER_POLL = 5;
 
+  /** Elements the finite variant of the source produces before ending time. */
+  private static final int ELEMENTS = 12;
+
   /** Elements the pipeline has seen, recorded in order. */
   private static final List<Long> RECEIVED = Collections.synchronizedList(new ArrayList<>());
 
@@ -110,6 +113,33 @@ public class UnboundedReadTest {
     for (int i = 0; i < RECEIVED.size(); i++) {
       assertThat(RECEIVED.get(i), is((long) i));
     }
+  }
+
+  @Test
+  public void aSourceThatReachesTheEndOfTimeStopsBeingPolled() {
+    // CountingSource.unbounded() with a limit reports the terminal watermark once it has produced
+    // its elements, which is a source saying it will yield nothing further. Polling must stop
+    // there rather than spinning on a reader that can only return false.
+    KafkaStreamsPipelineOptions options =
+        KafkaStreamsTestRunner.testOptions().as(KafkaStreamsPipelineOptions.class);
+    options.setMaxBundleSize(ELEMENTS_PER_POLL);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("read", Read.from(CountingSource.unbounded()).withMaxNumRecords(ELEMENTS))
+        .apply("record", ParDo.of(new RecordFn()));
+
+    KafkaStreamsTranslationContext context = KafkaStreamsTestRunner.translate(pipeline);
+    try (TopologyTestDriver driver =
+        new TopologyTestDriver(
+            context.getTopology(), KafkaStreamsTestRunner.streamsConfig(pipeline))) {
+      for (int turn = 0; turn < 10; turn++) {
+        driver.advanceWallClockTime(Duration.ofMillis(100));
+      }
+    }
+
+    // Every element exactly once: the source finished, and the turns after it finished added
+    // nothing.
+    assertThat(RECEIVED.size(), is(ELEMENTS));
   }
 
   @Test

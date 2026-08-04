@@ -77,6 +77,16 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
 
   void setTopicReplicationFactor(short topicReplicationFactor);
 
+  @Description(
+      "How many non-empty polls of an unbounded source to make before storing its checkpoint mark."
+          + " Taking a mark can be costly for some sources, so it is not worth doing on every poll;"
+          + " the cost of a larger value is that more elements are replayed after a restart, since"
+          + " the reader resumes from the last mark that was stored.")
+  @Default.Integer(10)
+  int getReadCheckpointNumBundles();
+
+  void setReadCheckpointNumBundles(int readCheckpointNumBundles);
+
   @Description("Directory where Kafka Streams stores local state.")
   @Default.InstanceFactory(StateDirDefaultFactory.class)
   String getStateDir();
