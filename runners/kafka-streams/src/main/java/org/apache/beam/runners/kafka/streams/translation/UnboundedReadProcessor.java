@@ -19,6 +19,7 @@ package org.apache.beam.runners.kafka.streams.translation;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.List;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
@@ -61,11 +62,12 @@ import org.slf4j.LoggerFactory;
  * store is changelogged and, under exactly-once, its writes commit atomically with the records the
  * processor forwarded, so the mark can never be ahead of the data that was actually emitted.
  *
- * <p>The source is read in a single instance with no splitting, so a source with several splits is
- * consumed by one reader; distributing splits across instances arrives with the topic-based shuffle
- * work (#18479). As in the bounded processor, Kafka Streams disallows negative record timestamps,
- * so each forwarded {@link Record} carries the Unix epoch and the Beam event time travels inside
- * the {@link WindowedValue}.
+ * <p>The source is split into one part and read by a single reader. Splitting is asked for even
+ * though only one part is wanted, because a source is not obliged to be readable in its unsplit
+ * form and several do their setup there. Distributing several splits across instances arrives with
+ * the topic-based shuffle work (#18479). As in the bounded processor, Kafka Streams disallows
+ * negative record timestamps, so each forwarded {@link Record} carries the Unix epoch and the Beam
+ * event time travels inside the {@link WindowedValue}.
  */
 class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     implements Processor<byte[], byte[], byte[], KStreamsPayload<?>> {
@@ -232,10 +234,16 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
       return existing;
     }
     try {
-      UnboundedReader<T> created = source.createReader(options.get(), restoreCheckpoint());
+      // Split before reading. A source is not obliged to be readable in its unsplit form — split()
+      // is where several of them do their setup — so going through it even for a single reader is
+      // the supported path. One split, because this processor is a single instance; distributing
+      // splits across instances is tracked separately.
+      List<? extends UnboundedSource<T, CheckpointT>> splits = source.split(1, options.get());
+      UnboundedSource<T, CheckpointT> readable = splits.isEmpty() ? source : splits.get(0);
+      UnboundedReader<T> created = readable.createReader(options.get(), restoreCheckpoint());
       reader = created;
       return created;
-    } catch (IOException e) {
+    } catch (Exception e) {
       throw new RuntimeException(
           "Failed to create a reader for unbounded source in transform " + transformId, e);
     }
