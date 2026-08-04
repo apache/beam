@@ -42,6 +42,7 @@ def kafkaVersions = [
 kafkaVersions.each{k,v -> configurations.create("kafkaVersion$k")}
 
 dependencies {
+  implementation platform(library.java.opentelemetry_bom)
   implementation library.java.vendored_guava_32_1_2_jre
   provided library.java.jackson_dataformat_csv
   permitUnusedDeclared library.java.jackson_dataformat_csv
