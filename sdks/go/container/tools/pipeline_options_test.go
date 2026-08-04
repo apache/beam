@@ -135,6 +135,28 @@ func TestPipelineOptions(t *testing.T) {
 				}
 			},
 		},
+		{
+			"comma-separated string options parsed as slice (Go SDK style)",
+			`{
+				"options": {
+					"experiments": "exp1,exp2,exp3",
+					"dataflow_service_options": "opt1"
+				}
+			}`,
+			func(t *testing.T, po *PipelineOptions) {
+				experiments, err := po.GetStringSlice("experiments")
+				if err != nil || len(experiments) != 3 || experiments[0] != "exp1" || experiments[1] != "exp2" || experiments[2] != "exp3" {
+					t.Errorf("GetStringSlice(experiments) = (%v, %v), want ([exp1, exp2, exp3], nil)", experiments, err)
+				}
+				if !po.HasExperiment("exp1") || !po.HasExperiment("exp2") || !po.HasExperiment("exp3") {
+					t.Errorf("expected experiments exp1, exp2, and exp3 to be present, experiments map: %+v", po.experiments)
+				}
+				serviceOpts, err := po.GetStringSlice("dataflow_service_options")
+				if err != nil || len(serviceOpts) != 1 || serviceOpts[0] != "opt1" {
+					t.Errorf("GetStringSlice(dataflow_service_options) = (%v, %v), want ([opt1], nil)", serviceOpts, err)
+				}
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -256,6 +278,17 @@ func TestPipelineOptions_Errors(t *testing.T) {
 		}
 		if got, err := po.GetString("dataflow_service_options"); err != nil || got != "enable_google_cloud_profiler=custom_profiler" {
 			t.Errorf("GetString(dataflow_service_options) = (%q, %v), want (\"enable_google_cloud_profiler=custom_profiler\", nil)", got, err)
+		}
+		goOpts, ok := po.options["go_options"].(map[string]any)
+		if !ok {
+			t.Errorf("expected go_options map to be present, options: %+v", po.options)
+		}
+		nestedOpts, ok := goOpts["options"].(map[string]any)
+		if !ok {
+			t.Errorf("expected nested options map inside go_options, got: %+v", goOpts)
+		}
+		if got := nestedOpts["dataflow_service_options"]; got != "enable_google_cloud_profiler=custom_profiler" {
+			t.Errorf("got dataflow_service_options = %v, want enable_google_cloud_profiler=custom_profiler", got)
 		}
 	})
 }

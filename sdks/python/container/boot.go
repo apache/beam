@@ -167,8 +167,6 @@ func launchSDKProcess() error {
 
 	// (1) Obtain the pipeline options
 
-
-
 	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions())
 	if err != nil {
 		logger.Fatalf(ctx, "Failed to parse pipeline options: %v", err)

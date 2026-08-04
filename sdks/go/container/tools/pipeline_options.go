@@ -80,7 +80,9 @@ func ParseOptionsFromProto(opt *structpb.Struct) (*PipelineOptions, error) {
 			name = strings.TrimSuffix(name, ":v1")
 			flat[name] = v
 
-			// If the URN option has a nested "options" map (e.g. go_options -> options), promote its keys
+			// If the URN option has a nested "options" map, promote its keys.
+			// This is required to support the Go SDK, which wraps all of its pipeline options
+			// inside the URN namespace "beam:option:go_options:v1" -> "options".
 			if urnMap, ok := v.(map[string]any); ok {
 				if nestedOpts, ok := urnMap["options"].(map[string]any); ok {
 					for nk, nv := range nestedOpts {
@@ -97,33 +99,22 @@ func ParseOptionsFromProto(opt *structpb.Struct) (*PipelineOptions, error) {
 		options:     flat,
 		experiments: make(map[string]string),
 	}
-	if expsVal, ok := flat["experiments"]; ok {
-		if exps, err := parseExperiments(expsVal); err == nil {
-			po.experiments = exps
+	if exps, err := po.GetStringSlice("experiments"); err == nil {
+		if expsMap, err := parseExperiments(exps); err == nil {
+			po.experiments = expsMap
 		}
 	}
-
 	return po, nil
 }
 
-func parseExperiments(val any) (map[string]string, error) {
-	if val == nil {
-		return make(map[string]string), nil
-	}
+func parseExperiments(slice []string) (map[string]string, error) {
 	res := make(map[string]string)
-	slice, ok := val.([]any)
-	if !ok {
-		return nil, fmt.Errorf("pipeline option 'experiments' is not a list: %T", val)
-	}
-
 	for _, item := range slice {
-		if str, ok := item.(string); ok {
-			if strings.Contains(str, "=") {
-				parts := strings.SplitN(str, "=", 2)
-				res[parts[0]] = parts[1]
-			} else {
-				res[str] = ""
-			}
+		if strings.Contains(item, "=") {
+			parts := strings.SplitN(item, "=", 2)
+			res[parts[0]] = parts[1]
+		} else {
+			res[item] = ""
 		}
 	}
 	return res, nil
@@ -163,6 +154,14 @@ func (po *PipelineOptions) GetStringSlice(name string) ([]string, error) {
 			}
 		}
 		return res, nil
+	}
+	if str, ok := val.(string); ok {
+		// Go SDK models multi-value list flags (like experiments or dataflow_service_options)
+		// as comma-separated string flags rather than JSON arrays.
+		if str == "" {
+			return nil, nil
+		}
+		return strings.Split(str, ","), nil
 	}
 	return nil, fmt.Errorf("option %q: expected string slice, got type %T", name, val)
 }
