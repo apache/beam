@@ -34,7 +34,6 @@ Runners execute Beam pipelines on distributed processing backends. Each runner t
 | Dataflow | `runners/google-cloud-dataflow-java/` | Google Cloud Dataflow |
 | Flink | `runners/flink/` | Apache Flink |
 | Spark | `runners/spark/` | Apache Spark |
-| Samza | `runners/samza/` | Apache Samza |
 | Jet | `runners/jet/` | Hazelcast Jet |
 | Twister2 | `runners/twister2/` | Twister2 |
 

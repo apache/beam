@@ -55,6 +55,7 @@ public final class ApplianceShuffleWriter implements ShuffleWriter {
   }
 
   @Override
+  @SuppressWarnings("Finalize")
   protected void finalize() {
     destroy();
   }

@@ -67,6 +67,7 @@ any backwards-compatibility guarantee.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import datetime
 import decimal
 import logging
@@ -106,6 +107,9 @@ from apache_beam.utils.python_callable import PythonCallableWithSource
 from apache_beam.utils.timestamp import Timestamp
 
 PYTHON_ANY_URN = "beam:logical:pythonsdk_any:v1"
+_PYTHON_ANY_FIELD_TYPE_BYTE = "_pythonsdk_any_type_byte"
+_PYTHON_ANY_FIELD_PAYLOAD = "payload"
+_SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding"
 
 # Bi-directional mappings
 _PRIMITIVES = (
@@ -255,6 +259,41 @@ def schema_field(
       description=description)
 
 
+def _python_any_schema_pb2(has_repr):
+  # A portable schema matches FastPrimitivesCoder encoded values
+  if has_repr:
+    representation = schema_pb2.FieldType(
+        nullable=False,
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name=_PYTHON_ANY_FIELD_TYPE_BYTE,
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTE, nullable=False)),
+                    schema_pb2.Field(
+                        name=_PYTHON_ANY_FIELD_PAYLOAD,
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTES, nullable=False))
+                ],
+                options=[
+                    schema_pb2.Option(
+                        name=_SCHEMA_OPTION_STATIC_ENCODING,
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BOOLEAN),
+                        value=schema_pb2.FieldValue(
+                            atomic_value=schema_pb2.AtomicTypeValue(
+                                boolean=True)))
+                ]))) if has_repr else None
+  else:
+    representation = None
+
+  return schema_pb2.FieldType(
+      logical_type=schema_pb2.LogicalType(
+          urn=PYTHON_ANY_URN, representation=representation),
+      nullable=True)
+
+
 class SchemaTranslation(object):
   def __init__(self, schema_registry: SchemaTypeRegistry = SCHEMA_REGISTRY):
     self.schema_registry = schema_registry
@@ -354,16 +393,18 @@ class SchemaTranslation(object):
         return schema_pb2.FieldType(
             array_type=schema_pb2.ArrayType(element_type=element_type))
 
+    elif type_ == Any:
+      return _python_any_schema_pb2(has_repr=False)
+
     try:
       if LogicalType.is_known_logical_type(type_):
         logical_type = type_
       else:
         logical_type = LogicalType.from_typing(type_)
     except ValueError:
-      # Unknown type, just treat it like Any
-      return schema_pb2.FieldType(
-          logical_type=schema_pb2.LogicalType(urn=PYTHON_ANY_URN),
-          nullable=True)
+      # Unknown type, use pythonsdk_any with a representation compatible with
+      # FastPrimitiveCoder encoded UNKNOWN type
+      return _python_any_schema_pb2(has_repr=True)
     else:
       argument_type = None
       argument = None
@@ -445,27 +486,40 @@ class SchemaTranslation(object):
       self,
       type_proto: schema_pb2.FieldType,
       value_proto: schema_pb2.FieldValue):
-    if type_proto.WhichOneof("type_info") != "atomic_type":
-      # TODO: Allow other value types
+    type_info = type_proto.WhichOneof("type_info")
+    if type_info == "atomic_type":
+      return self.atomic_value_from_runner_api(
+          type_proto.atomic_type, value_proto.atomic_value)
+    elif type_info == "array_type":
+      element_type = type_proto.array_type.element_type
+      return [
+          self.value_from_runner_api(element_type, element)
+          for element in value_proto.array_value.element
+      ]
+    else:
       raise ValueError(
-          "Encounterd option with unsupported type. Only "
-          f"atomic_type options are supported: {type_proto}")
-
-    value = self.atomic_value_from_runner_api(
-        type_proto.atomic_type, value_proto.atomic_value)
-    return value
+          "Encountered option with unsupported type. Only atomic_type and "
+          f"array_type options are supported: {type_proto}")
 
   def value_to_runner_api(self, typing_proto: schema_pb2.FieldType, value):
-    if typing_proto.WhichOneof("type_info") != "atomic_type":
-      # TODO: Allow other value types
+    type_info = typing_proto.WhichOneof("type_info")
+    if type_info == "atomic_type":
+      return schema_pb2.FieldValue(
+          atomic_value=self.atomic_value_to_runner_api(
+              typing_proto.atomic_type, value))
+    elif type_info == "array_type":
+      element_type = typing_proto.array_type.element_type
+      return schema_pb2.FieldValue(
+          array_value=schema_pb2.ArrayTypeValue(
+              element=[
+                  self.value_to_runner_api(element_type, element)
+                  for element in value
+              ]))
+    else:
       raise ValueError(
-          "Only atomic_type option values are currently supported in Python. "
-          f"Got {value!r}, which maps to fieldtype {typing_proto!r}.")
-
-    atomic_value = self.atomic_value_to_runner_api(
-        typing_proto.atomic_type, value)
-    value_proto = schema_pb2.FieldValue(atomic_value=atomic_value)
-    return value_proto
+          "Only atomic_type and array_type option values are currently "
+          f"supported in Python. Got {value!r}, which maps to fieldtype "
+          f"{typing_proto!r}.")
 
   def option_from_runner_api(
       self, option_proto: schema_pb2.Option) -> Tuple[str, Any]:
@@ -483,7 +537,10 @@ class SchemaTranslation(object):
       # Don't set type, value
       return schema_pb2.Option(name=name)
 
-    type_proto = self.typing_to_runner_api(type(value))
+    from apache_beam.typehints import trivial_inference
+
+    type_proto = self.typing_to_runner_api(
+        trivial_inference.instance_to_type(value))
     value_proto = self.value_to_runner_api(type_proto, value)
     return schema_pb2.Option(name=name, type=type_proto, value=value_proto)
 
@@ -588,19 +645,22 @@ class SchemaTranslation(object):
       descriptions[field.name] = field.description
       subfields.append((field.name, field_py_type))
 
-    user_type = NamedTuple(type_name, subfields)
+    if schema.id in self.schema_registry.by_id:
+      user_type = self.schema_registry.by_id[schema.id][0]
+    else:
+      user_type = NamedTuple(type_name, subfields)
 
-    # Define a reduce function, otherwise these types can't be pickled
-    # (See BEAM-9574)
-    setattr(
-        user_type,
-        '__reduce__',
-        _named_tuple_reduce_method(schema.SerializeToString()))
-    setattr(user_type, "_field_descriptions", descriptions)
-    setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
+      # Define a reduce function, otherwise these types can't be pickled
+      # (See BEAM-9574)
+      setattr(
+          user_type,
+          '__reduce__',
+          _named_tuple_reduce_method(schema.SerializeToString()))
+      setattr(user_type, "_field_descriptions", descriptions)
+      setattr(user_type, row_type._BEAM_SCHEMA_ID, schema.id)
 
-    self.schema_registry.add(user_type, schema)
-    coders.registry.register_coder(user_type, coders.RowCoder)
+      self.schema_registry.add(user_type, schema)
+      coders.registry.register_coder(user_type, coders.RowCoder)
 
     return user_type
 
@@ -933,6 +993,92 @@ MicrosInstantRepresentation = NamedTuple(
     'MicrosInstantRepresentation', [('seconds', np.int64),
                                     ('micros', np.int64)])
 
+ParameterizedTimestampRepresentation = NamedTuple(
+    'ParameterizedTimestampRepresentation', [('seconds', np.int64),
+                                             ('subseconds', np.int32)])
+
+# The subseconds field is INT16 for precision < 5
+_TIMESTAMP_SHORT_PRECISION_LIMIT = 5
+ParameterizedTimestampShortRepresentation = NamedTuple(
+    'ParameterizedTimestampShortRepresentation', [('seconds', np.int64),
+                                                  ('subseconds', np.int16)])
+
+
+@LogicalType._register_internal
+class ParameterizedTimestamp(LogicalType[Timestamp,
+                                         ParameterizedTimestampRepresentation,
+                                         np.int32]):
+  """Timestamp logical type parameterized by subsecond precision.
+
+  The argument is the precision: the number of decimal digits used to
+  represent the fraction of a second, e.g. 3 for milliseconds, 6 for
+  microseconds, 9 for nanoseconds.
+
+  Values are represented as a row of ``seconds`` (INT64, floored seconds
+  since the epoch) and ``subseconds`` (units of 10**-precision seconds,
+  always in ``[0, 10**precision)``.
+  ``subseconds`` is an INT16 field for precision < 5 and an INT32
+  field otherwise.
+
+  Note: Timestamp originating from Python to xlang still defaults to
+  MicrosInstant for backwards compatibility. To override the mapping of
+  Timestamp to this logical type, re-register using
+  :func:`~LogicalType.register_logical_type(ParameterizedTimestamp)`.
+  """
+  def __init__(self, precision: int = Timestamp.MICROS_PRECISION) -> None:
+    # The argument arrives as np.int32 when decoded from a schema proto.
+    precision = int(precision)
+    if not 0 <= precision <= Timestamp.NANOS_PRECISION:
+      raise ValueError(
+          'Timestamp precision must be between 0 and %d (inclusive), '
+          'but was %d.' % (Timestamp.NANOS_PRECISION, precision))
+    self._precision = precision
+
+  @classmethod
+  def urn(cls):
+    return common_urns.timestamp.urn
+
+  def representation_type(self) -> type:  # type: ignore[override]
+    # Unlike other logical types, the representation depends on the
+    # argument, so this is an instance method rather than a classmethod.
+    if self._precision < _TIMESTAMP_SHORT_PRECISION_LIMIT:
+      return ParameterizedTimestampShortRepresentation
+    return ParameterizedTimestampRepresentation
+
+  @classmethod
+  def language_type(cls):
+    return Timestamp
+
+  def to_representation_type(self, value: Timestamp):
+    # Verify that the value can be represented exactly at this type's precision
+    if value.precision() != self._precision:
+      value = value.to_precision(self._precision)
+    return self.representation_type()(value.seconds(), value.subseconds())
+
+  def to_language_type(self, value) -> Timestamp:
+    subseconds = int(value.subseconds)
+    # Match Java's toInputType: out-of-range subseconds indicate data
+    # corruption or a precision mismatch.
+    if not 0 <= subseconds < 10**self._precision:
+      raise ValueError(
+          'Invalid subseconds %d for Timestamp with precision %d.' %
+          (subseconds, self._precision))
+    return Timestamp(
+        seconds=int(value.seconds),
+        subseconds=subseconds,
+        precision=self._precision)
+
+  @classmethod
+  def argument_type(cls):
+    return np.int32
+
+  def argument(self):
+    return self._precision
+
+  @classmethod
+  def _from_typing(cls, typ):
+    return cls()
+
 
 @LogicalType._register_internal
 class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
@@ -975,9 +1121,11 @@ class MillisInstant(NoArgumentLogicalType[Timestamp, np.int64]):
     return Timestamp(micros=millis * 1000)
 
 
-# Make sure MicrosInstant is registered after MillisInstant so that it
-# overwrites the mapping of Timestamp language type representation choice and
-# thus does not lose microsecond precision inside python sdk.
+# Make sure MicrosInstant is registered after MillisInstant and
+# ParameterizedTimestamp so that it overwrites the mapping of Timestamp
+# language type representation choice: plain Timestamp typehints keep their
+# historical micros_instant encoding and do not lose microsecond precision
+# inside the python sdk.
 @LogicalType._register_internal
 class MicrosInstant(NoArgumentLogicalType[Timestamp,
                                           MicrosInstantRepresentation]):

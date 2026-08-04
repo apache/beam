@@ -270,34 +270,35 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       Sleeper sleeper = configuration.getSleeperSupplier().get();
 
       backoffIfNeeded(backOff, sleeper);
-
-      if (!configuration.getShouldRepeat()) {
-        incIfPresent(teardownCounter);
-        setupTeardown.teardown();
-        return;
-      }
-
-      Repeater<Void, Void> repeater =
-          Repeater.<Void, Void>builder()
-              .setBackOff(backOff)
-              .setSleeper(sleeper)
-              .setThrowableFunction(
-                  ignored -> {
-                    incIfPresent(teardownCounter);
-                    setupTeardown.teardown();
-                    return null;
-                  })
-              .build()
-              .withBackoffCounter(backoffCounter)
-              .withSleeperCounter(sleeperCounter);
-
-      repeater.apply(null);
-
-      checkStateNotNull(executor).shutdown();
       try {
-        boolean ignored = executor.awaitTermination(3L, TimeUnit.SECONDS);
-      } catch (InterruptedException ignored) {
-        // Ignore the interrupt during teardown.
+        if (!configuration.getShouldRepeat()) {
+          incIfPresent(teardownCounter);
+          setupTeardown.teardown();
+          return;
+        }
+
+        Repeater<Void, Void> repeater =
+            Repeater.<Void, Void>builder()
+                .setBackOff(backOff)
+                .setSleeper(sleeper)
+                .setThrowableFunction(
+                    ignored -> {
+                      incIfPresent(teardownCounter);
+                      setupTeardown.teardown();
+                      return null;
+                    })
+                .build()
+                .withBackoffCounter(backoffCounter)
+                .withSleeperCounter(sleeperCounter);
+
+        repeater.apply(null);
+      } finally {
+        checkStateNotNull(executor).shutdown();
+        try {
+          boolean ignored = executor.awaitTermination(3L, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+          // Ignore the interrupt during teardown.
+        }
       }
     }
 
@@ -534,6 +535,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       try {
         return future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException | InterruptedException e) {
+        future.cancel(true);
         throw new UserCodeTimeoutException(e);
       } catch (ExecutionException e) {
         parseAndThrow(future, e);

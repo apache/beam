@@ -37,11 +37,10 @@ import (
 	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/image"
-	"github.com/docker/docker/api/types/mount"
-	dcli "github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/moby/moby/api/pkg/stdcopy"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
+	dcli "github.com/moby/moby/client"
 )
 
 // TODO move environment handling to the worker package.
@@ -170,7 +169,7 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	logger = logger.With("worker_id", wk.ID, "image", dp.GetContainerImage())
 
 	// TODO consider preserving client?
-	cli, err := dcli.NewClientWithOpts(dcli.FromEnv, dcli.WithAPIVersionNegotiation())
+	cli, err := dcli.New(dcli.FromEnv)
 	if err != nil {
 		return fmt.Errorf("couldn't connect to docker:%w", err)
 	}
@@ -196,9 +195,9 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	} else {
 		logger.Debug("local GCP credentials environment variable not found")
 	}
-	if _, _, err := cli.ImageInspectWithRaw(ctx, dp.GetContainerImage()); err != nil {
+	if _, err := cli.ImageInspect(ctx, dp.GetContainerImage()); err != nil {
 		// We don't have a local image, so we should pull it.
-		if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), image.PullOptions{}); err == nil {
+		if rc, err := cli.ImagePull(ctx, dp.GetContainerImage(), dcli.ImagePullOptions{}); err == nil {
 			// Copy the output, but discard it so we can wait until the image pull is finished.
 			io.Copy(io.Discard, rc)
 			rc.Close()
@@ -215,16 +214,19 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		fmt.Sprintf("--provision_endpoint=%v", wk.Endpoint()),
 		fmt.Sprintf("--logging_endpoint=%v", wk.Endpoint()),
 	}
-	ccr, err := cli.ContainerCreate(ctx, &container.Config{
-		Image: dp.GetContainerImage(),
-		Cmd:   cmd,
-		Env:   envs,
-		Tty:   false,
-	}, &container.HostConfig{
-		NetworkMode: "host",
-		Mounts:      mounts,
-		AutoRemove:  true,
-	}, nil, nil, "")
+	ccr, err := cli.ContainerCreate(ctx, dcli.ContainerCreateOptions{
+		Config: &container.Config{
+			Image: dp.GetContainerImage(),
+			Cmd:   cmd,
+			Env:   envs,
+			Tty:   false,
+		},
+		HostConfig: &container.HostConfig{
+			NetworkMode: "host",
+			Mounts:      mounts,
+			AutoRemove:  true,
+		},
+	})
 	if err != nil {
 		cli.Close()
 		return fmt.Errorf("unable to create container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
@@ -232,7 +234,8 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 	containerID := ccr.ID
 	logger = logger.With("container", containerID)
 
-	if err := cli.ContainerStart(ctx, containerID, container.StartOptions{}); err != nil {
+	_, err = cli.ContainerStart(ctx, containerID, dcli.ContainerStartOptions{})
+	if err != nil {
 		cli.Close()
 		return fmt.Errorf("unable to start container image %v with docker for env %v, err: %w", dp.GetContainerImage(), wk.Env, err)
 	}
@@ -249,10 +252,24 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 		}()
 
 		bgctx := context.Background()
-		statusCh, errCh := cli.ContainerWait(bgctx, containerID, container.WaitConditionNotRunning)
+
+		// Wait for either context cancellation or container to stop
+		type waitResult struct {
+			err error
+		}
+		done := make(chan waitResult)
+		go func() {
+			result := cli.ContainerWait(bgctx, containerID, dcli.ContainerWaitOptions{
+				Condition: container.WaitConditionNotRunning,
+			})
+			// Error is a channel in the new API
+			err := <-result.Error
+			done <- waitResult{err: err}
+		}()
+
 		select {
 		case <-ctx.Done():
-			rc, err := cli.ContainerLogs(bgctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
+			rc, err := cli.ContainerLogs(bgctx, containerID, dcli.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
 			if err != nil {
 				logger.Error("error fetching container logs error on context cancellation", "error", err)
 			}
@@ -268,25 +285,27 @@ func dockerEnvironment(ctx context.Context, logger *slog.Logger, dp *pipepb.Dock
 				logger.Debug("container log", "log", msgs)
 			}
 			// Can't use command context, since it's already canceled here.
-			if err := cli.ContainerKill(bgctx, containerID, ""); err != nil {
+			_, err = cli.ContainerKill(bgctx, containerID, dcli.ContainerKillOptions{})
+			if err != nil {
 				logger.Error("docker container kill error", "error", err)
 			}
-		case err := <-errCh:
-			if err != nil {
-				logger.Error("docker container wait error", "error", err)
+		case result := <-done:
+			// Container stopped on its own
+			if result.err != nil {
+				logger.Error("docker container wait error", "error", result.err)
+				// Fetch and log container output on error
+				rc, err := cli.ContainerLogs(bgctx, containerID, dcli.ContainerLogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
+				if err != nil {
+					logger.Error("failed to fetch container logs after wait error", "error", err)
+				} else {
+					defer rc.Close()
+					var buf bytes.Buffer
+					stdcopy.StdCopy(&buf, &buf, rc)
+					logger.Error("container logs after wait error", "log", buf.String())
+				}
+			} else {
+				logger.Info("container terminated on its own")
 			}
-		case resp := <-statusCh:
-			logger.Info("docker container has self terminated", "status_code", resp.StatusCode)
-
-			rc, err := cli.ContainerLogs(bgctx, containerID, container.LogsOptions{Details: true, ShowStdout: true, ShowStderr: true})
-			if err != nil {
-				logger.Error("docker container logs error", "error", err)
-				return
-			}
-			defer rc.Close()
-			var buf bytes.Buffer
-			stdcopy.StdCopy(&buf, &buf, rc)
-			logger.Error("container self terminated", "log", buf.String())
 		}
 	}()
 

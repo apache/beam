@@ -31,6 +31,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.DetectNewPartitionsRangeTracker;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampUtils;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
@@ -145,7 +147,8 @@ public class DetectNewPartitionsDoFn extends DoFn<PartitionMetadata, PartitionMe
 
   /** Obtains the instance of {@link DetectNewPartitionsAction}. */
   @Setup
-  public void setup() {
+  public void setup(PipelineOptions options) {
+    daoFactory.setOpenTelemetry(options.as(SdkHarnessOptions.class).getOpenTelemetry());
     final PartitionMetadataDao partitionMetadataDao = daoFactory.getPartitionMetadataDao();
     final PartitionMetadataMapper partitionMetadataMapper = mapperFactory.partitionMetadataMapper();
     final WatermarkCache watermarkCache = cacheFactory.getWatermarkCache();

@@ -38,14 +38,14 @@ public class DirectRegistrarTest {
   public void testCorrectOptionsAreReturned() {
     assertEquals(
         ImmutableList.of(DirectOptions.class, DirectTestOptions.class),
-        new Options().getPipelineOptions());
+        Lists.newArrayList(new Options().getPipelineOptions()));
   }
 
   @Test
   public void testCorrectRunnersAreReturned() {
     assertEquals(
         ImmutableList.of(org.apache.beam.runners.direct.DirectRunner.class),
-        new Runner().getPipelineRunners());
+        Lists.newArrayList(new Runner().getPipelineRunners()));
   }
 
   @Test

@@ -27,7 +27,7 @@ import re
 import shutil
 import tempfile
 import unittest
-from typing import List, Any
+from typing import Any
 
 import fastavro
 import hamcrest as hc
@@ -87,7 +87,7 @@ RECORDS = [{
 
 class AvroBase(object):
 
-  _temp_files: List[str] = []
+  _temp_files: list[str] = []
 
   def __init__(self, methodName='runTest'):
     super().__init__(methodName)

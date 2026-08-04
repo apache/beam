@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
@@ -138,6 +140,16 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
   }
 
   private @Nullable WindowedValue<ElemT> parseElem(Windmill.Message message) {
+    return parseElemInternal(message, true);
+  }
+
+  private @Nullable WindowedValue<?> parseElemWindowOnly(Windmill.Message message) {
+    return parseElemInternal(message, false);
+  }
+
+  @SuppressWarnings("nullness")
+  private @Nullable WindowedValue<ElemT> parseElemInternal(
+      Windmill.Message message, boolean parseValue) {
     try {
       Instant timestamp = WindmillTimeUtils.windmillToHarnessTimestamp(message.getTimestamp());
       Collection<? extends BoundedWindow> windows =
@@ -148,6 +160,8 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
        * drain happened upstream
        */
       CausedByDrain drainingValueFromUpstream = CausedByDrain.NORMAL;
+      ValueKind valueKind = ValueKind.INSERT;
+      Context openTelemetryContext = null;
       if (WindowedValues.WindowedValueCoder.isMetadataSupported()) {
         BeamFnApi.Elements.ElementMetadata elementMetadata =
             WindmillSink.decodeAdditionalMetadata(windowsCoder, message.getMetadata());
@@ -155,11 +169,24 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
             elementMetadata.getDrain() == BeamFnApi.Elements.DrainMode.Enum.DRAINING
                 ? CausedByDrain.CAUSED_BY_DRAIN
                 : CausedByDrain.NORMAL;
+        valueKind = WindmillValueKindHelper.fromProto(elementMetadata.getValueKind());
+        openTelemetryContext = WindmillOpenTelemetryContextPropagator.read(elementMetadata);
       }
-      InputStream inputStream = message.getData().newInput();
-      ElemT value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+      ElemT value = null;
+      if (parseValue) {
+        InputStream inputStream = message.getData().newInput();
+        value = valueCoder.decode(inputStream, Coder.Context.OUTER);
+      }
       return WindowedValues.of(
-          value, timestamp, windows, paneInfo, null, null, drainingValueFromUpstream);
+          value,
+          timestamp,
+          windows,
+          paneInfo,
+          null,
+          null,
+          drainingValueFromUpstream,
+          openTelemetryContext,
+          valueKind);
     } catch (RuntimeException | IOException e) {
       if (!skipUndecodableElements) {
         throw new RuntimeException(e);
@@ -171,6 +198,17 @@ public class WindmillKeyedWorkItem<K, ElemT> implements KeyedWorkItem<K, ElemT> 
           e);
       return null;
     }
+  }
+
+  @Override
+  @SuppressWarnings({"nullness", "unchecked"})
+  public Iterable<WindowedValue<?>> elementWindowsIterable() {
+    return (Iterable<WindowedValue<?>>)
+        (Iterable<?>)
+            FluentIterable.from(workItem.getMessageBundlesList())
+                .transformAndConcat(Windmill.InputMessageBundle::getMessagesList)
+                .transform(this::parseElemWindowOnly)
+                .filter(Objects::nonNull);
   }
 
   @Override

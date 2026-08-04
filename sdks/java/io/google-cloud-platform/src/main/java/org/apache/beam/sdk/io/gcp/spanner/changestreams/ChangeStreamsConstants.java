@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.Options.RpcPriority;
 import java.util.Collections;
+import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
@@ -65,6 +66,18 @@ public class ChangeStreamsConstants {
   public static final int THROUGHPUT_WINDOW_SECONDS = 10;
 
   /**
+   * The delimiter used to separate the partition token and the tvf name. Note this string does not
+   * exist in the partition token itself.
+   */
+  public static final String PARTITION_TOKEN_TVF_NAME_DELIMITER = "#";
+
+  /** The default tvf name for a change stream query is the empty {@link String}. */
+  public static final String DEFAULT_TVF_NAME = "";
+
+  /** The default tvf name list to query and union is empty {@link Collections.emptyList()}. */
+  public static final List<String> DEFAULT_TVF_NAME_LIST = Collections.emptyList();
+
+  /**
    * We use the following partition token to provide an estimate size of a partition token. A usual
    * partition token has around 140 characters.
    */
@@ -85,6 +98,7 @@ public class ChangeStreamsConstants {
           .setState(State.CREATED)
           .setWatermark(Timestamp.now())
           .setCreatedAt(Timestamp.now())
+          .setTvfName(DEFAULT_TVF_NAME)
           .build();
 
   /**

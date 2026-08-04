@@ -23,7 +23,6 @@ import tempfile
 import unittest
 from dataclasses import dataclass
 from typing import Callable
-from typing import List
 from typing import Optional
 from typing import cast
 
@@ -114,6 +113,7 @@ class CustomMilvusContainer(MilvusContainer):
     self.with_bind_ports(service_container_port, service_host_port)
     self.with_bind_ports(healthcheck_container_port, healthcheck_host_port)
     self.cmd = "milvus run standalone"
+    self.with_command(self.cmd)
 
     # Set environment variables needed for Milvus.
     envs = {
@@ -244,7 +244,7 @@ class MilvusTestHelpers:
         exception_types=(MilvusException, ))
 
     # Configure schema.
-    field_schemas: List[FieldSchema] = cast(List[FieldSchema], config["fields"])
+    field_schemas: list[FieldSchema] = cast(list[FieldSchema], config["fields"])
     schema = CollectionSchema(
         fields=field_schemas, functions=config["functions"])
 
@@ -345,7 +345,7 @@ class MilvusTestHelpers:
 
   @staticmethod
   def assert_chunks_equivalent(
-      actual_chunks: List[Chunk], expected_chunks: List[Chunk]):
+      actual_chunks: list[Chunk], expected_chunks: list[Chunk]):
     """assert_chunks_equivalent checks for presence rather than exact match"""
     # Sort both lists by ID to ensure consistent ordering.
     actual_sorted = sorted(actual_chunks, key=lambda c: c.id)

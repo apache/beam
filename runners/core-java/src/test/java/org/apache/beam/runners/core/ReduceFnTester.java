@@ -47,6 +47,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.Combine.CombineFn;
 import org.apache.beam.sdk.transforms.CombineWithContext.CombineFnWithContext;
+import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -94,6 +95,23 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   private final TestInMemoryStateInternals<String> stateInternals =
       new TestInMemoryStateInternals<>(KEY);
   private final InMemoryTimerInternals timerInternals = new InMemoryTimerInternals();
+  private final StepContext stepContext =
+      new StepContext() {
+        @Override
+        public StateInternals stateInternals() {
+          return stateInternals;
+        }
+
+        @Override
+        public TimerInternals timerInternals() {
+          return timerInternals;
+        }
+
+        @Override
+        public BundleFinalizer bundleFinalizer() {
+          throw new UnsupportedOperationException();
+        }
+      };
 
   private final WindowFn<Object, W> windowFn;
   private final TestWindowedValueReceiver testOutputter;
@@ -126,6 +144,19 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
         SystemReduceFn.buffering(VarIntCoder.of()),
         IterableCoder.of(VarIntCoder.of()),
         PipelineOptionsFactory.create(),
+        NullSideInputReader.empty());
+  }
+
+  public static <W extends BoundedWindow>
+      ReduceFnTester<Integer, Iterable<Integer>, W> nonCombining(
+          WindowingStrategy<?, W> windowingStrategy, PipelineOptions options) throws Exception {
+    return new ReduceFnTester<>(
+        windowingStrategy,
+        TriggerStateMachines.stateMachineForTrigger(
+            TriggerTranslation.toProto(windowingStrategy.getTrigger())),
+        SystemReduceFn.buffering(VarIntCoder.of()),
+        IterableCoder.of(VarIntCoder.of()),
+        options,
         NullSideInputReader.empty());
   }
 
@@ -318,7 +349,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
   public final void assertHasOnlyGlobalAndFinishedSetsFor(W... expectedWindows) {
     assertHasOnlyGlobalAndAllowedTags(
         ImmutableSet.copyOf(expectedWindows),
-        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG));
+        ImmutableSet.of(TriggerStateMachineRunner.FINISHED_BITS_TAG, ReduceFnRunner.METADATA_TAG));
   }
 
   @SafeVarargs
@@ -331,7 +362,8 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
             PaneInfoTracker.PANE_INFO_TAG,
             WatermarkHold.watermarkHoldTagForTimestampCombiner(
                 objectStrategy.getTimestampCombiner()),
-            WatermarkHold.EXTRA_HOLD_TAG));
+            WatermarkHold.EXTRA_HOLD_TAG,
+            ReduceFnRunner.METADATA_TAG));
   }
 
   @SafeVarargs
@@ -563,7 +595,7 @@ public class ReduceFnTester<InputT, OutputT, W extends BoundedWindow> {
 
     ReduceFnRunner<String, InputT, OutputT, W> runner = createRunner();
     runner.processElements(
-        new LateDataDroppingDoFnRunner.LateDataFilter(objectStrategy, timerInternals)
+        new LateDataDroppingDoFnRunner.LateDataFilter(objectStrategy, stepContext)
             .filter(KEY, inputs));
 
     // Persist after each bundle.

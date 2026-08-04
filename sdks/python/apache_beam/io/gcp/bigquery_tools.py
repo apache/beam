@@ -40,7 +40,6 @@ import uuid
 from json.decoder import JSONDecodeError
 from typing import Optional
 from typing import Sequence
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -180,7 +179,7 @@ V = TypeVar('V')
 
 
 def to_hashable_table_ref(
-    table_ref_elem_kv: Tuple[Union[str, TableReference], V]) -> Tuple[str, V]:
+    table_ref_elem_kv: tuple[Union[str, TableReference], V]) -> tuple[str, V]:
   """Turns the key of the input tuple to its string representation. The key
   should be either a string or a TableReference.
 
@@ -1782,18 +1781,23 @@ bigquery_v2_messages.TableSchema):
       "root", dict_table_schema)
 
 
-def get_beam_typehints_from_tableschema(schema):
+def get_beam_typehints_from_tableschema(schema, type_overrides=None):
   """Extracts Beam Python type hints from the schema.
 
   Args:
     schema (~apache_beam.io.gcp.internal.clients.bigquery.\
 bigquery_v2_messages.TableSchema):
       The TableSchema to extract type hints from.
+    type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
+      to Python types. These override the default mappings in
+      BIGQUERY_TYPE_TO_PYTHON_TYPE. For example:
+      ``{'DATE': datetime.date, 'JSON': dict}``
 
   Returns:
     List[Tuple[str, Any]]: A list of type hints that describe the input schema.
     Nested and repeated fields are supported.
   """
+  effective_types = {**BIGQUERY_TYPE_TO_PYTHON_TYPE, **(type_overrides or {})}
   if not isinstance(schema, (bigquery.TableSchema, bigquery.TableFieldSchema)):
     schema = get_bq_tableschema(schema)
   typehints = []
@@ -1803,9 +1807,9 @@ bigquery_v2_messages.TableSchema):
     if field_type in ["STRUCT", "RECORD"]:
       # Structs can be represented as Beam Rows.
       typehint = RowTypeConstraint.from_fields(
-          get_beam_typehints_from_tableschema(field))
-    elif field_type in BIGQUERY_TYPE_TO_PYTHON_TYPE:
-      typehint = BIGQUERY_TYPE_TO_PYTHON_TYPE[field_type]
+          get_beam_typehints_from_tableschema(field, type_overrides))
+    elif field_type in effective_types:
+      typehint = effective_types[field_type]
     else:
       raise ValueError(
           f"Converting BigQuery type [{field_type}] to "

@@ -20,7 +20,6 @@
 import logging
 import sys
 import uuid
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam import typehints
@@ -69,7 +68,7 @@ class FileBasedIOTestOptions(LoadTestOptions):
 
 
 @typehints.with_output_types(bytes)
-@typehints.with_input_types(Tuple[bytes, bytes])
+@typehints.with_input_types(tuple[bytes, bytes])
 class SyntheticRecordToStrFn(beam.DoFn):
   """
   A DoFn that convert key-value bytes from synthetic source to string record.

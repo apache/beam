@@ -18,7 +18,6 @@ import glob
 import importlib
 import math
 import os
-import platform
 import shutil
 import tempfile
 import typing
@@ -65,9 +64,6 @@ class MyRow(typing.NamedTuple):
   value: int
 
 
-@unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/20642')
 class IOTest(unittest.TestCase):
   def setUp(self):
     self._temp_roots = []
@@ -296,6 +292,51 @@ A     B
     self._run_truncating_file_handle_iter_test('aaa b cccccccccccccccccccc')
     self._run_truncating_file_handle_iter_test('aaa b ccccccccccccccccc ')
 
+  def test_truncating_filehandle_flush_on_closed_stream(self):
+    class ClosedFlushingStream(StringIO):
+      def flush(self):
+        if self.closed:
+          raise ValueError("I/O operation on closed file.")
+        super().flush()
+
+    s = 'a b c'
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    underlying = ClosedFlushingStream(s)
+    handle = io._TruncatingFileHandle(
+        underlying, tracker, splitter=io._DelimSplitter(' ', 10))
+
+    # Verify that calling flush() when the underlying stream is closed
+    # succeeds without raising ValueError.
+    underlying.close()
+    handle.flush()
+    handle.close()
+
+  def test_truncating_filehandle_exception_suppression(self):
+    class FaultyStream(StringIO):
+      @property
+      def closed(self):
+        return False
+
+      def flush(self):
+        raise ValueError("Simulated flush error")
+
+      def close(self):
+        raise OSError("Simulated close error")
+
+    s = 'a b c'
+    tracker = restriction_trackers.OffsetRestrictionTracker(
+        restriction_trackers.OffsetRange(0, len(s)))
+    underlying = FaultyStream(s)
+    handle = io._TruncatingFileHandle(
+        underlying, tracker, splitter=io._DelimSplitter(' ', 10))
+
+    # Verify that ValueError raised during flush() is safely suppressed.
+    handle.flush()
+
+    # Verify that OSError raised during close() is safely suppressed.
+    handle.close()
+
   @parameterized.expand([
       ('defaults', {}),
       ('header', dict(header=1)),
@@ -386,6 +427,11 @@ X     , c1, c2
 
   def test_windowed_write(self):
     output = self.temp_dir()
+
+    def no_colon_file_naming(*args):
+      file_name = fileio.default_file_naming('out.csv')(*args)
+      return file_name.replace(':', '_')
+
     with beam.Pipeline() as p:
       pc = (
           p | beam.Create([MyRow(timestamp=i, value=i % 3) for i in range(20)])
@@ -395,18 +441,18 @@ X     , c1, c2
               beam.window.FixedWindows(10)).with_output_types(MyRow))
 
       deferred_df = convert.to_dataframe(pc)
-      deferred_df.to_csv(output + 'out.csv', index=False)
+      deferred_df.to_csv(output, file_naming=no_colon_file_naming, index=False)
 
     first_window_files = (
         f'{output}out.csv-'
-        f'{datetime.utcfromtimestamp(0).isoformat()}*')
+        f'{datetime.utcfromtimestamp(0).isoformat().replace(":", "_")}*')
     self.assertCountEqual(
         ['timestamp,value'] + [f'{i},{i % 3}' for i in range(10)],
         set(self.read_all_lines(first_window_files, delete=True)))
 
     second_window_files = (
         f'{output}out.csv-'
-        f'{datetime.utcfromtimestamp(10).isoformat()}*')
+        f'{datetime.utcfromtimestamp(10).isoformat().replace(":", "_")}*')
     self.assertCountEqual(
         ['timestamp,value'] + [f'{i},{i%3}' for i in range(10, 20)],
         set(self.read_all_lines(second_window_files, delete=True)))

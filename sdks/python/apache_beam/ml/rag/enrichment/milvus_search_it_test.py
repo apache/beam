@@ -19,7 +19,6 @@ import platform
 import unittest
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Dict
 
 import pytest
 
@@ -129,7 +128,7 @@ class MilvusITDataConstruct:
   tags: list[str]
   dense_embedding: list[float]
   sparse_embedding: dict
-  vocabulary: Dict[str, int] = field(default_factory=dict)
+  vocabulary: dict[str, int] = field(default_factory=dict)
 
   def __getitem__(self, key):
     return getattr(self, key)
@@ -226,6 +225,7 @@ MILVUS_IT_CONFIG = {
 
 
 @pytest.mark.require_docker_in_docker
+@pytest.mark.no_xdist
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "

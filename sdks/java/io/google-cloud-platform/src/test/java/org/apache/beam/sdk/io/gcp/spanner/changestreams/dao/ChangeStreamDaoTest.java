@@ -57,7 +57,7 @@ public class ChangeStreamDaoTest {
             CHANGE_STREAM_NAME, databaseClient, rpcPriority, "testjob", Dialect.POSTGRESQL, true);
 
     // Act: call the method that constructs and executes the statement
-    changeStreamDao.changeStreamQuery(null, null, null, 0L);
+    changeStreamDao.changeStreamQuery(null, null, null, null, 0L);
 
     // Assert: capture the Statement passed to singleUse().executeQuery and verify
     // SQL
@@ -84,7 +84,7 @@ public class ChangeStreamDaoTest {
             CHANGE_STREAM_NAME, databaseClient, rpcPriority, "testjob", Dialect.POSTGRESQL, false);
 
     // Act
-    changeStreamDao.changeStreamQuery(null, null, null, 0L);
+    changeStreamDao.changeStreamQuery(null, null, null, null, 0L);
 
     // Assert
     ArgumentCaptor<Statement> captor = ArgumentCaptor.forClass(Statement.class);
@@ -93,5 +93,66 @@ public class ChangeStreamDaoTest {
     String sql = captured.getSql();
     assertTrue(
         "Expected SQL to contain read_json_", sql.contains("read_json_" + CHANGE_STREAM_NAME));
+  }
+
+  @Test
+  public void testChangeStreamQueryPostgresMutableWithTvfName() {
+    ReadOnlyTransaction singleUseTx = mock(ReadOnlyTransaction.class);
+    when(databaseClient.singleUse()).thenReturn(singleUseTx);
+
+    ChangeStreamDao changeStreamDao =
+        new ChangeStreamDao(
+            CHANGE_STREAM_NAME, databaseClient, rpcPriority, "testjob", Dialect.POSTGRESQL, true);
+
+    changeStreamDao.changeStreamQuery(null, "my_tvf", null, null, 0L);
+
+    ArgumentCaptor<Statement> captor = ArgumentCaptor.forClass(Statement.class);
+    verify(singleUseTx).executeQuery(captor.capture(), any(), any());
+    String sql = captor.getValue().getSql();
+    assertTrue("Expected SQL to contain \"my_tvf\"", sql.contains("\"spanner\".\"my_tvf\""));
+  }
+
+  @Test
+  public void testChangeStreamQueryGsqlMutableAndImmutable() {
+    ReadOnlyTransaction singleUseTx = mock(ReadOnlyTransaction.class);
+    when(databaseClient.singleUse()).thenReturn(singleUseTx);
+
+    ChangeStreamDao changeStreamDao =
+        new ChangeStreamDao(
+            CHANGE_STREAM_NAME,
+            databaseClient,
+            rpcPriority,
+            "testjob",
+            Dialect.GOOGLE_STANDARD_SQL,
+            true);
+
+    changeStreamDao.changeStreamQuery(null, null, null, null, 0L);
+
+    ArgumentCaptor<Statement> captor = ArgumentCaptor.forClass(Statement.class);
+    verify(singleUseTx).executeQuery(captor.capture(), any(), any());
+    String sql = captor.getValue().getSql();
+    assertTrue("Expected SQL to contain READ_", sql.contains("READ_" + CHANGE_STREAM_NAME));
+  }
+
+  @Test
+  public void testChangeStreamQueryGsqlMutableWithTvfName() {
+    ReadOnlyTransaction singleUseTx = mock(ReadOnlyTransaction.class);
+    when(databaseClient.singleUse()).thenReturn(singleUseTx);
+
+    ChangeStreamDao changeStreamDao =
+        new ChangeStreamDao(
+            CHANGE_STREAM_NAME,
+            databaseClient,
+            rpcPriority,
+            "testjob",
+            Dialect.GOOGLE_STANDARD_SQL,
+            true);
+
+    changeStreamDao.changeStreamQuery(null, "my_tvf", null, null, 0L);
+
+    ArgumentCaptor<Statement> captor = ArgumentCaptor.forClass(Statement.class);
+    verify(singleUseTx).executeQuery(captor.capture(), any(), any());
+    String sql = captor.getValue().getSql();
+    assertTrue("Expected SQL to contain my_tvf", sql.contains("FROM my_tvf("));
   }
 }

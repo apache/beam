@@ -22,6 +22,7 @@ import org.apache.flink.streaming.api.functions.source.SourceFunction;
 import org.apache.flink.streaming.api.operators.AbstractStreamOperator;
 import org.apache.flink.streaming.api.operators.Output;
 import org.apache.flink.streaming.api.operators.StreamSource;
+import org.apache.flink.streaming.runtime.streamrecord.RecordAttributes;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.runtime.tasks.OperatorChain;
 import org.apache.flink.streaming.runtime.tasks.RegularOperatorChain;
@@ -50,5 +51,11 @@ public class StreamSources {
   public interface OutputWrapper<T> extends Output<T> {
     @Override
     default void emitWatermarkStatus(WatermarkStatus watermarkStatus) {}
+
+    /** In Flink 1.19 the {@code recordAttributes} method was added. */
+    @Override
+    default void emitRecordAttributes(RecordAttributes recordAttributes) {
+      throw new UnsupportedOperationException("emitRecordAttributes not implemented");
+    }
   }
 }

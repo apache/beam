@@ -30,7 +30,6 @@ For an example implementation of :class:`FileBasedSource` see
 
 from typing import Callable
 from typing import Iterable
-from typing import Tuple
 from typing import Union
 
 from apache_beam.internal import pickler
@@ -348,7 +347,7 @@ class _ExpandIntoRanges(DoFn):
     self._size_track = None
 
   def process(self, element: Union[str, FileMetadata], *args,
-              **kwargs) -> Iterable[Tuple[FileMetadata, OffsetRange]]:
+              **kwargs) -> Iterable[tuple[FileMetadata, OffsetRange]]:
     if isinstance(element, FileMetadata):
       metadata_list = [element]
     else:

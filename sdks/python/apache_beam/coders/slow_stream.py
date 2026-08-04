@@ -22,7 +22,6 @@ For internal use only; no backwards-compatibility guarantees.
 # pytype: skip-file
 
 import struct
-from typing import List
 
 
 class OutputStream(object):
@@ -30,7 +29,7 @@ class OutputStream(object):
 
   A pure Python implementation of stream.OutputStream."""
   def __init__(self):
-    self.data: List[bytes] = []
+    self.data: list[bytes] = []
     self.byte_count = 0
 
   def write(self, b: bytes, nested: bool = False) -> None:

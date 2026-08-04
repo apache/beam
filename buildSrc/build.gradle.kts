@@ -15,6 +15,18 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import java.util.Properties
+
+val parentProperties = Properties().apply {
+  val file = file("../gradle.properties")
+  if (file.exists()) {
+    file.inputStream().use { load(it) }
+  }
+}
+
+val mavenCentralMirrorUrl = parentProperties.getProperty("mavenCentralMirrorUrl")
+val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
 // Plugins for configuring _this build_ of the module
 plugins {
@@ -25,6 +37,13 @@ plugins {
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
+  if (useMirror) {
+    logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror for buildSrc.")
+  }
+
+  if (useMirror) {
+    maven { url = uri(mavenCentralMirrorUrl!!) }
+  }
   maven { url = uri("https://plugins.gradle.org/m2/") }
   maven {
     url = uri("https://repo.spring.io/plugins-release/")

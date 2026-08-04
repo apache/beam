@@ -37,6 +37,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -136,7 +137,7 @@ public abstract class Timer<K> {
     Timer<?> that = (Timer<?>) other;
     return Objects.equals(this.getUserKey(), that.getUserKey())
         && Objects.equals(this.getDynamicTimerTag(), that.getDynamicTimerTag())
-        && Objects.equals(this.getWindows(), that.getWindows())
+        && Iterables.elementsEqual(this.getWindows(), that.getWindows())
         && (this.getClearBit() == that.getClearBit())
         && Objects.equals(this.getFireTimestamp(), that.getFireTimestamp())
         && Objects.equals(this.getHoldTimestamp(), that.getHoldTimestamp())

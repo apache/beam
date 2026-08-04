@@ -145,6 +145,7 @@ public abstract class UnboundedSource<
      */
     void finalizeCheckpoint() throws IOException;
 
+    @SuppressWarnings("ClassInitializationDeadlock")
     NoopCheckpointMark NOOP_CHECKPOINT_MARK = new NoopCheckpointMark();
 
     /** A checkpoint mark that does nothing when finalized. */

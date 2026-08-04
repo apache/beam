@@ -22,8 +22,10 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import com.google.auto.value.AutoValue;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.PBegin;
@@ -31,6 +33,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -381,7 +384,11 @@ import org.joda.time.Duration;
 public class IcebergIO {
 
   public static WriteRows writeRows(IcebergCatalogConfig catalog) {
-    return new AutoValue_IcebergIO_WriteRows.Builder().setCatalogConfig(catalog).build();
+    return new AutoValue_IcebergIO_WriteRows.Builder()
+        .setCatalogConfig(catalog)
+        .setDistributionMode(DistributionMode.NONE)
+        .setAutoSharding(false)
+        .build();
   }
 
   @AutoValue
@@ -397,6 +404,16 @@ public class IcebergIO {
 
     abstract @Nullable Integer getDirectWriteByteLimit();
 
+    abstract DistributionMode getDistributionMode();
+
+    abstract boolean getAutoSharding();
+
+    abstract @Nullable Map<String, String> getWriteProperties();
+
+    abstract @Nullable List<String> getPartitionFields();
+
+    abstract @Nullable List<String> getSortFields();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -410,6 +427,16 @@ public class IcebergIO {
       abstract Builder setTriggeringFrequency(Duration triggeringFrequency);
 
       abstract Builder setDirectWriteByteLimit(Integer directWriteByteLimit);
+
+      abstract Builder setDistributionMode(DistributionMode mode);
+
+      abstract Builder setAutoSharding(boolean autoSharding);
+
+      abstract Builder setWriteProperties(Map<String, String> writeProperties);
+
+      abstract Builder setPartitionFields(List<String> partitionFields);
+
+      abstract Builder setSortFields(List<String> sortFields);
 
       abstract WriteRows build();
     }
@@ -443,6 +470,48 @@ public class IcebergIO {
       return toBuilder().setDirectWriteByteLimit(directWriteByteLimit).build();
     }
 
+    /**
+     * Defines distribution of write data. Supported distributions:
+     *
+     * <ol>
+     *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
+     *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
+     * </ol>
+     *
+     * {@link DistributionMode.RANGE} is not supported yet
+     */
+    public WriteRows withDistributionMode(DistributionMode mode) {
+      return toBuilder().setDistributionMode(mode).build();
+    }
+
+    public WriteRows withAutosharding() {
+      return toBuilder().setAutoSharding(true).build();
+    }
+
+    public WriteRows withWriteProperties(Map<String, String> writeProperties) {
+      return toBuilder().setWriteProperties(writeProperties).build();
+    }
+
+    /**
+     * Defines the desired Partition Spec to be applied when the Iceberg table must be dynamically
+     * created, e.g. `bucket(id_field, 32)` or `day(timestamp_field)`
+     *
+     * <p>See: https://iceberg.apache.org/spec/#partitioning
+     */
+    public WriteRows withPartitionFields(List<String> partitionFields) {
+      return toBuilder().setPartitionFields(partitionFields).build();
+    }
+
+    /**
+     * Defines the desired Sort Order to be applied when the Iceberg table must be dynamically
+     * created, e.g. `int_field desc` or `bucket(modulo_5, 4) asc nulls last`
+     *
+     * <p>See: https://iceberg.apache.org/spec/#sorting
+     */
+    public WriteRows withSortOrder(List<String> sortFields) {
+      return toBuilder().setSortFields(sortFields).build();
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -454,7 +523,10 @@ public class IcebergIO {
       if (destinations == null) {
         destinations =
             DynamicDestinations.singleTable(
-                Preconditions.checkNotNull(getTableIdentifier()), input.getSchema());
+                Preconditions.checkNotNull(getTableIdentifier()),
+                input.getSchema(),
+                getPartitionFields(),
+                getSortFields());
       }
 
       // Assign destinations before re-windowing to global in WriteToDestinations because
@@ -464,15 +536,39 @@ public class IcebergIO {
             IcebergUtils.isUnbounded(input),
             "Must only provide direct write limit for unbounded pipelines.");
       }
-      return input
-          .apply("Assign Table Destinations", new AssignDestinations(destinations))
-          .apply(
-              "Write Rows to Destinations",
-              new WriteToDestinations(
-                  getCatalogConfig(),
-                  destinations,
-                  getTriggeringFrequency(),
-                  getDirectWriteByteLimit()));
+
+      switch (getDistributionMode()) {
+        case NONE:
+          Preconditions.checkArgument(
+              !getAutoSharding(),
+              "Autosharding option is only available with " + "'hash' distribution mode.");
+          return input
+              .apply("Assign Table Destinations", new AssignDestinations(destinations))
+              .apply(
+                  "Write Rows to Destinations",
+                  new WriteToDestinations(
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getDirectWriteByteLimit(),
+                      getWriteProperties()));
+        case HASH:
+          return input
+              .apply(
+                  "AssignDestinationAndPartition",
+                  new AssignDestinationsAndPartitions(destinations, getCatalogConfig()))
+              .apply(
+                  "Write Rows to Partitions",
+                  new WriteToPartitions(
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getAutoSharding(),
+                      getWriteProperties()));
+        default:
+          throw new UnsupportedOperationException(
+              "Unsupported distribution mode: " + getDistributionMode());
+      }
     }
   }
 
@@ -602,14 +698,25 @@ public class IcebergIO {
       TableIdentifier tableId =
           checkStateNotNull(getTableIdentifier(), "Must set a table to read from.");
 
-      Table table = getCatalogConfig().catalog().loadTable(tableId);
+      Table table = TableCache.get(getCatalogConfig(), tableId);
+
+      @Nullable
+      String updateCompatibilityVersion =
+          input
+              .getPipeline()
+              .getOptions()
+              .as(StreamingOptions.class)
+              .getUpdateCompatibilityVersion();
 
       IcebergScanConfig scanConfig =
           IcebergScanConfig.builder()
               .setCatalogConfig(getCatalogConfig())
               .setScanType(IcebergScanConfig.ScanType.TABLE)
               .setTableIdentifier(tableId)
-              .setSchema(IcebergUtils.icebergSchemaToBeamSchema(table.schema()))
+              .setSchema(
+                  IcebergUtils.icebergSchemaToBeamSchema(
+                      table.schema(), updateCompatibilityVersion))
+              .setUpdateCompatibilityVersion(updateCompatibilityVersion)
               .setFromSnapshotInclusive(getFromSnapshot())
               .setToSnapshot(getToSnapshot())
               .setFromTimestamp(getFromTimestamp())

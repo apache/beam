@@ -17,9 +17,7 @@
 import json
 import logging
 import os
-from typing import List
 from typing import Optional
-from typing import Tuple
 
 import requests
 
@@ -67,8 +65,8 @@ _REQUEST_TIMEOUT_SECS = 60
 def create_issue(
     title: str,
     description: str,
-    labels: Optional[List[str]] = None,
-) -> Tuple[int, str]:
+    labels: Optional[list[str]] = None,
+) -> tuple[int, str]:
   """
   Create an issue with title, description with a label.
 
@@ -99,7 +97,7 @@ def create_issue(
 
 
 def comment_on_issue(issue_number: int,
-                     comment_description: str) -> Tuple[bool, str]:
+                     comment_description: str) -> tuple[bool, str]:
   """
   This method looks for an issue with provided issue_number. If an open
   issue is found, comment on the open issue with provided description else
@@ -210,9 +208,9 @@ def get_issue_description(
 def report_change_point_on_issues(
     title: str,
     description: str,
-    labels: Optional[List[str]] = None,
+    labels: Optional[list[str]] = None,
     existing_issue_number: Optional[int] = None,
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
   """
   Comments the description on the existing issue (if provided and still open),
    or creates a new issue.

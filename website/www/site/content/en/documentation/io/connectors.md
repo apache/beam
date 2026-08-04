@@ -22,7 +22,7 @@ Apache Beam I/O connectors provide read and write transforms for the most popula
 
 I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](/documentation/programming-guide/#multi-language-pipelines).
 
-I/O connectors denoted as _Supported via Managed API_ can be accessed using the simplified _managed I/O_ APIs for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed).
+I/O connectors denoted as _Supported via Managed API_ can be accessed using the simplified [managed I/O_ APIs](https://beam.apache.org/documentation/io/managed-io/).
 
 ## Built-in I/O Connectors
 
@@ -809,7 +809,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/mongodbio">native</a>
     </td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfrommongodb">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetomongodb">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
@@ -876,6 +880,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>ArrowFlightIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/arrowflight/ArrowFlightIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -1252,7 +1272,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#writetodatadog">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
@@ -1288,6 +1312,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>Delta Lake</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✔</td>
   </tr>
 </table>
 </div>

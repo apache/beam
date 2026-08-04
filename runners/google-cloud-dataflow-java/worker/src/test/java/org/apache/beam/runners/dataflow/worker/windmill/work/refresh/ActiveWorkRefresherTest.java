@@ -54,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache
 import org.apache.beam.runners.direct.Clock;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashBasedTable;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
@@ -80,7 +81,8 @@ public class ActiveWorkRefresherTest {
         1,
         10000000,
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        /*useFairMonitor=*/ false);
+        /*useFairMonitor=*/ false,
+        /*useKeyGroupWorkQueue=*/ false);
   }
 
   private static ComputationState createComputationState(int computationIdSuffix) {
@@ -136,8 +138,11 @@ public class ActiveWorkRefresherTest {
             Work.createProcessingContext(
                 "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
             false,
-            ActiveWorkRefresherTest::aLongTimeAgo),
-        processWork);
+            ActiveWorkRefresherTest::aLongTimeAgo,
+            ImmutableList.of()),
+        (work, handle) -> {
+          processWork.accept(work);
+        });
   }
 
   @Test

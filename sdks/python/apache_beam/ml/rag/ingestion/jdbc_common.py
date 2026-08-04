@@ -17,8 +17,6 @@
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 
 
@@ -55,9 +53,9 @@ class ConnectionConfig:
   jdbc_url: str
   username: str
   password: str
-  connection_properties: Optional[Dict[str, str]] = None
-  connection_init_sqls: Optional[List[str]] = None
-  additional_jdbc_args: Dict[str, Any] = field(default_factory=dict)
+  connection_properties: Optional[dict[str, str]] = None
+  connection_init_sqls: Optional[list[str]] = None
+  additional_jdbc_args: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass

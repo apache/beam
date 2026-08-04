@@ -36,7 +36,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.data.GenericDeleteFilter;
-import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.avro.DataReader;
 import org.apache.iceberg.data.orc.GenericOrcReader;
@@ -67,7 +66,10 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
 
   public ScanTaskReader(ScanTaskSource source) {
     this.source = source;
-    this.beamSchema = icebergSchemaToBeamSchema(source.getScanConfig().getProjectedSchema());
+    this.beamSchema =
+        icebergSchemaToBeamSchema(
+            source.getScanConfig().getProjectedSchema(),
+            source.getScanConfig().getUpdateCompatibilityVersion());
   }
 
   @Override
@@ -121,8 +123,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       DataFile file = fileTask.file();
       InputFile input = decryptor.getInputFile(fileTask);
       Map<Integer, ?> idToConstants =
-          ReadUtils.constantsMap(
-              fileTask, IdentityPartitionConverters::convertConstant, requiredSchema);
+          PartitionUtils.constantsMap(fileTask.spec(), fileTask.file(), null);
 
       CloseableIterable<Record> iterable;
       switch (file.format()) {
@@ -209,10 +210,7 @@ class ScanTaskReader extends BoundedSource.BoundedReader<Row> {
       fileScanTasks.clear();
       fileScanTasks = null;
     }
-    if (io != null) {
-      io.close();
-      io = null;
-    }
+    io = null;
   }
 
   @Override

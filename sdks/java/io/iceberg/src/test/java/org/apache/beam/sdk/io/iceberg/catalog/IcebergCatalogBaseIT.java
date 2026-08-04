@@ -59,6 +59,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
@@ -79,8 +80,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CombinedScanTask;
 import org.apache.iceberg.FileScanTask;
+import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SortDirection;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.Catalog;
@@ -103,8 +107,6 @@ import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.util.DateTimeUtil;
 import org.apache.iceberg.util.PartitionUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.LocalDate;
@@ -269,7 +271,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
           .addArrayField("arr_long", Schema.FieldType.INT64)
           .addNullableRowField("nullable_row", NESTED_ROW_SCHEMA)
           .addNullableInt64Field("nullable_long")
-          .addDateTimeField("datetime_tz")
+          .addLogicalTypeField("datetime_tz", Timestamp.MICROS)
           .addLogicalTypeField("datetime", SqlTypes.DATETIME)
           .addLogicalTypeField("date", SqlTypes.DATE)
           .addLogicalTypeField("time", SqlTypes.TIME)
@@ -306,8 +308,10 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
               .addValue(LongStream.range(0, num % 10).boxed().collect(Collectors.toList()))
               .addValue(num % 2 == 0 ? null : nestedRow)
               .addValue(num)
-              .addValue(new DateTime(timestampMillis).withZone(DateTimeZone.forOffsetHours(4)))
-              .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000))
+              .addValue(
+                  DateTimeUtil.timestamptzFromMicros(timestampMillis * 1000 + 123456789)
+                      .toInstant())
+              .addValue(DateTimeUtil.timestampFromMicros(timestampMillis * 1000 + 123456789))
               .addValue(DateTimeUtil.dateFromDays(Integer.parseInt(strNum)))
               .addValue(DateTimeUtil.timeFromMicros(num))
               .build();
@@ -315,7 +319,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       };
 
   protected static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
-      beamSchemaToIcebergSchema(BEAM_SCHEMA);
+      new org.apache.iceberg.Schema(
+          beamSchemaToIcebergSchema(BEAM_SCHEMA).columns(), Collections.singleton(1));
   protected static final SimpleFunction<Row, Record> RECORD_FUNC =
       new SimpleFunction<Row, Record>() {
         @Override
@@ -447,7 +452,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     List<Row> expectedRows = populateTable(table);
 
-    List<String> fieldsToKeep = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    List<String> fieldsToKeep = Arrays.asList("row", "modulo_5", "nullable_long");
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).keep(fieldsToKeep);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
@@ -540,7 +545,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
 
     List<Row> expectedRows = populateTable(table);
 
-    List<String> fieldsToDrop = Arrays.asList("row", "str", "modulo_5", "nullable_long");
+    List<String> fieldsToDrop = Arrays.asList("row", "modulo_5", "nullable_long");
     RowFilter rowFilter = new RowFilter(BEAM_SCHEMA).drop(fieldsToDrop);
 
     Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
@@ -687,6 +692,54 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
         returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
   }
 
+  @Test
+  public void testWriteWithSortOrder() throws IOException {
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    config.put(
+        "sort_fields", Arrays.asList("int_field desc", "bucket(modulo_5, 4) asc nulls last"));
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    SortOrder order = table.sortOrder();
+    assertEquals(2, order.fields().size());
+    assertEquals(SortDirection.DESC, order.fields().get(0).direction());
+    assertEquals(NullOrder.NULLS_LAST, order.fields().get(0).nullOrder());
+    assertEquals(SortDirection.ASC, order.fields().get(1).direction());
+    assertEquals(NullOrder.NULLS_LAST, order.fields().get(1).nullOrder());
+
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  @Test
+  public void testWriteToPartitionedTableWithHashDistribution() throws IOException {
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId()));
+    int truncLength = "value_x".length();
+    List<String> partitionFields =
+        Arrays.asList("bool_field", "hour(datetime)", "truncate(str, " + truncLength + ")");
+    config.put("partition_fields", partitionFields);
+    config.put("distribution_mode", "hash");
+    PCollection<Row> input = pipeline.apply(Create.of(inputRows)).setRowSchema(BEAM_SCHEMA);
+    input.apply(Managed.write(ICEBERG).withConfig(config));
+    pipeline.run().waitUntilFinish();
+
+    // Read back and check records are correct
+    Table table = catalog.loadTable(TableIdentifier.parse(tableId()));
+    List<Record> returnedRecords = readRecords(table);
+    PartitionSpec expectedSpec =
+        PartitionSpec.builderFor(table.schema())
+            .identity("bool_field")
+            .hour("datetime")
+            .truncate("str", truncLength)
+            .build();
+    assertEquals(expectedSpec, table.spec());
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
   private PeriodicImpulse getStreamingSource() {
     return PeriodicImpulse.create()
         .stopAfter(Duration.millis(numRecords() - 1))
@@ -799,6 +852,8 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     if (partitioning) {
       Preconditions.checkState(filterOp == null || !filterOp.equals("only"));
       writeConfig.put("partition_fields", Arrays.asList("bool_field", "modulo_5"));
+      writeConfig.put("distribution_mode", "hash");
+      writeConfig.put("autosharding", true);
     }
 
     // Write with Beam

@@ -36,9 +36,7 @@ import time
 import zlib
 from typing import BinaryIO  # pylint: disable=unused-import
 from typing import Iterator
-from typing import List
 from typing import Optional
-from typing import Tuple
 
 import zstandard
 
@@ -486,7 +484,7 @@ class MatchResult(object):
   """Result from the ``FileSystem`` match operation which contains the list
    of matched ``FileMetadata``.
   """
-  def __init__(self, pattern: str, metadata_list: List[FileMetadata]) -> None:
+  def __init__(self, pattern: str, metadata_list: list[FileMetadata]) -> None:
     self.metadata_list = metadata_list
     self.pattern = pattern
 
@@ -553,7 +551,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     raise NotImplementedError
 
   @abc.abstractmethod
-  def split(self, path: str) -> Tuple[str, str]:
+  def split(self, path: str) -> tuple[str, str]:
     """Splits the given path into two parts.
 
     Splits the path into a pair (head, tail) such that tail contains the last
@@ -626,7 +624,7 @@ class FileSystem(BeamPlugin, metaclass=abc.ABCMeta):
     scheme, path = self._split_scheme(url_or_path)
     return self._combine_scheme(scheme, posixpath.dirname(path))
 
-  def match_files(self, file_metas: List[FileMetadata],
+  def match_files(self, file_metas: list[FileMetadata],
                   pattern: str) -> Iterator[FileMetadata]:
     """Filter :class:`FileMetadata` objects by *pattern*
 

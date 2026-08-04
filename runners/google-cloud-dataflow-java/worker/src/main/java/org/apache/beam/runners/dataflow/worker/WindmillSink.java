@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
@@ -219,11 +221,27 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
       // todo #33176 specify additional metadata in the future
-      BeamFnApi.Elements.ElementMetadata additionalMetadata =
-          BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+      BeamFnApi.Elements.ElementMetadata.Builder additionalMetadataBuilder =
+          BeamFnApi.Elements.ElementMetadata.newBuilder();
+      additionalMetadataBuilder
+          .setDrain(
+              data.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
+                  ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                  : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+          .setValueKind(WindmillValueKindHelper.toProto(data.getValueKind()));
+      Context openTelemetryContext = data.getOpenTelemetryContext();
+      if (openTelemetryContext != null) {
+        // TODO replace with OpenTelemetryContextPropagator
+        WindmillOpenTelemetryContextPropagator.set(openTelemetryContext, additionalMetadataBuilder);
+      }
+
       ByteString metadata =
           encodeMetadata(
-              stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
+              stream,
+              windowsCoder,
+              data.getWindows(),
+              data.getPaneInfo(),
+              additionalMetadataBuilder.build());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = checkNotNull((KV) data.getValue());
