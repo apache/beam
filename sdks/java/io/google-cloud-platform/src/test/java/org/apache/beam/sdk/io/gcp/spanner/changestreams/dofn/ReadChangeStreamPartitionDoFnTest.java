@@ -164,7 +164,8 @@ public class ReadChangeStreamPartitionDoFnTest {
             eq(partitionEventRecordAction),
             eq(metrics),
             anyBoolean(),
-            eq(Duration.standardMinutes(2))))
+            eq(Duration.standardMinutes(2)),
+            any()))
         .thenReturn(queryChangeStreamAction);
 
     doFn.setup(PipelineOptionsFactory.create());
