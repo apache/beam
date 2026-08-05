@@ -134,7 +134,7 @@ public class StreamingModeExecutionContextTest {
         WindmillStateCache.builder()
             .setSizeMb(options.getWorkerCacheMb())
             .build()
-            .forComputation("comp", "systemName"),
+            .forComputation("comp"),
         StreamingStepMetricsContainer.createRegistry(),
         new DataflowExecutionStateTracker(
             ExecutionStateSampler.newForTest(),

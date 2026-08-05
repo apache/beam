@@ -159,7 +159,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
       onCommitComplete.accept(
           CompleteCommit.create(
               commit.computationId(),
-              commit.systemName(),
               w.getShardedKey(),
               w.id(),
               CommitStatus.ABORTED,
@@ -242,7 +241,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                   onCommitComplete.accept(
                       CompleteCommit.create(
                           commit.computationId(),
-                          commit.systemName(),
                           w.getShardedKey(),
                           w.id(),
                           commitStatus,
@@ -260,7 +258,6 @@ public final class StreamingEngineWorkCommitter implements WorkCommitter {
                 onCommitComplete.accept(
                     CompleteCommit.create(
                         commit.computationId(),
-                        commit.systemName(),
                         w.getShardedKey(),
                         w.id(),
                         commitStatus,

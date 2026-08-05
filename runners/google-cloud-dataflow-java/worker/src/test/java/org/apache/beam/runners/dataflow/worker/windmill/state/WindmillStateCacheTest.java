@@ -53,7 +53,6 @@ public class WindmillStateCacheTest {
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
   private static final String COMPUTATION = "computation";
-  private static final String SYSTEM_NAME = "systemName";
   private static final long SHARDING_KEY = 123;
   private static final WindmillComputationKey COMPUTATION_KEY =
       WindmillComputationKey.create(COMPUTATION, ByteString.copyFromUtf8("key"), SHARDING_KEY);
@@ -182,10 +181,7 @@ public class WindmillStateCacheTest {
   @Test
   public void conflictingUserAndSystemTags() {
     WindmillStateCache.ForKeyAndFamily keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
     StateTag<ValueState<String>> userTag = StateTags.value("tag1", StringUtf8Coder.of());
     StateTag<ValueState<String>> systemTag = StateTags.makeSystemTagInternal(userTag);
     assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), userTag));
@@ -224,10 +220,7 @@ public class WindmillStateCacheTest {
   @Test
   public void testBasic() throws Exception {
     WindmillStateCache.ForKeyAndFamily keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.empty(),
         getFromCache(keyCache, StateNamespaces.global(), new TestStateTag("tag1")));
@@ -256,10 +249,7 @@ public class WindmillStateCacheTest {
     assertEquals(482, cache.getWeight());
 
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 2L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.of(new TestState("g1")),
         getFromCache(keyCache, StateNamespaces.global(), new TestStateTag("tag1")));
@@ -286,10 +276,7 @@ public class WindmillStateCacheTest {
         100); // Set limit to 100 bytes, per cache entry overhead is 136.
 
     WindmillStateCache.ForKeyAndFamily keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
 
     TestStateTag tag1 = new TestStateTag("tag1");
     TestStateTag tag2 = new TestStateTag("tag2");
@@ -299,10 +286,7 @@ public class WindmillStateCacheTest {
 
     // It should not be in global cache because it's too large.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 2L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), tag1));
 
     // Now set limit larger.
@@ -313,10 +297,7 @@ public class WindmillStateCacheTest {
 
     // It should be in global cache.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 3L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 3L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.of(new TestState("g2")), getFromCache(keyCache, StateNamespaces.global(), tag2));
 
@@ -326,10 +307,7 @@ public class WindmillStateCacheTest {
 
     // It should be removed from global cache.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 4L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 4L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), tag2));
   }
 
@@ -339,7 +317,7 @@ public class WindmillStateCacheTest {
         WindmillStateCache.builder().setSizeMb(400).setEnableHistogram(false).build();
     WindmillStateCache.ForKeyAndFamily keyCache =
         noHistogramCache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
+            .forComputation(COMPUTATION)
             .forKey(COMPUTATION_KEY, 0L, 1L)
             .forFamily(STATE_FAMILY);
 
@@ -358,10 +336,7 @@ public class WindmillStateCacheTest {
   @Test
   public void testInvalidation() throws Exception {
     WindmillStateCache.ForKeyAndFamily keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.empty(),
         getFromCache(keyCache, StateNamespaces.global(), new TestStateTag("tag1")));
@@ -370,20 +345,14 @@ public class WindmillStateCacheTest {
     keyCache.persist();
 
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 2L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
     assertEquals(207, cache.getWeight());
     assertEquals(
         Optional.of(new TestState("g1")),
         getFromCache(keyCache, StateNamespaces.global(), new TestStateTag("tag1")));
 
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 1L, 3L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 1L, 3L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.empty(),
         getFromCache(keyCache, StateNamespaces.global(), new TestStateTag("tag1")));
@@ -394,10 +363,7 @@ public class WindmillStateCacheTest {
   @Test
   public void testEviction() throws Exception {
     WindmillStateCache.ForKeyAndFamily keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
     putInCache(keyCache, windowNamespace(0), new TestStateTag("tag2"), new TestState("w2"), 2);
     putInCache(
         keyCache,
@@ -410,10 +376,7 @@ public class WindmillStateCacheTest {
 
     // Eviction is atomic across the whole window.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 2L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.empty(), getFromCache(keyCache, windowNamespace(0), new TestStateTag("tag2")));
     assertEquals(
@@ -426,10 +389,7 @@ public class WindmillStateCacheTest {
     TestStateTag tag = new TestStateTag("tag2");
 
     WindmillStateCache.ForKeyAndFamily keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 2L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
     putInCache(keyCache, windowNamespace(0), tag, new TestState("w2"), 2);
 
     // Same cache.
@@ -441,41 +401,26 @@ public class WindmillStateCacheTest {
 
     // Previous work token.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, windowNamespace(0), tag));
 
     // Retry of work token that inserted.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 2L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, windowNamespace(0), tag));
 
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 10L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 10L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, windowNamespace(0), tag));
     putInCache(keyCache, windowNamespace(0), tag, new TestState("w3"), 2);
 
     // Ensure that second put updated work token.
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 5L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 5L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, windowNamespace(0), tag));
 
     keyCache =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 15L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 15L).forFamily(STATE_FAMILY);
     assertEquals(Optional.empty(), getFromCache(keyCache, windowNamespace(0), tag));
   }
 
@@ -486,17 +431,17 @@ public class WindmillStateCacheTest {
 
     WindmillStateCache.ForKeyAndFamily keyCache1 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 0L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily keyCache2 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key2", SHARDING_KEY), 0L, 10L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily keyCache3 =
         cache
-            .forComputation("comp2", "system2")
+            .forComputation("comp2")
             .forKey(computationKey("comp2", "key1", SHARDING_KEY), 0L, 0L)
             .forFamily(STATE_FAMILY);
 
@@ -507,7 +452,7 @@ public class WindmillStateCacheTest {
 
     keyCache1 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 1L)
             .forFamily(STATE_FAMILY);
     assertEquals(Optional.of(state1), getFromCache(keyCache1, StateNamespaces.global(), tag));
@@ -520,7 +465,7 @@ public class WindmillStateCacheTest {
     assertEquals(Optional.of(state2), getFromCache(keyCache2, StateNamespaces.global(), tag));
     keyCache2 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key2", SHARDING_KEY), 0L, 20L)
             .forFamily(STATE_FAMILY);
     assertEquals(Optional.of(state2), getFromCache(keyCache2, StateNamespaces.global(), tag));
@@ -535,17 +480,17 @@ public class WindmillStateCacheTest {
 
     WindmillStateCache.ForKeyAndFamily key1CacheShard1 =
         cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
+            .forComputation(COMPUTATION)
             .forKey(computationKey(COMPUTATION, "key1", 1), 0L, 0L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily key1CacheShard2 =
         cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
+            .forComputation(COMPUTATION)
             .forKey(computationKey(COMPUTATION, "key1", 2), 0L, 0L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily key2CacheShard1 =
         cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
+            .forComputation(COMPUTATION)
             .forKey(computationKey(COMPUTATION, "key2", 1), 0L, 0L)
             .forFamily(STATE_FAMILY);
 
@@ -555,7 +500,7 @@ public class WindmillStateCacheTest {
     assertEquals(Optional.of(state1), getFromCache(key1CacheShard1, StateNamespaces.global(), tag));
     key1CacheShard1 =
         cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
+            .forComputation(COMPUTATION)
             .forKey(computationKey(COMPUTATION, "key1", 1), 0L, 1L)
             .forFamily(STATE_FAMILY);
     assertEquals(Optional.of(state1), getFromCache(key1CacheShard1, StateNamespaces.global(), tag));
@@ -568,7 +513,7 @@ public class WindmillStateCacheTest {
     key1CacheShard2.persist();
     key1CacheShard2 =
         cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
+            .forComputation(COMPUTATION)
             .forKey(computationKey(COMPUTATION, "key1", 2), 0L, 20L)
             .forFamily(STATE_FAMILY);
     assertEquals(Optional.of(state2), getFromCache(key1CacheShard2, StateNamespaces.global(), tag));
@@ -582,9 +527,7 @@ public class WindmillStateCacheTest {
     TestStateTag tag = new TestStateTag("tag1");
 
     WindmillStateCache.ForKey keyCache =
-        cache
-            .forComputation("comp1", "system1")
-            .forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 0L);
+        cache.forComputation("comp1").forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 0L);
     WindmillStateCache.ForKeyAndFamily family1 = keyCache.forFamily("family1");
     WindmillStateCache.ForKeyAndFamily family2 = keyCache.forFamily("family2");
 
@@ -599,9 +542,7 @@ public class WindmillStateCacheTest {
     assertEquals(Optional.of(state2), getFromCache(family2, StateNamespaces.global(), tag));
 
     keyCache =
-        cache
-            .forComputation("comp1", "system1")
-            .forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 1L);
+        cache.forComputation("comp1").forKey(computationKey("comp1", "key1", SHARDING_KEY), 0L, 1L);
     family1 = keyCache.forFamily("family1");
     family2 = keyCache.forFamily("family2");
     WindmillStateCache.ForKeyAndFamily family3 = keyCache.forFamily("family3");
@@ -615,22 +556,22 @@ public class WindmillStateCacheTest {
   public void testExplicitInvalidation() throws Exception {
     WindmillStateCache.ForKeyAndFamily keyCache1 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", 1), 0L, 0L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily keyCache2 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key2", SHARDING_KEY), 0L, 0L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily keyCache3 =
         cache
-            .forComputation("comp2", "system2")
+            .forComputation("comp2")
             .forKey(computationKey("comp2", "key1", SHARDING_KEY), 0L, 0L)
             .forFamily(STATE_FAMILY);
     WindmillStateCache.ForKeyAndFamily keyCache4 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", 2), 0L, 0L)
             .forFamily(STATE_FAMILY);
 
@@ -648,22 +589,22 @@ public class WindmillStateCacheTest {
     keyCache4.persist();
     keyCache1 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", 1), 0L, 1L)
             .forFamily(STATE_FAMILY);
     keyCache2 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key2", SHARDING_KEY), 0L, 1L)
             .forFamily(STATE_FAMILY);
     keyCache3 =
         cache
-            .forComputation("comp2", "system2")
+            .forComputation("comp2")
             .forKey(computationKey("comp2", "key1", SHARDING_KEY), 0L, 1L)
             .forFamily(STATE_FAMILY);
     keyCache4 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", 2), 0L, 1L)
             .forFamily(STATE_FAMILY);
     assertEquals(
@@ -680,10 +621,10 @@ public class WindmillStateCacheTest {
         getFromCache(keyCache4, StateNamespaces.global(), new TestStateTag("tag4")));
 
     // Invalidation of key 1 shard 1 does not affect another shard of key 1 or other keys.
-    cache.forComputation("comp1", "system1").invalidate(ByteString.copyFromUtf8("key1"), 1);
+    cache.forComputation("comp1").invalidate(ByteString.copyFromUtf8("key1"), 1);
     keyCache1 =
         cache
-            .forComputation("comp1", "system1")
+            .forComputation("comp1")
             .forKey(computationKey("comp1", "key1", 1), 0L, 2L)
             .forFamily(STATE_FAMILY);
 
@@ -701,7 +642,7 @@ public class WindmillStateCacheTest {
         getFromCache(keyCache4, StateNamespaces.global(), new TestStateTag("tag4")));
 
     // Invalidation of an non-existing key affects nothing.
-    cache.forComputation("comp1", "system1").invalidate(ByteString.copyFromUtf8("key1"), 3);
+    cache.forComputation("comp1").invalidate(ByteString.copyFromUtf8("key1"), 3);
 
     assertEquals(
         Optional.of(new TestState("g2")),
@@ -738,20 +679,14 @@ public class WindmillStateCacheTest {
   @Test
   public void testBadCoderEquality() throws Exception {
     WindmillStateCache.ForKeyAndFamily keyCache1 =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 0L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 0L).forFamily(STATE_FAMILY);
 
     StateTag<TestState> tag = new TestStateTagWithBadEquality("tag1");
     putInCache(keyCache1, StateNamespaces.global(), tag, new TestState("g1"), 1);
     keyCache1.persist();
 
     keyCache1 =
-        cache
-            .forComputation(COMPUTATION, SYSTEM_NAME)
-            .forKey(COMPUTATION_KEY, 0L, 1L)
-            .forFamily(STATE_FAMILY);
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
     assertEquals(
         Optional.of(new TestState("g1")), getFromCache(keyCache1, StateNamespaces.global(), tag));
     assertEquals(

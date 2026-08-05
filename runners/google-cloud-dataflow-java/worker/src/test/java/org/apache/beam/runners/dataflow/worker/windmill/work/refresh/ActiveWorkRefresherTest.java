@@ -71,7 +71,6 @@ public class ActiveWorkRefresherTest {
   }
 
   private static final String COMPUTATION_ID_PREFIX = "ComputationId-";
-  private static final String SYSTEM_NAME_PREFIX = "SystemName-";
   private final HeartbeatSender heartbeatSender = mock(HeartbeatSender.class);
 
   private static BoundedQueueExecutor workExecutor() {
@@ -258,7 +257,7 @@ public class ActiveWorkRefresherTest {
     ByteString key = ByteString.EMPTY;
     for (int i = 0; i < 5; i++) {
       WindmillStateCache.ForComputation perComputationStateCache =
-          spy(stateCache.forComputation(COMPUTATION_ID_PREFIX + i, SYSTEM_NAME_PREFIX + i));
+          spy(stateCache.forComputation(COMPUTATION_ID_PREFIX + i));
       ComputationState computationState = spy(createComputationState(i, perComputationStateCache));
       ExecutableWork fakeWork = createOldWork(ShardedKey.create(key, i), i, ignored -> {});
       fakeWork.work().setState(Work.State.COMMITTING);

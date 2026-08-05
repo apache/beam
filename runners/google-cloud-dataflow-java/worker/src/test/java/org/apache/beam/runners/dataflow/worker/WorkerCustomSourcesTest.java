@@ -1004,7 +1004,7 @@ public class WorkerCustomSourcesTest {
             WindmillStateCache.builder()
                 .setSizeMb(options.getWorkerCacheMb())
                 .build()
-                .forComputation(COMPUTATION_ID, SYSTEM_NAME),
+                .forComputation(COMPUTATION_ID),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),

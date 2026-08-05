@@ -39,18 +39,15 @@ public abstract class CompleteCommit {
 
   public static CompleteCommit create(
       String computationId,
-      String systemName,
       ShardedKey shardedKey,
       WorkId workId,
       CommitStatus status,
       boolean retryableFailure) {
     return new AutoValue_CompleteCommit(
-        computationId, systemName, shardedKey, workId, status, retryableFailure);
+        computationId, shardedKey, workId, status, retryableFailure);
   }
 
   public abstract String computationId();
-
-  public abstract String systemName();
 
   public abstract ShardedKey shardedKey();
 
