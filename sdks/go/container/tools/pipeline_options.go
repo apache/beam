@@ -127,6 +127,9 @@ func (po *PipelineOptions) HasOption(name string) bool {
 }
 
 // GetString returns the value of an option as a string.
+// As a convenience and to maintain compatibility with Go SDK's flags serialization style,
+// if the option is stored as a string slice/array, GetString will conjoin the elements
+// into a single comma-separated string (e.g. ["opt1", "opt2"] -> "opt1,opt2").
 func (po *PipelineOptions) GetString(name string) (string, error) {
 	val, ok := po.options[name]
 	if !ok || val == nil {
@@ -135,10 +138,25 @@ func (po *PipelineOptions) GetString(name string) (string, error) {
 	if str, ok := val.(string); ok {
 		return str, nil
 	}
+	if slice, ok := val.([]any); ok {
+		var parts []string
+		for _, item := range slice {
+			if str, ok := item.(string); ok {
+				parts = append(parts, str)
+			} else {
+				return "", fmt.Errorf("option %q: expected string slice element, got type %T", name, item)
+			}
+		}
+		return strings.Join(parts, ","), nil
+	}
 	return "", fmt.Errorf("option %q: expected string, got type %T", name, val)
 }
 
 // GetStringSlice returns the value of an option as a string slice.
+// As a convenience and to maintain compatibility with Go SDK's flags serialization style,
+// if the option is stored as a single comma-separated string (such as experiments
+// or dataflow_service_options), GetStringSlice will parse it by splitting the string
+// by comma (e.g. "opt1,opt2" -> ["opt1", "opt2"]).
 func (po *PipelineOptions) GetStringSlice(name string) ([]string, error) {
 	val, ok := po.options[name]
 	if !ok || val == nil {

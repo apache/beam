@@ -109,7 +109,7 @@ func TestParseOptionsFromProto_FlatOptionsWithURN(t *testing.T) {
 		"beam:option:profiler_agent:v1": "memray",
 		"beam:option:profile_upload_interval_sec:v1": "10",
 		"beam:option:profiler_stop_after_crash:v1": "true",
-		"beam:option:experiments:v1": ["beam_fn_api"]
+		"beam:option:experiments:v1": ["beam_fn_api", "another_exp"]
 	}`)
 	po := ParseOptionsFromProto(p, "")
 
@@ -122,12 +122,15 @@ func TestParseOptionsFromProto_FlatOptionsWithURN(t *testing.T) {
 	if got, err := po.GetBool("profiler_stop_after_crash"); err != nil || got != true {
 		t.Errorf("GetBool(profiler_stop_after_crash) = (%t, %v), want (true, nil)", got, err)
 	}
-	experiments, err := po.GetStringSlice("experiments")
-	if err != nil || len(experiments) != 1 || experiments[0] != "beam_fn_api" {
-		t.Errorf("GetStringSlice(experiments) = (%v, %v), want ([beam_fn_api], nil)", experiments, err)
+	if got, err := po.GetString("experiments"); err != nil || got != "beam_fn_api,another_exp" {
+		t.Errorf("GetString(experiments) = (%q, %v), want (\"beam_fn_api,another_exp\", nil)", got, err)
 	}
-	if !po.HasExperiment("beam_fn_api") {
-		t.Errorf("expected experiment beam_fn_api to be present, experiments map: %+v", po.experiments)
+	experiments, err := po.GetStringSlice("experiments")
+	if err != nil || len(experiments) != 2 || experiments[0] != "beam_fn_api" || experiments[1] != "another_exp" {
+		t.Errorf("GetStringSlice(experiments) = (%v, %v), want ([beam_fn_api, another_exp], nil)", experiments, err)
+	}
+	if !po.HasExperiment("beam_fn_api") || !po.HasExperiment("another_exp") {
+		t.Errorf("expected experiments beam_fn_api and another_exp to be present, experiments map: %+v", po.experiments)
 	}
 }
 
