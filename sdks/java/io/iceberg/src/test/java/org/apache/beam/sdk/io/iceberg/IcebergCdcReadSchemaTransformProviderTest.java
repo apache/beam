@@ -95,7 +95,6 @@ public class IcebergCdcReadSchemaTransformProviderTest {
             .withFieldValue("keep", ImmutableList.of("id", "data", "event_micros"))
             .withFieldValue("filter", "\"category\" = 'include'")
             .withFieldValue("watermark_column", "event_micros")
-            .withFieldValue("max_snapshot_discovery_delay", 321L)
             .withFieldValue(
                 "include_metadata_columns",
                 ImmutableList.of(
@@ -220,7 +219,6 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     configMap.put("keep", ImmutableList.of("id", "data", "event_micros"));
     configMap.put("filter", "\"category\" = 'include'");
     configMap.put("watermark_column", "event_micros");
-    configMap.put("max_snapshot_discovery_delay", 30L);
     configMap.put(
         "include_metadata_columns",
         ImmutableList.of(

@@ -619,8 +619,6 @@ public class IcebergIO {
 
     abstract @Nullable String getWatermarkColumnTimeUnit();
 
-    abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
-
     abstract List<String> getMetadataColumns();
 
     abstract Builder toBuilder();
@@ -656,8 +654,6 @@ public class IcebergIO {
       abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
 
       abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
-
-      abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
       abstract Builder setMetadataColumns(List<String> metadataColumns);
 
@@ -720,10 +716,6 @@ public class IcebergIO {
       return toBuilder().setWatermarkColumnTimeUnit(timeUnit).build();
     }
 
-    public ReadRows withMaxSnapshotDiscoveryDelay(@Nullable Duration delay) {
-      return toBuilder().setMaxSnapshotDiscoveryDelay(delay).build();
-    }
-
     /**
      * Appends top-level metadata columns to CDC output rows.
      *
@@ -778,7 +770,6 @@ public class IcebergIO {
               .setFilterString(getFilter())
               .setWatermarkColumn(getWatermarkColumn())
               .setWatermarkColumnTimeUnit(getWatermarkColumnTimeUnit())
-              .setMaxSnapshotDiscoveryDelay(getMaxSnapshotDiscoveryDelay())
               .setMetadataColumns(getMetadataColumns())
               .build();
       scanConfig.validate(table);

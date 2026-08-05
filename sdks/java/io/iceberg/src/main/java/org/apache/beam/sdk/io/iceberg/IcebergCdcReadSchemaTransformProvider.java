@@ -126,10 +126,6 @@ public class IcebergCdcReadSchemaTransformProvider
       if (pollIntervalSeconds != null) {
         readRows = readRows.withPollInterval(Duration.standardSeconds(pollIntervalSeconds));
       }
-      @Nullable Long maxDelay = configuration.getMaxSnapshotDiscoveryDelay();
-      if (maxDelay != null) {
-        readRows = readRows.withMaxSnapshotDiscoveryDelay(Duration.standardSeconds(maxDelay));
-      }
 
       PCollection<Row> output = input.getPipeline().apply(readRows);
 
@@ -212,12 +208,6 @@ public class IcebergCdcReadSchemaTransformProvider
     abstract @Nullable String getWatermarkColumnTimeUnit();
 
     @SchemaFieldDescription(
-        "Maximum expected snapshot discovery delay in seconds. While idle, the source may advance "
-            + "the watermark to now() minus this delay; snapshots discovered later with older commit "
-            + "timestamps may be treated as late by downstream windowing. Default: 600 seconds.")
-    abstract @Nullable Long getMaxSnapshotDiscoveryDelay();
-
-    @SchemaFieldDescription(
         "List of top-level metadata columns to include with CDC output rows. Supported columns: \n"
             + "- `_change_type`\n"
             + "- `_row_id`\n"
@@ -259,8 +249,6 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setWatermarkColumn(String watermarkColumn);
 
       abstract Builder setWatermarkColumnTimeUnit(String timeUnit);
-
-      abstract Builder setMaxSnapshotDiscoveryDelay(Long seconds);
 
       abstract Builder setIncludeMetadataColumns(List<String> metadataColumns);
 

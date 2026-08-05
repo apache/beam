@@ -119,7 +119,6 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("keep", ImmutableList.of("id", "event_micros"))
           .withFieldValue("filter", "\"data\" = 'keep'")
           .withFieldValue("watermark_column", "event_micros")
-          .withFieldValue("max_snapshot_discovery_delay", 321L)
           .build();
 
   @Test
