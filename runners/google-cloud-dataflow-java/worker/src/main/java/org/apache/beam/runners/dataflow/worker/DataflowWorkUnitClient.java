@@ -146,7 +146,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     } else {
       stage = null;
     }
-    DataflowWorkerLoggingMDC.setStageName(stage);
+    DataflowWorkerLoggingMDC.setSystemStageName(stage);
 
     stageStartTime.set(DateTime.now());
     DataflowWorkerLoggingMDC.setWorkId(Long.toString(work.getId()));
@@ -227,7 +227,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
     // Log the stage execution time of finished stages that have a stage name.  This will not be set
     // in the event this status is associated with a dummy work item.
     if (firstNonNull(workItemStatus.getCompleted(), Boolean.FALSE)
-        && DataflowWorkerLoggingMDC.getStageName() != null) {
+        && DataflowWorkerLoggingMDC.getSystemStageName() != null) {
       DateTime startTime = stageStartTime.get();
       if (startTime != null) {
         // elapsed time can be negative by time correction
@@ -236,7 +236,7 @@ class DataflowWorkUnitClient implements WorkUnitClient {
         // This thread should have been tagged with the stage start time during getWorkItem(),
         logger.info(
             "Finished processing stage {} with {} errors in {} seconds ",
-            DataflowWorkerLoggingMDC.getStageName(),
+            DataflowWorkerLoggingMDC.getSystemStageName(),
             numErrors,
             (double) elapsed / 1000);
       }

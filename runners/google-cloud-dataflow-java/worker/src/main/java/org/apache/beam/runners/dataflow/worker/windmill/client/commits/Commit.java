@@ -70,7 +70,9 @@ public class Commit {
     return computationState().getSystemName();
   }
 
-  public abstract WorkItemCommitRequest request();
+  public @Nullable WorkItemCommitRequest singleKeyRequest() {
+    return singleKeyRequest;
+  }
 
   public ComputationState computationState() {
     return computationState;
@@ -94,8 +96,8 @@ public class Commit {
   @Override
   public String toString() {
     Work work = workBatch.get(0);
-    return "[computationId="
-        + computationId()
+    return "[systemName="
+        + systemName()
         + ", shardingKey="
         + work.getShardedKey()
         + ", workId="

@@ -177,7 +177,7 @@ public class StreamingWorkScheduler {
   }
 
   private static void setLoggingContextSystemName(@Nullable String systemName) {
-    DataflowWorkerLoggingMDC.setStageName(systemName);
+    DataflowWorkerLoggingMDC.setSystemStageName(systemName);
   }
 
   private static void setLoggingContextWorkId(@Nullable String workLatencyTrackingId) {
@@ -232,6 +232,12 @@ public class StreamingWorkScheduler {
     work.setState(Work.State.PROCESSING);
     setUpWorkLoggingContext(work.getLatencyTrackingId(), systemName);
     LOG.debug("Starting processing for {}:\n{}", systemName, work);
+    KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
+    keyTransitionListener.onKeyTransition(null, work);
+
+    // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
+    // cleanup should be done before this, since we might exit early here.
+    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
 
     if (workItem.getSourceState().getOnlyFinalize()) {
       handleOnlyFinalize(computationState, work, workItem);
