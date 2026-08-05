@@ -268,6 +268,10 @@ public class StreamingModeExecutionContext
     return backlogBytes;
   }
 
+  public String getSystemName() {
+    return systemName;
+  }
+
   public long getMaxOutputKeyBytes() {
     return operationalLimits.getMaxOutputKeyBytes();
   }
@@ -585,7 +589,7 @@ public class StreamingModeExecutionContext
       } catch (IOException e) {
         Windmill.WorkItem workItem = getWorkItem();
         long shardingKey = workItem != null ? workItem.getShardingKey() : -1L;
-        LOG.warn("Failed to close reader for {}-{}", computationId, shardingKey, e);
+        LOG.warn("Failed to close reader for {}-{}", systemName, shardingKey, e);
       }
     }
     activeReader = null;
