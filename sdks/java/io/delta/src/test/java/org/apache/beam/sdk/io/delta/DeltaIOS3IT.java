@@ -123,10 +123,6 @@ public class DeltaIOS3IT {
         localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString());
     configuration.set("fs.s3a.access.key", localstack.getAccessKey());
     configuration.set("fs.s3a.secret.key", localstack.getSecretKey());
-    configuration.set("fs.s3a.path.style.access", "true");
-    configuration.set("fs.s3a.connection.ssl.enabled", "false");
-    configuration.set("fs.s3a.endpoint.region", localstack.getRegion());
-    configuration.set("fs.s3a.cross.region.access.enabled", "false");
     configuration.set("fs.s3a.audit.enabled", "false");
     configuration.set(
         "fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
@@ -265,10 +261,6 @@ public class DeltaIOS3IT {
         localstack.getEndpointOverride(LocalStackContainer.Service.S3).toString());
     hadoopConfig.put("fs.s3a.access.key", localstack.getAccessKey());
     hadoopConfig.put("fs.s3a.secret.key", localstack.getSecretKey());
-    hadoopConfig.put("fs.s3a.path.style.access", "true");
-    hadoopConfig.put("fs.s3a.connection.ssl.enabled", "false");
-    hadoopConfig.put("fs.s3a.endpoint.region", localstack.getRegion());
-    hadoopConfig.put("fs.s3a.cross.region.access.enabled", "false");
     hadoopConfig.put("fs.s3a.audit.enabled", "false");
     hadoopConfig.put(
         "fs.s3a.aws.credentials.provider", "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider");
