@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.iceberg.catalog;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.rest.RESTCatalog;
 import org.junit.After;
 import org.junit.BeforeClass;
@@ -29,8 +30,12 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   private static Map<String, String> catalogProps;
 
   // Using a special bucket for this test class because
-  // BigLake does not support using subfolders as a warehouse (yet)
-  private static final String BIGLAKE_WAREHOUSE = "gs://managed-iceberg-biglake-its";
+  // BigLake does not support using subfolders as a warehouse (yet).
+  // Overridable for local runs against a different project's catalog, e.g.
+  // -Dbeam.iceberg.biglake.warehouse=gs://my-bucket (bucket-backed catalogs are named after
+  // their bucket).
+  private static final String BIGLAKE_WAREHOUSE =
+      System.getProperty("beam.iceberg.biglake.warehouse", "gs://managed-iceberg-biglake-its");
 
   @BeforeClass
   public static void setup() {
@@ -56,6 +61,18 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   @Override
   public String type() {
     return "biglake";
+  }
+
+  @Override
+  public String bigQueryTableSpec(String tableId) {
+    // BigQuery surfaces Lakehouse runtime catalog (BigLake metastore REST) tables via 4-part
+    // project.catalog.namespace.table identifiers; the catalog id of a bucket-backed catalog is
+    // the bucket name. Requires the caller to hold biglake.* read permissions (e.g.
+    // roles/biglake.viewer) in addition to the usual BigQuery roles.
+    TableIdentifier identifier = TableIdentifier.parse(tableId);
+    String catalogId = BIGLAKE_WAREHOUSE.replace("gs://", "");
+    return String.format(
+        "%s.%s.%s.%s", OPTIONS.getProject(), catalogId, identifier.namespace(), identifier.name());
   }
 
   @Override

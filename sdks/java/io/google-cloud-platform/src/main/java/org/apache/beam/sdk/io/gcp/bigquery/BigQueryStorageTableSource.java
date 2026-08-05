@@ -163,12 +163,13 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
   @Override
   public long getEstimatedSizeBytes(PipelineOptions options) throws Exception {
     Table table = getTargetTable(options.as(BigQueryOptions.class));
-    if (table != null) {
+    if (table != null && table.getNumBytes() != null) {
       return table.getNumBytes();
     }
     // If the table does not exist, then it will be null.
     // Avoid the NullPointerException here, allow a more meaningful table "not_found"
     // error to be shown to the user, upon table read.
+    // Lakehouse runtime catalog (BigLake metastore) tables exist but report no numBytes.
     return 0;
   }
 

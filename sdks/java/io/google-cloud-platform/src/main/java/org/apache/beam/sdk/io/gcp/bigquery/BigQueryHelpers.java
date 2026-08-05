@@ -45,6 +45,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.extensions.gcp.util.BackOffAdapter;
 import org.apache.beam.sdk.io.FileSystems;
@@ -78,6 +79,9 @@ public class BigQueryHelpers {
           + " #withoutValidation.";
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryHelpers.class);
+
+  /** Matches valid Project ID patterns. */
+  private static final Pattern PROJECT_NAME_SEGMENT_PATTERN = Pattern.compile("[-a-z0-9]*[a-z0-9]");
 
   // Given a potential failure and a current job-id, return the next job-id to be used on retry.
   // Algorithm is as follows (given input of job_id_prefix-N)
@@ -458,6 +462,13 @@ public class BigQueryHelpers {
    * Parse a table specification in the form {@code "[project_id]:[dataset_id].[table_id]"} or
    * {@code "[project_id].[dataset_id].[table_id]"} or {@code "[dataset_id].[table_id]"}.
    *
+   * <p>Lakehouse runtime catalog (BigLake metastore) tables are referenced with four parts, {@code
+   * "[project_id].[catalog_id].[namespace_id].[table_id]"} (or {@code
+   * "[project_id]:[catalog_id].[namespace_id].[table_id]"}); these parse to a composite {@code
+   * "[catalog_id].[namespace_id]"} dataset id, which is the form the BigQuery APIs accept for such
+   * tables. More generally, when a specification contains more than three segments, everything
+   * between the project id and the final (table) segment becomes the dataset id.
+   *
    * <p>If the project id is omitted, the default project id is used.
    */
   @SuppressWarnings({
@@ -471,14 +482,75 @@ public class BigQueryHelpers {
               "Table specification [%s] is not in one of the expected formats ("
                   + " [project_id]:[dataset_id].[table_id],"
                   + " [project_id].[dataset_id].[table_id],"
-                  + " [dataset_id].[table_id])",
+                  + " [dataset_id].[table_id],"
+                  + " [project_id]:[catalog_id].[namespace_id].[table_id],"
+                  + " [project_id].[catalog_id].[namespace_id].[table_id])",
               tableSpec));
     }
 
-    TableReference ref = new TableReference();
-    ref.setProjectId(match.group("PROJECT"));
+    // Table ids cannot contain '.', so the table is always the segment after
+    // the last dot.
+    int lastDot = tableSpec.lastIndexOf('.');
+    String table = tableSpec.substring(lastDot + 1);
+    String prefix = tableSpec.substring(0, lastDot);
 
-    return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
+    String project = null;
+    String dataset;
+    long colonCount = prefix.chars().filter(c -> c == ':').count();
+    if (colonCount == 0) {
+      // No colon means the purely dotted form ("p.d.t", "d.t", "p.catalog.ns.t"): the
+      // leading segment is the project id when it is a plausible project id.
+      // (Dataset ids may contain characters such as '_' that project ids may
+      // not, in which case the whole prefix is the dataset id.)
+      // The firstDot < length-1 guard keeps degenerate trailing-dot specs
+      // ("pp..t", accepted by the character-set gate with dataset "pp.")
+      // instead of producing an empty dataset id.
+      int firstDot = prefix.indexOf('.');
+      if (firstDot >= 0
+          && firstDot < prefix.length() - 1
+          && BigQueryIO.PROJECT_ID_PATTERN.matcher(prefix.substring(0, firstDot)).matches()) {
+        project = prefix.substring(0, firstDot);
+        dataset = prefix.substring(firstDot + 1);
+      } else {
+        dataset = prefix;
+      }
+    } else if (colonCount == 1) {
+      // One colon ("p:d.t", "p:catalog.ns.t", "example.com:proj.ds.t"). If the
+      // project part is dotted, it is a legacy domain-scoped id written with
+      // a '.' separator after the project: the first dataset segment completes
+      // the project id, and any remaining middle segments bind as a (possibly
+      // composite) dataset. (Domain-scoped project names cannot contain dots)
+      int colon = prefix.indexOf(':');
+      project = prefix.substring(0, colon);
+      dataset = prefix.substring(colon + 1);
+      int firstDot = dataset.indexOf('.');
+      // Absorb the first dataset segment into a dotted (domain-scoped) project
+      // only when the split leaves a non-empty dataset.
+      if (firstDot >= 0
+          && firstDot < dataset.length() - 1
+          && project.indexOf('.') >= 0
+          && PROJECT_NAME_SEGMENT_PATTERN.matcher(dataset.substring(0, firstDot)).matches()) {
+        project = project + ":" + dataset.substring(0, firstDot);
+        dataset = dataset.substring(firstDot + 1);
+      }
+    } else {
+      // Two colons - the last colon is an explicit project terminator. This is
+      // the canonical spelling for a domain-scoped project, whose id itself
+      // contains a colon ("example.com:proj:ds.t"), including with a composite
+      // Lakehouse catalog dataset ("example.com:proj:catalog.ns.t"). Both
+      // domain-scoped spellings keep toTableSpec/parseTableSpec a round trip
+      // for composite dataset ids. (More than two colons cannot form a valid
+      // reference - project ids contain at most one colon, but such specs pass
+      // the character-set gate, so they bind here too and the impossible
+      // project id is rejected by the service.)
+      int lastColon = prefix.lastIndexOf(':');
+      project = prefix.substring(0, lastColon);
+      dataset = prefix.substring(lastColon + 1);
+    }
+
+    TableReference ref = new TableReference();
+    ref.setProjectId(project);
+    return ref.setDatasetId(dataset).setTableId(table);
   }
 
   @SuppressWarnings({
