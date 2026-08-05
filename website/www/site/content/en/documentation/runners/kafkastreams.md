@@ -43,8 +43,24 @@ efficient choices for batch work; this runner exists for pipelines that do not e
 
 ## Running a pipeline
 
-The runner is portable — it executes user code over the Fn API, in an SDK harness — so a pipeline is
-submitted to a job server rather than run directly.
+The runner is portable: it executes user code over the Fn API, in an SDK harness, so a pipeline goes
+to a job server rather than being run directly. From Java you do not have to start one yourself.
+
+### From Java
+
+Select `KafkaStreamsRunner` and point it at your Kafka cluster:
+
+```
+--runner=KafkaStreamsRunner \
+--bootstrapServers=localhost:9092 \
+--applicationId=my-beam-pipeline
+```
+
+With no `jobEndpoint` set, the runner starts a job server of its own on a dynamic port, submits to
+it, and shuts it down when the pipeline finishes. Setting `--jobEndpoint` instead submits to a job
+server you are already running.
+
+### From another SDK, or against a shared job server
 
 Start the job server, which listens on `localhost:8099` by default:
 
@@ -52,11 +68,11 @@ Start the job server, which listens on `localhost:8099` by default:
 ./gradlew :runners:kafka-streams:runJobServer
 ```
 
-Then submit a pipeline against it, pointing the runner at your Kafka cluster:
+Then submit to it with the portable runner:
 
 ```
 --runner=PortableRunner \
---jobEndpoint=localhost:8099 \
+--job_endpoint=localhost:8099 \
 --bootstrapServers=localhost:9092 \
 --applicationId=my-beam-pipeline
 ```
@@ -107,25 +123,32 @@ exercised so far.
 ## What is not supported yet
 
 These are core parts of the Beam model that the runner does not implement. Each is a real gap rather
-than a decision:
+than a decision, and each is tracked:
 
-* **Side inputs.**
-* **Stateful `ParDo` and user timers** — including timer families, looping timers and
-  processing-time timers.
-* **Merging windows**, so session windows do not work.
-* **Custom `WindowFn`s.** The standard windows travel as URNs the runner interprets directly; one
-  the user wrote themselves would have to run in the SDK harness, which is not wired up.
-* **Splittable `DoFn`**, bounded or unbounded.
-* **`TestStream`.**
-* **Reading a source in parallel.** A source is split into exactly one part and read by a single
-  reader. A source that insists on splitting further is rejected at translation rather than having
-  its extra splits silently dropped.
-* **A time bound on bundles.** `maxBundleTimeMs` is accepted but has no effect: closing a bundle
-  from a wall-clock punctuator duplicated output against a real broker, and the cause is not yet
-  understood. Bundles are bounded by element count and closed on watermarks.
-* **`finalizeCheckpoint`** is not called on an unbounded source's checkpoint mark, so sources that
-  rely on finalization to acknowledge data will not see it.
-* **Committed metrics** — only attempted values are reported.
+* **Side inputs** ([#39628](https://github.com/apache/beam/issues/39628)).
+* **Stateful `ParDo` and user timers** ([#39629](https://github.com/apache/beam/issues/39629)) —
+  including timer families, looping timers
+  and processing-time timers.
+* **Merging windows**, so session windows do not work, and **custom `WindowFn`s**
+    ([#39630](https://github.com/apache/beam/issues/39630)). The standard windows travel as URNs the
+  runner interprets directly; one the
+  user wrote themselves would have to run in the SDK harness, which is not wired up.
+* **Splittable `DoFn`**, bounded or unbounded
+  ([#39631](https://github.com/apache/beam/issues/39631)).
+* **`TestStream`** ([#39632](https://github.com/apache/beam/issues/39632)).
+* **Reading a source in parallel**
+  ([#39626](https://github.com/apache/beam/issues/39626)). A source is split into exactly one part
+  and read by a single reader. A source that insists on splitting further is rejected at
+  translation rather than having its extra splits silently dropped.
+* **A time bound on bundles** ([#39633](https://github.com/apache/beam/issues/39633)).
+  `maxBundleTimeMs` is accepted but has no effect:
+  closing a bundle from a wall-clock punctuator duplicated output against a real broker, and the
+  cause is not yet understood. Bundles are bounded by element count and closed on watermarks.
+* **`finalizeCheckpoint`** ([#39634](https://github.com/apache/beam/issues/39634)) is not called on
+  an unbounded source's checkpoint mark,
+  so sources that rely on finalization to acknowledge data will not see it.
+* **Committed metrics** ([#39635](https://github.com/apache/beam/issues/39635)) — only attempted
+  values are reported.
 
 ## How it works
 
