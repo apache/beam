@@ -61,11 +61,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @DoFn.BoundedPerElement
 class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
   @Nullable Map<String, String> hadoopConfig;
+  private final @Nullable List<String> metadataColumns;
   private transient @Nullable Engine engine;
   private transient @Nullable Configuration conf;
 
-  public DeltaCDCSourceDoFn(@Nullable Map<String, String> hadoopConfig) {
+  public DeltaCDCSourceDoFn(
+      @Nullable Map<String, String> hadoopConfig, @Nullable List<String> metadataColumns) {
     this.hadoopConfig = hadoopConfig;
+    this.metadataColumns = metadataColumns;
   }
 
   private synchronized Configuration getConfiguration() {
@@ -117,7 +120,8 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
 
     SerializableRow originalScanStateRow = task.getScanStateRow();
     StructType logicalTableSchema = ScanStateRow.getLogicalSchema(originalScanStateRow);
-    Schema publicBeamSchema = DeltaIO.ReadRows.convertToBeamSchema(logicalTableSchema);
+    Schema baseSchema = DeltaIO.ReadRows.convertToBeamSchema(logicalTableSchema);
+    Schema publicBeamSchema = DeltaIO.buildPublicBeamSchema(baseSchema, metadataColumns);
     StructType physicalTableSchema = ScanStateRow.getPhysicalDataReadSchema(originalScanStateRow);
 
     StructType scanStateSchema = originalScanStateRow.getSchema();
