@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.delta;
 
+import io.delta.kernel.Table;
 import io.delta.kernel.defaults.engine.DefaultEngine;
 import io.delta.kernel.engine.Engine;
 import io.delta.kernel.types.ArrayType;
