@@ -792,9 +792,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               // Maximum number of times we retry before we fail the work item.
               if (failedContext.failureCount > allowedRetry) {
-                throw new RuntimeException(
+                String errorMessage =
                     String.format(
-                        "More than %d attempts to call AppendRows failed.", allowedRetry));
+                        "More than %d attempts to call AppendRows failed. Last encountered error: %s",
+                        allowedRetry, error != null ? error.toString() : "unknown");
+                if (statusCode == Status.Code.PERMISSION_DENIED
+                    || statusCode == Status.Code.NOT_FOUND) {
+                  errorMessage +=
+                      ". Please check if the destination table exists and if the service account has the "
+                          + "bigquery.tables.updateData permission.";
+                }
+                throw new RuntimeException(errorMessage, error);
               }
 
               // The following errors are known to be persistent, so always fail the work item in

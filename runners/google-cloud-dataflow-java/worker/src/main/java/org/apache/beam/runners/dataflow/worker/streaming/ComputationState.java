@@ -69,6 +69,10 @@ public class ComputationState {
     return computationId;
   }
 
+  public String getSystemName() {
+    return mapTask.getSystemName();
+  }
+
   public MapTask getMapTask() {
     return mapTask;
   }
@@ -129,6 +133,13 @@ public class ComputationState {
     activeWorkState
         .completeWorkAndGetNextWorkForKey(shardedKey, workId)
         .ifPresent(this::forceExecute);
+  }
+
+  public void reexecuteActiveWork(ShardedKey shardedKey, WorkId workId) {
+    ExecutableWork activeWork = activeWorkState.getActiveWork(shardedKey, workId);
+    if (activeWork != null) {
+      forceExecute(activeWork);
+    }
   }
 
   public void invalidateStuckCommits(Instant stuckCommitDeadline) {

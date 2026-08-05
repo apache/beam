@@ -18,7 +18,6 @@ import glob
 import importlib
 import math
 import os
-import platform
 import shutil
 import tempfile
 import typing
@@ -65,9 +64,6 @@ class MyRow(typing.NamedTuple):
   value: int
 
 
-@unittest.skipIf(
-    platform.system() == 'Windows',
-    'https://github.com/apache/beam/issues/20642')
 class IOTest(unittest.TestCase):
   def setUp(self):
     self._temp_roots = []
@@ -125,6 +121,12 @@ A     B
     with beam.Pipeline() as p:
       pcoll = p | beam.io.ReadFromCsv(f'{input}tmp.csv', dtype=str)
       assert_that(pcoll | beam.Map(max), equal_to(['99']))
+
+  def test_empty_csv_read(self):
+    input = self.temp_dir({'empty.csv': 'col1,col2,col3\n'})
+    with beam.Pipeline() as p:
+      pcoll = p | beam.io.ReadFromCsv(input + 'empty.csv')
+      assert_that(pcoll, equal_to([]))
 
   def test_sharding_parameters(self):
     data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
@@ -431,6 +433,11 @@ X     , c1, c2
 
   def test_windowed_write(self):
     output = self.temp_dir()
+
+    def no_colon_file_naming(*args):
+      file_name = fileio.default_file_naming('out.csv')(*args)
+      return file_name.replace(':', '_')
+
     with beam.Pipeline() as p:
       pc = (
           p | beam.Create([MyRow(timestamp=i, value=i % 3) for i in range(20)])
@@ -440,18 +447,18 @@ X     , c1, c2
               beam.window.FixedWindows(10)).with_output_types(MyRow))
 
       deferred_df = convert.to_dataframe(pc)
-      deferred_df.to_csv(output + 'out.csv', index=False)
+      deferred_df.to_csv(output, file_naming=no_colon_file_naming, index=False)
 
     first_window_files = (
         f'{output}out.csv-'
-        f'{datetime.utcfromtimestamp(0).isoformat()}*')
+        f'{datetime.utcfromtimestamp(0).isoformat().replace(":", "_")}*')
     self.assertCountEqual(
         ['timestamp,value'] + [f'{i},{i % 3}' for i in range(10)],
         set(self.read_all_lines(first_window_files, delete=True)))
 
     second_window_files = (
         f'{output}out.csv-'
-        f'{datetime.utcfromtimestamp(10).isoformat()}*')
+        f'{datetime.utcfromtimestamp(10).isoformat().replace(":", "_")}*')
     self.assertCountEqual(
         ['timestamp,value'] + [f'{i},{i%3}' for i in range(10, 20)],
         set(self.read_all_lines(second_window_files, delete=True)))

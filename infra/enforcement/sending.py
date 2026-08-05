@@ -59,25 +59,71 @@ class SendingClient:
         self.logger = logger
         self.github_api_url = "https://api.github.com"
 
-    def _make_github_request(self, method: str, endpoint: str, json: Optional[dict] = None) -> requests.Response:
+    def _make_github_request(self, method: str, endpoint: str, json: Optional[dict] = None, params: Optional[dict] = None) -> requests.Response:
         """
-        Makes a request to the GitHub API.
+        Makes a request to the GitHub API with retry logic for transient errors and rate limiting.
 
         Args:
             method (str): The HTTP method to use (e.g., "GET", "POST", "PATCH").
             endpoint (str): The API endpoint to call.
             json (Optional[dict]): The JSON payload to send with the request.
+            params (Optional[dict]): The URL parameters to send with the request.
 
         Returns:
             requests.Response: The response from the API.
         """
+        import time
         url = f"{self.github_api_url}/{endpoint}"
-        response = requests.request(method, url, headers=self.headers, json=json)
+        max_retries = 5
+        backoff = 2
         
-        if not response.ok:
-            self.logger.error(f"Failed GitHub API request to {endpoint}: {response.status_code} - {response.text}")
-            response.raise_for_status()
-            
+        for attempt in range(max_retries):
+            try:
+                response = requests.request(method, url, headers=self.headers, json=json, params=params)
+                
+                # Check for rate limiting / secondary rate limit (403, 429)
+                if response.status_code in [403, 429]:
+                    retry_after = response.headers.get("Retry-After")
+                    if retry_after:
+                        sleep_seconds = int(retry_after)
+                    else:
+                        sleep_seconds = backoff
+                    
+                    self.logger.warning(
+                        f"GitHub API rate limit hit ({response.status_code}) on {endpoint}. "
+                        f"Retrying in {sleep_seconds} seconds... (Attempt {attempt + 1}/{max_retries})"
+                    )
+                    time.sleep(sleep_seconds)
+                    backoff *= 2
+                    continue
+                
+                # Check for transient server errors (500, 502, 503, 504)
+                if response.status_code in [500, 502, 503, 504]:
+                    self.logger.warning(
+                        f"GitHub API server error ({response.status_code}) on {endpoint}. "
+                        f"Retrying in {backoff} seconds... (Attempt {attempt + 1}/{max_retries})"
+                    )
+                    time.sleep(backoff)
+                    backoff *= 2
+                    continue
+                
+                if not response.ok:
+                    self.logger.error(f"Failed GitHub API request to {endpoint}: {response.status_code} - {response.text}")
+                    response.raise_for_status()
+                
+                return response
+            except requests.exceptions.RequestException as e:
+                if attempt == max_retries - 1:
+                    raise
+                self.logger.warning(
+                    f"GitHub API request exception on {endpoint}: {e}. "
+                    f"Retrying in {backoff} seconds... (Attempt {attempt + 1}/{max_retries})"
+                )
+                time.sleep(backoff)
+                backoff *= 2
+        
+        self.logger.error(f"Failed GitHub API request to {endpoint} after {max_retries} attempts.")
+        response.raise_for_status()
         return response
 
     def _send_email(self, title: str, body: str, recipient: str) -> None:
@@ -97,13 +143,13 @@ class SendingClient:
 
     def _get_open_issues(self, title: str) -> List[GitHubIssue]:
         """
-        Retrieves the number of open GitHub issues with a given title.
+        Retrieves the open GitHub issues with a given title.
 
         Args:
             title (str): The title of the GitHub issue.
         """
-        endpoint = f"search/issues?q=is:issue+repo:{self.github_repo}+in:title+{title}+is:open"
-        response = self._make_github_request("GET", endpoint)
+        q = f'is:issue repo:{self.github_repo} in:title "{title}" is:open'
+        response = self._make_github_request("GET", "search/issues", params={"q": q})
         issues = response.json().get('items', [])
         parsed_issues = []
         for issue in issues:

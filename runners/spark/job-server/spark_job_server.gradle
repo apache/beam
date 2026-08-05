@@ -280,6 +280,13 @@ def sparkJobServerJvmArgs() {
   return []
 }
 
+// TestPortableRunner starts SparkJobServerDriver in-process in the test JVM.
+['validatesPortableRunnerDocker', 'validatesPortableRunnerBatch', 'validatesPortableRunnerStreaming'].each { taskName ->
+  tasks.named(taskName) {
+    jvmArgs += sparkJobServerJvmArgs()
+  }
+}
+
 def setupTask = project.tasks.register("sparkJobServerSetup", Exec) {
   dependsOn shadowJar
   def pythonDir = project.project(":sdks:python").projectDir

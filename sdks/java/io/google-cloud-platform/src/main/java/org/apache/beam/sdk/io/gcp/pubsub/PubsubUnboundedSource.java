@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -114,9 +115,6 @@ import org.slf4j.LoggerFactory;
  *       UnboundedSource.UnboundedReader} instances to execute concurrently and thus hide latency.
  * </ul>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<PubsubMessage>> {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubUnboundedSource.class);
 
@@ -265,12 +263,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      */
     @Override
     public void finalizeCheckpoint() throws IOException {
-      checkState(reader != null && safeToAckIds != null, "Cannot finalize a restored checkpoint");
-      // Even if the 'true' active reader has changed since the checkpoint was taken we are
+      final PubsubReader reader =
+          checkStateNotNull(this.reader, "Cannot finalize a restored checkpoint");
+      final List<String> safeToAckIds =
+          checkStateNotNull(this.safeToAckIds, "Cannot finalize a restored checkpoint");
+      // Even if the 'true' active reader has changed since the checkpoint was taken
+      // we are
       // fine:
-      // - The underlying Pubsub topic will not have changed, so the following ACKs will still
+      // - The underlying Pubsub topic will not have changed, so the following ACKs
+      // will still
       // go to the right place.
-      // - We'll delete the ACK ids from the readers in-flight state, but that only effects
+      // - We'll delete the ACK ids from the readers in-flight state, but that only
+      // effects
       // flow control and stats, neither of which are relevant anymore.
       try {
         int n = safeToAckIds.size();
@@ -291,8 +295,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         int remainingInFlight = reader.numInFlightCheckpoints.decrementAndGet();
         checkState(remainingInFlight >= 0, "Miscounted in-flight checkpoints");
         reader.maybeCloseClient();
-        reader = null;
-        safeToAckIds = null;
+        this.reader = null;
+        this.safeToAckIds = null;
       }
     }
 
@@ -330,7 +334,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   /** The coder for our checkpoints. */
   private static class PubsubCheckpointCoder<T> extends AtomicCoder<PubsubCheckpoint> {
-    private static final Coder<String> SUBSCRIPTION_PATH_CODER =
+    private static final Coder<@Nullable String> SUBSCRIPTION_PATH_CODER =
         NullableCoder.of(StringUtf8Coder.of());
     private static final Coder<List<String>> LIST_CODER = ListCoder.of(StringUtf8Coder.of());
 
@@ -348,7 +352,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public PubsubCheckpoint decode(InputStream inStream) throws IOException {
-      String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
+      @Nullable String path = SUBSCRIPTION_PATH_CODER.decode(inStream);
       List<String> notYetReadIds = LIST_CODER.decode(inStream);
       return new PubsubCheckpoint(path, null, null, notYetReadIds);
     }
@@ -370,13 +374,13 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @VisibleForTesting final SubscriptionPath subscription;
 
     /** Client on which to talk to Pubsub. Contains a null value if the client has been closed. */
-    private AtomicReference<PubsubClient> pubsubClient;
+    private final AtomicReference<@Nullable PubsubClient> pubsubClient;
 
     /**
      * The closed state of this {@link PubsubReader}. If true, the reader has not yet been closed,
      * and it will have a non-null value within {@link #pubsubClient}.
      */
-    private AtomicBoolean active = new AtomicBoolean(true);
+    private final AtomicBoolean active = new AtomicBoolean(true);
 
     /**
      * Ack timeout, in ms, as set on subscription when we first start reading. Not updated
@@ -385,7 +389,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private int ackTimeoutMs;
 
     /** ACK ids of messages we have delivered downstream but not yet ACKed. */
-    private Set<String> safeToAckIds;
+    private final Set<String> safeToAckIds;
 
     /**
      * Messages we have received from Pubsub and not yet delivered downstream. We preserve their
@@ -427,13 +431,13 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * Bucketed map from received time (as system time, ms since epoch) to message timestamps
      * (mssince epoch) of all received but not-yet read messages. Used to estimate watermark.
      */
-    private BucketingFunction minUnreadTimestampMsSinceEpoch;
+    private final BucketingFunction minUnreadTimestampMsSinceEpoch;
 
     /**
      * Minimum of timestamps (ms since epoch) of all recently read messages. Used to estimate
      * watermark.
      */
-    private MovingFunction minReadTimestampMsSinceEpoch;
+    private final MovingFunction minReadTimestampMsSinceEpoch;
 
     /**
      * System time (ms since epoch) we last received a message from Pubsub, or -1 if not yet
@@ -454,60 +458,60 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private long numReceived;
 
     /** Stats only: Number of messages which have recently been received. */
-    private MovingFunction numReceivedRecently;
+    private final MovingFunction numReceivedRecently;
 
     /** Stats only: Number of messages which have recently had their deadline extended. */
-    private MovingFunction numExtendedDeadlines;
+    private final MovingFunction numExtendedDeadlines;
 
     /**
      * Stats only: Number of messages which have recenttly had their deadline extended even though
      * it may be too late to do so.
      */
-    private MovingFunction numLateDeadlines;
+    private final MovingFunction numLateDeadlines;
 
     /** Stats only: Number of messages which have recently been ACKed. */
-    private MovingFunction numAcked;
+    private final MovingFunction numAcked;
 
     /**
      * Stats only: Number of messages which have recently expired (ACKs were extended for too long).
      */
-    private MovingFunction numExpired;
+    private final MovingFunction numExpired;
 
     /** Stats only: Number of messages which have recently been NACKed. */
-    private MovingFunction numNacked;
+    private final MovingFunction numNacked;
 
     /** Stats only: Number of message bytes which have recently been read by downstream consumer. */
-    private MovingFunction numReadBytes;
+    private final MovingFunction numReadBytes;
 
     /**
      * Stats only: Minimum of timestamp (ms since epoch) of all recently received messages. Used to
-     * estimate timestamp skew. Does not contribute to watermark estimator.
+     * estimate timestamp skew. Does not contribute to watermark watermark.
      */
-    private MovingFunction minReceivedTimestampMsSinceEpoch;
+    private final MovingFunction minReceivedTimestampMsSinceEpoch;
 
     /**
      * Stats only: Maximum of timestamp (ms since epoch) of all recently received messages. Used to
      * estimate timestamp skew.
      */
-    private MovingFunction maxReceivedTimestampMsSinceEpoch;
+    private final MovingFunction maxReceivedTimestampMsSinceEpoch;
 
     /** Stats only: Minimum of recent estimated watermarks (ms since epoch). */
-    private MovingFunction minWatermarkMsSinceEpoch;
+    private final MovingFunction minWatermarkMsSinceEpoch;
 
     /** Stats ony: Maximum of recent estimated watermarks (ms since epoch). */
-    private MovingFunction maxWatermarkMsSinceEpoch;
+    private final MovingFunction maxWatermarkMsSinceEpoch;
 
     /**
      * Stats only: Number of messages with timestamps strictly behind the estimated watermark at the
      * time they are received. These may be considered 'late' by downstream computations.
      */
-    private MovingFunction numLateMessages;
+    private final MovingFunction numLateMessages;
 
     /**
      * Stats only: Current number of checkpoints in flight. CAUTION: Accessed by both checkpointing
      * and reader threads.
      */
-    private AtomicInteger numInFlightCheckpoints;
+    private final AtomicInteger numInFlightCheckpoints;
 
     /** Stats only: Maximum number of checkpoints in flight at any time. */
     private int maxInFlightCheckpoints;
@@ -563,7 +567,11 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @VisibleForTesting
     PubsubClient getPubsubClient() {
-      return pubsubClient.get();
+      return getClient();
+    }
+
+    private PubsubClient getClient() {
+      return checkStateNotNull(pubsubClient.get(), "Client has been closed");
     }
 
     /**
@@ -575,7 +583,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * <p>CAUTION: Retains {@code ackIds}.
      */
     void ackBatch(List<String> ackIds) throws IOException {
-      pubsubClient.get().acknowledge(subscription, ackIds);
+      getClient().acknowledge(subscription, ackIds);
       ackedIds.add(ackIds);
     }
 
@@ -584,7 +592,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      * given {@code ackIds}. Does not retain {@code ackIds}.
      */
     public void nackBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
-      pubsubClient.get().modifyAckDeadline(subscription, ackIds, 0);
+      getClient().modifyAckDeadline(subscription, ackIds, 0);
       numNacked.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -594,7 +602,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      */
     private void extendBatch(long nowMsSinceEpoch, List<String> ackIds) throws IOException {
       int extensionSec = (ackTimeoutMs * ACK_EXTENSION_PCT) / (100 * 1000);
-      pubsubClient.get().modifyAckDeadline(subscription, ackIds, extensionSec);
+      getClient().modifyAckDeadline(subscription, ackIds, extensionSec);
       numExtendedDeadlines.add(nowMsSinceEpoch, ackIds.size());
     }
 
@@ -648,7 +656,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
               < nowMsSinceEpoch) {
             // Pubsub may have already considered this message to have expired.
             // If so it will (eventually) be made available on a future pull request.
-            // If this message ends up being committed then it will be considered a duplicate
+            // If this message ends up being committed then it will be considered a
+            // duplicate
             // when re-pulled.
             assumeExpired.add(entry.getKey());
             continue;
@@ -693,11 +702,12 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
         if (!toBeExtended.isEmpty()) {
           // Pubsub extends acks from it's notion of current time.
-          // We'll try to track that on our side, but note the deadlines won't necessarily agree.
+          // We'll try to track that on our side, but note the deadlines won't necessarily
+          // agree.
           long newDeadlineMsSinceEpoch = nowMsSinceEpoch + (ackTimeoutMs * ACK_EXTENSION_PCT) / 100;
           for (String ackId : toBeExtended) {
             // Maintain increasing ack deadline order.
-            InFlightState state = inFlight.remove(ackId);
+            InFlightState state = checkStateNotNull(inFlight.remove(ackId));
             inFlight.put(
                 ackId, new InFlightState(state.requestTimeMsSinceEpoch, newDeadlineMsSinceEpoch));
           }
@@ -711,8 +721,10 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     private void pull() throws IOException {
       if (inFlight.size() >= MAX_IN_FLIGHT) {
         // Wait for checkpoint to be finalized before pulling anymore.
-        // There may be lag while checkpoints are persisted and the finalizeCheckpoint method
-        // is invoked. By limiting the in-flight messages we can ensure we don't end up consuming
+        // There may be lag while checkpoints are persisted and the finalizeCheckpoint
+        // method
+        // is invoked. By limiting the in-flight messages we can ensure we don't end up
+        // consuming
         // messages faster than we can checkpoint them.
         return;
       }
@@ -723,7 +735,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       // Pull the next batch.
       // BLOCKs until received.
       Collection<PubsubClient.IncomingMessage> receivedMessages =
-          pubsubClient.get().pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
+          getClient().pull(requestTimeMsSinceEpoch, subscription, PULL_BATCH_SIZE, true);
       if (receivedMessages.isEmpty()) {
         // Nothing available yet. Try again later.
         return;
@@ -779,7 +791,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       String oldestAckId = Iterables.getFirst(inFlight.keySet(), null);
       if (oldestAckId != null) {
         oldestInFlight =
-            (nowMsSinceEpoch - inFlight.get(oldestAckId).requestTimeMsSinceEpoch) + "ms";
+            (nowMsSinceEpoch - checkStateNotNull(inFlight.get(oldestAckId)).requestTimeMsSinceEpoch)
+                + "ms";
       }
 
       LOG.debug(
@@ -828,7 +841,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     @Override
     public boolean start() throws IOException {
       // Determine the ack timeout.
-      ackTimeoutMs = pubsubClient.get().ackDeadlineSeconds(subscription) * 1000;
+      ackTimeoutMs = getClient().ackDeadlineSeconds(subscription) * 1000;
       return advance();
     }
 
@@ -843,7 +856,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       stats();
 
       if (current != null) {
-        // Current is consumed. It can no longer contribute to holding back the watermark.
+        // Current is consumed. It can no longer contribute to holding back the
+        // watermark.
         minUnreadTimestampMsSinceEpoch.remove(current.requestTimeMsSinceEpoch());
         current = null;
       }
@@ -853,24 +867,28 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
       // Extend all pressing deadlines.
       // Will BLOCK until done.
-      // If the system is pulling messages only to let them sit in a downsteam queue then
+      // If the system is pulling messages only to let them sit in a downsteam queue
+      // then
       // this will have the effect of slowing down the pull rate.
-      // However, if the system is genuinely taking longer to process each message then
+      // However, if the system is genuinely taking longer to process each message
+      // then
       // the work to extend ACKs would be better done in the background.
       extend();
 
       if (notYetRead.isEmpty()) {
         // Pull another batch.
-        // Will BLOCK until fetch returns, but will not block until a message is available.
+        // Will BLOCK until fetch returns, but will not block until a message is
+        // available.
         pull();
       }
 
       // Take one message from queue.
-      current = notYetRead.poll();
+      final PubsubClient.@Nullable IncomingMessage current = notYetRead.poll();
       if (current == null) {
         // Try again later.
         return false;
       }
+      this.current = current;
       notYetReadBytes -= current.message().getData().size();
       checkState(notYetReadBytes >= 0);
       long nowMsSinceEpoch = now();
@@ -888,6 +906,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public byte[] getCurrent() throws NoSuchElementException {
+      final PubsubClient.@Nullable IncomingMessage current = this.current;
       if (current == null) {
         throw new NoSuchElementException();
       }
@@ -901,6 +920,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Instant getCurrentTimestamp() throws NoSuchElementException {
+      final PubsubClient.@Nullable IncomingMessage current = this.current;
       if (current == null) {
         throw new NoSuchElementException();
       }
@@ -909,6 +929,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public byte[] getCurrentRecordId() throws NoSuchElementException {
+      final PubsubClient.@Nullable IncomingMessage current = this.current;
       if (current == null) {
         throw new NoSuchElementException();
       }
@@ -934,7 +955,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
      */
     private void maybeCloseClient() throws IOException {
       if (!active.get() && numInFlightCheckpoints.get() == 0) {
-        // The reader has been closed and it has no more outstanding checkpoints. The client
+        // The reader has been closed and it has no more outstanding checkpoints. The
+        // client
         // must be closed so it doesn't leak
         PubsubClient client = pubsubClient.getAndSet(null);
         if (client != null) {
@@ -950,18 +972,23 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public Instant getWatermark() {
-      if (pubsubClient.get().isEOF() && notYetRead.isEmpty()) {
+      if (getClient().isEOF() && notYetRead.isEmpty()) {
         // For testing only: Advance the watermark to the end of time to signal
         // the test is complete.
         return BoundedWindow.TIMESTAMP_MAX_VALUE;
       }
 
-      // NOTE: We'll allow the watermark to go backwards. The underlying runner is responsible
-      // for aggregating all reported watermarks and ensuring the aggregate is latched.
-      // If we attempt to latch locally then it is possible a temporary starvation of one reader
-      // could cause its estimated watermark to fast forward to current system time. Then when
+      // NOTE: We'll allow the watermark to go backwards. The underlying runner is
+      // responsible
+      // for aggregating all reported watermarks and ensuring the aggregate is
+      // latched.
+      // If we attempt to latch locally then it is possible a temporary starvation of
+      // one reader
+      // could cause its estimated watermark to fast forward to current system time.
+      // Then when
       // the reader resumes its watermark would be unable to resume tracking.
-      // By letting the underlying runner latch we avoid any problems due to localized starvation.
+      // By letting the underlying runner latch we avoid any problems due to localized
+      // starvation.
       long nowMsSinceEpoch = now();
       long readMin = minReadTimestampMsSinceEpoch.get(nowMsSinceEpoch);
       long unreadMin = minUnreadTimestampMsSinceEpoch.get();
@@ -969,17 +996,21 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
           && unreadMin == Long.MAX_VALUE
           && lastReceivedMsSinceEpoch >= 0
           && nowMsSinceEpoch > lastReceivedMsSinceEpoch + SAMPLE_PERIOD.getMillis()) {
-        // We don't currently have any unread messages pending, we have not had any messages
-        // read for a while, and we have not received any new messages from Pubsub for a while.
+        // We don't currently have any unread messages pending, we have not had any
+        // messages
+        // read for a while, and we have not received any new messages from Pubsub for a
+        // while.
         // Advance watermark to current time.
         // TODO: Estimate a timestamp lag.
         lastWatermarkMsSinceEpoch = nowMsSinceEpoch;
       } else if (minReadTimestampMsSinceEpoch.isSignificant()
           || minUnreadTimestampMsSinceEpoch.isSignificant()) {
-        // Take minimum of the timestamps in all unread messages and recently read messages.
+        // Take minimum of the timestamps in all unread messages and recently read
+        // messages.
         lastWatermarkMsSinceEpoch = Math.min(readMin, unreadMin);
       }
-      // else: We're not confident enough to estimate a new watermark. Stick with the old one.
+      // else: We're not confident enough to estimate a new watermark. Stick with the
+      // old one.
       minWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
       maxWatermarkMsSinceEpoch.add(nowMsSinceEpoch, lastWatermarkMsSinceEpoch);
       return new Instant(lastWatermarkMsSinceEpoch);
@@ -991,15 +1022,18 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
       maxInFlightCheckpoints = Math.max(maxInFlightCheckpoints, cur);
       // It's possible for a checkpoint to be taken but never finalized.
       // So we simply copy whatever safeToAckIds we currently have.
-      // It's possible a later checkpoint will be taken before an earlier one is finalized,
-      // in which case we'll double ACK messages to Pubsub. However Pubsub is fine with that.
+      // It's possible a later checkpoint will be taken before an earlier one is
+      // finalized,
+      // in which case we'll double ACK messages to Pubsub. However Pubsub is fine
+      // with that.
       List<String> snapshotSafeToAckIds = Lists.newArrayList(safeToAckIds);
       List<String> snapshotNotYetReadIds = new ArrayList<>(notYetRead.size());
       for (PubsubClient.IncomingMessage incomingMessage : notYetRead) {
         snapshotNotYetReadIds.add(incomingMessage.ackId());
       }
       if (outer.subscriptionPath == null) {
-        // need to include the subscription in case we resume, as it's not stored in the source.
+        // need to include the subscription in case we resume, as it's not stored in the
+        // source.
         return new PubsubCheckpoint(
             subscription.getPath(), this, snapshotSafeToAckIds, snapshotNotYetReadIds);
       }
@@ -1020,14 +1054,14 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   static class PubsubSource extends UnboundedSource<byte[], PubsubCheckpoint> {
     public final PubsubUnboundedSource outer;
     // The subscription to read from.
-    @VisibleForTesting final ValueProvider<SubscriptionPath> subscriptionPath;
+    @VisibleForTesting final @Nullable ValueProvider<SubscriptionPath> subscriptionPath;
 
     public PubsubSource(PubsubUnboundedSource outer) {
       this(outer, outer.getSubscriptionProvider());
     }
 
     private PubsubSource(
-        PubsubUnboundedSource outer, ValueProvider<SubscriptionPath> subscriptionPath) {
+        PubsubUnboundedSource outer, @Nullable ValueProvider<SubscriptionPath> subscriptionPath) {
       this.outer = outer;
       this.subscriptionPath = subscriptionPath;
     }
@@ -1055,16 +1089,22 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
         PipelineOptions options, @Nullable PubsubCheckpoint checkpoint) {
       PubsubReader reader;
       SubscriptionPath subscription;
-      if (subscriptionPath == null || subscriptionPath.get() == null) {
+      final @Nullable ValueProvider<SubscriptionPath> subscriptionPath = this.subscriptionPath;
+      final @Nullable SubscriptionPath subscriptionPathVal =
+          subscriptionPath == null ? null : subscriptionPath.get();
+      if (subscriptionPathVal == null) {
         if (checkpoint == null) {
           // This reader has never been started and there was no call to #split;
           // create a single random subscription, which will be kept in the checkpoint.
           subscription = outer.createRandomSubscription(options);
         } else {
-          subscription = checkpoint.getSubscription();
+          subscription =
+              checkStateNotNull(
+                  checkpoint.getSubscription(),
+                  "Checkpoint must have a subscription path when subscriptionPath is not set.");
         }
       } else {
-        subscription = subscriptionPath.get();
+        subscription = subscriptionPathVal;
       }
       try {
         reader = new PubsubReader(options.as(PubsubOptions.class), this, subscription);
@@ -1088,7 +1128,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
     }
 
     @Override
-    public @Nullable Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
+    public Coder<PubsubCheckpoint> getCheckpointMarkCoder() {
       return CHECKPOINT_CODER;
     }
 
@@ -1104,7 +1144,8 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
     @Override
     public boolean requiresDeduping() {
-      // We cannot prevent re-offering already read messages after a restore from checkpoint.
+      // We cannot prevent re-offering already read messages after a restore from
+      // checkpoint.
       return true;
     }
   }
@@ -1205,7 +1246,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   @VisibleForTesting
   PubsubUnboundedSource(
-      Clock clock,
+      @Nullable Clock clock,
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
@@ -1254,7 +1295,7 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
 
   /** Construct an unbounded source to consume from the Pubsub {@code subscription}. */
   public PubsubUnboundedSource(
-      Clock clock,
+      @Nullable Clock clock,
       PubsubClientFactory pubsubFactory,
       @Nullable ValueProvider<ProjectPath> project,
       @Nullable ValueProvider<TopicPath> topic,
@@ -1400,18 +1441,21 @@ public class PubsubUnboundedSource extends PTransform<PBegin, PCollection<Pubsub
   }
 
   private SubscriptionPath createRandomSubscription(PipelineOptions options) {
-    TopicPath topicPath = topic.get();
+    TopicPath topicPath =
+        checkStateNotNull(
+            checkStateNotNull(topic, "Topic must be set to create a random subscription").get(),
+            "Topic value must be set to create a random subscription");
 
     ProjectPath projectPath;
     if (project != null) {
-      projectPath = project.get();
+      projectPath = checkStateNotNull(project.get(), "Project value must be set");
     } else {
       String projectId = options.as(GcpOptions.class).getProject();
       checkState(
           projectId != null,
           "Cannot create subscription to topic %s because pipeline option 'project' not specified",
           topicPath);
-      projectPath = PubsubClient.projectPathFromId(options.as(GcpOptions.class).getProject());
+      projectPath = PubsubClient.projectPathFromId(projectId);
     }
 
     try {

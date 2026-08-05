@@ -64,6 +64,8 @@ jobs:
         job_phrase: ["Run Python xlang KafkaIO Performance Test"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -73,7 +75,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: default
+          java-version: '17'
           python-version: default
       - name: Set k8s access
         uses: ./.github/actions/setup-k8s-access

@@ -40,6 +40,17 @@ def runnerDependency = (project.hasProperty(runnerProperty)
 def loadTestRunnerVersionProperty = "runner.version"
 def loadTestRunnerVersion = project.findProperty(loadTestRunnerVersionProperty)
 def isSparkRunner = runnerDependency.startsWith(":runners:spark:")
+def gtFlink20 = runnerDependency.startsWith(":runners:flink:") && {
+  def version = runnerDependency.substring(":runners:flink:".length())
+  try {
+    def parts = version.split('\\.')
+    def major = parts[0].toInteger()
+    def minor = parts.length > 1 ? parts[1].toInteger() : 0
+    return (major == 2 && minor > 0)
+  } catch (Exception e) {
+    return false
+  }
+}()
 def isDataflowRunner = ":runners:google-cloud-dataflow-java".equals(runnerDependency)
 def isDataflowRunnerV2 = isDataflowRunner && "V2".equals(loadTestRunnerVersion)
 def runnerConfiguration = ":runners:direct-java".equals(runnerDependency) ? "shadow" : null
@@ -89,11 +100,29 @@ dependencies {
   gradleRun project(path: runnerDependency, configuration: runnerConfiguration)
 }
 
+if (!gtFlink20) {
+  resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
+}
+
 if (isSparkRunner) {
   configurations.gradleRun {
     // Using Spark runner causes a StackOverflowError if slf4j-jdk14 is on the classpath
     exclude group: "org.slf4j", module: "slf4j-jdk14"
   }
+  resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
+}
+
+def sparkJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  }
+  return []
 }
 
 def getLoadTestArgs = {
@@ -133,6 +162,7 @@ task run(type: JavaExec) {
     // Disable UI
     systemProperty "spark.ui.enabled", "false"
     systemProperty "spark.ui.showConsoleProgress", "false"
+    jvmArgs += sparkJvmArgs()
   }
 
   mainClass = project.findProperty(mainClassProperty)

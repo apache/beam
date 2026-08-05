@@ -232,7 +232,7 @@ public final class StreamingWorkerStatusReporter {
   }
 
   private void reportHarnessStartup() {
-    DataflowWorkerLoggingMDC.setStageName("startup");
+    DataflowWorkerLoggingMDC.setSystemStageName("startup");
     CounterSet restartCounter = new CounterSet();
     restartCounter
         .longSum(

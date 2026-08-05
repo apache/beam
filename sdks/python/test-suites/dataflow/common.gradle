@@ -146,7 +146,13 @@ task postCommitIT {
 task postCommitArmIT {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
-  dependsOn ":sdks:python:container:py${pyversion}:docker"
+  // When -PusePrebuiltSdkContainer is set, skip building/pushing a multiarch
+  // SDK image and use SDK_CONTAINER_IMAGE from the environment instead (e.g.
+  // gcr.io/apache-beam-testing/beam-sdk/beam_python3.x_sdk:latest from Snapshots).
+  def usePrebuiltSdkContainer = project.rootProject.hasProperty(['usePrebuiltSdkContainer'])
+  if (!usePrebuiltSdkContainer) {
+    dependsOn ":sdks:python:container:py${pyversion}:docker"
+  }
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
@@ -665,6 +671,8 @@ project.tasks.register("inferencePostCommitITPy312") {
 // Create cross-language tasks for running tests against Java expansion service(s)
 def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
 def gcpRegion = project.findProperty('gcpRegion') ?: 'us-central1'
+// Default to the minimum required Java version (currently bounded by IcebergIO which needs Java 17+)
+def javaHarnessVersion = project.findProperty('testJavaVersion') ?: '17'
 
 project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
     createCrossLanguageUsingJavaExpansionTask(
@@ -676,7 +684,7 @@ project(":sdks:python:test-suites:xlang").ext.xlangTasks.each { taskMetadata ->
         "--project=${gcpProject}",
         "--region=${gcpRegion}",
         "--sdk_container_image=gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:latest",
-        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java11_sdk:latest"
+        "--sdk_harness_container_image_overrides=.*java.*,gcr.io/apache-beam-testing/beam-sdk/beam_java${javaHarnessVersion}_sdk:latest"
       ],
       pytestOptions: basicPytestOpts,
       additionalDeps: taskMetadata.additionalDeps,
