@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs;
 
+import java.net.http.WebSocket.Listener;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -45,9 +46,9 @@ import org.slf4j.LoggerFactory;
  * <p>Routes requests to either primary or fallback channel based on two independent failover modes:
  *
  * <ul>
- *   <li><b>Connection Status Failover:</b> If the primary channel is not ready for 10+ seconds
- *       (e.g., during network issues), routes to fallback channel. Switches back as soon as the
- *       primary channel becomes READY again.
+ *   <li><b>Connection Status Failover:</b> If the primary channel is not ready for the configured
+ *       wait time (e.g., during network issues), routes to fallback channel. Switches back as soon
+ *       as the primary channel becomes READY again.
  *   <li><b>RPC Failover:</b> If primary channel RPCs fail continuously with transient errors
  *       ({@link Status.Code#UNAVAILABLE} or {@link Status.Code#UNKNOWN}), or with {@link
  *       Status.Code#DEADLINE_EXCEEDED} before receiving any response (indicating the connection was
@@ -61,7 +62,6 @@ public final class FailoverChannel extends ManagedChannel {
   private static final AtomicInteger CHANNEL_ID_COUNTER = new AtomicInteger(0);
   // Time to wait before retrying the primary channel after an RPC-based fallback.
   private static final long FALLBACK_COOLING_PERIOD_NANOS = TimeUnit.HOURS.toNanos(1);
-  private static final long PRIMARY_NOT_READY_WAIT_NANOS = TimeUnit.SECONDS.toNanos(10);
   // Minimum duration of continuous RPC failures required before switching to fallback.
   private static final long RPC_FAILURE_THRESHOLD_NANOS = TimeUnit.SECONDS.toNanos(30);
 
@@ -96,10 +96,15 @@ public final class FailoverChannel extends ManagedChannel {
 
     private final int channelId;
     private final long rpcFailureThresholdNanos;
+    private final LongSupplier primaryNotReadyWaitNanosSupplier;
 
-    FailoverState(int channelId, long rpcFailureThresholdNanos) {
+    FailoverState(
+        int channelId,
+        long rpcFailureThresholdNanos,
+        LongSupplier primaryNotReadyWaitNanosSupplier) {
       this.channelId = channelId;
       this.rpcFailureThresholdNanos = rpcFailureThresholdNanos;
+      this.primaryNotReadyWaitNanosSupplier = primaryNotReadyWaitNanosSupplier;
     }
 
     /**
@@ -121,7 +126,7 @@ public final class FailoverChannel extends ManagedChannel {
       if (!useFallbackDueToRPC
           && !useFallbackDueToState
           && primaryNotReadySinceNanos >= 0
-          && nowNanos - primaryNotReadySinceNanos > PRIMARY_NOT_READY_WAIT_NANOS) {
+          && nowNanos - primaryNotReadySinceNanos > primaryNotReadyWaitNanosSupplier.getAsLong()) {
         useFallbackDueToState = true;
         LOG.warn(
             "[channel-{}] Primary connection unavailable. Switching to secondary connection.",
@@ -193,11 +198,13 @@ public final class FailoverChannel extends ManagedChannel {
       Supplier<ManagedChannel> fallbackSupplier,
       @Nullable CallCredentials fallbackCallCredentials,
       LongSupplier nanoClock,
-      long rpcFailureThresholdNanos) {
+      long rpcFailureThresholdNanos,
+      LongSupplier primaryNotReadyWaitNanosSupplier) {
     this.primary = primary;
     this.fallbackSupplier = Suppliers.memoize(fallbackSupplier::get);
     this.channelId = CHANNEL_ID_COUNTER.getAndIncrement();
-    this.state = new FailoverState(channelId, rpcFailureThresholdNanos);
+    this.state =
+        new FailoverState(channelId, rpcFailureThresholdNanos, primaryNotReadyWaitNanosSupplier);
     this.fallbackCallCredentials = fallbackCallCredentials;
     this.nanoClock = nanoClock;
     // Register callback to monitor primary channel state changes
@@ -207,13 +214,15 @@ public final class FailoverChannel extends ManagedChannel {
   public static FailoverChannel create(
       ManagedChannel primary,
       Supplier<ManagedChannel> fallbackSupplier,
-      CallCredentials fallbackCallCredentials) {
+      CallCredentials fallbackCallCredentials,
+      LongSupplier primaryNotReadyWaitNanosSupplier) {
     return new FailoverChannel(
         primary,
         fallbackSupplier,
         fallbackCallCredentials,
         System::nanoTime,
-        RPC_FAILURE_THRESHOLD_NANOS);
+        RPC_FAILURE_THRESHOLD_NANOS,
+        primaryNotReadyWaitNanosSupplier);
   }
 
   static FailoverChannel forTest(
@@ -221,9 +230,15 @@ public final class FailoverChannel extends ManagedChannel {
       ManagedChannel fallback,
       CallCredentials fallbackCallCredentials,
       LongSupplier nanoClock,
-      long rpcFailureThresholdNanos) {
+      long rpcFailureThresholdNanos,
+      LongSupplier primaryNotReadyWaitNanosSupplier) {
     return new FailoverChannel(
-        primary, () -> fallback, fallbackCallCredentials, nanoClock, rpcFailureThresholdNanos);
+        primary,
+        () -> fallback,
+        fallbackCallCredentials,
+        nanoClock,
+        rpcFailureThresholdNanos,
+        primaryNotReadyWaitNanosSupplier);
   }
 
   /** Returns the fallback channel, creating it from the supplier at most once. */
@@ -399,7 +414,12 @@ public final class FailoverChannel extends ManagedChannel {
         // never transitions, markPrimaryNotReady() would never be called and state-based
         // failover would not trigger even after the grace period.
         if (currentState == ConnectivityState.READY || currentState == ConnectivityState.IDLE) {
-          state.markPrimaryReady();
+          if (state.markPrimaryReady()) {
+            LOG.info(
+                "[channel-{}] Primary channel observed healthy during state change registration;"
+                    + " switching back from fallback.",
+                channelId);
+          }
         } else {
           // Seed the not-ready timer even if there is no future state transition.
           state.markPrimaryNotReady(nanoClock.getAsLong());
@@ -426,11 +446,12 @@ public final class FailoverChannel extends ManagedChannel {
     if (newState == ConnectivityState.READY || newState == ConnectivityState.IDLE) {
       if (state.markPrimaryReady()) {
         LOG.info(
-            "[channel-{}] Primary channel recovered; switching back from fallback.", channelId);
+            "[channel-{}] Primary channel observed healthy during state change registration; switching back from fallback.",
+            channelId);
       }
     } else {
       // Primary is not ready; start the grace period timer so computeUseFallback can
-      // switch to fallback once PRIMARY_NOT_READY_WAIT_NANOS elapses.
+      // switch to fallback once the configured wait time elapses.
       state.markPrimaryNotReady(nanoClock.getAsLong());
     }
 

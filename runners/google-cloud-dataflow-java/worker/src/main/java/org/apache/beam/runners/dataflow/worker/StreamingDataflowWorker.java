@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -825,6 +826,7 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions workerOptions,
       ComputationConfig.Fetcher configFetcher,
       GrpcDispatcherClient dispatcherClient) {
+    AtomicLong primaryNotReadyWaitNanos = new AtomicLong(TimeUnit.SECONDS.toNanos(15));
     ChannelCache channelCache =
         ChannelCache.create(
             (currentFlowControlSettings, serviceAddress) -> {
@@ -844,16 +846,20 @@ public final class StreamingDataflowWorker {
                                   workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                                   currentFlowControlSettings),
                           MoreCallCredentials.from(
-                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
+                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential())),
+                          primaryNotReadyWaitNanos::get),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
 
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
-            config ->
-                channelCache.consumeFlowControlSettings(
-                    config.userWorkerJobSettings().getFlowControlSettings()));
+            config -> {
+              primaryNotReadyWaitNanos.set(
+                  config.userWorkerJobSettings().getPrimaryNotReadyWaitNanos());
+              channelCache.consumeFlowControlSettings(
+                  config.userWorkerJobSettings().getFlowControlSettings());
+            });
     return channelCache;
   }
 
