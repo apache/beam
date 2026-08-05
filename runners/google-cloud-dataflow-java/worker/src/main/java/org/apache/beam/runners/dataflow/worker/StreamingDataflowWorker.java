@@ -829,7 +829,7 @@ public final class StreamingDataflowWorker {
       DataflowWorkerHarnessOptions workerOptions,
       ComputationConfig.Fetcher configFetcher,
       GrpcDispatcherClient dispatcherClient) {
-    AtomicLong primaryNotReadyWaitNanos = new AtomicLong(TimeUnit.SECONDS.toNanos(15));
+    AtomicLong directpathPrimaryNotReadyWaitNanos = new AtomicLong(TimeUnit.SECONDS.toNanos(15));
     ChannelCache channelCache =
         ChannelCache.create(
             (currentFlowControlSettings, serviceAddress) -> {
@@ -850,7 +850,7 @@ public final class StreamingDataflowWorker {
                                   currentFlowControlSettings),
                           MoreCallCredentials.from(
                               new VendoredCredentialsAdapter(workerOptions.getGcpCredential())),
-                          primaryNotReadyWaitNanos::get),
+                          directpathPrimaryNotReadyWaitNanos::get),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
 
@@ -858,8 +858,8 @@ public final class StreamingDataflowWorker {
         .getGlobalConfigHandle()
         .registerConfigObserver(
             config -> {
-              primaryNotReadyWaitNanos.set(
-                  config.userWorkerJobSettings().getPrimaryNotReadyWaitNanos());
+              directpathPrimaryNotReadyWaitNanos.set(
+                  config.userWorkerJobSettings().getDirectpathPrimaryNotReadyWaitNanos());
               channelCache.consumeFlowControlSettings(
                   config.userWorkerJobSettings().getFlowControlSettings());
             });

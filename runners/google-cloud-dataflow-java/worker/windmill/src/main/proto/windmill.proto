@@ -1020,7 +1020,7 @@ message UserWorkerRunnerV1Settings {
 
   // Time to wait before switching to fallback connectivity if primary is not ready.
   // Only used if direcpath is enabled for the job. Default is 15 seconds.
-  optional int64 primary_not_ready_wait_nanos = 6 [default = 15000000000];
+  optional int64 directpath_primary_not_ready_wait_nanos = 6 [default = 15000000000];
 
   reserved 1, 2;
 }
