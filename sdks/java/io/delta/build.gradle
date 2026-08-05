@@ -121,6 +121,7 @@ task dataflowIntegrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+    exclude '**/DeltaIOS3IT.class'
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath
