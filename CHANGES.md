@@ -69,6 +69,7 @@
 * Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
 * (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
 * Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
+* Added a Delta Lake batch changelog source (CDC) ([#39492](https://github.com/apache/beam/issues/39492))
 
 ## New Features / Improvements
 
