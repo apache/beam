@@ -626,3 +626,34 @@ examples:
   "\u0001\u0003\u0061\u0062\u0063" : "abc"
   "\u0001\u000a\u006d\u006f\u0072\u0065\u0020\u0062\u0079\u0074\u0065\u0073" : "more bytes"
   "\u0000" : null
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(timestamp:v1, precision=3, representation row<seconds:int64, subseconds:int16>)
+  payload: "\x0a\x88\x01\x0a\x0bf_timestamp\x1ay:w\x0a\x1ebeam:logical_type:timestamp:v1\x1aK2I\x0aG\x0a\x0d\x0a\x07seconds\x1a\x02\x10\x04\x0a\x10\x0a\x0asubseconds\x1a\x02\x10\x02\x12$5f2fbf6c-8b8e-4a30-a9be-e0f65f0f79c3\"\x02\x10\x03*\x04\x0a\x02\x18\x03\x12$9c7c1b6c-2a5e-4c53-9b32-91b71c1f8ac3"
+examples:
+  "\x01\x00\x02\x00\xb6\x95\xd5\xf9\x05\x03\xe7": {f_timestamp: {seconds: 1597328054, subseconds: 999}}
+  "\x01\x00\x02\x00\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\x01\xf4": {f_timestamp: {seconds: -2, subseconds: 500}}
+  "\x01\x00\x02\x00\xb6\x95\xd5\xf9\x05\x00\x00": {f_timestamp: {seconds: 1597328054, subseconds: 0}}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(timestamp:v1, precision=6, representation row<seconds:int64, subseconds:int32>)
+  payload: "\x0a\x88\x01\x0a\x0bf_timestamp\x1ay:w\x0a\x1ebeam:logical_type:timestamp:v1\x1aK2I\x0aG\x0a\x0d\x0a\x07seconds\x1a\x02\x10\x04\x0a\x10\x0a\x0asubseconds\x1a\x02\x10\x03\x12$b8b3faf8-63f8-4b40-9f4d-3c1e83d4e07b\"\x02\x10\x03*\x04\x0a\x02\x18\x06\x12$e0a72e10-b214-4fd2-a4dc-fca0e7f7d924"
+examples:
+  "\x01\x00\x02\x00\xb6\x95\xd5\xf9\x05\xc0\xc4\x07": {f_timestamp: {seconds: 1597328054, subseconds: 123456}}
+  "\x01\x00\x02\x00\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\xa0\xc2\x1e": {f_timestamp: {seconds: -2, subseconds: 500000}}
+
+---
+
+coder:
+  urn: "beam:coder:row:v1"
+  # f_timestamp: logical(timestamp:v1, precision=9, representation row<seconds:int64, subseconds:int32>)
+  payload: "\x0a\x88\x01\x0a\x0bf_timestamp\x1ay:w\x0a\x1ebeam:logical_type:timestamp:v1\x1aK2I\x0aG\x0a\x0d\x0a\x07seconds\x1a\x02\x10\x04\x0a\x10\x0a\x0asubseconds\x1a\x02\x10\x03\x12$3d6f7b81-2f13-4a41-8be3-4d8cd8f30f42\"\x02\x10\x03*\x04\x0a\x02\x18\x09\x12$cf03a3c1-4a3a-4f77-8e2b-6e5b19c19f27"
+examples:
+  "\x01\x00\x02\x00\xb6\x95\xd5\xf9\x05\x95\x9a\xef:": {f_timestamp: {seconds: 1597328054, subseconds: 123456789}}
+  "\x01\x00\x02\x00\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x01\xff\x93\xeb\xdc\x03": {f_timestamp: {seconds: -2, subseconds: 999999999}}

@@ -47,6 +47,7 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.PartitionMetadata
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.restriction.TimestampRange;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContinuation;
@@ -163,10 +164,11 @@ public class ReadChangeStreamPartitionDoFnTest {
             eq(partitionEventRecordAction),
             eq(metrics),
             anyBoolean(),
-            eq(Duration.standardMinutes(2))))
+            eq(Duration.standardMinutes(2)),
+            any()))
         .thenReturn(queryChangeStreamAction);
 
-    doFn.setup();
+    doFn.setup(PipelineOptionsFactory.create());
   }
 
   @Test

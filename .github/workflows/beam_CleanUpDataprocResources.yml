@@ -55,7 +55,9 @@ jobs:
     timeout-minutes: 100
     name: "beam_CleanUpDataprocResources"
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Delete leaked resources for all the jobs that generates flink clusters
         run: |
           cd ${{ github.workspace }}/.test-infra/dataproc; ./cleanup.sh -xe

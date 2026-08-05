@@ -45,7 +45,7 @@ int waitTime = 15 // seconds
 def outputPath = "gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}"
 def outputFound = false
 for (int i = 0; i < retries; i++) {
-  def files = t.run("gsutil ls ${outputPath}*")
+  def files = t.run("gcloud storage ls ${outputPath}*")
   if (files?.trim()) {
     outputFound = true
     break
@@ -58,10 +58,10 @@ if (!outputFound) {
   throw new RuntimeException("No output files found for HourlyTeamScore after ${retries * waitTime} seconds.")
 }
 
-command_output_text = t.run "gsutil cat ${outputPath}* | grep user19_BananaWallaby"
+command_output_text = t.run "gcloud storage cat ${outputPath}* | grep user19_BananaWallaby"
 t.see "total_score: 231, user: user19_BananaWallaby", command_output_text
 t.success("UserScore successfully run on DataflowRunner.")
-t.run "gsutil rm gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}*"
+t.run "gcloud storage rm gs://${t.gcsBucket()}/${mobileGamingCommands.getUserScoreOutputName(runner)}*"
 
 
 /**
@@ -76,7 +76,7 @@ t.run(mobileGamingCommands.createPipelineCommand("HourlyTeamScore", runner))
 outputPath = "gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}"
 outputFound = false
 for (int i = 0; i < retries; i++) {
-  def files = t.run("gsutil ls ${outputPath}*")
+  def files = t.run("gcloud storage ls ${outputPath}*")
   if (files?.trim()) {
     outputFound = true
     break
@@ -89,10 +89,10 @@ if (!outputFound) {
   throw new RuntimeException("No output files found for UserScore after ${retries * waitTime} seconds.")
 }
 
-command_output_text = t.run "gsutil cat ${outputPath}* | grep AzureBilby "
+command_output_text = t.run "gcloud storage cat ${outputPath}* | grep AzureBilby "
 t.see "total_score: 2788, team: AzureBilby", command_output_text
 t.success("HourlyTeamScore successfully run on DataflowRunner.")
-t.run "gsutil rm gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}*"
+t.run "gcloud storage rm gs://${t.gcsBucket()}/${mobileGamingCommands.getHourlyTeamScoreOutputName(runner)}*"
 
 
 /**

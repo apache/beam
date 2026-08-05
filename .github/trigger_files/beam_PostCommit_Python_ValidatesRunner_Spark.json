@@ -1,5 +1,7 @@
 {
   "https://github.com/apache/beam/pull/34830": "testing",
   "https://github.com/apache/beam/issues/35429": "testing",
-  "trigger-2026-04-04": "portable_runner expand_sdf opt-in"
+  "trigger-2026-04-04": "portable_runner expand_sdf opt-in",
+  "https://github.com/apache/beam/pull/38892": "UnboundedSource portable VR test",
+  "modification": 1
 }

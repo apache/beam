@@ -25,8 +25,8 @@ applyJavaNature(
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
-  // iceberg requires Java11+
-  requireJavaVersion: JavaVersion.VERSION_11
+  // iceberg requires Java11+ and delta lake requires Java17+
+  requireJavaVersion: JavaVersion.VERSION_17
 )
 
 // We don't want to use the latest version for the entire beam sdk since beam Java users can override it themselves.
@@ -97,6 +97,7 @@ dependencies {
 
   runtimeOnly project(":sdks:java:io:datadog")
   runtimeOnly project(":sdks:java:io:mongodb")
+  runtimeOnly project(":sdks:java:io:delta")
   runtimeOnly library.java.kafka_clients
   runtimeOnly library.java.slf4j_jdk14
 

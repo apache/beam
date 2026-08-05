@@ -21,16 +21,24 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
+import com.hivemq.client.mqtt.MqttGlobalPublishFilter;
+import com.hivemq.client.mqtt.datatypes.MqttQos;
+import com.hivemq.client.mqtt.datatypes.MqttTopic;
+import com.hivemq.client.mqtt.mqtt3.Mqtt3BlockingClient;
+import com.hivemq.client.mqtt.mqtt3.Mqtt3Client;
+import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
+import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3PublishBuilder;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -49,13 +57,6 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
-import org.fusesource.hawtbuf.Buffer;
-import org.fusesource.mqtt.client.BlockingConnection;
-import org.fusesource.mqtt.client.Callback;
-import org.fusesource.mqtt.client.MQTT;
-import org.fusesource.mqtt.client.Message;
-import org.fusesource.mqtt.client.QoS;
-import org.fusesource.mqtt.client.Topic;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -130,21 +131,21 @@ public class MqttIOTest {
 
     // produce messages on the brokerService in another thread
     // This thread prevents to block the pipeline waiting for new messages
-    MQTT client = new MQTT();
-    client.setHost("tcp://localhost:" + port);
-    final BlockingConnection publishConnection = client.blockingConnection();
-    publishConnection.connect();
+    Mqtt3BlockingClient publishClient =
+        Mqtt3Client.builder().serverHost("localhost").serverPort(port).buildBlocking();
+    publishClient.connect();
     Thread publisherThread =
         new Thread(
             () -> {
               try {
                 doConnect(connection -> !connection.getConnectionId().isEmpty());
                 for (int i = 0; i < 10; i++) {
-                  publishConnection.publish(
-                      topicName,
-                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
-                      QoS.EXACTLY_ONCE,
-                      false);
+                  publishClient
+                      .publishWith()
+                      .topic(topicName)
+                      .payload(("This is test " + i).getBytes(StandardCharsets.UTF_8))
+                      .qos(MqttQos.EXACTLY_ONCE)
+                      .send();
                 }
               } catch (Exception e) {
                 // nothing to do
@@ -153,7 +154,7 @@ public class MqttIOTest {
     publisherThread.start();
     pipeline.run();
 
-    publishConnection.disconnect();
+    publishClient.disconnect();
     publisherThread.join();
   }
 
@@ -181,21 +182,21 @@ public class MqttIOTest {
 
     // produce messages on the brokerService in another thread
     // This thread prevents to block the pipeline waiting for new messages
-    MQTT client = new MQTT();
-    client.setHost("tcp://localhost:" + port);
-    final BlockingConnection publishConnection = client.blockingConnection();
-    publishConnection.connect();
+    Mqtt3BlockingClient publishClient =
+        Mqtt3Client.builder().serverHost("localhost").serverPort(port).buildBlocking();
+    publishClient.connect();
     Thread publisherThread =
         new Thread(
             () -> {
               try {
                 doConnect(connection -> connection.getConnectionId().startsWith("READ_PIPELINE"));
                 for (int i = 0; i < 10; i++) {
-                  publishConnection.publish(
-                      "READ_TOPIC",
-                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
-                      QoS.EXACTLY_ONCE,
-                      false);
+                  publishClient
+                      .publishWith()
+                      .topic("READ_TOPIC")
+                      .payload(("This is test " + i).getBytes(StandardCharsets.UTF_8))
+                      .qos(MqttQos.EXACTLY_ONCE)
+                      .send();
                 }
               } catch (Exception e) {
                 // nothing to do
@@ -205,7 +206,7 @@ public class MqttIOTest {
     pipeline.run();
 
     publisherThread.join();
-    publishConnection.disconnect();
+    publishClient.disconnect();
   }
 
   @Test(timeout = 60 * 1000)
@@ -237,10 +238,9 @@ public class MqttIOTest {
 
     // produce messages on the brokerService in another thread
     // This thread prevents to block the pipeline waiting for new messages
-    MQTT client = new MQTT();
-    client.setHost("tcp://localhost:" + port);
-    final BlockingConnection publishConnection = client.blockingConnection();
-    publishConnection.connect();
+    Mqtt3BlockingClient publishClient =
+        Mqtt3Client.builder().serverHost("localhost").serverPort(port).buildBlocking();
+    publishClient.connect();
     Thread publisherThread =
         new Thread(
             () -> {
@@ -249,18 +249,20 @@ public class MqttIOTest {
                 // Sleep two seconds, to give enough time for client to be ready to accept messages
                 Thread.sleep(2 * 1000);
                 for (int i = 0; i < 5; i++) {
-                  publishConnection.publish(
-                      topic1,
-                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
-                      QoS.EXACTLY_ONCE,
-                      false);
+                  publishClient
+                      .publishWith()
+                      .topic(topic1)
+                      .payload(("This is test " + i).getBytes(StandardCharsets.UTF_8))
+                      .qos(MqttQos.EXACTLY_ONCE)
+                      .send();
                 }
                 for (int i = 5; i < 10; i++) {
-                  publishConnection.publish(
-                      topic2,
-                      ("This is test " + i).getBytes(StandardCharsets.UTF_8),
-                      QoS.EXACTLY_ONCE,
-                      false);
+                  publishClient
+                      .publishWith()
+                      .topic(topic2)
+                      .payload(("This is test " + i).getBytes(StandardCharsets.UTF_8))
+                      .qos(MqttQos.EXACTLY_ONCE)
+                      .send();
                 }
 
               } catch (Exception e) {
@@ -271,7 +273,7 @@ public class MqttIOTest {
     publisherThread.start();
     pipeline.run();
 
-    publishConnection.disconnect();
+    publishClient.disconnect();
     publisherThread.join();
   }
 
@@ -289,34 +291,53 @@ public class MqttIOTest {
     pipeline.run();
   }
 
-  private static class FakeMessage extends Message {
-
-    private int ackCount;
-
-    public FakeMessage() {
-      super(null, null, null, null);
-      this.ackCount = 0;
-    }
+  private static class FakeMessage implements Mqtt3Publish {
+    private int ackCount = 0;
 
     @Override
-    public void ack() {
-      ++ackCount;
-    }
-
-    @Override
-    public void ack(final Callback<Void> unused) {
-      ++ackCount;
+    public void acknowledge() {
+      ackCount++;
     }
 
     public int getAckCount() {
       return ackCount;
+    }
+
+    @Override
+    public Optional<ByteBuffer> getPayload() {
+      return Optional.empty();
+    }
+
+    @Override
+    public byte[] getPayloadAsBytes() {
+      return new byte[0];
+    }
+
+    @Override
+    public MqttTopic getTopic() {
+      return MqttTopic.of("temp");
+    }
+
+    @Override
+    public MqttQos getQos() {
+      return MqttQos.AT_LEAST_ONCE;
+    }
+
+    @Override
+    public boolean isRetain() {
+      return false;
+    }
+
+    @Override
+    public Mqtt3PublishBuilder.Complete extend() {
+      return null;
     }
   }
 
   @Test
   public void testReadCheckpoint() {
     MqttIO.MqttCheckpointMark.Preparer preparer = new MqttIO.MqttCheckpointMark.Preparer("id");
-    ArrayList<Message> messages = new ArrayList<>();
+    ArrayList<FakeMessage> messages = new ArrayList<>();
     for (int i = 0; i < 5; ++i) {
       messages.add(new FakeMessage());
     }
@@ -328,30 +349,35 @@ public class MqttIOTest {
     preparer.add(messages.get(3), Instant.ofEpochMilli(40));
     preparer.add(messages.get(4), Instant.ofEpochMilli(50));
     MqttIO.MqttCheckpointMark checkpointB = preparer.newCheckpoint();
-    assertTrue(
-        Arrays.stream(messages.toArray()).allMatch(m -> ((FakeMessage) m).getAckCount() == 0));
+
+    // Check that ackCount is 0 for all
+    assertTrue(messages.stream().allMatch(m -> m.getAckCount() == 0));
+
     checkpointA.finalizeCheckpoint();
     // only messages in finalized checkpoint acked
-    assertTrue(
-        Arrays.stream(messages.subList(0, 3).toArray())
-            .allMatch(m -> ((FakeMessage) m).getAckCount() == 1));
-    assertTrue(
-        Arrays.stream(messages.subList(3, 5).toArray())
-            .allMatch(m -> ((FakeMessage) m).getAckCount() == 0));
+    for (int i = 0; i < 3; ++i) {
+      assertEquals(1, messages.get(i).getAckCount());
+    }
+    for (int i = 3; i < 5; ++i) {
+      assertEquals(0, messages.get(i).getAckCount());
+    }
+
     checkpointB.finalizeCheckpoint();
-    // all messaged acked once
-    assertTrue(
-        Arrays.stream(messages.toArray()).allMatch(m -> ((FakeMessage) m).getAckCount() == 1));
+    // all messages acked once
+    for (int i = 0; i < 5; ++i) {
+      assertEquals(1, messages.get(i).getAckCount());
+    }
   }
 
   @Test
   public void testWrite() throws Exception {
     final int numberOfTestMessages = 200;
-    MQTT client = new MQTT();
-    client.setHost("tcp://localhost:" + port);
-    final BlockingConnection connection = client.blockingConnection();
-    connection.connect();
-    connection.subscribe(new Topic[] {new Topic(Buffer.utf8("WRITE_TOPIC"), QoS.EXACTLY_ONCE)});
+    Mqtt3BlockingClient client =
+        Mqtt3Client.builder().serverHost("localhost").serverPort(port).buildBlocking();
+    client.connect();
+    Mqtt3BlockingClient.Mqtt3Publishes publishes =
+        client.publishes(MqttGlobalPublishFilter.ALL, true);
+    client.subscribeWith().topicFilter("WRITE_TOPIC").qos(MqttQos.EXACTLY_ONCE).send();
 
     final Set<String> messages = new ConcurrentSkipListSet<>();
 
@@ -360,9 +386,9 @@ public class MqttIOTest {
             () -> {
               try {
                 for (int i = 0; i < numberOfTestMessages; i++) {
-                  Message message = connection.receive();
-                  messages.add(new String(message.getPayload(), StandardCharsets.UTF_8));
-                  message.ack();
+                  Mqtt3Publish message = publishes.receive();
+                  messages.add(new String(message.getPayloadAsBytes(), StandardCharsets.UTF_8));
+                  message.acknowledge();
                 }
               } catch (Exception e) {
                 LOG.error("Can't receive message", e);
@@ -384,7 +410,7 @@ public class MqttIOTest {
     pipeline.run();
     subscriber.join();
 
-    connection.disconnect();
+    client.disconnect();
 
     assertEquals(numberOfTestMessages, messages.size());
     for (int i = 0; i < numberOfTestMessages; i++) {
@@ -398,17 +424,15 @@ public class MqttIOTest {
     final int numberOfTopic2Count = 100;
     final int numberOfTestMessages = numberOfTopic1Count + numberOfTopic2Count;
 
-    MQTT client = new MQTT();
-    client.setHost("tcp://localhost:" + port);
-    final BlockingConnection connection = client.blockingConnection();
-    connection.connect();
+    Mqtt3BlockingClient client =
+        Mqtt3Client.builder().serverHost("localhost").serverPort(port).buildBlocking();
+    client.connect();
+    Mqtt3BlockingClient.Mqtt3Publishes publishes =
+        client.publishes(MqttGlobalPublishFilter.ALL, true);
     final String writeTopic1 = "WRITE_TOPIC_1";
     final String writeTopic2 = "WRITE_TOPIC_2";
-    connection.subscribe(
-        new Topic[] {
-          new Topic(Buffer.utf8(writeTopic1), QoS.EXACTLY_ONCE),
-          new Topic(Buffer.utf8(writeTopic2), QoS.EXACTLY_ONCE)
-        });
+    client.subscribeWith().topicFilter(writeTopic1).qos(MqttQos.EXACTLY_ONCE).send();
+    client.subscribeWith().topicFilter(writeTopic2).qos(MqttQos.EXACTLY_ONCE).send();
 
     final Map<String, List<String>> messageMap = new ConcurrentSkipListMap<>();
     final Thread subscriber =
@@ -416,14 +440,14 @@ public class MqttIOTest {
             () -> {
               try {
                 for (int i = 0; i < numberOfTestMessages; i++) {
-                  Message message = connection.receive();
-                  List<String> messages = messageMap.get(message.getTopic());
+                  Mqtt3Publish message = publishes.receive();
+                  List<String> messages = messageMap.get(message.getTopic().toString());
                   if (messages == null) {
                     messages = new ArrayList<>();
                   }
-                  messages.add(new String(message.getPayload(), StandardCharsets.UTF_8));
-                  messageMap.put(message.getTopic(), messages);
-                  message.ack();
+                  messages.add(new String(message.getPayloadAsBytes(), StandardCharsets.UTF_8));
+                  messageMap.put(message.getTopic().toString(), messages);
+                  message.acknowledge();
                 }
               } catch (Exception e) {
                 LOG.error("Can't receive message", e);
@@ -455,7 +479,7 @@ public class MqttIOTest {
     pipeline.run();
     subscriber.join();
 
-    connection.disconnect();
+    client.disconnect();
 
     assertEquals(
         numberOfTestMessages, messageMap.values().stream().mapToLong(Collection::size).sum());

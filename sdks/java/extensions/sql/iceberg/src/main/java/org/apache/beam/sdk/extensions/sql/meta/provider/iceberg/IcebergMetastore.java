@@ -94,7 +94,7 @@ public class IcebergMetastore extends InMemoryMetaStore {
   @Override
   public Map<String, Table> getTables() {
     for (String id : catalogConfig.listTables(database)) {
-      String name = TableName.create(id).getTableName();
+      String name = tableName(id);
       @Nullable Table cachedTable = cachedTables.get(name);
       if (cachedTable == null) {
         Table table = checkStateNotNull(loadTable(id));
@@ -116,6 +116,10 @@ public class IcebergMetastore extends InMemoryMetaStore {
     return table;
   }
 
+  private String tableName(String tableId) {
+    return TableName.create(tableId).getTableName();
+  }
+
   private String getIdentifier(String name) {
     return database + "." + name;
   }
@@ -133,7 +137,7 @@ public class IcebergMetastore extends InMemoryMetaStore {
     }
     return Table.builder()
         .type(getTableType())
-        .name(identifier)
+        .name(tableName(identifier))
         .schema(tableInfo.getSchema())
         .properties(TableUtils.parseProperties(tableInfo.getProperties()))
         .build();

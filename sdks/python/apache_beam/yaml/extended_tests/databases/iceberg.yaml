@@ -16,8 +16,18 @@
 #
 
 fixtures:
-  - name: TEMP_DIR
-    type: "tempfile.TemporaryDirectory"
+  - name: ICEBERG_FIXTURE
+    type: "apache_beam.yaml.integration_tests.temp_iceberg_table_with_pk"
+    config:
+      table_data:
+        name: "labels"
+        schema:
+          type: "struct"
+          schema-id: 0
+          fields:
+            - { id: 1, name: "label", required: true, type: "string" }
+            - { id: 2, name: "rank", required: true, type: "long" }
+          identifier-field-ids: [1]
 
 pipelines:
   - name: write
@@ -32,14 +42,14 @@ pipelines:
               - {label: "389a", rank: 2}
         - type: WriteToIceberg
           config:
-            table: db.labels
-            catalog_name: hadoop_catalog
+            table: "{ICEBERG_FIXTURE[table]}"
+            catalog_name: rest_catalog
             catalog_properties:
-              type: hadoop
-              warehouse: "{TEMP_DIR}"
+              type: rest
+              uri: "{ICEBERG_FIXTURE[api_url]}"
     options:
       project: "apache-beam-testing"
-      temp_location: "{TEMP_DIR}"
+      temp_location: "{ICEBERG_FIXTURE[temp_dir]}"
 
   - name: read
     pipeline:
@@ -47,11 +57,11 @@ pipelines:
       transforms:
         - type: ReadFromIceberg
           config:
-            table: db.labels
-            catalog_name: hadoop_catalog
+            table: "{ICEBERG_FIXTURE[table]}"
+            catalog_name: rest_catalog
             catalog_properties:
-              type: hadoop
-              warehouse: "{TEMP_DIR}"
+              type: rest
+              uri: "{ICEBERG_FIXTURE[api_url]}"
         - type: AssertEqual
           config:
             elements:
@@ -60,7 +70,7 @@ pipelines:
               - {label: "389a", rank: 2}
     options:
       project: "apache-beam-testing"
-      temp_location: "{TEMP_DIR}"
+      temp_location: "{ICEBERG_FIXTURE[temp_dir]}"
 
   - name: read_cdc_batch
     pipeline:
@@ -68,11 +78,11 @@ pipelines:
       transforms:
         - type: ReadFromIcebergCDC
           config:
-            table: db.labels
-            catalog_name: hadoop_catalog
+            table: "{ICEBERG_FIXTURE[table]}"
+            catalog_name: rest_catalog
             catalog_properties:
-              type: hadoop
-              warehouse: "{TEMP_DIR}"
+              type: rest
+              uri: "{ICEBERG_FIXTURE[api_url]}"
             from_timestamp: 1762819200000
             to_timestamp:  2078352000000
             filter: '"label" = ''11a'' or "rank" = 1'
@@ -86,7 +96,7 @@ pipelines:
               - {label: "37a", rank: 1}
     options:
       project: "apache-beam-testing"
-      temp_location: "{TEMP_DIR}"
+      temp_location: "{ICEBERG_FIXTURE[temp_dir]}"
 
   - name: read_cdc_streaming
     pipeline:
@@ -94,11 +104,11 @@ pipelines:
       transforms:
         - type: ReadFromIcebergCDC
           config:
-            table: db.labels
-            catalog_name: hadoop_catalog
+            table: "{ICEBERG_FIXTURE[table]}"
+            catalog_name: rest_catalog
             catalog_properties:
-              type: hadoop
-              warehouse: "{TEMP_DIR}"
+              type: rest
+              uri: "{ICEBERG_FIXTURE[api_url]}"
             streaming: True
             to_timestamp: 2078352000000
             filter: '"label" = ''11a'' or "rank" = 1'
@@ -112,4 +122,4 @@ pipelines:
               - {label: "37a", rank: 1}
     options:
       project: "apache-beam-testing"
-      temp_location: "{TEMP_DIR}"
+      temp_location: "{ICEBERG_FIXTURE[temp_dir]}"

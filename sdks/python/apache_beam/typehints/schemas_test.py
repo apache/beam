@@ -257,6 +257,22 @@ def get_test_beam_fieldtype_protos():
                           value=schema_pb2.FieldValue(
                               atomic_value=schema_pb2.AtomicTypeValue(
                                   bytes=b'bytes!'))),
+                      schema_pb2.Option(
+                          name='a_string_array',
+                          type=schema_pb2.FieldType(
+                              array_type=schema_pb2.ArrayType(
+                                  element_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.STRING))),
+                          value=schema_pb2.FieldValue(
+                              array_value=schema_pb2.ArrayTypeValue(
+                                  element=[
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='a')),
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='b')),
+                                  ]))),
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -768,6 +784,100 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         named_fields_from_element_type(union_type), [('common', str),
                                                      ('unique', Any)])
+
+
+class ParameterizedTimestampTest(unittest.TestCase):
+  def test_urn(self):
+    self.assertEqual(
+        schemas.ParameterizedTimestamp.urn(), 'beam:logical_type:timestamp:v1')
+
+  def test_timestamp_typehint_still_maps_to_micros_instant(self):
+    # Existing pipelines rely on plain Timestamp fields being encoded as
+    # micros_instant; registering ParameterizedTimestamp must not change
+    # the default.
+    field_type = typing_to_runner_api(Timestamp)
+    self.assertEqual(
+        field_type.logical_type.urn, common_urns.micros_instant.urn)
+
+  def test_from_runner_api_reconstructs_precision(self):
+    logical_type_proto = schema_pb2.LogicalType(
+        urn=common_urns.timestamp.urn,
+        representation=typing_to_runner_api(
+            schemas.ParameterizedTimestampRepresentation),
+        argument_type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+        argument=schema_pb2.FieldValue(
+            atomic_value=schema_pb2.AtomicTypeValue(int32=9)))
+    logical_type = schemas.LogicalType.from_runner_api(logical_type_proto)
+    self.assertIsInstance(logical_type, schemas.ParameterizedTimestamp)
+    self.assertEqual(logical_type.argument(), 9)
+    value = logical_type.to_language_type(
+        schemas.ParameterizedTimestampRepresentation(
+            seconds=np.int64(1234), subseconds=np.int32(123456789)))
+    self.assertEqual(
+        value, Timestamp(seconds=1234, subseconds=123456789, precision=9))
+    self.assertEqual(value.precision(), 9)
+
+  def test_representation_type_matches_java(self):
+    # The Java SDK uses an INT16 subseconds field for precision < 5 and
+    # INT32 otherwise; the wire formats differ, so we must match.
+    for precision in range(0, 5):
+      self.assertEqual(
+          schemas.ParameterizedTimestamp(precision).representation_type(),
+          schemas.ParameterizedTimestampShortRepresentation)
+    for precision in range(5, 10):
+      self.assertEqual(
+          schemas.ParameterizedTimestamp(precision).representation_type(),
+          schemas.ParameterizedTimestampRepresentation)
+
+  def test_precision_validation(self):
+    with self.assertRaises(ValueError):
+      schemas.ParameterizedTimestamp(10)
+    with self.assertRaises(ValueError):
+      schemas.ParameterizedTimestamp(-1)
+
+  def test_value_round_trip(self):
+    for precision, subseconds in [(3, 500), (6, 500000), (9, 123456789)]:
+      logical_type = schemas.ParameterizedTimestamp(precision)
+      value = Timestamp(
+          seconds=1234, subseconds=subseconds, precision=precision)
+      representation = logical_type.to_representation_type(value)
+      self.assertEqual(representation.seconds, 1234)
+      self.assertEqual(representation.subseconds, subseconds)
+      self.assertEqual(logical_type.to_language_type(representation), value)
+
+  def test_negative_timestamps_use_floored_seconds(self):
+    # -1.5s is represented as {seconds: -2, subseconds: 500000} at
+    # microsecond precision, matching the Java SDK and java.time.Instant.
+    logical_type = schemas.ParameterizedTimestamp(6)
+    representation = logical_type.to_representation_type(Timestamp(-1.5))
+    self.assertEqual(representation.seconds, -2)
+    self.assertEqual(representation.subseconds, 500000)
+    self.assertEqual(
+        logical_type.to_language_type(representation), Timestamp(-1.5))
+
+  def test_to_language_type_rejects_out_of_range_subseconds(self):
+    # Java's toInputType rejects these as likely data corruption.
+    logical_type = schemas.ParameterizedTimestamp(3)
+    with self.assertRaises(ValueError):
+      logical_type.to_language_type(
+          schemas.ParameterizedTimestampShortRepresentation(
+              np.int64(10), np.int16(5000)))
+    with self.assertRaises(ValueError):
+      logical_type.to_language_type(
+          schemas.ParameterizedTimestampShortRepresentation(
+              np.int64(10), np.int16(-1)))
+
+  def test_to_representation_type_guards_against_precision_loss(self):
+    # Mirrors the Java SDK's toBaseType check: a value that cannot be
+    # represented exactly at the logical type's precision is an error.
+    logical_type = schemas.ParameterizedTimestamp(6)
+    nanos_value = Timestamp(seconds=1, subseconds=123456789, precision=9)
+    with self.assertRaises(ValueError):
+      logical_type.to_representation_type(nanos_value)
+    # Lower-precision values are converted losslessly.
+    millis_value = Timestamp(seconds=1, subseconds=500, precision=3)
+    representation = logical_type.to_representation_type(millis_value)
+    self.assertEqual(representation.subseconds, 500000)
 
 
 class HypothesisTest(unittest.TestCase):

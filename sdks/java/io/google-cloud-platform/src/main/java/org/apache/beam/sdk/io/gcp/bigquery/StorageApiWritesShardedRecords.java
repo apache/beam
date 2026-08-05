@@ -1066,7 +1066,25 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
         if (numAppends > 0) {
           initializeContexts.accept(contexts);
-          retryManager.run(true);
+          try {
+            retryManager.run(true);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+          } catch (Exception e) {
+            Status.Code statusCode = Status.fromThrowable(e).getCode();
+            String errorMessage =
+                String.format(
+                    "More than %d attempts to call AppendRows failed. Last encountered error: %s",
+                    maxRetries, e.toString());
+            if (statusCode == Status.Code.PERMISSION_DENIED
+                || statusCode == Status.Code.NOT_FOUND) {
+              errorMessage +=
+                  ". Please check if the destination table exists and if the service account has the "
+                      + "bigquery.tables.updateData permission.";
+            }
+            throw new RuntimeException(errorMessage, e);
+          }
 
           appendSplitDistribution.update(numAppends);
           if (autoUpdateSchema) {

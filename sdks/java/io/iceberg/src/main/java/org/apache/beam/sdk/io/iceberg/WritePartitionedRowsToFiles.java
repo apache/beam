@@ -39,6 +39,7 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -59,14 +60,17 @@ class WritePartitionedRowsToFiles
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
+  private final @Nullable Map<String, String> writeProperties;
 
   WritePartitionedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
-      String filePrefix) {
+      String filePrefix,
+      @Nullable Map<String, String> writeProperties) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
+    this.writeProperties = writeProperties;
   }
 
   @Override
@@ -78,7 +82,9 @@ class WritePartitionedRowsToFiles
                     .getElemCoder())
             .getSchema();
     return input.apply(
-        ParDo.of(new WriteDoFn(catalogConfig, dynamicDestinations, filePrefix, dataSchema)));
+        ParDo.of(
+            new WriteDoFn(
+                catalogConfig, dynamicDestinations, filePrefix, dataSchema, writeProperties)));
   }
 
   private static class WriteDoFn extends DoFn<KV<Row, Iterable<Row>>, FileWriteResult> {
@@ -87,6 +93,7 @@ class WritePartitionedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final Schema dataSchema;
+    private final @Nullable Map<String, String> writeProperties;
     private transient @MonotonicNonNull Map<TableIdentifier, Integer> specIds;
     private transient @MonotonicNonNull Map<TableIdentifier, Map<String, PartitionField>>
         partitionFieldMaps;
@@ -95,11 +102,13 @@ class WritePartitionedRowsToFiles
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         String filePrefix,
-        Schema dataSchema) {
+        Schema dataSchema,
+        @Nullable Map<String, String> writeProperties) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.dataSchema = dataSchema;
+      this.writeProperties = writeProperties;
     }
 
     @Setup
@@ -132,7 +141,8 @@ class WritePartitionedRowsToFiles
               .addExtension(String.format("%s-%s", filePrefix, UUID.randomUUID()));
 
       RecordWriter writer =
-          new RecordWriter(table, destination.getFileFormat(), fileName, partitionData);
+          new RecordWriter(
+              table, destination.getFileFormat(), fileName, partitionData, writeProperties);
       try {
         for (Row row : element.getValue()) {
           Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
@@ -180,6 +190,8 @@ class WritePartitionedRowsToFiles
       @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
       PartitionSpec partitionSpec =
           createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+      SortOrder sortOrder =
+          createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
       Map<String, String> tableProperties =
           createConfig != null && createConfig.getTableProperties() != null
               ? createConfig.getTableProperties()
@@ -208,13 +220,19 @@ class WritePartitionedRowsToFiles
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
           Table table =
-              catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+              catalog
+                  .buildTable(identifier, tableSchema)
+                  .withPartitionSpec(partitionSpec)
+                  .withSortOrder(sortOrder)
+                  .withProperties(tableProperties)
+                  .create();
           LOG.info(
               "Created Iceberg table '{}' with schema: {}\n"
-                  + ", partition spec: {}, table properties: {}",
+                  + ", partition spec: {}, sort order: {}, table properties: {}",
               identifier,
               tableSchema,
               partitionSpec,
+              sortOrder,
               tableProperties);
           return table;
         } catch (AlreadyExistsException ignored) {
