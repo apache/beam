@@ -800,7 +800,7 @@ public class BeamComplexTypeTest {
   }
 
   @Test
-  public void testSqlTimestampMicrosLogicalType() {
+  public void testSqlTimestampLogicalType() {
     // Calcite TIMESTAMP is millis-based; SQL projection of Timestamp.MICROS uses
     // FieldType.DATETIME.
     Schema inputSchema =
