@@ -157,7 +157,7 @@ func (po *PipelineOptions) GetStringSlice(name string) ([]string, error) {
 	}
 	if str, ok := val.(string); ok {
 		// Go SDK models multi-value list flags (like experiments or dataflow_service_options)
-		// as comma-separated string flags rather than JSON arrays.
+		// as comma-separated string values.
 		if str == "" {
 			return nil, nil
 		}
