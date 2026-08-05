@@ -272,9 +272,6 @@ public abstract class IcebergScanConfig implements Serializable {
   public abstract @Nullable String getWatermarkColumnTimeUnit();
 
   @Pure
-  public abstract @Nullable Duration getMaxSnapshotDiscoveryDelay();
-
-  @Pure
   public abstract List<String> getMetadataColumns();
 
   @Pure
@@ -370,8 +367,6 @@ public abstract class IcebergScanConfig implements Serializable {
     public abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
 
     public abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
-
-    public abstract Builder setMaxSnapshotDiscoveryDelay(@Nullable Duration delay);
 
     public abstract Builder setMetadataColumns(List<String> metadataColumns);
 
