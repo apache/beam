@@ -31,7 +31,7 @@ The commands assume a Unix shell (Linux, macOS, or WSL2 on Windows) with `curl`,
 
 ## What this setup validates
 
-This setup runs three separate processes:
+This setup runs three components:
 
 1. A Flink standalone cluster, consisting of a JobManager and a TaskManager.
 1. A Beam Flink Job Server, started by the Python `FlinkRunner`.
