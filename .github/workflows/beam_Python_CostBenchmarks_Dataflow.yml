@@ -61,7 +61,9 @@ jobs:
         job_name: ["beam_Python_CostBenchmark_Dataflow"]
         job_phrase: ["Run Python Dataflow Cost Benchmarks"]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

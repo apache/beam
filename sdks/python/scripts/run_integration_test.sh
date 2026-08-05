@@ -42,6 +42,8 @@
 #                      flag is specified, all above flag will be ignored.
 #                      Please include all required pipeline options when
 #                      using this flag.
+#   additional_opts -> List of space separated pipeline options. Unlike pipeline_opts,
+#                      it appends to other flags options instead of ignoring them.
 #
 # Test related flags:
 #     test_opts     -> List of space separated options to configure Pytest test
@@ -150,6 +152,11 @@ case $key in
         shift # past argument
         shift # past value
         ;;
+    --additional_opts)
+        ADDITIONAL_OPTS="$2"
+        shift # past argument
+        shift # past value
+        ;;
     --test_opts)
         TEST_OPTS="$2"
         shift # past argument
@@ -241,8 +248,15 @@ if [[ -z $PIPELINE_OPTS ]]; then
   if [[ "$ARCH" == "ARM" ]]; then
     opts+=("--machine_type=t2a-standard-1")
 
-    IMAGE_NAME="beam_python${PY_VERSION}_sdk"
-    opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
+    # Prefer an explicit image (e.g. Snapshots latest) when provided so CI can
+    # skip rebuilding multiarch SDK containers. Otherwise use the image built
+    # and pushed by the caller under MULTIARCH_TAG.
+    if [[ -n "${SDK_CONTAINER_IMAGE:-}" ]]; then
+      opts+=("--sdk_container_image=$SDK_CONTAINER_IMAGE")
+    else
+      IMAGE_NAME="beam_python${PY_VERSION}_sdk"
+      opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
+    fi
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then
@@ -257,7 +271,9 @@ if [[ -z $PIPELINE_OPTS ]]; then
   fi
 
   PIPELINE_OPTS=$(IFS=" " ; echo "${opts[*]}")
-
+  if [[ -n $ADDITIONAL_OPTS ]]; then
+    PIPELINE_OPTS+=" ${ADDITIONAL_OPTS}"
+  fi
 fi
 
 # Handle double quotes in PIPELINE_OPTS

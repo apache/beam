@@ -39,6 +39,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Instant;
 import org.junit.After;
@@ -75,7 +76,8 @@ public class StreamingApplianceWorkCommitterTest {
             },
             mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private static ComputationState createComputationState(String computationId) {
@@ -128,10 +130,11 @@ public class StreamingApplianceWorkCommitterTest {
         fakeWindmillServer.waitForAndGetCommits(commits.size());
 
     for (Commit commit : commits) {
+      assertThat(commit.workBatch()).hasSize(1);
       Windmill.WorkItemCommitRequest request =
-          committed.get(commit.work().getWorkItem().getWorkToken());
+          committed.get(commit.workBatch().get(0).getWorkItem().getWorkToken());
       assertNotNull(request);
-      assertThat(request).isEqualTo(commit.request());
+      assertThat(request).isEqualTo(commit.singleKeyRequest());
     }
 
     assertThat(completeCommits).hasSize(commits.size());
@@ -141,12 +144,14 @@ public class StreamingApplianceWorkCommitterTest {
                 (CompleteCommit completeCommit, Commit commit) ->
                     completeCommit.computationId().equals(commit.computationId())
                         && completeCommit.status() == Windmill.CommitStatus.OK
-                        && completeCommit.workId().equals(commit.work().id())
+                        && commit.workBatch().size() == 1
+                        && completeCommit.workId().equals(commit.workBatch().get(0).id())
                         && completeCommit
                             .shardedKey()
                             .equals(
                                 ShardedKey.create(
-                                    commit.request().getKey(), commit.request().getShardingKey())),
+                                    commit.singleKeyRequest().getKey(),
+                                    commit.singleKeyRequest().getShardingKey())),
                 "expected to equal"))
         .containsExactlyElementsIn(commits);
   }

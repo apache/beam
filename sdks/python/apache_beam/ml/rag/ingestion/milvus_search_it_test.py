@@ -162,6 +162,7 @@ def drop_collection(client: MilvusClient, collection_name: str):
 
 
 @pytest.mark.require_docker_in_docker
+@pytest.mark.no_xdist
 @unittest.skipIf(not PYMILVUS_AVAILABLE, 'pymilvus is not installed.')
 @unittest.skipUnless(
     platform.system() == "Linux",

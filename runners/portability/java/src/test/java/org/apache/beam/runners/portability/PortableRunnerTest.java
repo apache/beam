@@ -110,6 +110,27 @@ public class PortableRunnerTest implements Serializable {
   }
 
   @Test
+  public void mapsDrainingJobState() throws Exception {
+    createJobServer(JobState.Enum.DRAINING, JobApi.MetricResults.getDefaultInstance());
+    PortableRunner runner = PortableRunner.create(options, ManagedChannelFactory.createInProcess());
+    PipelineResult result = runner.run(p);
+
+    try {
+      assertThat(result.getState(), is(State.DRAINING));
+    } finally {
+      ((AutoCloseable) result).close();
+    }
+  }
+
+  @Test
+  public void mapsDrainedJobState() throws Exception {
+    createJobServer(JobState.Enum.DRAINED, JobApi.MetricResults.getDefaultInstance());
+    PortableRunner runner = PortableRunner.create(options, ManagedChannelFactory.createInProcess());
+    State state = runner.run(p).waitUntilFinish();
+    assertThat(state, is(State.DRAINED));
+  }
+
+  @Test
   public void extractsMetrics() throws Exception {
     JobApi.MetricResults metricResults = generateMetricResults();
     createJobServer(JobState.Enum.DONE, metricResults);

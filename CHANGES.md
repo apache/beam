@@ -55,28 +55,62 @@
 * ([#X](https://github.com/apache/beam/issues/X)).
 -->
 
-# [2.75.0] - Unreleased
+# [2.76.0] - Unreleased
 
 ## Highlights
 
 * New highly anticipated feature X added to Python SDK ([#X](https://github.com/apache/beam/issues/X)).
 * New highly anticipated feature Y added to Java SDK ([#Y](https://github.com/apache/beam/issues/Y)).
-* (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
 
 ## I/Os
 
+* Upgraded Iceberg dependency to 1.11.0 (Java) ([#38925](https://github.com/apache/beam/issues/38925)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
+* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
+* Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
+* Added a Delta Lake batch changelog source (CDC) ([#39492](https://github.com/apache/beam/issues/39492))
 
 ## New Features / Improvements
 
-* (Java) Enabled state tag encoding v2 by default for new Dataflow Streaming Engine jobs. It can be disabled by passing `--experiments=disable_streaming_engine_state_tag_encoding_v2` or `--updateCompatibilityVersion=2.74.0` pipeline option. Note that the tag encoding version cannot change during a job update. Jobs using tag encoding v2 (enabled by default for new jobs on 2.75.0+) cannot be downgraded to Beam versions prior to 2.73.0, as only versions 2.73.0 and later support tag encoding v2. ([#38705](https://github.com/apache/beam/issues/38705)).
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added `GroupIntoBatches` transform and the standard
+  `beam:coder:sharded_key:v1` coder to the Go SDK, along with
+  `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,
+  and `coder.RegisterDeterministicCoder` for opt-in deterministic
+  custom coders (Go) ([#19868](https://github.com/apache/beam/issues/19868)).
+* TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
+  encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
+  compatible. Both coders can decode encoded bytes from the other coder
+  ([#38139](https://github.com/apache/beam/issues/38139)).
+* (Python) Removed the `envoy-data-plane` (and transitive `betterproto`) dependency; `EnvoyRateLimiter` now uses a small vendored protobuf definition instead, resolving dependency conflicts for downstream projects ([#37854](https://github.com/apache/beam/issues/37854)).
+* (Java) Supported acknowledge mode for JmsIO ([#39253](https://github.com/apache/beam/issues/39253)).
+* (Python) Staged files directory is now automatically added to `sys.path` on the Python SDK worker at startup. This makes Python files provided via the '--files_to_stage' pipeline option importable in the pipeline code and makes it easier to initialize Python SDK harness at startup via the `--beam_plugins` pipeline option. For more information, see the [Staging Individual Files](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#staging-files) section of the dependency management docs. This behavior can be disabled by passing the '--experiments=no_staged_dir_in_sys_path' pipeline option ([#39431](https://github.com/apache/beam/issues/39431)).
+* (Python) Added `equal_to_approx`, an `assert_that` matcher that compares numeric pipeline outputs with a configurable tolerance ([#18028](https://github.com/apache/beam/issues/18028)).
+* (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
+  `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp` ([#39344](https://github.com/apache/beam/issues/39344)).
+* (Python) Added `UnboundedSource`, an interface for reading an infinite stream of records with checkpointing, watermark reporting, and bundle finalization. Read one with `beam.io.Read`
+  ([#19137](https://github.com/apache/beam/issues/19137)).
+* (Python) Added `Watch`, a transform that polls a growing set of outputs for each input element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
+  ([#21521](https://github.com/apache/beam/issues/21521)).
+* (Python) Added support to analyze core dumps created after python worker segmentation faults with `pystack` (or `gdb` if installed) using the `--profiler_agent=coredump` pipeline option. ([#39484](https://github.com/apache/beam/issues/39484)).
+* (Java) Added per-element OpenTelemetry trace propagation across stages in the Dataflow Streaming Runner. Enable it with `--experiments=enable_otel_defaults,element_metadata_supported,disable_portable_worker`. Cloud Trace incurs additional cost. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry header propagation support for both reads and writes in KafkaIO and PubSubIO. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry tracing support for SpannerIO change streams ([#33176](https://github.com/apache/beam/issues/33176))
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Removed `google-perftools` from the SDK container images. Users who wish to use `--profiler_agent=tcmalloc` should install google-perftools APT package in their custom container images separately ([#39323](https://github.com/apache/beam/issues/39323)).
+* [IcebergIO] Reading a `timestamptz` column will now return a `Timestamp.MICROS` Beam logical type to preserve
+ microseconds (the old Beam `Schema.FieldType#DATETIME` primitive type truncates past milliseconds). This may break
+ existing streaming read pipelines. It also breaks Python reads when a `timestamptz` column is present. Use pipeline
+ option `--updateCompatibilityVersion=2.75.0` (or any older version) to keep the old behavior ([#39344](https://github.com/apache/beam/issues/39344)).
+* `DoFn.process` returning a `str`, `bytes`, or `dict` (instead of an iterable wrapping one) now raises a `TypeError` rather than silently iterating per-character/byte/key (Python) ([#18712](https://github.com/apache/beam/issues/18712)).
+* (Java) Added `DRAINING` and `DRAINED` states to `PipelineResult`, including runner state mappings and Dataflow update handling ([#39020](https://github.com/apache/beam/issues/39020)).
 * (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
   use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
   However fixing forward is recommended.
+* (Java) IcebergIO and projects that use it must now be built with Java 17 or later as a result of Iceberg 1.11.0 upgrade ([#38925](https://github.com/apache/beam/issues/38925)).
 
 ## Deprecations
 
@@ -84,8 +118,10 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
+* Fixed unresolved runtime `ValueProvider` options being stringified in Python Dataflow Flex Templates ([#39499](https://github.com/apache/beam/issues/39499)).
+* Fixed unbounded checkpoint state growth for splittable DoFns that self-checkpoint on the portable Flink runner (Java) ([#27648](https://github.com/apache/beam/issues/27648)).
+* Improved Java pipeline performance by avoiding repeated `DoFn` type descriptor resolution when creating cached invokers ([#39309](https://github.com/apache/beam/issues/39309)).
+* (Python) Fixed a memory leak in Python SDK caused by storing exceptions with potentially large stack frames in a cache ([#39406](https://github.com/apache/beam/issues/39406)).
 
 ## Security Fixes
 
@@ -95,6 +131,52 @@
 
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
+  -->
+
+# [2.75.0] - 2026-07-08
+
+## Highlights
+
+* Python SDK now supports memory profiling with Memray ([#38853](https://github.com/apache/beam/issues/38853)).
+* (Python) Added [Qdrant](https://qdrant.tech/) VectorDatabaseWriteConfig implementation ([#38141](https://github.com/apache/beam/issues/38141)).
+
+## I/Os
+
+* Support for reading from Delta Lake added (Java) ([#38551](https://github.com/apache/beam/issues/38551)).
+* ClickHouseIO: support writing `DateTime64(precision[, 'timezone'])` columns with sub-second precision (Java) ([#38466](https://github.com/apache/beam/issues/38466)).
+* Upgraded IO Expansion Service to Java 17 ([#38974](https://github.com/apache/beam/issues/38974)).
+* SpannerIO: Added support for Cloud Spanner Directed Reads (Java) ([#X](https://github.com/apache/beam/issues/X)).
+
+## New Features / Improvements
+
+* Dataflow Runner v2 has been renamed to Dataflow Portable Runner. Please refer to Dataflow [public documentation](https://docs.cloud.google.com/dataflow/docs/runner-v2) on when to enable Portable Runner.([#39000](https://github.com/apache/beam/issues/39000)).
+* (Java) Enabled state tag encoding v2 by default for new Dataflow Streaming Engine jobs. It can be disabled by passing `--experiments=disable_streaming_engine_state_tag_encoding_v2` or `--updateCompatibilityVersion=2.74.0` pipeline option. Note that the tag encoding version cannot change during a job update. Jobs using tag encoding v2 (enabled by default for new jobs on 2.75.0+) cannot be downgraded to Beam versions prior to 2.73.0, as only versions 2.73.0 and later support tag encoding v2. ([#38705](https://github.com/apache/beam/issues/38705)).
+* (Python) Added instrumentation to support off-the-shelf profiling agents when launching Python SDK Harness ([#38853](https://github.com/apache/beam/issues/38853)).
+* (Java) Added support to the FnApi Data stream protocol allowing runners to isolate bundles slowly processing input from other bundles. ([#39001](https://github.com/apache/beam/issues/39001)).
+* (YAML) Switched js2py library to Quickjs ([#38473](https://github.com/apache/beam/issues/38473)).
+* (YAML) Added HuggingFaceModelHandler for YAML usage ([#38696](https://github.com/apache/beam/issues/38696)).
+* (YAML) Added WriteToMongoDB transform ([#38376](https://github.com/apache/beam/issues/38376)).
+* (YAML) Added WriteToDatadog transform ([#38362](https://github.com/apache/beam/issues/38362)).
+* (Java) Flink 2.1 and 2.2 support is added ([#38947](https://github.com/apache/beam/issues/38947)) ([#38978](https://github.com/apache/beam/issues/38978)); Flink 1.17 and 1.18 support is dropped.
+* (Python) MqttIO is now supported in Python via cross-language ([#21060](https://github.com/apache/beam/issues/21060)).
+
+## Breaking Changes
+
+* (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
+  use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
+  However fixing forward is recommended.
+* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+
+## Bugfixes
+
+* Fixed GCS filesystem glob matching to correctly handle `/` in object names and support `**` for recursive matching (Go) ([#38059](https://github.com/apache/beam/issues/38059)).
+* Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
+* Fixed IcebergIO writing manifest column bounds padded with trailing `0x00` bytes, which broke equality predicate pushdown in some query engines (Java) ([#38580](https://github.com/apache/beam/issues/38580)).
+
+## Known Issues
+
+* (Java) Projects using the Flink runner with Flink 2.1 or later alongside libraries requiring `org.lz4:lz4-java` (e.g., Kafka clients) may encounter a Gradle capability conflict, because Flink 2.1+ ships `at.yawk.lz4:lz4-java` which declares the same capability. To resolve, add a `capabilitiesResolution` rule to your `build.gradle` that selects `at.yawk.lz4:lz4-java` ([#38947](https://github.com/apache/beam/issues/38947)).
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.74.0] - 2026-06-02
 
@@ -136,6 +218,10 @@
 * Fixed BigQueryEnrichmentHandler batch mode dropping earlier requests when multiple requests share the same enrichment key (Python) ([#38035](https://github.com/apache/beam/issues/38035)).
 * Added `max_batch_duration_secs` passthrough support in Python Enrichment BigQuery and CloudSQL handlers so batching duration can be forwarded to `BatchElements` ([#38243](https://github.com/apache/beam/issues/38243)).
 
+## Known Issues
+
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+
 # [2.73.0] - 2026-04-29
 
 ## Highlights
@@ -172,6 +258,10 @@
 * Fixed [CVE-2023-46604](https://www.cve.org/CVERecord?id=CVE-2023-46604) (CVSS 10.0) and [CVE-2022-41678](https://www.cve.org/CVERecord?id=CVE-2022-41678) by upgrading ActiveMQ from 5.14.5 to 5.19.2 (Java) ([#37943](https://github.com/apache/beam/issues/37943)).
 * Fixed [CVE-2024-1597](https://www.cve.org/CVERecord?id=CVE-2024-1597), [CVE-2022-31197](https://www.cve.org/CVERecord?id=CVE-2022-31197), and [CVE-2022-21724](https://www.cve.org/CVERecord?id=CVE-2022-21724) by upgrading PostgreSQL JDBC Driver from 42.2.16 to 42.6.2 (Java) ([#37942](https://github.com/apache/beam/issues/37942)).
 
+## Known Issues
+
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+
 # [2.72.0] - 2026-03-30
 
 ## Highlights
@@ -205,6 +295,10 @@
 
 * Fixed [CVE-2024-28397](https://www.cve.org/CVERecord?id=CVE-2024-28397) by switching from js2py to pythonmonkey (Yaml) ([#37560](https://github.com/apache/beam/issues/37560)).
 
+## Known Issues
+
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+
 # [2.71.0] - 2026-01-22
 
 ## I/Os
@@ -226,6 +320,7 @@
 
 ## Known Issues
 
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.70.0] - 2025-12-16
 
@@ -247,6 +342,10 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 ## Deprecations
 
 * (Python) Python 3.9 reached EOL in October 2025 and support for the language version has been removed. ([#36665](https://github.com/apache/beam/issues/36665)).
+
+## Known Issues
+
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.69.0] - 2025-10-28
 
@@ -307,6 +406,10 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
   ([#36141](https://github.com/apache/beam/issues/36141)).
 * Fixed Spanner Change Stream reading stuck issue due to watermark of partition moving backwards ([#36470](https://github.com/apache/beam/issues/36470)).
 
+## Known Issues
+
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+
 # [2.68.0] - 2025-09-22
 
 ## Highlights
@@ -361,6 +464,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 ## Known Issues
 
 * ([#36470](https://github.com/apache/beam/issues/36470)). Spanner Change Stream reading stuck issue due to watermark of partition moving backwards. This issue exists in 2.67.0 and 2.68.0. To mitigate the issue, either use old version 2.66.0 or go to 2.69.0.
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.67.0] - 2025-08-12
 
@@ -409,6 +513,7 @@ Now Beam has full support for Milvus integration including Milvus enrichment and
 
 * ([#35666](https://github.com/apache/beam/issues/35666)). YAML Flatten incorrectly drops fields when input PCollections' schema are different. This issue exists for all versions since 2.52.0.
 * ([#36470](https://github.com/apache/beam/issues/36470)). Spanner Change Stream reading stuck issue due to watermark of partition moving backwards. This issue exists in 2.67.0 and 2.68.0. To mitigate the issue, either use old version 2.66.0 or go to 2.69.0.
+* (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
 
 # [2.66.0] - 2025-07-01
 

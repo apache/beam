@@ -111,9 +111,8 @@ def format_output(element, window=beam.DoFn.WindowParam):
 class ComputeTopSessions(beam.PTransform):
   """Computes the top user sessions for each month."""
   def __init__(self, sampling_threshold):
-    # TODO(BEAM-6158): Revert the workaround once we can pickle super() on py3.
-    # super().__init__()
-    beam.PTransform.__init__(self)
+    super().__init__()
+
     self.sampling_threshold = sampling_threshold
 
   def expand(self, pcoll):

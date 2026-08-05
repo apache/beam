@@ -15,6 +15,7 @@
 # limitations under the License.
 #
 
+import datetime
 import io
 import json
 import logging
@@ -32,6 +33,7 @@ from apache_beam.testing.util import AssertThat
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.typehints import schemas as schema_utils
+from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
@@ -180,6 +182,107 @@ class YamlPubSubTest(unittest.TestCase):
                 beam.Row(payload=b'msg1', attrMap={'attr': 'value1'}),
                 beam.Row(payload=b'msg2', attrMap={'attr': 'value2'})
             ]))
+
+  def test_read_with_publish_time_field(self):
+    publish_time_1 = datetime.datetime(
+        2018, 3, 12, 13, 37, 1, 234567, tzinfo=datetime.timezone.utc)
+    publish_time_2 = datetime.datetime(
+        2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc)
+    publish_time_3 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 39, 3, 456789, tzinfo=datetime.timezone.utc))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
+                                                  publish_time=publish_time_1),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'},
+                                                  publish_time=publish_time_2),
+                                    PubsubMessage(b'msg3', {'attr': 'value3'},
+                                                  publish_time=publish_time_3),
+                                    PubsubMessage(b'msg4',
+                                                  {'attr': 'value4'})])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: RAW
+              publish_time_field: publish_time
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    payload=b'msg1',
+                    publish_time=Timestamp.from_utc_datetime(publish_time_1)),
+                beam.Row(
+                    payload=b'msg2',
+                    publish_time=Timestamp.from_utc_datetime(publish_time_2)),
+                beam.Row(payload=b'msg3', publish_time=publish_time_3),
+                beam.Row(payload=b'msg4', publish_time=None)
+            ]))
+
+  def test_read_with_attributes_and_publish_time_field(self):
+    publish_time_1 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 37, 1, 234567, tzinfo=datetime.timezone.utc))
+    publish_time_2 = Timestamp.from_utc_datetime(
+        datetime.datetime(
+            2018, 3, 12, 13, 38, 2, 345678, tzinfo=datetime.timezone.utc))
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle')) as p:
+      with mock.patch('apache_beam.io.ReadFromPubSub',
+                      FakeReadFromPubSub(
+                          topic='my_topic',
+                          messages=[PubsubMessage(b'msg1', {'attr': 'value1'},
+                                                  publish_time=publish_time_1),
+                                    PubsubMessage(b'msg2', {'attr': 'value2'},
+                                                  publish_time=publish_time_2)
+                                    ])):
+        result = p | YamlTransform(
+            '''
+            type: ReadFromPubSub
+            config:
+              topic: my_topic
+              format: RAW
+              attributes: [attr]
+              attributes_map: attrMap
+              publish_time_field: publish_time
+            ''')
+        assert_that(
+            result,
+            equal_to([
+                beam.Row(
+                    payload=b'msg1',
+                    attr='value1',
+                    attrMap={'attr': 'value1'},
+                    publish_time=publish_time_1),
+                beam.Row(
+                    payload=b'msg2',
+                    attr='value2',
+                    attrMap={'attr': 'value2'},
+                    publish_time=publish_time_2)
+            ]))
+
+  def test_read_with_empty_publish_time_field(self):
+    for publish_time_field in ('', '   '):
+      with self.subTest(publish_time_field=publish_time_field):
+        with self.assertRaisesRegex(
+            ValueError, 'publish_time_field must be a non-empty field name'):
+          with beam.Pipeline(
+              options=beam.options.pipeline_options.PipelineOptions(
+                  pickle_library='cloudpickle')) as p:
+            _ = p | YamlTransform(
+                '''
+                type: ReadFromPubSub
+                config:
+                  topic: my_topic
+                  format: RAW
+                  publish_time_field: "%s"
+                ''' % publish_time_field)
 
   def test_read_with_id_attribute(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
@@ -659,6 +762,49 @@ class YamlMatchAllTest(unittest.TestCase):
                     size_in_bytes=100,
                     last_updated_in_seconds=None)
             ]))
+
+
+class ReadFromBigQueryTest(unittest.TestCase):
+  def test_query_without_schema_raises(self):
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    with self.assertRaisesRegex(ValueError, 'schema'):
+      read_from_bigquery(query='SELECT id FROM dataset.table')
+
+  def test_table_without_schema_ok(self):
+    import unittest.mock as mock
+
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    with mock.patch('apache_beam.yaml.yaml_io.ReadFromBigQuery') as mock_rfbq:
+      mock_rfbq.return_value = mock.MagicMock()
+      read_from_bigquery(table='project:dataset.table')
+      mock_rfbq.assert_called_once()
+      call_kwargs = mock_rfbq.call_args[1]
+      self.assertIsNone(call_kwargs.get('query_output_schema'))
+
+  def test_query_with_schema_passes_through(self):
+    import unittest.mock as mock
+
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    schema = {
+        'fields': [
+            {
+                'name': 'id', 'type': 'INTEGER', 'mode': 'NULLABLE'
+            },
+        ]
+    }
+    with mock.patch('apache_beam.yaml.yaml_io.ReadFromBigQuery') as mock_rfbq:
+      mock_rfbq.return_value = mock.MagicMock()
+      read_from_bigquery(query='SELECT id FROM dataset.table', schema=schema)
+      call_kwargs = mock_rfbq.call_args[1]
+      self.assertEqual(call_kwargs['query_output_schema'], schema)
+
+  def test_query_and_table_both_raises(self):
+    from apache_beam.yaml.yaml_io import read_from_bigquery
+    with self.assertRaises(AssertionError):
+      read_from_bigquery(
+          table='project:dataset.table',
+          query='SELECT id FROM dataset.table',
+          schema={'fields': []})
 
 
 if __name__ == '__main__':
