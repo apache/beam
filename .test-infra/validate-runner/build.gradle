@@ -24,7 +24,7 @@ description = "Apache Beam :: Validate :: Runner"
 repositories {
     mavenCentral()
     maven {
-        url "https://repo.jenkins-ci.org/releases/"
+        url "https://repo.jenkins-ci.org/public/"
     }
     maven {
         url "https://packages.confluent.io/maven/"

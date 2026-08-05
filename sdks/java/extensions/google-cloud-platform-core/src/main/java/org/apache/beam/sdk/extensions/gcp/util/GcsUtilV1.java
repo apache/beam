@@ -154,7 +154,7 @@ class GcsUtilV1 {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions.getGoogleCloudStorageReadOptions());
+          gcsOptions);
     }
   }
 
@@ -240,7 +240,8 @@ class GcsUtilV1 {
         uploadBufferSizeBytes,
         rewriteDataOpBatchLimit,
         gcsCountersOptions,
-        gcsOptions.getGoogleCloudStorageReadOptions());
+        gcsOptions.getGoogleCloudStorageReadOptions(),
+        gcsOptions.getGcsEndpoint());
   }
 
   @VisibleForTesting
@@ -254,6 +255,31 @@ class GcsUtilV1 {
       @Nullable Integer rewriteDataOpBatchLimit,
       GcsCountersOptions gcsCountersOptions,
       GoogleCloudStorageReadOptions gcsReadOptions) {
+    this(
+        storageClient,
+        httpRequestInitializer,
+        executorService,
+        shouldUseGrpc,
+        credentials,
+        uploadBufferSizeBytes,
+        rewriteDataOpBatchLimit,
+        gcsCountersOptions,
+        gcsReadOptions,
+        null);
+  }
+
+  @VisibleForTesting
+  GcsUtilV1(
+      Storage storageClient,
+      HttpRequestInitializer httpRequestInitializer,
+      ExecutorService executorService,
+      Boolean shouldUseGrpc,
+      Credentials credentials,
+      @Nullable Integer uploadBufferSizeBytes,
+      @Nullable Integer rewriteDataOpBatchLimit,
+      GcsCountersOptions gcsCountersOptions,
+      GoogleCloudStorageReadOptions gcsReadOptions,
+      @Nullable String gcsEndpoint) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
@@ -514,6 +540,11 @@ class GcsUtilV1 {
   @VisibleForTesting
   void setCloudStorageImpl(GoogleCloudStorageOptions g) {
     googleCloudStorageOptions = g;
+  }
+
+  @VisibleForTesting
+  GoogleCloudStorageOptions getGoogleCloudStorageOptions() {
+    return googleCloudStorageOptions;
   }
 
   /**

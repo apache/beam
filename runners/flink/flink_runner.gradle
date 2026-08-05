@@ -204,6 +204,9 @@ test {
   // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.flink.translation.wrappers.streaming", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
   jvmArgs += flinkTestJvmArgs()
+  if (JavaVersion.current().isJava9Compatible()) {
+    jvmArgs "--add-opens=java.base/java.util=ALL-UNNAMED"
+  }
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }

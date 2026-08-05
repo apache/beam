@@ -23,6 +23,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.empty;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -359,6 +361,116 @@ public class BeamFnDataGrpcClientTest {
       outboundServerObserver.get().onNext(ELEMENTS_A_2);
 
       assertThat(inboundValuesA, contains(valueInGlobalWindow("ABC"), valueInGlobalWindow("DEF")));
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testNamedDataStreamClosedWhenNoLongerRetained() throws Exception {
+    String dataStreamId = "streamA";
+    AtomicInteger connectionCount = new AtomicInteger();
+    CountDownLatch firstConnection = new CountDownLatch(1);
+    CountDownLatch secondConnection = new CountDownLatch(2);
+    CountDownLatch streamTerminated = new CountDownLatch(1);
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    connectionCount.incrementAndGet();
+                    firstConnection.countDown();
+                    secondConnection.countDown();
+                    return TestStreams.<BeamFnApi.Elements>withOnNext(elements -> {})
+                        .withOnError(streamTerminated::countDown)
+                        .withOnCompleted(streamTerminated::countDown)
+                        .build();
+                  }
+                })
+            .build();
+    server.start();
+    try {
+      ManagedChannel channel =
+          InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
+
+      // Two bundles concurrently use the same named data stream.
+      clientFactory.retainDataStream(dataStreamId);
+      clientFactory.retainDataStream(dataStreamId);
+      clientFactory.getOutboundObserver(apiServiceDescriptor, dataStreamId);
+      assertTrue(firstConnection.await(5, TimeUnit.SECONDS));
+      assertEquals(1, connectionCount.get());
+
+      // Releasing one of the two usages should not close the stream.
+      clientFactory.releaseDataStream(dataStreamId);
+      assertFalse(streamTerminated.await(100, TimeUnit.MILLISECONDS));
+
+      // Releasing the last usage should close the stream.
+      clientFactory.releaseDataStream(dataStreamId);
+      assertTrue(streamTerminated.await(5, TimeUnit.SECONDS));
+
+      // A subsequent usage of the same named data stream establishes a new stream.
+      clientFactory.retainDataStream(dataStreamId);
+      clientFactory.getOutboundObserver(apiServiceDescriptor, dataStreamId);
+      assertTrue(secondConnection.await(5, TimeUnit.SECONDS));
+      assertEquals(2, connectionCount.get());
+      clientFactory.releaseDataStream(dataStreamId);
+    } finally {
+      server.shutdownNow();
+    }
+  }
+
+  @Test
+  public void testDefaultDataStreamIsNotClosedOnRelease() throws Exception {
+    CountDownLatch streamTerminated = new CountDownLatch(1);
+
+    Endpoints.ApiServiceDescriptor apiServiceDescriptor =
+        Endpoints.ApiServiceDescriptor.newBuilder()
+            .setUrl(this.getClass().getName() + "-" + UUID.randomUUID())
+            .build();
+    Server server =
+        InProcessServerBuilder.forName(apiServiceDescriptor.getUrl())
+            .addService(
+                new BeamFnDataGrpc.BeamFnDataImplBase() {
+                  @Override
+                  public StreamObserver<BeamFnApi.Elements> data(
+                      StreamObserver<BeamFnApi.Elements> outboundObserver) {
+                    return TestStreams.<BeamFnApi.Elements>withOnNext(elements -> {})
+                        .withOnError(streamTerminated::countDown)
+                        .withOnCompleted(streamTerminated::countDown)
+                        .build();
+                  }
+                })
+            .build();
+    server.start();
+    try {
+      ManagedChannel channel =
+          InProcessChannelBuilder.forName(apiServiceDescriptor.getUrl()).build();
+
+      BeamFnDataGrpcClient clientFactory =
+          new BeamFnDataGrpcClient(
+              (Endpoints.ApiServiceDescriptor descriptor) -> channel,
+              OutboundObserverFactory.trivial());
+
+      clientFactory.retainDataStream("");
+      StreamObserver<BeamFnApi.Elements> outboundObserver =
+          clientFactory.getOutboundObserver(apiServiceDescriptor, "");
+      clientFactory.releaseDataStream("");
+
+      // The default data stream is kept open and reused even after release.
+      assertFalse(streamTerminated.await(100, TimeUnit.MILLISECONDS));
+      assertSame(outboundObserver, clientFactory.getOutboundObserver(apiServiceDescriptor, ""));
     } finally {
       server.shutdownNow();
     }

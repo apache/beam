@@ -497,6 +497,11 @@ public class ProcessBundleHandler {
     String instructionId = request.getInstructionId();
     String dataStreamId = request.getProcessBundle().getDataStreamId();
     @Nullable BundleProcessor bundleProcessor = null;
+    if (!dataStreamId.isEmpty()) {
+      // Keep the named data stream open for the duration of the bundle. Once a named data stream
+      // is no longer being used by any bundle it may be closed, freeing its underlying resources.
+      beamFnDataClient.retainDataStream(dataStreamId);
+    }
     try {
       bundleProcessor =
           Preconditions.checkNotNull(
@@ -615,6 +620,10 @@ public class ProcessBundleHandler {
       // Ensure that if more data arrives for the instruction it is discarded.
       beamFnDataClient.poisonInstructionId(instructionId);
       throw e;
+    } finally {
+      if (!dataStreamId.isEmpty()) {
+        beamFnDataClient.releaseDataStream(dataStreamId);
+      }
     }
   }
 

@@ -1704,7 +1704,7 @@ public class GcsUtilTest {
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
                   : null),
-          gcsOptions.getGoogleCloudStorageReadOptions());
+          gcsOptions);
     }
 
     private GcsUtilV1Mock(
@@ -1716,7 +1716,7 @@ public class GcsUtilTest {
         @Nullable Integer uploadBufferSizeBytes,
         @Nullable Integer rewriteDataOpBatchLimit,
         GcsUtilV1.GcsCountersOptions gcsCountersOptions,
-        GoogleCloudStorageReadOptions gcsReadOptions) {
+        GcsOptions gcsOptions) {
       super(
           storageClient,
           httpRequestInitializer,
@@ -1726,7 +1726,7 @@ public class GcsUtilTest {
           uploadBufferSizeBytes,
           rewriteDataOpBatchLimit,
           gcsCountersOptions,
-          gcsReadOptions);
+          gcsOptions);
     }
 
     @Override

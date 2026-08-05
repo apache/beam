@@ -160,6 +160,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
@@ -1444,6 +1445,160 @@ public class ProcessBundleHandlerTest {
     // Ensure that we unregister during successful processing
     verify(beamFnDataClient).registerReceiver(eq("instructionId"), any(), any(), any());
     verify(beamFnDataClient).unregisterReceiver(eq("instructionId"), any(), any());
+    verifyNoMoreInteractions(beamFnDataClient);
+  }
+
+  @Test
+  public void testNamedDataStreamIsRetainedForTheDurationOfTheBundle() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
+            .build();
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
+
+    Mockito.doAnswer(
+            (invocation) -> {
+              String instructionId = invocation.getArgument(0, String.class);
+              CloseableFnDataReceiver<BeamFnApi.Elements> data =
+                  invocation.getArgument(3, CloseableFnDataReceiver.class);
+              data.accept(
+                  BeamFnApi.Elements.newBuilder()
+                      .addData(
+                          BeamFnApi.Elements.Data.newBuilder()
+                              .setInstructionId(instructionId)
+                              .setTransformId("2L")
+                              .setIsLast(true))
+                      .build());
+              return null;
+            })
+        .when(beamFnDataClient)
+        .registerReceiver(any(), any(), any(), any());
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateGrpcClientCache */,
+            null /* finalizeBundleHandler */,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                (context) ->
+                    context.addIncomingDataEndpoint(
+                        ApiServiceDescriptor.getDefaultInstance(),
+                        StringUtf8Coder.of(),
+                        (input) -> {})),
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null /* dataSampler */);
+    handler.processBundle(
+        BeamFnApi.InstructionRequest.newBuilder()
+            .setInstructionId("instructionId")
+            .setProcessBundle(
+                BeamFnApi.ProcessBundleRequest.newBuilder()
+                    .setProcessBundleDescriptorId("1L")
+                    .setDataStreamId("dataStreamId"))
+            .build());
+
+    // Ensure that the named data stream is retained for the duration of bundle processing and
+    // released once the bundle completes.
+    InOrder inOrder = Mockito.inOrder(beamFnDataClient);
+    inOrder.verify(beamFnDataClient).retainDataStream(eq("dataStreamId"));
+    inOrder
+        .verify(beamFnDataClient)
+        .registerReceiver(eq("instructionId"), eq("dataStreamId"), any(), any());
+    inOrder
+        .verify(beamFnDataClient)
+        .unregisterReceiver(eq("instructionId"), eq("dataStreamId"), any());
+    inOrder.verify(beamFnDataClient).releaseDataStream(eq("dataStreamId"));
+    verifyNoMoreInteractions(beamFnDataClient);
+  }
+
+  @Test
+  public void testNamedDataStreamIsReleasedWhenBundleFails() throws Exception {
+    BeamFnApi.ProcessBundleDescriptor processBundleDescriptor =
+        BeamFnApi.ProcessBundleDescriptor.newBuilder()
+            .putTransforms(
+                "2L",
+                RunnerApi.PTransform.newBuilder()
+                    .setSpec(RunnerApi.FunctionSpec.newBuilder().setUrn(DATA_INPUT_URN).build())
+                    .build())
+            .build();
+    Map<String, BeamFnApi.ProcessBundleDescriptor> fnApiRegistry =
+        ImmutableMap.of("1L", processBundleDescriptor);
+
+    Mockito.doAnswer(
+            (invocation) -> {
+              ByteStringOutputStream encodedData = new ByteStringOutputStream();
+              StringUtf8Coder.of().encode("A", encodedData);
+              String instructionId = invocation.getArgument(0, String.class);
+              CloseableFnDataReceiver<BeamFnApi.Elements> data =
+                  invocation.getArgument(3, CloseableFnDataReceiver.class);
+              data.accept(
+                  BeamFnApi.Elements.newBuilder()
+                      .addData(
+                          BeamFnApi.Elements.Data.newBuilder()
+                              .setInstructionId(instructionId)
+                              .setTransformId("2L")
+                              .setData(encodedData.toByteString())
+                              .setIsLast(true))
+                      .build());
+              return null;
+            })
+        .when(beamFnDataClient)
+        .registerReceiver(any(), any(), any(), any());
+
+    ProcessBundleHandler handler =
+        new ProcessBundleHandler(
+            PipelineOptionsFactory.create(),
+            Collections.emptySet(),
+            fnApiRegistry::get,
+            beamFnDataClient,
+            null /* beamFnStateGrpcClientCache */,
+            null /* finalizeBundleHandler */,
+            new ShortIdMap(),
+            executionStateSampler,
+            ImmutableMap.of(
+                DATA_INPUT_URN,
+                (context) ->
+                    context.addIncomingDataEndpoint(
+                        ApiServiceDescriptor.getDefaultInstance(),
+                        StringUtf8Coder.of(),
+                        (input) -> {
+                          throw new IllegalStateException("TestException");
+                        })),
+            Caches.noop(),
+            new BundleProcessorCache(Duration.ZERO),
+            null /* dataSampler */);
+    assertThrows(
+        "TestException",
+        IllegalStateException.class,
+        () ->
+            handler.processBundle(
+                BeamFnApi.InstructionRequest.newBuilder()
+                    .setInstructionId("instructionId")
+                    .setProcessBundle(
+                        BeamFnApi.ProcessBundleRequest.newBuilder()
+                            .setProcessBundleDescriptorId("1L")
+                            .setDataStreamId("dataStreamId"))
+                    .build()));
+
+    // Ensure that the named data stream is released even when the bundle fails.
+    InOrder inOrder = Mockito.inOrder(beamFnDataClient);
+    inOrder.verify(beamFnDataClient).retainDataStream(eq("dataStreamId"));
+    inOrder
+        .verify(beamFnDataClient)
+        .registerReceiver(eq("instructionId"), eq("dataStreamId"), any(), any());
+    inOrder.verify(beamFnDataClient).poisonInstructionId(eq("instructionId"));
+    inOrder.verify(beamFnDataClient).releaseDataStream(eq("dataStreamId"));
     verifyNoMoreInteractions(beamFnDataClient);
   }
 
