@@ -174,10 +174,6 @@ public class WindmillStateCache implements StatusDataProvider {
     return new ForComputation(computation, systemName);
   }
 
-  public ForComputation forComputation(String computation) {
-    return new ForComputation(computation, computation);
-  }
-
   /** Print summary statistics of the cache to the given {@link PrintWriter}. */
   @Override
   public void appendSummaryHtml(PrintWriter response) {

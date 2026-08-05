@@ -27,7 +27,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+import java.util.function.BiFunction;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
@@ -119,7 +119,7 @@ public class StreamingWorkScheduler {
       DataflowMapTaskExecutorFactory mapTaskExecutorFactory,
       BoundedQueueExecutor workExecutor,
       ScheduledExecutorService commitFinalizerCleanupExecutor,
-      Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
+      BiFunction<String, String, WindmillStateCache.ForComputation> stateCacheFactory,
       FailureTracker failureTracker,
       WorkFailureProcessor workFailureProcessor,
       StreamingCounters streamingCounters,

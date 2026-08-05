@@ -139,10 +139,15 @@ public class StreamingEngineWorkCommitterTest {
   }
 
   private static CompleteCommit asCompleteCommit(
-      String computationId, Work work, Windmill.CommitStatus status) {
+      String computationId, String systemName, Work work, Windmill.CommitStatus status) {
     Windmill.CommitStatus finalStatus = work.isFailed() ? Windmill.CommitStatus.ABORTED : status;
     return CompleteCommit.create(
-        computationId, work.getShardedKey(), work.id(), finalStatus, /* retryableFailure= */ false);
+        computationId,
+        systemName,
+        work.getShardedKey(),
+        work.id(),
+        finalStatus,
+        /* retryableFailure= */ false);
   }
 
   @Before
@@ -197,7 +202,10 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(completeCommits)
           .contains(
               asCompleteCommit(
-                  commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
+                  commit.computationId(),
+                  commit.systemName(),
+                  commit.workBatch().get(0),
+                  Windmill.CommitStatus.OK));
     }
 
     workCommitter.stop();
@@ -238,6 +246,7 @@ public class StreamingEngineWorkCommitterTest {
             .contains(
                 asCompleteCommit(
                     commit.computationId(),
+                    commit.systemName(),
                     commit.workBatch().get(0),
                     Windmill.CommitStatus.ABORTED));
         assertThat(committed)
@@ -246,7 +255,10 @@ public class StreamingEngineWorkCommitterTest {
         assertThat(completeCommits)
             .contains(
                 asCompleteCommit(
-                    commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
+                    commit.computationId(),
+                    commit.systemName(),
+                    commit.workBatch().get(0),
+                    Windmill.CommitStatus.OK));
         assertThat(committed)
             .containsEntry(
                 commit.workBatch().get(0).getWorkItem().getWorkToken(), commit.singleKeyRequest());
@@ -309,6 +321,7 @@ public class StreamingEngineWorkCommitterTest {
           .contains(
               asCompleteCommit(
                   commit.computationId(),
+                  commit.systemName(),
                   commit.workBatch().get(0),
                   expectedCommitStatus.get(commit.workBatch().get(0).id())));
     }
@@ -451,7 +464,10 @@ public class StreamingEngineWorkCommitterTest {
       assertThat(completeCommits)
           .contains(
               asCompleteCommit(
-                  commit.computationId(), commit.workBatch().get(0), Windmill.CommitStatus.OK));
+                  commit.computationId(),
+                  commit.systemName(),
+                  commit.workBatch().get(0),
+                  Windmill.CommitStatus.OK));
     }
 
     workCommitter.stop();
@@ -572,18 +588,21 @@ public class StreamingEngineWorkCommitterTest {
         .containsExactly(
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workA.getShardedKey(),
                 workA.id(),
                 CommitStatus.OK,
                 /* retryableFailure= */ false),
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workB.getShardedKey(),
                 workB.id(),
                 CommitStatus.OK,
                 /* retryableFailure= */ false),
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workC.getShardedKey(),
                 workC.id(),
                 CommitStatus.OK,
@@ -649,18 +668,21 @@ public class StreamingEngineWorkCommitterTest {
         .containsExactly(
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workA.getShardedKey(),
                 workA.id(),
                 CommitStatus.ABORTED,
                 /* retryableFailure= */ true),
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workB.getShardedKey(),
                 workB.id(),
                 CommitStatus.ABORTED,
                 /* retryableFailure= */ false),
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workC.getShardedKey(),
                 workC.id(),
                 CommitStatus.ABORTED,
@@ -732,18 +754,21 @@ public class StreamingEngineWorkCommitterTest {
         .containsExactly(
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workA.getShardedKey(),
                 workA.id(),
                 CommitStatus.NOT_FOUND,
                 /* retryableFailure= */ false),
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workB.getShardedKey(),
                 workB.id(),
                 CommitStatus.NOT_FOUND,
                 /* retryableFailure= */ false),
             CompleteCommit.create(
                 "computationId",
+                "system",
                 workC.getShardedKey(),
                 workC.id(),
                 CommitStatus.NOT_FOUND,

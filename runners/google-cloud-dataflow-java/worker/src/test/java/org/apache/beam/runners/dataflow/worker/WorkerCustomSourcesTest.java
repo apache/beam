@@ -152,6 +152,7 @@ public class WorkerCustomSourcesTest {
   @Rule public ExpectedLogs logged = ExpectedLogs.none(WorkerCustomSources.class);
 
   private static final String COMPUTATION_ID = "computationId";
+  private static final String SYSTEM_NAME = "systemName";
 
   private DataflowPipelineOptions options;
 
@@ -1003,7 +1004,7 @@ public class WorkerCustomSourcesTest {
             WindmillStateCache.builder()
                 .setSizeMb(options.getWorkerCacheMb())
                 .build()
-                .forComputation(COMPUTATION_ID),
+                .forComputation(COMPUTATION_ID, SYSTEM_NAME),
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -1019,7 +1020,7 @@ public class WorkerCustomSourcesTest {
             new HotKeyLogger(),
             /*hotKeyLoggingEnabled=*/ false,
             /*stepName=*/ "stepName",
-            /*systemName=*/ "systemName",
+            /*systemName=*/ SYSTEM_NAME,
             StreamingCounters.create(),
             mock(FailureTracker.class),
             "sourceBytesProcessCounterName",

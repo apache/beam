@@ -1202,7 +1202,7 @@ public final class StreamingDataflowWorker {
           WindmillComputationKey.create(
               completeCommit.computationId(), completeCommit.shardedKey()));
       stateCache
-          .forComputation(completeCommit.computationId())
+          .forComputation(completeCommit.computationId(), completeCommit.systemName())
           .invalidate(completeCommit.shardedKey());
     }
 

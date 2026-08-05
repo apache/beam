@@ -154,6 +154,7 @@ public final class StreamingApplianceWorkCommitter implements WorkCommitter {
         onCommitComplete.accept(
             CompleteCommit.create(
                 entry.getKey().getComputationId(),
+                entry.getKey().getSystemName(),
                 ShardedKey.create(workRequest.getKey(), workRequest.getShardingKey()),
                 WorkId.builder()
                     .setCacheToken(workRequest.getCacheToken())
