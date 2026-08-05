@@ -101,7 +101,7 @@ task dataflowIntegrationTest(type: Test) {
     def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
 
     def args = [
-            "--runner=DataflowRunner",
+            "--runner=TestDataflowRunner",
             "--region=us-central1",
             "--project=${gcpProject}",
             "--tempLocation=${gcpTempLocation}",
