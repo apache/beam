@@ -88,9 +88,13 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.parquet.hadoop.ParquetFileReader;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -828,5 +832,107 @@ public class IcebergIOWriteTest implements Serializable {
     // verify data was written correctly
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
+  @Test
+  public void testWriteWithParquetProperties() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "parquet_props_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    testPipeline
+        .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+        .setRowSchema(beamSchema)
+        .apply(
+            "Append To Table",
+            writeTransform(catalog, tableId)
+                .withWriteProperties(
+                    ImmutableMap.of("write.parquet.bloom-filter-enabled.column.data", "true")));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+
+    // verify bloom filter is present on 'data' column in written parquet files
+    try (CloseableIterable<org.apache.iceberg.FileScanTask> tasks = table.newScan().planFiles()) {
+      for (org.apache.iceberg.FileScanTask task : tasks) {
+        String path = task.file().path().toString();
+        try (ParquetFileReader reader =
+            ParquetFileReader.open(
+                org.apache.parquet.hadoop.util.HadoopInputFile.fromPath(
+                    new org.apache.hadoop.fs.Path(path),
+                    new org.apache.hadoop.conf.Configuration()))) {
+          for (BlockMetaData block : reader.getFooter().getBlocks()) {
+            for (ColumnChunkMetaData col : block.getColumns()) {
+              boolean hasBloom = col.getBloomFilterOffset() > 0;
+              if (col.getPath().toDotString().equals("data")) {
+                assertTrue("Expected bloom filter on column 'data', but none was found", hasBloom);
+              } else {
+                assertFalse(
+                    "Expected no bloom filter on column '" + col.getPath().toDotString() + "'",
+                    hasBloom);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testWriteWithTableProperties() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default", "table_props_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Schema beamSchema = IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA);
+
+    Map<String, String> catalogProps =
+        ImmutableMap.<String, String>builder()
+            .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
+            .put("warehouse", warehouse.location)
+            .build();
+
+    IcebergCatalogConfig catalog =
+        IcebergCatalogConfig.builder()
+            .setCatalogName("name")
+            .setCatalogProperties(catalogProps)
+            .build();
+
+    testPipeline
+        .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+        .setRowSchema(beamSchema)
+        .apply(
+            "Append To Table",
+            writeTransform(catalog, tableId)
+                .withWriteProperties(
+                    ImmutableMap.of("write.data.path", warehouse.location + "/custom_data_path")));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(tableId);
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+
+    assertEquals(
+        warehouse.location + "/custom_data_path", table.properties().get("write.data.path"));
   }
 }

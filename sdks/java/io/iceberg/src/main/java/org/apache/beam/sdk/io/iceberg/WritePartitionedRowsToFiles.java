@@ -141,8 +141,7 @@ class WritePartitionedRowsToFiles
               .addExtension(String.format("%s-%s", filePrefix, UUID.randomUUID()));
 
       RecordWriter writer =
-          new RecordWriter(
-              table, destination.getFileFormat(), fileName, partitionData, writeProperties);
+          new RecordWriter(table, destination.getFileFormat(), fileName, partitionData);
       try {
         for (Row row : element.getValue()) {
           Record record = IcebergUtils.beamRowToIcebergRecord(table.schema(), row);
@@ -194,8 +193,11 @@ class WritePartitionedRowsToFiles
           createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
       Map<String, String> tableProperties =
           createConfig != null && createConfig.getTableProperties() != null
-              ? createConfig.getTableProperties()
+              ? Maps.newHashMap(createConfig.getTableProperties())
               : Maps.newHashMap();
+      if (writeProperties != null) {
+        tableProperties.putAll(writeProperties);
+      }
 
       // Create namespace if it does not exist yet
       if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
