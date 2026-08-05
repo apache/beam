@@ -777,6 +777,55 @@ class TestReadFromBigQuery(unittest.TestCase):
             'bigquery:project2.dataset2.table2'
         ]))
 
+  def test_query_with_beam_row_requires_schema(self):
+    with self.assertRaisesRegex(ValueError, 'query_output_schema'):
+      ReadFromBigQuery(
+          query='SELECT id, name FROM dataset.table', output_type='BEAM_ROW')
+
+  def test_query_with_beam_row_and_schema_accepted(self):
+    schema = {
+        'fields': [
+            {
+                'name': 'id', 'type': 'INTEGER', 'mode': 'NULLABLE'
+            },
+            {
+                'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+            },
+        ]
+    }
+    transform = ReadFromBigQuery(
+        query='SELECT id, name FROM dataset.table',
+        output_type='BEAM_ROW',
+        query_output_schema=schema)
+    self.assertEqual(transform.query_output_schema, schema)
+
+  def test_expand_output_type_uses_query_schema(self):
+    schema = {
+        'fields': [
+            {
+                'name': 'id', 'type': 'INTEGER', 'mode': 'NULLABLE'
+            },
+            {
+                'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+            },
+        ]
+    }
+    transform = ReadFromBigQuery(
+        query='SELECT id, name FROM dataset.table',
+        output_type='BEAM_ROW',
+        query_output_schema=schema)
+
+    with mock.patch.object(bigquery_tools.BigQueryWrapper,
+                           'get_table') as mock_get_table, \
+         mock.patch('apache_beam.io.gcp.bigquery.bigquery_schema_tools'
+                    '.convert_to_usertype') as mock_convert:
+      mock_convert.return_value = beam.Map(lambda x: x)
+      fake_pcoll = mock.MagicMock()
+      transform._expand_output_type(fake_pcoll)
+
+    mock_get_table.assert_not_called()
+    mock_convert.assert_called_once_with(schema, None)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQuerySink(unittest.TestCase):

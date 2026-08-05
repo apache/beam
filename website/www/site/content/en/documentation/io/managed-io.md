@@ -71,6 +71,21 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
     </tr>
     <tr>
+      <td><strong>DELTA_CDC</strong></td>
+      <td>
+        <strong>table</strong> (<code style="color: green">str</code>)<br>
+        start_version (<code style="color: #f54251">int64</code>)<br>
+        start_timestamp (<code style="color: green">str</code>)<br>
+        end_version (<code style="color: #f54251">int64</code>)<br>
+        end_timestamp (<code style="color: green">str</code>)<br>
+        hadoop_config (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        include_metadata_columns (<code>list[<span style="color: green;">str</span>]</code>)<br>
+      </td>
+      <td>
+        Unavailable
+      </td>
+    </tr>
+    <tr>
       <td><strong>ICEBERG</strong></td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
@@ -301,6 +316,95 @@ and Beam SQL is invoked via the Managed API under the hood.
       </td>
       <td>
         Version of the Delta Lake table to read.
+      </td>
+    </tr>
+  </table>
+</div>
+
+### `DELTA_CDC` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Identifier of the Delta Lake table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        start_version
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Start version of the Delta Lake table to read changes from. Either start_version or start_timestamp must be set.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        start_timestamp
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Start timestamp of the Delta Lake table to read changes from. Either start_version or start_timestamp must be set.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        end_version
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        End version of the Delta Lake table to read changes up to.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        end_timestamp
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        End timestamp of the Delta Lake table to read changes up to.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        hadoop_config
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        include_metadata_columns
+      </td>
+      <td>
+        <code>list[<span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Metadata columns to include in the output rows. Supported columns are: _change_type, _commit_version, and _commit_timestamp.
       </td>
     </tr>
   </table>

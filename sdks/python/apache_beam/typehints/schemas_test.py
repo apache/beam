@@ -257,6 +257,22 @@ def get_test_beam_fieldtype_protos():
                           value=schema_pb2.FieldValue(
                               atomic_value=schema_pb2.AtomicTypeValue(
                                   bytes=b'bytes!'))),
+                      schema_pb2.Option(
+                          name='a_string_array',
+                          type=schema_pb2.FieldType(
+                              array_type=schema_pb2.ArrayType(
+                                  element_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.STRING))),
+                          value=schema_pb2.FieldValue(
+                              array_value=schema_pb2.ArrayTypeValue(
+                                  element=[
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='a')),
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='b')),
+                                  ]))),
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(

@@ -69,6 +69,10 @@ public class ComputationState {
     return computationId;
   }
 
+  public String getSystemName() {
+    return mapTask.getSystemName();
+  }
+
   public MapTask getMapTask() {
     return mapTask;
   }

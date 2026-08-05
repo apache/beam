@@ -67,18 +67,36 @@
 * Upgraded Iceberg dependency to 1.11.0 (Java) ([#38925](https://github.com/apache/beam/issues/38925)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
+* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
+* Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
 
 ## New Features / Improvements
 
+* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added `GroupIntoBatches` transform and the standard
+  `beam:coder:sharded_key:v1` coder to the Go SDK, along with
+  `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,
+  and `coder.RegisterDeterministicCoder` for opt-in deterministic
+  custom coders (Go) ([#19868](https://github.com/apache/beam/issues/19868)).
+* TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
+  encode finished bitset. SentinelBitSetCoder and BitSetCoder are state
+  compatible. Both coders can decode encoded bytes from the other coder
+  ([#38139](https://github.com/apache/beam/issues/38139)).
 * (Python) Removed the `envoy-data-plane` (and transitive `betterproto`) dependency; `EnvoyRateLimiter` now uses a small vendored protobuf definition instead, resolving dependency conflicts for downstream projects ([#37854](https://github.com/apache/beam/issues/37854)).
 * (Java) Supported acknowledge mode for JmsIO ([#39253](https://github.com/apache/beam/issues/39253)).
 * (Python) Staged files directory is now automatically added to `sys.path` on the Python SDK worker at startup. This makes Python files provided via the '--files_to_stage' pipeline option importable in the pipeline code and makes it easier to initialize Python SDK harness at startup via the `--beam_plugins` pipeline option. For more information, see the [Staging Individual Files](https://beam.apache.org/documentation/sdks/python-pipeline-dependencies/#staging-files) section of the dependency management docs. This behavior can be disabled by passing the '--experiments=no_staged_dir_in_sys_path' pipeline option ([#39431](https://github.com/apache/beam/issues/39431)).
 * (Python) Added `equal_to_approx`, an `assert_that` matcher that compares numeric pipeline outputs with a configurable tolerance ([#18028](https://github.com/apache/beam/issues/18028)).
 * (Python) `Timestamp` now supports variable subsecond precision, up to nanoseconds. The portable
   `beam:logical_type:timestamp:v1` logical type now maps to Python's `Timestamp` ([#39344](https://github.com/apache/beam/issues/39344)).
+* (Python) Added `UnboundedSource`, an interface for reading an infinite stream of records with checkpointing, watermark reporting, and bundle finalization. Read one with `beam.io.Read`
+  ([#19137](https://github.com/apache/beam/issues/19137)).
+* (Python) Added `Watch`, a transform that polls a growing set of outputs for each input element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
+  ([#21521](https://github.com/apache/beam/issues/21521)).
 * (Python) Added support to analyze core dumps created after python worker segmentation faults with `pystack` (or `gdb` if installed) using the `--profiler_agent=coredump` pipeline option. ([#39484](https://github.com/apache/beam/issues/39484)).
 * (Python) Added `Sample.Any`, the Python equivalent of Java's `Sample.any`, which returns up to n arbitrary elements from a PCollection ([#18552](https://github.com/apache/beam/issues/18552)).
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Added per-element OpenTelemetry trace propagation across stages in the Dataflow Streaming Runner. Enable it with `--experiments=enable_otel_defaults,element_metadata_supported,disable_portable_worker`. Cloud Trace incurs additional cost. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry header propagation support for both reads and writes in KafkaIO and PubSubIO. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry tracing support for SpannerIO change streams ([#33176](https://github.com/apache/beam/issues/33176))
 
 ## Breaking Changes
 
@@ -100,6 +118,7 @@
 
 ## Bugfixes
 
+* Fixed unresolved runtime `ValueProvider` options being stringified in Python Dataflow Flex Templates ([#39499](https://github.com/apache/beam/issues/39499)).
 * Fixed unbounded checkpoint state growth for splittable DoFns that self-checkpoint on the portable Flink runner (Java) ([#27648](https://github.com/apache/beam/issues/27648)).
 * Improved Java pipeline performance by avoiding repeated `DoFn` type descriptor resolution when creating cached invokers ([#39309](https://github.com/apache/beam/issues/39309)).
 * (Python) Fixed a memory leak in Python SDK caused by storing exceptions with potentially large stack frames in a cache ([#39406](https://github.com/apache/beam/issues/39406)).

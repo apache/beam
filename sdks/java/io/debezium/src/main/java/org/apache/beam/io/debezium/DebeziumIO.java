@@ -23,6 +23,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.kafka.connect.source.SourceConnector;
 import org.apache.kafka.connect.source.SourceRecord;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -74,7 +74,7 @@ import org.slf4j.LoggerFactory;
  *             .withConnectorClass(MySqlConnector.class)
  *             .withConnectionProperty("database.server.id", "184054")
  *             .withConnectionProperty("database.server.name", "serverid")
- *             .withConnectionProperty("database.history", DebeziumSDFDatabaseHistory.class.getName())
+ *             .withConnectionProperty("schema.history.internal", DebeziumSDFDatabaseHistory.class.getName())
  *             .withConnectionProperty("include.schema.changes", "false");
  *
  *      PipelineOptions options = PipelineOptionsFactory.create();
@@ -312,20 +312,29 @@ public class DebeziumIO {
           new KafkaSourceConsumerFn.OffsetTracker(
               new KafkaSourceConsumerFn.OffsetHolder(null, null, 0)));
 
-      Map<String, String> connectorConfig =
-          Maps.newHashMap(getConnectorConfiguration().getConfigurationMap());
-      connectorConfig.put("snapshot.mode", "schema_only");
+      // Deliberately runs with the connector's configured snapshot mode: schema inference samples
+      // an actual data record, which a schema-only snapshot ("no_data", formerly "schema_only")
+      // would never emit.
       SourceRecord sampledRecord =
           fn.getOneRecord(getConnectorConfiguration().getConfigurationMap());
       fn.reset();
+      Schema keySchema =
+          sampledRecord.keySchema() != null
+              ? KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.keySchema())
+              : Schema.builder().build();
       Schema valueSchema =
           KafkaConnectUtils.beamSchemaFromKafkaConnectSchema(sampledRecord.valueSchema());
 
       return Schema.builder()
           .addFields(valueSchema.getFields())
-          // TODO(https://github.com/apache/beam/issues/39557):
-          // Restore 'primaryKeyColumns' once Python can decode ARRAY<STRING>
-          // schema options across the Java/Python cross-language boundary.
+          .setOptions(
+              Schema.Options.builder()
+                  .setOption(
+                      "primaryKeyColumns",
+                      Schema.FieldType.array(Schema.FieldType.STRING),
+                      keySchema.getFields().stream()
+                          .map(Schema.Field::getName)
+                          .collect(Collectors.toList())))
           .build();
     }
 
@@ -631,10 +640,10 @@ public class DebeziumIO {
         configuration.computeIfAbsent(entry.getKey(), k -> entry.getValue());
       }
 
-      // Set default Database History impl. if not provided implementation and Kafka topic prefix,
-      // if not provided
+      // Set default schema history impl. if not provided implementation and Kafka topic prefix,
+      // if not provided. Before Debezium 2.0 this key was named "database.history".
       configuration.computeIfAbsent(
-          "database.history",
+          "schema.history.internal",
           k -> KafkaSourceConsumerFn.DebeziumSDFDatabaseHistory.class.getName());
       configuration.computeIfAbsent("topic.prefix", k -> "beam-debezium-connector");
       configuration.computeIfAbsent(

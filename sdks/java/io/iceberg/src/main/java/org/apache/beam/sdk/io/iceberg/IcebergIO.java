@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.iceberg.cdc.IncrementalChangelogSource;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -576,6 +578,7 @@ public class IcebergIO {
     return new AutoValue_IcebergIO_ReadRows.Builder()
         .setCatalogConfig(catalogConfig)
         .setUseCdc(false)
+        .setMetadataColumns(ImmutableList.of())
         .build();
   }
 
@@ -612,6 +615,12 @@ public class IcebergIO {
 
     abstract @Nullable String getFilter();
 
+    abstract @Nullable String getWatermarkColumn();
+
+    abstract @Nullable String getWatermarkColumnTimeUnit();
+
+    abstract List<String> getMetadataColumns();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -641,6 +650,12 @@ public class IcebergIO {
       abstract Builder setDrop(@Nullable List<String> fields);
 
       abstract Builder setFilter(@Nullable String filter);
+
+      abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
+
+      abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
+
+      abstract Builder setMetadataColumns(List<String> metadataColumns);
 
       abstract ReadRows build();
     }
@@ -693,6 +708,31 @@ public class IcebergIO {
       return toBuilder().setFilter(filter).build();
     }
 
+    public ReadRows withWatermarkColumn(@Nullable String watermarkColumn) {
+      return toBuilder().setWatermarkColumn(watermarkColumn).build();
+    }
+
+    public ReadRows withWatermarkColumnTimeUnit(@Nullable String timeUnit) {
+      return toBuilder().setWatermarkColumnTimeUnit(timeUnit).build();
+    }
+
+    /**
+     * Appends top-level metadata columns to CDC output rows.
+     *
+     * <p>Supported values are {@code _change_type}, {@code _commit_snapshot_id}, {@code
+     * _commit_snapshot_sequence_number}, {@code _row_id}, and {@code
+     * _last_updated_sequence_number}. The row metadata columns are read from Iceberg data files and
+     * require a row-lineage table. The changelog metadata columns come from the emitted change kind
+     * and snapshot context and are appended when final Beam rows are emitted.
+     *
+     * <p>This option is only valid {@link #withCdc()}.
+     */
+    public ReadRows withMetadataColumns(@Nullable List<String> metadataColumns) {
+      return toBuilder()
+          .setMetadataColumns(metadataColumns == null ? ImmutableList.of() : metadataColumns)
+          .build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -728,12 +768,15 @@ public class IcebergIO {
               .setKeepFields(getKeep())
               .setDropFields(getDrop())
               .setFilterString(getFilter())
+              .setWatermarkColumn(getWatermarkColumn())
+              .setWatermarkColumnTimeUnit(getWatermarkColumnTimeUnit())
+              .setMetadataColumns(getMetadataColumns())
               .build();
       scanConfig.validate(table);
 
       PTransform<PBegin, PCollection<Row>> source =
           getUseCdc()
-              ? new IncrementalScanSource(scanConfig)
+              ? new IncrementalChangelogSource(scanConfig)
               : Read.from(new ScanSource(scanConfig));
 
       return input.apply(source);

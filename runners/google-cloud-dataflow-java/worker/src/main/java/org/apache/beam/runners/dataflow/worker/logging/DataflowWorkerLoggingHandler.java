@@ -350,7 +350,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
     addLogField(
         payloadBuilder, "exception", formatException(record.getThrown()), MESSAGE_MAX_LENGTH);
     addLogField(payloadBuilder, "thread", String.valueOf(record.getThreadID()), FIELD_MAX_LENGTH);
-    addLogField(payloadBuilder, "stage", DataflowWorkerLoggingMDC.getStageName(), FIELD_MAX_LENGTH);
+    addLogField(
+        payloadBuilder, "stage", DataflowWorkerLoggingMDC.getSystemStageName(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "worker", DataflowWorkerLoggingMDC.getWorkerId(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "work", DataflowWorkerLoggingMDC.getWorkId(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "job", DataflowWorkerLoggingMDC.getJobId(), FIELD_MAX_LENGTH);
@@ -593,7 +594,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty(generator, "message", getFormatter().formatMessage(record));
       writeIfNotEmpty(generator, "thread", String.valueOf(record.getThreadID()));
       writeIfNotEmpty(generator, "job", DataflowWorkerLoggingMDC.getJobId());
-      writeIfNotEmpty(generator, "stage", DataflowWorkerLoggingMDC.getStageName());
+      writeIfNotEmpty(generator, "stage", DataflowWorkerLoggingMDC.getSystemStageName());
 
       if (currentExecutionState != null) {
         NameContext nameContext = currentExecutionState.getStepName();
