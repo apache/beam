@@ -86,10 +86,7 @@ public class ComputationStateCacheTest {
   public void setUp() {
     computationStateCache =
         ComputationStateCache.create(
-            configFetcher,
-            workExecutor,
-            (ignored1, ignored2) -> stateCache,
-            IdGenerators.decrementingLongs());
+            configFetcher, workExecutor, ignored -> stateCache, IdGenerators.decrementingLongs());
   }
 
   @Test

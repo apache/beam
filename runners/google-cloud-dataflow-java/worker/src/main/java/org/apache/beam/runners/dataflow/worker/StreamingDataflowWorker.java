@@ -924,7 +924,7 @@ public final class StreamingDataflowWorker {
                 mapTask,
                 workExecutor,
                 stateNameMap,
-                stateCache.forComputation(mapTask.getStageName(), mapTask.getSystemName())));
+                stateCache.forComputation(mapTask.getStageName())));
     MemoryMonitor memoryMonitor = MemoryMonitor.fromOptions(options);
     FailureTracker failureTracker =
         options.isEnableStreamingEngine()
@@ -1202,7 +1202,7 @@ public final class StreamingDataflowWorker {
           WindmillComputationKey.create(
               completeCommit.computationId(), completeCommit.shardedKey()));
       stateCache
-          .forComputation(completeCommit.computationId(), completeCommit.systemName())
+          .forComputation(completeCommit.computationId())
           .invalidate(completeCommit.shardedKey());
     }
 
