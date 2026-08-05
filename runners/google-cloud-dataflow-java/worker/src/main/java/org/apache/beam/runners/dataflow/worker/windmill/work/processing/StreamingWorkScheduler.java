@@ -232,10 +232,6 @@ public class StreamingWorkScheduler {
     KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
     keyTransitionListener.onKeyTransition(null, work);
 
-    // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
-    // cleanup should be done before this, since we might exit early here.
-    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
-
     if (workItem.getSourceState().getOnlyFinalize()) {
       handleOnlyFinalize(computationState, work, workItem);
       return;
