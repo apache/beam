@@ -51,6 +51,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.state.WatermarkHoldState;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.SerializableMatchers;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.Sum;
@@ -136,6 +137,8 @@ public class DoFnSignaturesTest {
   }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
+
+  @Rule public ExpectedLogs expectedLogs = ExpectedLogs.none(DoFnSignatures.class);
 
   @Test
   public void testBasicDoFnProcessContext() throws Exception {
@@ -1809,5 +1812,119 @@ public class DoFnSignaturesTest {
 
     @Override
     public void processWithTimer(ProcessContext context, Timer timer) {}
+  }
+
+  // Test DoFns for ValueState collection warning tests
+  private static class DoFnWithMapValueState extends DoFn<String, String> {
+    @StateId("mapState")
+    private final StateSpec<ValueState<java.util.Map<String, String>>> mapState =
+        StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithListValueState extends DoFn<String, String> {
+    @StateId("listState")
+    private final StateSpec<ValueState<java.util.List<String>>> listState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithSetValueState extends DoFn<String, String> {
+    @StateId("setState")
+    private final StateSpec<ValueState<java.util.Set<String>>> setState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithSimpleValueState extends DoFn<String, String> {
+    @StateId("simpleState")
+    private final StateSpec<ValueState<String>> simpleState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithParameterizedSetValueState<T> extends DoFn<String, String> {
+    @StateId("parameterizedSetState")
+    private final StateSpec<ValueState<java.util.Set<T>>> parameterizedSetState =
+        StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithParameterizedListValueState<T> extends DoFn<String, String> {
+    @StateId("parameterizedListState")
+    private final StateSpec<ValueState<java.util.List<T>>> parameterizedListState =
+        StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  private static class DoFnWithTypeVariableValueState<T> extends DoFn<String, String> {
+    @StateId("typeVariableState")
+    private final StateSpec<ValueState<T>> typeVariableState = StateSpecs.value();
+
+    @ProcessElement
+    public void process() {}
+  }
+
+  @Test
+  public void testValueStateWithMapLogsWarning() {
+    // This test verifies that the signature can be parsed for DoFns with collection ValueState.
+    // The warning is logged but doesn't prevent the signature from being created.
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithMapValueState.class);
+    assertThat(signature.stateDeclarations().get("mapState"), notNullValue());
+  }
+
+  @Test
+  public void testValueStateWithListLogsWarning() {
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithListValueState.class);
+    assertThat(signature.stateDeclarations().get("listState"), notNullValue());
+  }
+
+  @Test
+  public void testValueStateWithSetLogsWarning() {
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithSetValueState.class);
+    assertThat(signature.stateDeclarations().get("setState"), notNullValue());
+  }
+
+  @Test
+  public void testValueStateWithSimpleTypeNoWarning() {
+    // Simple types should not trigger any warning
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithSimpleValueState.class);
+    assertThat(signature.stateDeclarations().get("simpleState"), notNullValue());
+    expectedLogs.verifyNotLogged("with collection type");
+  }
+
+  @Test
+  public void testValueStateWithParameterizedSetLogsWarning() {
+    // A parameterized collection such as ValueState<Set<T>> still has a known raw collection type
+    // (Set) even though the element type is a type variable, so it should still recommend SetState.
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithParameterizedSetValueState.class);
+    assertThat(signature.stateDeclarations().get("parameterizedSetState"), notNullValue());
+    expectedLogs.verifyWarn("SetState");
+  }
+
+  @Test
+  public void testValueStateWithParameterizedListLogsWarning() {
+    DoFnSignature signature =
+        DoFnSignatures.getSignature(DoFnWithParameterizedListValueState.class);
+    assertThat(signature.stateDeclarations().get("parameterizedListState"), notNullValue());
+    expectedLogs.verifyWarn("BagState or OrderedListState");
+  }
+
+  @Test
+  public void testValueStateWithBareTypeVariableNoWarning() {
+    // A bare type variable payload (ValueState<T>) has no raw collection type to inspect and must
+    // not produce a collection recommendation.
+    DoFnSignature signature = DoFnSignatures.getSignature(DoFnWithTypeVariableValueState.class);
+    assertThat(signature.stateDeclarations().get("typeVariableState"), notNullValue());
+    expectedLogs.verifyNotLogged("with collection type");
   }
 }

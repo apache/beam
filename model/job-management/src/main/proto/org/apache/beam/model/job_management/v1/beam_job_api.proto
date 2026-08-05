@@ -112,6 +112,7 @@ message RunJobRequest {
 }
 
 
+// The response from submitting a job for execution.
 message RunJobResponse {
   string job_id = 1; // (required) The ID for the executing job
 }
@@ -144,6 +145,7 @@ message DrainJobResponse {
 }
 
 // A subset of info provided by ProvisionApi.ProvisionInfo
+// Represents metadata about a submitted job.
 message JobInfo {
   string job_id = 1; // (required)
   string job_name = 2; // (required)
@@ -155,6 +157,7 @@ message JobInfo {
 // Throws error GRPC_STATUS_UNAVAILABLE if server is down
 message GetJobsRequest { }
 
+// The response from requesting a list of all invoked jobs.
 message GetJobsResponse {
   repeated JobInfo job_info = 1; // (required)
 }
@@ -168,6 +171,7 @@ message GetJobStateRequest {
 
 }
 
+// An event representing a job state transition. Emitted by GetState and GetStateStream.
 message JobStateEvent {
   JobState.Enum state = 1; // (required)
   google.protobuf.Timestamp timestamp = 2; // (required)
@@ -182,6 +186,7 @@ message GetJobPipelineRequest {
 
 }
 
+// The response from requesting a job's pipeline representation.
 message GetJobPipelineResponse {
   org.apache.beam.model.pipeline.v1.Pipeline pipeline = 1; // (required)
 }
@@ -195,25 +200,41 @@ message JobMessagesRequest {
   string job_id = 1; // (required)
 }
 
+// A single log message or diagnostic event from a running job.
 message JobMessage {
+  // (Required) A unique identifier for this message.
   string message_id = 1;
+  // (Required) The time at which the message was emitted, as a string representation.
   string time = 2;
+  // (Required) The importance level of this message.
   MessageImportance importance = 3;
+  // (Required) The text content of the message.
   string message_text = 4;
 
+  // Importance levels for job messages, ordered from least to most severe.
   enum MessageImportance {
+    // The importance was not specified.
     MESSAGE_IMPORTANCE_UNSPECIFIED = 0;
+    // Debug-level messages, typically very verbose.
     JOB_MESSAGE_DEBUG = 1;
+    // Detailed informational messages.
     JOB_MESSAGE_DETAILED = 2;
+    // Basic informational messages.
     JOB_MESSAGE_BASIC = 3;
+    // Warning messages indicating potential issues.
     JOB_MESSAGE_WARNING = 4;
+    // Error messages indicating failures.
     JOB_MESSAGE_ERROR = 5;
   }
 }
 
+// A streaming response from GetMessageStream, containing either a job message
+// or a job state change event.
 message JobMessagesResponse {
   oneof response {
+    // A log message or diagnostic event from the job.
     JobMessage message_response = 1;
+    // A job state transition event.
     JobStateEvent state_response = 2;
   }
 }
@@ -270,17 +291,22 @@ message JobState {
 }
 
 
+// A request to fetch metrics for a given job.
 message GetJobMetricsRequest {
   string job_id = 1; // (required)
 }
 
+// A response containing metrics for a given job.
 message GetJobMetricsResponse {
+  // (Required) The metrics results containing both attempted and committed values.
   MetricResults metrics = 1;
 }
 
 // All metrics for a given job.  Runners may support one or the other or both.
 message MetricResults {
+  // Metrics reflecting the result of attempted (non-committed) computations.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo attempted = 1;
+  // Metrics reflecting the result of committed computations.
   repeated org.apache.beam.model.pipeline.v1.MonitoringInfo committed = 2;
 }
 
@@ -296,12 +322,17 @@ message DescribePipelineOptionsRequest {
 // Types mirror those of JSON, since that's how pipeline options are serialized.
 message PipelineOptionType {
   enum Enum {
+    // A string value.
     STRING = 0;
+    // A boolean (true/false) value.
     BOOLEAN = 1;
     // whole numbers, see https://json-schema.org/understanding-json-schema/reference/numeric.html
     INTEGER = 2;
+    // A floating-point number.
     NUMBER = 3;
+    // An array of values.
     ARRAY = 4;
+    // A nested object.
     OBJECT = 5;
   };
 }
@@ -324,6 +355,7 @@ message PipelineOptionDescriptor {
   string group = 5;
 }
 
+// The response from describing pipeline options, containing a list of option descriptors.
 message DescribePipelineOptionsResponse {
   // List of pipeline option descriptors.
   repeated PipelineOptionDescriptor options = 1;

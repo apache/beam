@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg.cdc;
 
 import static java.lang.String.format;
+import static org.apache.beam.sdk.io.iceberg.cdc.CdcReadUtils.COMPRESSED_TO_DECODED_BYTES_ESTIMATE;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.Type.ADDED_ROWS;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.getDataFile;
 import static org.apache.beam.sdk.io.iceberg.cdc.SerializableChangelogTask.getLength;
@@ -51,7 +52,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.AddedRowsScanTask;
-import org.apache.iceberg.BaseIncrementalChangelogScan;
+import org.apache.iceberg.BeamBaseIncrementalChangelogScan;
 import org.apache.iceberg.ChangelogScanTask;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataOperations;
@@ -230,7 +231,7 @@ class ChangelogScanner
     // TODO(ahmedabu98): replace this with table.newIncrementalChangelogScan() when
     //  https://github.com/apache/iceberg/pull/14264/ gets merged and released.
     IncrementalChangelogScan scan =
-        new BaseIncrementalChangelogScan(table)
+        new BeamBaseIncrementalChangelogScan(table)
             .toSnapshot(snapshotId)
             .project(scanConfig.getProjectedSchema());
     if (fromSnapshotId != null) {
@@ -662,10 +663,12 @@ class ChangelogScanner
    * path otherwise.
    *
    * <p>For LOCAL routing, all bi-directional tasks for this snapshot/partition group are emitted as
-   * a batch so that the downstream {@link LocalResolveDoFn} can resolve them together in-memory. //
-   * * The total byte size may exceed {@code splitSize}, but the in-memory // * footprint is bounded
-   * by the overlap byte estimate (the local resolver still does per-record PK // * routing to avoid
-   * buffering records outside the overlap range).
+   * a batch so that the downstream {@link LocalResolveDoFn} can resolve them together in-memory. We
+   * only take this path when the group's estimated decoded size fits within {@code splitSize}. This
+   * bounds a single thread to roughly that footprint in the worst case (when metrics are missing or
+   * there is a very large overlap). The footprint is typically much smaller though: when PK bounds
+   * are available the resolver further prunes records outside the overlap range via per-record PK
+   * routing.
    *
    * <p>Returns the number of tasks routed to LOCAL so the caller can update counters.
    */
@@ -698,7 +701,7 @@ class ChangelogScanner
         result.bidirectional.stream().map(t -> makeTask(t, table)).collect(Collectors.toList());
 
     // If the batch is small enough, we can route to LOCAL (in-memory) resolver
-    if (totalBytes <= splitSize(table)) {
+    if (totalBytes * COMPRESSED_TO_DECODED_BYTES_ESTIMATE <= splitSize(table)) {
       Instant ts = Instant.ofEpochMilli(snapshot.timestampMillis());
       multiOutputReceiver
           .get(SMALL_BIDIRECTIONAL_TASKS)

@@ -58,6 +58,7 @@ On top of normal Actions workflow steps, all new CI workflows (excluding release
 4) A set of GitHub token permissions
 5) Concurrency Groups
 6) Comment Triggering Support
+7) Allowed Actions (See below)
 
 Each of these is described in more detail below.
 ## Name and Phrase
@@ -164,6 +165,14 @@ In order to make it easier for non-committers to interact with workflows, workfl
 3) Each job should have a descriptive name that includes the comment trigger (example: https://github.com/apache/beam/blob/ba8fc935222aeb070668fbafd588bc58e7a21289/.github/workflows/beam_PreCommit_CommunityMetrics.yml#L48)
 
 **Note:** Comment triggering is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and is currently limited to a subset of suites. For more information see the [Running Workflows Manually](#running-workflows-manually) section.
+
+## Allowed Actions
+
+GitHub Actions under the trusted namespaces `actions/*`, `github/*`, and `apache/*` are automatically approved. Any third-party actions outside of these namespaces must be explicitly approved and added to the ASF-wide allowlist before use.
+
+Additionally, third-party actions must be pinned to a specific Git commit SHA (e.g., `zizmorcore/zizmor-action@6599ee8b7a49aef6a770f63d261d214911a7ce02`) instead of a version tag or branch name to comply with ASF security policy.
+
+For details on the allowlist and how to request new actions, see the [ASF Infrastructure Actions Allowlist Check Documentation](https://github.com/apache/infrastructure-actions/blob/main/allowlist-check/README.md).
 
 # Testing new workflows or workflow updates
 
@@ -330,6 +339,7 @@ PostCommit Jobs run in a schedule against master branch and generally do not get
 | [ PostCommit Java BigQueryEarlyRollout ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml) | N/A |`beam_PostCommit_Java_BigQueryEarlyRollout.json`| [![.github/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_BigQueryEarlyRollout.yml?query=event%3Aschedule) |
 | [ PostCommit Java Dataflow V1 ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV1.yml) | N/A |`beam_PostCommit_Java_DataflowV1.json`| [![.github/workflows/beam_PostCommit_Java_DataflowV1.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV1.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV1.yml?query=event%3Aschedule) |
 | [ PostCommit Java Dataflow V2 ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV2.yml) | N/A |`beam_PostCommit_Java_DataflowV2.json`| [![.github/workflows/beam_PostCommit_Java_DataflowV2.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV2.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_DataflowV2.yml?query=event%3Aschedule) |
+| [ PostCommit Java Delta IO Dataflow ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Delta_IO_Dataflow.yml) | N/A |`beam_PostCommit_Java_Delta_IO_Dataflow.json`| [![.github/workflows/beam_PostCommit_Java_Delta_IO_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Delta_IO_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Delta_IO_Dataflow.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Dataflow ARM ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml) | ['8','11','17','21','25'] |`beam_PostCommit_Java_Examples_Dataflow_ARM.json`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_ARM.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Dataflow](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow.yml) | N/A |`beam_PostCommit_Java_Examples_Dataflow.json`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow.yml?query=event%3Aschedule) |
 | [ PostCommit Java Examples Dataflow Java ](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml) | ['8','17','21','25'] |`beam_PostCommit_Java_Examples_Dataflow_Java.json`| [![.github/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml/badge.svg?event=schedule)](https://github.com/apache/beam/actions/workflows/beam_PostCommit_Java_Examples_Dataflow_Java.yml?query=event%3Aschedule) |

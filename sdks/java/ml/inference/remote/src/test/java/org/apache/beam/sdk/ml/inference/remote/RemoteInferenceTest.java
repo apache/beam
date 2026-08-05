@@ -45,7 +45,7 @@ public class RemoteInferenceTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   // Test input class
-  public static class TestInput implements BaseInput {
+  public static class TestInput implements BaseInput, java.io.Serializable {
     private final String value;
 
     private TestInput(String value) {
@@ -84,7 +84,7 @@ public class RemoteInferenceTest {
   }
 
   // Test output class
-  public static class TestOutput implements BaseResponse {
+  public static class TestOutput implements BaseResponse, java.io.Serializable {
     private final String result;
 
     private TestOutput(String result) {

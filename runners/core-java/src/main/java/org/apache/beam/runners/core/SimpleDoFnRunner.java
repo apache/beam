@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -184,6 +186,17 @@ public class SimpleDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, Out
 
   @Override
   public void processElement(WindowedValue<InputT> compressedElem) {
+    Context openTelemetryContext = compressedElem.getOpenTelemetryContext();
+    if (openTelemetryContext == null) {
+      processElementInternal(compressedElem);
+    } else {
+      try (Scope ignore = openTelemetryContext.makeCurrent()) {
+        processElementInternal(compressedElem);
+      }
+    }
+  }
+
+  private void processElementInternal(WindowedValue<InputT> compressedElem) {
     if (observesWindow) {
       for (WindowedValue<InputT> elem : compressedElem.explodeWindows()) {
         invokeProcessElement(elem);

@@ -63,6 +63,8 @@ jobs:
         job_phrase: ["Run Load Tests Python Combine Dataflow Batch"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

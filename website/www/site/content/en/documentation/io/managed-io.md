@@ -59,6 +59,18 @@ and Beam SQL is invoked via the Managed API under the hood.
       <th>Write Configuration</th>
     </tr>
     <tr>
+      <td><strong>DELTA</strong></td>
+      <td>
+        <strong>table</strong> (<code style="color: green">str</code>)<br>
+        hadoop_config (<code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>)<br>
+        timestamp (<code style="color: green">str</code>)<br>
+        version (<code style="color: #f54251">int64</code>)<br>
+      </td>
+      <td>
+        Unavailable
+      </td>
+    </tr>
+    <tr>
       <td><strong>ICEBERG</strong></td>
       <td>
         <strong>table</strong> (<code style="color: green">str</code>)<br>
@@ -237,6 +249,62 @@ and Beam SQL is invoked via the Managed API under the hood.
 </div>
 
 ## Configuration Details
+
+### `DELTA` Read
+
+<div class="table-container-wrapper">
+  <table class="table table-bordered">
+    <tr>
+      <th>Configuration</th>
+      <th>Type</th>
+      <th>Description</th>
+    </tr>
+    <tr>
+      <td>
+        <strong>table</strong>
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Identifier of the Delta Lake table.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        hadoop_config
+      </td>
+      <td>
+        <code>map[<span style="color: green;">str</span>, <span style="color: green;">str</span>]</code>
+      </td>
+      <td>
+        Properties passed to the Hadoop Configuration.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        timestamp
+      </td>
+      <td>
+        <code style="color: green">str</code>
+      </td>
+      <td>
+        Timestamp of the Delta Lake table to read.
+      </td>
+    </tr>
+    <tr>
+      <td>
+        version
+      </td>
+      <td>
+        <code style="color: #f54251">int64</code>
+      </td>
+      <td>
+        Version of the Delta Lake table to read.
+      </td>
+    </tr>
+  </table>
+</div>
 
 ### `ICEBERG` Read
 

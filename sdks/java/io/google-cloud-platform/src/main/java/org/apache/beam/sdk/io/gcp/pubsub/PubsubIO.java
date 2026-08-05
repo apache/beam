@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.client.util.Clock;
@@ -26,9 +28,17 @@ import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.Message;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import java.io.IOException;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -50,6 +60,7 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.SubscriptionPath;
 import org.apache.beam.sdk.io.gcp.pubsub.PubsubClient.TopicPath;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -71,7 +82,6 @@ import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.util.CoderUtils;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.EncodableThrowable;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -89,6 +99,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -112,20 +123,21 @@ import org.slf4j.LoggerFactory;
  * <h3>Updates to the I/O connector code</h3>
  *
  * For any significant updates to this I/O connector, please consider involving corresponding code
- * reviewers mentioned <a
- * href="https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS">
- * here</a>.
+ * reviewers mentioned <a href=
+ * "https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/OWNERS"> here</a>.
  *
  * <h3>Example PubsubIO read usage</h3>
  *
  * <pre>{@code
- * // Read from a specific topic; a subscription will be created at pipeline start time.
+ * // Read from a specific topic; a subscription will be created at pipeline
+ * // start time.
  * PCollection<PubsubMessage> messages = PubsubIO.readMessages().fromTopic(topic);
  *
  * // Read from a subscription.
  * PCollection<PubsubMessage> messages = PubsubIO.readMessages().fromSubscription(subscription);
  *
- * // Read messages including attributes. All PubSub attributes will be included in the PubsubMessage.
+ * // Read messages including attributes. All PubSub attributes will be included
+ * // in the PubsubMessage.
  * PCollection<PubsubMessage> messages = PubsubIO.readMessagesWithAttributes().fromTopic(topic);
  *
  * // Examples of reading different types from PubSub.
@@ -161,10 +173,11 @@ import org.slf4j.LoggerFactory;
  * topic and writing using the {@link PubsubIO#writeMessagesDynamic()} method. For example:
  *
  * <pre>{@code
- * events.apply(MapElements.into(new TypeDescriptor<PubsubMessage>() {})
- *                         .via(e -> new PubsubMessage(
- *                             e.toByteString(), Collections.emptyMap()).withTopic(e.getCountry())))
- * .apply(PubsubIO.writeMessagesDynamic());
+ * events.apply(MapElements.into(new TypeDescriptor<PubsubMessage>() {
+ * })
+ *     .via(e -> new PubsubMessage(
+ *         e.toByteString(), Collections.emptyMap()).withTopic(e.getCountry())))
+ *     .apply(PubsubIO.writeMessagesDynamic());
  * }</pre>
  *
  * <h3>Custom timestamps</h3>
@@ -175,9 +188,6 @@ import org.slf4j.LoggerFactory;
  * to be used, that timestamp must be published in a PubSub attribute and specified using {@link
  * PubsubIO.Read#withTimestampAttribute}. See the Javadoc for that method for the timestamp format.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(PubsubIO.class);
@@ -251,9 +261,9 @@ public class PubsubIO {
   /** Populate common {@link DisplayData} between Pubsub source and sink. */
   private static void populateCommonDisplayData(
       DisplayData.Builder builder,
-      String timestampAttribute,
-      String idAttribute,
-      ValueProvider<PubsubTopic> topic) {
+      @Nullable String timestampAttribute,
+      @Nullable String idAttribute,
+      @Nullable ValueProvider<PubsubTopic> topic) {
     builder
         .addIfNotNull(
             DisplayData.item("timestampAttribute", timestampAttribute)
@@ -323,6 +333,13 @@ public class PubsubIO {
         projectName = match.group(1);
         subscriptionName = match.group(2);
       }
+
+      projectName =
+          checkArgumentNotNull(
+              projectName, "Invalid path: project name must be non-null: %s", path);
+      subscriptionName =
+          checkArgumentNotNull(
+              subscriptionName, "Invalid path: subscription name must be non-null: %s", path);
 
       validateProjectName(projectName);
       validatePubsubName(subscriptionName);
@@ -399,7 +416,7 @@ public class PubsubIO {
   /** Class representing a Cloud Pub/Sub Topic. */
   public static class PubsubTopic implements Serializable {
     @Override
-    public boolean equals(Object o) {
+    public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
       }
@@ -469,6 +486,12 @@ public class PubsubIO {
         projectName = match.group(1);
         topicName = match.group(2);
       }
+
+      projectName =
+          checkArgumentNotNull(
+              projectName, "Invalid path: project name must be non-null: %s", path);
+      topicName =
+          checkArgumentNotNull(topicName, "Invalid path: topic name must be non-null: %s", path);
 
       validateProjectName(projectName);
       validatePubsubName(topicName);
@@ -604,7 +627,8 @@ public class PubsubIO {
    */
   public static <T extends Message> Read<T> readProtos(Class<T> messageClass) {
     // TODO: Stop using ProtoCoder and instead parse the payload directly.
-    // We should not be relying on the fact that ProtoCoder's wire format is identical to
+    // We should not be relying on the fact that ProtoCoder's wire format is
+    // identical to
     // the protobuf wire format, as the wire format is not part of a coder's API.
     ProtoCoder<T> coder = ProtoCoder.of(messageClass);
     return Read.newBuilder(parsePayloadUsingCoder(coder)).setCoder(coder).build();
@@ -662,7 +686,8 @@ public class PubsubIO {
    */
   public static <T> Read<T> readAvros(Class<T> clazz) {
     // TODO: Stop using AvroCoder and instead parse the payload directly.
-    // We should not be relying on the fact that AvroCoder's wire format is identical to
+    // We should not be relying on the fact that AvroCoder's wire format is
+    // identical to
     // the Avro wire format, as the wire format is not part of a coder's API.
     AvroCoder<T> coder = AvroCoder.of(clazz);
     return Read.newBuilder(parsePayloadUsingCoder(coder)).setCoder(coder).build();
@@ -698,6 +723,10 @@ public class PubsubIO {
   public static Read<GenericRecord> readAvroGenericRecords(org.apache.avro.Schema avroSchema) {
     AvroCoder<GenericRecord> coder = AvroCoder.of(avroSchema);
     Schema schema = AvroUtils.getSchema(GenericRecord.class, avroSchema);
+    if (schema == null) {
+      throw new IllegalArgumentException(
+          "Could not infer Beam schema from Avro schema: " + avroSchema);
+    }
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
@@ -722,6 +751,9 @@ public class PubsubIO {
     AvroCoder<T> coder = AvroCoder.of(clazz);
     org.apache.avro.Schema avroSchema = coder.getSchema();
     Schema schema = AvroUtils.getSchema(clazz, avroSchema);
+    if (schema == null) {
+      throw new IllegalArgumentException("Could not infer Beam schema for class: " + clazz);
+    }
     return Read.newBuilder(parsePayloadUsingCoder(coder))
         .setCoder(
             SchemaCoder.of(
@@ -773,7 +805,8 @@ public class PubsubIO {
    * Google Cloud Pub/Sub stream.
    */
   public static <T extends Message> Write<T> writeProtos(Class<T> messageClass) {
-    // TODO: Like in readProtos(), stop using ProtoCoder and instead format the payload directly.
+    // TODO: Like in readProtos(), stop using ProtoCoder and instead format the
+    // payload directly.
     return Write.newBuilder(formatPayloadUsingCoder(ProtoCoder.of(messageClass)))
         .setDynamicDestinations(false)
         .build();
@@ -786,7 +819,8 @@ public class PubsubIO {
   public static <T extends Message> Write<T> writeProtos(
       Class<T> messageClass,
       SerializableFunction<ValueInSingleWindow<T>, Map<String, String>> attributeFn) {
-    // TODO: Like in readProtos(), stop using ProtoCoder and instead format the payload directly.
+    // TODO: Like in readProtos(), stop using ProtoCoder and instead format the
+    // payload directly.
     return Write.newBuilder(formatPayloadUsingCoder(ProtoCoder.of(messageClass), attributeFn))
         .setDynamicDestinations(false)
         .build();
@@ -797,7 +831,8 @@ public class PubsubIO {
    * Google Cloud Pub/Sub stream.
    */
   public static <T> Write<T> writeAvros(Class<T> clazz) {
-    // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
+    // TODO: Like in readAvros(), stop using AvroCoder and instead format the
+    // payload directly.
     return Write.newBuilder(formatPayloadUsingCoder(AvroCoder.of(clazz)))
         .setDynamicDestinations(false)
         .build();
@@ -810,7 +845,8 @@ public class PubsubIO {
   public static <T> Write<T> writeAvros(
       Class<T> clazz,
       SerializableFunction<ValueInSingleWindow<T>, Map<String, String>> attributeFn) {
-    // TODO: Like in readAvros(), stop using AvroCoder and instead format the payload directly.
+    // TODO: Like in readAvros(), stop using AvroCoder and instead format the
+    // payload directly.
     return Write.newBuilder(formatPayloadUsingCoder(AvroCoder.of(clazz), attributeFn))
         .setDynamicDestinations(false)
         .build();
@@ -854,6 +890,8 @@ public class PubsubIO {
 
     abstract boolean getNeedsMessageId();
 
+    abstract boolean isEnableOpenTelemetryTracing();
+
     abstract boolean getNeedsOrderingKey();
 
     abstract BadRecordRouter getBadRecordRouter();
@@ -874,6 +912,7 @@ public class PubsubIO {
       builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setValidate(false);
+      builder.setEnableOpenTelemetryTracing(false);
       return builder;
     }
 
@@ -895,6 +934,8 @@ public class PubsubIO {
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
 
       abstract Builder<T> setIdAttribute(String idAttribute);
+
+      abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       abstract Builder<T> setCoder(Coder<T> coder);
 
@@ -1079,6 +1120,66 @@ public class PubsubIO {
       return toBuilder().setIdAttribute(idAttribute).build();
     }
 
+    public Read<T> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).setNeedsAttributes(true).build();
+    }
+
+    static class OpenTelemetryHeaderConsumer extends DoFn<PubsubMessage, PubsubMessage> {
+
+      Context extractSpanContext(PubsubMessage message) {
+        TextMapGetter<PubsubMessage> extractMessageAttributes =
+            new TextMapGetter<PubsubMessage>() {
+              @Override
+              public @Nullable String get(@Nullable PubsubMessage carrier, String key) {
+                if (carrier == null) {
+                  return null;
+                }
+                return carrier.getAttribute("googclient_" + key);
+              }
+
+              @Override
+              public Iterable<String> keys(PubsubMessage carrier) {
+                Map<String, String> attributeMap = carrier.getAttributeMap();
+                if (attributeMap == null) {
+                  return ImmutableList.of();
+                }
+                List<String> keys = new java.util.ArrayList<>();
+                for (String key : attributeMap.keySet()) {
+                  if (key.startsWith("googclient_")) {
+                    keys.add(key.substring("googclient_".length()));
+                  }
+                }
+                return keys;
+              }
+            };
+        return W3CTraceContextPropagator.getInstance()
+            .extract(Context.current(), message, extractMessageAttributes);
+      }
+
+      @Setup
+      public void setup(PipelineOptions po) {
+        tracer = po.as(SdkHarnessOptions.class).getOpenTelemetry().getTracer("PubSubIO");
+      }
+
+      private transient @MonotonicNonNull Tracer tracer = null;
+
+      @ProcessElement
+      public void processElement(
+          @Element PubsubMessage message, OutputReceiver<PubsubMessage> output) {
+        @Nullable Context context = extractSpanContext(message);
+        Span span =
+            checkArgumentNotNull(tracer)
+                .spanBuilder("PubSubIO.Read")
+                .setParent(context)
+                .startSpan();
+        try (Scope s = span.makeCurrent()) {
+          output.output(message);
+        } finally {
+          span.end();
+        }
+      }
+    }
+
     /**
      * Causes the source to return a PubsubMessage that includes Pubsub attributes, and uses the
      * given parsing function to transform the PubsubMessage into an output type. A Coder for the
@@ -1134,16 +1235,18 @@ public class PubsubIO {
             "PubSubIO cannot be configured with both a dead letter topic and a bad record router");
       }
 
+      ValueProvider<PubsubTopic> topicProvider = getTopicProvider();
       @Nullable
       ValueProvider<TopicPath> topicPath =
-          getTopicProvider() == null
+          topicProvider == null
               ? null
-              : NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator());
+              : NestedValueProvider.of(topicProvider, new TopicPathTranslator());
+      ValueProvider<PubsubSubscription> subscriptionProvider = getSubscriptionProvider();
       @Nullable
       ValueProvider<SubscriptionPath> subscriptionPath =
-          getSubscriptionProvider() == null
+          subscriptionProvider == null
               ? null
-              : NestedValueProvider.of(getSubscriptionProvider(), new SubscriptionPathTranslator());
+              : NestedValueProvider.of(subscriptionProvider, new SubscriptionPathTranslator());
       PubsubUnboundedSource source =
           new PubsubUnboundedSource(
               getClock(),
@@ -1177,7 +1280,7 @@ public class PubsubIO {
           new SerializableFunction<PubsubMessage, T>() {
             // flag that reported metrics
             private final SerializableFunction<PubsubMessage, T> underlying =
-                Objects.requireNonNull(getParseFn());
+                checkStateNotNull(getParseFn());
             private transient boolean reportedMetrics = false;
 
             // public
@@ -1204,8 +1307,15 @@ public class PubsubIO {
               return underlying.apply(input);
             }
           };
+      ValueProvider<PubsubTopic> deadLetterTopicProvider = getDeadLetterTopicProvider();
       PCollection<T> read;
-      if (getDeadLetterTopicProvider() == null
+      if (isEnableOpenTelemetryTracing()) {
+        preParse =
+            preParse.apply(
+                "Extract OpenTelemetry context from Header",
+                ParDo.of(new OpenTelemetryHeaderConsumer()));
+      }
+      if (deadLetterTopicProvider == null
           && (getBadRecordRouter() instanceof ThrowingBadRecordRouter)) {
         read = preParse.apply(MapElements.into(typeDescriptor).via(parseFnWrapped));
       } else {
@@ -1234,7 +1344,8 @@ public class PubsubIO {
           // Write out failures to the provided dead-letter topic.
           result
               .failures()
-              // Since the stack trace could easily exceed Pub/Sub limits, we need to remove it from
+              // Since the stack trace could easily exceed Pub/Sub limits, we need to remove
+              // it from
               // the attributes.
               .apply(
                   "PubsubIO.Read/Map/Remove-Stack-Trace-Attribute",
@@ -1254,7 +1365,9 @@ public class PubsubIO {
                             ImmutableMap<String, String> attributes =
                                 ImmutableMap.<String, String>builder()
                                     .put("exceptionClassName", throwable.getClass().getName())
-                                    .put("exceptionMessage", throwable.getMessage())
+                                    .put(
+                                        "exceptionMessage",
+                                        MoreObjects.firstNonNull(throwable.getMessage(), ""))
                                     .put("pubsubMessageId", messageId)
                                     .build();
 
@@ -1266,7 +1379,7 @@ public class PubsubIO {
                       .via(kv -> new PubsubMessage(kv.getKey().getPayload(), kv.getValue())))
               .apply(
                   writeMessages()
-                      .to(getDeadLetterTopicProvider().get().asPath())
+                      .to(checkStateNotNull(deadLetterTopicProvider).get().asPath())
                       .withClientFactory(getPubsubClientFactory()));
         }
       }
@@ -1274,16 +1387,20 @@ public class PubsubIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
+    public void validate(@Nullable PipelineOptions options) {
       if (!getValidate()) {
+        return;
+      }
+      if (options == null) {
         return;
       }
 
       PubsubOptions psOptions = options.as(PubsubOptions.class);
 
       // Validate the existence of the topic.
-      if (getTopicProvider() != null) {
-        PubsubTopic topic = getTopicProvider().get();
+      ValueProvider<PubsubTopic> topicProvider = getTopicProvider();
+      if (topicProvider != null) {
+        PubsubTopic topic = topicProvider.get();
         boolean topicExists = true;
         try (PubsubClient pubsubClient =
             getPubsubClientFactory()
@@ -1377,6 +1494,8 @@ public class PubsubIO {
 
     abstract @Nullable String getPubsubRootUrl();
 
+    abstract boolean isEnableOpenTelemetryTracing();
+
     abstract boolean getPublishWithOrderingKey();
 
     abstract BadRecordRouter getBadRecordRouter();
@@ -1396,6 +1515,7 @@ public class PubsubIO {
       builder.setBadRecordErrorHandler(new DefaultErrorHandler<>());
       builder.setPublishWithOrderingKey(false);
       builder.setValidate(false);
+      builder.setEnableOpenTelemetryTracing(false);
       return builder;
     }
 
@@ -1405,10 +1525,10 @@ public class PubsubIO {
 
     @AutoValue.Builder
     abstract static class Builder<T> {
-      abstract Builder<T> setTopicProvider(ValueProvider<PubsubTopic> topicProvider);
+      abstract Builder<T> setTopicProvider(@Nullable ValueProvider<PubsubTopic> topicProvider);
 
       abstract Builder<T> setTopicFunction(
-          SerializableFunction<ValueInSingleWindow<T>, PubsubTopic> topicFunction);
+          @Nullable SerializableFunction<ValueInSingleWindow<T>, PubsubTopic> topicFunction);
 
       abstract Builder<T> setDynamicDestinations(boolean dynamicDestinations);
 
@@ -1419,6 +1539,8 @@ public class PubsubIO {
       abstract Builder<T> setMaxBatchBytesSize(Integer maxBatchBytesSize);
 
       abstract Builder<T> setTimestampAttribute(String timestampAttribute);
+
+      abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       abstract Builder<T> setIdAttribute(String idAttribute);
 
@@ -1437,6 +1559,41 @@ public class PubsubIO {
       abstract Builder<T> setValidate(boolean validation);
 
       abstract Write<T> build();
+    }
+
+    static class OpenTelemetryHeaderPropagator extends DoFn<PubsubMessage, PubsubMessage> {
+      void injectSpanContext(Map<String, String> attr) {
+        TextMapSetter<Map<String, String>> inject =
+            new TextMapSetter<Map<String, String>>() {
+              @Override
+              public void set(@Nullable Map<String, String> attr, String key, String value) {
+                if (attr != null) {
+                  attr.put("googclient_" + key, value);
+                }
+              }
+            };
+        W3CTraceContextPropagator.getInstance().inject(Context.current(), attr, inject);
+      }
+
+      @ProcessElement
+      public void processElement(
+          @Element PubsubMessage message, OutputReceiver<PubsubMessage> output) {
+        Map<String, String> attributeMap = message.getAttributeMap();
+        Map<String, String> attr =
+            attributeMap == null ? new HashMap<>() : new HashMap<>(attributeMap);
+        injectSpanContext(attr);
+
+        // copy the message, multiple fields
+        PubsubMessage ps =
+            new PubsubMessage(
+                message.getPayload(), attr, message.getMessageId(), message.getOrderingKey());
+
+        // topic is copied seperately, not via constructor
+        if (message.getTopic() != null) {
+          ps = ps.withTopic(message.getTopic());
+        }
+        output.output(ps);
+      }
     }
 
     /**
@@ -1514,6 +1671,10 @@ public class PubsubIO {
       return toBuilder().setMaxBatchBytesSize(maxBatchBytesSize).build();
     }
 
+    public Write<T> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
+    }
+
     /**
      * Writes to Pub/Sub with each record's ordering key. A subscription with message ordering
      * enabled will receive messages published in the same region with the same ordering key in the
@@ -1546,7 +1707,7 @@ public class PubsubIO {
      * attribute with the specified name. The value of the attribute is an opaque string.
      *
      * <p>If the output from this sink is being read by another Beam pipeline, then {@link
-     * PubsubIO.Read#withIdAttribute(String)} can be used to ensure that* the other source reads
+     * PubsubIO.Read#withIdAttribute(String)} can be used to ensure that the other source reads
      * these unique identifiers from the appropriate attribute.
      */
     public Write<T> withIdAttribute(String idAttribute) {
@@ -1582,10 +1743,11 @@ public class PubsubIO {
                 + "dynamic topic destinations.");
       }
 
+      ValueProvider<PubsubTopic> topicProvider = getTopicProvider();
       SerializableFunction<ValueInSingleWindow<T>, PubsubIO.PubsubTopic> topicFunction =
           getTopicFunction();
-      if (topicFunction == null && getTopicProvider() != null) {
-        topicFunction = v -> getTopicProvider().get();
+      if (topicFunction == null && topicProvider != null) {
+        topicFunction = v -> topicProvider.get();
       }
       int maxMessageSize = PUBSUB_MESSAGE_MAX_TOTAL_SIZE;
       if (input.isBounded() == PCollection.IsBounded.BOUNDED) {
@@ -1620,6 +1782,11 @@ public class PubsubIO {
       } else {
         pubsubMessages.setCoder(PubsubMessageWithTopicCoder.of());
       }
+      if (isEnableOpenTelemetryTracing()) {
+        pubsubMessages =
+            pubsubMessages.apply(
+                "Propagate OpenTelemetry Tracing", ParDo.of(new OpenTelemetryHeaderPropagator()));
+      }
       switch (input.isBounded()) {
         case BOUNDED:
           pubsubMessages.apply(
@@ -1633,8 +1800,8 @@ public class PubsubIO {
           return pubsubMessages.apply(
               new PubsubUnboundedSink(
                   getPubsubClientFactory(),
-                  getTopicProvider() != null
-                      ? NestedValueProvider.of(getTopicProvider(), new TopicPathTranslator())
+                  topicProvider != null
+                      ? NestedValueProvider.of(topicProvider, new TopicPathTranslator())
                       : null,
                   getTimestampAttribute(),
                   getIdAttribute(),
@@ -1650,16 +1817,20 @@ public class PubsubIO {
     }
 
     @Override
-    public void validate(PipelineOptions options) {
+    public void validate(@Nullable PipelineOptions options) {
       if (!getValidate()) {
+        return;
+      }
+      if (options == null) {
         return;
       }
 
       PubsubOptions psOptions = options.as(PubsubOptions.class);
 
       // Validate the existence of the topic.
-      if (getTopicProvider() != null) {
-        PubsubTopic topic = getTopicProvider().get();
+      ValueProvider<PubsubTopic> topicProvider = getTopicProvider();
+      if (topicProvider != null) {
+        PubsubTopic topic = topicProvider.get();
         boolean topicExists = true;
         try (PubsubClient pubsubClient =
             getPubsubClientFactory()
@@ -1702,10 +1873,11 @@ public class PubsubIO {
       }
 
       // NOTE: A single publish request may only write to one ordering key.
-      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for details.
-      private transient Map<KV<PubsubTopic, String>, OutgoingData> output;
+      // See https://cloud.google.com/pubsub/docs/publisher#using-ordering-keys for
+      // details.
+      private transient @Nullable Map<KV<PubsubTopic, String>, OutgoingData> output;
 
-      private transient PubsubClient pubsubClient;
+      private transient @Nullable PubsubClient pubsubClient;
 
       private int maxPublishBatchByteSize;
       private int maxPublishBatchSize;
@@ -1750,16 +1922,19 @@ public class PubsubIO {
         final int messageSize = msg.getMessage().getData().size();
 
         final PubsubTopic pubsubTopic;
-        if (getTopicProvider() != null) {
-          pubsubTopic = getTopicProvider().get();
+        ValueProvider<PubsubTopic> topicProvider = getTopicProvider();
+        if (topicProvider != null) {
+          pubsubTopic = topicProvider.get();
         } else {
-          pubsubTopic = PubsubTopic.fromPath(Preconditions.checkArgumentNotNull(msg.topic()));
+          pubsubTopic = PubsubTopic.fromPath(checkArgumentNotNull(msg.topic()));
         }
 
-        // Checking before adding the message stops us from violating max batch size or bytes
+        // Checking before adding the message stops us from violating max batch size or
+        // bytes
         String orderingKey = getPublishWithOrderingKey() ? msg.getMessage().getOrderingKey() : "";
         final OutgoingData currentTopicAndOrderingKeyOutput =
-            output.computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
+            checkStateNotNull(output)
+                .computeIfAbsent(KV.of(pubsubTopic, orderingKey), t -> new OutgoingData());
         // TODO(sjvanrossum): https://github.com/apache/beam/issues/31800
         if (currentTopicAndOrderingKeyOutput.messages.size() >= maxPublishBatchSize
             || (!currentTopicAndOrderingKeyOutput.messages.isEmpty()
@@ -1776,18 +1951,24 @@ public class PubsubIO {
 
       @FinishBundle
       public void finishBundle() throws IOException {
-        for (Map.Entry<KV<PubsubTopic, String>, OutgoingData> entry : output.entrySet()) {
-          publish(entry.getKey().getKey(), entry.getValue().messages);
+        final Map<KV<PubsubTopic, String>, OutgoingData> output = this.output;
+        if (output != null) {
+          for (Map.Entry<KV<PubsubTopic, String>, OutgoingData> entry : output.entrySet()) {
+            publish(entry.getKey().getKey(), entry.getValue().messages);
+          }
         }
-        output = null;
-        pubsubClient.close();
-        pubsubClient = null;
+        this.output = null;
+        final PubsubClient pubsubClient = this.pubsubClient;
+        if (pubsubClient != null) {
+          pubsubClient.close();
+        }
+        this.pubsubClient = null;
       }
 
       private void publish(PubsubTopic topic, List<OutgoingMessage> messages) throws IOException {
         int n =
-            pubsubClient.publish(
-                PubsubClient.topicPathFromName(topic.project, topic.topic), messages);
+            checkStateNotNull(pubsubClient)
+                .publish(PubsubClient.topicPathFromName(topic.project, topic.topic), messages);
         checkState(n == messages.size());
       }
 
