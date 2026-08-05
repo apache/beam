@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -32,6 +35,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Instant;
 
 /**
@@ -44,13 +48,20 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
   private final IcebergScanConfig scanConfig;
   private final RowFilter rowFilter;
   private final Schema outputSchema;
+  // Positions and types of the non-PK data fields in the input row schema, precomputed once so
+  // the per-record hash/equals loops need no name lookups. The input schema is fixed by the
+  // CoGroupByKey's coder, so positions are stable across elements.
+  private final int[] nonPkIndices;
+  private final Schema.FieldType[] nonPkTypes;
+  private transient @MonotonicNonNull RowResolver resolver;
 
   ResolveChanges(IcebergScanConfig scanConfig) {
     this.scanConfig = scanConfig;
+    Schema inputSchema =
+        CdcOutputUtils.readBeamSchemaWithRowMetadata(
+            scanConfig.getMetadataColumns(), scanConfig.getSchema());
     this.rowFilter =
-        new RowFilter(
-                CdcOutputUtils.readBeamSchemaWithRowMetadata(
-                    scanConfig.getMetadataColumns(), scanConfig.getSchema()))
+        new RowFilter(inputSchema)
             .keep(
                 CdcOutputUtils.readSchemaWithRowMetadata(
                         scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema())
@@ -62,6 +73,30 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
             scanConfig,
             IcebergUtils.icebergSchemaToBeamSchema(
                 scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion()));
+
+    Set<String> pkFields = new HashSet<>(scanConfig.rowIdBeamSchema().getFieldNames());
+    List<String> metadataColumns = scanConfig.getMetadataColumns();
+    List<Integer> indices = new ArrayList<>();
+    List<Schema.FieldType> types = new ArrayList<>();
+    List<Schema.Field> fields = inputSchema.getFields();
+    for (int i = 0; i < fields.size(); i++) {
+      Schema.Field field = fields.get(i);
+      String name = field.getName();
+      if (pkFields.contains(name)
+          || (IcebergCdcMetadataColumns.isSupportedColumn(name)
+              && metadataColumns.contains(name))) {
+        continue;
+      }
+      indices.add(i);
+      types.add(field.getType());
+    }
+    this.nonPkIndices = indices.stream().mapToInt(Integer::intValue).toArray();
+    this.nonPkTypes = types.toArray(new Schema.FieldType[0]);
+  }
+
+  @Setup
+  public void setup() {
+    this.resolver = new RowResolver(nonPkIndices, nonPkTypes);
   }
 
   @ProcessElement
@@ -70,8 +105,6 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
       @Timestamp Instant timestamp,
       OutputReceiver<Row> out) {
     CdcRowDescriptor descriptor = element.getKey();
-
-    Set<String> pkFields = new HashSet<>(descriptor.getPrimaryKey().getSchema().getFieldNames());
     CoGbkResult result = element.getValue();
 
     // should be okay to materialize these lists. a PK collision will likely be a handful of records
@@ -79,7 +112,7 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
     List<Row> deletes = Lists.newArrayList(result.getAll(DELETES));
     List<Row> inserts = Lists.newArrayList(result.getAll(INSERTS));
 
-    new RowResolver(pkFields, scanConfig.getMetadataColumns())
+    checkStateNotNull(resolver)
         .resolve(
             deletes,
             inserts,
@@ -99,45 +132,33 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
             });
   }
 
+  /** Resolver specialization over Beam Rows, using precomputed non-PK field positions. */
   private static final class RowResolver extends CdcResolver<Row> {
-    private final Set<String> pkFields;
-    private final List<String> metadataColumns;
+    private final int[] nonPkIndices;
+    private final Schema.FieldType[] nonPkTypes;
 
-    RowResolver(Set<String> pkFields, List<String> metadataColumns) {
-      this.pkFields = pkFields;
-      this.metadataColumns = metadataColumns;
+    RowResolver(int[] nonPkIndices, Schema.FieldType[] nonPkTypes) {
+      this.nonPkIndices = nonPkIndices;
+      this.nonPkTypes = nonPkTypes;
     }
 
     @Override
     protected int nonPkHash(Row element) {
       int hash = 1;
-      for (String field : element.getSchema().getFieldNames()) {
-        if (pkFields.contains(field)
-            || (IcebergCdcMetadataColumns.isSupportedColumn(field)
-                && metadataColumns.contains(field))) {
-          continue;
-        }
+      for (int i = 0; i < nonPkIndices.length; i++) {
         hash =
-            31 * hash
-                + Row.Equals.deepHashCode(
-                    element.getValue(field), element.getSchema().getField(field).getType());
+            31 * hash + Row.Equals.deepHashCode(element.getValue(nonPkIndices[i]), nonPkTypes[i]);
       }
       return hash;
     }
 
     @Override
     protected boolean nonPkEquals(Row delete, Row insert) {
-      Schema schema = insert.getSchema();
-      for (String field : schema.getFieldNames()) {
-        // we already know PK values are equal
-        if (pkFields.contains(field)
-            || (IcebergCdcMetadataColumns.isSupportedColumn(field)
-                && metadataColumns.contains(field))) {
-          continue;
-        }
+      // compare non-PK, we already know PK values are equal
+      for (int i = 0; i < nonPkIndices.length; i++) {
+        int idx = nonPkIndices[i];
         // return early if two values are not equal
-        if (!Row.Equals.deepEquals(
-            insert.getValue(field), delete.getValue(field), schema.getField(field).getType())) {
+        if (!Row.Equals.deepEquals(insert.getValue(idx), delete.getValue(idx), nonPkTypes[i])) {
           return false;
         }
       }
