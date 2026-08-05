@@ -54,6 +54,7 @@ freezegun==1.5.5
 frozenlist==1.8.0
 future==1.0.0
 google-api-core==2.31.0
+google-api-python-client==2.198.0
 google-apitools==0.5.35
 google-auth==2.55.1
 google-auth-httplib2==0.2.1
@@ -197,6 +198,7 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
 uc-micro-py==2.0.0
+uritemplate==4.2.0
 urllib3==2.7.0
 virtualenv-clone==0.5.7
 websockets==16.0
