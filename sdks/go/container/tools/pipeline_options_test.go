@@ -35,10 +35,7 @@ func parseOptionsForTest(t *testing.T, options string) *PipelineOptions {
 	if err != nil {
 		t.Fatalf("failed to create structpb for test: %v", err)
 	}
-	po, err := ParseOptionsFromProto(st, "go_options")
-	if err != nil {
-		t.Fatalf("ParseOptionsFromProto failed: %v", err)
-	}
+	po := ParseOptionsFromProto(st, "go_options")
 	return po
 }
 
@@ -266,10 +263,7 @@ func TestPipelineOptions_Errors(t *testing.T) {
 			t.Fatalf("failed to create proto Struct: %v", err)
 		}
 
-		po, err := ParseOptionsFromProto(optionsStruct, "go_options")
-		if err != nil {
-			t.Fatalf("ParseOptionsFromProto failed: %v", err)
-		}
+		po := ParseOptionsFromProto(optionsStruct, "go_options")
 		if got, err := po.GetString("profiler_agent"); err != nil || got != "memray" {
 			t.Errorf("GetString(profiler_agent) = (%q, %v), want (\"memray\", nil)", got, err)
 		}

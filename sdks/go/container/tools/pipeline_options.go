@@ -54,9 +54,9 @@ type PipelineOptions struct {
 }
 
 // ParseOptionsFromProto creates normalized PipelineOptions directly from a protobuf Struct.
-func ParseOptionsFromProto(opt *structpb.Struct, sdkNamespace string) (*PipelineOptions, error) {
+func ParseOptionsFromProto(opt *structpb.Struct, sdkNamespace string) *PipelineOptions {
 	if opt == nil {
-		return &PipelineOptions{options: make(map[string]any), experiments: make(map[string]string)}, nil
+		return &PipelineOptions{options: make(map[string]any), experiments: make(map[string]string)}
 	}
 	raw := opt.AsMap()
 	flat := make(map[string]any)
@@ -102,14 +102,12 @@ func ParseOptionsFromProto(opt *structpb.Struct, sdkNamespace string) (*Pipeline
 		experiments: make(map[string]string),
 	}
 	if exps, err := po.GetStringSlice("experiments"); err == nil {
-		if expsMap, err := parseExperiments(exps); err == nil {
-			po.experiments = expsMap
-		}
+		po.experiments = parseExperiments(exps)
 	}
-	return po, nil
+	return po
 }
 
-func parseExperiments(slice []string) (map[string]string, error) {
+func parseExperiments(slice []string) map[string]string {
 	res := make(map[string]string)
 	for _, item := range slice {
 		if strings.Contains(item, "=") {
@@ -119,7 +117,7 @@ func parseExperiments(slice []string) (map[string]string, error) {
 			res[item] = ""
 		}
 	}
-	return res, nil
+	return res
 }
 
 // HasOption returns true if the option is defined and not nil.

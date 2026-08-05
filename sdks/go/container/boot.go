@@ -160,10 +160,7 @@ func main() {
 	}
 
 	// Go SDK wraps pipeline options inside the URN namespace: "beam:option:go_options:v1".
-	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "go_options")
-	if err != nil {
-		logger.Fatalf(ctx, "Failed to parse pipeline options: %v", err)
-	}
+	po := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "go_options")
 
 	// Inject artifact validation enabled state into context
 	ctx = artifact.WithArtifactValidation(ctx, !po.HasExperiment("disable_staged_file_integrity_checks"))

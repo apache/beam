@@ -167,10 +167,7 @@ func launchSDKProcess() error {
 
 	// (1) Obtain the pipeline options
 
-	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "")
-	if err != nil {
-		logger.Fatalf(ctx, "Failed to parse pipeline options: %v", err)
-	}
+	po := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "")
 	logger.Printf(ctx, "Parsed options in boot entrypoint: %v", po)
 
 	// Inject artifact validation enabled state into context

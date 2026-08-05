@@ -61,10 +61,7 @@ func TestSetupProfilerConfig(t *testing.T) {
 		t.Fatalf("Failed to create structpb: %v", err)
 	}
 
-	po, err := tools.ParseOptionsFromProto(st, "")
-	if err != nil {
-		t.Fatalf("Failed to parse pipeline options: %v", err)
-	}
+	po := tools.ParseOptionsFromProto(st, "")
 
 	ctx := setupProfilerConfig(context.Background(), &tools.Logger{}, po)
 	pcfg := getProfilerConfig(ctx)

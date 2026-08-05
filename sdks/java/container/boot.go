@@ -105,10 +105,7 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
-	po, err := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "")
-	if err != nil {
-		logger.Fatalf(ctx, "Failed to parse pipeline options: %v", err)
-	}
+	po := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "")
 
 	// Inject artifact validation enabled state into context
 	ctx = artifact.WithArtifactValidation(ctx, !po.HasExperiment("disable_staged_file_integrity_checks"))
