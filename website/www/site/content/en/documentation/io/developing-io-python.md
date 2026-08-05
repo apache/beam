@@ -69,8 +69,8 @@ for Beam's transform style guidance.
 
 To create a new data source for your pipeline, you'll need to provide the format-specific logic that tells the service how to read data from your input source, and how to split your data source into multiple parts so that multiple worker instances can read your data in parallel.
 
-If you're creating a data source that reads unbounded data, you must also
-provide the logic for managing your source's watermark and checkpointing.
+If you're creating a data source that reads unbounded data, also provide the
+logic for managing your source's watermark and checkpointing.
 
 Supply the logic for your new source by creating the following classes:
 
@@ -92,14 +92,14 @@ Supply the logic for your new source by creating the following classes:
 You can find `BoundedSource` and `RangeTracker` in the
 [apache_beam.io.iobase module](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.iobase.html),
 and the unbounded classes in the
-[apache_beam.io.unbounded_source module](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/io/unbounded_source.py).
+[apache_beam.io.unbounded_source module](https://beam.apache.org/releases/pydoc/{{< param release_latest >}}/apache_beam.io.unbounded_source.html).
 
 ### Implementing the Source subclass
 
-You must create a subclass of either `BoundedSource` or `UnboundedSource`,
-depending on whether your data is a finite batch or an infinite stream. In
-either case, your subclass must override the methods that a runner uses to
-split the data and to create a reader for it.
+Create a subclass of either `BoundedSource` or `UnboundedSource`, depending on
+whether your data is a finite batch or an infinite stream. In either case, the
+subclass overrides the methods that a runner uses to split the data and to
+create a reader for it.
 
 #### BoundedSource
 
