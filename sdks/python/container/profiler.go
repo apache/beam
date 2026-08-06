@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/container/tools"
@@ -29,7 +30,17 @@ import (
 
 type profilerConfigKeyType struct{}
 
-var profilerConfigKey profilerConfigKeyType
+var (
+	profilerConfigKey profilerConfigKeyType
+	profilerMu        sync.Mutex
+	cleanupCallbacks  []func(ctx context.Context, logger *tools.Logger)
+)
+
+// registerCleanupCallback registers a function to be executed synchronously during container shutdown.
+// This allows individual profiling agents to perform the final iteration of profile post processing.
+func registerCleanupCallback(cb func(ctx context.Context, logger *tools.Logger)) {
+	cleanupCallbacks = append(cleanupCallbacks, cb)
+}
 
 // ProfilerConfig holds all pre-computed profiling parameters.
 type ProfilerConfig struct {
@@ -46,6 +57,7 @@ type ProfilerConfig struct {
 	StopAfterSec           int
 	StopAfterCrash         bool
 	PostprocessIntervalSec int
+	GcloudAvailable        bool
 }
 
 // setupProfilerConfig parses PipelineOptionsData and stores a resolved ProfilerConfig in the context.
@@ -73,8 +85,14 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 	sentinelPath := filepath.Join(tempLocation, fmt.Sprintf(".profiler_disengaged_%s_%s", jobId, hostname))
 
 	var gcsDestPath string
+	gcloudAvailable := false
 	if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
 		gcsDestPath = strings.TrimSuffix(opts.Options.ProfileLocation, "/")
+		if _, err := exec.LookPath("gcloud"); err == nil {
+			gcloudAvailable = true
+		} else {
+			logger.Errorf(ctx, "gcloud is not available, profiles will not be uploaded.")
+		}
 	}
 
 	config := &ProfilerConfig{
@@ -91,6 +109,7 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 		StopAfterSec:           opts.Options.ProfilerStopAfterSec,
 		StopAfterCrash:         opts.Options.ProfilerStopAfterCrash,
 		PostprocessIntervalSec: opts.Options.ProfilePostprocessIntervalSec,
+		GcloudAvailable:        gcloudAvailable,
 	}
 
 	return context.WithValue(ctx, profilerConfigKey, config)
@@ -125,29 +144,38 @@ func startProfilerBackgroundTasks(ctx context.Context, logger *tools.Logger) {
 		logger.Warnf(ctx, "Failed to create ProfileTempLocation: %v", err)
 	}
 
-	if pcfg.GcsDestPath != "" {
-		if _, err := exec.LookPath("gcloud"); err != nil {
-			logger.Errorf(ctx, "gcloud is not available, profiles will not be uploaded.")
-		} else {
-			if pcfg.UploadIntervalSec > 0 {
-				go func() {
-					for {
-						select {
-						case <-ctx.Done():
-							return
-						case <-time.After(time.Duration(pcfg.UploadIntervalSec) * time.Second):
-							// TODO(tvalentyn): Consider a periodic cleanup as well to save local disk space.
-							syncProfilesToGCS(ctx, logger, pcfg.BaseTempDir, pcfg.GcsDestPath)
-						}
+	if pcfg.GcsDestPath != "" && pcfg.GcloudAvailable {
+		if pcfg.UploadIntervalSec > 0 {
+			go func() {
+				for {
+					select {
+					case <-ctx.Done():
+						return
+					case <-time.After(time.Duration(pcfg.UploadIntervalSec) * time.Second):
+						// TODO(tvalentyn): Consider a periodic cleanup as well to save local disk space.
+						syncProfilesToGCS(ctx, logger, pcfg.BaseTempDir, pcfg.GcsDestPath)
 					}
-				}()
-			}
+				}
+			}()
 		}
 	}
 
-	if pcfg.Agent == "memray" {
-		go postProcessProfilesLoop(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
+	if pcfg.PostprocessIntervalSec > 0 {
+		if pcfg.Agent == "memray" {
+			go postProcessProfilesLoop(ctx, logger, pcfg)
+			registerCleanupCallback(func(ctx context.Context, logger *tools.Logger) {
+				runPostProcessingSweep(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
+			})
+		}
+
+		if pcfg.Agent == "coredump" {
+			go monitorCoredumpsLoop(ctx, logger, pcfg)
+			registerCleanupCallback(func(ctx context.Context, logger *tools.Logger) {
+				processNewCoredumps(ctx, logger, pcfg)
+			})
+		}
 	}
+
 }
 
 // maybeWithProfiler builds the execution arguments and environment variables if profiling is enabled and active.
@@ -192,6 +220,9 @@ func maybeWithProfiler(
 		}
 		env["HEAPPROFILE"] = tcmallocHeapPath
 		args = currentArgs
+	} else if pcfg.Agent == "coredump" {
+		// No wrapping of the executable is needed for coredump analysis.
+		args = currentArgs
 	} else {
 		prog = pcfg.Agent
 		args = append(append([]string{}, pcfg.ExtraArgs...), currentProg)
@@ -223,6 +254,14 @@ func stopProfiling(ctx context.Context) error {
 	return err
 }
 
+// isProfilerDisengaged checks if the stop sentinel file exists.
+func isProfilerDisengaged(pcfg *ProfilerConfig) bool {
+	if _, err := os.Stat(pcfg.StopSentinelPath); err == nil {
+		return true
+	}
+	return false
+}
+
 // syncProfilesToGCS uploads newly created local memory profiles to the designated GCS target path using gcloud storage.
 func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsDest string) {
 	entries, err := os.ReadDir(localDir)
@@ -241,18 +280,18 @@ func syncProfilesToGCS(ctx context.Context, logger *tools.Logger, localDir, gcsD
 }
 
 // postProcessProfilesLoop runs a background loop that periodically triggers profile post-processing if enabled.
-func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
-	if intervalSec <= 0 {
-		return
-	}
-
+func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
 	for {
-		runPostProcessingSweep(ctx, logger, profilesDir, intervalSec)
+		runPostProcessingSweep(ctx, logger, pcfg.TempLocation, pcfg.PostprocessIntervalSec)
+
+		if isProfilerDisengaged(pcfg) {
+			return
+		}
 
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(time.Duration(intervalSec) * time.Second):
+		case <-time.After(time.Duration(pcfg.PostprocessIntervalSec) * time.Second):
 			// Block until the sleep completes before starting the next sweep
 		}
 	}
@@ -260,6 +299,9 @@ func postProcessProfilesLoop(ctx context.Context, logger *tools.Logger, profiles
 
 // runPostProcessingSweep scans the profiles directory and launches sequential postprocessing for newly updated profiles.
 func runPostProcessingSweep(ctx context.Context, logger *tools.Logger, profilesDir string, intervalSec int) {
+	profilerMu.Lock()
+	defer profilerMu.Unlock()
+
 	files, err := os.ReadDir(profilesDir)
 	if err != nil {
 		return
@@ -333,4 +375,213 @@ func needsProcessing(binInfo os.FileInfo, path string) bool {
 	}
 	// Don't regenerate when there were no updates to the profile.
 	return binInfo.ModTime().After(info.ModTime())
+}
+
+func monitorCoredumpsLoop(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
+	if pcfg.PostprocessIntervalSec <= 0 {
+		return
+	}
+
+	interval := time.Duration(pcfg.PostprocessIntervalSec) * time.Second
+	logger.Printf(ctx, "Monitoring core dumps every %v", interval)
+
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			processNewCoredumps(ctx, logger, pcfg)
+			if isProfilerDisengaged(pcfg) {
+				return
+			}
+		}
+	}
+}
+
+func processNewCoredumps(ctx context.Context, logger *tools.Logger, pcfg *ProfilerConfig) {
+	profilerMu.Lock()
+	defer profilerMu.Unlock()
+
+	// We expect the runner runtime environment to set the core pattern
+	// to /tmp/beam_coredump.%e.%p or similar. To do that, we pass
+	// the --experiment=core_pattern pipeline option, which can be interpreted by a runner.
+	coreDir := "/tmp"
+	files, err := os.ReadDir(coreDir)
+	if err != nil {
+		return
+	}
+
+	prefix := "beam_coredump."
+
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		name := file.Name()
+		if !strings.HasPrefix(name, prefix) {
+			continue
+		}
+
+		corePath := filepath.Join(coreDir, name)
+		var info os.FileInfo
+		var err error
+
+		for {
+			info, err = os.Stat(corePath)
+			if err != nil || time.Since(info.ModTime()) >= 2*time.Second {
+				break
+			}
+			// Wait for the core file to finish being written.
+			time.Sleep(500 * time.Millisecond)
+		}
+		if err != nil {
+			continue
+		}
+
+		logger.Printf(ctx, "Found core dump file: %s (%d bytes)", name, info.Size())
+
+		// Find python executable. Since the worker might be running in a venv,
+		// we look for "python" in the PATH.
+		pythonProg := "python"
+		if path, err := exec.LookPath("python"); err == nil {
+			pythonProg = path
+		}
+
+		timeSuffix := info.ModTime().Format("20060102150405")
+		newName := fmt.Sprintf("%s-%s", name, timeSuffix)
+		destTxtPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("%s.txt", newName))
+
+		// Delete the core file after up to 2 attempts to process it.
+		shouldDelete := time.Since(info.ModTime()) > time.Duration(pcfg.PostprocessIntervalSec)*time.Second
+
+		pystackPath, pystackErr := exec.LookPath("pystack")
+		gdbPath, gdbErr := exec.LookPath("gdb")
+
+		if pystackErr != nil && gdbErr != nil {
+			logger.Warnf(ctx, "Core dump analysis enabled but no analysis tools found. Please install pystack (recommended) or/and gdb into the runtime environment.")
+		}
+
+		if pystackErr == nil {
+			args := []string{"core"}
+			if len(pcfg.ExtraArgs) > 0 {
+				args = append(args, pcfg.ExtraArgs...)
+			} else {
+				args = append(args, "--native-last")
+			}
+			args = append(args, corePath, pythonProg)
+
+			logger.Printf(ctx, "Running pystack %s", strings.Join(args, " "))
+			cmd := exec.CommandContext(ctx, pystackPath, args...)
+			output, err := cmd.CombinedOutput()
+			if err != nil {
+				logger.Warnf(ctx, "pystack failed on %s: %v. Output:\n%s", name, err, string(output))
+			} else {
+				if err := os.WriteFile(destTxtPath, output, 0644); err != nil {
+					logger.Warnf(ctx, "Failed to write pystack output to %s: %v", destTxtPath, err)
+				}
+				pystackSummary := createPystackSummary(string(output))
+				logger.Errorf(ctx, "Full pystack coredump analysis saved to %s.txt\nExcerpt:\n%s", newName, pystackSummary)
+				shouldDelete = true
+			}
+		}
+
+		if gdbErr == nil {
+			gdbArgs := []string{
+				"-batch",
+				"-ex", "set pagination off",
+				"-ex", "set trace-commands on",
+				"-ex", "info sharedlibrary",
+				"-ex", "info proc mappings",
+				"-ex", "info threads",
+				"-ex", "thread",
+				"-ex", "print $_siginfo",
+				"-ex", "info registers",
+				"-ex", "x/10i $pc",
+				"-ex", "x/16gx $rsp",
+				"-ex", "bt full",
+				"-ex", "thread apply all bt full",
+				pythonProg,
+				corePath,
+			}
+			logger.Printf(ctx, "Running gdb on %s using %s", name, pythonProg)
+			gdbCmd := exec.CommandContext(ctx, gdbPath, gdbArgs...)
+			gdbOutput, err := gdbCmd.CombinedOutput()
+			destGdbPath := filepath.Join(pcfg.TempLocation, fmt.Sprintf("%s.gdb.txt", newName))
+			if err != nil {
+				logger.Warnf(ctx, "gdb failed on %s: %v. Output:\n%s", name, err, string(gdbOutput))
+			} else {
+				if err := os.WriteFile(destGdbPath, gdbOutput, 0644); err != nil {
+					logger.Warnf(ctx, "Failed to write gdb output to %s: %v", destGdbPath, err)
+				}
+				logger.Errorf(ctx, "Full GDB coredump analysis saved to %s.gdb.txt", newName)
+				shouldDelete = true
+			}
+		}
+
+		if shouldDelete {
+			if err := os.Remove(corePath); err != nil {
+				logger.Warnf(ctx, "Failed to delete core dump %s: %v", corePath, err)
+			}
+		}
+	}
+}
+
+func extractGILThread(output string) string {
+	lines := strings.Split(output, "\n")
+	var result []string
+	recording := false
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.Contains(line, "Has the GIL") {
+			recording = true
+		}
+		if recording {
+			result = append(result, line)
+			if trimmed == "" {
+				break
+			}
+		}
+	}
+	if len(result) == 0 {
+		return ""
+	}
+	return strings.Join(result, "\n")
+}
+
+func firstNLines(s string, n int) string {
+	lines := strings.Split(s, "\n")
+	if len(lines) <= n {
+		return s
+	}
+	return strings.Join(lines[:n], "\n")
+}
+
+func createPystackSummary(output string) string {
+	gilThreadTrace := extractGILThread(output)
+	if gilThreadTrace != "" {
+		return gilThreadTrace
+	}
+	return firstNLines(output, 100)
+}
+
+// cleanUpProfiler checks for and uploads any final profiler artifacts before container exit.
+func cleanUpProfiler(ctx context.Context, logger *tools.Logger) {
+	pcfg := getProfilerConfig(ctx)
+	if pcfg == nil || !pcfg.Enabled {
+		return
+	}
+
+	logger.Printf(ctx, "Running final profiler cleanup sweep and GCS sync...")
+
+	// Execute all registered agent-specific cleanups
+	for _, cb := range cleanupCallbacks {
+		cb(ctx, logger)
+	}
+
+	if pcfg.GcsDestPath != "" && pcfg.GcloudAvailable {
+		syncProfilesToGCS(ctx, logger, pcfg.BaseTempDir, pcfg.GcsDestPath)
+	}
 }

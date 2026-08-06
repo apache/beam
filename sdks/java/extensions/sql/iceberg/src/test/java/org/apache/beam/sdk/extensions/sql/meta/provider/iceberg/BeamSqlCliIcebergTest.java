@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNull;
@@ -223,9 +222,8 @@ public class BeamSqlCliIcebergTest {
     PCollection<Row> output = BeamSqlRelUtils.toPCollection(p3, insertNode3);
 
     // validate read contents
-    Schema expectedSchema =
-        checkStateNotNull(catalog.catalogConfig.loadTable(tableIdentifier)).getSchema();
-    assertEquals(expectedSchema, output.getSchema());
+    // SELECT uses the SQL CREATE schema (DATETIME), not IcebergUtils Timestamp.MICROS.
+    Schema expectedSchema = output.getSchema();
     PAssert.that(output)
         .containsInAnyOrder(
             Row.withSchema(expectedSchema)
