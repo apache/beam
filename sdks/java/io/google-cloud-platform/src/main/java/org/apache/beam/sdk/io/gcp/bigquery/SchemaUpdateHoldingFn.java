@@ -165,6 +165,7 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
 
   @OnTimer("pollTimer")
   public void onPollTimer(
+      OnTimerContext context,
       @Key ShardedKey<DestinationT> key,
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
@@ -174,6 +175,8 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
       BoundedWindow window,
       MultiOutputReceiver o)
       throws Exception {
+    convertMessagesDoFn.getDynamicDestinations().setSideInputAccessorFromOnTimerContext(context);
+
     if (tryFlushBuffer(key.getKey(), pipelineOptions, bag, minBufferedTimestamp, o)) {
       timerTs.clear();
     } else {
@@ -188,12 +191,17 @@ public class SchemaUpdateHoldingFn<DestinationT extends @NonNull Object, Element
 
   @OnWindowExpiration
   public void onWindowExpiration(
+      OnWindowExpirationContext context,
       @Key ShardedKey<DestinationT> key,
       PipelineOptions pipelineOptions,
       @StateId("bufferedElements") BagState<TimestampedValue<ElementT>> bag,
       @StateId("minBufferedTimestamp") CombiningState<Long, long[], Long> minBufferedTimestamp,
       MultiOutputReceiver o)
       throws Exception {
+    convertMessagesDoFn
+        .getDynamicDestinations()
+        .setSideInputAccessorFromOnWindowExpirationContext(context);
+
     // This can happen on test completion or drain. We can't set any more timers in window
     // expiration, so we just have to loop until the schema is updated.
     BackOff backoff =

@@ -83,6 +83,22 @@ public abstract class StorageApiWritePayload {
         .build();
   }
 
+  static StorageApiWritePayload of(
+      byte[] payload,
+      @Nullable Instant timestamp,
+      @Nullable byte[] unknownFieldsPayload,
+      @Nullable byte[] failsafeTableRowPayload,
+      @Nullable byte[] schemaHash)
+      throws IOException {
+    return new AutoValue_StorageApiWritePayload.Builder()
+        .setPayload(payload)
+        .setTimestamp(timestamp)
+        .setUnknownFieldsPayload(unknownFieldsPayload)
+        .setFailsafeTableRowPayload(failsafeTableRowPayload)
+        .setSchemaHash(schemaHash)
+        .build();
+  }
+
   public StorageApiWritePayload withTimestamp(Instant instant) {
     return toBuilder().setTimestamp(instant).build();
   }
