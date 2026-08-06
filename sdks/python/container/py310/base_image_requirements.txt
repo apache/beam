@@ -21,7 +21,7 @@
 # https://s.apache.org/beam-python-dev-wiki
 # Reach out to a committer if you need help.
 
-aiofiles==25.1.0
+aiofiles==25.1.1
 aiohappyeyeballs==2.6.2
 aiohttp==3.14.1
 aiosignal==1.4.0
