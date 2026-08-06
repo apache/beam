@@ -95,9 +95,9 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
+from apache_beam.yaml import conftest
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml import yaml_transform
-from apache_beam.yaml.conftest import yaml_test_files_dir
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -493,6 +493,10 @@ def temp_postgres_database():
         connection.execute(
             sqlalchemy.text(
                 "CREATE TABLE tmp_table (value INTEGER, rank INTEGER);"))
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE test_date_time (event_name VARCHAR(100), event_date DATE, event_time TIME);"
+            ))
 
       # Construct the JDBC url for connections later on by tests
       jdbc_url = (
@@ -1029,7 +1033,7 @@ logging.getLogger().setLevel(logging.INFO)
 
 # Dynamically create test methods from the tests directory.
 # yaml_test_files_dir comes from conftest.py and set by pytest_configure.
-_test_files_dir = yaml_test_files_dir
+_test_files_dir = conftest.yaml_test_files_dir
 _file_pattern = os.path.join(
     os.path.dirname(__file__), _test_files_dir, '*.yaml')
 parse_test_files(_file_pattern)
