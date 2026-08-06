@@ -53,10 +53,11 @@ jobs:
   beam_PostRelease_NightlySnapshot:
     name: beam_PostRelease_NightlySnapshot
     runs-on: [self-hosted, ubuntu-24.04, highmem]
+    timeout-minutes: 600
     steps:
       - uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
