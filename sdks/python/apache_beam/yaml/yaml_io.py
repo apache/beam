@@ -921,13 +921,28 @@ def _dicom_search_result_to_row(result):
       input=json.dumps(result.get('input', {})))
 
 
+def _dicom_search_to_output_row(result):
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_error_row(result):
+  inp = result.get('input') or {}
+  if isinstance(inp, Mapping):
+    element = beam.Row(**dict(inp))
+  else:
+    element = inp
+  return beam.Row(
+      element=element,
+      msg='DicomSearch failed with status: %s' % (result.get('status'), ),
+      stack='')
+
+
 @beam.ptransform_fn
-@yaml_errors.maybe_with_exception_handling_transform_fn
 def dicom_search(
-    pcoll,
-    *,
-    buffer_size: int = 8,
-    max_workers: int = 5):
+    pcoll, *, buffer_size: int = 8, max_workers: int = 5, error_handling=None):
   """Searches a Google Cloud Healthcare DICOM store using QIDO-RS.
 
   This transform takes an input PCollection of Rows describing QIDO search
@@ -948,19 +963,22 @@ def dicom_search(
     - status (str): HTTP status from the DICOM API.
     - input (str): JSON-encoded copy of the search request.
 
-  Failed searches raise and can be routed with ``error_handling``.
+  Failed searches raise unless ``error_handling`` is set, in which case they
+  are routed to the configured error output.
 
   Args:
     buffer_size: Number of requests to buffer before flushing.
     max_workers: Maximum number of threads used to issue requests.
+    error_handling: If specified, should be a mapping giving an output into
+      which to emit failed searches, as described at
+      https://beam.apache.org/documentation/sdks/yaml-errors/
   """
   try:
     from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
   except ImportError as exn:
     raise ValueError(
         "GCP dependencies are not installed. Cannot use DicomSearch. "
-        "Please install using 'pip install apache-beam[gcp]'."
-    ) from exn
+        "Please install using 'pip install apache-beam[gcp]'.") from exn
 
   def row_to_dict(value):
     if value is None:
@@ -976,8 +994,24 @@ def dicom_search(
     else:
       return value
 
-  return (
+  if error_handling:
+    error_handling = yaml_utils.SafeLineLoader.strip_metadata(error_handling)
+
+  results = (
       pcoll
       | beam.Map(row_to_dict)
-      | DicomSearch(buffer_size=buffer_size, max_workers=max_workers)
-      | beam.Map(_dicom_search_result_to_row))
+      | DicomSearch(buffer_size=buffer_size, max_workers=max_workers))
+
+  if error_handling and error_handling.get('output'):
+    return {
+        'good': (
+            results
+            | beam.Filter(lambda r: r.get('success'))
+            | beam.Map(_dicom_search_to_output_row)),
+        error_handling['output']: (
+            results
+            | beam.Filter(lambda r: not r.get('success'))
+            | beam.Map(_dicom_search_to_error_row)),
+    }
+
+  return results | beam.Map(_dicom_search_result_to_row)

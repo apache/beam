@@ -872,9 +872,8 @@ def _patch_dicom_search():
 class YamlDicomSearchTest(unittest.TestCase):
   def test_dicom_search_success(self):
     with _patch_dicom_search():
-      with beam.Pipeline(
-          options=beam.options.pipeline_options.PipelineOptions(
-              pickle_library='cloudpickle')) as p:
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
         result = (
             p
             | beam.Create([
@@ -884,9 +883,7 @@ class YamlDicomSearchTest(unittest.TestCase):
                     dataset_id='dataset',
                     dicom_store_id='store',
                     search_type='instances',
-                    params={
-                        'PatientName': 'Alice'
-                    })
+                    params={'PatientName': 'Alice'})
             ])
             | YamlTransform(
                 '''
@@ -895,15 +892,14 @@ class YamlDicomSearchTest(unittest.TestCase):
         assert_that(
             result
             | beam.Map(
-                lambda row: (
-                    row.status, json.loads(row.result)[0]['PatientName'])),
+                lambda row:
+                (row.status, json.loads(row.result)[0]['PatientName'])),
             equal_to([('200', 'Alice')]))
 
   def test_dicom_search_with_error_handling(self):
     with _patch_dicom_search():
-      with beam.Pipeline(
-          options=beam.options.pipeline_options.PipelineOptions(
-              pickle_library='cloudpickle')) as p:
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
         result = (
             p
             | beam.Create([
