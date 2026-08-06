@@ -612,6 +612,7 @@ class PipelineOptions(HasDisplayData):
   def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
+      # Update sdks/go/container/tools/pipeline_options.go if :v1 part changes.
       assert key.endswith(':v1')
       return key[12:-3]
 
