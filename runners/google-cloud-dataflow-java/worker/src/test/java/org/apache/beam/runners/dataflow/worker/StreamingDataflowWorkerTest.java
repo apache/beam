@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.contains;
@@ -382,7 +383,10 @@ public class StreamingDataflowWorkerTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+                createMockComputationState(computationId),
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             false,
             Instant::now,
             ImmutableList.of()),
@@ -1524,13 +1528,144 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
+  @Test
+  public void testMultiKeyCommit_queuedWorkItemFailsAndSubsequentWorkItemPickedUp()
+      throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    BlockingKvDoFn.reset();
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker(new BlockingKvDoFn());
+    worker.start();
+
+    String batchInputText1 =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+
+    String batchInputText2 =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 3"
+            + "    cache_token: 4"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data3\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput1 =
+        buildInput(
+            batchInputText1,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+    Windmill.GetWorkResponse batchInput2 =
+        buildInput(
+            batchInputText2,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+
+    server.whenGetWorkCalled().thenReturn(batchInput1).thenReturn(batchInput2);
+    server.waitForEmptyWorkQueue();
+
+    // Wait for key1 to start processing and block on BlockingKvDoFn.
+    BlockingKvDoFn.counter.get().acquire(1);
+
+    // Fail key2 (work token 2) via failed heartbeat while key1 is still processing.
+    ComputationHeartbeatResponse.Builder failedHeartbeat =
+        ComputationHeartbeatResponse.newBuilder();
+    failedHeartbeat
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .addHeartbeatResponsesBuilder()
+        .setCacheToken(3)
+        .setWorkToken(2)
+        .setShardingKey(2)
+        .setFailed(true);
+    server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
+
+    // Unblock key1 to allow bundle to poll key2 (token 2 -> failed, skipped) and key2 (token 3).
+    BlockingKvDoFn.blocker.get().countDown();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(3L));
+    assertFalse(result.containsKey(2L));
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(2, multiKeyCommit.getRequestsCount());
+    assertEquals(1, multiKeyCommit.getRequests(0).getWorkToken());
+    assertEquals(3, multiKeyCommit.getRequests(1).getWorkToken());
+
+    worker.stop();
+  }
+
   private StreamingDataflowWorker makeMultiKeyEnabledWorker() {
+    return makeMultiKeyEnabledWorker(new WorkDoFn());
+  }
+
+  private StreamingDataflowWorker makeMultiKeyEnabledWorker(
+      DoFn<KV<String, String>, KV<String, String>> doFn) {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
+            makeDoFnInstruction(doFn, 0, kvCoder),
             makeSinkInstruction(kvCoder, 1));
 
     StreamingDataflowWorker worker =
@@ -3966,7 +4101,7 @@ public class StreamingDataflowWorkerTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                "computationId",
+                createMockComputationState("computationId"),
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
@@ -4834,6 +4969,25 @@ public class StreamingDataflowWorkerTest {
       }
       state.read();
       c.output(c.element());
+    }
+  }
+
+  static class BlockingKvDoFn extends DoFn<KV<String, String>, KV<String, String>> {
+    public static final AtomicReference<CountDownLatch> blocker =
+        new AtomicReference<>(new CountDownLatch(1));
+    public static final AtomicReference<Semaphore> counter =
+        new AtomicReference<>(new Semaphore(0));
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws InterruptedException {
+      counter.get().release();
+      blocker.get().await();
+      c.output(c.element());
+    }
+
+    public static void reset() {
+      blocker.set(new CountDownLatch(1));
+      counter.set(new Semaphore(0));
     }
   }
 

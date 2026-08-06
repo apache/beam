@@ -26,6 +26,8 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.util.Optional;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -64,7 +66,8 @@ public class WindmillStreamSenderTest {
                       .build())
               .build());
   private final WorkItemScheduler workItemScheduler =
-      (workItem,
+      (computationState,
+          workItem,
           serializedWorkItemSize,
           watermarks,
           processingContext,
@@ -115,7 +118,8 @@ public class WindmillStreamSenderTest {
             any(),
             any(),
             any(),
-            eq(workItemScheduler));
+            eq(workItemScheduler),
+            any());
 
     verify(streamFactory).createDirectGetDataStream(eq(connection));
     verify(streamFactory).createDirectCommitWorkStream(eq(connection));
@@ -146,7 +150,8 @@ public class WindmillStreamSenderTest {
             any(),
             any(),
             any(),
-            eq(workItemScheduler));
+            eq(workItemScheduler),
+            any());
 
     verify(streamFactory, times(1)).createDirectGetDataStream(eq(connection));
     verify(streamFactory, times(1)).createDirectCommitWorkStream(eq(connection));
@@ -180,7 +185,8 @@ public class WindmillStreamSenderTest {
             any(),
             any(),
             any(),
-            eq(workItemScheduler));
+            eq(workItemScheduler),
+            any());
 
     verify(streamFactory, times(1)).createDirectGetDataStream(eq(connection));
     verify(streamFactory, times(1)).createDirectCommitWorkStream(eq(connection));
@@ -203,7 +209,8 @@ public class WindmillStreamSenderTest {
             any(),
             any(),
             any(),
-            eq(workItemScheduler)))
+            eq(workItemScheduler),
+            any()))
         .thenReturn(mockGetWorkStream);
 
     when(mockStreamFactory.createDirectGetDataStream(eq(connection))).thenReturn(mockGetDataStream);
@@ -240,7 +247,8 @@ public class WindmillStreamSenderTest {
             any(),
             any(),
             any(),
-            eq(workItemScheduler)))
+            eq(workItemScheduler),
+            any()))
         .thenReturn(mockGetWorkStream);
 
     when(mockStreamFactory.createDirectGetDataStream(eq(connection))).thenReturn(mockGetDataStream);
@@ -289,6 +297,7 @@ public class WindmillStreamSenderTest {
         streamFactory,
         workItemScheduler,
         ignored -> mock(GetDataClient.class),
-        ignored -> mock(WorkCommitter.class));
+        ignored -> mock(WorkCommitter.class),
+        ignored -> Optional.of(mock(ComputationState.class)));
   }
 }

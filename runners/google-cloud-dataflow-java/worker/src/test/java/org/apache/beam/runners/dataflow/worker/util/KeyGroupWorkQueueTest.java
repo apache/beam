@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -109,7 +110,7 @@ public class KeyGroupWorkQueueTest {
                 workItem.getSerializedSize(),
                 Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
                 Work.createProcessingContext(
-                    computationId,
+                    createMockComputationState(computationId),
                     new FakeGetDataClient(),
                     ignored -> {},
                     mock(HeartbeatSender.class)),

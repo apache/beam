@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus.OK;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
@@ -61,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
@@ -118,7 +120,7 @@ public class StreamingEngineWorkCommitterTest {
         workItem.getSerializedSize(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
-            "computationId",
+            createMockComputationState("computationId"),
             new FakeGetDataClient(),
             ignored -> {
               throw new UnsupportedOperationException();
@@ -135,7 +137,7 @@ public class StreamingEngineWorkCommitterTest {
         new MapTask().setSystemName("system").setStageName("stage"),
         mock(BoundedQueueExecutor.class),
         ImmutableMap.of(),
-        null);
+        mock(WindmillStateCache.ForComputation.class));
   }
 
   private static CompleteCommit asCompleteCommit(

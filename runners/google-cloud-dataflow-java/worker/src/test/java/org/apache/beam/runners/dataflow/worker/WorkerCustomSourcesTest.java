@@ -26,6 +26,7 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.dic
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.getReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.longToParallelism;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.apache.beam.sdk.testing.ExpectedLogs.verifyLogged;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
@@ -207,7 +208,10 @@ public class WorkerCustomSourcesTest {
         workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+            createMockComputationState(COMPUTATION_ID),
+            new FakeGetDataClient(),
+            ignored -> {},
+            mock(HeartbeatSender.class)),
         false,
         Instant::now,
         ImmutableList.of());
@@ -1046,7 +1050,7 @@ public class WorkerCustomSourcesTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
-                COMPUTATION_ID,
+                createMockComputationState(COMPUTATION_ID),
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

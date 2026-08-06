@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -91,7 +92,10 @@ public class WindowingWindmillReaderTest {
         workItem.getSerializedSize(),
         Watermarks.builder().setInputDataWatermark(new Instant(1000)).build(),
         Work.createProcessingContext(
-            "computationId", new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+            createMockComputationState("computationId"),
+            new FakeGetDataClient(),
+            ignored -> {},
+            mock(HeartbeatSender.class)),
         false,
         Instant::now,
         ImmutableList.of());

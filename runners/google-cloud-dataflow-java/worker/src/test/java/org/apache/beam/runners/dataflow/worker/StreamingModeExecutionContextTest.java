@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -175,7 +176,10 @@ public class StreamingModeExecutionContextTest {
         workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+            createMockComputationState(COMPUTATION_ID),
+            new FakeGetDataClient(),
+            ignored -> {},
+            mock(HeartbeatSender.class)),
         false,
         Instant::now,
         ImmutableList.of());
