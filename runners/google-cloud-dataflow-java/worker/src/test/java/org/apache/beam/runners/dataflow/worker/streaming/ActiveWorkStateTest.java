@@ -25,7 +25,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -319,25 +318,19 @@ public class ActiveWorkStateTest {
   }
 
   @Test
-  public void testInvalidateStuckCommits() {
-    Map<ShardedKey, WorkId> invalidatedCommits = new HashMap<>();
+  public void testHasStuckCommits() {
     ShardedKey shardedKey1 = shardedKey("someKey", 1L);
     ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
 
     ExecutableWork stuckWork1 = expiredWork(createWorkItem(1L, 1L, shardedKey1));
     stuckWork1.work().setState(Work.State.COMMITTING);
-    ExecutableWork stuckWork2 = expiredWork(createWorkItem(2L, 1L, shardedKey2));
-    stuckWork2.work().setState(Work.State.COMMITTING);
+    ExecutableWork unstuckWork2 = expiredWork(createWorkItem(2L, 1L, shardedKey2));
+    unstuckWork2.work().setState(Work.State.PROCESSING);
 
     activeWorkState.activateWorkForKey(stuckWork1);
-    activeWorkState.activateWorkForKey(stuckWork2);
+    activeWorkState.activateWorkForKey(unstuckWork2);
 
-    activeWorkState.invalidateStuckCommits(Instant.now(), invalidatedCommits::put);
-
-    assertThat(invalidatedCommits).containsEntry(shardedKey1, stuckWork1.id());
-    assertThat(invalidatedCommits).containsEntry(shardedKey2, stuckWork2.id());
-    verify(computationStateCache).invalidate(shardedKey1.key(), shardedKey1.shardingKey());
-    verify(computationStateCache).invalidate(shardedKey2.key(), shardedKey2.shardingKey());
+    assertThat(activeWorkState.hasStuckCommits(Instant.now())).isTrue();
   }
 
   @Test
