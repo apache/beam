@@ -34,6 +34,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCoder;
 import org.apache.beam.sdk.util.ShardedKey;
@@ -74,6 +75,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
           .put(ShardedKey.Coder.class, ModelCoders.SHARDED_KEY_CODER_URN)
           .put(TimestampPrefixingWindowCoder.class, ModelCoders.CUSTOM_WINDOW_CODER_URN)
           .put(NullableCoder.class, ModelCoders.NULLABLE_CODER_URN)
+          .put(VoidCoder.class, ModelCoders.VOID_CODER_URN)
           .build();
 
   private static final Map<Class<? extends Coder>, CoderTranslator<? extends Coder>>
@@ -99,6 +101,7 @@ public class ModelCoderRegistrar implements CoderTranslatorRegistrar {
               .put(ShardedKey.Coder.class, CoderTranslators.shardedKey())
               .put(TimestampPrefixingWindowCoder.class, CoderTranslators.timestampPrefixingWindow())
               .put(NullableCoder.class, CoderTranslators.nullable())
+              .put(VoidCoder.class, CoderTranslators.atomic(VoidCoder.class))
               .build();
 
   static {

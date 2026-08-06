@@ -45,6 +45,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
@@ -97,6 +98,7 @@ public class CoderTranslationTest {
           .add(ShardedKey.Coder.of(StringUtf8Coder.of()))
           .add(TimestampPrefixingWindowCoder.of(IntervalWindowCoder.of()))
           .add(NullableCoder.of(ByteArrayCoder.of()))
+          .add(VoidCoder.of())
           .build();
 
   /**
@@ -107,8 +109,10 @@ public class CoderTranslationTest {
   public static class ValidateKnownCodersPresentTest {
     @Test
     public void validateKnownCoders() {
-      // Validates that every known coder in the Coders class is represented in a "Known Coder"
-      // tests, which demonstrates that they are serialized via components and specified URNs rather
+      // Validates that every known coder in the Coders class is represented in a
+      // "Known Coder"
+      // tests, which demonstrates that they are serialized via components and
+      // specified URNs rather
       // than java serialized
       Set<Class<? extends Coder>> knownCoderClasses =
           new ModelCoderRegistrar().getCoderURNs().keySet();
