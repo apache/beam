@@ -142,6 +142,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.client.grpc.stubs.WindmillChannels;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactory;
 import org.apache.beam.runners.dataflow.worker.windmill.testing.FakeWindmillStubFactoryFactory;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.Coder.Context;
@@ -156,6 +157,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -303,6 +305,10 @@ public class StreamingDataflowWorkerTest {
       };
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public ExpectedLogs expectedWorkSchedulerLogs = ExpectedLogs.none(StreamingWorkScheduler.class);
+
   @Rule public BlockingFn blockingFn = new BlockingFn();
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -4850,6 +4856,23 @@ public class StreamingDataflowWorkerTest {
       } else {
         c.output(c.element());
       }
+    }
+  }
+
+  static class FixedSizeCommitFn extends DoFn<KV<String, String>, KV<String, String>> {
+    private final int size;
+
+    FixedSizeCommitFn(int size) {
+      this.size = size;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      StringBuilder s = new StringBuilder();
+      for (int i = 0; i < size; ++i) {
+        s.append("a");
+      }
+      c.output(KV.of(c.element().getKey(), s.toString()));
     }
   }
 

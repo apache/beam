@@ -80,6 +80,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.StreamingWorkScheduler.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -717,6 +718,17 @@ public class StreamingModeExecutionContext
       return;
     }
 
+    if (executedWorks.size() > 1) {
+      LOG.warn(
+          "Windmill Commit limit exceeded on a multi key bundle. Retrying without batching. Batch size: {}",
+          executedWorks.size());
+      for (Work w : executedWorks) {
+        w.setDisableMultiKeyBatching(true);
+      }
+      throw new MultiKeyCommitValidationException(
+          "Commit size validation failed for batch. Retrying individually.");
+    }
+
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(
             systemName, byteLimit, commitRequest, key, hotKeyLoggingEnabled);
@@ -773,7 +785,9 @@ public class StreamingModeExecutionContext
       throw new WorkItemCancelledException(activeWork.getWorkItem().getShardingKey());
     }
 
-    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
+    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT)
+        || activeWork.isMultiKeyBatchingDisabled()
+        || shouldStopBatching()) {
       return false;
     }
 
@@ -792,7 +806,10 @@ public class StreamingModeExecutionContext
   }
 
   private boolean shouldStopBatching() {
-    // TODO: stop batching if the previous work item requested truncation
+    // stop batching if the previous work item requested truncation
+    if (getOutputBuilder().getExceedsMaxWorkItemCommitBytes()) {
+      return true;
+    }
     if (workItemsPolled >= multiKeyBundleOptions.maxKeyGroupBatchSize()) {
       return true;
     }
