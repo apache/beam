@@ -909,3 +909,75 @@ def match_all(
           path=str(x.path), size_in_bytes=int(x.size_in_bytes),
           last_updated_in_seconds=float(x.last_updated_in_seconds)
           if x.last_updated_in_seconds is not None else None))
+
+
+def _dicom_search_result_to_row(result):
+  if not result.get('success'):
+    raise RuntimeError(
+        'DicomSearch failed with status: %s' % (result.get('status'), ))
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+@beam.ptransform_fn
+@yaml_errors.maybe_with_exception_handling_transform_fn
+def dicom_search(
+    pcoll,
+    *,
+    buffer_size: int = 8,
+    max_workers: int = 5):
+  """Searches a Google Cloud Healthcare DICOM store using QIDO-RS.
+
+  This transform takes an input PCollection of Rows describing QIDO search
+  requests and returns Rows with the search results encoded as JSON.
+
+  Each input Row must include:
+
+    - project_id (str): GCP project containing the DICOM store.
+    - region (str): Region where the DICOM store resides.
+    - dataset_id (str): Dataset containing the DICOM store.
+    - dicom_store_id (str): DICOM store id.
+    - search_type (str): One of ``studies``, ``series``, or ``instances``.
+    - params (map of str to str, optional): QIDO search filters.
+
+  Successful outputs are Rows with:
+
+    - result (str): JSON-encoded list of matching DICOM resources.
+    - status (str): HTTP status from the DICOM API.
+    - input (str): JSON-encoded copy of the search request.
+
+  Failed searches raise and can be routed with ``error_handling``.
+
+  Args:
+    buffer_size: Number of requests to buffer before flushing.
+    max_workers: Maximum number of threads used to issue requests.
+  """
+  try:
+    from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  except ImportError as exn:
+    raise ValueError(
+        "GCP dependencies are not installed. Cannot use DicomSearch. "
+        "Please install using 'pip install apache-beam[gcp]'."
+    ) from exn
+
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  return (
+      pcoll
+      | beam.Map(row_to_dict)
+      | DicomSearch(buffer_size=buffer_size, max_workers=max_workers)
+      | beam.Map(_dicom_search_result_to_row))
