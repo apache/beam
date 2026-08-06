@@ -147,6 +147,9 @@
 * Fixed unbounded checkpoint state growth for splittable DoFns that self-checkpoint on the portable Flink runner (Java) ([#27648](https://github.com/apache/beam/issues/27648)).
 * Improved Java pipeline performance by avoiding repeated `DoFn` type descriptor resolution when creating cached invokers ([#39309](https://github.com/apache/beam/issues/39309)).
 * (Python) Fixed a memory leak in Python SDK caused by storing exceptions with potentially large stack frames in a cache ([#39406](https://github.com/apache/beam/issues/39406)).
+* Portable Java SDK now encodes SchemaCoders in a portable way ([#34672](https://github.com/apache/beam/issues/34672)).
+  - The new coder translation is protected by the "use_known_schema_coder" PipelineOptions experiment.
+  - Fixes ([#36496](https://github.com/apache/beam/issues/36496)), ([#30276](https://github.com/apache/beam/issues/30276)), ([#29245](https://github.com/apache/beam/issues/29245)).
 
 # [2.75.0] - 2026-07-08
 
