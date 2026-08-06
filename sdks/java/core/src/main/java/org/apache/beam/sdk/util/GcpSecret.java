@@ -21,11 +21,25 @@ import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
 import com.google.cloud.secretmanager.v1.SecretVersionName;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A {@link Secret} manager implementation that retrieves secrets from Google Cloud Secret Manager.
  */
-public class GcpSecret implements Secret {
+public class GcpSecret extends Secret {
+  private static final Logger LOG = LoggerFactory.getLogger(GcpSecret.class);
   private final String versionName;
 
   /**
@@ -37,6 +51,68 @@ public class GcpSecret implements Secret {
    */
   public GcpSecret(String versionName) {
     this.versionName = versionName;
+  }
+
+  /** Initialize GcpSecret from a map specification. */
+  static GcpSecret fromMap(Map<String, String> specMap) {
+    Set<String> allowedKeys =
+        new HashSet<>(Arrays.asList("version_name", "name", "project", "version"));
+    Set<String> invalidKeys = new HashSet<>(specMap.keySet());
+    invalidKeys.removeAll(allowedKeys);
+    if (!invalidKeys.isEmpty()) {
+      List<String> sortedInvalid = new ArrayList<>(invalidKeys);
+      Collections.sort(sortedInvalid);
+      throw new IllegalArgumentException(
+          "Invalid secret parameter " + String.join(", ", sortedInvalid));
+    }
+    String versionName = parseVersionName(specMap);
+    return new GcpSecret(versionName);
+  }
+
+  /** Parses the version name from a specification dictionary. */
+  private static String parseVersionName(Map<String, String> specMap) {
+    String versionNameParam = specMap.get("version_name");
+    if (!Strings.isNullOrEmpty(versionNameParam)) {
+      return Preconditions.checkNotNull(
+          versionNameParam, "version_name must contain a valid value for versionName parameter");
+    }
+    String secretId = specMap.get("name");
+    if (Strings.isNullOrEmpty(secretId)) {
+      throw new IllegalArgumentException("Secret name must be specified in secret spec.");
+    }
+    String projectId = specMap.get("project");
+    if (Strings.isNullOrEmpty(projectId)) {
+      projectId = System.getenv("GOOGLE_CLOUD_PROJECT");
+    }
+    if (Strings.isNullOrEmpty(projectId)) {
+      projectId = System.getenv("GCP_PROJECT");
+    }
+    if (Strings.isNullOrEmpty(projectId)) {
+      try {
+        Class<?> clazz = Class.forName("com.google.cloud.ServiceOptions");
+        java.lang.reflect.Method method = clazz.getMethod("getDefaultProjectId");
+        @SuppressWarnings("nullness")
+        Object result = method.invoke(null);
+        if (result != null) {
+          projectId = result.toString();
+        }
+      } catch (Throwable e) {
+        LOG.debug("Could not resolve GCP project via ServiceOptions reflection", e);
+      }
+    }
+    if (Strings.isNullOrEmpty(projectId)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Could not resolve GCP project ID for secret '%s'. "
+                  + "Please specify 'project' in the secret spec, set GOOGLE_CLOUD_PROJECT environment variable, "
+                  + "or configure Application Default Credentials.",
+              secretId));
+    }
+    String versionId = specMap.getOrDefault("version", "latest");
+    if (Strings.isNullOrEmpty(versionId)) {
+      versionId = "latest";
+    }
+    return String.format("projects/%s/secrets/%s/versions/%s", projectId, secretId, versionId);
   }
 
   /**
@@ -63,5 +139,22 @@ public class GcpSecret implements Secret {
    */
   public String getVersionName() {
     return versionName;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof GcpSecret)) {
+      return false;
+    }
+    GcpSecret other = (GcpSecret) obj;
+    return Objects.equals(this.versionName, other.versionName);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(versionName);
   }
 }
