@@ -308,6 +308,33 @@
       config:
         gradle_target: 'sdks:java:io:amazon-web-services2:expansion-service:shadowJar'
 
+# Snowflake
+- type: renaming
+  transforms:
+    'WriteToSnowflake': 'WriteToSnowflake'
+  config:
+    mappings:
+      'WriteToSnowflake':
+        server_name: 'server_name'
+        username: 'username'
+        password: 'password'
+        database: 'database'
+        schema: 'schema'
+        warehouse: 'warehouse'
+        role: 'role'
+        table: 'table'
+        staging_bucket_name: 'staging_bucket_name'
+        storage_integration_name: 'storage_integration_name'
+        create_disposition: 'create_disposition'
+        write_disposition: 'write_disposition'
+        quotation_mark: 'quotation_mark'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'WriteToSnowflake': 'beam:schematransform:org.apache.beam:snowflake_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:snowflake:expansion-service:shadowJar'
+
 # Databases
 - type: renaming
   transforms:
