@@ -29,9 +29,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
@@ -135,6 +135,13 @@ public abstract class UnboundedSolaceWriter
   }
 
   public void publishResults(BeamContextWrapper context, @Nullable Set<String> messageIdsToAck) {
+    publishResults(context, null, messageIdsToAck);
+  }
+
+  public void publishResults(
+      BeamContextWrapper context,
+      @Nullable PublishResult firstResult,
+      @Nullable Set<String> messageIdsToAck) {
     long sumPublish = 0;
     long countPublish = 0;
     long minPublish = Long.MAX_VALUE;
@@ -145,9 +152,9 @@ public abstract class UnboundedSolaceWriter
     long minFailed = Long.MAX_VALUE;
     long maxFailed = 0;
 
-    Queue<PublishResult> publishResultsQueue =
+    BlockingQueue<PublishResult> publishResultsQueue =
         solaceSessionServiceWithProducer().getPublishedResultsQueue();
-    Solace.PublishResult result = publishResultsQueue.poll();
+    PublishResult result = firstResult != null ? firstResult : publishResultsQueue.poll();
 
     if (result != null) {
       if (getCurrentBundleTimestamp() == null) {
@@ -224,16 +231,26 @@ public abstract class UnboundedSolaceWriter
   }
 
   public void waitForAcks(BeamContextWrapper context, Set<String> messageIdsToAck) {
+    BlockingQueue<PublishResult> queue =
+        solaceSessionServiceWithProducer().getPublishedResultsQueue();
     long timeoutMs = System.currentTimeMillis() + ACKS_FLUSHING_INTERVAL_SECS * 1000;
-    while (!messageIdsToAck.isEmpty() && System.currentTimeMillis() < timeoutMs) {
+    while (!messageIdsToAck.isEmpty()) {
       publishResults(context, messageIdsToAck);
-      if (!messageIdsToAck.isEmpty()) {
-        try {
-          Thread.sleep(10);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          break;
+      if (messageIdsToAck.isEmpty()) {
+        break;
+      }
+      long remainingTimeMs = timeoutMs - System.currentTimeMillis();
+      if (remainingTimeMs <= 0) {
+        break;
+      }
+      try {
+        PublishResult result = queue.poll(remainingTimeMs, TimeUnit.MILLISECONDS);
+        if (result != null) {
+          publishResults(context, result, messageIdsToAck);
         }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
       }
     }
     if (!messageIdsToAck.isEmpty()) {
