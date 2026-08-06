@@ -70,6 +70,7 @@ type W struct {
 	// These are the ID sources
 	inst               uint64
 	connected, stopped atomic.Bool
+	StartTime          time.Time
 	StoppedChan        chan struct{} // Channel to Broadcast stopped state.
 
 	InstReqs chan *fnpb.InstructionRequest
@@ -292,11 +293,37 @@ func (wk *W) Stopped() bool {
 	return wk.stopped.Load()
 }
 
+// Uptime returns how long the worker has been connected.
+func (wk *W) Uptime() time.Duration {
+	wk.mu.Lock()
+	defer wk.mu.Unlock()
+	if wk.StartTime.IsZero() {
+		return 0
+	}
+	return time.Since(wk.StartTime)
+}
+
+// ActiveBundles returns a list of active bundles currently processing on this worker.
+func (wk *W) ActiveBundles() []string {
+	wk.mu.Lock()
+	defer wk.mu.Unlock()
+	var bundles []string
+	for id, responder := range wk.activeInstructions {
+		if b, ok := responder.(*B); ok {
+			bundles = append(bundles, fmt.Sprintf("%s (%s)", id, b.PBDID))
+		}
+	}
+	return bundles
+}
+
 // Control relays instructions to SDKs and back again, coordinated via unique instructionIDs.
 //
 // Requests come from the runner, and are sent to the client in the SDK.
 func (wk *W) Control(ctrl fnpb.BeamFnControl_ControlServer) error {
 	wk.connected.Store(true)
+	wk.mu.Lock()
+	wk.StartTime = time.Now()
+	wk.mu.Unlock()
 	done := make(chan error, 1)
 	go func() {
 		for {

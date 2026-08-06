@@ -184,6 +184,8 @@ func (s *stage) Execute(ctx context.Context, j *jobservices.Job, wk *worker.W, c
 		panic(err)
 	}
 
+	bundleStart := time.Now()
+
 	// Progress + split loop.
 	previousIndex := int64(-2)
 	previousTotalCount := int64(-2) // Total count of all pcollection elements.
@@ -232,7 +234,11 @@ progress:
 				md := wk.MonitoringMetadata(ctx, unknownIDs)
 				j.AddMetricShortIDs(md)
 			}
-			slog.Debug("progress report", "bundle", rb, "index", index, "prevIndex", previousIndex)
+			runningFor := time.Since(bundleStart)
+			slog.Debug("progress report", "bundle", rb, "runningFor", runningFor, "index", index, "prevIndex", previousIndex)
+			if runningFor > 5*time.Minute {
+				slog.Warn("Bundle has been running for a long time", "bundle", rb, "runningFor", runningFor, "worker", wk.ID)
+			}
 
 			// Check if there has been any measurable progress by the input, or all output pcollections since last report.
 			slow := previousIndex == index["index"] && previousTotalCount == index["totalCount"]

@@ -159,9 +159,12 @@ func externalEnvironment(ctx context.Context, ep *pipepb.ExternalPayload, wk *wo
 
 	// Previous context cancelled so we need a new one
 	// for this request.
-	pool.StopWorker(bgContext, &fnpb.StopWorkerRequest{
+	_, err = pool.StopWorker(bgContext, &fnpb.StopWorkerRequest{
 		WorkerId: wk.ID,
 	})
+	if err != nil {
+		slog.Warn("StopWorker failed", "worker", wk, "error", err)
+	}
 	wk.Stop()
 }
 
