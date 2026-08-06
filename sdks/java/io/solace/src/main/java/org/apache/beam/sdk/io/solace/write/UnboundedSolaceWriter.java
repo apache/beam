@@ -33,6 +33,7 @@ import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
@@ -68,6 +69,7 @@ public abstract class UnboundedSolaceWriter
 
   // This is the batch limit supported by the send multiple JCSMP API method.
   static final int SOLACE_BATCH_LIMIT = 50;
+  private static final long PUBLISH_ACKS_TIMEOUT_SECS = 30;
   private final Distribution latencyPublish =
       Metrics.distribution(SolaceIO.Write.class, "latency_publish_ms");
 
@@ -130,6 +132,50 @@ public abstract class UnboundedSolaceWriter
   public SessionService solaceSessionServiceWithProducer() {
     return SolaceWriteSessionsHandler.getSessionServiceWithProducer(
         currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
+  }
+
+  /**
+   * Increments the pending publish count for the current session's producer. This count is
+   * decremented by the {@link org.apache.beam.sdk.io.solace.broker.PublishResultHandler} when each
+   * asynchronous Solace ACK callback arrives.
+   *
+   * <p>Use this to track in-flight publish operations so that {@link #waitForPendingPublishes()}
+   * can block until all ACKs have been received.
+   */
+  public void incrementPendingPublishes(int count) {
+    solaceSessionServiceWithProducer().getPendingPublishCount().addAndGet(count);
+  }
+
+  /**
+   * Waits for all in-flight publish operations to complete, with a timeout of {@value
+   * #PUBLISH_ACKS_TIMEOUT_SECS} seconds.
+   *
+   * <p>This is necessary in batch pipelines where the asynchronous Solace ACK callbacks may not
+   * have arrived by the time {@code @FinishBundle} is called. Without this wait, the pipeline may
+   * end before publish results are emitted, causing data loss.
+   *
+   * <p>This method is a no-op if there are no pending publishes, or if the thread is interrupted.
+   */
+  public void waitForPendingPublishes() throws IOException {
+    AtomicInteger pending = solaceSessionServiceWithProducer().getPendingPublishCount();
+    long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(PUBLISH_ACKS_TIMEOUT_SECS);
+    while (pending.get() > 0 && System.nanoTime() < deadline) {
+      try {
+        Thread.sleep(50);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        LOG.warn(
+            "SolaceIO.Write: Interrupted while waiting for {} pending publish ACKs.",
+            pending.get());
+        return;
+      }
+    }
+    if (pending.get() > 0) {
+      LOG.warn(
+          "SolaceIO.Write: Timed out waiting for {} pending publish ACKs after {} seconds.",
+          pending.get(),
+          PUBLISH_ACKS_TIMEOUT_SECS);
+    }
   }
 
   public void publishResults(BeamContextWrapper context) {
