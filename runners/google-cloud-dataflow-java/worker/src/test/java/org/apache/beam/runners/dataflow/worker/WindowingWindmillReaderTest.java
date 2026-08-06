@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -29,7 +30,6 @@ import static org.mockito.Mockito.when;
 import java.io.IOException;
 import java.util.List;
 import org.apache.beam.runners.core.KeyedWorkItem;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -84,12 +84,6 @@ public class WindowingWindmillReaderTest {
     reader =
         WindowingWindmillReader.create(
             coder, mockContext, ValueProvider.StaticValueProvider.of(false));
-  }
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem) {

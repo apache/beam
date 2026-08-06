@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -30,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.CoderException;
@@ -252,12 +252,6 @@ public class WindmillReaderIteratorBaseTest {
       }
       assertEquals(Arrays.toString(messageBundleCounts) + skipErrors, expected, actual);
     }
-  }
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem) {

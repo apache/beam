@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -26,7 +27,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
@@ -120,12 +120,6 @@ public class ActiveWorkRefresherTest {
   private ExecutableWork createOldWork(int workIds, Consumer<Work> processWork) {
     ShardedKey shardedKey = ShardedKey.create(ByteString.EMPTY, workIds);
     return createOldWork(shardedKey, workIds, processWork);
-  }
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
   }
 
   private ExecutableWork createOldWork(

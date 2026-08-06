@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
@@ -57,12 +58,6 @@ public class ComputationStateCacheTest {
       mock(WindmillStateCache.ForComputation.class);
   private final ComputationConfig.Fetcher configFetcher = mock(ComputationConfig.Fetcher.class);
   private ComputationStateCache computationStateCache;
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
-  }
 
   private static ExecutableWork createWork(ShardedKey shardedKey, long workToken, long cacheToken) {
     WorkItem workItem =

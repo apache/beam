@@ -17,10 +17,10 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -39,12 +39,6 @@ import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class WorkTest {
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
-  }
 
   private static Work createTestWork() {
     Windmill.WorkItem workItem =

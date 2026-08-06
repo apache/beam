@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -24,7 +25,6 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.lang.Thread.State;
 import java.util.ArrayList;
@@ -38,7 +38,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -83,12 +82,6 @@ public class KeyGroupWorkQueueTest {
   }
 
   private static final Work.KeyGroup TEST_KEY_GROUP = Work.KeyGroup.create(1, 2);
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
-  }
 
   private QueuedWork createQueuedWork(String computationId, long workBytes) {
     return createQueuedWork(computationId, TEST_KEY_GROUP, workBytes);

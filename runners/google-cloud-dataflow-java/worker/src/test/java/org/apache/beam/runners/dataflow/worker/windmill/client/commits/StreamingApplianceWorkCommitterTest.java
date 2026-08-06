@@ -18,9 +18,9 @@
 package org.apache.beam.runners.dataflow.worker.windmill.client.commits;
 
 import static com.google.common.truth.Truth.assertThat;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertNotNull;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
@@ -57,12 +57,6 @@ public class StreamingApplianceWorkCommitterTest {
   @Rule public ErrorCollector errorCollector = new ErrorCollector();
   private FakeWindmillServer fakeWindmillServer;
   private StreamingApplianceWorkCommitter workCommitter;
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
-  }
 
   private static Work createMockWork(long workToken) {
     WorkItem workItem =

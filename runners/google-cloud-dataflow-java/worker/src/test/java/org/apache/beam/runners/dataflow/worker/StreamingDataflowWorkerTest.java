@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.contains;
@@ -392,12 +393,6 @@ public class StreamingDataflowWorkerTest {
         (work, handle) -> {
           processWorkFn.accept(work);
         });
-  }
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {

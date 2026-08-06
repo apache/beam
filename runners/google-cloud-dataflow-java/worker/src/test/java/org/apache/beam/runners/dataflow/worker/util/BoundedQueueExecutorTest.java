@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -26,7 +27,6 @@ import static org.junit.Assert.assertThat;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -91,12 +91,6 @@ public class BoundedQueueExecutorTest {
       String computationId, Work.KeyGroup keyGroup, Consumer<Work> executeWorkFn) {
     return createWorkWithHandle(
         computationId, keyGroup, (work, handle) -> executeWorkFn.accept(work));
-  }
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
   }
 
   private static ExecutableWork createWorkWithComputationStateAndKeyGroup(

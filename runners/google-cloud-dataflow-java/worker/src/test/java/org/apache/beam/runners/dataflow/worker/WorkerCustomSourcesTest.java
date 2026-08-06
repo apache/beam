@@ -26,6 +26,7 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.dic
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.getReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.longToParallelism;
+import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.apache.beam.sdk.testing.ExpectedLogs.verifyLogged;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
@@ -50,7 +51,6 @@ import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 import static org.junit.internal.matchers.ThrowableMessageMatcher.hasMessage;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.ApproximateReportedProgress;
 import com.google.api.services.dataflow.model.DataflowPackage;
@@ -90,7 +90,6 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
@@ -201,12 +200,6 @@ public class WorkerCustomSourcesTest {
           contains(valueInGlobalWindow(0L + 2 * i), valueInGlobalWindow(1L + 2 * i)));
       assertTrue(bundle.getSource().getMetadata().getEstimatedSizeBytes() > 0);
     }
-  }
-
-  private static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
   }
 
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
