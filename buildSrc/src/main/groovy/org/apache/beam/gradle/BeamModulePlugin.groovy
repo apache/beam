@@ -812,6 +812,7 @@ class BeamModulePlugin implements Plugin<Project> {
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
         hadoop_auth                                 : "org.apache.hadoop:hadoop-auth:$hadoop_version",
+        hadoop_aws                                  : "org.apache.hadoop:hadoop-aws:$hadoop_version",
         hadoop_client                               : "org.apache.hadoop:hadoop-client:$hadoop_version",
         hadoop_common                               : "org.apache.hadoop:hadoop-common:$hadoop_version",
         hadoop_mapreduce_client_core                : "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_version",

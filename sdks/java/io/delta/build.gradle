@@ -59,6 +59,8 @@ dependencies {
     permitUnusedDeclared "com.google.cloud.bigdataoss:gcsio:$bigdataoss_gcs_connector_version"
     permitUnusedDeclared "com.google.cloud.bigdataoss:util:$bigdataoss_gcs_connector_version"
 
+    runtimeOnly library.java.hadoop_aws
+
     // For Avro conversions
     testImplementation project(":sdks:java:extensions:avro")
 
@@ -73,7 +75,11 @@ dependencies {
     testImplementation project(":sdks:java:io:google-cloud-platform")
     testImplementation project(":sdks:java:extensions:google-cloud-platform-core")
     testImplementation library.java.google_cloud_storage
+    testImplementation library.java.testcontainers_base
+    testImplementation library.java.testcontainers_localstack
+    testImplementation library.java.hadoop_aws
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
+    testRuntimeOnly library.java.slf4j_simple
 }
 
 configurations.all {
@@ -115,8 +121,21 @@ task dataflowIntegrationTest(type: Test) {
     outputs.upToDateWhen { false }
 
     include '**/*IT.class'
+    exclude '**/DeltaIOS3IT.class'
 
     maxParallelForks 4
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+task integrationTest(type: Test) {
+    group = "Verification"
+    description = "Runs integration tests locally."
+    outputs.upToDateWhen { false }
+    include '**/*IT.class'
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+
+    systemProperty "org.slf4j.simpleLogger.log.org.apache.hadoop.fs.s3a", "info"
+    systemProperty "org.slf4j.simpleLogger.log.software.amazon.awssdk", "info"
 }
