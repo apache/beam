@@ -132,6 +132,7 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
 # (e.g. pipeline crash before cleanup runs).
 _DEFAULT_TABLE_EXPIRATION_MS = 24 * 60 * 60 * 1000
 
+
 class FileFormat(object):
   CSV = 'CSV'
   JSON = 'NEWLINE_DELIMITED_JSON'
