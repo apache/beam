@@ -39,6 +39,7 @@ import org.apache.beam.sdk.options.PortablePipelineOptions;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.util.construction.Environments;
 import org.apache.beam.sdk.util.construction.PipelineOptionsTranslation;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -78,13 +79,18 @@ public class ExternalWorkerService extends BeamFnExternalWorkerPoolImplBase impl
               .withInterceptors(
                   ImmutableList.of(AddHarnessIdInterceptor.create(request.getWorkerId())));
 
-      ProvisionServiceGrpc.ProvisionServiceBlockingStub provisionStub =
-          ProvisionServiceGrpc.newBlockingStub(
-              channelFactory.forDescriptor(request.getProvisionEndpoint()));
-      ProvisionApi.ProvisionInfo provisionInfo =
-          provisionStub
-              .getProvisionInfo(ProvisionApi.GetProvisionInfoRequest.newBuilder().build())
-              .getInfo();
+      ManagedChannel channel = channelFactory.forDescriptor(request.getProvisionEndpoint());
+      ProvisionApi.ProvisionInfo provisionInfo;
+      try {
+        ProvisionServiceGrpc.ProvisionServiceBlockingStub provisionStub =
+            ProvisionServiceGrpc.newBlockingStub(channel);
+        provisionInfo =
+            provisionStub
+                .getProvisionInfo(ProvisionApi.GetProvisionInfoRequest.newBuilder().build())
+                .getInfo();
+      } finally {
+        channel.shutdown();
+      }
 
       runnerCapabilites = Sets.newHashSet(provisionInfo.getRunnerCapabilitiesList());
       if (provisionInfo.hasControlEndpoint()) {
