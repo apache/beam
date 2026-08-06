@@ -29,11 +29,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationWorkItemMetadata;
@@ -66,7 +68,8 @@ import org.junit.runners.JUnit4;
 public class GrpcDirectGetWorkStreamTest {
 
   private static final WorkItemScheduler NO_OP_WORK_ITEM_SCHEDULER =
-      (workItem,
+      (computationState,
+          workItem,
           serializedWorkItemSize,
           watermarks,
           processingContext,
@@ -161,7 +164,8 @@ public class GrpcDirectGetWorkStreamTest {
                     mock(HeartbeatSender.class),
                     mock(GetDataClient.class),
                     mock(WorkCommitter.class),
-                    workItemScheduler);
+                    workItemScheduler,
+                    ignored -> Optional.of(mock(ComputationState.class)));
     getWorkStream.start();
     return getWorkStream;
   }
@@ -281,7 +285,8 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            (work,
+            (computationState,
+                work,
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
@@ -331,7 +336,8 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            (work,
+            (computationState,
+                work,
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
@@ -370,7 +376,8 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            (work,
+            (computationState,
+                work,
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
@@ -415,7 +422,8 @@ public class GrpcDirectGetWorkStreamTest {
         createGetWorkStream(
             testStub,
             initialBudget,
-            (work,
+            (computationState,
+                work,
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,

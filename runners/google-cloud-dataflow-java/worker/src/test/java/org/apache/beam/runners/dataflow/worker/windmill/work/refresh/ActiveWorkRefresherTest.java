@@ -26,6 +26,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import com.google.common.truth.Correspondence;
@@ -121,6 +122,12 @@ public class ActiveWorkRefresherTest {
     return createOldWork(shardedKey, workIds, processWork);
   }
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private ExecutableWork createOldWork(
       ShardedKey shardedKey, int workIds, Consumer<Work> processWork) {
     WorkItem workItem =
@@ -136,7 +143,10 @@ public class ActiveWorkRefresherTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
+                createMockComputationState("computationId"),
+                new FakeGetDataClient(),
+                ignored -> {},
+                heartbeatSender),
             false,
             ActiveWorkRefresherTest::aLongTimeAgo,
             ImmutableList.of()),

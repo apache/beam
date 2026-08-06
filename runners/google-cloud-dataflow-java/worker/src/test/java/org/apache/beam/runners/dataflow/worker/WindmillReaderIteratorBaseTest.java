@@ -30,6 +30,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.sdk.coders.CoderException;
@@ -253,6 +254,12 @@ public class WindmillReaderIteratorBaseTest {
     }
   }
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private static Work createMockWork(Windmill.WorkItem workItem) {
     return Work.create(
         workItem,
@@ -261,7 +268,7 @@ public class WindmillReaderIteratorBaseTest {
             .setInputDataWatermark(new org.joda.time.Instant(1000))
             .build(),
         Work.createProcessingContext(
-            "computationId",
+            createMockComputationState("computationId"),
             mock(
                 org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient
                     .class),

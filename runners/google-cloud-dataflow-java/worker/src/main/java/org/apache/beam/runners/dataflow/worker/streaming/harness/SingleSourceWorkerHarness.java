@@ -179,7 +179,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
                                     .setOutputDataWatermark(workItem.getOutputDataWatermark())
                                     .build(),
                                 Work.createProcessingContext(
-                                    computationId,
+                                    computationState,
                                     getDataClient,
                                     workCommitter::commit,
                                     heartbeatSender),
@@ -250,7 +250,7 @@ public final class SingleSourceWorkerHarness implements StreamingWorkerHarness {
               workItem.getSerializedSize(),
               watermarks.setOutputDataWatermark(workItem.getOutputDataWatermark()).build(),
               Work.createProcessingContext(
-                  computationId, getDataClient, workCommitter::commit, heartbeatSender),
+                  computationState, getDataClient, workCommitter::commit, heartbeatSender),
               computationWork.getDrainMode(),
               /* getWorkStreamLatencies= */ ImmutableList.of());
         }

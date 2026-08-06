@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failure
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.util.HashSet;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -85,6 +87,12 @@ public class WorkFailureProcessorTest {
         ignored -> Windmill.ReportStatsResponse.newBuilder().setFailed(isWorkFailed).build());
   }
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private static ExecutableWork createWork(Supplier<Instant> clock, Consumer<Work> processWorkFn) {
     WorkItem workItem = WorkItem.newBuilder().setKey(ByteString.EMPTY).setWorkToken(1L).build();
     return ExecutableWork.create(
@@ -93,7 +101,7 @@ public class WorkFailureProcessorTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                "computationId",
+                createMockComputationState("computationId"),
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

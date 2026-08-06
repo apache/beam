@@ -382,13 +382,22 @@ public class StreamingDataflowWorkerTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+                createMockComputationState(computationId),
+                new FakeGetDataClient(),
+                ignored -> {},
+                mock(HeartbeatSender.class)),
             false,
             Instant::now,
             ImmutableList.of()),
         (work, handle) -> {
           processWorkFn.accept(work);
         });
+  }
+
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
   }
 
   private byte[] intervalWindowBytes(IntervalWindow window) throws Exception {
@@ -3966,7 +3975,7 @@ public class StreamingDataflowWorkerTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                "computationId",
+                createMockComputationState("computationId"),
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

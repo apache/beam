@@ -144,22 +144,26 @@ public final class Work implements RefreshableWork {
   }
 
   public static ProcessingContext createProcessingContext(
-      String computationId,
+      ComputationState computationState,
       GetDataClient getDataClient,
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender) {
     return ProcessingContext.create(
-        computationId, getDataClient, workCommitter, heartbeatSender, /* backendWorkerToken= */ "");
+        computationState,
+        getDataClient,
+        workCommitter,
+        heartbeatSender,
+        /* backendWorkerToken= */ "");
   }
 
   public static ProcessingContext createProcessingContext(
-      String computationId,
+      ComputationState computationState,
       GetDataClient getDataClient,
       Consumer<Commit> workCommitter,
       HeartbeatSender heartbeatSender,
       String backendWorkerToken) {
     return ProcessingContext.create(
-        computationId, getDataClient, workCommitter, heartbeatSender, backendWorkerToken);
+        computationState, getDataClient, workCommitter, heartbeatSender, backendWorkerToken);
   }
 
   private static LatencyAttribution.Builder createLatencyAttributionWithActiveLatencyBreakdown(
@@ -205,6 +209,10 @@ public final class Work implements RefreshableWork {
 
   public long getSerializedWorkItemSize() {
     return serializedWorkItemSize;
+  }
+
+  public ComputationState getComputationState() {
+    return processingContext.computationState();
   }
 
   public String getComputationId() {
@@ -457,17 +465,21 @@ public final class Work implements RefreshableWork {
   public abstract static class ProcessingContext {
 
     private static ProcessingContext create(
-        String computationId,
+        ComputationState computationState,
         GetDataClient getDataClient,
         Consumer<Commit> workCommitter,
         HeartbeatSender heartbeatSender,
         String backendWorkerToken) {
       return new AutoValue_Work_ProcessingContext(
-          computationId, getDataClient, heartbeatSender, workCommitter, backendWorkerToken);
+          computationState, getDataClient, heartbeatSender, workCommitter, backendWorkerToken);
     }
 
     /** Computation that the {@link Work} belongs to. */
-    public abstract String computationId();
+    public abstract ComputationState computationState();
+
+    public String computationId() {
+      return computationState().getComputationId();
+    }
 
     /** Handles GetData requests to streaming backend. */
     public abstract GetDataClient getDataClient();

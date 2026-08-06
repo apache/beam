@@ -89,6 +89,7 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
@@ -201,13 +202,22 @@ public class WorkerCustomSourcesTest {
     }
   }
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private static Work createMockWork(Windmill.WorkItem workItem, Watermarks watermarks) {
     return Work.create(
         workItem,
         workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
-            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
+            createMockComputationState(COMPUTATION_ID),
+            new FakeGetDataClient(),
+            ignored -> {},
+            mock(HeartbeatSender.class)),
         false,
         Instant::now,
         ImmutableList.of());
@@ -1046,7 +1056,7 @@ public class WorkerCustomSourcesTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
-                COMPUTATION_ID,
+                createMockComputationState(COMPUTATION_ID),
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

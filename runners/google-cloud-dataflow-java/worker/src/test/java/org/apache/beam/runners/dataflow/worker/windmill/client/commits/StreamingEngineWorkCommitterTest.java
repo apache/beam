@@ -23,6 +23,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import com.google.api.services.dataflow.model.MapTask;
 import java.io.IOException;
@@ -61,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.CloseableStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStreamPool;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.testing.GrpcCleanupRule;
@@ -105,6 +107,12 @@ public class StreamingEngineWorkCommitterTest {
     assertThat(s).hasSize(expectedSize);
   }
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private static Work createMockWork(long workToken) {
     WorkItem workItem =
         WorkItem.newBuilder()
@@ -118,7 +126,7 @@ public class StreamingEngineWorkCommitterTest {
         workItem.getSerializedSize(),
         Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
         Work.createProcessingContext(
-            "computationId",
+            createMockComputationState("computationId"),
             new FakeGetDataClient(),
             ignored -> {
               throw new UnsupportedOperationException();
@@ -135,7 +143,7 @@ public class StreamingEngineWorkCommitterTest {
         new MapTask().setSystemName("system").setStageName("stage"),
         mock(BoundedQueueExecutor.class),
         ImmutableMap.of(),
-        null);
+        mock(WindmillStateCache.ForComputation.class));
   }
 
   private static CompleteCommit asCompleteCommit(

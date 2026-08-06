@@ -58,6 +58,12 @@ public class ComputationStateCacheTest {
   private final ComputationConfig.Fetcher configFetcher = mock(ComputationConfig.Fetcher.class);
   private ComputationStateCache computationStateCache;
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private static ExecutableWork createWork(ShardedKey shardedKey, long workToken, long cacheToken) {
     WorkItem workItem =
         WorkItem.newBuilder()
@@ -72,7 +78,7 @@ public class ComputationStateCacheTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
-                "computationId",
+                createMockComputationState("computationId"),
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

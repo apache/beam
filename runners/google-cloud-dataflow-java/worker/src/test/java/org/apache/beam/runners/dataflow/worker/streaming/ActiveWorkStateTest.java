@@ -92,9 +92,18 @@ public class ActiveWorkStateTest {
         (work, handle) -> {});
   }
 
+  private static ComputationState createMockComputationState(String computationId) {
+    ComputationState computationState = mock(ComputationState.class);
+    when(computationState.getComputationId()).thenReturn(computationId);
+    return computationState;
+  }
+
   private static Work.ProcessingContext createWorkProcessingContext() {
     return Work.createProcessingContext(
-        "computationId", new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class));
+        createMockComputationState("computationId"),
+        new FakeGetDataClient(),
+        ignored -> {},
+        mock(HeartbeatSender.class));
   }
 
   private static WorkId workId(long workToken, long cacheToken) {

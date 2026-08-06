@@ -58,7 +58,7 @@ public class ComputationStateTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                "computationId", new FakeGetDataClient(), ignored -> {}, mockHeartbeatSender),
+                computationState, new FakeGetDataClient(), ignored -> {}, mockHeartbeatSender),
             false,
             Instant::now,
             ImmutableList.of()),

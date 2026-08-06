@@ -405,28 +405,25 @@ public final class StreamingDataflowWorker {
                 .setBytes(MAX_GET_WORK_FETCH_BYTES)
                 .build(),
             windmillStreamFactory,
-            (workItem,
+            (computationState,
+                workItem,
                 serializedWorkItemSize,
                 watermarks,
                 processingContext,
                 drainMode,
                 appliedFinalizeIds,
-                getWorkStreamLatencies) ->
-                checkNotNull(computationStateCache)
-                    .get(processingContext.computationId())
-                    .ifPresent(
-                        computationState -> {
-                          memoryMonitor.waitForResources("GetWork");
-                          streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
-                          streamingWorkScheduler.scheduleWork(
-                              computationState,
-                              workItem,
-                              serializedWorkItemSize,
-                              watermarks,
-                              processingContext,
-                              drainMode,
-                              getWorkStreamLatencies);
-                        }),
+                getWorkStreamLatencies) -> {
+              memoryMonitor.waitForResources("GetWork");
+              streamingWorkScheduler.queueAppliedFinalizeIds(appliedFinalizeIds);
+              streamingWorkScheduler.scheduleWork(
+                  computationState,
+                  workItem,
+                  serializedWorkItemSize,
+                  watermarks,
+                  processingContext,
+                  drainMode,
+                  getWorkStreamLatencies);
+            },
             ChannelCachingRemoteStubFactory.create(options.getGcpCredential(), channelCache),
             GetWorkBudgetDistributors.distributeEvenly(),
             checkNotNull(dispatcherClient),
@@ -441,7 +438,8 @@ public final class StreamingDataflowWorker {
                     .setCommitWorkStreamFactory(
                         () -> CloseableStream.create(commitWorkStream, () -> {}))
                     .build(),
-            getDataMetricTracker);
+            getDataMetricTracker,
+            checkNotNull(this.computationStateCache)::get);
     ChannelzServlet channelzServlet =
         createChannelzServlet(
             options, fanOutStreamingEngineWorkerHarness::currentWindmillEndpoints);
