@@ -34,6 +34,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -172,6 +173,8 @@ public final class StreamingDataflowWorker {
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
   private static final String ELEMENT_METADATA_SUPPORTED_EXPERIMENT = "element_metadata_supported";
+  private static final AtomicLong DIRECTPATH_PRIMARY_NOT_READY_WAIT_NANOS =
+      new AtomicLong(TimeUnit.SECONDS.toNanos(15));
 
   @SuppressWarnings("unused")
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
@@ -847,16 +850,20 @@ public final class StreamingDataflowWorker {
                                   workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                                   currentFlowControlSettings),
                           MoreCallCredentials.from(
-                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
+                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential())),
+                          DIRECTPATH_PRIMARY_NOT_READY_WAIT_NANOS::get),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
 
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
-            config ->
-                channelCache.consumeFlowControlSettings(
-                    config.userWorkerJobSettings().getFlowControlSettings()));
+            config -> {
+              DIRECTPATH_PRIMARY_NOT_READY_WAIT_NANOS.set(
+                  config.userWorkerJobSettings().getDirectpathPrimaryNotReadyWaitNanos());
+              channelCache.consumeFlowControlSettings(
+                  config.userWorkerJobSettings().getFlowControlSettings());
+            });
     return channelCache;
   }
 

@@ -87,7 +87,8 @@ public class FailoverChannelTest {
         fallback,
         fallbackCallCredentials,
         nanoClock,
-        rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L);
+        rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L,
+        () -> TimeUnit.SECONDS.toNanos(10));
   }
 
   /**
@@ -286,6 +287,91 @@ public class FailoverChannelTest {
 
     // After 10 seconds: routes to fallback.
     time.addAndGet(TimeUnit.SECONDS.toNanos(11));
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockFallbackChannel).newCall(any(), any());
+  }
+
+  @Test
+  public void testTimeoutThresholdDecreaseTriggersFallbackEarlier() {
+    ManagedChannel mockChannel = mock(ManagedChannel.class);
+    ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
+    when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    // Simulate primary being TRANSIENT_FAILURE from the start.
+    when(mockChannel.getState(false)).thenReturn(ConnectivityState.TRANSIENT_FAILURE);
+
+    AtomicLong time = new AtomicLong(0);
+    // Start with 10s timeout
+    AtomicLong timeoutThreshold = new AtomicLong(TimeUnit.SECONDS.toNanos(10));
+
+    // Constructor seeds timer at time=0.
+    FailoverChannel failoverChannel =
+        FailoverChannel.forTest(
+            mockChannel, mockFallbackChannel, null, time::get, 0L, timeoutThreshold::get);
+
+    // Call at time=0. elapsed 0 <= 10s -> false.
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel).newCall(any(), any());
+
+    // Advance time by 5 seconds.
+    time.addAndGet(TimeUnit.SECONDS.toNanos(5));
+
+    // Call at time=5s. elapsed 5s <= 10s -> false.
+    // Primary is used.
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel, org.mockito.Mockito.times(2)).newCall(any(), any());
+
+    // Decrease threshold to 2 seconds.
+    timeoutThreshold.set(TimeUnit.SECONDS.toNanos(2));
+
+    // Call at time=5s. elapsed 5s > 2s -> true.
+    // Fallback is used.
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockFallbackChannel).newCall(any(), any());
+  }
+
+  @Test
+  public void testTimeoutThresholdIncreaseDelaysFallback() {
+    ManagedChannel mockChannel = mock(ManagedChannel.class);
+    ManagedChannel mockFallbackChannel = mock(ManagedChannel.class);
+    when(mockChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    when(mockFallbackChannel.newCall(any(), any())).thenReturn(mock(ClientCall.class));
+    // Simulate primary being TRANSIENT_FAILURE from the start.
+    when(mockChannel.getState(false)).thenReturn(ConnectivityState.TRANSIENT_FAILURE);
+
+    AtomicLong time = new AtomicLong(0);
+    // Start with 10s timeout
+    AtomicLong timeoutThreshold = new AtomicLong(TimeUnit.SECONDS.toNanos(10));
+
+    // Constructor seeds timer at time=0.
+    FailoverChannel failoverChannel =
+        FailoverChannel.forTest(
+            mockChannel, mockFallbackChannel, null, time::get, 0L, timeoutThreshold::get);
+
+    // Advance time by 9 seconds.
+    time.addAndGet(TimeUnit.SECONDS.toNanos(9));
+
+    // Call at time=9s. elapsed 9s <= 10s -> false.
+    // Primary is used.
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel).newCall(any(), any());
+
+    // Increase threshold to 20 seconds.
+    timeoutThreshold.set(TimeUnit.SECONDS.toNanos(20));
+
+    // Advance time by 5 seconds (total 14s).
+    time.addAndGet(TimeUnit.SECONDS.toNanos(5));
+
+    // Call at time=14s. elapsed 14s <= 20s -> false.
+    // Still routes to primary because of increased threshold
+    failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
+    verify(mockChannel, org.mockito.Mockito.times(2)).newCall(any(), any());
+
+    // Advance time by 7s (total 21s).
+    time.addAndGet(TimeUnit.SECONDS.toNanos(7));
+
+    // Call at time=21s. elapsed 21s > 20s -> true.
+    // Fallback is used.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
   }
