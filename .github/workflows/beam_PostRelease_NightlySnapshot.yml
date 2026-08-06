@@ -19,9 +19,9 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE:
-        description: Beam version of current release (e.g. 2.XX.0, or leave empty for nightly SNAPSHOT)
+        description: Beam version of current release (pass in empty string for nightly SNAPSHOT)
         required: false
-        default: ''
+        default: '2.XX.0'
       SNAPSHOT_URL:
         description: Location of the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/ or leave empty for snapshots).
         required: false
