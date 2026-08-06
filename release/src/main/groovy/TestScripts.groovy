@@ -37,6 +37,7 @@ class TestScripts {
      static String bqDataset
      static String pubsubTopic
      static String mavenLocalPath
+     static List<Process> backgroundProcesses = Collections.synchronizedList(new ArrayList<Process>())
    }
 
    def TestScripts(String[] args) {
@@ -79,6 +80,10 @@ class TestScripts {
          var.mavenLocalPath = options.mavenLocalPath
          println "Maven local path: ${var.mavenLocalPath}"
      }
+
+     Runtime.getRuntime().addShutdownHook(new Thread({
+       stopAllBackgroundProcesses()
+     }))
    }
 
    def ver() {
@@ -135,6 +140,37 @@ class TestScripts {
      }
    }
 
+   // Run a command in the background, returning the Process object.
+   public Process runBackground(String cmd) {
+     println cmd
+     if (cmd.startsWith("mvn ")) {
+       return _mvnBackground(cmd.substring(4))
+     } else {
+       return _executeBackground(cmd)
+     }
+   }
+
+   // Stop/kill a background process and all its descendants.
+   public void stopProcess(Process proc) {
+     if (proc != null && proc.isAlive()) {
+       try {
+         proc.descendants().forEach { it.destroyForcibly() }
+       } catch (Throwable ignored) {
+       }
+       proc.destroyForcibly()
+       proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+     }
+     var.backgroundProcesses.remove(proc)
+   }
+
+   // Stop all active background processes.
+   public void stopAllBackgroundProcesses() {
+     def procs = new ArrayList<>(var.backgroundProcesses)
+     procs.each { proc ->
+       stopProcess(proc)
+     }
+   }
+
    // Check for expected results in actual stdout from previous command, if fails, log errors then exit.
    public void see(String expected, String actual) {
      if (!actual.contains(expected)) {
@@ -159,6 +195,7 @@ class TestScripts {
 
    // Cleanup and print success
    public void done() {
+     stopAllBackgroundProcesses()
      var.startDir.deleteDir()
      println "[SUCCESS]"
      System.exit(0)
@@ -185,6 +222,26 @@ class TestScripts {
        error("Failed command")
      }
      return output_text
+   }
+
+   // Run a single command asynchronously in the background
+   private Process _executeBackground(String cmd) {
+     def shell = "sh -c cmd".split(' ')
+     shell[2] = cmd
+     def pb = new ProcessBuilder(shell)
+     pb.directory(var.curDir)
+     pb.redirectErrorStream(true)
+     def proc = pb.start()
+     var.backgroundProcesses.add(proc)
+     Thread.startDaemon {
+       try {
+         proc.inputStream.eachLine {
+           println it
+         }
+       } catch (Throwable ignored) {
+       }
+     }
+     return proc
    }
 
    // Change directory
@@ -233,8 +290,45 @@ class TestScripts {
      return _execute(setPath + cmd)
    }
 
+   // Run a maven command in the background
+   private Process _mvnBackground(String args) {
+     String mvnlocalPath = var.mavenLocalPath
+     if (!(var.mavenLocalPath)) {
+       mvnlocalPath = var.startDir
+     }
+     def m2 = new File(mvnlocalPath, ".m2/repository")
+     m2.mkdirs()
+     def settings = new File(mvnlocalPath, "settings.xml")
+     if(!settings.exists()) {
+     settings.write """
+       <settings>
+         <localRepository>${m2.absolutePath}</localRepository>
+           <profiles>
+             <profile>
+               <id>testrel</id>
+                 <repositories>
+                   <repository>
+                     <id>test.release</id>
+                     <url>${var.repoUrl}</url>
+                   </repository>
+                 </repositories>
+               </profile>
+             </profiles>
+        </settings>
+         """
+     }
+     def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
+     String path = System.getenv("PATH");
+     String maven_home = System.getenv("MAVEN_HOME") ?: '/usr/local/maven'
+     println "Using maven ${maven_home}"
+     def mvnPath = "${maven_home}/bin"
+     def setPath = "export PATH=\"${mvnPath}:${path}\" && "
+     return _executeBackground(setPath + cmd)
+   }
+
    // Clean up and report error
    public void error(String text) {
+     stopAllBackgroundProcesses()
      var.startDir.deleteDir()
      println "[ERROR] $text"
      System.exit(1)

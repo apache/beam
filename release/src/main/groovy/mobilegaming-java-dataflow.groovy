@@ -138,19 +138,13 @@ class LeaderBoardRunner {
     }
     println "Tables ${userTable} and ${teamTable} created successfully."
 
-    def InjectorThread = Thread.start() {
-      t.run(mobileGamingCommands.createInjectorCommand())
-    }
+    def injectorProcess = t.runBackground(mobileGamingCommands.createInjectorCommand())
 
     String jobName = "leaderboard-validation-" + new Date().getTime() + "-" + new Random().nextInt(1000)
-    def LeaderBoardThread = Thread.start() {
-      if (useStreamingEngine) {
-        t.run(mobileGamingCommands.createPipelineCommand(
-                "LeaderBoardWithStreamingEngine", runner, jobName, "LeaderBoard"))
-      } else {
-        t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
-      }
-    }
+    def leaderBoardProcess = useStreamingEngine ?
+        t.runBackground(mobileGamingCommands.createPipelineCommand(
+                "LeaderBoardWithStreamingEngine", runner, jobName, "LeaderBoard")) :
+        t.runBackground(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
 
     t.run("gcloud dataflow jobs list | grep pyflow-wordstream-candidate | grep Running | cut -d' ' -f1")
 
@@ -175,8 +169,8 @@ class LeaderBoardRunner {
       println "Waiting for pipeline to produce more results..."
       sleep(60000) // wait for 1 min
     }
-    InjectorThread.stop()
-    LeaderBoardThread.stop()
+    t.stopProcess(injectorProcess)
+    t.stopProcess(leaderBoardProcess)
     t.run("""RUNNING_JOB=`gcloud dataflow jobs list | grep ${jobName} | grep Running | cut -d' ' -f1`
 if [ ! -z "\${RUNNING_JOB}" ] 
   then 

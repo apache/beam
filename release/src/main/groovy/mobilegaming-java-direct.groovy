@@ -98,14 +98,10 @@ while (!tables.contains(userTable) || !tables.contains(teamTable)) {
 }
 println "Tables ${userTable} and ${teamTable} created successfully."
 
-def InjectorThread = Thread.start() {
-  t.run(mobileGamingCommands.createInjectorCommand())
-}
+def injectorProcess = t.runBackground(mobileGamingCommands.createInjectorCommand())
 
 jobName = "leaderboard-validation-" + new Date().getTime() + "-" + new Random().nextInt(1000)
-def LeaderBoardThread = Thread.start() {
-  t.run(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
-}
+def leaderBoardProcess = t.runBackground(mobileGamingCommands.createPipelineCommand("LeaderBoard", runner, jobName))
 
 // verify outputs in BQ tables
 def startTime = System.currentTimeMillis()
@@ -128,8 +124,8 @@ while ((System.currentTimeMillis() - startTime)/60000 < mobileGamingCommands.EXE
   println "Waiting for pipeline to produce more results..."
   sleep(60000) // wait for 1 min
 }
-InjectorThread.stop()
-LeaderBoardThread.stop()
+t.stopProcess(injectorProcess)
+t.stopProcess(leaderBoardProcess)
 
 if(!isSuccess){
   t.error("FAILED: Failed running LeaderBoard on DirectRunner")
