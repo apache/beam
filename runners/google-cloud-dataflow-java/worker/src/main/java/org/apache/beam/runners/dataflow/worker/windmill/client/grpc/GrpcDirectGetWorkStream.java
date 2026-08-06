@@ -288,14 +288,14 @@ final class GrpcDirectGetWorkStream
       ComputationState computationState = maybeComputationState.get();
       WorkItem workItem = assembledWorkItem.workItem();
       workItemScheduler.scheduleWork(
-        computationState,
-        workItem,
-        assembledWorkItem.bufferedSize(),
-        createWatermarks(workItem, metadata),
-        createProcessingContext(computationState),
-        metadata.drainMode(),
-        assembledWorkItem.appliedFinalizeIds(),
-        assembledWorkItem.latencyAttributions());
+          computationState,
+          workItem,
+          assembledWorkItem.bufferedSize(),
+          createWatermarks(workItem, metadata),
+          createProcessingContext(computationState),
+          metadata.drainMode(),
+          assembledWorkItem.appliedFinalizeIds(),
+          assembledWorkItem.latencyAttributions());
     } else {
       LOG.warn("Received work for unknown computation: {}", metadata.computationId());
     }
