@@ -166,7 +166,12 @@ class SparkExecutableStageFunction<InputT, SideInputT>
         if (executableStage.getTimers().size() == 0) {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
           processElements(
-              stateRequestHandler, receiverFactory, null, stageBundleFactory, inputs, checkpointHandler);
+              stateRequestHandler,
+              receiverFactory,
+              null,
+              stageBundleFactory,
+              inputs,
+              checkpointHandler);
           replaySdfResiduals(
               stateRequestHandler, receiverFactory, null, stageBundleFactory, checkpointHandler);
           return collector.iterator();

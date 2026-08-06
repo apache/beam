@@ -118,8 +118,7 @@ public class SparkExecutableStageFunctionTest {
                           .putInputs("input-name", inputId)
                           .setSpec(
                               RunnerApi.FunctionSpec.newBuilder()
-                                  .setUrn(
-                                      SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN))
+                                  .setUrn(SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN))
                           .build())
                   .putPcollections(inputId, PCollection.getDefaultInstance())
                   .build())
@@ -131,12 +130,7 @@ public class SparkExecutableStageFunctionTest {
     when(contextFactory.get(any())).thenReturn(stageContext);
     when(stageContext.getStageBundleFactory(any())).thenReturn(stageBundleFactory);
     when(stageBundleFactory.getBundle(
-            any(),
-            any(),
-            any(),
-            any(BundleProgressHandler.class),
-            any(),
-            any()))
+            any(), any(), any(), any(BundleProgressHandler.class), any(), any()))
         .thenReturn(remoteBundle);
     @SuppressWarnings("unchecked")
     ImmutableMap<String, FnDataReceiver> inputReceiver =
@@ -161,12 +155,7 @@ public class SparkExecutableStageFunctionTest {
 
     RemoteBundle bundle = Mockito.mock(RemoteBundle.class);
     when(stageBundleFactory.getBundle(
-            any(),
-            any(),
-            any(),
-            any(BundleProgressHandler.class),
-            any(),
-            any()))
+            any(), any(), any(), any(BundleProgressHandler.class), any(), any()))
         .thenReturn(bundle);
 
     @SuppressWarnings("unchecked")
@@ -288,8 +277,7 @@ public class SparkExecutableStageFunctionTest {
     inputs.add(WindowedValues.valueInGlobalWindow(0));
     function.call(inputs.iterator());
     verify(stageBundleFactory)
-        .getBundle(
-            any(), any(), any(), any(BundleProgressHandler.class), any(), any());
+        .getBundle(any(), any(), any(), any(BundleProgressHandler.class), any(), any());
     verify(stageBundleFactory).getProcessBundleDescriptor();
     verify(stageBundleFactory).close();
     verifyNoMoreInteractions(stageBundleFactory);
@@ -397,9 +385,7 @@ public class SparkExecutableStageFunctionTest {
 
     function.call(Collections.singletonList(WindowedValues.valueInGlobalWindow(1)).iterator());
 
-    assertThat(
-        received,
-        contains(WindowedValues.valueInGlobalWindow(1), residualValue));
+    assertThat(received, contains(WindowedValues.valueInGlobalWindow(1), residualValue));
   }
 
   private <InputT, SideInputT> SparkExecutableStageFunction<InputT, SideInputT> getFunction(
