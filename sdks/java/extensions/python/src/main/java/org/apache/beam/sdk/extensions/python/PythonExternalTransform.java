@@ -81,6 +81,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
 
   private String expansionService;
   private List<String> extraPackages;
+  private List<String> filesToStage;
 
   // We preseve the order here since Schema's care about order of fields but the order will not
   // matter when applying kwargs at the Python side.
@@ -98,6 +99,7 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
     this.fullyQualifiedName = fullyQualifiedName;
     this.expansionService = expansionService;
     this.extraPackages = new ArrayList<>();
+    this.filesToStage = new ArrayList<>();
     this.kwargsMap = new TreeMap<>();
     this.typeHints = new HashMap<>();
     // TODO(https://github.com/apache/beam/issues/21567): remove a default type hint for
@@ -302,6 +304,28 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         "Extra packages only apply to auto-started expansion service.");
     this.extraPackages = extraPackages;
     return this;
+  }
+
+  /**
+   * Specifies that the given Python files should be staged for the Python worker.
+   *
+   * @param filesToStage a list of local paths to Python files or data files.
+   * @return updated wrapper for the cross-language transform.
+   */
+  public PythonExternalTransform<InputT, OutputT> withFilesToStage(List<String> filesToStage) {
+    if (filesToStage.isEmpty()) {
+      return this;
+    }
+    Preconditions.checkState(
+        Strings.isNullOrEmpty(expansionService),
+        "Files to stage only apply to auto-started expansion service.");
+    this.filesToStage = filesToStage;
+    return this;
+  }
+
+  @VisibleForTesting
+  List<String> getFilesToStage() {
+    return filesToStage;
   }
 
   @VisibleForTesting
@@ -510,6 +534,11 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
         // * It was explicitly requested.
         // * Python executable is not available in the system but Docker is available.
         if (useTransformService || (!pythonAvailable && dockerAvailable)) {
+          if (!filesToStage.isEmpty()) {
+            throw new UnsupportedOperationException(
+                "Staging local files is not supported when using the Docker-based transform service. "
+                    + "Please use the default local Python-based expansion service instead.");
+          }
           // A unique project name ensures that this expansion gets a dedicated instance of the
           // transform service.
           String projectName = UUID.randomUUID().toString();
@@ -549,6 +578,11 @@ public class PythonExternalTransform<InputT extends PInput, OutputT extends POut
               "--port=" + port, "--fully_qualified_name_glob=*", "--pickle_library=cloudpickle");
           if (requirementsFile != null) {
             args.add("--requirements_file=" + requirementsFile.getAbsolutePath());
+          }
+          if (!filesToStage.isEmpty()) {
+            for (String file : filesToStage) {
+              args.add("--files_to_stage=" + file);
+            }
           }
           PythonService service =
               new PythonService(
