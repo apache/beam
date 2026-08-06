@@ -226,6 +226,7 @@ public class StreamingWorkScheduler {
   private void processWork(
       ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle handle) {
     Windmill.WorkItem workItem = work.getWorkItem();
+    String computationId = computationState.getComputationId();
     String systemName = computationState.getSystemName();
     LOG.debug("Starting processing for {}:\n{}", systemName, work);
     setLoggingContextComputation(systemName);
@@ -259,7 +260,8 @@ public class StreamingWorkScheduler {
       recordProcessingStats(workBatch, workItemCommits, executeWorkResult.stateBytesRead());
       LOG.debug("Processing done for work batch size: {}", workBatch.size());
     } catch (Throwable t) {
-      handleProcessWorkFailure(computationState, handle.getWorkBatch(), systemName, work, t);
+      handleProcessWorkFailure(
+          computationState, handle.getWorkBatch(), computationId, systemName, work, t);
     } finally {
       List<Work> processedWorkBatch = workBatch != null ? workBatch : ImmutableList.of(work);
       // Update total processing time counters. Updating in finally clause ensures that
@@ -452,6 +454,7 @@ public class StreamingWorkScheduler {
   private void handleProcessWorkFailure(
       ComputationState computationState,
       List<Work> failedBatch,
+      String computationId,
       String systemName,
       Work primaryWork,
       Throwable t) {
@@ -463,6 +466,7 @@ public class StreamingWorkScheduler {
       }
 
       workFailureProcessor.logAndProcessFailureBatch(
+          computationId,
           systemName,
           executableWorks,
           t,
