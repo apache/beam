@@ -200,6 +200,11 @@ public class JdbcReadSchemaTransformProvider
         dsConfig = dsConfig.withConnectionProperties(connectionProperties);
       }
 
+      String secretManager = config.getSecretManager();
+      if (secretManager != null) {
+        dsConfig = dsConfig.withSecretManager(secretManager);
+      }
+
       List<@org.checkerframework.checker.nullness.qual.Nullable String> initialSql =
           config.getConnectionInitSql();
       if (initialSql != null && initialSql.size() > 0) {
@@ -363,6 +368,11 @@ public class JdbcReadSchemaTransformProvider
     @Nullable
     public abstract String getReadQuery();
 
+    @SchemaFieldDescription(
+        "Secret Manager to use for fetching secret values. For example, GoogleCloudSecretManager.")
+    @Nullable
+    public abstract String getSecretManager();
+
     @SchemaFieldDescription("Username for the JDBC source.")
     @Nullable
     public abstract String getUsername();
@@ -450,6 +460,8 @@ public class JdbcReadSchemaTransformProvider
       public abstract Builder setDisableAutoCommit(Boolean value);
 
       public abstract Builder setDriverJars(String value);
+
+      public abstract Builder setSecretManager(String value);
 
       public abstract JdbcReadSchemaTransformConfiguration build();
     }

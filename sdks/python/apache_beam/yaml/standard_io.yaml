@@ -235,6 +235,7 @@
         table: 'location'
         partition_column : 'partition_column'
         num_partitions: 'num_partitions'
+        secret_manager: 'secret_manager'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
@@ -247,6 +248,7 @@
         password: 'password'
         table: 'location'
         batch_size: 'batch_size'
+        secret_manager: 'secret_manager'
         type: 'jdbc_type'
         username: 'username'
         query: 'write_statement'

@@ -122,7 +122,8 @@ JdbcConfigSchema = typing.NamedTuple(
 Config = typing.NamedTuple(
     'Config',
     [('driver_class_name', str), ('jdbc_url', str), ('username', str),
-     ('password', str), ('connection_properties', typing.Optional[str]),
+     ('password', str), ('secret_manager', typing.Optional[str]),
+     ('connection_properties', typing.Optional[str]),
      ('connection_init_sqls', typing.Optional[list[str]]),
      ('read_query', typing.Optional[str]),
      ('write_statement', typing.Optional[str]),
@@ -191,6 +192,7 @@ class WriteToJdbc(ExternalTransform):
       expansion_service=None,
       classpath=None,
       write_batch_size=None,
+      secret_manager=None,
   ):
     """
     Initializes a write operation to Jdbc.
@@ -225,6 +227,8 @@ class WriteToJdbc(ExternalTransform):
     :param write_batch_size: sets the maximum size in number of SQL statement
                              for the batch.
                              default is {@link JdbcIO.DEFAULT_BATCH_SIZE}
+    :param secret_manager: The secret manager to use for retrieving secrets.
+                           Defaults to `None` (no secret manager used).
     """
     classpath = classpath or DEFAULT_JDBC_CLASSPATH
     super().__init__(
@@ -239,6 +243,7 @@ class WriteToJdbc(ExternalTransform):
                             jdbc_url=jdbc_url,
                             username=username,
                             password=password,
+                            secret_manager=secret_manager,
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=statement,
@@ -320,7 +325,8 @@ class ReadFromJdbc(ExternalTransform):
       driver_jars=None,
       expansion_service=None,
       classpath=None,
-      schema=None):
+      schema=None,
+      secret_manager=None):
     """
     Initializes a read operation from Jdbc.
 
@@ -360,6 +366,8 @@ class ReadFromJdbc(ExternalTransform):
                    this should be a NamedTuple type that defines the structure
                    of the output PCollection elements. This bypasses automatic
                    schema inference during pipeline construction.
+    :param secret_manager: The secret manager to use for retrieving secrets.
+                           Defaults to `None` (no secret manager used).
     """
     # override new portable Date type with the current Jdbc type
     # TODO(https://github.com/apache/beam/issues/28359):
@@ -388,6 +396,7 @@ class ReadFromJdbc(ExternalTransform):
                             jdbc_url=jdbc_url,
                             username=username,
                             password=password,
+                            secret_manager=secret_manager,
                             connection_properties=connection_properties,
                             connection_init_sqls=connection_init_sqls,
                             write_statement=None,

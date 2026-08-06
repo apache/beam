@@ -85,6 +85,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -504,6 +505,9 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<String> getDriverJars();
 
     @Pure
+    abstract @Nullable ValueProvider<@Nullable String> getSecretManager();
+
+    @Pure
     abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
@@ -531,6 +535,8 @@ public class JdbcIO {
       abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
       abstract Builder setDriverJars(ValueProvider<String> driverJars);
+
+      abstract Builder setSecretManager(ValueProvider<@Nullable String> secretManager);
 
       abstract Builder setDataSource(@Nullable DataSource dataSource);
 
@@ -668,6 +674,17 @@ public class JdbcIO {
       return builder().setDriverJars(driverJars).build();
     }
 
+    /** Sets the secret manager provider (e.g. "GoogleCloudSecretManager"). */
+    public DataSourceConfiguration withSecretManager(@Nullable String secretManager) {
+      return withSecretManager(ValueProvider.StaticValueProvider.of(secretManager));
+    }
+
+    /** Same as {@link #withSecretManager(String)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withSecretManager(
+        ValueProvider<@Nullable String> secretManager) {
+      return builder().setSecretManager(secretManager).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -677,6 +694,7 @@ public class JdbcIO {
         builder.addIfNotNull(DisplayData.item("username", getUsername()));
         builder.addIfNotNull(DisplayData.item("driverJars", getDriverJars()));
         builder.addIfNotNull(DisplayData.item("queryTimeout", getQueryTimeout()));
+        builder.addIfNotNull(DisplayData.item("secretManager", getSecretManager()));
       }
     }
 
@@ -689,6 +707,7 @@ public class JdbcIO {
         if (getUrl() != null) {
           basicDataSource.setUrl(getUrl().get());
         }
+        ValueProvider<@Nullable String> secretManagerProvider = getSecretManager();
         if (getUsername() != null) {
           @SuppressWarnings(
               "nullness") // this is actually nullable, but apache commons dbcp2 not annotated
@@ -701,6 +720,16 @@ public class JdbcIO {
               "nullness") // this is actually nullable, but apache commons dbcp2 not annotated
           @NonNull
           String password = getPassword().get();
+          if (password != null) {
+            String secretManager = null;
+            if (secretManagerProvider != null) {
+              secretManager = secretManagerProvider.get();
+            }
+            String fetched = Secret.fromJson(password, secretManager).getString(false);
+            if (fetched != null) {
+              password = fetched;
+            }
+          }
           basicDataSource.setPassword(password);
         }
         if (getConnectionProperties() != null) {
