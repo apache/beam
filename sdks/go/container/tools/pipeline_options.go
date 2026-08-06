@@ -226,6 +226,26 @@ func (po *PipelineOptions) GetBool(name string) (bool, error) {
 	}
 }
 
+// GetFloat64 returns the value of an option as a float64.
+func (po *PipelineOptions) GetFloat64(name string) (float64, error) {
+	val, ok := po.options[name]
+	if !ok || val == nil {
+		return 0, fmt.Errorf("option %q not defined", name)
+	}
+	switch v := val.(type) {
+	case float64:
+		return v, nil
+	case string:
+		res, err := strconv.ParseFloat(v, 64)
+		if err == nil {
+			return res, nil
+		}
+		return 0, fmt.Errorf("option %q: failed to parse %q as float64: %w", name, v, err)
+	default:
+		return 0, fmt.Errorf("option %q: expected float64 (represented as number or string), got type %T", name, val)
+	}
+}
+
 // LookupExperiment returns the value of an experiment option if present.
 // - If the experiment is present but has no value (e.g., --experiments=foo), it returns "", true.
 // - If the experiment is present as a key-value pair (e.g., --experiments=foo=bar), it returns "bar", true.

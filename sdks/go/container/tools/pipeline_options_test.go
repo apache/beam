@@ -81,6 +81,7 @@ func TestParseOptionsFromProto_NestedOptionsNoNamespace(t *testing.T) {
 			"profiler_agent": "memray",
 			"profile_upload_interval_sec": 10,
 			"profiler_stop_after_crash": true,
+			"profile_sample_rate": 0.5,
 			"experiments": ["beam_fn_api", "pip_use_build_isolation"]
 		}
 	}`)
@@ -94,6 +95,10 @@ func TestParseOptionsFromProto_NestedOptionsNoNamespace(t *testing.T) {
 	}
 	if got, err := po.GetBool("profiler_stop_after_crash"); err != nil || got != true {
 		t.Errorf("GetBool(profiler_stop_after_crash) = (%t, %v), want (true, nil)", got, err)
+	}
+	// Sample float option in Beam. Unused for memray in practice.
+	if got, err := po.GetFloat64("profile_sample_rate"); err != nil || got != 0.5 {
+		t.Errorf("GetFloat64(profile_sample_rate) = (%f, %v), want (0.5, nil)", got, err)
 	}
 	experiments, err := po.GetStringSlice("experiments")
 	if err != nil || len(experiments) != 2 || experiments[0] != "beam_fn_api" || experiments[1] != "pip_use_build_isolation" {
@@ -109,6 +114,7 @@ func TestParseOptionsFromProto_FlatOptionsWithURN(t *testing.T) {
 		"beam:option:profiler_agent:v1": "memray",
 		"beam:option:profile_upload_interval_sec:v1": "10",
 		"beam:option:profiler_stop_after_crash:v1": "true",
+		"beam:option:profile_sample_rate:v1": "0.5",
 		"beam:option:experiments:v1": ["beam_fn_api", "another_exp"]
 	}`)
 	po := ParseOptionsFromProto(p, "")
@@ -121,6 +127,9 @@ func TestParseOptionsFromProto_FlatOptionsWithURN(t *testing.T) {
 	}
 	if got, err := po.GetBool("profiler_stop_after_crash"); err != nil || got != true {
 		t.Errorf("GetBool(profiler_stop_after_crash) = (%t, %v), want (true, nil)", got, err)
+	}
+	if got, err := po.GetFloat64("profile_sample_rate"); err != nil || got != 0.5 {
+		t.Errorf("GetFloat64(profile_sample_rate) = (%f, %v), want (0.5, nil)", got, err)
 	}
 	if got, err := po.GetString("experiments"); err != nil || got != "beam_fn_api,another_exp" {
 		t.Errorf("GetString(experiments) = (%q, %v), want (\"beam_fn_api,another_exp\", nil)", got, err)
@@ -191,8 +200,9 @@ func TestParseOptionsFromProto_MalformedOptions(t *testing.T) {
 		po := ParseOptionsFromProto(p, "")
 		_, errInt := po.GetInt("profile_upload_interval_sec")
 		_, errBool := po.GetBool("profiler_stop_after_crash")
-		if errInt == nil || errBool == nil {
-			t.Errorf("expected error for missing keys, got: intErr=%v, boolErr=%v", errInt, errBool)
+		_, errFloat := po.GetFloat64("profile_sample_rate")
+		if errInt == nil || errBool == nil || errFloat == nil {
+			t.Errorf("expected error for missing keys, got: intErr=%v, boolErr=%v, floatErr=%v", errInt, errBool, errFloat)
 		}
 	})
 }
