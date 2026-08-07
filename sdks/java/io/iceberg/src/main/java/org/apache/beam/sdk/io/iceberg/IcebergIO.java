@@ -490,6 +490,13 @@ public class IcebergIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /**
+     * Defines properties to be passed to the Iceberg writer itself. Note that these properties are
+     * execution-scoped, meaning that they are applied to a preexisting table and will not mutate
+     * any table-level properties.
+     *
+     * <p>See: https://iceberg.apache.org/docs/latest/configuration/#write-properties
+     */
     public WriteRows withWriteProperties(Map<String, String> writeProperties) {
       return toBuilder().setWriteProperties(writeProperties).build();
     }

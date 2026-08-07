@@ -202,7 +202,8 @@ class RecordWriterManager implements AutoCloseable {
                 table,
                 icebergDestination.getFileFormat(),
                 filePrefix + "_" + stateToken + "_" + recordIndex,
-                partitionKey);
+                partitionKey,
+                writeProperties);
         openWriters++;
         return writer;
       } catch (IOException e) {
@@ -310,11 +311,8 @@ class RecordWriterManager implements AutoCloseable {
     SortOrder sortOrder = createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
     Map<String, String> tableProperties =
         createConfig != null && createConfig.getTableProperties() != null
-            ? Maps.newHashMap(createConfig.getTableProperties())
+            ? createConfig.getTableProperties()
             : Maps.newHashMap();
-    if (writeProperties != null) {
-      tableProperties.putAll(writeProperties);
-    }
 
     // Create namespace if it does not exist yet
     if (!namespace.isEmpty() && catalog instanceof SupportsNamespaces) {
