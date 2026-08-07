@@ -44,7 +44,7 @@ efficient choices for batch work; this runner exists for pipelines that do not e
 ## Running a pipeline
 
 The runner is portable: it executes user code over the Fn API, in an SDK harness, so a pipeline goes
-to a job server rather than being run directly. From Java you do not have to start one yourself.
+to a job server rather than being run directly. You do not have to start one yourself.
 
 ### From Java
 
@@ -60,28 +60,56 @@ With no `jobEndpoint` set, the runner starts a job server of its own on a dynami
 it, and shuts it down when the pipeline finishes. Setting `--jobEndpoint` instead submits to a job
 server you are already running.
 
-### From another SDK, or against a shared job server
+### From Python
 
-Start the job server, which listens on `localhost:8099` by default:
+Select `KafkaStreamsRunner` there too. The Python runner builds the job server jar if it has to,
+starts it, and stops it when the pipeline finishes:
+
+```
+python my_pipeline.py \
+    --runner=KafkaStreamsRunner \
+    --bootstrap_servers=localhost:9092 \
+    --application_id=my-beam-pipeline
+```
+
+The SDK harness runs in `LOOPBACK` mode by default, so a local run needs no Docker. Building the jar
+takes a while the first time; `--kafka_streams_job_server_jar` points at a prebuilt one, which
+`./gradlew :runners:kafka-streams:job-server:shadowJar` produces.
+
+### Against a job server you are already running
+
+Start one, which listens on `localhost:8099` by default:
 
 ```
 ./gradlew :runners:kafka-streams:runJobServer
 ```
 
-Then submit to it with the portable runner:
+Then point a pipeline at it instead of letting the runner start its own. From Java:
 
 ```
---runner=PortableRunner \
---job_endpoint=localhost:8099 \
+--runner=KafkaStreamsRunner \
+--jobEndpoint=localhost:8099 \
 --bootstrapServers=localhost:9092 \
 --applicationId=my-beam-pipeline
 ```
 
-`applicationId` has no default and must be set. It becomes the Kafka Streams `application.id`, which
-is the identity of the consumer group and of the runner's internal topics, so two different
+and from Python, where the option names are the same in snake case:
+
+```
+--runner=PortableRunner \
+--job_endpoint=localhost:8099 \
+--bootstrap_servers=localhost:9092 \
+--application_id=my-beam-pipeline
+```
+
+The application id has no default and must be set. It becomes the Kafka Streams `application.id`,
+which is the identity of the consumer group and of the runner's internal topics, so two different
 pipelines sharing one would interfere with each other.
 
 ## Pipeline options
+
+Named as Java spells them below; from Python the same options are in snake case, so
+`internalParallelism` is `--internal_parallelism`.
 
 | Option | Default | Description |
 | --- | --- | --- |
