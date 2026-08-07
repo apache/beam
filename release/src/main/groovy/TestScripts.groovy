@@ -26,7 +26,6 @@ import groovy.util.CliBuilder
 class TestScripts {
 
     class BackgroundProcessInfo {
-      Process process
       String cmd
     }
 
@@ -205,6 +204,10 @@ class TestScripts {
          } catch (Throwable ignored) {
          }
          proc.destroyForcibly()
+         try {
+           proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+         } catch (Throwable ignored) {
+         }
        }
        var.backgroundProcesses.remove(proc)
        var.backgroundProcessInfo.remove(proc)
@@ -275,7 +278,7 @@ class TestScripts {
      pb.redirectErrorStream(true)
      def proc = pb.start()
      var.backgroundProcesses.add(proc)
-     var.backgroundProcessInfo.put(proc, new BackgroundProcessInfo(process: proc, cmd: cmd))
+     var.backgroundProcessInfo.put(proc, new BackgroundProcessInfo(cmd: cmd))
      Thread.startDaemon {
        try {
          proc.inputStream.eachLine {
@@ -295,8 +298,8 @@ class TestScripts {
      }
    }
 
-   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository if needed
-   private String _mvn(String args) {
+   // Build the maven command string with custom repository and settings.xml
+   private String _buildMvnCmd(String args) {
      String mvnlocalPath = var.mavenLocalPath
      if (!(var.mavenLocalPath)) {
        mvnlocalPath = var.startDir
@@ -304,69 +307,43 @@ class TestScripts {
      def m2 = new File(mvnlocalPath, ".m2/repository")
      m2.mkdirs()
      def settings = new File(mvnlocalPath, "settings.xml")
-     if(!settings.exists()) {
-     settings.write """
-       <settings>
-         <localRepository>${m2.absolutePath}</localRepository>
-           <profiles>
-             <profile>
-               <id>testrel</id>
-                 <repositories>
-                   <repository>
-                     <id>test.release</id>
-                     <url>${var.repoUrl}</url>
-                   </repository>
-                 </repositories>
-               </profile>
-             </profiles>
-        </settings>
-         """
+     if (!settings.exists()) {
+       settings.write """
+        <settings>
+          <localRepository>${m2.absolutePath}</localRepository>
+            <profiles>
+              <profile>
+                <id>testrel</id>
+                  <repositories>
+                    <repository>
+                      <id>test.release</id>
+                      <url>${var.repoUrl}</url>
+                    </repository>
+                  </repositories>
+                </profile>
+              </profiles>
+         </settings>
+          """
      }
      def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
-     String path = System.getenv("PATH");
+     String path = System.getenv("PATH")
      // Set the path on jenkins executors to use a recent maven
      // MAVEN_HOME is not set on some executors, so default to 3.5.2
      String maven_home = System.getenv("MAVEN_HOME") ?: '/usr/local/maven'
      println "Using maven ${maven_home}"
      def mvnPath = "${maven_home}/bin"
      def setPath = "export PATH=\"${mvnPath}:${path}\" && "
-     return _execute(setPath + cmd)
+     return setPath + cmd
+   }
+
+   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository if needed
+   private String _mvn(String args) {
+     return _execute(_buildMvnCmd(args))
    }
 
    // Run a maven command in the background
    private Process _mvnBackground(String args) {
-     String mvnlocalPath = var.mavenLocalPath
-     if (!(var.mavenLocalPath)) {
-       mvnlocalPath = var.startDir
-     }
-     def m2 = new File(mvnlocalPath, ".m2/repository")
-     m2.mkdirs()
-     def settings = new File(mvnlocalPath, "settings.xml")
-     if(!settings.exists()) {
-     settings.write """
-       <settings>
-         <localRepository>${m2.absolutePath}</localRepository>
-           <profiles>
-             <profile>
-               <id>testrel</id>
-                 <repositories>
-                   <repository>
-                     <id>test.release</id>
-                     <url>${var.repoUrl}</url>
-                   </repository>
-                 </repositories>
-               </profile>
-             </profiles>
-        </settings>
-         """
-     }
-     def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
-     String path = System.getenv("PATH");
-     String maven_home = System.getenv("MAVEN_HOME") ?: '/usr/local/maven'
-     println "Using maven ${maven_home}"
-     def mvnPath = "${maven_home}/bin"
-     def setPath = "export PATH=\"${mvnPath}:${path}\" && "
-     return _executeBackground(setPath + cmd)
+     return _executeBackground(_buildMvnCmd(args))
    }
 
    // Clean up and report error
