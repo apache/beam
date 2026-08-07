@@ -18,9 +18,14 @@
 """Interface and implementations for Secret providers in Apache Beam."""
 
 import abc
+import json
 import logging
+import os
+import warnings
+from typing import Any, Dict, Optional, Union
 
 _LOGGER = logging.getLogger(__name__)
+
 
 class Secret(abc.ABC):
   """A secret management class used for handling sensitive data.
@@ -66,17 +71,17 @@ class Secret(abc.ABC):
     """Returns the secret as a byte string."""
     raise NotImplementedError()
 
-  @staticmethod
-  def generate_secret_bytes() -> bytes:
-    """Generates a new secret key."""
-    from cryptography.fernet import Fernet
-    return Fernet.generate_key()
-
   def __getstate__(self):
     """Strip cached secrets before pickling for pipeline submission/transmission."""
     state = self.__dict__.copy()
     state['_cached_secret_bytes'] = None
     return state
+
+  @staticmethod
+  def generate_secret_bytes() -> bytes:
+    """Generates a new secret key using Fernet."""
+    from cryptography.fernet import Fernet
+    return Fernet.generate_key()
 
   @staticmethod
   def parse_secret_option(secret) -> 'Secret':
@@ -121,6 +126,82 @@ class Secret(abc.ABC):
             f'parameters: {secret_params}')
     return secret_class(**param_map)
 
+  @classmethod
+  def from_json(
+      cls, spec: str, secret_manager: Optional[str] = None) -> 'Secret':
+    """Return a Secret instance based on secret_manager provider and secret specification.
+
+    Args:
+      spec: Secret string (raw secret or JSON specification string).
+      secret_manager: Secret manager string (e.g. 'GoogleCloudSecretManager').
+
+    Returns:
+      An instance of Secret.
+    """
+    if not isinstance(spec, str):
+      raise TypeError(
+          f"Secret 'spec' must be a string, got {type(spec).__name__}")
+
+    secret_manager_name = (
+        secret_manager.strip()
+        if secret_manager and secret_manager.strip() else None)
+
+    spec_dict = None
+    try:
+      spec_dict = json.loads(spec)
+      if not isinstance(spec_dict, dict):
+        spec_dict = None
+    except Exception:
+      try:
+        import ast
+        spec_dict = ast.literal_eval(spec)
+        if not isinstance(spec_dict, dict):
+          spec_dict = None
+      except Exception:
+        pass
+
+    if secret_manager_name:
+      secret_cls = _SECRET_CLASSES.get(secret_manager_name.lower())
+      if secret_cls:
+        if isinstance(spec_dict, dict) and hasattr(secret_cls, 'from_dict'):
+          return secret_cls.from_dict(spec_dict)
+        elif isinstance(spec_dict, dict):
+          return secret_cls(**spec_dict)
+        else:
+          return secret_cls(spec)
+      else:
+        raise ValueError(
+            f"Unsupported secret manager: '{secret_manager_name}'. Currently supported options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'."
+        )
+
+    # If secret_manager is not set or empty, check if spec is a JSON specification dict
+    if spec_dict is not None:
+      msg = (
+          "The 'spec' parameter appears to be a JSON specification, but "
+          "'secret_manager' is not set. Defaulting to Raw.")
+      _LOGGER.warning(msg)
+      warnings.warn(msg, UserWarning)
+
+    return RawSecret(spec)
+
+
+class RawSecret(Secret):
+  """Secret implementation wrapping a raw secret string or bytes directly."""
+  def __init__(self, secret: Union[str, bytes]):
+    super().__init__()
+    if isinstance(secret, str):
+      self._secret = secret.encode("utf-8")
+    else:
+      self._secret = secret
+
+  def get_secret_bytes(self) -> bytes:
+    return self._secret
+
+  def __eq__(self, other: Any) -> bool:
+    if not isinstance(other, RawSecret):
+      return False
+    return self._secret == other._secret
+
 
 class GcpSecret(Secret):
   """A secret manager implementation that retrieves secrets from Google Cloud
@@ -136,7 +217,50 @@ class GcpSecret(Secret):
         For more info, see
         https://cloud.google.com/python/docs/reference/secretmanager/latest/google.cloud.secretmanager_v1beta1.services.secret_manager_service.SecretManagerServiceClient#google_cloud_secretmanager_v1beta1_services_secret_manager_service_SecretManagerServiceClient_access_secret_version
     """
+    super().__init__()
     self._version_name = version_name
+
+  @classmethod
+  def from_dict(cls, spec_dict: Dict[str, str]) -> 'GcpSecret':
+    """Initialize GcpSecret from a dictionary specification."""
+    allowed_keys = {'version_name', 'name', 'project', 'version'}
+    invalid_keys = set(spec_dict.keys()) - allowed_keys
+    if invalid_keys:
+      raise ValueError(
+          f"Invalid secret parameter {', '.join(sorted(invalid_keys))}")
+    version_name = cls._parse_version_name(spec_dict)
+    return cls(version_name)
+
+  @classmethod
+  def _parse_version_name(cls, spec_dict: Dict[str, str]) -> str:
+    if "version_name" in spec_dict:
+      return spec_dict["version_name"]
+
+    secret_id = spec_dict.get("name")
+    if not secret_id:
+      raise ValueError("Secret name ('name') must be specified in secret spec.")
+
+    # Resolve project ID from spec, environment variables, or Application Default Credentials
+    project_id = (
+        spec_dict.get("project") or os.environ.get("GOOGLE_CLOUD_PROJECT") or
+        os.environ.get("GCP_PROJECT"))
+
+    if not project_id:
+      try:
+        import google.auth
+        _, project_id = google.auth.default()
+      except Exception:
+        pass
+
+    version_id = spec_dict.get("version", "latest")
+
+    if not project_id:
+      raise ValueError(
+          f"Could not resolve GCP project ID for secret '{secret_id}'. "
+          "Please specify 'project' in the secret spec, set GOOGLE_CLOUD_PROJECT environment variable, "
+          "or configure Application Default Credentials.")
+
+    return f"projects/{project_id}/secrets/{secret_id}/versions/{version_id}"
 
   def get_secret_bytes(self) -> bytes:
     try:
@@ -176,11 +300,46 @@ class GcpHsmGeneratedSecret(Secret):
       key_id: The ID of the KMS key.
       job_name: The name of the job, used to generate a unique secret name.
     """
+    super().__init__()
     self._project_id = project_id
     self._location_id = location_id
     self._key_ring_id = key_ring_id
     self._key_id = key_id
+    self._job_name = job_name
     self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
+
+  def __eq__(self, other: Any) -> bool:
+    if not isinstance(other, GcpHsmGeneratedSecret):
+      return False
+    return (
+        self._project_id == other._project_id and
+        self._location_id == other._location_id and
+        self._key_ring_id == other._key_ring_id and
+        self._key_id == other._key_id and
+        getattr(self, '_job_name', None) == getattr(other, '_job_name', None))
+
+  @classmethod
+  def from_dict(cls, spec_dict: Dict[str, str]) -> 'GcpHsmGeneratedSecret':
+    """Initialize GcpHsmGeneratedSecret from a dictionary specification."""
+    allowed_keys = {
+        'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
+    }
+    missing = allowed_keys - set(spec_dict.keys())
+    if missing:
+      raise ValueError(
+          f"Missing required parameter(s) for GcpHsmGeneratedSecret: {sorted(list(missing))}"
+      )
+    invalid_keys = set(spec_dict.keys()) - allowed_keys
+    if invalid_keys:
+      raise ValueError(
+          f"Invalid secret parameter {', '.join(sorted(invalid_keys))}")
+    return cls(
+        project_id=spec_dict['project_id'],
+        location_id=spec_dict['location_id'],
+        key_ring_id=spec_dict['key_ring_id'],
+        key_id=spec_dict['key_id'],
+        job_name=spec_dict['job_name'],
+    )
 
   def get_secret_bytes(self) -> bytes:
     """Retrieves the secret bytes.
@@ -302,3 +461,9 @@ class GcpHsmGeneratedSecret(Secret):
       return base64.urlsafe_b64encode(dek)
     except Exception as e:
       raise RuntimeError(f'Failed to generate DEK with exception {e}')
+
+
+_SECRET_CLASSES: Dict[str, type] = {
+    "googlecloudsecretmanager": GcpSecret,
+    "googlecloudhsmgeneratedsecretmanager": GcpHsmGeneratedSecret,
+}
