@@ -97,7 +97,8 @@ public class SolaceIOReadTest {
         spec.inferCoder(pipeline, configuration.getTypeDescriptor()),
         configuration.getTimestampFn(),
         configuration.getWatermarkIdleDurationThreshold(),
-        configuration.getParseFn());
+        configuration.getParseFn(),
+        configuration.getAckDeadline());
   }
 
   @Test
@@ -458,18 +459,16 @@ public class SolaceIOReadTest {
     // mark all consumed messages as ready to be acknowledged
     CheckpointMark checkpointMark = reader.getCheckpointMark();
 
-    // consume 1 more message. This will call #ackMsg() on messages that were ready to be acked.
+    // consume 1 more message.
     reader.advance();
-    assertEquals(4, countAckMessages.get());
+    assertEquals(0, countAckMessages.get());
 
     // consume 1 more message. No change in the acknowledged messages.
     reader.advance();
-    assertEquals(4, countAckMessages.get());
+    assertEquals(0, countAckMessages.get());
 
     // acknowledge from the first checkpoint
     checkpointMark.finalizeCheckpoint();
-    // No change in the acknowledged messages, because they were acknowledged in the #advance()
-    // method.
     assertEquals(4, countAckMessages.get());
   }
 
@@ -542,7 +541,7 @@ public class SolaceIOReadTest {
   @Test
   public void testDefaultCoder() {
     Coder<SolaceCheckpointMark> coder =
-        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null)
+        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null, null)
             .getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
   }
@@ -606,5 +605,65 @@ public class SolaceIOReadTest {
     // Assert results
     PAssert.that(destAreTopics).containsInAnyOrder(expected);
     pipeline.run();
+  }
+
+  @Test
+  public void testLostCheckpointCatchUp() throws Exception {
+    AtomicInteger countConsumedMessages = new AtomicInteger(0);
+    AtomicInteger countAckMessages = new AtomicInteger(0);
+
+    // Broker that creates input data
+    SerializableFunction<Integer, BytesXMLMessage> recordFn =
+        index -> {
+          List<BytesXMLMessage> messages = new ArrayList<>();
+          for (int i = 0; i < 10; i++) {
+            messages.add(
+                SolaceDataUtils.getBytesXmlMessage(
+                    "payload_test" + i, "45" + i, (num) -> countAckMessages.incrementAndGet()));
+          }
+          countConsumedMessages.incrementAndGet();
+          return getOrNull(index, messages);
+        };
+
+    SessionServiceFactory fakeSessionServiceFactory =
+        MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(10).build();
+
+    Read<Record> spec =
+        getDefaultRead()
+            .withSessionServiceFactory(fakeSessionServiceFactory)
+            .withMaxNumConnections(4);
+
+    UnboundedSolaceSource<Record> initialSource = getSource(spec, pipeline);
+
+    UnboundedReader<Record> reader =
+        initialSource.createReader(PipelineOptionsFactory.create(), null);
+
+    // start the reader and move to the first record
+    assertTrue(reader.start());
+
+    // consume 3 messages (NB: start already consumed the first message)
+    for (int i = 0; i < 3; i++) {
+      assertTrue(reader.advance());
+    }
+    assertEquals(0, countAckMessages.get());
+
+    // Create Checkpoint T1 (contains 4 messages)
+    reader.getCheckpointMark();
+
+    // consume 3 more messages
+    for (int i = 0; i < 3; i++) {
+      assertTrue(reader.advance());
+    }
+    assertEquals(0, countAckMessages.get());
+
+    // Create Checkpoint T2 (contains 3 messages)
+    CheckpointMark checkpointMark2 = reader.getCheckpointMark();
+
+    // We "lose" checkpointMark1 (do NOT finalize it)
+    // We finalize checkpointMark2
+    checkpointMark2.finalizeCheckpoint();
+
+    // checkpointMark2 should have caught up and acked both T1 and T2 (4 + 3 = 7 messages)
+    assertEquals(7, countAckMessages.get());
   }
 }
