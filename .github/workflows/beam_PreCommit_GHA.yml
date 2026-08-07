@@ -22,7 +22,7 @@ on:
     paths: ['.github/**/*.yml']
   pull_request_target:
     branches: ['master', 'release-*' ]
-    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_GHA.json', 'sdks/python/container/**']
+    paths: ['.github/**/*.yml', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_GHA.json']
   issue_comment:
     types: [created]
   schedule:
@@ -32,12 +32,12 @@ on:
 #Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
 permissions:
   actions: write
-  pull-requests: write
+  pull-requests: read
   checks: read
   contents: read
   deployments: read
   id-token: none
-  issues: write
+  issues: read
   discussions: read
   packages: read
   pages: read
@@ -71,27 +71,6 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run GHA PreCommit'
     steps:
-    - name: Install gh cli
-      if: |
-        github.event_name == 'pull_request_target' &&
-        github.actor == 'dependabot[bot]'
-      uses: ./.github/actions/setup-gh-cli-linux
-    - name: Close Dependabot PRs touching container/
-      if: |
-        github.event_name == 'pull_request_target' &&
-        github.actor == 'dependabot[bot]'
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        files=$(gh pr view ${{ github.event.pull_request.number }} --json files --jq '.files[].path')
-        for file in $files; do
-          if [[ "$file" == sdks/python/container/* ]]; then
-            echo "PR touches container/. Closing PR..."
-            gh pr comment ${{ github.event.pull_request.number }} --body "Closing this PR because dependabot updates for container/** are disabled due to dependabot/dependabot-core#14408. Once issue is revolved, please remove this step."
-            gh pr close ${{ github.event.pull_request.number }}
-            exit 1
-          fi
-        done
     - uses: actions/checkout@v7
       with:
         persist-credentials: false
