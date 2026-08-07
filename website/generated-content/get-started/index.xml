@@ -6291,6 +6291,32 @@ environment&amp;rsquo;s directories.&lt;/p>
 &lt;li>Required for using &lt;a href="/documentation/dsls/dataframes/overview/">Beam Dataframe API&lt;/a>&lt;/li>
 &lt;/ul>
 &lt;/li>
+&lt;li>&lt;strong>&lt;a href="/documentation/ml/about-ml">Machine Learning (Beam ML)&lt;/a>&lt;/strong>
+&lt;ul>
+&lt;li>Installation Command: &lt;code>pip install 'apache-beam[&amp;lt;extra&amp;gt;]'&lt;/code>&lt;/li>
+&lt;li>Required for machine learning frameworks and utilities:
+&lt;ul>
+&lt;li>&lt;code>ml_cpu&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;code>milvus&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;code>onnx&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.onnx_inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;a href="/documentation/ml/about-ml#tensorflow">&lt;strong>tensorflow&lt;/strong>&lt;/a> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.tensorflow_inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;code>tensorflow-hub&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.embeddings.tensorflow_hub.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;a href="/documentation/ml/preprocess-data#data-processing-transforms-that-use-tft">&lt;strong>tft&lt;/strong>&lt;/a> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.tft.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;a href="/documentation/ml/about-ml#pytorch">&lt;strong>torch&lt;/strong>&lt;/a> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.pytorch_inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;code>transformers&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.huggingface_inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;a href="/documentation/ml/large-language-modeling">&lt;strong>vllm&lt;/strong>&lt;/a> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vllm_inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;li>&lt;code>xgboost&lt;/code> (&lt;a href="https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.xgboost_inference.html">pydoc&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>&lt;strong>Interactive Beam&lt;/strong>
+&lt;ul>
+&lt;li>Installation Command: &lt;code>pip install 'apache-beam[interactive]'&lt;/code>&lt;/li>
+&lt;li>Required for using &lt;a href="https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/README.md">Beam Interactive Runner&lt;/a> in Jupyter notebooks&lt;/li>
+&lt;li>To also install testing interactive notebook features, use &lt;code>apache-beam[interactive,interactive_test]&lt;/code>.&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;li>&lt;strong>Tests&lt;/strong>
 &lt;ul>
 &lt;li>Installation Command: &lt;code>pip install 'apache-beam[test]'&lt;/code>&lt;/li>
