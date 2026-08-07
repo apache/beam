@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.substringBetween;
 import static org.apache.commons.lang3.math.NumberUtils.toInt;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -175,6 +176,12 @@ public class SparkSessionFactory {
       sparkConf.setIfMissing("spark.sql.shuffle.partitions", Integer.toString(partitions));
     }
 
+    // Spark 4 transformWithState (used for streaming pipelines) requires the RocksDB state store.
+    // This is a harmless, inert configuration for batch pipelines on Spark 3.
+    sparkConf.setIfMissing(
+        "spark.sql.streaming.stateStore.providerClass",
+        "org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider");
+
     return SparkSession.builder().config(sparkConf);
   }
 
@@ -228,6 +235,11 @@ public class SparkSessionFactory {
       // avro coders
       tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroCoder");
       tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder");
+
+      // Spark internals only present when running streaming pipelines on Spark 4. These are
+      // registered by name because the shared runner base also compiles against Spark 3, where
+      // none of these classes exist. See registerSparkStreamingInternals for the details.
+      registerSparkStreamingInternals(kryo);
 
       // standard coders of org.apache.beam.sdk.coders
       kryo.register(BigDecimalCoder.class);
@@ -284,9 +296,53 @@ public class SparkSessionFactory {
       kryo.register(TupleTagList.class);
     }
 
+    /**
+     * Registers the Spark internals that a Structured Streaming query serializes behind the
+     * runner's back, so streaming pipelines also work with {@code
+     * spark.kryo.registrationRequired=true}.
+     *
+     * <ul>
+     *   <li>{@code StateSchemaMetadata} is broadcast by Spark 4 for every {@code
+     *       transformWithState} query, so every streaming pipeline using Beam state or timers hits
+     *       it, and hits it on the very first micro-batch.
+     *   <li>{@code MemoryWriterCommitMessage} is the commit message of Spark's {@code memory} sink.
+     *       The runner itself writes to the {@code noop} sink, but the {@code memory} sink is what
+     *       one reaches for when inspecting a query's output, and it is nested inside the already
+     *       registered {@link DataWritingSparkTaskResult}.
+     * </ul>
+     *
+     * <p>Both are Scala case classes holding further Scala and Spark types ({@code immutable.Map},
+     * {@code StructType}, {@code org.apache.avro.Schema}, {@code Row}), none of which are
+     * registered either. Registering them with a {@link JavaSerializer} rather than Kryo's default
+     * field serializer covers that whole object graph in one go, since both classes are {@link
+     * java.io.Serializable}. That keeps this list from having to track Spark's internal field
+     * layout across versions. Neither object is on a hot path, one is broadcast once per query and
+     * the other is one message per task commit, so the cost of Java serialization here does not
+     * matter.
+     */
+    private void registerSparkStreamingInternals(Kryo kryo) {
+      tryToRegister(
+          kryo,
+          "org.apache.spark.sql.execution.streaming.state.StateSchemaMetadata",
+          new JavaSerializer());
+      tryToRegister(
+          kryo,
+          "org.apache.spark.sql.execution.streaming.sources.MemoryWriterCommitMessage",
+          new JavaSerializer());
+    }
+
     private void tryToRegister(Kryo kryo, String className) {
+      tryToRegister(kryo, className, null);
+    }
+
+    private void tryToRegister(Kryo kryo, String className, @Nullable Serializer<?> serializer) {
       try {
-        kryo.register(Class.forName(className));
+        Class<?> cls = Class.forName(className);
+        if (serializer == null) {
+          kryo.register(cls);
+        } else {
+          kryo.register(cls, serializer);
+        }
       } catch (ClassNotFoundException e) {
         LOG.info("Class {}} was not found on classpath", className);
       }

@@ -39,4 +39,38 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
   boolean getUseActiveSparkSession();
 
   void setUseActiveSparkSession(boolean value);
+
+  @Description(
+      "Watermark delay in milliseconds applied to event timestamps of streaming sources "
+          + "(streaming mode only).")
+  @Default.Long(0)
+  long getWatermarkDelayMillis();
+
+  void setWatermarkDelayMillis(long value);
+
+  // Note: deliberately NOT named getMaxRecordsPerBatch. The legacy Spark runner's
+  // SparkPipelineOptions already declares Long getMaxRecordsPerBatch(); a same-name getter with a
+  // different return type breaks proxy generation for every registered PipelineOptions interface.
+  @Description(
+      "Maximum number of records to read per micro-batch from a streaming source "
+          + "(streaming mode only).")
+  @Default.Integer(1000)
+  int getMaxRecordsPerMicroBatch();
+
+  void setMaxRecordsPerMicroBatch(int value);
+
+  @Description(
+      "Maximum duration in milliseconds of a micro-batch trigger interval (streaming mode only).")
+  @Default.Long(500)
+  long getMaxBatchDurationMillis();
+
+  void setMaxBatchDurationMillis(long value);
+
+  @Description(
+      "Test-oriented: gracefully stop streaming queries after this many consecutive empty "
+          + "micro-batches. Disabled if negative (streaming mode only).")
+  @Default.Integer(-1)
+  int getStreamingStopAfterIdleBatches();
+
+  void setStreamingStopAfterIdleBatches(int value);
 }

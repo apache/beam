@@ -40,10 +40,10 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @Internal
-public final class EvaluationContext {
+public class EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
 
-  interface NamedDataset<T> {
+  public interface NamedDataset<T> {
     String name();
 
     @Nullable
@@ -53,9 +53,14 @@ public final class EvaluationContext {
   private final Collection<? extends NamedDataset<?>> leaves;
   private final SparkSession session;
 
-  EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
+  protected EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
     this.leaves = leaves;
     this.session = session;
+  }
+
+  /** The leaf datasets of the translated pipeline that require evaluation. */
+  protected Collection<? extends NamedDataset<?>> leaves() {
+    return leaves;
   }
 
   /** Trigger evaluation of all leaf datasets. */
@@ -112,6 +117,13 @@ public final class EvaluationContext {
       throw new RuntimeException(e);
     }
   }
+
+  /**
+   * Stops any ongoing streaming execution triggered by this context.
+   *
+   * <p>This is a no-op for batch pipelines.
+   */
+  public void stop() {}
 
   public SparkSession getSparkSession() {
     return session;
