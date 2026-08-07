@@ -17,16 +17,51 @@
 
 """Interface and implementations for Secret providers in Apache Beam."""
 
+import abc
 import logging
 
 _LOGGER = logging.getLogger(__name__)
 
-class Secret():
+class Secret(abc.ABC):
   """A secret management class used for handling sensitive data.
 
   This class provides a generic interface for secret management. Implementations
   of this class should handle fetching secrets from a secret management system.
   """
+  def __init__(self):
+    self._cached_secret_bytes: Optional[bytes] = None
+
+  def get(self, cacheSecret: bool = False) -> str:
+    """Retrieve secret value as string.
+
+    Args:
+      cacheSecret: If True, caches secret value in memory after first fetch.
+
+    Returns:
+      The retrieved secret value as string.
+    """
+    return self.get_bytes(cacheSecret=cacheSecret).decode("utf-8")
+
+  def get_bytes(self, cacheSecret: bool = False) -> bytes:
+    """Retrieve secret value as bytes.
+
+    Args:
+      cacheSecret: If True, caches secret value in memory after first fetch.
+
+    Returns:
+      The retrieved secret value as bytes.
+    """
+    if cacheSecret and getattr(self, '_cached_secret_bytes', None) is not None:
+      return self._cached_secret_bytes
+
+    secret_val_bytes = self.get_secret_bytes()
+
+    if cacheSecret:
+      self._cached_secret_bytes = secret_val_bytes
+
+    return secret_val_bytes
+
+  @abc.abstractmethod
   def get_secret_bytes(self) -> bytes:
     """Returns the secret as a byte string."""
     raise NotImplementedError()
@@ -36,6 +71,12 @@ class Secret():
     """Generates a new secret key."""
     from cryptography.fernet import Fernet
     return Fernet.generate_key()
+
+  def __getstate__(self):
+    """Strip cached secrets before pickling for pipeline submission/transmission."""
+    state = self.__dict__.copy()
+    state['_cached_secret_bytes'] = None
+    return state
 
   @staticmethod
   def parse_secret_option(secret) -> 'Secret':
