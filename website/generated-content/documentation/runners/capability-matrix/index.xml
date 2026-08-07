@@ -17,26 +17,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>Additional common features not yet part of the Beam model&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="additional-common-features-not-yet-part-of-the-beam-model" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Drain&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Checkpoint&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Key-ordered delivery&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="additional-common-features-not-yet-part-of-the-beam-model" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -47,11 +32,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="additional-common-features-not-yet-part-of-the-beam-model" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">Drain&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : &lt;/p>
@@ -110,6 +94,7 @@ Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Checkpoint&lt;/th>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
@@ -169,6 +154,7 @@ not implemented
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Key-ordered delivery&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : &lt;/p>
@@ -226,18 +212,10 @@ Flink may perform different shuffling algorithms for batch and streaming. Flink 
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item><item><title>Documentation: Bounded Splittable DoFn Support Status</title><link>/documentation/runners/capability-matrix/bounded-splittable-dofn-support-status/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/bounded-splittable-dofn-support-status/</guid><description>
+&lt;/div></description></item><item><title>Documentation: Bounded Splittable DoFn Support Status</title><link>/documentation/runners/capability-matrix/bounded-splittable-dofn-support-status/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/bounded-splittable-dofn-support-status/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -256,32 +234,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>Bounded Splittable DoFn Support Status&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="bounded-splittable-dofn-support-status" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Base&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Side Inputs&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Splittable DoFn Initiated Checkpointing&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Dynamic Splitting&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Bundle Finalization&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="bounded-splittable-dofn-support-status" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -292,11 +249,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="bounded-splittable-dofn-support-status" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">Base&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
@@ -353,6 +309,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Side Inputs&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
@@ -409,6 +366,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Splittable DoFn Initiated Checkpointing&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner v2 supports this.&lt;/p>
@@ -465,6 +423,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Dynamic Splitting&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
@@ -521,6 +480,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Bundle Finalization&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
@@ -576,18 +536,10 @@ back to collapsed details
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item><item><title>Documentation: How do refinements relate?</title><link>/documentation/runners/capability-matrix/how-do-refinements-relate/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/how-do-refinements-relate/</guid><description>
+&lt;/div></description></item><item><title>Documentation: How do refinements relate?</title><link>/documentation/runners/capability-matrix/how-do-refinements-relate/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/how-do-refinements-relate/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -606,23 +558,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>How do refinements relate?&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="how-do-refinements-relate" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Discarding&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Accumulating&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="how-do-refinements-relate" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -633,11 +573,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="how-do-refinements-relate" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">Discarding&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -695,6 +634,7 @@ Spark streaming natively discards elements after firing.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Accumulating&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -751,18 +691,10 @@ Requires that the accumulated pane fits in memory, after being passed through th
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item><item><title>Documentation: Unbounded Splittable DoFn Support Status</title><link>/documentation/runners/capability-matrix/unbounded-splittable-dofn-support-status/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/unbounded-splittable-dofn-support-status/</guid><description>
+&lt;/div></description></item><item><title>Documentation: Unbounded Splittable DoFn Support Status</title><link>/documentation/runners/capability-matrix/unbounded-splittable-dofn-support-status/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/unbounded-splittable-dofn-support-status/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -781,32 +713,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>Unbounded Splittable DoFn Support Status&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="unbounded-splittable-dofn-support-status" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Base&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Side Inputs&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Splittable DoFn Initiated Checkpointing&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Dynamic Splitting&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Bundle Finalization&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="unbounded-splittable-dofn-support-status" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -817,11 +728,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="unbounded-splittable-dofn-support-status" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">Base&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
@@ -879,6 +789,7 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Side Inputs&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -935,6 +846,7 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Splittable DoFn Initiated Checkpointing&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : &lt;/p>
@@ -991,6 +903,7 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Dynamic Splitting&lt;/th>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
@@ -1047,6 +960,7 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Bundle Finalization&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only Dataflow Runner V2 supports this.&lt;/p>
@@ -1102,18 +1016,10 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item><item><title>Documentation: What is being computed?</title><link>/documentation/runners/capability-matrix/what-is-being-computed/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/what-is-being-computed/</guid><description>
+&lt;/div></description></item><item><title>Documentation: What is being computed?</title><link>/documentation/runners/capability-matrix/what-is-being-computed/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/what-is-being-computed/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1132,44 +1038,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>What is being computed?&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="what-is-being-computed" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>ParDo&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>GroupByKey&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Flatten&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Combine&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Composite Transforms&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Side Inputs&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Source API&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Metrics&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Stateful Processing&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="what-is-being-computed" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -1180,11 +1053,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="what-is-being-computed" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">ParDo&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1246,6 +1118,7 @@ ParDo applies per-element transformations as Spark FlatMapFunction.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">GroupByKey&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1305,6 +1178,7 @@ Using Spark&amp;#39;s &amp;lt;tt&amp;gt;groupByKey&amp;lt;/tt&amp;gt;.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Flatten&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1362,6 +1236,7 @@ Some corner cases like flatten on empty collections are not yet supported.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Combine&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : efficient execution&lt;/p>
@@ -1423,6 +1298,7 @@ Batch mode uses pre-aggregation
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Composite Transforms&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : supported via inlining&lt;/p>
@@ -1480,6 +1356,7 @@ Currently composite transformations are inlined during execution. The structure 
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Side Inputs&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : some size restrictions in streaming&lt;/p>
@@ -1541,6 +1418,7 @@ Supported only when the side input source is bounded and windowing uses global w
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Source API&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1599,6 +1477,7 @@ Using Spark&amp;#39;s DatasourceV2 API in microbatch mode (Continuous streaming 
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Metrics&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially&lt;/p>
@@ -1661,6 +1540,7 @@ Doesn&amp;#39;t differentiate between committed and attempted values.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Stateful Processing&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : non-merging windows&lt;/p>
@@ -1718,18 +1598,10 @@ State is supported for non-merging windows. SetState and MapState are not yet su
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item><item><title>Documentation: When in processing time?</title><link>/documentation/runners/capability-matrix/when-in-processing-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/when-in-processing-time/</guid><description>
+&lt;/div></description></item><item><title>Documentation: When in processing time?</title><link>/documentation/runners/capability-matrix/when-in-processing-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/when-in-processing-time/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -1748,38 +1620,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>When in processing time?&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="when-in-processing-time" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Configurable triggering&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Event-time triggers&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Processing-time triggers&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Count triggers&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Composite triggers&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Allowed lateness&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Timers&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="when-in-processing-time" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -1790,11 +1635,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="when-in-processing-time" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">Configurable triggering&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1852,6 +1696,7 @@ Fully supported in streaming mode. In batch mode, intermediate trigger firings a
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Event-time triggers&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : yes in streaming, fixed granularity in batch&lt;/p>
@@ -1909,6 +1754,7 @@ Fully supported in streaming mode. In batch mode, currently watermark progress j
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Processing-time triggers&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : yes in streaming, fixed granularity in batch&lt;/p>
@@ -1967,6 +1813,7 @@ Spark processes streams in micro-batches. The micro-batch size is actually a pre
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Count triggers&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -2025,6 +1872,7 @@ Prism will double fire on count triggers
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Composite triggers&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -2081,6 +1929,7 @@ Prism will double fire on count triggers
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Allowed lateness&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -2138,6 +1987,7 @@ Fully supported in streaming mode. In batch mode no data is ever late.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Timers&lt;/th>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : non-merging windows&lt;/p>
@@ -2195,18 +2045,10 @@ The Flink Runner supports timers in non-merging windows.
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item><item><title>Documentation: Where in event time?</title><link>/documentation/runners/capability-matrix/where-in-event-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/where-in-event-time/</guid><description>
+&lt;/div></description></item><item><title>Documentation: Where in event time?</title><link>/documentation/runners/capability-matrix/where-in-event-time/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/documentation/runners/capability-matrix/where-in-event-time/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -2225,38 +2067,11 @@ back to collapsed details
 &lt;/a>
 &lt;h4>Where in event time?&lt;/h4>
 &lt;div class="table-container">
-&lt;div class="table-left big-left">
+&lt;div id="where-in-event-time" class="table-center big-center">
 &lt;table>
+&lt;thead>
 &lt;tr>
-&lt;th>&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Global windows&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Fixed windows&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Sliding windows&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Session windows&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Custom windows&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Custom merging windows&lt;/th>
-&lt;/tr>
-&lt;tr>
-&lt;th>Timestamp control&lt;/th>
-&lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div class="table-right big-right">
-&lt;div id="where-in-event-time" class="table-headers big-headers">
-&lt;table>
-&lt;tr>
+&lt;th class="table-left-header">&lt;/th>
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
@@ -2267,11 +2082,10 @@ back to collapsed details
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
-&lt;/table>
-&lt;/div>
-&lt;div id="where-in-event-time" class="table-center big-center">
-&lt;table>
+&lt;/thead>
+&lt;tbody>
 &lt;tr>
+&lt;th class="table-left-header">Global windows&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : default&lt;/p>
@@ -2328,6 +2142,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Fixed windows&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : built-in&lt;/p>
@@ -2384,6 +2199,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Sliding windows&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : built-in&lt;/p>
@@ -2440,6 +2256,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Session windows&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : built-in&lt;/p>
@@ -2496,6 +2313,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Custom windows&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
@@ -2552,6 +2370,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Custom merging windows&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
@@ -2608,6 +2427,7 @@ back to collapsed details
 &lt;/td>
 &lt;/tr>
 &lt;tr>
+&lt;th class="table-left-header">Timestamp control&lt;/th>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
@@ -2663,15 +2483,7 @@ back to collapsed details
 &lt;br>
 &lt;/td>
 &lt;/tr>
+&lt;/tbody>
 &lt;/table>
 &lt;/div>
-&lt;/div>
-&lt;/div>
-&lt;script>
-$('.table-headers').bind('wheel',function(e){
-$('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-});
-$('.table-center').bind('wheel',function(e){
-$('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-});
-&lt;/script></description></item></channel></rss>
+&lt;/div></description></item></channel></rss>
