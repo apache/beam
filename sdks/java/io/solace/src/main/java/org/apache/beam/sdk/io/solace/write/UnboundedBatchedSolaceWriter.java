@@ -20,7 +20,9 @@ package org.apache.beam.sdk.io.solace.write;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -63,8 +65,6 @@ import org.slf4j.LoggerFactory;
 public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
 
   private static final Logger LOG = LoggerFactory.getLogger(UnboundedBatchedSolaceWriter.class);
-
-  private static final int ACKS_FLUSHING_INTERVAL_SECS = 10;
 
   private final Counter sentToBroker =
       Metrics.counter(UnboundedBatchedSolaceWriter.class, "msgs_sent_to_broker");
@@ -118,8 +118,17 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
 
   @FinishBundle
   public void finishBundle(FinishBundleContext context) throws IOException {
-    // Take messages in groups of 50 (if there are enough messages)
     List<Solace.Record> currentBundle = getCurrentBundle();
+    Set<String> messageIdsToAck = null;
+
+    if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+      messageIdsToAck = new HashSet<>();
+      for (Solace.Record record : currentBundle) {
+        messageIdsToAck.add(record.getMessageId());
+      }
+    }
+
+    // Take messages in groups of 50 (if there are enough messages)
     for (int i = 0; i < currentBundle.size(); i += SOLACE_BATCH_LIMIT) {
       int toIndex = Math.min(i + SOLACE_BATCH_LIMIT, currentBundle.size());
       List<Solace.Record> batch = currentBundle.subList(i, toIndex);
@@ -130,12 +139,16 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
     }
     getCurrentBundle().clear();
 
-    publishResults(BeamContextWrapper.of(context));
+    if (getDeliveryMode() == DeliveryMode.PERSISTENT && messageIdsToAck != null) {
+      waitForAcks(BeamContextWrapper.of(context), messageIdsToAck);
+    } else {
+      publishResults(BeamContextWrapper.of(context), null);
+    }
   }
 
   @OnTimer("bundle_flusher")
   public void flushBundle(OnTimerContext context) throws IOException {
-    publishResults(BeamContextWrapper.of(context));
+    publishResults(BeamContextWrapper.of(context), null);
   }
 
   private void publishBatch(List<Solace.Record> records) {
@@ -148,17 +161,16 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
       sentToBroker.inc(entriesPublished);
     } catch (Exception e) {
       batchesRejectedByBroker.inc();
-      Solace.PublishResult errorPublish =
-          Solace.PublishResult.builder()
-              .setPublished(false)
-              .setMessageId(String.format("BATCH_OF_%d_ENTRIES", records.size()))
-              .setError(
-                  String.format(
-                      "Batch could not be published after several" + " retries. Error: %s",
-                      e.getMessage()))
-              .setLatencyNanos(System.nanoTime())
-              .build();
-      solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      for (Solace.Record record : records) {
+        Solace.PublishResult errorPublish =
+            Solace.PublishResult.builder()
+                .setPublished(false)
+                .setMessageId(record.getMessageId())
+                .setError(String.format("Batch could not be published. Error: %s", e.getMessage()))
+                .setLatencyNanos(System.nanoTime())
+                .build();
+        solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      }
     }
   }
 }
