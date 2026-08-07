@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"math/rand"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -30,6 +31,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/gcpopts"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/register"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/passert"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 )
@@ -79,11 +81,29 @@ func shuffleText() []string {
 	return words
 }
 
+func generateTestRows(seed int64, size int) []TestRow {
+	rand.Seed(seed)
+	words := shuffleText()
+	rows := make([]TestRow, size)
+	for i := 0; i < size; i++ {
+		rows[i] = TestRow{
+			Counter: int64(i),
+			RandData: RandData{
+				Flip: rand.Int63n(2) != 0,
+				Num:  rand.Int63(),
+				Word: words[i],
+			},
+		}
+	}
+	return rows
+}
+
 // RandData is a struct of various types of random data.
 type RandData struct {
-	Flip bool   `bigquery:"flip"` // Flip is a bool with a random chance of either result (a coin flip).
-	Num  int64  `bigquery:"num"`  // Num is a random int64.
-	Word string `bigquery:"word"` // Word is a randomly selected word from a sample text.
+	Flip         bool                `bigquery:"flip"`          // Flip is a bool with a random chance of either result (a coin flip).
+	Num          int64               `bigquery:"num"`           // Num is a random int64.
+	Word         string              `bigquery:"word"`          // Word is a randomly selected word from a sample text.
+	NullableWord bigquery.NullString `bigquery:"nullable_word"` // Word is a randomly selected word from a sample text.
 }
 
 // ddlSchema is a string for BigQuery data definition language that corresponds to TestRow.
@@ -91,7 +111,8 @@ const ddlTestRowSchema = "counter INT64 NOT NULL, " +
 	"rand_data STRUCT<" +
 	"flip BOOL NOT NULL," +
 	"num INT64 NOT NULL," +
-	"word STRING NOT NULL" +
+	"word STRING NOT NULL," +
+	"nullable_word STRING" +
 	"> NOT NULL"
 
 // CreateTestRowsFn is a DoFn that creates randomized TestRows based on a seed.
@@ -101,16 +122,143 @@ type CreateTestRowsFn struct {
 
 // ProcessElement creates a number of TestRows, populating the randomized data.
 func (fn *CreateTestRowsFn) ProcessElement(_ []byte, emit func(TestRow)) {
-	rand.Seed(fn.seed)
-	words := shuffleText()
-	for i := 0; i < inputSize; i++ {
-		emit(TestRow{
-			Counter: int64(i),
-			RandData: RandData{
-				Flip: rand.Int63n(2) != 0,
-				Num:  rand.Int63(),
-				Word: words[i],
+	rows := generateTestRows(fn.seed, inputSize)
+	for _, row := range rows {
+		emit(row)
+	}
+}
+
+func TestBigQueryIO_Query(t *testing.T) {
+	integration.CheckFilters(t)
+	checkFlags(t)
+
+	ctx := context.Background()
+	// Get the GCP project
+	// this assumes dataflow is running in the same project as the project in which the bigquery dataset
+	// is located
+	project := gcpopts.GetProject(ctx)
+	bigqueryDataset := *integration.BigQueryDataset
+
+	tests := []struct {
+		name          string
+		query         string
+		queryOptions  []func(*bigqueryio.QueryOptions) error
+		preCreate     bool
+		insertData    bool
+		expectedCount int
+		wantErr       bool
+	}{
+		{
+			name:  "Query without parameters",
+			query: "SELECT * FROM `%s`",
+			queryOptions: []func(*bigqueryio.QueryOptions) error{
+				bigqueryio.UseStandardSQL(),
 			},
+			preCreate:     true,
+			insertData:    true,
+			expectedCount: inputSize,
+			wantErr:       false,
+		},
+		{
+			name:  "Query with parameters",
+			query: "SELECT * FROM `%s` WHERE counter = @key1 and rand_data = @key2",
+			queryOptions: []func(*bigqueryio.QueryOptions) error{
+				bigqueryio.UseStandardSQL(),
+				bigqueryio.WithQueryParameters([]bigquery.QueryParameter{
+					bigquery.QueryParameter{
+						Name:  "key1",
+						Value: -1, // to ensure expectedCount is 0
+					},
+					bigquery.QueryParameter{
+						Name: "key2",
+						Value: &bigquery.QueryParameterValue{
+							Type: bigquery.StandardSQLDataType{
+								StructType: &bigquery.StandardSQLStructType{
+									Fields: []*bigquery.StandardSQLField{
+										{
+											Name: "flip",
+											Type: &bigquery.StandardSQLDataType{
+												TypeKind: "BOOL",
+											},
+										},
+										{
+											Name: "num",
+											Type: &bigquery.StandardSQLDataType{
+												TypeKind: "INT64",
+											},
+										},
+										{
+											Name: "word",
+											Type: &bigquery.StandardSQLDataType{
+												TypeKind: "STRING",
+											},
+										},
+										{
+											Name: "nullable_word",
+											Type: &bigquery.StandardSQLDataType{
+												TypeKind: "STRING",
+											},
+										},
+									},
+								},
+							},
+							StructValue: map[string]bigquery.QueryParameterValue{
+								"flip": {
+									Value: true,
+								},
+								"num": {
+									Value: int64(1),
+								},
+								"word": {
+									Value: "ipsum",
+								},
+								"nullable_word": {
+									Value: bigquery.NullString{
+										StringVal: "nullable",
+										Valid:     true,
+									},
+								},
+							},
+						},
+					},
+				}...),
+			},
+			preCreate:     true,
+			insertData:    true,
+			expectedCount: 0,
+			wantErr:       false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tableID := fmt.Sprintf("%s_temp_%v", "go_bqio_it", time.Now().UnixNano())
+			tableName := fmt.Sprintf("%s.%s", bigqueryDataset, tableID)
+			fullyQualifiedTableName := fmt.Sprintf("%s.%s.%s", project, bigqueryDataset, tableID)
+			if tt.preCreate {
+				newTempTable(t, tableName, ddlTestRowSchema, project)
+			}
+			testRows := generateTestRows(time.Now().UnixNano(), inputSize)
+			if tt.insertData {
+				insertTestRows(ctx, t, project, bigqueryDataset, tableID, testRows)
+				waitForRows(ctx, t, project, bigqueryDataset, tableID, len(testRows))
+			}
+			t.Cleanup(func() {
+				deleteTempTable(t, tableName, project)
+			})
+
+			p, s := beam.NewPipelineWithRoot()
+
+			q := fmt.Sprintf(tt.query, fullyQualifiedTableName)
+			queryType := reflect.TypeOf((*TestRow)(nil)).Elem()
+			pcol := bigqueryio.Query(s, project, q, queryType, tt.queryOptions...)
+
+			passert.Count(s, pcol, fmt.Sprintf("Should have %d rows", tt.expectedCount), tt.expectedCount)
+			if err := ptest.Run(p); (err != nil) != tt.wantErr {
+				t.Fatalf("ptest.Run() err = %v, wantErr %v", err, tt.wantErr)
+			} else if err != nil {
+				// Pipeline failed as expected, return early
+				return
+			}
 		})
 	}
 }
@@ -161,18 +309,18 @@ func TestBigQueryIO_Write(t *testing.T) {
 			tableID := fmt.Sprintf("%s_temp_%v", "go_bqio_it", time.Now().UnixNano())
 			tableName := fmt.Sprintf("%s.%s", *integration.BigQueryDataset, tableID)
 			if tt.preCreate {
-				newTempTable(t, tableName, ddlTestRowSchema)
+				newTempTable(t, tableName, ddlTestRowSchema, project)
 			}
 			t.Cleanup(func() {
-				deleteTempTable(t, tableName)
+				deleteTempTable(t, tableName, project)
 			})
 			createTestRows := &CreateTestRowsFn{seed: time.Now().UnixNano()}
 			p, s := beam.NewPipelineWithRoot()
 
 			// Generate elements and write to table.
 			rows := beam.ParDo(s, createTestRows, beam.Impulse(s))
-			bigqueryio.Write(s, project, fmt.Sprintf("%s:%s", project, tableName), rows,
-				bigqueryio.WithCreateDisposition(tt.createDisposition))
+			table := fmt.Sprintf("%s:%s", project, tableName)
+			bigqueryio.Write(s, project, table, rows, bigqueryio.WithCreateDisposition(tt.createDisposition))
 
 			if err := ptest.Run(p); (err != nil) != tt.wantErr {
 				t.Fatalf("ptest.Run() err = %v, wantErr %v", err, tt.wantErr)
