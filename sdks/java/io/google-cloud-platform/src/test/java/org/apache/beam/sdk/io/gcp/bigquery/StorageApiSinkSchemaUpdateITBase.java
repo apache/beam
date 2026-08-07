@@ -70,44 +70,32 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.AfterClass;
-import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@RunWith(Parameterized.class)
-public class StorageApiSinkSchemaUpdateIT {
-  @Parameterized.Parameters
-  public static Iterable<Object[]> data() {
-    return ImmutableList.of(
-        new Object[] {false, false},
-        new Object[] {false, true},
-        new Object[] {true, false},
-        new Object[] {true, true});
+abstract class StorageApiSinkSchemaUpdateITBase {
+  private final boolean useInputSchema;
+  private final boolean changeTableSchema;
+  private final String bigQueryDatasetId;
+
+  StorageApiSinkSchemaUpdateITBase(
+      boolean useInputSchema, boolean changeTableSchema, String bigQueryDatasetId) {
+    this.useInputSchema = useInputSchema;
+    this.changeTableSchema = changeTableSchema;
+    this.bigQueryDatasetId = bigQueryDatasetId;
   }
-
-  @Parameterized.Parameter(0)
-  public boolean useInputSchema;
-
-  @Parameterized.Parameter(1)
-  public boolean changeTableSchema;
 
   @Rule public TestName testName = new TestName();
 
-  private static final Logger LOG = LoggerFactory.getLogger(StorageApiSinkSchemaUpdateIT.class);
+  private static final Logger LOG = LoggerFactory.getLogger(StorageApiSinkSchemaUpdateITBase.class);
 
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("StorageApiSinkSchemaChangeIT");
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-  private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_schema_change_" + System.nanoTime();
-
   private static final String[] FIELDS = {
     "BOOL",
     "BOOLEAN",
@@ -149,18 +137,17 @@ public class StorageApiSinkSchemaUpdateIT {
   // used when test suite specifies a particular GCP location for BigQuery operations
   private static String bigQueryLocation;
 
-  @BeforeClass
-  public static void setUpTestEnvironment() throws IOException, InterruptedException {
+  static void setUpTestEnvironment(String bigQueryDatasetId)
+      throws IOException, InterruptedException {
     // Create one BQ dataset for all test cases.
     bigQueryLocation =
         TestPipeline.testingPipelineOptions().as(TestBigQueryOptions.class).getBigQueryLocation();
-    BQ_CLIENT.createNewDataset(PROJECT, BIG_QUERY_DATASET_ID, null, bigQueryLocation);
+    BQ_CLIENT.createNewDataset(PROJECT, bigQueryDatasetId, null, bigQueryLocation);
   }
 
-  @AfterClass
-  public static void cleanUp() {
-    LOG.info("Cleaning up dataset {} and tables.", BIG_QUERY_DATASET_ID);
-    BQ_CLIENT.deleteDataset(PROJECT, BIG_QUERY_DATASET_ID);
+  static void cleanUp(String bigQueryDatasetId) {
+    LOG.info("Cleaning up dataset {} and tables.", bigQueryDatasetId);
+    BQ_CLIENT.deleteDataset(PROJECT, bigQueryDatasetId);
   }
 
   private String createTable(TableSchema tableSchema) throws IOException, InterruptedException {
@@ -178,16 +165,16 @@ public class StorageApiSinkSchemaUpdateIT {
     }
     tableId += suffix;
 
-    BQ_CLIENT.deleteTable(PROJECT, BIG_QUERY_DATASET_ID, tableId);
+    BQ_CLIENT.deleteTable(PROJECT, bigQueryDatasetId, tableId);
     BQ_CLIENT.createNewTable(
         PROJECT,
-        BIG_QUERY_DATASET_ID,
+        bigQueryDatasetId,
         new Table()
             .setSchema(tableSchema)
             .setTableReference(
                 new TableReference()
                     .setTableId(tableId)
-                    .setDatasetId(BIG_QUERY_DATASET_ID)
+                    .setDatasetId(bigQueryDatasetId)
                     .setProjectId(PROJECT)));
     return tableId;
   }
@@ -395,7 +382,7 @@ public class StorageApiSinkSchemaUpdateIT {
         makeTableSchemaFromTypes(fieldNamesWithExtra, ImmutableSet.of(extraField));
 
     String tableId = createTable(bqTableSchema);
-    String tableSpec = PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + tableId;
+    String tableSpec = PROJECT + ":" + bigQueryDatasetId + "." + tableId;
 
     // build write transform
     Write<TableRow> write =
@@ -462,7 +449,7 @@ public class StorageApiSinkSchemaUpdateIT {
                   "Update Schema",
                   ParDo.of(
                       new UpdateSchemaDoFn(
-                          PROJECT, BIG_QUERY_DATASET_ID, ImmutableMap.of(tableId, updatedSchema))));
+                          PROJECT, bigQueryDatasetId, ImmutableMap.of(tableId, updatedSchema))));
     }
     WriteResult result = rows.apply("Stream to BigQuery", write);
     if (useIgnoreUnknownValues) {
@@ -648,7 +635,7 @@ public class StorageApiSinkSchemaUpdateIT {
       GenerateRowFunc generateRowFunc = new GenerateRowFunc(fieldNamesOrigin, fieldNamesWithExtra);
 
       String tableId = createTable(bqTableSchema, "_dynamic_" + i);
-      String tableSpec = PROJECT + ":" + BIG_QUERY_DATASET_ID + "." + tableId;
+      String tableSpec = PROJECT + ":" + bigQueryDatasetId + "." + tableId;
 
       rowFuncs.put((long) i, generateRowFunc);
       destinations.put((long) i, tableSpec);
@@ -727,7 +714,7 @@ public class StorageApiSinkSchemaUpdateIT {
               .apply("Add a dummy key", WithKeys.of(1))
               .apply(
                   "Update Schema",
-                  ParDo.of(new UpdateSchemaDoFn(PROJECT, BIG_QUERY_DATASET_ID, updatedSchemas)));
+                  ParDo.of(new UpdateSchemaDoFn(PROJECT, bigQueryDatasetId, updatedSchemas)));
     }
 
     WriteResult result = rows.apply("Stream to BigQuery", write);
