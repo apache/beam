@@ -197,6 +197,43 @@ like these, one can also provide a `schema_side_inputs` parameter, which is
 a tuple of PCollectionViews to be passed to the schema callable (much like
 the `table_side_inputs` parameter).
 
+Dynamic Schemas with Storage Write API
+--------------------------------------
+When writing to dynamic destinations with `method=STORAGE_WRITE_API`, a union schema
+containing all fields across destination tables is required at the PCollection level
+for cross-language type inference and runtime row serialization.
+
+The recommended best-practice is to use the `dynamic_schema` helper:
+
+* **Using a dictionary map**: If schemas are known at pipeline construction time, pass
+  a dictionary mapping destinations to schemas. The helper automatically infers and merges
+  all fields into the required union schema::
+
+    schema_map = {
+        'my_project:dataset.users': 'id:INTEGER,name:STRING',
+        'my_project:dataset.scores': 'id:INTEGER,score:INTEGER,active:BOOLEAN'
+    }
+
+    elements | WriteToBigQuery(
+        table=get_destination,
+        method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+        schema=dynamic_schema(schema_map))
+
+* **Using a callable function or side inputs**: If schemas are determined dynamically
+  via a callable function, wrap the callable with `dynamic_schema` and explicitly pass
+  `union_schema`::
+
+    def get_schema(destination, schema_dict):
+      return schema_dict[destination]
+
+    elements | WriteToBigQuery(
+        table=get_destination,
+        method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+        schema=dynamic_schema(
+            get_schema,
+            union_schema='id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN'),
+        schema_side_inputs=(schema_dict_side_input,))
+
 Additional Parameters for BigQuery Tables
 -----------------------------------------
 
@@ -356,6 +393,7 @@ https://github.com/apache/beam/blob/master/sdks/python/OWNERS
 # pytype: skip-file
 
 import collections
+import copy
 import io
 import itertools
 import json
@@ -1956,6 +1994,120 @@ class _StreamToBigQuery(PTransform):
 SCHEMA_AUTODETECT = 'SCHEMA_AUTODETECT'
 
 
+def dynamic_schema(schema_fn_or_map, union_schema=None):
+  """Helper to construct a dynamic schema callable with a union schema hint.
+
+  When using the BigQuery Storage Write API (`method=STORAGE_WRITE_API`) with
+  dynamic destinations, the cross-language transform requires a PCollection-level
+  union schema containing all fields across all target tables for protobuf
+  serialization and type inference.
+
+  This helper provides the recommended best practice for constructing dynamic
+  schemas:
+
+  1. **Dictionary Map**: If destination table schemas are provided as a dictionary
+     mapping table names/specs to schemas (str, dict, or TableSchema), this helper
+     automatically merges all fields into a single union schema.
+  2. **Callable**: If a callable function is used, this helper attaches the provided
+     `union_schema` to the callable as a schema hint (`_union_schema`).
+
+  Example using a dictionary map (union schema is auto-inferred)::
+
+      schema_map = {
+          'project:dataset.users': 'id:INTEGER,name:STRING',
+          'project:dataset.scores': 'id:INTEGER,score:INTEGER,active:BOOLEAN'
+      }
+
+      def get_destination(record):
+        if 'name' in record:
+          return 'project:dataset.users'
+        return 'project:dataset.scores'
+
+      schema_callable = dynamic_schema(schema_map)
+
+      elements | WriteToBigQuery(
+          table=get_destination,
+          method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+          schema=schema_callable)
+
+  Example using a callable with explicit union schema::
+
+      def get_schema(destination, schema_side_input):
+        return schema_side_input[destination]
+
+      schema_callable = dynamic_schema(
+          get_schema,
+          union_schema='id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN')
+
+      elements | WriteToBigQuery(
+          table=get_destination,
+          method=WriteToBigQuery.Method.STORAGE_WRITE_API,
+          schema=schema_callable,
+          schema_side_inputs=(schema_side_input,))
+
+  Args:
+    schema_fn_or_map: A callable `(destination, *side_inputs) -> schema`
+      or a dictionary mapping destination strings to schemas (str, dict, or
+      TableSchema).
+    union_schema: (Optional) The union schema containing all fields across
+      target tables. Can be a string, dict, or TableSchema object. Required if
+      `schema_fn_or_map` is a callable.
+
+  Returns:
+    A callable with the attached `_union_schema` attribute for Storage Write API.
+  """
+  if isinstance(schema_fn_or_map, dict):
+    if union_schema is None:
+      bq_schemas = [
+          copy.deepcopy(bigquery_tools.get_bq_tableschema(s))
+          for s in schema_fn_or_map.values()
+      ]
+
+      def _merge_fields(field_a, field_b):
+        if field_a.type != field_b.type:
+          raise ValueError(
+              f"Conflicting types for field '{field_a.name}': "
+              f"{field_a.type} vs {field_b.type}")
+        if field_a.type in ('RECORD', 'STRUCT'):
+          merged_subfields = {}
+          for f in (field_a.fields or []):
+            merged_subfields[f.name] = f
+          for f in (field_b.fields or []):
+            if f.name in merged_subfields:
+              merged_subfields[f.name] = _merge_fields(
+                  merged_subfields[f.name], f)
+            else:
+              merged_subfields[f.name] = f
+          field_a.fields = list(merged_subfields.values())
+        return field_a
+
+      merged_fields = {}
+      for schema in bq_schemas:
+        for field in schema.fields:
+          name = field.name
+          if name in merged_fields:
+            merged_fields[name] = _merge_fields(merged_fields[name], field)
+          else:
+            merged_fields[name] = field
+      union_schema = bigquery.TableSchema(fields=list(merged_fields.values()))
+
+    def lookup_schema(destination, *args):
+      return schema_fn_or_map[destination]
+
+    schema_callable = lookup_schema
+  elif callable(schema_fn_or_map):
+    if union_schema is None:
+      raise ValueError(
+          "union_schema must be explicitly provided when schema_fn_or_map "
+          "is a callable.")
+    schema_callable = schema_fn_or_map
+  else:
+    raise TypeError("schema_fn_or_map must be a callable or a dictionary.")
+
+  schema_callable._union_schema = union_schema
+  return schema_callable
+
+
 class WriteToBigQuery(PTransform):
   """Write data to BigQuery.
 
@@ -2388,6 +2540,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           table=self.table_reference,
           schema=self.schema,
           table_side_inputs=self.table_side_inputs,
+          schema_side_inputs=self.schema_side_inputs,
           create_disposition=self.create_disposition,
           write_disposition=self.write_disposition,
           additional_bq_parameters=self.additional_bq_parameters,
@@ -2616,7 +2769,7 @@ class WriteResult:
 
 class StorageWriteToBigQuery(PTransform):
   """Writes data to BigQuery using Storage API.
-  Supports dynamic destinations. Dynamic schemas are not supported yet.
+  Supports dynamic destinations and dynamic schemas.
 
   Experimental; no backwards compatibility guarantees.
   """
@@ -2638,6 +2791,7 @@ class StorageWriteToBigQuery(PTransform):
       table,
       table_side_inputs=None,
       schema=None,
+      schema_side_inputs=None,
       create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
       write_disposition=BigQueryDisposition.WRITE_APPEND,
       additional_bq_parameters=None,
@@ -2651,8 +2805,9 @@ class StorageWriteToBigQuery(PTransform):
       expansion_service=None,
       type_overrides=None):
     self._table = table
-    self._table_side_inputs = table_side_inputs
+    self._table_side_inputs = table_side_inputs or ()
     self._schema = schema
+    self._schema_side_inputs = schema_side_inputs or ()
     self._create_disposition = create_disposition
     self._write_disposition = write_disposition
     self.additional_bq_parameters = additional_bq_parameters
@@ -2677,9 +2832,8 @@ class StorageWriteToBigQuery(PTransform):
             "A schema is required in order to prepare rows "
             "for writing with STORAGE_WRITE_API.") from exn
     elif callable(self._schema):
-      raise NotImplementedError(
-          "Writing with dynamic schemas is not "
-          "supported for this write method.")
+      schema = self._schema
+      is_rows = False
     elif isinstance(self._schema, vp.ValueProvider):
       schema = self._schema.get()
       is_rows = False
@@ -2691,6 +2845,10 @@ class StorageWriteToBigQuery(PTransform):
 
     # if writing to one destination, just convert to Beam rows and send over
     if not callable(table):
+      if callable(schema):
+        raise ValueError(
+            "Writing with a dynamic schema is only supported when writing to "
+            "dynamic destinations.")
       if is_rows:
         input_beam_rows = input
       else:
@@ -2729,7 +2887,11 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input_rows
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, True, self._type_overrides).with_output_types())
+                schema,
+                True,
+                self._type_overrides,
+                schema_side_inputs=self._schema_side_inputs).with_output_types(
+                ))
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
@@ -2797,24 +2959,84 @@ class StorageWriteToBigQuery(PTransform):
       pass
 
   class ConvertToBeamRows(PTransform):
-    def __init__(self, schema, dynamic_destinations, type_overrides=None):
+    def __init__(
+        self,
+        schema,
+        dynamic_destinations,
+        type_overrides=None,
+        schema_side_inputs=None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
       self.type_overrides = type_overrides
+      self.schema_side_inputs = schema_side_inputs or ()
+
+    def _get_record_type_hint(self):
+      if callable(self.schema):
+        schema_hint = (
+            getattr(self.schema, '_union_schema', None) or
+            getattr(self.schema, '_table_schema', None) or
+            getattr(self.schema, '_beam_schema', None) or
+            getattr(self.schema, '_schema_hint', None) or
+            getattr(self.schema, '_output_types', None) or
+            getattr(self.schema, 'table_schema', None) or
+            getattr(self.schema, 'schema', None))
+        if schema_hint is not None:
+          if isinstance(
+              schema_hint,
+              (bigquery.TableSchema, bigquery.TableFieldSchema, str, dict)):
+            row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
+                schema_hint, self.type_overrides)
+            return RowTypeConstraint.from_fields(row_type_hints)
+          elif isinstance(schema_hint, RowTypeConstraint):
+            return schema_hint
+        return RowTypeConstraint.from_fields([])
+      else:
+        row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
+            self.schema, self.type_overrides)
+        return RowTypeConstraint.from_fields(row_type_hints)
 
     def expand(self, input_dicts):
       if self.dynamic_destinations:
-        return (
-            input_dicts
-            | "Convert dict to Beam Row" >> beam.Map(
-                lambda row, schema=DoFn.SetupContextParam(
-                    StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
-                    [self.schema]): beam.Row(
-                        **{
-                            StorageWriteToBigQuery.DESTINATION: row[0],
-                            StorageWriteToBigQuery.RECORD: bigquery_tools.
-                            beam_row_from_dict(row[1], schema)
-                        })))
+        if callable(self.schema):
+          record_hint = self._get_record_type_hint()
+          union_field_names = [
+              name for name, _ in getattr(record_hint, '_fields', ())
+          ]
+
+          def convert_dynamic_row(row, *schema_side_inputs):
+            dest, dict_row = row[0], row[1]
+            record_schema = self.schema(dest, *schema_side_inputs)
+            record_row = bigquery_tools.beam_row_from_dict(
+                dict_row, record_schema)
+            if union_field_names:
+              record_dict = record_row._asdict()
+              record_row = beam.Row(
+                  **{
+                      name: record_dict.get(name, None)
+                      for name in union_field_names
+                  })
+            return beam.Row(
+                **{
+                    StorageWriteToBigQuery.DESTINATION: dest,
+                    StorageWriteToBigQuery.RECORD: record_row
+                })
+
+          return (
+              input_dicts
+              | "Convert dict to Beam Row" >> beam.Map(
+                  convert_dynamic_row, *self.schema_side_inputs))
+        else:
+          return (
+              input_dicts
+              | "Convert dict to Beam Row" >> beam.Map(
+                  lambda row, schema=DoFn.SetupContextParam(
+                      StorageWriteToBigQuery.ConvertToBeamRowsSetupSchema, args=
+                      [self.schema]): beam.Row(
+                          **{
+                              StorageWriteToBigQuery.DESTINATION: row[0],
+                              StorageWriteToBigQuery.RECORD: bigquery_tools.
+                              beam_row_from_dict(row[1], schema)
+                          })))
       else:
         return (
             input_dicts
@@ -2825,17 +3047,14 @@ class StorageWriteToBigQuery(PTransform):
                     ]): bigquery_tools.beam_row_from_dict(row, schema)))
 
     def with_output_types(self):
-      row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
-          self.schema, self.type_overrides)
+      record_hint = self._get_record_type_hint()
       if self.dynamic_destinations:
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
-            (
-                StorageWriteToBigQuery.RECORD,
-                RowTypeConstraint.from_fields(row_type_hints))
+            (StorageWriteToBigQuery.RECORD, record_hint)
         ])
       else:
-        type_hint = RowTypeConstraint.from_fields(row_type_hints)
+        type_hint = record_hint
 
       return super().with_output_types(type_hint)
 

@@ -31,6 +31,7 @@ from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -480,6 +481,74 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               table=lambda record: spec_with_project + str(record['int']),
               method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
               schema=self.ALL_TYPES_SCHEMA,
+              use_at_least_once=False))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
+  def test_write_to_dynamic_destinations_with_dynamic_schema(self):
+    base_table_spec = '{}.dynamic_dest_dyn_schema_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    table_a = base_table_spec + 'users'
+    table_b = base_table_spec + 'scores'
+
+    schema_a = "id:INTEGER,name:STRING"
+    schema_b = "id:INTEGER,score:INTEGER,active:BOOLEAN"
+
+    elements_a = [
+        {
+            'id': 1, 'name': 'alice'
+        },
+        {
+            'id': 2, 'name': 'bob'
+        },
+    ]
+    elements_b = [
+        {
+            'id': 101, 'score': 95, 'active': True
+        },
+        {
+            'id': 102, 'score': 80, 'active': False
+        },
+    ]
+    elements = elements_a + elements_b
+
+    schema_map = {
+        spec_with_project + 'users': schema_a,
+        spec_with_project + 'scores': schema_b,
+    }
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT id, name FROM %s" % table_a,
+            data=self.parse_expected_data(elements_a)),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT id, score, active FROM %s" % table_b,
+            data=self.parse_expected_data(elements_b)),
+    ]
+
+    def get_destination(record):
+      if 'name' in record:
+        return spec_with_project + 'users'
+      return spec_with_project + 'scores'
+
+    def get_schema_raw(dest, side_map):
+      return side_map[dest]
+
+    get_schema = bigquery.dynamic_schema(
+        get_schema_raw,
+        union_schema="id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN")
+
+    with beam.Pipeline(argv=self.args) as p:
+      schema_pc = p | "CreateSchema" >> beam.Create([schema_map])
+      _ = (
+          p
+          | "CreateElements" >> beam.Create(elements)
+          | beam.io.WriteToBigQuery(
+              table=get_destination,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=get_schema,
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
 
