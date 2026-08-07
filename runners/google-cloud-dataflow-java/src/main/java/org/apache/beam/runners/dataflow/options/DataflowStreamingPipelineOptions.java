@@ -190,7 +190,7 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setMaxStackTraceDepthToReport(int value);
 
-  @Description("Necessary duration for a commit to be considered stuck and invalidated.")
+  @Description("Necessary duration for a commit to be considered stuck and mark worker unhealthy.")
   @Default.Integer(60 * 60 * 1000)
   int getStuckCommitDurationMillis();
 

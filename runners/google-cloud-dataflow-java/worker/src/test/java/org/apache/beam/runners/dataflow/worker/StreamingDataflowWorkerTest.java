@@ -74,7 +74,6 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -118,7 +117,6 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -4450,10 +4448,9 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testStuckCommit() throws Exception {
+  public void testStuckCommitMarksWorkerUnhealthy() throws Exception {
     if (!streamingEngine) {
-      // Stuck commits have only been observed with streaming engine and thus recovery from them is
-      // not implemented for non-streaming engine.
+      // Stuck commits have only been observed with streaming engine.
       return;
     }
 
@@ -4462,40 +4459,31 @@ public class StreamingDataflowWorkerTest {
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
+    FakeClock clock = new FakeClock();
     StreamingDataflowWorker worker =
         makeWorker(
             defaultWorkerParams("--stuckCommitDurationMillis=2000")
                 .setInstructions(instructions)
+                .setClock(clock)
                 .publishCounters()
                 .build());
     worker.start();
+    assertTrue(worker.isHealthy());
+
     // Prevent commit callbacks from being called to simulate a stuck commit.
     server.setDropStreamingCommits(true);
 
-    // Add some work for key 1.
+    // Add work to trigger a commit that will get stuck.
     server
         .whenGetWorkCalled()
-        .thenReturn(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1))
-        .thenReturn(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
-    ConcurrentHashMap<Long, Consumer<CommitStatus>> droppedCommits =
-        server.waitForDroppedCommits(2);
-    server.setDropStreamingCommits(false);
-    // Enqueue another work item for key 1.
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
-    // Ensure that this work item processes.
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    // Now ensure that nothing happens if a dropped commit actually completes.
-    droppedCommits.values().iterator().next().accept(CommitStatus.OK);
-    worker.stop();
+        .thenReturn(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
+    server.waitForDroppedCommits(1);
 
-    assertTrue(result.containsKey(1L));
-    assertEquals(
-        makeExpectedOutput(
-                1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1, DEFAULT_KEY_STRING)
-            .build(),
-        removeDynamicFields(result.get(1L)));
+    clock.sleep(Duration.millis(3000));
+
+    assertFalse(worker.isHealthy());
+    server.setDropStreamingCommits(false);
+    worker.stop();
   }
 
   @Test
