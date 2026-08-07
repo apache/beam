@@ -84,24 +84,80 @@ class AbstractDoFnWrapper(DoFn):
     return self.dofn.teardown()
 
 
-class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
-  """A DoFn that verifies against common errors in the output type."""
-  def __init__(self, dofn, full_label):
+class RuntimeTypeCheckWrapperDoFn(AbstractDoFnWrapper):
+  """A DoFn wrapper performing runtime type-checking of inputs and outputs.
+
+  This single wrapper performs the work that was previously split between
+  two nested wrappers (``TypeCheckWrapperDoFn`` wrapped inside
+  ``OutputCheckWrapperDoFn``): type-checking of inputs and outputs against
+  declared type hints, verification against common output errors (such as
+  returning a plain ``str``, ``bytes`` or ``dict`` from a ``ParDo``), and
+  labeling of raised ``TypeCheckError`` messages with the offending
+  transform's full label. Merging the wrappers removes one level of Python
+  call indirection per processed element when ``--runtime_type_check`` is
+  enabled.
+  """
+  def __init__(self, dofn, type_hints, full_label):
     super().__init__(dofn)
     self.full_label = full_label
+    # Note that a *bound* process method must not be cached on the instance:
+    # an attribute holding a bound method is visible to the stateful DoFn
+    # reflection in userstate.get_dofn_specs, and a cached copy can diverge
+    # from self.dofn.process across (de)serialization, in which case stateful
+    # DoFn validation would see duplicate StateSpecs/TimerSpecs. Caching the
+    # underlying (unbound) function is safe: plain functions stored on an
+    # instance are not bound methods, so DoFn reflection ignores them.
+    process_fn = dofn._process_argspec_fn()
+    if hasattr(process_fn, '__func__'):
+      self._process_fn = process_fn.__func__
+      self._process_fn_needs_self = True
+    else:
+      self._process_fn = process_fn
+      self._process_fn_needs_self = False
+    if type_hints.input_types:
+      input_args, input_kwargs = type_hints.input_types
+      self._input_hints = getcallargs_forhints(
+          process_fn, *input_args, **input_kwargs)
+    else:
+      self._input_hints = None
+    # TODO(robertwb): Multi-output.
+    self._output_type_hint = type_hints.simple_output_type(full_label)
 
   def wrapper(self, method, args, kwargs):
     try:
-      result = method(*args, **kwargs)
+      result = self._type_check_result(method(*args, **kwargs))
     except TypeCheckError as e:
-      # TODO(BEAM-10710): Remove the 'ParDo' prefix for the label name
-      error_msg = (
-          'Runtime type violation detected within ParDo(%s): '
-          '%s' % (self.full_label, e))
-      _, _, tb = sys.exc_info()
-      raise TypeCheckError(error_msg).with_traceback(tb)
+      raise self._add_label(e)
     else:
       return self._check_type(result)
+
+  def process(self, *args, **kwargs):
+    try:
+      if self._input_hints:
+        if self._process_fn_needs_self:
+          actual_inputs = inspect.getcallargs(
+              self._process_fn, self.dofn, *args, **kwargs)  # pylint: disable=deprecated-method
+        else:
+          actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)  # pylint: disable=deprecated-method
+        for var, hint in self._input_hints.items():
+          if hint is actual_inputs[var]:
+            # self parameter
+            continue
+          _check_instance_type(hint, actual_inputs[var], var, True)
+      result = self._type_check_result(self.dofn.process(*args, **kwargs))
+    except TypeCheckError as e:
+      raise self._add_label(e)
+    else:
+      return self._check_type(result)
+
+  def _add_label(self, e):
+    """Returns a TypeCheckError labeled with this transform's full label."""
+    # TODO(BEAM-10710): Remove the 'ParDo' prefix for the label name
+    error_msg = (
+        'Runtime type violation detected within ParDo(%s): '
+        '%s' % (self.full_label, e))
+    _, _, tb = sys.exc_info()
+    return TypeCheckError(error_msg).with_traceback(tb)
 
   @staticmethod
   def _check_type(output):
@@ -119,36 +175,6 @@ class OutputCheckWrapperDoFn(AbstractDoFnWrapper):
           'FlatMap and ParDo must return an '
           'iterable. %s was returned instead.' % type(output))
     return output
-
-
-class TypeCheckWrapperDoFn(AbstractDoFnWrapper):
-  """A wrapper around a DoFn which performs type-checking of input and output.
-  """
-  def __init__(self, dofn, type_hints, label=None):
-    super().__init__(dofn)
-    self._process_fn = self.dofn._process_argspec_fn()
-    if type_hints.input_types:
-      input_args, input_kwargs = type_hints.input_types
-      self._input_hints = getcallargs_forhints(
-          self._process_fn, *input_args, **input_kwargs)
-    else:
-      self._input_hints = None
-    # TODO(robertwb): Multi-output.
-    self._output_type_hint = type_hints.simple_output_type(label)
-
-  def wrapper(self, method, args, kwargs):
-    result = method(*args, **kwargs)
-    return self._type_check_result(result)
-
-  def process(self, *args, **kwargs):
-    if self._input_hints:
-      actual_inputs = inspect.getcallargs(self._process_fn, *args, **kwargs)  # pylint: disable=deprecated-method
-      for var, hint in self._input_hints.items():
-        if hint is actual_inputs[var]:
-          # self parameter
-          continue
-        _check_instance_type(hint, actual_inputs[var], var, True)
-    return self._type_check_result(self.dofn.process(*args, **kwargs))
 
   def _type_check_result(self, transform_results):
     if self._output_type_hint is None or transform_results is None:
@@ -289,11 +315,9 @@ class TypeCheckVisitor(pipeline.PipelineVisitor):
         if isinstance(transform.fn, core.CombineValuesDoFn):
           transform.fn.combinefn = self._wrapped_fn
       else:
-        transform.fn = transform.dofn = OutputCheckWrapperDoFn(
-            TypeCheckWrapperDoFn(
-                transform.fn,
-                transform.get_type_hints(),
-                applied_transform.full_label),
+        transform.fn = transform.dofn = RuntimeTypeCheckWrapperDoFn(
+            transform.fn,
+            transform.get_type_hints(),
             applied_transform.full_label)
 
 
