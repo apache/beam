@@ -87,11 +87,18 @@ if (tables.contains(teamTable)) {
   t.run("bq rm -f -t ${dataset}.${teamTable}")
 }
 
-// Make sure old tables are completely deleted before recreating them
-tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-while (tables.contains(userTable) || tables.contains(teamTable)) {
-  sleep(3000)
+int retries = 10
+boolean deleted = false
+for (int i = 0; i < retries; i++) {
   tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+  if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+    deleted = true
+    break
+  }
+  sleep(3000)
+}
+if (!deleted) {
+  t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be deleted.")
 }
 
 t.intent("Creating table: ${userTable}")
@@ -100,10 +107,17 @@ t.intent("Creating table: ${teamTable}")
 t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
 
 // Verify that the tables have been created
-tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-while (!tables.contains(userTable) || !tables.contains(teamTable)) {
-  sleep(3000)
+boolean created = false
+for (int i = 0; i < retries; i++) {
   tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+  if (tables.contains(userTable) && tables.contains(teamTable)) {
+    created = true
+    break
+  }
+  sleep(3000)
+}
+if (!created) {
+  t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be created.")
 }
 println "Tables ${userTable} and ${teamTable} created successfully."
 
@@ -148,9 +162,17 @@ if (tables.contains(userTable)) {
 if (tables.contains(teamTable)) {
   t.run("bq rm -f -t ${dataset}.${teamTable}")
 }
-while (tables.contains(userTable) || tables.contains(teamTable)) {
-  sleep(3000)
+deleted = false
+for (int i = 0; i < retries; i++) {
   tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+  if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+    deleted = true
+    break
+  }
+  sleep(3000)
+}
+if (!deleted) {
+  println "Warning: Timed out waiting for tables ${userTable} / ${teamTable} to be deleted."
 }
 
 t.done()

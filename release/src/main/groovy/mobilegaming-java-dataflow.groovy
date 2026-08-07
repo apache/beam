@@ -126,9 +126,18 @@ class LeaderBoardRunner {
     if (tables.contains(teamTable)) {
       t.run("bq rm -f -t ${dataset}.${teamTable}")
     }
-    while (tables.contains(userTable) || tables.contains(teamTable)) {
-      sleep(3000)
+    int retries = 10
+    boolean deleted = false
+    for (int i = 0; i < retries; i++) {
       tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+      if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+        deleted = true
+        break
+      }
+      sleep(3000)
+    }
+    if (!deleted) {
+      t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be deleted.")
     }
 
     t.intent("Creating table: ${userTable}")
@@ -137,10 +146,17 @@ class LeaderBoardRunner {
     t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
 
     // Verify that the tables have been created successfully
-    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-    while (!tables.contains(userTable) || !tables.contains(teamTable)) {
-      sleep(3000)
+    boolean created = false
+    for (int i = 0; i < retries; i++) {
       tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+      if (tables.contains(userTable) && tables.contains(teamTable)) {
+        created = true
+        break
+      }
+      sleep(3000)
+    }
+    if (!created) {
+      t.error("Timed out waiting for tables ${userTable} / ${teamTable} to be created.")
     }
     println "Tables ${userTable} and ${teamTable} created successfully."
 
@@ -202,10 +218,17 @@ fi
 
     // It will take couple seconds to clean up tables.
     // This loop makes sure tables are completely deleted before running the pipeline
-    tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
-    while (tables.contains(userTable) || tables.contains(teamTable)) {
-      sleep(3000)
+    deleted = false
+    for (int i = 0; i < retries; i++) {
       tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+      if (!tables.contains(userTable) && !tables.contains(teamTable)) {
+        deleted = true
+        break
+      }
+      sleep(3000)
+    }
+    if (!deleted) {
+      println "Warning: Timed out waiting for tables ${userTable} / ${teamTable} to be deleted."
     }
   }
 }
