@@ -80,15 +80,24 @@ def teamSchema = [
 ].join(",")
 
 String tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+if (tables.contains(userTable)) {
+  t.run("bq rm -f -t ${dataset}.${userTable}")
+}
+if (tables.contains(teamTable)) {
+  t.run("bq rm -f -t ${dataset}.${teamTable}")
+}
 
-if (!tables.contains(userTable)) {
-  t.intent("Creating table: ${userTable}")
-  t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+// Make sure old tables are completely deleted before recreating them
+tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+while (tables.contains(userTable) || tables.contains(teamTable)) {
+  sleep(3000)
+  tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
 }
-if (!tables.contains(teamTable)) {
-  t.intent("Creating table: ${teamTable}")
-  t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
-}
+
+t.intent("Creating table: ${userTable}")
+t.run("bq mk --table ${dataset}.${userTable} ${userSchema}")
+t.intent("Creating table: ${teamTable}")
+t.run("bq mk --table ${dataset}.${teamTable} ${teamSchema}")
 
 // Verify that the tables have been created
 tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
@@ -131,5 +140,17 @@ if(!isSuccess){
   t.error("FAILED: Failed running LeaderBoard on DirectRunner")
 }
 t.success("LeaderBoard successfully run on DirectRunner.")
+
+tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+if (tables.contains(userTable)) {
+  t.run("bq rm -f -t ${dataset}.${userTable}")
+}
+if (tables.contains(teamTable)) {
+  t.run("bq rm -f -t ${dataset}.${teamTable}")
+}
+while (tables.contains(userTable) || tables.contains(teamTable)) {
+  sleep(3000)
+  tables = t.run("bq query --use_legacy_sql=false 'SELECT table_name FROM ${dataset}.INFORMATION_SCHEMA.TABLES'")
+}
 
 t.done()

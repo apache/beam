@@ -25,6 +25,11 @@ import groovy.util.CliBuilder
  */
 class TestScripts {
 
+    class BackgroundProcessInfo {
+      Process process
+      String cmd
+    }
+
    // Global state to maintain when running the steps
    class var {
      static File startDir
@@ -38,6 +43,7 @@ class TestScripts {
      static String pubsubTopic
      static String mavenLocalPath
      static List<Process> backgroundProcesses = Collections.synchronizedList(new ArrayList<Process>())
+     static Map<Process, BackgroundProcessInfo> backgroundProcessInfo = Collections.synchronizedMap(new HashMap<Process, BackgroundProcessInfo>())
    }
 
    def TestScripts(String[] args) {
@@ -150,24 +156,58 @@ class TestScripts {
      }
    }
 
+   // Check whether any background processes exited unexpectedly with a non-zero exit code
+   public void checkBackgroundProcesses() {
+     def procs = new ArrayList<>(var.backgroundProcesses)
+     for (Process proc : procs) {
+       if (proc != null && !proc.isAlive()) {
+         int exitVal = proc.exitValue()
+         if (exitVal != 0) {
+           def info = var.backgroundProcessInfo.get(proc)
+           String cmd = info ? info.cmd : "unknown command"
+           error("Background command failed with exit code ${exitVal}: ${cmd}")
+         }
+       }
+     }
+   }
+
    // Stop/kill a background process and all its descendants.
    public void stopProcess(Process proc) {
-     if (proc != null && proc.isAlive()) {
-       try {
-         proc.descendants().forEach { it.destroyForcibly() }
-       } catch (Throwable ignored) {
+     if (proc != null) {
+       if (!proc.isAlive()) {
+         int exitVal = proc.exitValue()
+         var.backgroundProcesses.remove(proc)
+         def info = var.backgroundProcessInfo.remove(proc)
+         if (exitVal != 0) {
+           String cmd = info ? info.cmd : "unknown command"
+           error("Background command failed with exit code ${exitVal}: ${cmd}")
+         }
+       } else {
+         try {
+           proc.descendants().forEach { it.destroyForcibly() }
+         } catch (Throwable ignored) {
+         }
+         proc.destroyForcibly()
+         proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+         var.backgroundProcesses.remove(proc)
+         var.backgroundProcessInfo.remove(proc)
        }
-       proc.destroyForcibly()
-       proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
      }
-     var.backgroundProcesses.remove(proc)
    }
 
    // Stop all active background processes.
    public void stopAllBackgroundProcesses() {
      def procs = new ArrayList<>(var.backgroundProcesses)
      procs.each { proc ->
-       stopProcess(proc)
+       if (proc != null && proc.isAlive()) {
+         try {
+           proc.descendants().forEach { it.destroyForcibly() }
+         } catch (Throwable ignored) {
+         }
+         proc.destroyForcibly()
+       }
+       var.backgroundProcesses.remove(proc)
+       var.backgroundProcessInfo.remove(proc)
      }
    }
 
@@ -195,6 +235,7 @@ class TestScripts {
 
    // Cleanup and print success
    public void done() {
+     checkBackgroundProcesses()
      stopAllBackgroundProcesses()
      var.startDir.deleteDir()
      println "[SUCCESS]"
@@ -203,6 +244,7 @@ class TestScripts {
 
    // Run a single command, capture output, verify return code is 0
    private String _execute(String cmd) {
+     checkBackgroundProcesses()
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
@@ -233,6 +275,7 @@ class TestScripts {
      pb.redirectErrorStream(true)
      def proc = pb.start()
      var.backgroundProcesses.add(proc)
+     var.backgroundProcessInfo.put(proc, new BackgroundProcessInfo(process: proc, cmd: cmd))
      Thread.startDaemon {
        try {
          proc.inputStream.eachLine {
