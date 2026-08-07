@@ -55,7 +55,7 @@ class SecretTest(unittest.TestCase):
           exception_str='must contain a valid type parameter'),
       param(
           secret_string='type:gcpsecreT',
-          exception_str='missing 1 required positional argument'),
+          exception_str='Secret name must be specified in secret spec'),
       param(
           secret_string='type:gcpsecreT;version_name:foo;extra:val',
           exception_str='Invalid secret parameter extra'),
@@ -173,7 +173,7 @@ class GcpSecretTest(unittest.TestCase):
     spec_dict = {"project": "my-project"}
     with self.assertRaises(ValueError) as ctx:
       GcpSecret.from_dict(spec_dict)
-    self.assertIn("Secret name ('name') must be specified", str(ctx.exception))
+    self.assertIn("Secret name must be specified", str(ctx.exception))
 
 
 @unittest.skipIf(secretmanager is None, 'GCP dependencies are not installed')

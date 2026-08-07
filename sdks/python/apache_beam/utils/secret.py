@@ -83,8 +83,8 @@ class Secret(abc.ABC):
     from cryptography.fernet import Fernet
     return Fernet.generate_key()
 
-  @staticmethod
-  def parse_secret_option(secret) -> 'Secret':
+  @classmethod
+  def parse_secret_option(cls, secret: str) -> 'Secret':
     """Parses a secret string and returns the appropriate secret type.
 
     The secret string should be formatted like:
@@ -96,35 +96,21 @@ class Secret(abc.ABC):
     param_map = {}
     for param in secret.split(';'):
       parts = param.split(':')
-      param_map[parts[0]] = parts[1]
+      if len(parts) == 2:
+        param_map[parts[0]] = parts[1]
 
     if 'type' not in param_map:
       raise ValueError('Secret string must contain a valid type parameter')
 
-    secret_type = param_map['type'].lower()
-    del param_map['type']
-    secret_class = Secret
-    secret_params = None
-    if secret_type == 'gcpsecret':
-      secret_class = GcpSecret  # type: ignore[assignment]
-      secret_params = ['version_name']
-    elif secret_type == 'gcphsmgeneratedsecret':
-      secret_class = GcpHsmGeneratedSecret  # type: ignore[assignment]
-      secret_params = [
-          'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
-      ]
-    else:
+    raw_type = param_map.pop('type')
+    secret_type = raw_type.lower()
+    secret_manager = _SECRET_TYPE_TO_SECRET_MANAGER.get(secret_type)
+    if not secret_manager:
       raise ValueError(
           f'Invalid secret type {secret_type}, currently only '
           'GcpSecret and GcpHsmGeneratedSecret are supported')
 
-    for param_name in param_map.keys():
-      if param_name not in secret_params:
-        raise ValueError(
-            f'Invalid secret parameter {param_name}, '
-            f'{secret_type} only supports the following '
-            f'parameters: {secret_params}')
-    return secret_class(**param_map)
+    return cls.from_json(json.dumps(param_map), secret_manager)
 
   @classmethod
   def from_json(
@@ -161,8 +147,12 @@ class Secret(abc.ABC):
         pass
 
     if secret_manager_name:
-      secret_cls = _SECRET_CLASSES.get(secret_manager_name.lower())
-      if secret_cls:
+      secret_cls_entry = _SECRET_CLASSES.get(secret_manager_name.lower())
+      if secret_cls_entry:
+        if isinstance(secret_cls_entry, str):
+          secret_cls = globals().get(secret_cls_entry, secret_cls_entry)
+        else:
+          secret_cls = secret_cls_entry
         if isinstance(spec_dict, dict) and hasattr(secret_cls, 'from_dict'):
           return secret_cls.from_dict(spec_dict)
         elif isinstance(spec_dict, dict):
@@ -238,7 +228,7 @@ class GcpSecret(Secret):
 
     secret_id = spec_dict.get("name")
     if not secret_id:
-      raise ValueError("Secret name ('name') must be specified in secret spec.")
+      raise ValueError("Secret name must be specified in secret spec.")
 
     # Resolve project ID from spec, environment variables, or Application Default Credentials
     project_id = (
@@ -463,7 +453,12 @@ class GcpHsmGeneratedSecret(Secret):
       raise RuntimeError(f'Failed to generate DEK with exception {e}')
 
 
-_SECRET_CLASSES: Dict[str, type] = {
-    "googlecloudsecretmanager": GcpSecret,
-    "googlecloudhsmgeneratedsecretmanager": GcpHsmGeneratedSecret,
+_SECRET_TYPE_TO_SECRET_MANAGER: Dict[str, str] = {
+    "gcpsecret": "GoogleCloudSecretManager",
+    "gcphsmgeneratedsecret": "GoogleCloudHsmGeneratedSecretManager",
+}
+
+_SECRET_CLASSES: Dict[str, Any] = {
+    "googlecloudsecretmanager": "GcpSecret",
+    "googlecloudhsmgeneratedsecretmanager": "GcpHsmGeneratedSecret",
 }
