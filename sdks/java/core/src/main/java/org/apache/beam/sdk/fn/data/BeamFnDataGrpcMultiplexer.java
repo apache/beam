@@ -28,6 +28,7 @@ import java.util.function.Consumer;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.pipeline.v1.Endpoints;
 import org.apache.beam.sdk.fn.stream.OutboundObserverFactory;
+import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -57,6 +58,7 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
   private final Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor;
   private final StreamObserver<BeamFnApi.Elements> inboundObserver;
   private final StreamObserver<BeamFnApi.Elements> outboundObserver;
+  private final @Nullable ManagedChannel channel;
   private final ConcurrentHashMap<
           /*instructionId=*/ String, CompletableFuture<CloseableFnDataReceiver<BeamFnApi.Elements>>>
       receivers;
@@ -73,7 +75,17 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
       OutboundObserverFactory outboundObserverFactory,
       OutboundObserverFactory.BasicFactory<BeamFnApi.Elements, BeamFnApi.Elements>
           baseOutboundObserverFactory) {
+    this(apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory, null);
+  }
+
+  public BeamFnDataGrpcMultiplexer(
+      Endpoints.@Nullable ApiServiceDescriptor apiServiceDescriptor,
+      OutboundObserverFactory outboundObserverFactory,
+      OutboundObserverFactory.BasicFactory<BeamFnApi.Elements, BeamFnApi.Elements>
+          baseOutboundObserverFactory,
+      @Nullable ManagedChannel channel) {
     this.apiServiceDescriptor = apiServiceDescriptor;
+    this.channel = channel;
     this.receivers = new ConcurrentHashMap<>();
     this.poisonedInstructionIds =
         CacheBuilder.newBuilder().expireAfterWrite(POISONED_INSTRUCTION_ID_CACHE_TIMEOUT).build();
@@ -194,6 +206,9 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
     outboundObserver.onError(
         Status.CANCELLED.withDescription("Multiplexer hanging up").asException());
     inboundObserver.onCompleted();
+    if (channel != null) {
+      channel.shutdown();
+    }
     if (exception != null) {
       throw exception;
     }
