@@ -495,6 +495,9 @@ public class IcebergIO {
      * execution-scoped, meaning that they are applied to a preexisting table and will not mutate
      * any table-level properties.
      *
+     * <p>To set table-level properties that will be applied to dynamically created tables, use the
+     * managed Iceberg transform instead, setting the `table_properties` config property.
+     *
      * <p>See: https://iceberg.apache.org/docs/latest/configuration/#write-properties
      */
     public WriteRows withWriteProperties(Map<String, String> writeProperties) {
