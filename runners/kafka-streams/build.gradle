@@ -87,6 +87,16 @@ dependencies {
 }
 
 
+// Starts the job server a portable pipeline is submitted to. Pass driver arguments with
+// -PjobServerArgs="--job-port=8099,--artifact-port=8098".
+tasks.register("runJobServer", JavaExec) {
+  group = "Application"
+  description = "Runs the Kafka Streams job server."
+  mainClass = "org.apache.beam.runners.kafka.streams.KafkaStreamsJobServerDriver"
+  classpath = sourceSets.main.runtimeClasspath
+  args = project.hasProperty("jobServerArgs") ? project.property("jobServerArgs").split(",") : []
+}
+
 // The broker integration test drives the production runner against a real Kafka in Docker, so it
 // is not part of the default build. Run it with :runners:kafka-streams:brokerIntegrationTest.
 test {
