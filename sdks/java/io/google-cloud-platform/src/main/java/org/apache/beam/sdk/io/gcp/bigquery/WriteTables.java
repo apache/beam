@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.values.ShardedKey;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
@@ -197,8 +199,20 @@ class WriteTables<DestinationT extends @NonNull Object>
         throws Exception {
       dynamicDestinations.setSideInputAccessorFromProcessContext(c);
       DestinationT destination = c.element().getKey().getKey();
+      TableDestination tableDestination = dynamicDestinations.getTable(destination);
+      checkArgument(
+          tableDestination != null,
+          "DynamicDestinations.getTable() may not return null, "
+              + "but %s returned null for destination %s",
+          dynamicDestinations,
+          destination);
+      @Nullable
+      TableReference cloneSource =
+          tempTable ? null : dynamicDestinations.getCloneSource(destination);
       TableSchema tableSchema;
       if (firstPaneCreateDisposition == CreateDisposition.CREATE_NEVER) {
+        tableSchema = null;
+      } else if (cloneSource != null) {
         tableSchema = null;
       } else if (jsonSchemas.containsKey(destination)) {
         // tableSchema for the destination stored in cache (jsonSchemas)
@@ -219,13 +233,6 @@ class WriteTables<DestinationT extends @NonNull Object>
         jsonSchemas.put(destination, BigQueryHelpers.toJsonString(tableSchema));
       }
 
-      TableDestination tableDestination = dynamicDestinations.getTable(destination);
-      checkArgument(
-          tableDestination != null,
-          "DynamicDestinations.getTable() may not return null, "
-              + "but %s returned null for destination %s",
-          dynamicDestinations,
-          destination);
       boolean destinationCoderSupportsClustering =
           !(dynamicDestinations.getDestinationCoder() instanceof TableDestinationCoderV2);
       checkArgument(
@@ -278,6 +285,26 @@ class WriteTables<DestinationT extends @NonNull Object>
         // WRITE_TRUNCATE is set so that we properly handle retries of this pane.
         writeDisposition = WriteDisposition.WRITE_APPEND;
         createDisposition = CreateDisposition.CREATE_IF_NEEDED;
+      }
+
+      if (cloneSource != null && createDisposition != CreateDisposition.CREATE_NEVER) {
+        Supplier<@Nullable TableSchema> schemaSupplier =
+            () -> dynamicDestinations.getSchema(destination);
+        Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
+            () -> dynamicDestinations.getTableConstraints(destination);
+        Supplier<@Nullable TableReference> cloneSourceSupplier = () -> cloneSource;
+
+        CreateTableHelpers.possiblyCreateTable(
+            c.getPipelineOptions().as(BigQueryOptions.class),
+            tableDestination,
+            schemaSupplier,
+            tableConstraintsSupplier,
+            cloneSourceSupplier,
+            createDisposition,
+            dynamicDestinations.getDestinationCoder(),
+            kmsKey,
+            bqServices,
+            null);
       }
 
       BigQueryHelpers.PendingJob retryJob =
