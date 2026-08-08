@@ -807,6 +807,153 @@ class ReadFromBigQueryTest(unittest.TestCase):
           schema={'fields': []})
 
 
+class FakeDicomSearch(beam.PTransform):
+  def __init__(
+      self, buffer_size=8, max_workers=5, client=None, credential=None):
+    self.buffer_size = buffer_size
+    self.max_workers = max_workers
+
+  def expand(self, pcoll):
+    def do_search(element):
+      required = [
+          'project_id',
+          'region',
+          'dataset_id',
+          'dicom_store_id',
+          'search_type',
+      ]
+      for key in required:
+        if key not in element:
+          return {
+              'result': [],
+              'status': 'Must have %s in the dict.' % key,
+              'input': element,
+              'success': False,
+          }
+      if element['search_type'] not in ('instances', 'studies', 'series'):
+        return {
+            'result': [],
+            'status': (
+                'Search type can only be "studies", '
+                '"instances" or "series"'),
+            'input': element,
+            'success': False,
+        }
+      if element.get('project_id') == 'bad_project':
+        return {
+            'result': [],
+            'status': 500,
+            'input': element,
+            'success': False,
+        }
+      params = element.get('params') or {}
+      result = [{'PatientName': 'Alice', 'params': params}]
+      return {
+          'result': result,
+          'status': 200,
+          'input': element,
+          'success': True,
+      }
+
+    return pcoll | beam.Map(do_search)
+
+
+def _patch_dicom_search():
+  """Install a fake dicomio module so tests do not require GCP extras."""
+  import sys
+  import types
+
+  dicomio_mod = types.ModuleType('apache_beam.io.gcp.healthcare.dicomio')
+  dicomio_mod.DicomSearch = FakeDicomSearch
+  return mock.patch.dict(
+      sys.modules, {'apache_beam.io.gcp.healthcare.dicomio': dicomio_mod})
+
+
+class YamlDicomSearchTest(unittest.TestCase):
+  def test_dicom_search_success(self):
+    with _patch_dicom_search():
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([
+                beam.Row(
+                    project_id='proj',
+                    region='us-central1',
+                    dataset_id='dataset',
+                    dicom_store_id='store',
+                    search_type='instances',
+                    params={'PatientName': 'Alice'})
+            ])
+            | YamlTransform(
+                '''
+                type: DicomSearch
+                '''))
+        assert_that(
+            result
+            | beam.Map(
+                lambda row:
+                (row.status, json.loads(row.result)[0]['PatientName'])),
+            equal_to([('200', 'Alice')]))
+
+  def test_dicom_search_with_error_handling(self):
+    with _patch_dicom_search():
+      with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+          pickle_library='cloudpickle')) as p:
+        result = (
+            p
+            | beam.Create([
+                beam.Row(
+                    project_id='proj',
+                    region='us-central1',
+                    dataset_id='dataset',
+                    dicom_store_id='store',
+                    search_type='instances'),
+                beam.Row(
+                    project_id='bad_project',
+                    region='us-central1',
+                    dataset_id='dataset',
+                    dicom_store_id='store',
+                    search_type='instances'),
+            ])
+            | YamlTransform(
+                '''
+                type: DicomSearch
+                config:
+                  error_handling:
+                    output: errors
+                '''))
+        assert_that(
+            result['good'] | beam.Map(lambda row: row.status),
+            equal_to(['200']),
+            label='CheckGood')
+        assert_that(
+            result['errors'] | beam.Map(lambda error: error.msg),
+            equal_to(['DicomSearch failed with status: 500']),
+            label='CheckErrors')
+
+  def test_dicom_search_without_error_handling_raises(self):
+    with self.assertRaises(Exception):
+      with _patch_dicom_search():
+        with beam.Pipeline(
+            options=beam.options.pipeline_options.PipelineOptions(
+                pickle_library='cloudpickle')) as p:
+          _ = (
+              p
+              | beam.Create([
+                  beam.Row(
+                      project_id='bad_project',
+                      region='us-central1',
+                      dataset_id='dataset',
+                      dicom_store_id='store',
+                      search_type='instances')
+              ])
+              | YamlTransform(
+                  '''
+                  type: DicomSearch
+                  '''))
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
