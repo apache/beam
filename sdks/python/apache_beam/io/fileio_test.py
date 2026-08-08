@@ -34,7 +34,9 @@ from hamcrest.library.text import stringmatches
 import apache_beam as beam
 from apache_beam.io import fileio
 from apache_beam.io.filebasedsink_test import _TestCaseWithTempDirCleanUp
+from apache_beam.io.filesystem import BeamIOError
 from apache_beam.io.filesystem import CompressionTypes
+from apache_beam.io.filesystem import FileMetadata
 from apache_beam.io.filesystems import FileSystems
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
@@ -419,6 +421,118 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
           | beam.Map(_create_extra_file))
 
       assert_that(match_continiously, equal_to(files))
+
+  def test_poll_fn_gates_on_start_timestamp(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    self._create_temp_file(dir=tempdir)
+    pattern = FileSystems.join(tempdir, '*')
+
+    future_start = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() + 3600)
+    self.assertEqual((), future_start(pattern).outputs)
+
+    past_start = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() - 3600)
+    self.assertEqual(1, len(past_start(pattern).outputs))
+
+  def test_poll_fn_disallows_empty_match(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.DISALLOW, Timestamp.now() - 3600)
+    with self.assertRaises(BeamIOError):
+      poll_fn(FileSystems.join(tempdir, 'no-such-file'))
+
+  def test_poll_fn_stamps_outputs_with_poll_time(self):
+    # Matches always carry the poll time as event time; matching updated
+    # files must not change that.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    self._create_temp_file(dir=tempdir)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() - 3600)
+    before = Timestamp.now()
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    after = Timestamp.now()
+    self.assertEqual(1, len(result.outputs))
+    output = result.outputs[0]
+    self.assertLessEqual(before, output.timestamp)
+    self.assertLessEqual(output.timestamp, after)
+    self.assertEqual(result.watermark, output.timestamp)
+
+  def test_match_updated_files_keys_on_path_and_mtime(self):
+    # An updated file dedups as new because its key changes.
+    metadata = FileMetadata('/tmp/a', 1, 1234.5)
+    self.assertEqual(('/tmp/a', 1234.5),
+                     fileio._file_path_and_mtime_key(metadata))
+
+  def test_match_updated_files_rejects_missing_mtime(self):
+    # A zero last-modified time is rejected: without mtimes, updates could
+    # never be detected.
+    with self.assertRaises(BeamIOError):
+      fileio._file_path_and_mtime_key(FileMetadata('/tmp/a', 1))
+
+  def test_start_equals_stop_matches_nothing(self):
+    # PeriodicImpulse's [start, stop) tick window is empty when start == stop;
+    # the deduplicated path must skip Watch's unconditional first poll by
+    # falling back to the impulse path, which also keeps the output unbounded.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    self._create_temp_file(dir=tempdir)
+    start = Timestamp.now()
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=0.2,
+              start_timestamp=start,
+              stop_timestamp=start))
+      assert_that(match_continiously, equal_to([]))
+
+  def test_rejects_nonpositive_interval(self):
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    with self.assertRaisesRegex(ValueError, 'interval must be positive'):
+      with TestPipeline() as p:
+        _ = p | fileio.MatchContinuously(
+            file_pattern=FileSystems.join(tempdir, '*'), interval=0)
+
+  def test_watch_window_termination_ignores_pre_start_polls(self):
+    # Polls before start_timestamp are deferred waits and must not consume the
+    # budget, otherwise a future start_timestamp silently drops all output. The
+    # boundary is judged by the poll's own clock reading, so a round straddling
+    # the start cannot consume the budget without having matched.
+    start_micros = Timestamp.of(1000).micros
+    clock = fileio._PollClock()
+    term = fileio._WatchWindowTermination(clock, start_micros, max_polls=2)
+    now = Timestamp.of(999)
+    state = term.for_new_input(now, 'pattern')
+    clock.last_poll_micros = Timestamp.of(999).micros
+    state = term.on_poll_complete(state)
+    state = term.on_poll_complete(state)
+    self.assertFalse(term.can_stop_polling(now, state))
+    clock.last_poll_micros = Timestamp.of(1000).micros
+    state = term.on_poll_complete(state)
+    self.assertFalse(term.can_stop_polling(now, state))
+    state = term.on_poll_complete(state)
+    self.assertTrue(term.can_stop_polling(now, state))
+
+  def test_poll_fn_records_its_clock_reading_for_the_termination(self):
+    # The gate and the poll budget share one reading per round; see _PollClock.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    clock = fileio._PollClock()
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() + 3600, clock)
+    self.assertIsNone(clock.last_poll_micros)
+    poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertIsNotNone(clock.last_poll_micros)
+
+  def test_poll_fn_advances_watermark_on_empty_match(self):
+    # An empty (but allowed) match still carries a watermark so downstream
+    # event-time windows keep progressing when no new files appear.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW, Timestamp.now() - 3600)
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertEqual((), result.outputs)
+    self.assertIsNotNone(result.watermark)
 
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
