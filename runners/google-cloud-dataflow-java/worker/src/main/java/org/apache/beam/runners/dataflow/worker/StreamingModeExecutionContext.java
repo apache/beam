@@ -1055,6 +1055,11 @@ public class StreamingModeExecutionContext
     }
 
     @Override
+    public @Nullable Object getKey() {
+      return wrapped.getKey();
+    }
+
+    @Override
     public <T, W extends BoundedWindow> void writePCollectionViewData(
         TupleTag<?> tag,
         Iterable<T> data,
@@ -1480,6 +1485,11 @@ public class StreamingModeExecutionContext
     @Override
     public StateInternals stateInternals() {
       return checkStateNotNull(stateInternals, "Tried to access state");
+    }
+
+    @Override
+    public @Nullable Object getKey() {
+      return key;
     }
 
     @Override
