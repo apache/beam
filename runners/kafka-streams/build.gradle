@@ -21,7 +21,11 @@ import java.time.Duration
 
 plugins { id 'org.apache.beam.module' }
 
-def kafka_version = '3.9.0'
+// An extension property rather than a local, so the job server module can pin the same version
+// instead of repeating it. Both have to pin: applyJavaNature forces every version in library.java,
+// which includes an older kafka-clients, and a module that does not override it links against that
+// one at runtime.
+ext.kafka_version = '3.9.0'
 
 applyJavaNature(
     automaticModuleName: 'org.apache.beam.runners.kafka.streams',

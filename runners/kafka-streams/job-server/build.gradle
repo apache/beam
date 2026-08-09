@@ -44,6 +44,22 @@ def kafkaStreamsRunnerProject = ":runners:kafka-streams"
 
 description = "Apache Beam :: Runners :: Kafka Streams :: Job Server"
 
+evaluationDependsOn(kafkaStreamsRunnerProject)
+
+// The runner is compiled against this version, so the jar has to carry it. Without this the
+// versions forced by applyJavaNature win, the shaded jar ships an older kafka-clients, and every
+// pipeline fails at translation with a NoSuchMethodError rather than at build time.
+def kafka_version = project(kafkaStreamsRunnerProject).kafka_version
+
+configurations.configureEach {
+  resolutionStrategy.eachDependency { details ->
+    if (details.requested.group == "org.apache.kafka") {
+      details.useVersion(kafka_version)
+      details.because("Kafka Streams runner is developed against Kafka ${kafka_version}.")
+    }
+  }
+}
+
 dependencies {
   implementation project(kafkaStreamsRunnerProject)
   permitUnusedDeclared project(kafkaStreamsRunnerProject)
