@@ -34,6 +34,15 @@ import org.slf4j.LoggerFactory;
 /**
  * A {@link PipelineRunner} that submits portable jobs to an in-process or external Beam job service
  * backed by the Kafka Streams translation path.
+ *
+ * <p><b>This runner is experimental.</b> It executes a subset of the Beam model correctly — the
+ * parts it supports are covered by Beam's {@code @ValidatesRunner} suite — but several capabilities
+ * that are core to the model are not implemented yet, among them side inputs, stateful {@code
+ * ParDo} and user timers, merging windows, custom {@code WindowFn}s and splittable {@code DoFn}.
+ * Its behaviour and its pipeline options may change. See the <a
+ * href="https://beam.apache.org/documentation/runners/kafkastreams/">runner documentation</a> for
+ * what is and is not supported, and <a
+ * href="https://github.com/apache/beam/issues/18479">#18479</a> for the work that remains.
  */
 public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
 
