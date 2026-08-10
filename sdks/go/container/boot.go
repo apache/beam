@@ -17,7 +17,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -31,7 +30,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/container/pool"
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
-	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 
 	// Import gcs filesystem so that it can be used to upload heap dumps
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/gcs"
@@ -61,23 +59,16 @@ const (
 	workerPoolIdEnv                 = "BEAM_GO_WORKER_POOL_ID"
 )
 
-func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logger, metadata map[string]string, options string) error {
+func configureGoogleCloudProfilerEnvVars(ctx context.Context, logger *tools.Logger, metadata map[string]string, po *tools.PipelineOptions) error {
 	const profilerKey = "enable_google_cloud_profiler="
-
-	var parsed map[string]interface{}
-	if err := json.Unmarshal([]byte(options), &parsed); err != nil {
-		panic(err)
-	}
 
 	var profilerServiceName string
 
-	// Try from "beam:option:go_options:v1" -> "options" -> "dataflow_service_options"
-	if goOpts, ok := parsed["beam:option:go_options:v1"].(map[string]interface{}); ok {
-		if options, ok := goOpts["options"].(map[string]interface{}); ok {
-			if profilerServiceNameRaw, ok := options["dataflow_service_options"].(string); ok {
-				if strings.HasPrefix(profilerServiceNameRaw, profilerKey) {
-					profilerServiceName = strings.TrimPrefix(profilerServiceNameRaw, profilerKey)
-				}
+	if serviceOpts, err := po.GetStringSlice("dataflow_service_options"); err == nil {
+		for _, opt := range serviceOpts {
+			if strings.HasPrefix(opt, profilerKey) {
+				profilerServiceName = strings.TrimPrefix(opt, profilerKey)
+				break
 			}
 		}
 	}
@@ -159,8 +150,11 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	// Go SDK wraps pipeline options inside the URN namespace: "beam:option:go_options:v1".
+	po := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "go_options")
+
 	// Inject artifact validation enabled state into context
-	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
+	ctx = artifact.WithArtifactValidation(ctx, !po.HasExperiment("disable_staged_file_integrity_checks"))
 
 	// (2) Retrieve the staged files.
 	//
@@ -210,9 +204,11 @@ func main() {
 		os.Setenv("RUNNER_CAPABILITIES", strings.Join(info.GetRunnerCapabilities(), " "))
 	}
 
-	enableGoogleCloudProfiler := strings.Contains(options, enableGoogleCloudProfilerOption)
+	// Go SDK models multi-value list flags (like dataflow_service_options) as comma-separated strings.
+	serviceOpts, _ := po.GetString("dataflow_service_options")
+	enableGoogleCloudProfiler := strings.Contains(serviceOpts, "enable_google_cloud_profiler")
 	if enableGoogleCloudProfiler {
-		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.Metadata, options)
+		err := configureGoogleCloudProfilerEnvVars(ctx, logger, info.Metadata, po)
 		if err != nil {
 			logger.Printf(ctx, "could not configure Google Cloud Profiler variables, got %v", err)
 		}
@@ -221,12 +217,8 @@ func main() {
 	err = execx.Execute(prog, args...)
 
 	if err != nil {
-		var opt runtime.RawOptionsWrapper
-		err := json.Unmarshal([]byte(options), &opt)
-		if err == nil {
-			if tempLocation, ok := opt.Options.Options["temp_location"]; ok {
-				diagnostics.UploadHeapProfile(ctx, fmt.Sprintf("%v/heapProfiles/profile-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()))
-			}
+		if tempLocation, err := po.GetString("temp_location"); err == nil && tempLocation != "" {
+			diagnostics.UploadHeapProfile(ctx, fmt.Sprintf("%v/heapProfiles/profile-%v-%d", strings.TrimSuffix(tempLocation, "/"), *id, time.Now().Unix()))
 		}
 	}
 

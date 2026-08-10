@@ -150,11 +150,10 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-      'pyarrow>=6.0.1,<24.0.0',
-      # NOTE(https://github.com/apache/beam/issues/29392): We can remove this
-      # once Beam increases the pyarrow lower bound to a version that fixes CVE.
-      # (lower bound >= 14.0.1)
-      'pyarrow-hotfix<1'
+    # Generally try to cover versions released in the last two years.
+    # Update python/sdks/tox.ini to cover the same pyarrow versions
+    # when updating the bounds here.
+    'pyarrow>=14.0.1,<26.0.0',
   ]
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
@@ -417,15 +416,11 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0,<48.0.0',
-          'envoy-data-plane>=1.0.3,<2; python_version >= "3.11"',
-          # Newer version only work on Python 3.11. Versions 0.3 <= ver < 1.x
-          # conflict with other GCP dependencies.
-          'envoy-data-plane<0.3.0; python_version < "3.11"',
+          'cryptography>=39.0.0,<49.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
-          'httplib2>=0.8,<0.32.0',
+          'httplib2>=0.8,<1.0.0',
           'jsonpickle>=3.0.4,<5.0.0',
           # numpy can have breaking changes in minor versions.
           # Use a strict upper bound.
@@ -465,9 +460,8 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dev': [
-            'isort==7.0.0',
-            'pyrefly==0.54.0',
-            'ruff==0.15.7',
+            'pyrefly==1.1.1',
+            'ruff==0.15.22',
             'yapf==0.43.0',
           ],
           'dill': [
@@ -594,17 +588,14 @@ if __name__ == '__main__':
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill',  # match tft extra.
-              'tensorflow_transform>=1.14.0,<1.15.0',
-              # TFT->TFX-BSL require pandas 1.x, which is not compatible
-              # with numpy 2.x
-              'numpy<2',
+              'tensorflow_transform>=1.21.0,<1.22.0',
               # Comment out xgboost as it is breaking presubmit python ml
               # tests due to tag check introduced since pip 24.2
               # https://github.com/apache/beam/issues/31285
               # 'xgboost<2.0',  # https://github.com/apache/beam/issues/31252
               # tft needs protobuf<5; tf2onnx 1.17+ allows protobuf 5 on the
               # ADK-only path.
-              'tf2onnx>=1.16.1,<1.17',
+              'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
           'p310_ml_test': [
             'datatable',
@@ -614,7 +605,7 @@ if __name__ == '__main__':
           ] + ml_base + qdrant_dependency,
           # maintainer: milvus tests only run with this extension. Make sure it
           # is covered by docker-in-docker test when changing py version
-          'p313_ml_test': ml_base + milvus_dependency + qdrant_dependency,
+          'p313_ml_test': ml_base_core + milvus_dependency + qdrant_dependency,
           'aws': ['boto3>=1.9,<2'],
           'azure': [
               'azure-storage-blob>=12.3.2,<13',
@@ -647,7 +638,7 @@ if __name__ == '__main__':
           # https://docs.google.com/document/d/1c84Gc-cZRCfrU8f7kWGsNR2o8oSRjCM-dGHO9KvPWPw/edit?usp=sharing
           'torch': ['torch>=1.9.0,<2.8.0'],
           'tensorflow': [
-              'tensorflow>=2.12rc1,<2.21',  # tensorflow transitive dep
+              'tensorflow>=2.12rc1,<2.22',  # tensorflow transitive dep
               'absl-py>=0.12.0'
           ],
           'transformers': [
@@ -664,10 +655,7 @@ if __name__ == '__main__':
           ],
           'redis': ['redis>=5.0.0,<6'],
           'tft': [
-              'tensorflow_transform>=1.14.0,<1.15.0',
-              # TFT->TFX-BSL require pandas 1.x, which is not compatible
-              # with numpy 2.x
-              'numpy<2',
+              'tensorflow_transform>=1.21.0,<1.22.0',
               # tensorflow-transform requires dill, but doesn't set dill as a
               # hard requirement in setup.py.
               'dill'
@@ -677,7 +665,7 @@ if __name__ == '__main__':
               'onnxruntime==1.13.1',
               'torch==1.13.1',
               'tensorflow==2.11.0',
-              'tf2onnx==1.13.0',
+              'tf2onnx==1.17.0',
               'skl2onnx==1.13',
               'transformers==4.25.1',  # tensorflow transient dep
               'absl-py>=0.12.0'

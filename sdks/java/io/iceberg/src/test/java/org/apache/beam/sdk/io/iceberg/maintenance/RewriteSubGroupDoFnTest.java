@@ -64,14 +64,12 @@ import org.apache.iceberg.SerializableTable;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
-import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.BaseDVFileWriter;
 import org.apache.iceberg.deletes.DVFileWriter;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.OutputFileFactory;
 import org.apache.iceberg.types.Types;
-import org.apache.iceberg.util.PartitionUtil;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -696,12 +694,7 @@ public class RewriteSubGroupDoFnTest {
     Map<Long, Long> out = new HashMap<>();
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
       for (FileScanTask t : tasks) {
-        try (CloseableIterable<Record> records =
-            ReadUtils.createReader(
-                t,
-                table,
-                lineage,
-                PartitionUtil.constantsMap(t, IdentityPartitionConverters::convertConstant))) {
+        try (CloseableIterable<Record> records = ReadUtils.createReader(t, table, lineage)) {
           for (Record r : records) {
             out.put((Long) r.getField("id"), (Long) r.getField("_row_id"));
           }
@@ -717,12 +710,7 @@ public class RewriteSubGroupDoFnTest {
     Map<Long, Long> out = new HashMap<>();
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
       for (FileScanTask t : tasks) {
-        try (CloseableIterable<Record> records =
-            ReadUtils.createReader(
-                t,
-                table,
-                lineage,
-                PartitionUtil.constantsMap(t, IdentityPartitionConverters::convertConstant))) {
+        try (CloseableIterable<Record> records = ReadUtils.createReader(t, table, lineage)) {
           for (Record r : records) {
             out.put((Long) r.getField("id"), (Long) r.getField("_last_updated_sequence_number"));
           }
@@ -836,12 +824,7 @@ public class RewriteSubGroupDoFnTest {
 
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
       FileScanTask t = tasks.iterator().next();
-      try (CloseableIterable<Record> records =
-          ReadUtils.createReader(
-              t,
-              table,
-              lineage,
-              PartitionUtil.constantsMap(t, IdentityPartitionConverters::convertConstant))) {
+      try (CloseableIterable<Record> records = ReadUtils.createReader(t, table, lineage)) {
         Record record = records.iterator().next();
         Long rowId = (Long) record.getField("_row_id");
         assertNotNull("sanity: the read record materializes _row_id", rowId);

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
@@ -70,6 +69,9 @@ public class SerializableDataFileTest {
           .add("nanValueCounts")
           .add("lowerBounds")
           .add("upperBounds")
+          .add("dataSequenceNumber")
+          .add("fileSequenceNumber")
+          .add("firstRowId")
           .build();
 
   @Test
@@ -106,7 +108,7 @@ public class SerializableDataFileTest {
   public void schemaFieldNumbersArePinned() throws Exception {
     org.apache.beam.sdk.schemas.Schema schema =
         SchemaRegistry.createDefault().getSchema(SerializableDataFile.class);
-    assertEquals(15, schema.getFieldCount());
+    assertEquals(18, schema.getFieldCount());
     assertEquals("path", schema.getField(0).getName());
     assertEquals("fileFormat", schema.getField(1).getName());
     assertEquals("recordCount", schema.getField(2).getName());
@@ -121,11 +123,10 @@ public class SerializableDataFileTest {
     assertEquals("nanValueCounts", schema.getField(11).getName());
     assertEquals("lowerBounds", schema.getField(12).getName());
     assertEquals("upperBounds", schema.getField(13).getName());
-    assertEquals("jsonPartition", schema.getField(14).getName());
-    // Nullability contract: partitionPath (field 4) must stay NON-null; jsonPartition (field 14)
-    // is the appended nullable field.
-    assertFalse("partitionPath must be non-nullable", schema.getField(4).getType().getNullable());
-    assertTrue("jsonPartition must be nullable", schema.getField(14).getType().getNullable());
+    assertEquals("dataSequenceNumber", schema.getField(14).getName());
+    assertEquals("fileSequenceNumber", schema.getField(15).getName());
+    assertEquals("firstRowId", schema.getField(16).getName());
+    assertEquals("jsonPartition", schema.getField(17).getName());
   }
 
   /**

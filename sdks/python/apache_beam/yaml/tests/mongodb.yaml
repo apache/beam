@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.
@@ -13,7 +12,6 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
 fixtures:
   - name: mongo_vars
@@ -27,13 +25,13 @@ pipelines:
           name: CreateData
           config:
             elements:
-              - { id: 1, name: "John" }
-              - { id: 2, name: "Jane" }
+              - { name: "John", age: 30 }
+              - { name: "Jane", age: 25 }
         - type: WriteToMongoDB
           name: WriteData
           input: CreateData
           config:
-            connection_uri: '{mongo_vars[URI]}'
+            uri: '{mongo_vars[URI]}'
             database: '{mongo_vars[DATABASE]}'
             collection: '{mongo_vars[COLLECTION]}'
             error_handling:
@@ -42,3 +40,35 @@ pipelines:
           input: WriteData.my_error_output
           config:
             elements: []
+  - pipeline:
+     type: composite
+     transforms:
+       - type: ReadFromMongoDB
+         name: ReadData
+         config:
+           uri: '{mongo_vars[URI]}'
+           database: '{mongo_vars[DATABASE]}'
+           collection: '{mongo_vars[COLLECTION]}'
+           schema: |
+             {
+               "type": "object",
+               "properties": {
+                 "name": {"type": "string"},
+                 "age": {"type": "integer"}
+               },
+               "required": ["name", "age"]
+             }
+           error_handling:
+             output: my_error_output
+       - type: AssertEqual
+         input: ReadData
+         config:
+           elements:
+             - { name: "John", age: 30 }
+             - { name: "Jane", age: 25 }
+       - type: AssertEqual
+         input: ReadData.my_error_output
+         config:
+           elements: []
+
+

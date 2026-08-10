@@ -280,8 +280,10 @@ class Environment(object):
       for k, v in sdk_pipeline_options.items():
         if v is None:
           continue
-        options_dict[k] = str(v) if isinstance(
-            v, value_provider.ValueProvider) else v
+        if isinstance(v, value_provider.ValueProvider):
+          options_dict[k] = v.get() if v.is_accessible() else None
+        else:
+          options_dict[k] = v
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
       if pipeline_proto_hash:
         options_dict["pipelineProtoHash"] = pipeline_proto_hash
@@ -1262,8 +1264,10 @@ def _verify_interpreter_version_is_supported(pipeline_options):
     return
 
   raise Exception(
-      'Dataflow runner currently supports Python versions %s, got %s.\n'
+      'Dataflow runner currently supports Python versions %s, got %s.%s.\n'
       'To ignore this requirement and start a job '
       'using an unsupported version of Python interpreter, pass '
-      '--experiment use_unsupported_python_version pipeline option.' %
-      (_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW, sys.version))
+      '--experiment use_unsupported_python_version pipeline option.' % (
+          _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW,
+          sys.version_info[0],
+          sys.version_info[1]))

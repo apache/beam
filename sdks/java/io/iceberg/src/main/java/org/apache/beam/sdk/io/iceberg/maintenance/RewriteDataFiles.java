@@ -81,7 +81,7 @@ import org.slf4j.LoggerFactory;
  * into their original batches. Partial progress will do parallel commits (based on {@code
  * maxCommits}) and atomic mode will put everything into a single commit.
  *
- * <h2>Failure semantics
+ * <h2>Failure semantics</h2>
  *
  * <p>The default <b>atomic mode</b> is all-or-nothing. If any rewrite subgroup fails, all subgroup
  * output files will be deleted (regardless if successful or not) and the pipeline fails. This

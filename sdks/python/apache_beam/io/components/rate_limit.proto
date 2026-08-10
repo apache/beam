@@ -1,0 +1,64 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// Minimal, self-contained subset of the Envoy Rate Limit Service protocol,
+// used by EnvoyRateLimiter in rate_limiter.py. Only the fields the client
+// touches are declared. Field numbers MUST match Envoy's rls.proto and
+// ratelimit.proto so this is wire-compatible with a real Envoy RLS server
+// (protobuf carries only field numbers and types on the wire, not message or
+// package names). This lets Beam use its standard protobuf/grpcio stack
+// instead of pulling in envoy-data-plane and its betterproto dependency.
+//
+// Regenerate rate_limit_pb2.py after editing this file:
+//   cd sdks/python
+//   python -m grpc_tools.protoc -I. --python_out=. \
+//       apache_beam/io/components/rate_limit.proto
+// then prepend the Apache license header and remove the generated
+// `runtime_version` guard so the module stays compatible with the full
+// protobuf runtime range Beam supports (see setup.py).
+
+syntax = "proto3";
+
+package apache_beam.io.components.ratelimit;
+
+import "google/protobuf/duration.proto";
+
+message RateLimitDescriptor {
+  message Entry {
+    string key = 1;
+    string value = 2;
+  }
+  repeated Entry entries = 1;
+}
+
+message RateLimitRequest {
+  string domain = 1;
+  repeated RateLimitDescriptor descriptors = 2;
+  uint32 hits_addend = 3;
+}
+
+message RateLimitResponse {
+  enum Code {
+    UNKNOWN = 0;
+    OK = 1;
+    OVER_LIMIT = 2;
+  }
+  message DescriptorStatus {
+    Code code = 1;
+    google.protobuf.Duration duration_until_reset = 4;
+  }
+  Code overall_code = 1;
+  repeated DescriptorStatus statuses = 2;
+}

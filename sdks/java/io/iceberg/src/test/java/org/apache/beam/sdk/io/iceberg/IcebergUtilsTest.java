@@ -19,11 +19,15 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.TypeAndMaxId;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamFieldTypeToIcebergFieldType;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.parseTableIdentifier;
+import static org.apache.beam.sdk.io.iceberg.IcebergUtils.tableIdentifierToString;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
@@ -38,12 +42,14 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UuidLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Type;
@@ -59,6 +65,65 @@ import org.junit.runners.JUnit4;
 /** Test class for {@link IcebergUtils}. */
 @RunWith(Enclosed.class)
 public class IcebergUtilsTest {
+
+  @RunWith(JUnit4.class)
+  public static class TableIdentifierTests {
+
+    @Test
+    public void parseTableIdentifierParsesJson() {
+      TableIdentifier identifier =
+          parseTableIdentifier(
+              " {\"namespace\": [\"dogs\", \"owners.and.handlers\"],"
+                  + " \"name\": \"food.with.dots\"}");
+
+      assertArrayEquals(
+          new String[] {"dogs", "owners.and.handlers"}, identifier.namespace().levels());
+      assertEquals("food.with.dots", identifier.name());
+    }
+
+    @Test
+    public void parseTableIdentifierParsesLegacyDottedString() {
+      TableIdentifier identifier = parseTableIdentifier("dogs.owners.and.handlers.food");
+
+      assertArrayEquals(
+          new String[] {"dogs", "owners", "and", "handlers"}, identifier.namespace().levels());
+      assertEquals("food", identifier.name());
+    }
+
+    @Test
+    public void tableIdentifierToStringRoundTripsSpecialCharacters() {
+      TableIdentifier expected =
+          TableIdentifier.of("dogs", "owners.and.handlers", "food.with.dots");
+
+      assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
+    }
+
+    @Test
+    public void tableIdentifierToStringUsesLegacyFormWhenUnambiguous() {
+      assertEquals("dogs.food", tableIdentifierToString(TableIdentifier.of("dogs", "food")));
+    }
+
+    @Test
+    public void tableIdentifierToStringUsesJsonForLegacyStringsThatLookLikeJson() {
+      TableIdentifier expected = TableIdentifier.of("{dogs}", "{food}");
+
+      assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
+    }
+
+    @Test
+    public void tableIdentifierToStringDoesNotUseJsonForPartialJsonLikeStrings() {
+      TableIdentifier expected = TableIdentifier.of("{dogs}", "food");
+
+      assertEquals("{dogs}.food", tableIdentifierToString(expected));
+      assertEquals(expected, parseTableIdentifier(tableIdentifierToString(expected)));
+    }
+
+    @Test
+    public void parseTableIdentifierRejectsInvalidJsonIdentifier() {
+      assertThrows(
+          IllegalArgumentException.class, () -> parseTableIdentifier("{\"table_name\":\"food\"}"));
+    }
+  }
 
   @RunWith(JUnit4.class)
   public static class RowToRecordTests {
@@ -168,6 +233,13 @@ public class IcebergUtilsTest {
       OffsetDateTime offsetDateTime = OffsetDateTime.parse(val);
       LocalDateTime localDateTime =
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+      // Timestamp.MICROS
+      checkRowValueToRecordValue(
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant(),
+          Types.TimestampType.withZone(),
+          offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC));
+
       // SqlTypes.DATETIME
       checkRowValueToRecordValue(
           Schema.FieldType.logicalType(SqlTypes.DATETIME),
@@ -198,7 +270,10 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testFixed() {}
+    public void testFixed() {
+      byte[] bytes = new byte[] {1, 2, 3, 4};
+      checkRowValueToRecordValue(Schema.FieldType.BYTES, bytes, Types.FixedType.ofLength(4), bytes);
+    }
 
     @Test
     public void testBinary() {
@@ -362,6 +437,24 @@ public class IcebergUtilsTest {
       OffsetDateTime offsetDateTime = OffsetDateTime.parse(timestamp);
       LocalDateTime localDateTime =
           offsetDateTime.withOffsetSameInstant(ZoneOffset.UTC).toLocalDateTime();
+
+      // Timestamp.MICROS
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          offsetDateTime,
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant());
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          DateTimeUtil.microsFromTimestamptz(offsetDateTime),
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant());
+      checkRecordValueToRowValue(
+          Types.TimestampType.withZone(),
+          timestamp,
+          Schema.FieldType.logicalType(Timestamp.MICROS),
+          offsetDateTime.toInstant());
+
       // SqlTypes.DATETIME
       checkRecordValueToRowValue(
           Types.TimestampType.withZone(),
@@ -395,7 +488,25 @@ public class IcebergUtilsTest {
     }
 
     @Test
-    public void testFixed() {}
+    public void testUpdateCompatibilityVersionGatesTimestamptzMapping() {
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(required(0, "ts", Types.TimestampType.withZone()));
+
+      // A pinned, older update-compatibility version keeps the legacy DATETIME mapping on read.
+      Schema pinnedOld = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema, "2.50.0");
+      assertEquals(Schema.FieldType.DATETIME, pinnedOld.getField("ts").getType());
+
+      // An unset (null) or future update-compatibility version uses the new micros mapping.
+      Schema unpinned = IcebergUtils.icebergSchemaToBeamSchema(icebergSchema, null);
+      assertEquals(
+          Schema.FieldType.logicalType(Timestamp.MICROS), unpinned.getField("ts").getType());
+    }
+
+    @Test
+    public void testFixed() {
+      byte[] bytes = new byte[] {1, 2, 3, 4};
+      checkRecordValueToRowValue(Types.FixedType.ofLength(4), bytes, Schema.FieldType.BYTES, bytes);
+    }
 
     @Test
     public void testBinary() {
@@ -804,7 +915,7 @@ public class IcebergUtilsTest {
             .addNullableStringField("str")
             .addNullableBooleanField("bool")
             .addByteArrayField("bytes")
-            .addDateTimeField("datetime_tz")
+            .addLogicalTypeField("datetime_tz", Timestamp.MICROS)
             .addLogicalTypeField("datetime", SqlTypes.DATETIME)
             .addLogicalTypeField("time", SqlTypes.TIME)
             .addLogicalTypeField("date", SqlTypes.DATE)

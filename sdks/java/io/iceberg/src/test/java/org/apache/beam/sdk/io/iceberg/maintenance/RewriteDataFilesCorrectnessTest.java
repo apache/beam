@@ -1151,8 +1151,7 @@ public class RewriteDataFilesCorrectnessTest {
         // partition column to the file's registered partition value, which would MASK the
         // mis-partitioning this test hunts for.
         try (CloseableIterable<Record> rows =
-            ReadUtils.createReader(
-                t, reloaded, reloaded.schema(), Collections.<Integer, Object>emptyMap())) {
+            ReadUtils.createReader(t, reloaded, reloaded.schema())) {
           for (Record r : rows) {
             rowShards.add((Integer) r.getField("shard"));
           }

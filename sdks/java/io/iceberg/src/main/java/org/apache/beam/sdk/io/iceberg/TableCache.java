@@ -49,23 +49,23 @@ public class TableCache {
       CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
 
   /** Returns the cached table, loading it from the catalog on a cache miss. */
-  static Table get(IcebergCatalogConfig catalogConfig, TableIdentifier identifier) {
+  public static Table get(IcebergCatalogConfig catalogConfig, TableIdentifier identifier) {
     return get(catalogConfig, identifier, () -> catalogConfig.catalog().loadTable(identifier));
   }
 
   /** Returns the cached table for a string identifier, loading it on a cache miss. */
-  static Table get(IcebergCatalogConfig catalogConfig, String identifier) {
-    return get(catalogConfig, TableIdentifier.parse(identifier));
+  public static Table get(IcebergCatalogConfig catalogConfig, String identifier) {
+    return get(catalogConfig, IcebergUtils.parseTableIdentifier(identifier));
   }
 
   /** Returns the cached table, using the given loader only on a cache miss. */
-  static Table get(
+  public static Table get(
       IcebergCatalogConfig catalogConfig, TableIdentifier identifier, Callable<Table> loader) {
     return getEntry(catalogConfig, identifier, loader).table;
   }
 
   /** Returns the cached table after forcing a refresh of any pre-existing cache entry. */
-  static Table getRefreshed(IcebergCatalogConfig catalogConfig, TableIdentifier identifier) {
+  public static Table getRefreshed(IcebergCatalogConfig catalogConfig, TableIdentifier identifier) {
     Instant refreshRequestTime = Instant.now();
     CachedTable cachedTable =
         getEntry(catalogConfig, identifier, () -> catalogConfig.catalog().loadTable(identifier));
@@ -75,7 +75,11 @@ public class TableCache {
 
   /** Returns the cached table for a string identifier after refreshing any pre-existing entry. */
   public static Table getRefreshed(IcebergCatalogConfig catalogConfig, String identifier) {
-    return getRefreshed(catalogConfig, TableIdentifier.parse(identifier));
+    return getRefreshed(catalogConfig, IcebergUtils.parseTableIdentifier(identifier));
+  }
+
+  public static Table getAndRefreshIfStale(IcebergCatalogConfig catalogConfig, String identifier) {
+    return getAndRefreshIfStale(catalogConfig, IcebergUtils.parseTableIdentifier(identifier));
   }
 
   /**
@@ -89,7 +93,7 @@ public class TableCache {
   }
 
   /** Returns the cached table, using the loader on a miss and refreshing stale entries. */
-  static Table getAndRefreshIfStale(
+  public static Table getAndRefreshIfStale(
       IcebergCatalogConfig catalogConfig, TableIdentifier identifier, Callable<Table> loader) {
     CachedTable cachedTable = getEntry(catalogConfig, identifier, loader);
     cachedTable.refreshIfOlderThan(Instant.now().minus(DEFAULT_REFRESH_INTERVAL));

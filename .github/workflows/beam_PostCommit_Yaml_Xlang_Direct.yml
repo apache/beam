@@ -64,6 +64,8 @@ jobs:
         test_set: ["data", "databases", "messaging"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -74,17 +76,13 @@ jobs:
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-          java-version: |
-            17
-            11
+          java-version: '17'
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: run PostCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:postCommitYamlIntegrationTests -PyamlTestSet=${{ matrix.test_set }} -PbeamPythonExtra=p310_ml_test,yaml
-          arguments: |
-            -Pjava17Home=$JAVA_HOME_17_X64
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

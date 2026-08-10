@@ -88,6 +88,8 @@ jobs:
       startsWith(github.event.comment.body, 'Run Python_ML PreCommit')
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         if: contains(matrix.os, 'ubuntu-latest')
         uses: jlumbroso/free-disk-space@v1.3.1

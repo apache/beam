@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import java.nio.channels.ClosedByInterruptException;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
@@ -51,12 +50,10 @@ import org.apache.iceberg.SerializableTable;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.TableUtil;
 import org.apache.iceberg.data.GenericDeleteFilter;
-import org.apache.iceberg.data.IdentityPartitionConverters;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.TaskWriter;
 import org.apache.iceberg.util.ContentFileUtil;
-import org.apache.iceberg.util.PartitionUtil;
 import org.apache.iceberg.util.PropertyUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -254,6 +251,7 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
             preserveRowLineage
                 ? MetadataColumns.schemaWithRowLineage(table.schema())
                 : table.schema();
+        long dataSequenceNumber = group.getTaskDescriptors().get(i).getDataSequenceNumber();
 
         GenericDeleteFilter deleteFilter =
             new GenericDeleteFilter(table.io(), task, table.schema(), requestedSchema);
@@ -263,11 +261,10 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
         // The writer copies fields by position, so the additional metadata columns
         // (added after the original schema) are ignored on write.
         Schema requiredSchema = hasDeletes ? deleteFilter.requiredSchema() : requestedSchema;
+        // Pass the original data sequence number captured at planning to preserve the
+        // '_last_updated_sequence_number' lineage metadata
         try (CloseableIterable<Record> iterable =
-            preserveRowLineage
-                ? ReadUtils.createReader(
-                    task, table, requiredSchema, lineageConstants(task, group, i))
-                : ReadUtils.createReader(task, table, requiredSchema)) {
+            ReadUtils.createReader(task, table, requiredSchema, dataSequenceNumber)) {
           CloseableIterable<Record> reader = hasDeletes ? deleteFilter.filter(iterable) : iterable;
           for (Record record : reader) {
             writer.write(record);
@@ -353,14 +350,4 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
    * round-trip drops the file's sequence number, so without this every rewritten row's update
    * sequence would be written as null.
    */
-  private static Map<Integer, ?> lineageConstants(FileScanTask t, RewriteSubGroup group, int i) {
-    // constantsMap may contain null values (e.g. an empty _partition), so the value type is
-    // nullable.
-    Map<Integer, @Nullable Object> constants =
-        new HashMap<>(PartitionUtil.constantsMap(t, IdentityPartitionConverters::convertConstant));
-    constants.put(
-        MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId(),
-        group.getTaskDescriptors().get(i).getDataSequenceNumber());
-    return constants;
-  }
 }

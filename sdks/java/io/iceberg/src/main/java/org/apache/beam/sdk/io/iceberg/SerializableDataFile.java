@@ -74,15 +74,12 @@ public abstract class SerializableDataFile {
   abstract long getRecordCount();
 
   @SchemaFieldNumber("3")
-  abstract long getFileSizeInBytes();
+  public abstract long getFileSizeInBytes();
 
-  // Kept non-null (populated alongside getJsonPartition) so this schema field's nullability is
-  // stable across releases — Dataflow's in-place pipeline update rejects a changed field
-  // nullability. jsonPartition (field 14) is the appended nullable field; getPartitionPath is the
-  // fallback for values that don't round-trip through JSON (e.g. NaN) and for elements decoded from
-  // pre-jsonPartition releases.
+  /** @deprecated Use {@link #getJsonPartition()} instead. */
   @SchemaFieldNumber("4")
-  abstract String getPartitionPath();
+  @Deprecated
+  public abstract String getPartitionPath();
 
   @SchemaFieldNumber("5")
   abstract int getPartitionSpecId();
@@ -106,12 +103,21 @@ public abstract class SerializableDataFile {
   abstract @Nullable Map<Integer, Long> getNanValueCounts();
 
   @SchemaFieldNumber("12")
-  abstract @Nullable Map<Integer, byte[]> getLowerBounds();
+  public abstract @Nullable Map<Integer, byte[]> getLowerBounds();
 
   @SchemaFieldNumber("13")
-  abstract @Nullable Map<Integer, byte[]> getUpperBounds();
+  public abstract @Nullable Map<Integer, byte[]> getUpperBounds();
 
   @SchemaFieldNumber("14")
+  public abstract @Nullable Long getDataSequenceNumber();
+
+  @SchemaFieldNumber("15")
+  public abstract @Nullable Long getFileSequenceNumber();
+
+  @SchemaFieldNumber("16")
+  public abstract @Nullable Long getFirstRowId();
+
+  @SchemaFieldNumber("17")
   abstract @Nullable String getJsonPartition();
 
   @AutoValue.Builder
@@ -146,6 +152,12 @@ public abstract class SerializableDataFile {
 
     abstract Builder setUpperBounds(@Nullable Map<Integer, byte[]> upperBounds);
 
+    abstract Builder setDataSequenceNumber(@Nullable Long number);
+
+    abstract Builder setFileSequenceNumber(@Nullable Long number);
+
+    abstract Builder setFirstRowId(@Nullable Long id);
+
     abstract SerializableDataFile build();
   }
 
@@ -156,18 +168,19 @@ public abstract class SerializableDataFile {
             specs.get(f.specId()),
             "Could not create a SerializableDataFile because DataFile is written using a partition spec id '%s' that is not found in the provided specs: %s",
             f.specId(),
-            specs.keySet()));
+            specs.keySet()),
+        true);
+  }
+
+  public static SerializableDataFile from(DataFile f, PartitionSpec spec) {
+    return from(f, spec, true);
   }
 
   /**
    * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
    * PartitionKey}.
    */
-  public static SerializableDataFile from(DataFile f, PartitionSpec spec) {
-    // The data file must be serialized with the EXACT spec it was written with: the partition value
-    // is interpreted against spec.partitionType(), so a mismatched spec (usually a spec evolution
-    // between writing the file and serializing it, on a shared/refreshed table) would silently
-    // encode the partition under the wrong field ids. Fail loudly instead.
+  public static SerializableDataFile from(DataFile f, PartitionSpec spec, boolean includeMetrics) {
     if (spec.specId() != f.specId()) {
       throw new IllegalArgumentException(
           String.format(
@@ -175,28 +188,36 @@ public abstract class SerializableDataFile {
                   + "spec id %s. Serialize the file with the exact spec it was written with.",
               f.specId(), spec.specId()));
     }
-    // Populate BOTH representations: jsonPartition is the primary (handles evolved specs, special
-    // characters); partitionPath is the fallback for values that don't round-trip through JSON.
+    // jsonPartition is the primary (handles evolved specs, special characters).
+    // partitionPath is the fallback for values that don't round-trip through JSON.
     String jsonPartition = SingleValueParser.toJson(spec.partitionType(), f.partition());
     String partitionPath = spec.partitionToPath(f.partition());
 
-    return SerializableDataFile.builder()
-        .setPath(f.location().toString())
-        .setFileFormat(f.format().toString())
-        .setRecordCount(f.recordCount())
-        .setFileSizeInBytes(f.fileSizeInBytes())
-        .setPartitionPath(partitionPath)
-        .setJsonPartition(jsonPartition)
-        .setPartitionSpecId(f.specId())
-        .setKeyMetadata(f.keyMetadata())
-        .setSplitOffsets(f.splitOffsets())
-        .setColumnSizes(f.columnSizes())
-        .setValueCounts(f.valueCounts())
-        .setNullValueCounts(f.nullValueCounts())
-        .setNanValueCounts(f.nanValueCounts())
-        .setLowerBounds(toByteArrayMap(f.lowerBounds()))
-        .setUpperBounds(toByteArrayMap(f.upperBounds()))
-        .build();
+    SerializableDataFile.Builder builder =
+        SerializableDataFile.builder()
+            .setPath(f.location())
+            .setFileFormat(f.format().toString())
+            .setRecordCount(f.recordCount())
+            .setFileSizeInBytes(f.fileSizeInBytes())
+            .setPartitionPath(partitionPath)
+            .setJsonPartition(jsonPartition)
+            .setPartitionSpecId(f.specId())
+            .setKeyMetadata(f.keyMetadata())
+            .setSplitOffsets(f.splitOffsets())
+            .setColumnSizes(f.columnSizes())
+            .setValueCounts(f.valueCounts())
+            .setNullValueCounts(f.nullValueCounts())
+            .setNanValueCounts(f.nanValueCounts())
+            .setDataSequenceNumber(f.dataSequenceNumber())
+            .setFileSequenceNumber(f.fileSequenceNumber())
+            .setFirstRowId(f.firstRowId());
+    if (includeMetrics) {
+      builder =
+          builder
+              .setLowerBounds(toByteArrayMap(f.lowerBounds()))
+              .setUpperBounds(toByteArrayMap(f.upperBounds()));
+    }
+    return builder.build();
   }
 
   /**
@@ -232,7 +253,8 @@ public abstract class SerializableDataFile {
             .withEncryptionKeyMetadata(getKeyMetadata())
             .withFileSizeInBytes(getFileSizeInBytes())
             .withMetrics(dataFileMetrics)
-            .withSplitOffsets(getSplitOffsets());
+            .withSplitOffsets(getSplitOffsets())
+            .withFirstRowId(getFirstRowId());
 
     @Nullable String jsonPartition = getJsonPartition();
     if (jsonPartition != null) {
@@ -259,8 +281,7 @@ public abstract class SerializableDataFile {
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
   // to byte[] and back to ByteBuffer, so we perform these conversions manually
   // TODO(https://github.com/apache/beam/issues/32701)
-  private static @Nullable Map<Integer, byte[]> toByteArrayMap(
-      @Nullable Map<Integer, ByteBuffer> input) {
+  static @Nullable Map<Integer, byte[]> toByteArrayMap(@Nullable Map<Integer, ByteBuffer> input) {
     if (input == null) {
       return null;
     }
@@ -283,8 +304,7 @@ public abstract class SerializableDataFile {
     return bytes;
   }
 
-  private static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(
-      @Nullable Map<Integer, byte[]> input) {
+  static @Nullable Map<Integer, ByteBuffer> toByteBufferMap(@Nullable Map<Integer, byte[]> input) {
     if (input == null) {
       return null;
     }
@@ -308,6 +328,7 @@ public abstract class SerializableDataFile {
         && getFileFormat().equals(that.getFileFormat())
         && getRecordCount() == that.getRecordCount()
         && getFileSizeInBytes() == that.getFileSizeInBytes()
+        && getPartitionPath().equals(that.getPartitionPath())
         && getPartitionSpecId() == that.getPartitionSpecId()
         && Objects.equals(getPartitionPath(), that.getPartitionPath())
         && Objects.equals(getJsonPartition(), that.getJsonPartition())
@@ -318,10 +339,13 @@ public abstract class SerializableDataFile {
         && Objects.equals(getNullValueCounts(), that.getNullValueCounts())
         && Objects.equals(getNanValueCounts(), that.getNanValueCounts())
         && mapEquals(getLowerBounds(), that.getLowerBounds())
-        && mapEquals(getUpperBounds(), that.getUpperBounds());
+        && mapEquals(getUpperBounds(), that.getUpperBounds())
+        && Objects.equals(getDataSequenceNumber(), that.getDataSequenceNumber())
+        && Objects.equals(getFileSequenceNumber(), that.getFileSequenceNumber())
+        && Objects.equals(getFirstRowId(), that.getFirstRowId());
   }
 
-  private static boolean mapEquals(
+  static boolean mapEquals(
       @Nullable Map<Integer, byte[]> map1, @Nullable Map<Integer, byte[]> map2) {
     if (map1 == null && map2 == null) {
       return true;
@@ -360,13 +384,16 @@ public abstract class SerializableDataFile {
             getColumnSizes(),
             getValueCounts(),
             getNullValueCounts(),
-            getNanValueCounts());
+            getNanValueCounts(),
+            getDataSequenceNumber(),
+            getFileSequenceNumber(),
+            getFirstRowId());
     hashCode = 31 * hashCode + computeMapByteHashCode(getLowerBounds());
     hashCode = 31 * hashCode + computeMapByteHashCode(getUpperBounds());
     return hashCode;
   }
 
-  private static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
+  static int computeMapByteHashCode(@Nullable Map<Integer, byte[]> map) {
     if (map == null) {
       return 0;
     }

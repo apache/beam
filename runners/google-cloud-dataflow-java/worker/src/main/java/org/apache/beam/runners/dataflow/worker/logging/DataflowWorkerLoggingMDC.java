@@ -25,7 +25,8 @@ import javax.annotation.Nullable;
 })
 public class DataflowWorkerLoggingMDC {
   private static final InheritableThreadLocal<String> jobId = new InheritableThreadLocal<>();
-  private static final InheritableThreadLocal<String> stageName = new InheritableThreadLocal<>();
+  private static final InheritableThreadLocal<String> systemStageName =
+      new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<String> workerId = new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<String> workId = new InheritableThreadLocal<>();
   private static final InheritableThreadLocal<String> sdkHarnessId = new InheritableThreadLocal<>();
@@ -35,9 +36,9 @@ public class DataflowWorkerLoggingMDC {
     jobId.set(newJobId);
   }
 
-  /** Sets the Stage Name of the current thread, which will be inherited by child threads. */
-  public static void setStageName(@Nullable String newStageName) {
-    stageName.set(newStageName);
+  /** Sets the System Stage Name of the current thread, which will be inherited by child threads. */
+  public static void setSystemStageName(@Nullable String newSystemStageName) {
+    systemStageName.set(newSystemStageName);
   }
 
   /** Sets the Worker ID of the current thread, which will be inherited by child threads. */
@@ -60,9 +61,9 @@ public class DataflowWorkerLoggingMDC {
     return jobId.get();
   }
 
-  /** Gets the Stage Name of the current thread. */
-  public static String getStageName() {
-    return stageName.get();
+  /** Gets the System Stage Name of the current thread. */
+  public static String getSystemStageName() {
+    return systemStageName.get();
   }
 
   /** Gets the Worker ID of the current thread. */
