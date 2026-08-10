@@ -152,7 +152,8 @@ class WritePartitionedRowsToFiles
         writer.close();
       }
 
-      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), partitionPath);
+      // Serialize against the file's own spec
+      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), table.specs());
       out.output(
           FileWriteResult.builder()
               .setTableIdentifier(destination.getTableIdentifier())
