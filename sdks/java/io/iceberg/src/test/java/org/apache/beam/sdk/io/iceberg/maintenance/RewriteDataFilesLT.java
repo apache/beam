@@ -207,11 +207,9 @@ public class RewriteDataFilesLT {
 
     // Content check for the small (CI) case: the fixture writes id = fileIndex*recordsPerFile + i,
     // so every id in [0, expectedRows) must survive EXACTLY once. A sum+xor checksum over the
-    // scanned ids (derived from the GenerateSequence bounds) catches dropped, duplicated, or
-    // swapped
-    // rows that a bare count would miss. The large case trusts the exact total-records summary
-    // (maintained atomically by the rewrite commit) rather than scan tens of millions of rows in
-    // the test driver.
+    // scanned ids catches dropped, duplicated, or swapped rows that a bare count would miss. The
+    // large case trusts the exact total-records summary instead of scanning tens of millions of
+    // rows in the test driver.
     if (!large) {
       long expectedSum = 0;
       long expectedXor = 0;

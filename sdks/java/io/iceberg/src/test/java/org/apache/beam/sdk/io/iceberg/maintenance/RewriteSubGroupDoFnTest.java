@@ -182,9 +182,7 @@ public class RewriteSubGroupDoFnTest {
     RewriteSubGroup g2 = groupOf(tasks.subList(2, 4), 2, snapshotId, table);
     SerializableTable st = (SerializableTable) SerializableTable.copyOf(table);
 
-    // One DoFnTester bundle => one DoFn instance processes BOTH groups. (Each rewrite also mints
-    // its
-    // own attemptId; the per-group globalIndex alone already keeps the names distinct.)
+    // One DoFnTester bundle => one DoFn instance processes BOTH groups.
     DoFnTester<KV<Integer, RewriteSubGroup>, KV<Integer, ExecutedGroup>> tester =
         DoFnTester.of(new RewriteSubGroupDoFn(st));
     tester.processBundle(KV.of(0, g1), KV.of(0, g2));
@@ -204,11 +202,10 @@ public class RewriteSubGroupDoFnTest {
   }
 
   /**
-   * A group whose rewrite fails must be routed to the REWRITE_FAILURES side output (so it can be
-   * counted and reported in the result) while every other group is still rewritten normally — one
-   * bad file group must not sink the whole job. This routing happens in BOTH modes — the DoFn never
-   * fails fast; atomic all-or-nothing is enforced downstream by the commit gate (not by throwing
-   * here), so a failed group's successful siblings can be cleaned up rather than leaked.
+   * A group whose rewrite fails must be routed to the failures side output while every other group
+   * is still rewritten — one bad file group must not sink the whole job. Routing happens in BOTH
+   * modes: the DoFn never fails fast, and atomic all-or-nothing is enforced downstream by the
+   * commit gate, so a failed group's successful siblings can be cleaned up rather than leaked.
    */
   @Test
   public void partialProgressRoutesFailedGroupAndKeepsOthers() throws Exception {
@@ -331,10 +328,9 @@ public class RewriteSubGroupDoFnTest {
 
   @Test
   public void interruptedRewriteFailsBundleNotRoutedAside() throws Exception {
-    // F9: an interruption (worker drain / preemption / autoscale downscale) must FAIL the bundle so
-    // the runner can retry, NOT be converted into a permanent REWRITE_FAILURES element (which would
-    // be reported as a rewrite failure, or abort atomic mode and delete sibling outputs, when a
-    // plain retry would have succeeded).
+    // An interruption (worker drain, preemption, downscale) must FAIL the bundle so the runner can
+    // retry, not become a permanent rewrite failure that aborts atomic mode and deletes sibling
+    // outputs when a plain retry would have succeeded.
     Table table = buildTable(2);
     long snapshotId = table.currentSnapshot().snapshotId();
     List<FileScanTask> tasks;
@@ -355,12 +351,10 @@ public class RewriteSubGroupDoFnTest {
 
   @Test
   public void retryOfSameGroupProducesDistinctOutputPaths() throws Exception {
-    // F11: a bundle retry re-runs rewriteOnce for the SAME group on the SAME (reused) DoFn
-    // instance.
-    // Each attempt must write to distinct paths; otherwise the retry regenerates the first
-    // attempt's
-    // already-persisted file names (AlreadyExistsException on HDFS-backed FileIO, silent overwrite
-    // on object stores while a prior attempt may already have handed that path to commit).
+    // A bundle retry re-runs rewriteOnce for the SAME group on the SAME (reused) DoFn instance, so
+    // each attempt must write to distinct paths. Otherwise the retry regenerates the first
+    // attempt's already-persisted names: AlreadyExistsException on HDFS-backed FileIO, or a silent
+    // overwrite on object stores where a prior attempt may have handed that path to commit.
     Table table = buildTable(4);
     long snapshotId = table.currentSnapshot().snapshotId();
     List<FileScanTask> tasks;
@@ -388,9 +382,9 @@ public class RewriteSubGroupDoFnTest {
 
   @Test
   public void repartitioningFanoutBeyondOpenWriterCapThrowsWithGuidance() throws Exception {
-    // C5: with output-spec-id repartitioning (input spec != output spec) a subgroup's rows can fan
-    // out to many output partitions — one open writer each — an OOM risk. A hard cap must throw
-    // with actionable guidance. Lower the cap so a two-partition fan-out breaches it.
+    // With output-spec-id repartitioning (input spec != output spec) a subgroup's rows can fan out
+    // to many output partitions — one open writer each — an OOM risk. A hard cap must throw with
+    // actionable guidance. The cap is lowered so a two-partition fan-out breaches it.
     Schema schema =
         new Schema(
             Types.NestedField.required(1, "id", Types.LongType.get()),
@@ -475,9 +469,8 @@ public class RewriteSubGroupDoFnTest {
   @Test
   public void executedGroupCarriesCompactDeleteDescriptors() throws Exception {
     // The commit payload must be compact: the to-DELETE descriptors carry NO column metrics
-    // (Iceberg
-    // matches deletes by path/identity), while the to-ADD files keep their metrics for the
-    // manifest.
+    // (Iceberg matches deletes by path/identity), while the to-ADD files keep their metrics for
+    // the manifest.
     Table table = buildTable(4);
     long snapshotId = table.currentSnapshot().snapshotId();
     List<FileScanTask> tasks;
@@ -599,19 +592,16 @@ public class RewriteSubGroupDoFnTest {
 
   @Test
   public void rowLineagePreservedOnRewriteV3() throws Exception {
-    // F2/F3 regression: a data-preserving compaction of a v3 row-lineage table must KEEP each row's
-    // _row_id (F2 — else the rewritten file inherits a fresh first_row_id range and every _row_id
-    // changes) AND its _last_updated_sequence_number (F3 — restored from the input file's DATA
-    // sequence number; the ContentFileParser JSON that ships a TaskDescriptor's data file does not
-    // serialize sequence numbers, so without the descriptor's explicit dataSequenceNumber scalar a
-    // naive rewrite writes null for every row and the per-row update sequence is lost).
+    // A data-preserving compaction of a v3 row-lineage table must keep each row's _row_id (else
+    // the rewritten file inherits a fresh first_row_id range and every _row_id changes) and its
+    // _last_updated_sequence_number, restored from the input file's DATA sequence number — the
+    // ContentFileParser JSON shipping the data file omits it, so a naive rewrite writes null.
     TableIdentifier id = TableIdentifier.of("default", "v3_" + System.nanoTime());
     Table table =
         warehouse.createTable(
             id, TestFixtures.SCHEMA, null, ImmutableMap.of("format-version", "3"));
     // Two files in two snapshots so _row_id spans two first_row_id ranges AND the rows have
-    // DISTINCT
-    // data sequence numbers.
+    // DISTINCT data sequence numbers.
     table
         .newAppend()
         .appendFile(
@@ -738,11 +728,10 @@ public class RewriteSubGroupDoFnTest {
 
   @Test
   public void rowLineagePreservedWithDeletionVectorV3() throws Exception {
-    // F2 regression: a v3 file that carries a deletion vector is read with _pos appended to its
-    // projection. The generic Parquet writer copies record fields BY POSITION, so if records are
-    // laid out [id, data, _pos, _row_id, _lus] while the writer expects [id, data, _row_id, _lus],
-    // the _row_id column silently receives the file POSITION instead of the real _row_id. Each
-    // surviving row must keep its original _row_id.
+    // A v3 file that carries a deletion vector is read with _pos appended to its projection. The
+    // generic Parquet writer copies record fields BY POSITION, so if records are laid out
+    // [id, data, _pos, _row_id, _lus] while the writer expects [id, data, _row_id, _lus], the
+    // _row_id column silently receives the file POSITION instead of the real _row_id.
     TableIdentifier id = TableIdentifier.of("default", "v3dv_" + System.nanoTime());
     Table table =
         warehouse.createTable(
@@ -804,9 +793,9 @@ public class RewriteSubGroupDoFnTest {
 
   @Test
   public void rowLineageSurvivesBeamRowRoundTrip() throws Exception {
-    // Prerequisite for F4-C (record-shuffle rewrite): _row_id / _last_updated_sequence_number must
-    // survive Record -> Beam Row -> Record via the lineage-augmented schema, since the record
-    // shuffle moves Beam Rows (there is no Iceberg Record coder) and must not drop lineage.
+    // _row_id and _last_updated_sequence_number must survive Record -> Beam Row -> Record via the
+    // lineage-augmented schema: the record shuffle moves Beam Rows (there is no Iceberg Record
+    // coder) and must not drop lineage.
     TableIdentifier id = TableIdentifier.of("default", "v3rt_" + System.nanoTime());
     Table table =
         warehouse.createTable(
@@ -887,12 +876,10 @@ public class RewriteSubGroupDoFnTest {
   }
 
   /**
-   * R2 (extends F2 to a start&gt;0 RANGE task — the riskiest newly-exercised path). A
-   * multi-row-group v3 file's later row groups become range tasks with a non-zero {@code start}.
+   * A multi-row-group v3 file's later row groups become range tasks with a non-zero {@code start}.
    * Reading such a range must still materialize {@code _row_id = first_row_id + _pos} (Parquet
    * {@code _pos} is absolute, not range-relative) and apply a deletion vector whose deleted
-   * position falls inside that range. Every surviving row keeps its original {@code _row_id}; the
-   * DV-deleted row is gone.
+   * position falls inside that range.
    */
   @Test
   public void rowLineagePreservedOnRangedTaskWithDeletionVectorV3() throws Exception {
@@ -969,8 +956,8 @@ public class RewriteSubGroupDoFnTest {
           "row " + e.getKey() + " must keep its original _row_id after a ranged DV rewrite",
           e.getValue(),
           afterRowIds.get(e.getKey()));
-      // F4-C acceptance #3: _last_updated_sequence_number must survive a start>0 ranged rewrite too
-      // (restored from the planning-time data sequence number, not the rewrite's own).
+      // _last_updated_sequence_number must survive a start>0 ranged rewrite too — restored from
+      // the planning-time data sequence number, not the rewrite's own.
       assertEquals(
           "row "
               + e.getKey()
@@ -982,9 +969,9 @@ public class RewriteSubGroupDoFnTest {
   }
 
   /**
-   * R2: a subgroup bin can hold row-group ranges from SEVERAL files. Reading such a mixed bin
-   * through the unchanged {@link RewriteSubGroupDoFn} must reproduce exactly the union of those
-   * ranges' rows — no drop, duplicate, or swap across range and file boundaries.
+   * A subgroup bin can hold row-group ranges from SEVERAL files. Reading such a mixed bin through
+   * {@link RewriteSubGroupDoFn} must reproduce exactly the union of those ranges' rows — no drop,
+   * duplicate, or swap across range and file boundaries.
    */
   @Test
   public void rowMultisetPreservedAcrossBinMixingRangesOfMultipleFiles() throws Exception {
@@ -1049,11 +1036,10 @@ public class RewriteSubGroupDoFnTest {
   }
 
   /**
-   * B9/R2: the bin-mixing path on a v3 row-lineage table with the two files in SEPARATE snapshots
-   * (distinct data sequence numbers). Reading the interleaved bin must preserve BOTH {@code
-   * _row_id} and {@code _last_updated_sequence_number} per row — the only case that would catch a
-   * future misalignment of the index-aligned {@code getTaskDescriptors().get(i)
-   * .getDataSequenceNumber()} lookup for interleaved multi-file range tasks.
+   * The bin-mixing path on a v3 row-lineage table. The two files sit in SEPARATE snapshots and so
+   * carry distinct data sequence numbers. Reading the interleaved bin must preserve both {@code
+   * _row_id} and {@code _last_updated_sequence_number} per row — the only case that catches a
+   * misaligned index-based {@code getTaskDescriptors().get(i)} sequence-number lookup.
    */
   @Test
   public void rowLineagePreservedAcrossBinMixingRangesOfMultipleFilesV3() throws Exception {
@@ -1127,7 +1113,7 @@ public class RewriteSubGroupDoFnTest {
         lastUpdatedSeqById(table));
   }
 
-  /** Writer properties forcing many small row groups (see RewriteDataFilesCorrectnessTest note). */
+  /** Writer properties forcing many small row groups from little data. */
   private static final Map<String, String> MULTI_ROW_GROUP_PROPS =
       ImmutableMap.<String, String>builder()
           .put("write.parquet.row-group-size-bytes", "8192")
@@ -1144,8 +1130,7 @@ public class RewriteSubGroupDoFnTest {
       long v = startId + i;
       r.setField("id", v);
       // Fixed-width per-row-distinct payload so files reliably span several row groups regardless
-      // of
-      // id magnitude (small ids would otherwise make tiny rows that fit in a single row group).
+      // of id magnitude (small ids would otherwise make tiny rows that fit in a single row group).
       r.setField("data", "row-" + v + "-padding-0123456789abcdef0123456789abcdef0123456789");
       recs.add(r);
     }

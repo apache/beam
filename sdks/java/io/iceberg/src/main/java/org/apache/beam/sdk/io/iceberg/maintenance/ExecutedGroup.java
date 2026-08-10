@@ -70,10 +70,8 @@ public abstract class ExecutedGroup {
   }
 
   /**
-   * Locations of every newly written output file across {@code groups}.
-   *
-   * <p>After a failed/aborted commit, these become orphans (not committed anywhere). We tag them
-   * with operation-id to make them discoverable for a remove-orphan-files run.
+   * Locations of every newly written output file across {@code groups}. After a failed commit these
+   * are orphans; they carry the operation id so a later remove-orphan-files run can find them.
    */
   static List<String> newFilePaths(Iterable<ExecutedGroup> groups) {
     List<String> paths = new ArrayList<>();

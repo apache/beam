@@ -61,16 +61,15 @@ import org.slf4j.LoggerFactory;
  * its files' row-group <b>ranges</b> into bins of ~one target-sized output file (via {@code
  * inputSplitSize}), so a large group is rewritten by many workers in parallel while undersized
  * files combine into target-sized outputs. All subgroups of a parent share its commit key and
- * commit together as one batch. A range-split file can span subgroups, so each batch is committed
- * atomically to ensure a shared file is never partially replaced.
+ * commit together as one batch: a range-split file can span subgroups, so committing the parent
+ * atomically ensures a shared file is never partially replaced.
  *
- * <p><b>Convergence caveats</b>: a group may leave one remainder bin below {@code
+ * <p><b>Convergence caveats.</b> A group may leave one remainder bin below {@code
  * min-file-size-bytes} — it converges on a later run or stays as one stable small file. A
  * single-row-group file whose size sits in the rewrite band cannot be split further and is
- * rewritten ~1:1 (a pairwise-merge pass would fix this; unimplemented). Delete-heavy groups shrink
- * once their deletes are applied, converging on the following run. Spec-changing rewrites ({@code
- * output-spec-id} / post-evolution) fan a file out across output partitions and are bounded by (and
- * deferred to a future shuffle rewriter via) {@link WriterFactory}.
+ * rewritten ~1:1. Delete-heavy groups shrink once their deletes are applied, converging on the
+ * following run. Spec-changing rewrites ({@code output-spec-id} / post-evolution) fan a file out
+ * across output partitions, bounded by {@link WriterFactory}.
  */
 class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectionTuple> {
   /** Main output: the planned rewrite subgroups, keyed by commit key. */
@@ -112,7 +111,7 @@ class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectio
         Metrics.counter(PlanRewriteGroups.class, "plannedFilesToRewrite");
     private static final Counter plannedBytesToRewrite =
         Metrics.counter(PlanRewriteGroups.class, "plannedBytesToRewrite");
-    // Distribution of each DISTINCT planned input file's size
+    // Size of each DISTINCT planned input file
     private static final Distribution fileByteSizeToRewrite =
         Metrics.distribution(PlanRewriteGroups.class, "fileByteSizeToRewrite");
 
@@ -139,14 +138,13 @@ class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectio
       } else {
         startSnap = element.getSnapshotId();
       }
-      // The starting snapshot's own sequence number: the commit's idempotency stamp scan uses it
-      // as its walk floor, which keeps working even if the starting snapshot is later expired.
+      // The starting snapshot's sequence number floors the commit's idempotency-stamp scan, which
+      // keeps working even if that snapshot is later expired.
       long startSequenceNumber =
           checkStateNotNull(
                   table.snapshot(startSnap), "Starting snapshot %s not found in table", startSnap)
               .sequenceNumber();
-      // operation id is carried in each group and used downstream to name/tag output files
-      // and stamp commits for idempotency.
+      // Carried in each group: names and tags the output files, and stamps commits for idempotency.
       String operationId = UUID.randomUUID().toString();
       Expression filter =
           config.getFilter() != null
@@ -167,9 +165,8 @@ class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectio
       int plannedGroupIndex =
           0; // running index among KEPT parents; drives the round-robin commit key
       int globalIndex = 0;
-      // emit each kept parent's subgroups as the planner produces them.
-      // commitKey is round-robin (plannedGroupIndex % maxCommits).
-      // atomic mode has maxCommits=1 so everything lands on key 0.
+      // Emit each kept parent's subgroups as the planner produces them. commitKey is round-robin
+      // over maxCommits; atomic mode has maxCommits=1, so everything lands on key 0.
       try (CloseableIterator<org.apache.iceberg.actions.RewriteFileGroup> it =
           planner.plan().groups().iterator()) {
         while (it.hasNext()) {
@@ -185,19 +182,10 @@ class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectio
           partitionPaths.add(partitionPath);
           int commitKey = plannedGroupIndex % maxCommits;
 
-          // Iceberg sets up a parent (planned) group to contain multiple output target files. To
-          // increase
-          // parallelism, we split the parent group into subgroups and pack its files' row-group
-          // RANGES into bins
-          // of ~one target-sized output file.
-          // A file's ranges may land in several bins, but that's okay because we converge
-          // downstream and
-          // commit all subgroups together. In other words, a parent group is committed atomically.
-          // A shared file is deleted only once it's been fully processed.
-          // `parentSubgroupCount` is the number of bins actually emitted. This is used to verify
-          // completeness
-          // downstream before doing a commit.
-
+          // A planned parent group covers several target output files, so split it into subgroups
+          // by packing its files' row-group RANGES into bins of ~one target-sized output.
+          // parentSubgroupCount is the number of bins emitted, which the commit stage uses to
+          // verify completeness before replacing the parent's input files.
           List<ScanTaskGroup<FileScanTask>> bins =
               planSubGroupBins(group.fileScanTasks(), group.inputSplitSize());
           int parentSubgroupCount = bins.size();
@@ -229,9 +217,7 @@ class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectio
         throw new RuntimeException("Failed to plan rewrite groups", e);
       }
 
-      // Exactly ONE planning fragment per processed impulse element, ALWAYS — including the
-      // zero-groups case (ids set, counts 0). An empty impulse produces no element, so T1's combine
-      // default supplies the empty-run zeros row instead.
+      // Exactly ONE planning fragment per impulse element
       out.get(PLAN_SUMMARY)
           .output(
               RewriteResult.builder()
@@ -263,15 +249,14 @@ class PlanRewriteGroups extends PTransform<PCollection<SnapshotInfo>, PCollectio
 
     /**
      * Packs a planned group's files into subgroup bins. Each file is split by its row-group
-     * <b>ranges</b>. The ranges are bin-packed to {@code splitSize} capacity and adjacent ranges of
-     * the same file within a bin are merged back into one contiguous range. Undersized files
-     * therefore combine into target-sized outputs and a large file is spread across several bins
-     * for intra-group parallelism.
+     * <b>ranges</b>, the ranges are bin-packed to {@code splitSize} capacity, and adjacent ranges
+     * of the same file within a bin are merged back into one contiguous range. Undersized files
+     * therefore combine into target-sized outputs while a large file is spread across several bins.
      *
-     * <p>A file's ranges landing in several bins is safe. Parent-group atomicity (see {@link
-     * CommitRewriteGroups}) commits all of a parent's subgroups together, so a shared file's input
-     * is deleted only once every bin that read part of it has committed. A dropped/failed bin drops
-     * the whole parent (output files orphaned).
+     * <p>A file's ranges landing in several bins is safe: parent-group atomicity (see {@link
+     * CommitRewriteGroups}) commits all of a parent's subgroups together, so a shared input file is
+     * deleted only once every bin that read part of it has committed. A dropped or failed bin drops
+     * the whole parent, orphaning its output files.
      */
     private static List<ScanTaskGroup<FileScanTask>> planSubGroupBins(
         List<FileScanTask> tasks, long splitSize) {

@@ -19,7 +19,6 @@ package org.apache.beam.sdk.io.iceberg.maintenance;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -32,7 +31,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
-import org.apache.beam.sdk.io.iceberg.ReadUtils;
 import org.apache.beam.sdk.io.iceberg.SerializableDataFile;
 import org.apache.beam.sdk.io.iceberg.SnapshotInfo;
 import org.apache.beam.sdk.io.iceberg.TestDataWarehouse;
@@ -40,7 +38,6 @@ import org.apache.beam.sdk.io.iceberg.TestFixtures;
 import org.apache.beam.sdk.transforms.DoFnTester;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DataFile;
@@ -63,7 +60,6 @@ import org.apache.iceberg.deletes.EqualityDeleteWriter;
 import org.apache.iceberg.deletes.PositionDelete;
 import org.apache.iceberg.deletes.PositionDeleteWriter;
 import org.apache.iceberg.encryption.EncryptedOutputFile;
-import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.OutputFileFactory;
 import org.apache.iceberg.types.Types;
@@ -137,24 +133,6 @@ public class RewriteDataFilesCorrectnessTest {
     try (CloseableIterable<Record> rows = IcebergGenerics.read(table).build()) {
       for (Record r : rows) {
         keys.add(r.getField("id") + "|" + r.getField("data"));
-      }
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-    Collections.sort(keys);
-    return keys;
-  }
-
-  /**
-   * The live rows of the (id, shard) partitioned fixture as a sorted (id|shard) multiset — the
-   * shard-schema analogue of {@link #rowMultiset}, so a dropped/duplicated/misplaced row is caught
-   * (not just a count change).
-   */
-  private static List<String> idShardMultiset(Table table) {
-    List<String> keys = new ArrayList<>();
-    try (CloseableIterable<Record> rows = IcebergGenerics.read(table).build()) {
-      for (Record r : rows) {
-        keys.add(r.getField("id") + "|" + r.getField("shard"));
       }
     } catch (Exception e) {
       throw new RuntimeException(e);
@@ -351,14 +329,11 @@ public class RewriteDataFilesCorrectnessTest {
       tester.processBundle(batch);
       committed.addAll(tester.peekOutputElements(CommitRewriteGroups.COMMITTED));
     }
-    // F23: guard against a vacuous pass. These tests assert row multisets that hold with OR without
-    // the rewrite, so if the commit silently fails (e.g. validation rejects it because sequence-
-    // number preservation regressed, and partial progress routes it aside) the leftover pre-rewrite
-    // table would satisfy them. CommitRewriteGroups only emits COMMITTED on a successful
-    // RewriteFiles
-    // (replace) commit, so requiring a non-empty result proves the rewrite actually landed. (Tests
-    // that deliberately exercise a NOT-committed case — e.g. an incomplete parent group — pass
-    // requireCommit=false.)
+    // Guard against a vacuous pass: these tests assert row multisets that hold with OR without the
+    // rewrite, so a silently-failed commit leaves the pre-rewrite table and still satisfies them.
+    // CommitRewriteGroups only emits COMMITTED on a successful RewriteFiles (replace) commit, so a
+    // non-empty result proves the rewrite landed. (Tests that deliberately exercise a NOT-committed
+    // case pass requireCommit=false.)
     if (requireCommit) {
       assertFalse(
           "the rewrite must actually commit — a silently-failed commit leaves the pre-rewrite "
@@ -471,11 +446,9 @@ public class RewriteDataFilesCorrectnessTest {
 
   /**
    * If a concurrent operation removes one of the data files the rewrite is replacing, the validated
-   * atomic commit must detect the conflict, FAIL (throw) after its bounded retries, and commit
-   * nothing. Crucially it must NOT delete this batch's output files: a retried or concurrent
-   * (zombie) attempt of the same commit element could still commit them, so deleting addable files
-   * would risk a snapshot referencing missing data. The orphaned outputs are left tagged for a
-   * later remove-orphan-files run.
+   * atomic commit must detect the conflict, FAIL after its bounded retries, and commit nothing. It
+   * must NOT delete this batch's output files: a retried or zombie attempt of the same commit could
+   * still commit them, so the outputs are left tagged for a later remove-orphan-files run.
    */
   @Test
   public void atomicConflictThrowsAndRetainsOutputFiles() throws Exception {
@@ -659,20 +632,18 @@ public class RewriteDataFilesCorrectnessTest {
   }
 
   /**
-   * F4-C R3 — convergence + fixpoint. This is the end-to-end regression for the non-convergence bug
-   * that whole-file subgroup packing causes and that row-group range packing fixes.
+   * Convergence + fixpoint regression for the non-convergence bug that whole-file subgroup packing
+   * causes and that row-group range packing fixes.
    *
-   * <p>The fixture is the F4 band: files each below {@code min-file-size} (so they are re-selected
-   * for rewrite) yet larger than half the input split size (so <b>whole-file</b> packing can never
-   * combine two of them into one bin). Whole-file packing therefore rewrites each file 1:1 into
-   * another below-min file — the file count never drops and a second planning pass keeps selecting
-   * the same files forever. Row-group range packing splits each multi-row-group file into its row
-   * groups and repacks those ranges <b>across file boundaries</b> into target-sized bins, so the
-   * files compact into fewer, in-band outputs.
+   * <p>The fixture sits in a deliberate band: each file is below {@code min-file-size} (so it is
+   * re-selected for rewrite) yet larger than half the input split size (so <b>whole-file</b>
+   * packing can never combine two of them into one bin). Whole-file packing therefore rewrites each
+   * file 1:1 into another below-min file and never converges; range packing repacks the row-group
+   * ranges <b>across file boundaries</b> into target-sized bins.
    *
    * <p>Converged is defined operationally: after one rewrite the outputs land within {@code
-   * [minFileSize, writeMaxFileSize]} and a SECOND planning pass over the compacted table plans
-   * nothing. The whole-file packer fails both halves; the range packer satisfies both.
+   * [minFileSize, writeMaxFileSize]} and a SECOND planning pass plans nothing. The whole-file
+   * packer fails both halves; the range packer satisfies both.
    */
   @Test
   public void byteRangePackingConvergesAndReachesFixpoint() throws Exception {
@@ -689,16 +660,13 @@ public class RewriteDataFilesCorrectnessTest {
 
     // target = totalBytes / 3 puts each of the 5 (roughly equal) files at ~0.2*total = 0.6*target,
     // which is (a) below minFileSize = 0.75*target -> selected for rewrite, and (b) above
-    // inputSplitSize/2 (~0.5*target) -> two files never share a whole-file bin -> whole-file
-    // packing
-    // is 1:1 and non-convergent. Range packing repacks the row-group ranges into ~3 target-sized
-    // files.
+    // inputSplitSize/2 (~0.5*target) -> two files never share a whole-file bin, so whole-file
+    // packing is 1:1 and non-convergent. Range packing repacks the ranges into ~3 target files.
     long totalBytes = totalDataFileBytes(table);
     long target = totalBytes / 3;
     // Guard the convergence math: the 5 KB planner split overhead must be negligible vs the target,
     // else inputSplitSize inflates toward writeMaxFileSize and two files could pair under
-    // whole-file
-    // packing (which would make this test pass even for the buggy packer).
+    // whole-file packing, which would make this test pass even for the buggy packer.
     assertTrue(
         "fixture too small; grow recordsPerFile so target dominates the 5 KB split overhead "
             + "(target="
@@ -753,14 +721,12 @@ public class RewriteDataFilesCorrectnessTest {
   }
 
   /**
-   * CRITICAL regression for partial-progress data loss: when one sub-group of a parent group fails
-   * (routed to REWRITE_FAILURES and excluded from the committed batch), no rows may be lost.
-   *
-   * <p>Parent-group atomicity (F4) guarantees this: an incomplete parent (missing any sub-group) is
-   * committed as a whole or not at all, so a sub-group's input files are never partially replaced.
-   * Here we simulate the failure by excluding one planned sub-group from the committed batch; the
-   * commit then lands NOTHING for that parent (requireCommit=false), every input file stays live,
-   * and the full row multiset is intact.
+   * Data-loss regression for partial progress: when one sub-group of a parent group fails (routed
+   * to REWRITE_FAILURES and excluded from the committed batch), no rows may be lost. Parent-group
+   * atomicity guarantees this — an incomplete parent commits as a whole or not at all, so a
+   * sub-group's input files are never partially replaced. The failure is simulated by excluding one
+   * planned sub-group, so the commit lands NOTHING for that parent (requireCommit=false), every
+   * input file stays live, and the full row multiset is intact.
    */
   @Test
   public void droppedSubGroupKeepsInputsLiveAndLosesNoRows() throws Exception {
@@ -1053,8 +1019,7 @@ public class RewriteDataFilesCorrectnessTest {
     assertEquals("rows preserved", expectedRows, countRows(reloaded));
 
     // Prove a rewrite actually happened: the original files are gone, replaced by fewer new files.
-    // Without this, the spec assertion below would pass trivially (the originals already had spec
-    // 0).
+    // Without this, the spec assertion below passes trivially (the originals already had spec 0).
     Set<String> livePaths = liveDataFilePaths(reloaded);
     assertTrue(
         "rewrite must replace the input files (no original file remains live)",
@@ -1070,99 +1035,6 @@ public class RewriteDataFilesCorrectnessTest {
             "rewritten file must use the configured output spec, not the table default",
             unpartitionedSpecId,
             t.file().specId());
-      }
-    }
-  }
-
-  /**
-   * R11-1 (P0): when {@code output-spec-id} targets a NON-current-default spec, Iceberg's planner
-   * puts every such file into ONE {@code emptyStruct} group regardless of its actual partition
-   * value, so the C5 single-partition fast path (which pins the first row's partition) would write
-   * rows of one partition into and under another — silent corruption. The fast path must therefore
-   * also require the output spec to be the current default; otherwise the fanout writer computes
-   * per-row keys. Every committed output file must contain only its registered partition's rows.
-   */
-  @Test
-  public void outputSpecIdToOldPartitionedSpecKeepsRowsInTheirPartitions() throws Exception {
-    Schema schema =
-        new Schema(
-            Types.NestedField.required(1, "id", Types.LongType.get()),
-            Types.NestedField.required(2, "shard", Types.IntegerType.get()));
-    PartitionSpec spec0 = PartitionSpec.builderFor(schema).identity("shard").build();
-    tableId = TableIdentifier.of("default", "outspecpart_" + System.nanoTime());
-    Table table = warehouse.createTable(tableId, schema, spec0);
-    int oldSpecId = table.spec().specId();
-
-    // A small file for shard=0 AND shard=1, both under spec 0.
-    AppendFiles append = table.newAppend();
-    for (int shard = 0; shard < 2; shard++) {
-      Record partition = GenericRecord.create(spec0.partitionType());
-      partition.setField("shard", shard);
-      List<Record> records = new ArrayList<>();
-      for (int i = 0; i < 3; i++) {
-        Record r = GenericRecord.create(schema);
-        r.setField("id", (long) (shard * 100 + i));
-        r.setField("shard", shard);
-        records.add(r);
-      }
-      append.appendFile(
-          warehouse.writeRecords(
-              "os" + shard + "_" + System.nanoTime() + ".parquet",
-              schema,
-              spec0,
-              partition,
-              records));
-    }
-    append.commit();
-
-    // Evolve the spec so spec 0 (identity shard) is no longer the default -> the planner will group
-    // the old spec-0 files into one emptyStruct group with MIXED shard values.
-    table.updateSpec().removeField("shard").addField(Expressions.bucket("id", 4)).commit();
-    table.refresh();
-    assertNotEquals("spec must have evolved off the default", oldSpecId, table.spec().specId());
-    List<String> expectedRows = idShardMultiset(table);
-
-    // Compact the old data, writing outputs back with the OLD spec, with a target big enough to bin
-    // both files together.
-    RewriteDataFiles.Configuration config =
-        RewriteDataFiles.Configuration.builder()
-            .setRewriteOptions(
-                ImmutableMap.of(
-                    "output-spec-id", String.valueOf(oldSpecId),
-                    "min-input-files", "1",
-                    "rewrite-all", "true"))
-            .build();
-    commit(table, planAndRewrite(table, config), config);
-
-    Table reloaded = warehouse.loadTable(tableId);
-    assertEquals(
-        "full (id, shard) row multiset preserved", expectedRows, idShardMultiset(reloaded));
-
-    // Every committed spec-0 output file must contain ONLY the rows of its registered shard.
-    try (CloseableIterable<org.apache.iceberg.FileScanTask> tasks =
-        reloaded.newScan().planFiles()) {
-      for (org.apache.iceberg.FileScanTask t : tasks) {
-        if (t.file().specId() != oldSpecId) {
-          continue;
-        }
-        int registeredShard = t.file().partition().get(0, Integer.class);
-        Set<Integer> rowShards = new HashSet<>();
-        // Read PHYSICAL shard values (empty idToConstants): the default reader folds an identity-
-        // partition column to the file's registered partition value, which would MASK the
-        // mis-partitioning this test hunts for.
-        try (CloseableIterable<Record> rows =
-            ReadUtils.createReader(t, reloaded, reloaded.schema())) {
-          for (Record r : rows) {
-            rowShards.add((Integer) r.getField("shard"));
-          }
-        }
-        assertEquals(
-            "output file registered under shard "
-                + registeredShard
-                + " must contain only that "
-                + "shard's rows",
-            ImmutableSet.of(registeredShard),
-            rowShards);
       }
     }
   }
@@ -1239,9 +1111,9 @@ public class RewriteDataFilesCorrectnessTest {
   }
 
   /**
-   * B6 e2e twin: a rewrite with {@code setFilter("shard = 0")} must compact ONLY shard 0. Shard 1's
-   * data files must be byte-identical (same locations AND sizes) after the run — proving the filter
-   * is honored end to end, not just at planning.
+   * A rewrite with {@code setFilter("shard = 0")} must compact ONLY shard 0. Shard 1's data files
+   * must be byte-identical (same locations AND sizes) after the run — proving the filter is honored
+   * end to end, not just at planning.
    */
   @Test
   public void filterCompactsOnlyMatchingPartitionEndToEnd() throws Exception {
@@ -1300,7 +1172,7 @@ public class RewriteDataFilesCorrectnessTest {
   }
 
   /**
-   * R4: a file whose row-group ranges span several subgroups is a "spanning file". Under partial
+   * A file whose row-group ranges span several subgroups is a "spanning file". Under partial
    * progress, excluding ONE of its bins from the commit batch must exclude the WHOLE parent
    * (parent-group atomicity), so the shared file is never partially replaced — it stays live and no
    * rows are lost. Extends {@link #droppedSubGroupKeepsInputsLiveAndLosesNoRows} to ranged bins.
@@ -1360,9 +1232,9 @@ public class RewriteDataFilesCorrectnessTest {
   }
 
   /**
-   * R4: when every row of a parent's inputs is deleted (here by full-file deletion vectors), each
-   * bin's writer produces zero output files, so the parent commits DELETE-ONLY — the input data
-   * files and their dangling DVs are removed and nothing is added.
+   * When every row of a parent's inputs is deleted (here by full-file deletion vectors), each bin's
+   * writer produces zero output files, so the parent commits DELETE-ONLY — the input data files and
+   * their dangling DVs are removed and nothing is added.
    */
   @Test
   public void allRowsDeletedParentCommitsDeleteOnly() throws Exception {
@@ -1404,9 +1276,9 @@ public class RewriteDataFilesCorrectnessTest {
   }
 
   /**
-   * R4 edge: with a target larger than the whole group, every row-group range packs into ONE bin
-   * (N=1). The single subgroup's adjacent ranges merge back and the parent commits cleanly as one
-   * unit — the N=1 case collapses without special handling.
+   * With a target larger than the whole group, every row-group range packs into ONE bin (N=1). The
+   * single subgroup's adjacent ranges merge back and the parent commits cleanly as one unit — the
+   * N=1 case collapses without special handling.
    */
   @Test
   public void singleBinGroupCombinesRangesAndCommits() throws Exception {

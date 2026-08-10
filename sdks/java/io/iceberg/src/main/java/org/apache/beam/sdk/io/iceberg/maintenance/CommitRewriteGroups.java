@@ -57,12 +57,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Takes a batch of {@link ExecutedGroup}s (sharing the same commit key) and performs one atomic
- * commit. The commit key is assigned earlier in {@link PlanRewriteGroups} and is carried forward to
- * this stage.
- *
- * <p>The single commit deletes the old data files (and any dangling, file-scoped deletion vectors)
- * and adds the newly written, compacted data files. Correctness properties:
+ * Takes a batch of {@link ExecutedGroup}s sharing a commit key (assigned in {@link
+ * PlanRewriteGroups}) and performs one atomic commit: old data files (plus any dangling,
+ * file-scoped deletion vectors) are deleted and the newly written, compacted files are added.
+ * Correctness properties:
  *
  * <ul>
  *   <li><b>Conflict validation</b>: {@link RewriteFiles#validateFromSnapshot(long)} pins the commit
@@ -70,16 +68,15 @@ import org.slf4j.LoggerFactory;
  *       the commit.
  *   <li><b>Sequence-number preservation</b>: with {@link
  *       RewriteDataFiles.Configuration#useStartingSequenceNumber} the rewritten files keep the
- *       starting snapshot's data sequence number, so delete files added between planning and this
- *       commit still apply to the rewritten data.
+ *       starting snapshot's data sequence number, so delete files added since planning still apply
+ *       to the rewritten data.
  *   <li><b>Idempotency</b>: each commit stamps the snapshot summary with {@code operationId} and
- *       {@code commitKey}. On a Beam bundle retry this DoFn first scans recent snapshots for a
- *       matching stamp and, if found, re-emits that snapshot instead of double-committing.
- *   <li><b>Clean failure handling</b>: a {@link CommitStateUnknownException} is rethrown WITHOUT
- *       deleting files (the commit may have succeeded server-side). Partial progress charges the
- *       commit-failure budget and leaves the outputs as operation-id-tagged orphans; atomic mode
- *       throws (failing the pipeline) and likewise leaves them tagged. A later remove-orphan-files
- *       run can reclaim them.
+ *       {@code commitKey}; a retried bundle re-emits the stamped snapshot instead of committing
+ *       twice.
+ *   <li><b>Failure handling</b>: a {@link CommitStateUnknownException} is rethrown WITHOUT deleting
+ *       files (the commit may have succeeded server-side). A terminal failure likewise leaves the
+ *       outputs in place, as operation-id-tagged orphans for a later remove-orphan-files run;
+ *       partial progress charges the commit-failure budget, atomic mode fails the pipeline.
  * </ul>
  */
 class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, SnapshotInfo> {
@@ -132,11 +129,9 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
     long startingSnapshotId = groups.get(0).getStartingSnapshotId();
     long startingSequenceNumber = groups.get(0).getStartingSequenceNumber();
 
-    // We only commit parents whose subgroups ALL rewrote successfully
     groups = completeParentSubgroups(groups);
     if (groups.isEmpty()) {
-      // Every parent in this batch was incomplete: nothing to commit. (The failures are already
-      // counted in the result via the failed-parents side output.)
+      // Nothing to commit
       return;
     }
 
@@ -180,19 +175,15 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
                     .build());
         return;
       } catch (CommitStateUnknownException e) {
-        // The commit may have succeeded server-side; do NOT clean up files.
-        // Rethrow so that the bundle retries.
-        // The idempotency check above will detect a successful commit and skip
+        // May have succeeded server-side: do NOT clean up files. Rethrow so the bundle retries;
+        // the idempotency check above detects a commit that did land.
         throw e;
       } catch (RuntimeException e) {
         if (!(e instanceof CleanableFailure)) {
-          // Not a cleanable failure, so don't clean up files.
-          // Rethrow so that the bundle retries.
-          // The idempotency check above will detect a successful commit and skip
+          // Not cleanable: leave the files in place and let the bundle retry.
           throw e;
         }
-        // A cleanable failure: Iceberg deems the written files
-        // safe to remove. Retry, then abort/account as for a commit conflict.
+        // Cleanable failure (typically a commit conflict): retry, then account for it below.
         numCommitConflicts.inc();
         if (attempt < MAX_COMMIT_ATTEMPTS) {
           LOG.warn(
@@ -202,15 +193,13 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
               attempt,
               MAX_COMMIT_ATTEMPTS,
               e);
-          // Backoff so that, when many partial-progress commit keys contend on
-          // the table's metadata pointer at once, their retries spread out.
+          // Spread out retries: many commit keys can contend on the table's metadata pointer.
           BackOffUtils.next(Sleeper.DEFAULT, backoff);
           table.refresh();
           continue;
         }
 
-        // No attempts left. Check if a concurrent attempt for the same (operationId, commitKey)
-        // may have already committed our files. If so, emit that snapshot instead of failing.
+        // No attempts left: a concurrent attempt for the same stamp may already have landed.
         table.refresh();
         @Nullable
         Snapshot landed =
@@ -221,9 +210,8 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
           return;
         }
 
-        // The commit did not land. We shouldn't delete this batch's output files because
-        // a concurrent attempt may still reprocess and commit them. Deleting them would
-        // risk creating a snapshot that references missing data.
+        // The commit did not land. Don't delete this batch's output files: a retried or zombie
+        // attempt could still commit them, and a snapshot would then reference missing data.
         numFailedCommits.inc();
         List<String> orphans = ExecutedGroup.newFilePaths(groups);
         if (config.partialProgressEnabled()) {
@@ -244,7 +232,7 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
           out.get(COMMIT_SUMMARY).output(RewriteResult.builder().setFailedCommits(1).build());
           return;
         }
-        // Atomic mode: fail the pipeline. Throw without deleting
+        // Atomic mode: fail the pipeline, again without deleting the outputs.
         LOG.error(
             RewriteDataFiles.REWRITE_PREFIX
                 + "Atomic commit for key {} failed after {} attempt(s); failing the pipeline. {} "
@@ -287,7 +275,7 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
               startingSnapshotId);
       rewrite.dataSequenceNumber(start.sequenceNumber());
     }
-    // Rebuild the delete-set from the compact descriptors on each ExecutedGroup.
+    // Rebuild the file sets from each group's compact descriptors.
     DataFileSet dataFilesToDelete = DataFileSet.create();
     DeleteFileSet deleteFilesToDelete = DeleteFileSet.create();
     int added = 0;
@@ -315,8 +303,8 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
     rewrite.commit();
     numFilesCommitted.inc(added);
     numFilesRemoved.inc(removed);
-    // After refreshing, locate OUR committed snapshot by its stamp to avoid accidentally
-    // pulling in a snapshot from concurrent commit.
+    // Locate OUR snapshot by its stamp rather than reading currentSnapshot(): a concurrent commit
+    // may have advanced it.
     table.refresh();
     Snapshot snap =
         checkStateNotNull(
@@ -336,12 +324,12 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
   }
 
   /**
-   * Scans relevant ancestors of the current snapshot to see if the current bundle has already been
-   * committed (identified by {@code operationId} and {@code commitKey} stamp).
+   * Scans ancestors of the current head for a snapshot already stamped with this {@code
+   * operationId} and {@code commitKey}, i.e. one this bundle already committed.
    *
-   * <p>The walk stops once a snapshot's sequence number drops to or below the STARTING snapshot's.
-   * Sequence numbers are monotonic and our commit necessarily has a higher one than the starting
-   * snapshot's, so nothing at or below the floor can carry our stamp.
+   * <p>The walk stops once a snapshot's sequence number drops to or below the STARTING snapshot's:
+   * sequence numbers are monotonic along an ancestry, so nothing at or below that floor can carry
+   * our stamp.
    */
   private @Nullable Snapshot findCommittedSnapshot(
       Table table, int commitKey, String operationId, long startingSequenceNumber) {
@@ -376,9 +364,8 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
   }
 
   /**
-   * Returns only subgroups whose parents are fully rewritten. Partially written parents (some
-   * subgroups failed) are excluded. Committing such parents would delete the input files while
-   * missing a subgroup's rewritten rows.
+   * Returns only subgroups whose parent was fully rewritten. Committing a partially rewritten
+   * parent would delete its input files while missing a failed subgroup's rows.
    */
   private List<ExecutedGroup> completeParentSubgroups(List<ExecutedGroup> groups) {
     Map<Integer, List<ExecutedGroup>> byParent = new LinkedHashMap<>();
@@ -408,9 +395,7 @@ class CommitRewriteGroups extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, Sna
     return complete;
   }
 
-  /**
-   * A commit-summary fragment for an already-committed snapshot located by its idempotency stamp.
-   */
+  /** Commit-summary fragment for a snapshot located by its idempotency stamp. */
   private static RewriteResult idempotentCommitFragment(Snapshot snapshot, long rewrittenBytes) {
     return RewriteResult.builder()
         .setCommittedSnapshots(1)

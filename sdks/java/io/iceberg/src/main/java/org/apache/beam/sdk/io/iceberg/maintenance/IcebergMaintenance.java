@@ -41,23 +41,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Entry point for Iceberg table maintenance as a Beam pipeline: build one with {@link #create}, add
- * tasks (currently only offers {@link #rewriteDataFiles} compaction), then {@link #run}.
- *
- * <p>Maintenance runs as a bounded (batch) pipeline. See {@link RewriteDataFiles} for the failure
- * model (atomic vs partial-progress, the commit-failure budget, why rewrite failures are tolerated
- * and reported in the {@link RewriteResult}, and how a failed commit leaves operation-id-tagged
- * orphans).
- *
- * <p><b>Rebuild the graph per run.</b> The table and its starting snapshot are pinned at graph
- * construction (here), so re-running a SERIALIZED graph — e.g. a Dataflow classic template —
- * replans from that now-stale snapshot. Files already compacted by an earlier run then fail this
- * run's commit validation cleanly (no corruption and no silent skip — the operation id is minted
- * fresh per execution), but the run does no useful work. Construct a fresh {@code
- * IcebergMaintenance} for each run. (Execution-time table/snapshot resolution is future work.)
- *
- * <p>Note: <b>Do not schedule an Expire Snapshots operation concurrently with compaction</b> (or
- * keep snapshot retention at least as long as a compaction run): expiring a just-committed snapshot
- * inside a commit-retry window can make a landed rewrite report as failed.
+ * tasks (currently only {@link #rewriteDataFiles} compaction, see {@link RewriteDataFiles} for
+ * details), then {@link #run}.
  */
 public class IcebergMaintenance {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergMaintenance.class);
@@ -124,9 +109,8 @@ public class IcebergMaintenance {
         RewriteDataFiles.class.getSimpleName(),
         rewriteConfig);
 
-    // Resolve the head to compact. An explicit snapshot id wins. Otherwise use the branch
-    // ref's snapshot when a branch is set, else main's current snapshot.
-    // A null head means nothing to compact -> a graceful empty-impulse no-op.
+    // Resolve the head to compact: explicit snapshot id, else the branch ref, else main's current
+    // snapshot. A null head means nothing to compact -> a graceful empty-impulse no-op.
     @Nullable String branch = rewriteConfig.getBranch();
     @Nullable Long snapshotId = rewriteConfig.getSnapshotId();
     @Nullable Snapshot head;

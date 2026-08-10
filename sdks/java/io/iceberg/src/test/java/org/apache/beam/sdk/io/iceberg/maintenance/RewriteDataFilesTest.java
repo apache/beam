@@ -116,11 +116,10 @@ public class RewriteDataFilesTest {
         records.add(r);
       }
       append.appendFile(
-          // Record split offsets so each (single-row-group) file yields exactly ONE range task
-          // under row-group splitting. Without offsets a tiny target-file-size test config drives
-          // the fixed-size split fallback to shatter a file into many sub-byte ranges, which would
-          // turn one poisoned file into many subgroup failures and skew the per-parent
-          // failed-rewrite counting the result asserts.
+          // Record split offsets so each (single-row-group) file yields exactly ONE range task.
+          // Without them a tiny target-file-size drives the fixed-size split fallback to shatter a
+          // file into many sub-byte ranges, turning one poisoned file into many subgroup failures
+          // and skewing the per-parent failed-rewrite count the result asserts.
           warehouse.writeRecords(
               "f" + f + "_" + System.nanoTime() + ".parquet",
               table.schema(),
@@ -289,10 +288,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void endToEndAtomicCommitConflictFailsWithoutCommitting() throws Exception {
-    // Commit-conflict handling through the FULL expand() wiring (not disconnected DoFnTester
-    // pieces): a concurrent change to a file being rewritten makes the atomic commit conflict;
-    // after retries CommitRewriteGroups throws, FAILING the pipeline and committing nothing. The
-    // output files are left as tagged orphans (not deleted), since a retry could still commit them.
+    // Commit-conflict handling through the FULL expand() wiring: a concurrent change to a file
+    // being rewritten makes the atomic commit conflict, so after retries the pipeline FAILS having
+    // committed nothing. Output files are left as tagged orphans — a retry could still commit them.
     Table table = buildTable(4);
     long startingSnapshot = table.currentSnapshot().snapshotId();
     DataFile victim;
@@ -317,7 +315,7 @@ public class RewriteDataFilesTest {
                     .rewriteDataFiles(config)
                     .run()
                     .waitUntilFinish());
-    // F28: assert the ACTUAL failure cause (a commit conflict), not merely that something threw.
+    // Assert the ACTUAL failure cause (a commit conflict), not merely that something threw.
     assertTrue(
         "the failure must describe the commit conflict: " + causeChainMessage(ex),
         causeChainMessage(ex).contains("conflicted with a concurrent"));
@@ -331,7 +329,7 @@ public class RewriteDataFilesTest {
 
   @Test
   public void rewriteResultReportsThePlannedAndCommittedReality() throws Exception {
-    // T4/D3: the RESULT row summarizes the run — planned parents/files, committed snapshot, files
+    // The RESULT row summarizes the run — planned parents/files, committed snapshot, files
     // added/removed, rewritten bytes — and reports zero rewrite failures on a healthy run.
     Table table = buildTable(6);
     long inputFiles = liveDataFiles(table); // 6 files -> one parent group -> one commit
@@ -366,8 +364,8 @@ public class RewriteDataFilesTest {
 
   @Test
   public void emptyTableRewriteResultIsAllZeros() throws Exception {
-    // T4/D3: an empty-table run is a no-op but STILL produces exactly one result row — all zeros
-    // with a null operation id (the Combine identity on empty input).
+    // An empty-table run is a no-op but STILL produces exactly one result row — all zeros with a
+    // null operation id (the Combine identity on empty input).
     tableId = TableIdentifier.of("default", "emptyres_" + System.nanoTime());
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     assertNull("sanity: an empty table has no snapshot", table.currentSnapshot());
@@ -400,9 +398,8 @@ public class RewriteDataFilesTest {
 
   @Test
   public void emptyTableMaintenanceIsNoOp() throws Exception {
-    // F13: a table created but never written (no snapshot) must not crash maintenance — it runs as
-    // a
-    // graceful no-op, so a scheduled/periodic rewrite over an empty table doesn't fail and page.
+    // A table created but never written (no snapshot) must not crash maintenance — it runs as a
+    // graceful no-op, so a scheduled rewrite over an empty table doesn't fail and page.
     tableId = TableIdentifier.of("default", "empty_" + System.nanoTime());
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     assertNull("sanity: an empty table has no snapshot", table.currentSnapshot());
@@ -421,10 +418,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void branchOnlyWapTableCompactsOnBranchLeavingMainNull() throws Exception {
-    // R11-3: a WAP table whose only commits went to a branch has a null MAIN head but a live branch
-    // ref. setBranch must resolve the impulse head from that branch (not main) and compact it;
-    // pre-fix the null main head built an empty no-op impulse, so the branch was silently never
-    // compacted (and the "no snapshot yet" log blamed the wrong cause).
+    // A WAP table whose only commits went to a branch has a null MAIN head but a live branch ref.
+    // setBranch must resolve the impulse head from that branch, not main — a null main head builds
+    // an empty no-op impulse and the branch is then silently never compacted.
     tableId = TableIdentifier.of("default", "wap_" + System.nanoTime());
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     String branch = "audit";
@@ -481,9 +477,8 @@ public class RewriteDataFilesTest {
 
   @Test
   public void setBranchMissingFailsAtTaskAddTime() throws Exception {
-    // R11-3: setBranch naming a branch that does not exist must fail at rewriteDataFiles(...) time
-    // (task-add, synchronously) with the branch-does-not-exist message — not silently no-op nor
-    // fail deep inside the running job.
+    // setBranch naming a branch that does not exist must fail synchronously at
+    // rewriteDataFiles(...) time — not silently no-op, nor fail deep inside the running job.
     Table table = buildTable(2);
     IcebergMaintenance maintenance =
         IcebergMaintenance.create(tableId.toString(), catalogProps(table));
@@ -500,13 +495,11 @@ public class RewriteDataFilesTest {
 
   @Test
   public void explicitSnapshotIdOnMainEmptyTableIsConsultedNotSilentlyIgnored() throws Exception {
-    // R13-D: on a table whose MAIN head is empty, an explicit snapshotId must be CONSULTED first —
-    // pre-fix the impulse fell back to the null currentSnapshot() and the run was a silent no-op
-    // that ignored the pin. An unresolvable pin now fails loudly at task-add time with a clear
-    // "snapshot not found" error, proving getSnapshotId() is resolved ahead of the branch/main
-    // fallbacks. (A truly main-empty table has no files on main for a no-branch rewrite to commit,
-    // so a valid pin cannot round-trip a commit there; the observable fix is that the pin is no
-    // longer silently discarded.)
+    // On a table whose MAIN head is empty, an explicit snapshotId must be resolved BEFORE the
+    // branch/main fallbacks; falling back to the null currentSnapshot() makes the run a silent
+    // no-op that ignores the pin. An unresolvable pin instead fails loudly at task-add time, which
+    // is the observable proof (a main-empty table has no files to commit, so a valid pin cannot
+    // round-trip a commit here).
     tableId = TableIdentifier.of("default", "pin_" + System.nanoTime());
     Table table = warehouse.createTable(tableId, TestFixtures.SCHEMA);
     assertNull("sanity: an empty table has no main snapshot", table.currentSnapshot());
@@ -662,12 +655,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void embedsInCallerSuppliedPipeline() throws Exception {
-    // R13-B: the create(tableId, catalogConfig, Pipeline) overload attaches the maintenance graph
-    // to
-    // the CALLER's own pipeline (embed-in-existing-pipeline). Build our own Pipeline, hand it over,
-    // add the rewrite, then run THAT pipeline directly (not maintenance.run()) — the rewrite must
-    // land, proving the transform was wired into the caller's pipeline, not an internally-owned
-    // one.
+    // The create(tableId, catalogConfig, Pipeline) overload must attach the maintenance graph to
+    // the CALLER's own pipeline. Running THAT pipeline directly (not maintenance.run()) means the
+    // rewrite only lands if the transform was wired into it, not into an internally-owned pipeline.
     Table table = buildTable(6);
     List<String> expectedRows = rowMultiset(table);
 
@@ -685,11 +675,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void writePropertiesOverrideOutputCompressionCodec() throws Exception {
-    // R13-B: the Configuration.setWriteProperties -> expand -> RewriteGroupDoFn wiring must reach
-    // the
-    // output writer. Create a table whose own parquet codec is ZSTD, rewrite with a gzip override,
-    // then read a committed output file's Parquet footer: its column chunks must be GZIP — proving
-    // the override took effect (a broken wiring would leave the table's zstd default).
+    // setWriteProperties must reach the output writer: the table's own parquet codec is ZSTD, the
+    // rewrite overrides it with gzip, and a committed output file's Parquet footer must show GZIP.
+    // A broken wiring silently leaves the table's zstd default.
     tableId = TableIdentifier.of("default", "wp_" + System.nanoTime());
     Table table =
         warehouse.createTable(
@@ -744,9 +732,8 @@ public class RewriteDataFilesTest {
   @Test
   public void unknownRewriteOptionRejectedFailFast() throws Exception {
     Table table = buildTable(2);
-    // An action-level option that the bin-pack planner does not recognize must be rejected up
-    // front,
-    // not silently ignored.
+    // An action-level option the bin-pack planner does not recognize must be rejected up front, not
+    // silently ignored.
     RewriteDataFiles.Configuration cfg =
         RewriteDataFiles.Configuration.builder()
             .setRewriteOptions(ImmutableMap.of("remove-dangling-deletes", "true"))
@@ -758,11 +745,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void outputSpecIdOptionAcceptedThroughPublicPath() throws Exception {
-    // output-spec-id is a real planner option: Iceberg's SizeBasedFileRewritePlanner.init() reads
-    // it, but it is (in 1.10) omitted from validOptions(). The fail-fast validation must therefore
-    // allow it explicitly, otherwise the public IcebergMaintenance.rewriteDataFiles(...) path
-    // throws
-    // before planning even though the rewrite would honor it.
+    // output-spec-id is a real planner option — SizeBasedFileRewritePlanner.init() reads it — but
+    // Iceberg 1.10 omits it from validOptions(), so fail-fast validation must allow it explicitly
+    // or the public rewriteDataFiles(...) path throws before planning.
     Table table = buildTable(2);
     RewriteDataFiles.Configuration cfg =
         RewriteDataFiles.Configuration.builder()
@@ -778,11 +763,9 @@ public class RewriteDataFilesTest {
   @Test
   public void invalidRewriteOptionValuesRejectedFailFast() throws Exception {
     // Bad option VALUES (not just unknown keys) must be rejected at rewriteDataFiles(...) time
-    // rather than failing deep inside the Beam job when the planner runs. Each case uses a FRESH
-    // maintenance instance: validation runs in RewriteDataFiles.expand (during apply), so a
-    // rejected
-    // apply leaves its half-built transform on the pipeline and a reused builder couldn't add a
-    // second task.
+    // rather than deep inside the running job. Each case uses a FRESH maintenance instance:
+    // validation runs during apply, so a rejected apply leaves a half-built transform on the
+    // pipeline and a reused builder could not add a second task.
     Table table = buildTable(2);
 
     // Invalid rewrite-job-order name (RewriteJobOrder.fromName rejects it in planner.init).
@@ -867,9 +850,8 @@ public class RewriteDataFilesTest {
     Table table = buildTable(6);
     List<String> expectedRows = rowMultiset(table);
 
-    // Force one-file-per-group (1.10-compatible knobs) so 6 groups form; with maxCommits=3 the
-    // round-robin key (keptIndex % 3) spreads them over exactly 3 independent commits (2 parents
-    // each).
+    // Force one-file-per-group so 6 groups form; with maxCommits=3 the round-robin key
+    // (keptIndex % 3) spreads them over exactly 3 independent commits (2 parents each).
     RewriteDataFiles.Configuration config =
         RewriteDataFiles.Configuration.builder()
             .setPartialProgressEnabled(true)
@@ -899,10 +881,10 @@ public class RewriteDataFilesTest {
 
   @Test
   public void rewriteFailuresDoNotCountAsCommitFailures() throws Exception {
-    // T5: a failed REWRITE is reported in the result's failedRewriteParents, NEVER charged to the
-    // commit budget. Poison one file so its parent fails to rewrite under partial progress; even
-    // with maxFailedCommits=0 the run SUCCEEDS, the healthy files compact, and the result separates
-    // the one rewrite failure from the zero commit failures.
+    // A failed REWRITE is reported in failedRewriteParents, NEVER charged to the commit budget.
+    // Poison one file so its parent fails to rewrite: even with maxFailedCommits=0 the run
+    // SUCCEEDS, the healthy files compact, and the result separates the rewrite failure from the
+    // zero commit failures.
     Table table = buildTable(6);
     String poisoned;
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
@@ -948,9 +930,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void atomicRewriteFailureCleansUpSiblingsAndFails() throws Exception {
-    // Finding 2: atomic mode is all-or-nothing. If one group fails to rewrite, the successful
-    // siblings (which already wrote output files) must be DELETED, not leaked as orphans, and the
-    // job must fail. Poison one file so its single-file group fails while the others succeed.
+    // Atomic mode is all-or-nothing: if one group fails to rewrite, the successful siblings' output
+    // files must be DELETED, not leaked as orphans, and the job must fail. Poison one file so its
+    // single-file group fails while the others succeed.
     Table table = buildTable(6);
     String poisoned;
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
@@ -978,13 +960,12 @@ public class RewriteDataFilesTest {
                     .rewriteDataFiles(config)
                     .run()
                     .waitUntilFinish());
-    // B11: pin the ACTUAL rewrite-group abort cause, not merely that something threw.
+    // Pin the ACTUAL rewrite-group abort cause, not merely that something threw.
     assertTrue(
         "the failure must describe the rewrite-group abort: " + causeChainMessage(ex),
         causeChainMessage(ex).contains("could not be rewritten"));
 
-    // The successful siblings' freshly written outputs were cleaned up: no new parquet files
-    // remain.
+    // The successful siblings' freshly written outputs were cleaned up: no new parquet files.
     assertEquals(
         "an aborted atomic rewrite must leave no orphan output files on disk",
         parquetBefore,
@@ -993,8 +974,8 @@ public class RewriteDataFilesTest {
 
   @Test
   public void atomicRewriteAllGroupsFailingFails() throws Exception {
-    // Finding 2 edge: if EVERY group fails to rewrite, no commit batch exists for the gate to
-    // abort, so a safety-net assert must still fail the job rather than silently succeed.
+    // If EVERY group fails to rewrite, no commit batch exists for the gate to abort, so a
+    // safety-net assert must still fail the job rather than silently succeed.
     Table table = buildTable(3);
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
       for (FileScanTask t : tasks) {
@@ -1014,7 +995,7 @@ public class RewriteDataFilesTest {
                     .rewriteDataFiles(config)
                     .run()
                     .waitUntilFinish());
-    // B11: pin the all-groups-failed safety net (AssertAtomicRewriteProgressed), not any crash.
+    // Pin the all-groups-failed safety net (AssertAtomicRewriteProgressed), not any crash.
     assertTrue(
         "the failure must be the all-groups-failed safety net: " + causeChainMessage(ex),
         causeChainMessage(ex).contains("failed to rewrite and nothing was committed"));
@@ -1022,13 +1003,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void rewriteFailuresAreToleratedAndReportedInResult() throws Exception {
-    // T5: partial-progress runs tolerate ANY number of rewrite-group failures (no budget) and
-    // report
-    // them in the result — Spark parity. Poison 2 single-file parents; the run SUCCEEDS, the
-    // healthy
-    // parents commit, the poisoned inputs stay live, and the result counts 2 failed parents. (max
-    // Commits=1 makes the FORMER default rewrite-failure budget = 1, which 2 failures would have
-    // exceeded — this is the behavior that changed.)
+    // Partial-progress runs tolerate ANY number of rewrite-group failures (no budget) and report
+    // them in the result — Spark parity. Poison 2 single-file parents: the run SUCCEEDS, healthy
+    // parents still commit, the poisoned inputs stay live, and the result counts 2 failed parents.
     Table table = buildTable(6);
     List<String> poisoned = new ArrayList<>();
     try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
@@ -1085,12 +1062,10 @@ public class RewriteDataFilesTest {
 
   @Test
   public void commitFailureWithinBudgetTolerated() throws Exception {
-    // B1: a terminal commit failure under partial progress is charged to maxFailedCommits (rewrite
-    // failures are separately tolerated and reported, never budgeted). Pin planning to the current
-    // snapshot, then metadata-only-delete ONE file
-    // (its bytes remain so the rewrite succeeds, but its commit then fails "Missing required files
-    // to delete"). With maxCommits=6 that failure isolates to one key; with maxFailedCommits=1 the
-    // run must SUCCEED and the other five keys must still commit a REPLACE snapshot.
+    // A terminal commit failure under partial progress is charged to maxFailedCommits (rewrite
+    // failures are tolerated separately, never budgeted). With maxCommits=6 the injected failure
+    // isolates to one key, so with maxFailedCommits=1 the run must SUCCEED and the other five keys
+    // must still commit a REPLACE snapshot.
     Table table = buildTable(6);
     long startingSnapshot = table.currentSnapshot().snapshotId();
     DataFile victim;
@@ -1129,8 +1104,8 @@ public class RewriteDataFilesTest {
 
   @Test
   public void commitFailureExceedingBudgetFailsPipeline() throws Exception {
-    // B1 companion: the SAME single commit failure with maxFailedCommits=0 must FAIL the pipeline
-    // with a message naming the commit budget.
+    // The same single commit failure with maxFailedCommits=0 must FAIL the pipeline with a message
+    // naming the commit budget.
     Table table = buildTable(6);
     long startingSnapshot = table.currentSnapshot().snapshotId();
     DataFile victim;
@@ -1170,11 +1145,9 @@ public class RewriteDataFilesTest {
 
   @Test
   public void multiSubgroupParentFailureCountsOnceInResult() throws Exception {
-    // T5/A1: the result counts PLANNED PARENT GROUPS, not subgroups. One multi-row-group file split
-    // into several range-bin subgroups is ONE parent; if every one of its subgroups fails (its
-    // bytes
-    // are poisoned) the result must report failedRewriteParents=1 (NOT the bin count), and the
-    // partial-progress run SUCCEEDS. A per-subgroup count would report >=2 here.
+    // The result counts PLANNED PARENT GROUPS, not subgroups: one multi-row-group file split into
+    // several range bins is ONE parent, so poisoning its bytes must report failedRewriteParents=1
+    // (a per-subgroup count would report >=2 here) while the partial-progress run still SUCCEEDS.
     Table table = buildMultiRowGroupTable(1500);
     assertRowGroupsAtLeast(table, 3);
     long target = totalDataFileBytes(table) / 3; // split the single file into several bins
@@ -1201,7 +1174,7 @@ public class RewriteDataFilesTest {
         DoFnTester.of(new PlanRewriteGroups.ScanAndPlan(st, config));
     planTester.processBundle(SnapshotInfo.fromSnapshot(table.currentSnapshot()));
     assertTrue(
-        "fixture must split the parent into >=2 subgroups (else the A1 assertion is vacuous)",
+        "fixture must split the parent into >=2 subgroups (else the per-parent count is vacuous)",
         planTester.peekOutputElements(PlanRewriteGroups.GROUPS).size() >= 2);
 
     Pipeline pipeline = Pipeline.create();
@@ -1222,7 +1195,7 @@ public class RewriteDataFilesTest {
 
   @Test
   public void unboundedInputRejectedAtConstruction() throws Exception {
-    // A2: the transform's global-window GroupByKey + singleton side input never fire on unbounded
+    // The transform's global-window GroupByKey + singleton side input never fire on unbounded
     // input, so the pipeline would hang committing nothing. Reject unbounded input at construction
     // time with a clear message instead.
     Table table = buildTable(2);
@@ -1257,8 +1230,8 @@ public class RewriteDataFilesTest {
 
   @Test
   public void sameSpecPartitionedCompactionOpensOneWriterPerSubgroup() throws Exception {
-    // C5 fast path: a same-spec partitioned subgroup is a single output partition, so it opens
-    // exactly ONE writer. Two shards, one subgroup each -> the openFanoutWriters counter == 2.
+    // Planning groups files by partition, so a same-spec subgroup only ever sees one partition
+    // value and holds a single open appender. Two shards, one subgroup each -> counter == 2.
     Schema schema =
         new Schema(
             Types.NestedField.required(1, "id", Types.LongType.get()),
@@ -1314,7 +1287,7 @@ public class RewriteDataFilesTest {
 
   @Test
   public void deleteOrphansUsesOneBulkCallWhenSupported() {
-    // C4: an atomic-abort can face tens of thousands of orphans; when the FileIO supports bulk ops,
+    // An atomic abort can face tens of thousands of orphans; when the FileIO supports bulk ops,
     // delete them in ONE call, not N serial round-trips.
     List<String> paths = Arrays.asList("a.parquet", "b.parquet", "c.parquet");
     BulkFakeIO io = new BulkFakeIO();
@@ -1334,18 +1307,17 @@ public class RewriteDataFilesTest {
 
   @Test
   public void deleteOrphansBulkFailureReportsPartialCountAndDoesNotThrow() {
-    // A partial bulk failure must NOT throw (the caller fails the pipeline regardless and leaves
-    // the
-    // rest as tagged orphans); it reports how many were deleted.
+    // A partial bulk failure must NOT throw — the caller fails the pipeline regardless and leaves
+    // the rest as tagged orphans — but it reports how many were deleted.
     List<String> paths = Arrays.asList("a.parquet", "b.parquet", "c.parquet");
     assertEquals(1, RewriteDataFiles.deleteOrphans(new BulkFailIO(2), paths));
   }
 
   @Test
   public void deleteOrphansNonBulkFailureFallsBackToPerFile() {
-    // R11-2: a bulk delete failure that is NOT a BulkDeletionFailureException (an S3 SDK
-    // auth/throttle/shutdown RuntimeException that isn't wrapped) must fall back to per-file
-    // deletes, not propagate a raw IO stack out of CleanupAndFail.
+    // A bulk delete failure that is NOT a BulkDeletionFailureException (an unwrapped S3 SDK
+    // auth/throttle/shutdown RuntimeException) must fall back to per-file deletes, not propagate a
+    // raw IO stack out of CleanupAndFail.
     List<String> paths = Arrays.asList("a.parquet", "b.parquet", "c.parquet");
     BulkRuntimeFailIO io = new BulkRuntimeFailIO();
     assertEquals(3, RewriteDataFiles.deleteOrphans(io, paths));

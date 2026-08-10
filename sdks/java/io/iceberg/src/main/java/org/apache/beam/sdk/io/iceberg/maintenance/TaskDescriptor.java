@@ -35,8 +35,8 @@ import org.apache.iceberg.util.JsonUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A lightweight serializable descriptor of {@link FileScanTask}, without the unnecessary table
- * schema + partition spec + residual. We also strip column metrics from DataFiles.
+ * A lightweight serializable descriptor of a {@link FileScanTask}, dropping the table schema,
+ * partition spec and residual that the full task JSON carries, and the data file's column metrics.
  */
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
@@ -54,8 +54,8 @@ public abstract class TaskDescriptor {
   public abstract long getLength();
 
   /**
-   * We carry the input file's data sequence number because it's needed to preserve v3 row lineage
-   * ({@code _last_updated_sequence_number}) on rewrite.
+   * The input file's data sequence number, carried alongside the file JSON: v3 row lineage derives
+   * {@code _last_updated_sequence_number} from it on rewrite.
    */
   @SchemaFieldNumber("4")
   public abstract long getDataSequenceNumber();

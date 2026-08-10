@@ -58,7 +58,7 @@ import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
-/** Round-trip and payload-size tests for {@link TaskDescriptor} (C1 compaction). */
+/** Round-trip and payload-size tests for {@link TaskDescriptor}. */
 @RunWith(JUnit4.class)
 public class TaskDescriptorTest {
   @ClassRule public static final TemporaryFolder TEMPORARY_FOLDER = new TemporaryFolder();
@@ -104,11 +104,9 @@ public class TaskDescriptorTest {
 
   @Test
   public void roundTripPreservesDeletionVectorTopLevelFields() throws Exception {
-    // R11-7: a deletion vector's top-level fields — contentOffset, contentSizeInBytes,
-    // referencedDataFile — are what the reader needs to locate the DV blob inside its Puffin file.
-    // TaskDescriptor keeps delete-file stats precisely so these survive the ContentFileParser JSON
-    // round-trip; assert them field-by-field on a REAL v3 DV, not merely that a delete round-trips
-    // by location.
+    // A deletion vector's contentOffset, contentSizeInBytes, and referencedDataFile locate its
+    // blob inside the Puffin file, so they must survive the ContentFileParser JSON round-trip.
+    // Assert them field-by-field on a REAL v3 DV, not just that a delete round-trips by location.
     TableIdentifier id = TableIdentifier.of("default", "tddv_" + System.nanoTime());
     Table table =
         warehouse.createTable(
@@ -198,10 +196,9 @@ public class TaskDescriptorTest {
 
   @Test
   public void compactDescriptorPayloadShrinksVsFullScanTaskJson() throws Exception {
-    // C1: the compact TaskDescriptor payload must be dramatically smaller than embedding a full
-    // ScanTaskParser JSON (table schema + spec + residual) per range. With a wide (50-column)
-    // schema the shrink is >=10x. Coder-encode the whole group and compare against the summed
-    // old-style per-task JSON as the reference ceiling.
+    // The compact descriptor payload must be far smaller than embedding a full ScanTaskParser JSON
+    // (table schema + spec + residual) per range: a wide 50-column schema makes the shrink >=10x.
+    // The coder-encoded group is compared against the summed per-task JSON as the ceiling.
     Schema wide = wideSchema(50);
     TableIdentifier id = TableIdentifier.of("default", "c1size_" + System.nanoTime());
     Table table = warehouse.createTable(id, wide);

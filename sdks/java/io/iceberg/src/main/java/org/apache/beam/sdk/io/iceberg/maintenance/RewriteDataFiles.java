@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg.maintenance;
 
 import static org.apache.iceberg.actions.RewriteDataFiles.OUTPUT_SPEC_ID;
+import static org.apache.iceberg.actions.SizeBasedFileRewritePlanner.MAX_FILE_GROUP_INPUT_FILES;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
@@ -77,28 +78,26 @@ import org.slf4j.LoggerFactory;
 /**
  * Bin-pack compaction for an Iceberg table. Rewrites small data files into fewer, target-sized
  * files. Planning runs once on a single worker and creates large batches (parents). Each parent
- * batch is split into subgroups and spread across writer DoFns. Subgroups are then grouped back
- * into their original batches. Partial progress will do parallel commits (based on {@code
- * maxCommits}) and atomic mode will put everything into a single commit.
+ * batch is split into subgroups and spread across writer DoFns, then grouped back into its original
+ * batch. Partial progress commits batches in parallel (up to {@code maxCommits}); atomic mode puts
+ * everything into a single commit.
  *
  * <h2>Failure semantics</h2>
  *
- * <p>The default <b>atomic mode</b> is all-or-nothing. If any rewrite subgroup fails, all subgroup
- * output files will be deleted (regardless if successful or not) and the pipeline fails. This
- * deletion is safe because those files were never handed to a commit.
+ * <p>The default <b>atomic mode</b> is all-or-nothing: if any subgroup fails to rewrite, every
+ * subgroup's output files are deleted and the pipeline fails. Deleting them is safe because they
+ * were never handed to a commit.
  *
- * <p>If rewrites succeed but the single <i>commit</i> fails, its output files are <b>not</b>
- * deleted: a stray retry or concurrent attempt of that same commit could still succeed. Deleting
- * these files could risk creating a snapshot that references missing data. Instead, the pipeline
- * fails and each output file is left tagged with this operation's id. A later remove-orphan-files
- * run can reclaim it. The rewrite's <i>input</i> files are never deleted on any failure, so no data
- * is lost.
+ * <p>A failed <i>commit</i> never deletes its output files: a stray retry or a concurrent attempt
+ * of that same commit could still succeed, and deleting could leave a snapshot referencing missing
+ * data. The pipeline fails and each output file is left tagged with this operation's id for a later
+ * remove-orphan-files run. The rewrite's <i>input</i> files are never deleted on any failure, so no
+ * data is lost.
  *
- * <p><b>Partial progress</b> mode bounds the blast radius of failures. Rewrite-group failures are
- * always tolerated and reported in the {@link RewriteResult}. Terminal commit failures are bounded
- * by {@code maxFailedCommits}. Any individual commit-budget failure does not roll back the
- * partial-progress commits that already succeeded. The pipeline will still fail but compaction did
- * make progress.
+ * <p><b>Partial progress</b> mode bounds the blast radius. Rewrite-group failures are always
+ * tolerated and reported in the {@link RewriteResult} rather than budgeted; only terminal commit
+ * failures are bounded by {@code maxFailedCommits}. Exceeding that budget still fails the pipeline
+ * but does not roll back the commits that already succeeded.
  */
 public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCollectionTuple> {
   private static final Logger LOG = LoggerFactory.getLogger(RewriteDataFiles.class);
@@ -108,9 +107,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
   /** The snapshots this rewrite committed (one per successful commit batch). */
   public static final TupleTag<SnapshotInfo> SNAPSHOTS = new TupleTag<>() {};
 
-  /**
-   * The single structured {@link RewriteResult} summary of the run (always exactly one element).
-   */
+  /** The single {@link RewriteResult} summary of the run (always exactly one element). */
   public static final TupleTag<RewriteResult> RESULT = new TupleTag<>() {};
 
   private final String tableIdentifier;
@@ -173,12 +170,10 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
     PCollection<KV<Integer, Iterable<ExecutedGroup>>> grouped =
         executed.apply("Group by Commit Key", GroupByKey.create());
 
-    // Distinct failed-parent count
     PCollection<Long> failedParents = countFailedParents(rewritten);
 
-    // Batches to commit. In atomic mode (all or nothing), if any group failed to be rewritten, all
-    // groups get passed through a gate that aborts the whole rewrite.
-    // In partial-progress mode, batches are committed independently.
+    // In atomic mode, any rewrite failure routes every batch through a gate that aborts the whole
+    // rewrite. In partial-progress mode, batches are committed independently.
     PCollection<KV<Integer, Iterable<ExecutedGroup>>> toCommit;
     if (rewriteConfig.partialProgressEnabled()) {
       toCommit = grouped;
@@ -201,7 +196,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
               "Clean Up Aborted Atomic Rewrite",
               ParDo.of(new CleanupAndFail(tableIdentifier, catalogConfig)));
 
-      // if EVERY group failed there is no batch for the gate to abort, so fail here.
+      // If EVERY group failed there is no batch for the gate to abort, so fail here.
       executed
           .apply("Count Successful Rewrites", Count.globally())
           .apply(
@@ -214,10 +209,8 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
               .setCoder(KvCoder.of(VarIntCoder.of(), IterableCoder.of(EXECUTED_GROUP_CODER)));
     }
 
-    // Commit each batch in parallel
-    // A terminal commit failure in atomic mode fails the pipeline directly from CommitRewriteGroups
-    // without deleting its output files. A bundle retry could still commit them.
-    // Worst case, they are left as tagged orphans.
+    // Commit each batch in parallel. A terminal commit failure fails the pipeline without deleting
+    // its outputs: a retry could still commit them, so they are left as tagged orphans instead.
     PCollectionTuple committed =
         toCommit.apply(
             "Commit Rewrites",
@@ -228,8 +221,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
                         .and(CommitRewriteGroups.COMMIT_SUMMARY)));
     committed.get(CommitRewriteGroups.COMMIT_SUMMARY).setCoder(RESULT_CODER);
 
-    // Partial-progress mode bounds the commit stage: a terminal commit failure is tolerated
-    // but charged to maxFailedCommits. Rewrite-group failures are reported in the RewriteResult.
+    // Partial progress tolerates a terminal commit failure but charges it to maxFailedCommits.
     if (rewriteConfig.partialProgressEnabled()) {
       committed
           .get(CommitRewriteGroups.FAILED_COMMITS)
@@ -240,10 +232,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
               ParDo.of(new AssertMaxFailures("commit", rewriteConfig.maxFailedCommits())));
     }
 
-    // Assemble the single RewriteResult from the per-stage fragments:
-    // - the planning summary
-    // - the failed-parent count
-    // - each commit's summary
+    // Assemble the single RewriteResult from the planning, failed-parent and commit fragments.
     PCollection<SnapshotInfo> committedSnapshots =
         committed.get(CommitRewriteGroups.COMMITTED).setCoder(SNAPSHOT_CODER);
     PCollection<RewriteResult> failedParentsFragment =
@@ -267,7 +256,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
     return PCollectionTuple.of(SNAPSHOTS, committedSnapshots).and(RESULT, result);
   }
 
-  /** Dedupes REWRITE_FAILURES and counts the failed PARENT groups. */
+  /** Dedupes the failed-parent indices and counts the distinct failed parent groups. */
   private static PCollection<Long> countFailedParents(PCollectionTuple rewritten) {
     return rewritten
         .get(RewriteSubGroupDoFn.FAILED_PARENTS)
@@ -277,7 +266,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
   }
 
   /**
-   * Fails the pipeline when the partial-progress COMMIT-failure count exceeds {@code
+   * Fails the pipeline when the partial-progress commit-failure count exceeds {@code
    * maxFailedCommits}.
    */
   static class AssertMaxFailures extends DoFn<Long, Void> {
@@ -303,10 +292,10 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
   }
 
   /**
-   * Deletes {@code paths}, using {@link SupportsBulkOperations#deleteFiles} in one call when the
-   * {@link FileIO} supports it and falling back to per-file deletes otherwise. Returns the number
-   * deleted. Best-effort: failures are logged, not thrown, and the leftovers stay
-   * operation-id-tagged for a later remove-orphan-files run.
+   * Deletes {@code paths}, in a single {@link SupportsBulkOperations#deleteFiles} call when the
+   * {@link FileIO} supports it and per-file otherwise. Returns the number deleted. Best-effort:
+   * failures are logged, not thrown, and the leftovers stay operation-id-tagged for a later
+   * remove-orphan-files run.
    */
   static int deleteOrphans(FileIO io, List<String> paths) {
     if (paths.isEmpty()) {
@@ -325,7 +314,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
             e);
         return Math.max(0, paths.size() - failed);
       } catch (RuntimeException e) {
-        // A non-Bulk failure. Fall through to the per-file loop
+        // Not a bulk-specific failure; fall through to the per-file loop.
         LOG.warn(
             REWRITE_PREFIX
                 + "Bulk delete raised a non-Bulk error; falling back to per-file deletes.",
@@ -345,12 +334,10 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
   }
 
   /**
-   * Cleanup stage for an atomic rewrite aborted because a file group failed to <b>rewrite</b>.
-   *
-   * <p>When any subgroup in an atomic rewrite fails, the {@link AtomicCommitGate} routes the whole
-   * batch's sibling output files here. The files are routed here before the commit stage, so they
-   * are never handed to a commit and are safe to delete. After deleting, this stage fails the
-   * pipeline.
+   * Cleanup stage for an atomic rewrite aborted because a file group failed to <b>rewrite</b>. The
+   * {@link AtomicCommitGate} routes the whole batch's sibling output files here before the commit
+   * stage, so they were never handed to a commit and are safe to delete. Fails the pipeline once
+   * they are gone.
    */
   static class CleanupAndFail extends DoFn<KV<Integer, List<String>>, Void> {
     private final String tableIdentifier;
@@ -387,13 +374,10 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
   }
 
   /**
-   * Atomic-mode gate between grouping and commit.
-   *
-   * <p>If ANY group failed to rewrite this routes the whole batch's successful output files to
-   * {@link #CLEANUP} (delete, then fail) rather than committing a partial rewrite and leaking the
-   * siblings as orphans.
-   *
-   * <p>If ALL groups succeed, it passes the batch to {@link #PASS} for the normal commit.
+   * Atomic-mode gate between grouping and commit. If ANY group failed to rewrite, routes the whole
+   * batch's successful output files to {@link #CLEANUP} (delete, then fail) rather than committing
+   * a partial rewrite and leaking the siblings as orphans. Otherwise passes the batch to {@link
+   * #PASS} for the normal commit.
    */
   static class AtomicCommitGate
       extends DoFn<KV<Integer, Iterable<ExecutedGroup>>, KV<Integer, Iterable<ExecutedGroup>>> {
@@ -416,8 +400,8 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
         out.get(PASS).output(batch);
         return;
       }
-      // A sibling group failed, so this atomic rewrite cannot commit. Collect this batch's
-      // successful output files so they are deleted (not leaked), then fail downstream.
+      // A sibling group failed, so this rewrite cannot commit. Route this batch's successful
+      // output files to be deleted rather than leaked, then fail downstream.
       List<String> orphanPaths = ExecutedGroup.newFilePaths(batch.getValue());
       LOG.info(
           REWRITE_PREFIX
@@ -432,9 +416,8 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
 
   /**
    * Atomic-mode safety net for the case where EVERY file group failed to rewrite, so no commit
-   * batch reaches {@link AtomicCommitGate} to clean up or fail. It is gated on {@code successCount
-   * == 0} so it doesn't race with the gate's cleanup in the partial-failure case (where some groups
-   * succeeded and the gate handles the abort).
+   * batch reaches {@link AtomicCommitGate} to clean up or fail. Gated on {@code successCount == 0}
+   * so it does not race with the gate's cleanup when only some groups failed.
    */
   static class AssertAtomicRewriteProgressed extends DoFn<Long, Void> {
     private final PCollectionView<Long> rewriteFailureCountView;
@@ -584,21 +567,7 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
 
     /**
      * Validates {@code rewriteOptions} against the native bin-pack planner's options (plus {@code
-     * output-spec-id}) and rejects unknown keys and invalid values up front.
-     *
-     * <p><b>Intentional gap:</b> Iceberg's <em>action-level</em> options are NOT accepted here. In
-     * particular {@code remove-dangling-deletes} is unsupported: this rewrite already drops the
-     * file-scoped deletion vectors tied to the data files it rewrites, but it does not perform
-     * Iceberg's broader table-wide dangling-delete sweep. Run that as a separate maintenance action
-     * if needed. Other action-level knobs (e.g. {@code max-concurrent-file-group-rewrites}) are
-     * likewise superseded by this connector's parallelism model and the typed {@code Configuration}
-     * fields.
-     *
-     * <p><b>Repartitioning cost:</b> setting {@code output-spec-id} to a spec that repartitions the
-     * data (or compacting a table after a spec evolution) makes a subgroup's rows fan out across
-     * output partitions — one open writer each. That fan-out is bounded ({@link WriterFactory}
-     * throws past a cap rather than OOMing); prefer compacting with the table's current spec, where
-     * each subgroup stays within a single partition.
+     * output-spec-id}), rejecting unknown keys and invalid values up front.
      */
     void validateRewriteOptions(Table table) {
       @Nullable Map<String, String> options = getRewriteOptions();
@@ -606,12 +575,11 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
         return;
       }
       BinPackRewriteFilePlanner planner = new BinPackRewriteFilePlanner(table);
-      // (1) Reject unknown KEYS. Iceberg's planner consumes output-spec-id but omits it from
-      // validOptions(), so allow it explicitly. (max-file-group-input-files is another such option
-      // in newer Iceberg, but it does not exist in 1.10. Add to validOptions when the dependency is
-      // upgraded.) Point action-level options that are handled elsewhere at their typed field.
+      // Reject unknown keys. Also include output-spec-id and max-file-group-input-files.
+      // Iceberg's planner consumes them but doesn't include them in validOptions
       Set<String> validOptions = new HashSet<>(planner.validOptions());
       validOptions.add(OUTPUT_SPEC_ID);
+      validOptions.add(MAX_FILE_GROUP_INPUT_FILES);
       Set<String> unknown = new HashSet<>(options.keySet());
       unknown.removeAll(validOptions);
       if (!unknown.isEmpty()) {
@@ -629,10 +597,6 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
         }
         throw new IllegalArgumentException(message.toString());
       }
-      // (2) Check output-spec-id existence with a friendly, spec-ids-listing message. 1.10's
-      // planner
-      // also validates this inside init() (SizeBasedFileRewritePlanner.outputSpecId), but tersely —
-      // so check it FIRST here so the user sees the known-spec-ids hint.
       String outputSpecId = options.get(OUTPUT_SPEC_ID);
       if (outputSpecId != null && !table.specs().containsKey(Integer.parseInt(outputSpecId))) {
         throw new IllegalArgumentException(
@@ -641,14 +605,13 @@ public class RewriteDataFiles extends PTransform<PCollection<SnapshotInfo>, PCol
                     + "id. Known spec ids: %s",
                 outputSpecId, table.specs().keySet()));
       }
-      // (3) Reject invalid VALUES up front. planner.init() parses and validates the option values
-      // (file sizes, rewrite-job-order name, numeric parsing) and throws IllegalArgumentException.
+      // planner.init() parses options and throws IllegalArgumentException.
       planner.init(options);
     }
 
     // Iceberg action-level rewrite options that this connector handles via typed Configuration
     // fields (or deliberately does not support), mapped to the guidance shown when a user passes
-    // one through rewriteOptions. max-file-group-size-bytes is a real planner option (not listed).
+    // one through rewriteOptions.
     private static final Map<String, String> ACTION_OPTION_HINTS =
         ImmutableMap.<String, String>builder()
             .put("partial-progress.enabled", "use Configuration.setPartialProgressEnabled(...)")

@@ -97,11 +97,9 @@ public class CommitRewriteGroupsTest {
 
   /**
    * Builds an {@link IcebergCatalogConfig} pointed at the same Hadoop warehouse as the test's
-   * table, so the DoFn's {@code catalog().loadTable(...)} resolves the SAME physical table.
-   *
-   * <p>The warehouse root is derived from the table's own location (which ends with its namespace
-   * and table-name segments) by stripping those two trailing segments; this avoids reaching into
-   * {@code TestDataWarehouse}'s protected {@code location} field from this subpackage.
+   * table, so the DoFn's {@code catalog().loadTable(...)} resolves the SAME physical table. The
+   * warehouse root is derived by stripping the namespace and table-name segments off the table's
+   * own location, avoiding {@code TestDataWarehouse}'s protected {@code location} field.
    */
   private IcebergCatalogConfig catalogConfig(Table table) {
     String tableLocation = table.location(); // <warehouse>/<namespace>/<table>
@@ -228,7 +226,7 @@ public class CommitRewriteGroupsTest {
     List<SnapshotInfo> committed = commitTester.peekOutputElements(CommitRewriteGroups.COMMITTED);
     assertEquals("Expected exactly one committed snapshot", 1, committed.size());
 
-    // T3: the fresh commit emits one RewriteResult fragment reporting adds/removes/bytes.
+    // The fresh commit emits one RewriteResult fragment reporting adds/removes/bytes.
     List<RewriteResult> summaries =
         commitTester.peekOutputElements(CommitRewriteGroups.COMMIT_SUMMARY);
     assertEquals("exactly one commit fragment", 1, summaries.size());
@@ -316,9 +314,9 @@ public class CommitRewriteGroupsTest {
         committedSnapshotId,
         secondCommitted.get(0).getSnapshotId());
 
-    // R16-1: the idempotent re-emit still reports one committed snapshot, with adds/removes read
-    // from the already-committed snapshot's summary. rewrittenBytes is a PER-RUN metric: this
-    // attempt re-committed the batch via the stamp, so it credits the batch's input bytes.
+    // The idempotent re-emit still reports one committed snapshot, with adds/removes read from the
+    // already-committed snapshot's summary. rewrittenBytes is a PER-RUN metric: this attempt
+    // re-committed the batch via the stamp, so it credits the batch's input bytes.
     long batchBytes = 0L;
     for (ExecutedGroup g : groupList) {
       batchBytes += g.getTotalInputByteSize();
@@ -393,9 +391,7 @@ public class CommitRewriteGroupsTest {
   }
 
   // Late-delete sequence-number preservation, conflict detection, and deletion-vector cleanup are
-  // covered end-to-end in RewriteDataFilesCorrectnessTest
-  // (lateEqualityDeleteStillAppliesAfterRewrite, atomicConflictThrowsAndRetainsOutputFiles,
-  // danglingDeletionVectorRemovedOnRewrite).
+  // covered end-to-end in RewriteDataFilesCorrectnessTest.
 
   /** A cleanable commit failure that is NOT a ValidationException/CommitFailedException. */
   private static class InjectedCleanableFailure extends RuntimeException
@@ -496,11 +492,10 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void cleanableCommitFailureInAtomicModeThrowsWithoutDeleting() throws Exception {
-    // Atomic mode: a terminal cleanable commit failure (e.g. a REST Forbidden / ServiceUnavailable,
-    // or a validation conflict) must FAIL the pipeline, but must NOT delete this batch's output
-    // files. A retried or concurrent (zombie) attempt of the same commit element could still commit
-    // them, so deleting addable files risks a snapshot that references missing data. The files are
-    // left as operationId-tagged orphans for a later remove-orphan-files run.
+    // Atomic mode: a terminal cleanable commit failure must FAIL the pipeline but must NOT delete
+    // this batch's output files. A retried or concurrent (zombie) attempt of the same commit
+    // element could still commit them, so deleting addable files risks a snapshot referencing
+    // missing data. They are left as operationId-tagged orphans instead.
     Table table = buildTable(6);
     RewriteDataFiles.Configuration config = RewriteDataFiles.Configuration.builder().build();
     List<KV<Integer, Iterable<ExecutedGroup>>> batches = planAndRewrite(table, config);
@@ -562,16 +557,14 @@ public class CommitRewriteGroupsTest {
         "the failed batch must be reported to FAILED_COMMITS",
         1,
         tester.peekOutputElements(CommitRewriteGroups.FAILED_COMMITS).size());
-    // T3: the same failure is reported in the result fragment (the reporting channel;
-    // FAILED_COMMITS
+    // The same failure is reported in the result fragment (the reporting channel; FAILED_COMMITS
     // still drives the budget).
     List<RewriteResult> summaries = tester.peekOutputElements(CommitRewriteGroups.COMMIT_SUMMARY);
     assertEquals("one commit fragment", 1, summaries.size());
     assertEquals("reports the failed commit", 1L, summaries.get(0).getFailedCommits());
     assertEquals("nothing committed", 0L, summaries.get(0).getCommittedSnapshots());
     // The batch's output files must be RETAINED, not deleted: a retried or concurrent attempt of
-    // this same commit element could still commit them, so deleting addable files would risk a
-    // snapshot that references missing data. They are left as operationId-tagged orphans instead.
+    // this same commit element could still commit them.
     Table after = warehouse.loadTable(tableId);
     for (String p : outputs) {
       assertTrue(
@@ -582,11 +575,10 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void partialToleratedFailureLeavesFilesCommittableByRetry() throws Exception {
-    // F1 regression (data-loss): under partial progress a terminal commit failure must NOT delete
-    // the batch's output files. Beam can reprocess the same commit element — a sibling key's
-    // CommitStateUnknownException fails the whole bundle, or a zombie attempt runs concurrently —
-    // and that reprocessing may commit once the transient conflict clears. If the first attempt had
-    // deleted the outputs, the retried commit would land a snapshot referencing missing files.
+    // Data-loss regression: under partial progress a terminal commit failure must NOT delete the
+    // batch's output files. Beam can reprocess the same commit element (a sibling key's
+    // CommitStateUnknownException fails the bundle, or a zombie attempt runs concurrently) and
+    // that retry may commit — landing a snapshot referencing missing files if they were deleted.
     Table table = buildTable(6);
     long recordsBefore = countRows(table);
     RewriteDataFiles.Configuration config =
@@ -646,10 +638,10 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void commitEmitsItsOwnStampedSnapshot() throws Exception {
-    // F10: commitOnce must emit the snapshot IT created — located by its (operationId, commitKey)
+    // commitOnce must emit the snapshot IT created — located by its (operationId, commitKey)
     // stamp — not table.currentSnapshot(), which a concurrent commit on the shared cached table
-    // could have advanced. The race isn't deterministically reproducible in a unit test, so this
-    // locks the observable guarantee: the emitted snapshot carries this commit's own stamp.
+    // could have advanced. The race isn't deterministically reproducible, so this pins the
+    // observable guarantee: the emitted snapshot carries this commit's own stamp.
     Table table = buildTable(6);
     RewriteDataFiles.Configuration config = RewriteDataFiles.Configuration.builder().build();
     List<KV<Integer, Iterable<ExecutedGroup>>> batches = planAndRewrite(table, config);
@@ -673,12 +665,11 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void incompleteParentGroupIsNotCommitted() throws Exception {
-    // Parent-group atomicity (F4): if a parent group was split into N subgroups but fewer than N
-    // rewrote successfully (one failed under partial progress), NONE of that parent's subgroups may
-    // be committed — deleting the parent's (byte-range-split) input files while missing a
-    // subgroup's
-    // rewritten range would lose that range's rows. Simulate an incomplete parent by claiming a
-    // subgroup count of 2 while supplying only one subgroup; the parent's inputs must stay live.
+    // Parent-group atomicity: if a parent group was split into N subgroups but fewer than N
+    // rewrote successfully, NONE of that parent's subgroups may be committed — deleting the
+    // parent's byte-range-split input files while missing a subgroup's rewritten range would lose
+    // that range's rows. An incomplete parent is simulated by claiming a subgroup count of 2 while
+    // supplying only one subgroup; the parent's inputs must stay live.
     Table table = buildTable(6);
     long recordsBefore = countRows(table);
     int snapsBefore = snapshotCount(table);
@@ -767,16 +758,10 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void useStartingSequenceNumberFalseAssignsFreshSequenceNumber() throws Exception {
-    // B8: with useStartingSequenceNumber=false the rewritten files must get a NEW (fresh) data
-    // sequence number — the rewrite's own — not the starting snapshot's, and the fail-closed
-    // checkStateNotNull on the starting snapshot is skipped entirely. (With the default true they
-    // keep the starting number so late deletes still apply — see the fail-closed companion above.)
-    //
-    // NB: the plan's original bogus-startingSnapshotId sketch cannot commit on a v2 table — the
-    // rewrite's own validateNoNewDeletesForDataFiles walks snapshot history and rejects a starting
-    // id that is absent from the ancestry ("Cannot determine history"), independent of this flag.
-    // So we use a VALID starting snapshot and assert the flag's real effect: fresh per-file
-    // sequence numbers (with true they would equal the starting sequence number instead).
+    // With useStartingSequenceNumber=false the rewritten files must get a NEW (fresh) data
+    // sequence number — the rewrite's own — not the starting snapshot's, and the fail-closed check
+    // on the starting snapshot is skipped entirely. (With the default true they keep the starting
+    // number so late deletes still apply — see the fail-closed companion above.)
     Table table = buildTable(6);
     long startingSeq = table.currentSnapshot().sequenceNumber();
     RewriteDataFiles.Configuration config =
@@ -825,12 +810,12 @@ public class CommitRewriteGroupsTest {
                 config,
                 new IllegalStateException("injected non-cleanable failure")));
 
-    // B4: pin the ACTUAL propagated type (a non-cleanable failure is rethrown as-is), not merely
-    // that something threw.
+    // Pin the ACTUAL propagated type (a non-cleanable failure is rethrown as-is), not merely that
+    // something threw.
     assertThrows(IllegalStateException.class, () -> tester.processBundle(batches.get(0)));
 
-    // The outcome is not known to be safe to clean, so the output files must NOT be deleted (a
-    // runner retry re-references them; the idempotency check guards a re-commit).
+    // The outcome is not known to be safe to clean, so the output files must NOT be deleted: a
+    // runner retry re-references them and the idempotency check guards a re-commit.
     Table after = warehouse.loadTable(tableId);
     for (String p : outputs) {
       assertTrue(
@@ -841,10 +826,9 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void commitRetryRecoversFromTransientConflict() throws Exception {
-    // B2: the bounded commit retry loop must RECOVER, not just fail. Inject a real
-    // CommitFailedException on the first attempt, then delegate to the real commit. The DoFn must
-    // emit exactly one committed snapshot, land exactly one new REPLACE snapshot, and route nothing
-    // to FAILED_COMMITS. (With attempts=1 this test would go red.)
+    // The bounded commit retry loop must RECOVER, not just fail: a real CommitFailedException on
+    // the first attempt, then the real commit. Exactly one committed snapshot, one new REPLACE
+    // snapshot, and nothing routed to FAILED_COMMITS.
     Table table = buildTable(6);
     RewriteDataFiles.Configuration config = RewriteDataFiles.Configuration.builder().build();
     List<KV<Integer, Iterable<ExecutedGroup>>> batches = planAndRewrite(table, config);
@@ -868,10 +852,9 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void lastChanceRecheckFindsLandedCommit() throws Exception {
-    // B3: if a commit LANDS but the attempt then throws (a lost/timed-out response), the retry loop
+    // If a commit LANDS but the attempt then throws (a lost/timed-out response), the retry loop
     // exhausts and the last-chance findCommittedSnapshot recheck must locate the already-stamped
-    // snapshot and emit it, rather than reporting a false failure. Removing that recheck (or the
-    // stamp) would make this test red.
+    // snapshot and emit it, rather than reporting a false failure.
     Table table = buildTable(6);
     long recordsBefore = countRows(table);
     RewriteDataFiles.Configuration config = RewriteDataFiles.Configuration.builder().build();
@@ -888,7 +871,7 @@ public class CommitRewriteGroupsTest {
     assertTrue(
         "a landed commit must not be reported as failed",
         tester.peekOutputElements(CommitRewriteGroups.FAILED_COMMITS).isEmpty());
-    // T3: the last-chance-landed path reports the committed snapshot in the result fragment too.
+    // The last-chance-landed path reports the committed snapshot in the result fragment too.
     List<RewriteResult> summaries = tester.peekOutputElements(CommitRewriteGroups.COMMIT_SUMMARY);
     assertEquals("one commit fragment", 1, summaries.size());
     assertEquals("the landed commit is reported", 1L, summaries.get(0).getCommittedSnapshots());
@@ -910,7 +893,7 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void commitStateUnknownRethrownWithoutRetryOrCleanup() throws Exception {
-    // B4: a CommitStateUnknownException means the commit may have succeeded server-side, so it is
+    // A CommitStateUnknownException means the commit may have succeeded server-side, so it is
     // rethrown IMMEDIATELY (no internal retry) and this batch's output files are NOT deleted. A
     // Beam bundle retry plus the idempotency stamp check absorb it.
     Table table = buildTable(6);
@@ -947,7 +930,7 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void completeParentCommitsWhileIncompleteParentIsExcluded() throws Exception {
-    // B5: in a MIXED batch, completeParentSubgroups must filter at PARENT granularity — a fully
+    // In a MIXED batch, completeParentSubgroups must filter at PARENT granularity — a fully
     // present parent commits while an incomplete parent (a subgroup missing) is excluded whole,
     // its inputs left live. Two partitions with one file each yield two SEPARATE parent groups
     // (planning is per-partition), one subgroup each; under maxCommits=1 they share commit key 0.
@@ -1030,7 +1013,7 @@ public class CommitRewriteGroupsTest {
         "exactly one commit for the complete parent",
         1,
         tester.peekOutputElements(CommitRewriteGroups.COMMITTED).size());
-    // T3: the fragment reports the complete parent's commit.
+    // The fragment reports the complete parent's commit.
     List<RewriteResult> summaries = tester.peekOutputElements(CommitRewriteGroups.COMMIT_SUMMARY);
     assertEquals("one commit fragment", 1, summaries.size());
     assertEquals("the complete parent committed", 1L, summaries.get(0).getCommittedSnapshots());
@@ -1061,8 +1044,8 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void branchCompactionCommitsToBranchWithUserPropsLeavingMainUntouched() throws Exception {
-    // D1: with setBranch, planning reads the branch head and the commit lands on the branch; main
-    // is untouched. The commit summary carries the user snapshot property AND both beam.rewrite.*
+    // With setBranch, planning reads the branch head and the commit lands on the branch; main is
+    // untouched. The commit summary carries the user snapshot property AND both beam.rewrite.*
     // idempotency stamps.
     Table table = buildTable(6);
     long mainHead = table.currentSnapshot().snapshotId();
@@ -1107,7 +1090,7 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void branchCompactionIdempotentReplay() throws Exception {
-    // D1: replaying a committed branch batch must find the stamp on the BRANCH head (not main's
+    // Replaying a committed branch batch must find the stamp on the BRANCH head (not main's
     // ancestry) and re-emit it, creating no new snapshot.
     Table table = buildTable(6);
     String branch = "audit";
@@ -1146,11 +1129,10 @@ public class CommitRewriteGroupsTest {
 
   @Test
   public void branchCompactionPlansFromDivergedBranchHeadNotMain() throws Exception {
-    // R11-6: the branch head must DIVERGE from main before planning, otherwise a regression that
-    // planned from main's head would still pass the other branch tests (whose branch head == main
-    // head). Create a branch, then append files ONLY to the branch; a branch rewrite must compact
-    // those branch-only files (they appear among the rewritten inputs — main never had them) and
-    // leave main's head untouched.
+    // The branch head must DIVERGE from main before planning, otherwise a regression that planned
+    // from main's head would still pass the other branch tests (whose branch head == main head).
+    // Files appended ONLY to the branch must appear among the rewritten inputs, and main's head
+    // must stay untouched.
     Table table = buildTable(3);
     long mainHead = table.currentSnapshot().snapshotId();
     String branch = "diverge";

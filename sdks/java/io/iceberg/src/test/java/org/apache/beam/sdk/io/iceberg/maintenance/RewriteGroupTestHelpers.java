@@ -27,10 +27,8 @@ import org.apache.iceberg.util.ContentFileUtil;
 
 /**
  * Test helpers that reconstruct a {@link RewriteSubGroup}'s planned range tasks from its compact
- * {@link TaskDescriptor}s. Reconstruction needs the table's partition specs, so these moved out of
- * {@code RewriteFileGroup} itself when C1 replaced the self-contained per-task JSON payload with
- * compact descriptors. Only tests need whole reconstructed tasks; production reads via {@code
- * TaskDescriptor.toScanTask} directly in {@code RewriteGroupDoFn}.
+ * {@link TaskDescriptor}s, which needs the table's partition specs. Only tests need whole
+ * reconstructed tasks; production reads via {@code TaskDescriptor.toScanTask} directly.
  */
 final class RewriteGroupTestHelpers {
   private RewriteGroupTestHelpers() {}

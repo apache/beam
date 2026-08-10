@@ -62,13 +62,11 @@ class WriterFactory {
   /**
    * @param attemptId unique id minted per rewrite attempt.
    * @param globalIndex the rewrite group's global index.
-   * @param outputSpec the partition spec to write the rewritten files with (the planner's chosen
-   *     output spec, which may differ from the table's current default when {@code output-spec-id}
-   *     is set or the spec has evolved).
+   * @param outputSpec the spec the planner chose for the rewritten files; may differ from the
+   *     table's current default when {@code output-spec-id} is set or the spec has evolved.
    * @param writeProperties write properties that override the table's for the rewrite operation.
-   * @param preserveRowLineage when true (v3 row-lineage tables), read and write each record's
-   *     {@code _row_id} / {@code _last_updated_sequence_number} metadata columns to preserve
-   *     lineage.
+   * @param preserveRowLineage for v3 row-lineage tables, carry each record's {@code _row_id} /
+   *     {@code _last_updated_sequence_number} metadata columns through the rewrite.
    */
   WriterFactory(
       FileFormat format,
@@ -105,12 +103,11 @@ class WriterFactory {
 
   TaskWriter<Record> create() {
     Table table = checkStateNotNull(this.table);
-    // Include metadata columns for v3 row-lineage tables
     Schema writeSchema =
         preserveRowLineage ? MetadataColumns.schemaWithRowLineage(table.schema()) : table.schema();
     GenericAppenderFactory appenderFactory = new GenericAppenderFactory(writeSchema, outputSpec);
 
-    // User's rewrite write-property overrides table properties
+    // The rewrite's write properties override the table's.
     appenderFactory.setAll(table.properties());
     appenderFactory.setAll(writeProperties);
 
@@ -138,7 +135,6 @@ class WriterFactory {
 
     private final PartitionKey partitionKey;
     private final InternalRecordWrapper recordWrapper;
-    // Distinct output partitions opened so far
     private final StructLikeSet openPartitions;
 
     RecordPartitionedFanoutWriter(
@@ -157,8 +153,7 @@ class WriterFactory {
 
     @Override
     protected PartitionKey partition(Record row) {
-      // Track distinct partitions and cap simultaneously-open
-      // appenders so a runaway fan-out fails fast with guidance instead of OOMing
+      // Cap simultaneously-open appenders so a runaway fan-out fails fast instead of OOMing.
       partitionKey.partition(recordWrapper.wrap(row));
       if (!openPartitions.contains(partitionKey)) {
         if (openPartitions.size() >= maxOpenFanoutWriters) {

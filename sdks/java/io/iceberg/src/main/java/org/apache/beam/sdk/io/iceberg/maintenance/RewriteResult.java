@@ -28,17 +28,10 @@ import org.apache.beam.sdk.transforms.Combine;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * A {@link RewriteDataFiles} run outputs a single {@link RewriteResult}, which represents a
- * structured summary of the run. An empty run still produces a result, albeit an empty one.
- *
- * <p>Multiple stages in the run can produce a {@link RewriteResult} (the planning stage,
- * filed-parent count, the commit stage). Each stage only sets the fields relevant to it. {@link
- * Merge} sums them into the one final row. All counts therefore default to 0 and the two id fields
- * are nullable.
- *
- * <p>Rewrite failures are tolerated and reported here. {@link #getFailedRewriteParents()} counts
- * the distinct planned parent groups that failed to rewrite (their input files stay live and are
- * retried on the next run).
+ * Structured summary of a {@link RewriteDataFiles} run. Each stage (planning, failed-parent
+ * accounting, commit) emits a fragment that sets only its own fields; {@link Merge} sums them into
+ * the single output row. All counts therefore default to 0 and the two id fields are nullable. An
+ * empty run still produces a result, albeit an all-zeros one.
  */
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
@@ -65,8 +58,8 @@ public abstract class RewriteResult implements Serializable {
   public abstract long getPlannedBytes();
 
   /**
-   * DISTINCT parent groups with at least one subgroup that failed to rewrite. A partial-progress
-   * run tolerates any number of these and still succeeds.
+   * DISTINCT parent groups with at least one subgroup that failed to rewrite; their input files
+   * stay live for the next run. A partial-progress run tolerates any number of these.
    */
   @SchemaFieldNumber("5")
   public abstract long getFailedRewriteParents();

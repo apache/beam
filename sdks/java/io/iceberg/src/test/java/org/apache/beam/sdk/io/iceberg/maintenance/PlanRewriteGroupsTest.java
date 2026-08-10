@@ -145,7 +145,7 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void planSummaryFragmentMatchesPlannedReality() throws Exception {
-    // T2/D3: the planning DoFn emits exactly one RewriteResult fragment whose fields equal what it
+    // The planning DoFn emits exactly one RewriteResult fragment whose fields equal what it
     // planned — ids set, and the planned parent/file/byte counts matching the emitted groups.
     Table table = buildTable(8);
     SerializableTable st = (SerializableTable) SerializableTable.copyOf(table);
@@ -186,8 +186,7 @@ public class PlanRewriteGroupsTest {
   @Test
   public void planSummaryEmittedEvenWhenNothingPlanned() throws Exception {
     // The fragment is emitted ALWAYS — including when the planner keeps zero groups (ids set,
-    // counts
-    // 0), so an otherwise-no-op run still reports a result row.
+    // counts 0), so an otherwise-no-op run still reports a result row.
     Table table = buildTable(2);
     SerializableTable st = (SerializableTable) SerializableTable.copyOf(table);
     // min-input-files far above the file count => no group qualifies => zero groups planned.
@@ -212,11 +211,9 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void operationIdMintedPerPlanningExecution() throws Exception {
-    // F5: the operation id used for idempotency stamping + output-file tagging must be minted at
-    // planning (execution) time, NOT baked into the graph at construction. Two separate planning
-    // executions of the same table must produce groups with DIFFERENT operation ids, so a
-    // re-executed/serialized graph (e.g. a Dataflow template) never collides with a prior run's
-    // idempotency stamps and silently skips every commit.
+    // The operation id used for idempotency stamping must be minted at planning (execution) time.
+    // a re-executed serialized graph (e.g. a Dataflow template) would otherwise collide with a
+    // prior run's stamps and silently skip every commit.
     Table table = buildTable(10);
     SerializableTable st = (SerializableTable) SerializableTable.copyOf(table);
     RewriteDataFiles.Configuration config = RewriteDataFiles.Configuration.builder().build();
@@ -278,10 +275,9 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void filesToRewriteByteSizeReportsEachPlannedFileOnce() throws Exception {
-    // A3: the per-file input-size distribution must fire once per DISTINCT planned file. It now
-    // lives in planning (where distinct files are already tracked). The old RewriteGroupDoFn guard
-    // `t.start() == 0` never matched Parquet's first range (which starts at splitOffsets[0] == 4,
-    // never 0), so the distribution stayed permanently empty for every real file.
+    // The per-file input-size distribution must fire once per DISTINCT planned file. An earlier
+    // `t.start() == 0` guard never matched Parquet's first range (which starts at splitOffsets[0]
+    // == 4, never 0), so the distribution stayed permanently empty for every real file.
     Table table = buildTable(10); // 10 distinct single-row-group files; default plan -> one group
     runPlan(table, RewriteDataFiles.Configuration.builder().build());
     PipelineResult result = p.run();
@@ -305,8 +301,8 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void maxFilesToRewrite_noDataLoss() throws Exception {
-    // REGRESSION TEST: with max-files-to-rewrite=3, exactly 3 files are scheduled (never 5).
-    // This proves files that are not rewritten are not scheduled for deletion.
+    // With max-files-to-rewrite=3 exactly 3 files are scheduled (never 5), proving files that are
+    // not rewritten are never scheduled for deletion.
     Table table = buildTable(5);
     PCollection<KV<Integer, RewriteSubGroup>> out =
         runPlan(
@@ -331,7 +327,7 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void filterRestrictsPlanningToMatchingPartition() throws Exception {
-    // B6: setFilter must restrict which files the planner scans. A planner that ignored
+    // setFilter must restrict which files the planner scans. A planner that ignored
     // config.getFilter() would (wrongly) plan files from every shard.
     Table table = buildShardedTable(2, 2); // shard 0 and shard 1, 2 files each
     List<KV<Integer, RewriteSubGroup>> planned =
@@ -354,10 +350,9 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void caseSensitivityOnFilterColumnNameIsCanonicalizedBeforePlanning() throws Exception {
-    // B6/caseSensitive: config.getFilter() is parsed by FilterUtils.convert, which resolves the
-    // column CASE-INSENSITIVELY and rewrites it to the schema's canonical name before the planner
-    // binds it. So a mis-cased column ("SHARD") plans the same whether caseSensitive is true or
-    // false — the knob is effectively inert for converted filters. Pin that current behavior.
+    // FilterUtils.convert resolves the filter column CASE-INSENSITIVELY and rewrites it to the
+    // schema's canonical name before the planner binds it, so a mis-cased column ("SHARD") plans
+    // the same either way. Pins that behavior — caseSensitive is inert for converted filters.
     Table table = buildShardedTable(2, 2);
     for (boolean caseSensitive : new boolean[] {false, true}) {
       List<KV<Integer, RewriteSubGroup>> planned =
@@ -384,11 +379,9 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void maxRewriteBytesSkipsOverBudgetGroupButAdmitsLaterSmallerOnes() throws Exception {
-    // B7: the maxRewriteBytes running-budget must SKIP a group that would exceed the budget yet
-    // still ADMIT a later smaller group that fits (continue, not break). Three partitions: two
-    // small (shards 0 and 2) and one huge (shard 1). With budget = small0 + small2 + slack, the
-    // huge partition (which exceeds the budget on its own) is skipped while both small ones are
-    // kept — a `break` mutation would drop shard 2, which comes after the skipped huge shard 1.
+    // The maxRewriteBytes running budget must SKIP an over-budget group yet still ADMIT a later
+    // smaller one that fits (continue, not break). Shard 1 is huge and exceeds the budget alone;
+    // shards 0 and 2 are small and fit. A `break` would drop shard 2, which follows shard 1.
     Table table = buildShardedTable(1, 12, 1);
     long small0 = partitionBytes(table, 0);
     long small2 = partitionBytes(table, 2);
@@ -426,7 +419,7 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void roundRobinCommitKeysCoverExpectedRangeAndKeepParentsTogether() throws Exception {
-    // C3: commit keys are round-robin over parents (keptIndex % maxCommits). Every emitted key must
+    // Commit keys are round-robin over parents (keptIndex % maxCommits). Every emitted key must
     // fall in [0, min(maxCommits, parentCount)), and all subgroups of one parent must share a key.
     Table table = buildTable(8); // 8 single-file parents (each shatters into several subgroups)
     int maxCommits = 3;
@@ -472,10 +465,9 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void partialProgress_assignsMultipleKeys() throws Exception {
-    // A tiny max-file-group-size-bytes (1) makes the bin packer place each file in its own group
-    // -> 8 groups. A tiny max-file-size-bytes makes every (few-hundred-byte) file a rewrite
-    // candidate and makes each single-file group qualify as "too much content" so it is kept.
-    // maxCommits=4 -> round-robin (C3) keys 0,1,2,3,0,1,2,3 -> 4 distinct keys.
+    // A tiny max-file-group-size-bytes (1) puts each file in its own group (8 groups), and a tiny
+    // max-file-size-bytes makes every file a rewrite candidate so each single-file group is kept.
+    // maxCommits=4 -> round-robin keys 0,1,2,3,0,1,2,3 -> 4 distinct keys.
     Table table = buildTable(8);
     // Reconstructing input files from the compact descriptors needs table.specs(), so plan
     // in-process (planOnly) rather than through a serialized PAssert lambda.
@@ -496,10 +488,9 @@ public class PlanRewriteGroupsTest {
                 .build());
 
     Set<Integer> keys = new HashSet<>();
-    // Count DISTINCT input data files across all sub-groups. These fixture files carry no split
-    // offsets, so a tiny target shatters each into several ranges spread across sub-groups (the
-    // fixed-size fallback); every sub-group of a file's parent still shares that parent's commit
-    // key, so the DISTINCT file count equals the original file count regardless.
+    // Count DISTINCT input data files: these fixture files carry no split offsets, so a tiny target
+    // shatters each into several ranges spread across sub-groups (the fixed-size fallback). Only
+    // the distinct count is comparable to the original file count.
     Set<String> distinctInputFiles = new HashSet<>();
     for (KV<Integer, RewriteSubGroup> kv : planned) {
       keys.add(kv.getKey());
@@ -512,11 +503,10 @@ public class PlanRewriteGroupsTest {
 
   @Test
   public void splitsOneGroupIntoParallelSubGroups() throws Exception {
-    // 4 files form a SINGLE parent group (default 100GB group size). These fixture files carry NO
-    // split offsets (3-arg writeRecords), so a tiny target drives the FIXED-SIZE split fallback,
-    // which shatters the group's files into many small ranges bin-packed across several parallel
-    // sub-groups. All sub-groups of the one parent share a single commit key, and no input file is
-    // lost (counted distinctly). (See rangeSplitTilesTheFileContiguously for the offsets path.)
+    // 4 files form a SINGLE parent group (default 100GB group size). They carry NO split offsets
+    // (3-arg writeRecords), so a tiny target drives the fixed-size split fallback, shattering them
+    // into small ranges bin-packed across several parallel sub-groups. All sub-groups of the one
+    // parent share a single commit key, and no input file is lost.
     Table table = buildTable(4);
     List<KV<Integer, RewriteSubGroup>> planned =
         planOnly(
@@ -546,14 +536,11 @@ public class PlanRewriteGroupsTest {
   }
 
   /**
-   * R1 (reverses the pre-R1 whole-file invariant): a multi-row-group file is split into row-group
-   * RANGE tasks ({@code SplitScanTask}, non-zero {@code start}) and packed across bins, so with a
-   * target below the file size the file's ranges land in several sub-groups. Byte-range splitting
-   * across independently committable sub-groups is safe now because F4 parent-group atomicity
-   * commits all of a parent's sub-groups together — so every sub-group holding a range of the file
-   * carries the SAME {@code parentGroupIndex}, and the parent's sub-group count equals the number
-   * of bins emitted. (Pre-R1 whole-file packing kept the file whole in one bin and could never do
-   * this.)
+   * A multi-row-group file splits into row-group RANGE tasks ({@code SplitScanTask}, non-zero
+   * {@code start}) packed across bins, so a target below the file size lands its ranges in several
+   * subgroups. That is safe only because parent-group atomicity commits all of a parent's subgroups
+   * together: every subgroup holding a range of the file carries the same {@code parentGroupIndex},
+   * and the parent's subgroup count equals the number of bins emitted.
    */
   @Test
   public void spanningFileRangesShareOneParentAcrossSubGroups() throws Exception {
@@ -611,7 +598,7 @@ public class PlanRewriteGroupsTest {
   }
 
   /**
-   * R1: row-group range splitting must lose no bytes. Collected across all sub-groups and sorted by
+   * Row-group range splitting must lose no bytes. Collected across all sub-groups and sorted by
    * start, the file's range tasks must tile a contiguous span (each range ends exactly where the
    * next begins — Iceberg merges adjacent ranges within a bin, but across bins they still abut) and
    * reach the end of the whole-file task. A gap would drop rows; an overlap would double-read them.
@@ -646,9 +633,8 @@ public class PlanRewriteGroupsTest {
     }
     assertTrue("expected the file to be split into multiple ranges", ranges.size() >= 2);
     ranges.sort((a, b) -> Long.compare(a[0], b[0]));
-    // B10(c): anchor the FIRST range to the file's first split offset (4 for standard Parquet, not
-    // 0). A planner that dropped the first row group would still tile+reach EOF, but start too
-    // late.
+    // Anchor the FIRST range to the file's first split offset (4 for standard Parquet, not 0). A
+    // planner that dropped the first row group would still tile and reach EOF, but start too late.
     assertEquals(
         "the first range must start at the file's first split offset",
         firstSplitOffset,
@@ -666,9 +652,9 @@ public class PlanRewriteGroupsTest {
   }
 
   /**
-   * B10(a): a file WITHOUT usable split offsets (as non-Iceberg Parquet writers may produce) must
-   * still split — the fixed-size fallback yields >=1 range that tiles {@code [0, fileLength)}. This
-   * is the production-reachable path the offsets-based range tests don't cover; the fallback DOES
+   * A file WITHOUT usable split offsets (as non-Iceberg Parquet writers may produce) must still
+   * split — the fixed-size fallback yields >=1 range that tiles {@code [0, fileLength)}. This is
+   * the production-reachable path the offsets-based range tests don't cover; the fallback DOES
    * start at 0 (unlike Parquet's split offset[0] == 4).
    */
   @Test
@@ -709,9 +695,9 @@ public class PlanRewriteGroupsTest {
   }
 
   /**
-   * B10(b): when a multi-row-group file's ranges all fit ONE bin (target &gt;= file size), Iceberg
-   * merges the adjacent ranges back into a SINGLE task spanning the whole file — not N
-   * per-row-group tasks.
+   * When a multi-row-group file's ranges all fit ONE bin (target &gt;= file size), Iceberg merges
+   * the adjacent ranges back into a SINGLE task spanning the whole file — not N per-row-group
+   * tasks.
    */
   @Test
   public void adjacentRowGroupRangesMergeBackWhenTheyFitOneBin() throws Exception {
@@ -760,9 +746,9 @@ public class PlanRewriteGroupsTest {
   }
 
   /**
-   * R1: planning the same table twice must produce the same multi-bin structure — deterministic
-   * packing, so retry/idempotency reasoning holds. (Pre-R1 the file was one bin, so this also
-   * asserts the >1 sub-group split actually happens.)
+   * Planning the same table twice must produce the same multi-bin structure — deterministic
+   * packing, so retry/idempotency reasoning holds. The size check also pins that the file really
+   * does split into more than one sub-group.
    */
   @Test
   public void planningIsStableAcrossRuns() throws Exception {
@@ -794,9 +780,9 @@ public class PlanRewriteGroupsTest {
   }
 
   /**
-   * Parquet writer properties that force many small row groups from little data (see the same note
-   * in {@code RewriteDataFilesCorrectnessTest}): tiny row-group size, dictionary off, tiny pages,
-   * capped check interval, uncompressed.
+   * Parquet writer properties that force many small row groups from little data: tiny row-group
+   * size, dictionary off, tiny pages, capped check interval, uncompressed. Without them nothing
+   * splits and the range tests below are vacuous.
    */
   private static final Map<String, String> MULTI_ROW_GROUP_PROPS =
       ImmutableMap.<String, String>builder()

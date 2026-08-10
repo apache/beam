@@ -61,16 +61,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A keyed {@link DoFn} that rewrites a single {@link RewriteSubGroup} (one subgroup) into ~one
- * target-sized output file and emits a single {@link ExecutedGroup} under the same commit key.
+ * A keyed {@link DoFn} that rewrites a single {@link RewriteSubGroup} into ~one target-sized output
+ * file and emits a single {@link ExecutedGroup} under the same commit key.
  *
- * <p>The upstream {@link PlanRewriteGroups} creates planned parent groups. To increase parallelism,
- * we split each parent group into subgroups (represented as {@link RewriteSubGroup}s) and spread
- * them across workers.
- *
- * <p>A subgroup is read sequentially here into ~one target-sized output file (via {@link
- * RewriteSubGroup#getWriteMaxFileSize()}). An oversized group can roll into multiple target-sized
- * outputs.
+ * <p>{@link PlanRewriteGroups} plans parent groups; each is split into subgroups that are spread
+ * across workers. A subgroup is read sequentially into ~one target-sized output (via {@link
+ * RewriteSubGroup#getWriteMaxFileSize()}); an oversized subgroup rolls into several.
  */
 class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer, ExecutedGroup>> {
   private static final Logger LOG = LoggerFactory.getLogger(RewriteSubGroupDoFn.class);
@@ -79,17 +75,17 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
   static final TupleTag<KV<Integer, ExecutedGroup>> REWRITTEN = new TupleTag<>() {};
 
   /**
-   * If a subgroup fails, keep track of its parent group index. Downstream stages dedup to get the
-   * total count of distinct failed parent groups. This count feeds (a) the atomic gate's
-   * all-or-nothing abort decision and (b) the {@link RewriteResult}'s {@code failedRewriteParents}.
+   * A failed subgroup emits its parent group index here. Downstream dedupes these into a count of
+   * distinct failed parents, which drives the atomic gate's all-or-nothing abort and the {@link
+   * RewriteResult}'s {@code failedRewriteParents}.
    */
   static final TupleTag<Integer> FAILED_PARENTS = new TupleTag<>() {};
 
   private final SerializableTable table;
   private final FileFormat format;
-  // User-supplied write properties that override the table's write properties for the rewrite
+  // User-supplied write properties that override the table's own for the rewrite output
   private final Map<String, String> writeProperties;
-  // for v3 row-lineage tables: preserve _row_id and _last_updated_sequence_number
+  // For v3 row-lineage tables: preserve _row_id and _last_updated_sequence_number
   private final boolean preserveRowLineage;
 
   private static final int MAX_REWRITE_ATTEMPTS = 3;
@@ -133,9 +129,8 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
     int commitKey = element.getKey();
     RewriteSubGroup group = element.getValue();
 
-    // We only support Parquet. Other file formats should fail the subgroup. This can
-    // happen if the Table's currently specified file format is Parquet but happens
-    // to still have older files of other formats.
+    // A table whose default format is Parquet can still hold older files in other formats; those
+    // fail the subgroup.
     Map<Integer, PartitionSpec> specs = table.specs();
     List<TaskDescriptor> descriptors = group.getTaskDescriptors();
     List<FileScanTask> tasks = new ArrayList<>(descriptors.size());
@@ -163,8 +158,7 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
                 + "runner can retry.",
             e);
       }
-      // retries are exhausted. mark the upper parent group as failed.
-      // original files are not deleted here.
+      // Retries are exhausted; mark the parent group failed. Input files are never deleted here.
       LOG.warn(
           RewriteDataFiles.REWRITE_PREFIX + "Rewrite failed for sub-group {}; routing aside.",
           group.getGlobalIndex(),
@@ -175,13 +169,12 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
       activeRewriters.dec();
     }
 
-    // rewrite was successful. output to commit stage
     out.get(REWRITTEN).output(KV.of(commitKey, result));
   }
 
   /**
-   * Rewrites the group with a bounded retry. Each attempt uses a FRESH writer and aborts its
-   * partial output on failure; the group is marked failed if all retries are exhausted.
+   * Rewrites the group with a bounded retry. Each attempt uses a fresh writer and aborts its
+   * partial output on failure; the group is marked failed once retries are exhausted.
    */
   private ExecutedGroup rewriteWithRetry(RewriteSubGroup group, List<FileScanTask> tasks)
       throws Exception {
@@ -195,8 +188,9 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
       try {
         return rewriteOnce(group, tasks);
       } catch (Exception e) {
-        // Interruptions indicate the worker shutting down. We should propagate them so the
-        // bundle fails and the runner retries
+        // An interruption means the worker is shutting down: rethrow so the bundle fails and the
+        // runner retries. Routing it aside instead would let a draining worker still commit the
+        // bundle, making a phantom failure durable.
         if (isInterruption(e) || attempt >= MAX_REWRITE_ATTEMPTS) {
           throw e;
         }
@@ -214,9 +208,9 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
   }
 
   /**
-   * Attempts a rewrite by reading the group's inputs (applying the delete filter and row lineage
-   * where supported) and writes the compacted output. Returns the equivalent {@link ExecutedGroup}.
-   * On failure, throws and deletes the partially written output.
+   * Reads the group's inputs (applying the delete filter and row lineage where supported) and
+   * writes the compacted output, returning the equivalent {@link ExecutedGroup}. On failure,
+   * deletes the partially written output and rethrows.
    */
   @VisibleForTesting
   ExecutedGroup rewriteOnce(RewriteSubGroup group, List<FileScanTask> tasks) throws Exception {
@@ -229,7 +223,8 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
               group.getOutputSpecId(),
               table.specs().keySet());
 
-      // Fresh per-attempt id to keep files unique between retries.
+      // Fresh random id per attempt: retries, bundle redelivery and zombie work items would
+      // otherwise regenerate identical output paths.
       long attemptId = ThreadLocalRandom.current().nextLong();
       WriterFactory wf =
           new WriterFactory(
@@ -256,13 +251,14 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
         GenericDeleteFilter deleteFilter =
             new GenericDeleteFilter(table.io(), task, table.schema(), requestedSchema);
         boolean hasDeletes = !task.deletes().isEmpty();
-        // When appropriate, read using the delete filter's requiredSchema, which includes its
-        // own metadata columns used to identify deleted records.
-        // The writer copies fields by position, so the additional metadata columns
-        // (added after the original schema) are ignored on write.
+        // With deletes, read using the delete filter's requiredSchema: it appends the metadata
+        // columns it needs to identify deleted records AFTER the requested ones. The writer copies
+        // fields by position, so those trailing extras are ignored on write. Skip the filter
+        // entirely when the task has no deletes.
         Schema requiredSchema = hasDeletes ? deleteFilter.requiredSchema() : requestedSchema;
-        // Pass the original data sequence number captured at planning to preserve the
-        // '_last_updated_sequence_number' lineage metadata
+        // The DataFile is reconstructed from JSON, which drops sequence numbers, so pass the data
+        // sequence number captured at planning to keep each row's original
+        // '_last_updated_sequence_number'.
         try (CloseableIterable<Record> iterable =
             ReadUtils.createReader(task, table, requiredSchema, dataSequenceNumber)) {
           CloseableIterable<Record> reader = hasDeletes ? deleteFilter.filter(iterable) : iterable;
@@ -272,7 +268,6 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
         }
       }
 
-      // Finished writing. Gather data files and serialize them.
       DataFile[] dataFiles = writer.dataFiles();
       List<SerializableDataFile> newFiles = new ArrayList<>(dataFiles.length);
       for (DataFile df : dataFiles) {
@@ -281,15 +276,14 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
       }
       writer.close();
 
-      // Build small commit descriptors
       List<SerializableDataFile> rewrittenDataFiles = new ArrayList<>(tasks.size());
       List<String> danglingDeleteFileJsons = new ArrayList<>();
       for (FileScanTask t : tasks) {
-        // Column stats don't matter on files marked for deletion, so we drop them to keep
-        // the payload small.
+        // Column stats don't matter on files marked for deletion, so drop them to keep the commit
+        // descriptor small.
         rewrittenDataFiles.add(
             SerializableDataFile.from(t.file().copyWithoutStats(), table.specs()));
-        // include dangling deletion vectors (compact per-file JSONs)
+        // Carry the dangling deletion vectors along as compact per-file JSONs.
         for (DeleteFile delete : t.deletes()) {
           if (ContentFileUtil.isDV(delete)) {
             PartitionSpec deleteSpec =
@@ -314,9 +308,8 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
           .setDanglingDeleteFileJsons(danglingDeleteFileJsons)
           .build();
     } catch (Exception e) {
-      // Abort so this attempt's partial output is deleted (the writer may be null if creation/open
-      // itself failed, in which case there is nothing to clean up), then rethrow for the retry
-      // loop.
+      // Abort to delete this attempt's partial output, then rethrow for the retry loop. Deleting is
+      // safe here because nothing was emitted yet, unlike the commit stage which must never delete.
       if (writer != null) {
         try {
           writer.abort();
@@ -340,14 +333,4 @@ class RewriteSubGroupDoFn extends DoFn<KV<Integer, RewriteSubGroup>, KV<Integer,
     }
     return Thread.currentThread().isInterrupted();
   }
-
-  /**
-   * Row-lineage read constants for input task {@code i}. Starts from {@link
-   * PartitionUtil#constantsMap} (which derives {@code _row_id} from the file's {@code first_row_id}
-   * and supplies identity partition values), then restores {@code _last_updated_sequence_number}
-   * from the DATA sequence number captured on the {@link TaskDescriptor} at planning time (the v3
-   * spec derives {@code _lus} from the data sequence number). The {@code ContentFileParser} JSON
-   * round-trip drops the file's sequence number, so without this every rewritten row's update
-   * sequence would be written as null.
-   */
 }

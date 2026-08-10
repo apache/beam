@@ -37,10 +37,7 @@ public abstract class RewriteSubGroup {
   @SchemaFieldNumber("0")
   abstract int getGlobalIndex();
 
-  /**
-   * Index of the <b>planned parent group</b> that this subgroup belongs to. All subgroups of one
-   * parent share this value.
-   */
+  /** Index of the planned parent group this subgroup belongs to; shared by all its subgroups. */
   @SchemaFieldNumber("1")
   abstract int getParentGroupIndex();
 
@@ -48,10 +45,7 @@ public abstract class RewriteSubGroup {
   @SchemaFieldNumber("2")
   abstract int getParentSubgroupCount();
 
-  /**
-   * The compact per-range descriptors this subgroup rewrites (one per row-group range). Each
-   * descriptor carries its file's data sequence number alongside the range.
-   */
+  /** The compact per-range descriptors this subgroup rewrites (one per row-group range). */
   @SchemaFieldNumber("3")
   abstract List<TaskDescriptor> getTaskDescriptors();
 
@@ -75,9 +69,8 @@ public abstract class RewriteSubGroup {
   abstract String getOperationId();
 
   /**
-   * The starting snapshot's own sequence number, captured at planning. The commit's idempotency
-   * stamp scan uses it as its walk floor: nothing at or below it can be this operation's snapshot,
-   * even when the starting snapshot itself has since been expired.
+   * The starting snapshot's own sequence number, captured at planning. It floors the commit's
+   * idempotency stamp scan, and still bounds the walk if that snapshot has since been expired.
    */
   @SchemaFieldNumber("9")
   abstract long getStartingSequenceNumber();
