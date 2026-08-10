@@ -48,15 +48,24 @@ class StageOutputProcessor
   private static final Logger LOG = LoggerFactory.getLogger(StageOutputProcessor.class);
 
   private final String transformId;
+  // Reports this output port as finished once the stage's terminal watermark reaches it.
+  private final TerminationReporter terminationReporter;
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
 
-  StageOutputProcessor(String transformId) {
+  StageOutputProcessor(String transformId, TerminationTracker terminationTracker) {
     this.transformId = transformId;
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
   }
 
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
+    terminationReporter.init(context);
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
   }
 
   @Override
@@ -89,5 +98,6 @@ class StageOutputProcessor
                 report.getSourcePartition(),
                 report.getTotalSourcePartitions()),
             record.timestamp()));
+    terminationReporter.watermarkEmitted(ctx, report.getWatermarkMillis());
   }
 }

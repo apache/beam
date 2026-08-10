@@ -95,6 +95,8 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
   private final Coder<WindowedValue<?>> runnerWireCoder;
   private final String stateStoreName;
   private final String transformId;
+  // Reports this source as finished once it emits the terminal watermark.
+  private final TerminationReporter terminationReporter;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable KeyValueStore<String, Boolean> firedStore;
@@ -106,19 +108,27 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
       Coder<WindowedValue<T>> sdkWireCoder,
       Coder<WindowedValue<?>> runnerWireCoder,
       String stateStoreName,
-      String transformId) {
+      String transformId,
+      TerminationTracker terminationTracker) {
     this.source = source;
     this.options = options;
     this.sdkWireCoder = sdkWireCoder;
     this.runnerWireCoder = runnerWireCoder;
     this.stateStoreName = stateStoreName;
     this.transformId = transformId;
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
   }
 
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
     this.firedStore = context.getStateStore(stateStoreName);
+    terminationReporter.init(context);
     this.scheduledPunctuator =
         context.schedule(PUNCTUATION_DELAY, PunctuationType.WALL_CLOCK_TIME, ts -> maybeFire());
   }
@@ -193,6 +203,7 @@ class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayl
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
             new byte[0], KStreamsPayload.<Object>watermark(maxMillis, transformId, 0, 1), 0L));
+    terminationReporter.watermarkEmitted(ctx, maxMillis);
   }
 
   /** Cancels the wall-clock punctuator after the read has fired to stop periodic wakeups. */

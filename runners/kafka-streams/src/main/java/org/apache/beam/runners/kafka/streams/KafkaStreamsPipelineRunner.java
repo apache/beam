@@ -80,9 +80,57 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
     // Build the result before starting: it registers a state listener, and Kafka Streams only
     // accepts one while the application is still in the CREATED state.
     KafkaStreamsPortablePipelineResult result =
-        new KafkaStreamsPortablePipelineResult(kafkaStreams, context.getMetricsContainerStepMap());
+        new KafkaStreamsPortablePipelineResult(
+            kafkaStreams,
+            context.getMetricsContainerStepMap(),
+            // Only once every task is initialized are the processors that have registered the whole
+            // set, and only then can "all of them are finished" mean the pipeline is finished.
+            context.getTerminationTracker()::started);
+    // A bounded pipeline finishes; Kafka Streams has no notion of that, so the runner stops the
+    // client itself once every processor has reached the terminal watermark. Registered before
+    // start(), so a pipeline that drains quickly cannot finish before anything is listening.
+    context
+        .getTerminationTracker()
+        .onAllTerminated(
+            () -> closeInBackground(kafkaStreams, jobInfo.jobId(), "the pipeline is drained"));
     kafkaStreams.start();
+    // The job service reads the result's state once, when this method returns, so returning while
+    // the pipeline is still running would leave the job reported as RUNNING for good. Blocking here
+    // is what FlinkPipelineRunner does too, by blocking in executor.execute().
+    //
+    // A bounded pipeline unblocks this by draining: the processors report themselves terminated,
+    // the callback above stops the client, and the result's latch is released. A streaming pipeline
+    // never reaches the terminal watermark, so this blocks until the job is cancelled, which is the
+    // intended behaviour for a job that has no end.
+    result.waitUntilFinish();
+    if (Thread.currentThread().isInterrupted()) {
+      // Cancelled: the job service interrupts this thread, and the invocation future it would
+      // otherwise have used to cancel the result has already been cancelled with it. Stop the
+      // client so it does not outlive the job — from another thread, since close() waits on the
+      // stream threads and the joins it does would throw straight back out of an interrupted one.
+      closeInBackground(kafkaStreams, jobInfo.jobId(), "the job was cancelled");
+    }
     return result;
+  }
+
+  /**
+   * Stops the Kafka Streams client from a thread of its own.
+   *
+   * <p>Never called from a thread that {@code close()} itself waits for. When the pipeline drains,
+   * that is the task thread which reported the last termination; when the job is cancelled, it is
+   * the interrupted invocation thread. In both cases closing inline would either wait on the thread
+   * doing the closing or abandon the shutdown part-way.
+   */
+  private static void closeInBackground(KafkaStreams kafkaStreams, String jobId, String reason) {
+    Thread closer =
+        new Thread(
+            () -> {
+              LOG.info("Stopping the Kafka Streams client for job {}: {}", jobId, reason);
+              kafkaStreams.close();
+            },
+            "kafka-streams-runner-shutdown-" + jobId);
+    closer.setDaemon(true);
+    closer.start();
   }
 
   private static void checkRequiredOption(String name, @Nullable String value) {

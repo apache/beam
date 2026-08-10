@@ -92,6 +92,10 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
   private Instant inputWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
+  // Reports this GroupByKey instance as finished once it emits the terminal watermark, which it
+  // only does after firing every pane it was holding.
+  private final TerminationReporter terminationReporter;
+
   private @Nullable KeyValueStore<byte[], byte[]> stateStore;
   private @Nullable KeyValueStore<byte[], byte[]> holdsIndexStore;
   private @Nullable KeyValueStore<byte[], byte[]> timerStore;
@@ -107,7 +111,9 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
       Coder<K> keyCoder,
       Coder<V> valueCoder,
       WindowingStrategy<?, W> windowingStrategy,
-      PipelineOptions options) {
+      PipelineOptions options,
+      TerminationTracker terminationTracker) {
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
     this.stateStoreName = stateStoreName;
     this.holdsIndexStoreName = holdsIndexStoreName;
     this.timerStoreName = timerStoreName;
@@ -129,6 +135,12 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
     this.holdsIndexStore = context.getStateStore(holdsIndexStoreName);
     this.timerStore = context.getStateStore(timerStoreName);
     this.timerIndexStore = context.getStateStore(timerIndexStoreName);
+    terminationReporter.init(context);
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
   }
 
   @Override
@@ -291,6 +303,7 @@ class WindowedGroupByKeyProcessor<K, V, W extends BoundedWindow>
             trigger.key(),
             KStreamsPayload.watermark(watermarkMillis, transformId, 0, 1),
             trigger.timestamp()));
+    terminationReporter.watermarkEmitted(ctx, watermarkMillis);
   }
 
   private @NonNull K decodeKey(byte[] bytes) {

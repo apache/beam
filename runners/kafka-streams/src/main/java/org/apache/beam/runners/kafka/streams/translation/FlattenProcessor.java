@@ -61,6 +61,9 @@ class FlattenProcessor
   // The last watermark actually forwarded downstream, so we only forward when it advances.
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
+  // Reports this Flatten as finished once every branch it merges has gone terminal.
+  private final TerminationReporter terminationReporter;
+
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
 
   /**
@@ -68,14 +71,22 @@ class FlattenProcessor
    * @param upstreamTransformIds the producers of this Flatten's input PCollections (known from the
    *     pipeline graph), whose reports the {@link WatermarkAggregator} waits for
    */
-  FlattenProcessor(String transformId, Set<String> upstreamTransformIds) {
+  FlattenProcessor(
+      String transformId, Set<String> upstreamTransformIds, TerminationTracker terminationTracker) {
     this.transformId = transformId;
     this.watermarkAggregator = new WatermarkAggregator(upstreamTransformIds);
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
   }
 
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
+    terminationReporter.init(context);
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
   }
 
   @Override
@@ -105,6 +116,7 @@ class FlattenProcessor
               record.key(),
               KStreamsPayload.watermark(advanced.getMillis(), transformId, 0, 1),
               record.timestamp()));
+      terminationReporter.watermarkEmitted(ctx, advanced.getMillis());
     }
   }
 

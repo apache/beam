@@ -84,7 +84,9 @@ class FlattenTranslator implements PTransformTranslator {
 
     topology.addProcessor(
         transformId,
-        () -> new FlattenProcessor(transformId, upstreamTransformIds),
+        () ->
+            new FlattenProcessor(
+                transformId, upstreamTransformIds, context.getTerminationTracker()),
         parentProcessors.toArray(new String[0]));
 
     context.registerPCollectionProducer(outputPCollectionId, transformId);

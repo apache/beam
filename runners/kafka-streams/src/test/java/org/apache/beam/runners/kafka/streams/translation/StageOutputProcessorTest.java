@@ -56,7 +56,7 @@ public class StageOutputProcessorTest {
   @Test
   public void watermarkKeepsPartitionIdentityAndRelabelsTransformId() {
     MockProcessorContext<byte[], KStreamsPayload<?>> ctx = new MockProcessorContext<>();
-    StageOutputProcessor processor = new StageOutputProcessor(RELAY_ID);
+    StageOutputProcessor processor = new StageOutputProcessor(RELAY_ID, new TerminationTracker());
     processor.init(ctx);
 
     // A report from partition 1 of a 3-instance stage.
@@ -76,7 +76,7 @@ public class StageOutputProcessorTest {
   @Test
   public void distinctStagePartitionsStayDistinctDownstream() {
     MockProcessorContext<byte[], KStreamsPayload<?>> ctx = new MockProcessorContext<>();
-    StageOutputProcessor processor = new StageOutputProcessor(RELAY_ID);
+    StageOutputProcessor processor = new StageOutputProcessor(RELAY_ID, new TerminationTracker());
     processor.init(ctx);
 
     processor.process(watermark(100L, 0, 3));
@@ -93,7 +93,7 @@ public class StageOutputProcessorTest {
   @Test
   public void dataIsForwardedUnchanged() {
     MockProcessorContext<byte[], KStreamsPayload<?>> ctx = new MockProcessorContext<>();
-    StageOutputProcessor processor = new StageOutputProcessor(RELAY_ID);
+    StageOutputProcessor processor = new StageOutputProcessor(RELAY_ID, new TerminationTracker());
     processor.init(ctx);
 
     WindowedValue<byte[]> element = WindowedValues.valueInGlobalWindow(new byte[] {7});

@@ -99,6 +99,10 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
   /** Set once the source's watermark reaches the end of time; it will produce nothing more. */
   private boolean exhausted;
 
+  // An unbounded source normally never reaches the terminal watermark, so this normally never
+  // reports anything. It does matter for a source that is drained or is bounded in practice.
+  private final TerminationReporter terminationReporter;
+
   private @Nullable Cancellable scheduledPunctuator;
 
   UnboundedReadProcessor(
@@ -110,7 +114,9 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
       String stateStoreName,
       String transformId,
       int maxElementsPerPoll,
-      int checkpointEveryNPolls) {
+      int checkpointEveryNPolls,
+      TerminationTracker terminationTracker) {
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
     this.source = source;
     this.options = options;
     this.sdkWireCoder = sdkWireCoder;
@@ -126,6 +132,7 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
     this.checkpointStore = context.getStateStore(stateStoreName);
+    terminationReporter.init(context);
     this.scheduledPunctuator =
         context.schedule(POLL_INTERVAL, PunctuationType.WALL_CLOCK_TIME, timestamp -> poll());
   }
@@ -224,6 +231,7 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     ctx.forward(
         new Record<byte[], KStreamsPayload<?>>(
             new byte[0], KStreamsPayload.watermark(watermark.getMillis(), transformId, 0, 1), 0L));
+    terminationReporter.watermarkEmitted(ctx, watermark.getMillis());
   }
 
   /** Creates the reader on first use, resuming from the stored checkpoint mark if there is one. */
@@ -293,6 +301,8 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
       }
       reader = null;
     }
+    // Last, so the pipeline is not declared finished while this source is still closing down.
+    terminationReporter.close();
   }
 
   private static <V> V checkInitialized(@Nullable V value) {

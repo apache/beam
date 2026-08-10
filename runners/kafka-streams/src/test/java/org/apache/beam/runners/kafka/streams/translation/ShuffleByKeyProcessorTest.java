@@ -48,7 +48,9 @@ public class ShuffleByKeyProcessorTest {
         new ShuffleByKeyProcessor(
             (org.apache.beam.sdk.coders.Coder<Object>)
                 (org.apache.beam.sdk.coders.Coder<?>) StringUtf8Coder.of(),
-            upstreamPartitions);
+            upstreamPartitions,
+            "shuffle-node",
+            new TerminationTracker());
     MockProcessorContext<byte[], KStreamsPayload<?>> ctx =
         new MockProcessorContext<>(new Properties(), new TaskId(0, taskPartition), null);
     processor.init(ctx);
