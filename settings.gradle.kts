@@ -39,7 +39,7 @@ pluginManagement {
 
 plugins {
     id("com.gradle.develocity") version "3.19"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.7.0"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.8.0"
 }
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
@@ -222,6 +222,7 @@ include(":sdks:java:harness:jmh")
 include(":sdks:java:io:amazon-web-services2")
 include(":sdks:java:io:amazon-web-services2:expansion-service")
 include(":sdks:java:io:amqp")
+include(":sdks:java:io:arrow-flight")
 include(":sdks:java:io:azure")
 include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")

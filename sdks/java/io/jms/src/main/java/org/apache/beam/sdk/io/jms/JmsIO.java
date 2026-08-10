@@ -367,6 +367,21 @@ public class JmsIO {
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
     }
 
+    public Read<T> withConnectionConfiguration(ConnectionConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      Read<T> read =
+          this.withConnectionFactoryProviderFn(
+              (SerializableFunction<Void, ? extends ConnectionFactory>)
+                  __ -> configuration.createConnectionFactory());
+      if (configuration.getUsername() != null) {
+        read = read.withUsername(configuration.getUsername());
+      }
+      if (configuration.getPassword() != null) {
+        read = read.withPassword(configuration.getPassword());
+      }
+      return read;
+    }
+
     /**
      * Specify the JMS queue destination name where to read messages from. The {@link JmsIO.Read}
      * acts as a consumer on the queue.
@@ -1104,6 +1119,21 @@ public class JmsIO {
       checkArgument(
           connectionFactoryProviderFn != null, "connectionFactoryProviderFn can not be null");
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
+    }
+
+    public Write<EventT> withConnectionConfiguration(ConnectionConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      Write<EventT> write =
+          this.withConnectionFactoryProviderFn(
+              (SerializableFunction<Void, ? extends ConnectionFactory>)
+                  __ -> configuration.createConnectionFactory());
+      if (configuration.getUsername() != null) {
+        write = write.withUsername(configuration.getUsername());
+      }
+      if (configuration.getPassword() != null) {
+        write = write.withPassword(configuration.getPassword());
+      }
+      return write;
     }
 
     /**

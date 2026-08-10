@@ -74,7 +74,7 @@ jobs:
       # --- Prism Steps ---
       - name: Download Input File from GCS (Prism)
         working-directory: ./${{ steps.setup_go.outputs.work_dir }}
-        run: gsutil cp ${{ env.GCS_INPUT_PATH }} ./kinglear.txt
+        run: gcloud storage cp ${{ env.GCS_INPUT_PATH }} ./kinglear.txt
 
       - name: Run Go WordCount with PrismRunner
         working-directory: ./${{ steps.setup_go.outputs.work_dir }}
@@ -118,17 +118,17 @@ jobs:
             --environment_config=apache/beam_go_sdk:${{ env.CONTAINER_TAG }}
 
       - name: Check Dataflow Output in GCS
-        working-directory: ./${{ steps.setup_go.outputs.work_dir }} # Added working directory for consistency, though not strictly needed for gsutil
+        working-directory: ./${{ steps.setup_go.outputs.work_dir }} # Added working directory for consistency, though not strictly needed for gcloud storage
         env:
           # Re-define the output path pattern for checking
           GCS_OUTPUT_PATH_PATTERN: ${{ env.GCS_OUTPUT_PREFIX }}/${{ env.RC_TAG }}/dataflow/output*
         run: |
           echo "Checking for Dataflow output files in GCS at: $GCS_OUTPUT_PATH_PATTERN"
-          # Use gsutil stat. The -q flag suppresses errors for non-existent files,
-          # allowing us to check the exit code. Exit code 0 means found, 1 means not found.
-          if gsutil -q stat $GCS_OUTPUT_PATH_PATTERN; then
+          # Use gcloud storage ls. Redirect stdout/stderr to suppress output.
+          # Exit code 0 means found, non-zero means not found.
+          if gcloud storage ls $GCS_OUTPUT_PATH_PATTERN > /dev/null 2>&1; then
             echo "Output files found in GCS."
-            FILE_COUNT=$(gsutil ls $GCS_OUTPUT_PATH_PATTERN | wc -l)
+            FILE_COUNT=$(gcloud storage ls $GCS_OUTPUT_PATH_PATTERN | wc -l)
             if [ "$FILE_COUNT" -gt 0 ]; then echo "Found $FILE_COUNT output file(s)."; else echo "Error: Output path exists but contains no files."; exit 1; fi
           else
             echo "Error: Output files not found in GCS at $GCS_OUTPUT_PATH_PATTERN"

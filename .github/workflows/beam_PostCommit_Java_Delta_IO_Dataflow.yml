@@ -78,3 +78,12 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:java:io:delta:dataflowIntegrationTest --info
+      - name: Run Delta IO S3 Integration Test Locally
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        with:
+          gradle-command: :sdks:java:io:delta:integrationTest
+          arguments: |
+            --tests "org.apache.beam.sdk.io.delta.DeltaIOS3IT" \
+            -PdisableSpotlessCheck=true \
+            -PdisableCheckStyle=true \
+            --info

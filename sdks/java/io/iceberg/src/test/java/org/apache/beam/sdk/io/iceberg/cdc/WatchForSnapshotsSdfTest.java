@@ -112,8 +112,11 @@ public class WatchForSnapshotsSdfTest {
     assertTrue(continuation.shouldResume());
     assertEquals(Duration.millis(1L), continuation.resumeDelay());
     assertThat(actualSnapshotIds, contains(expectedSnapshotIds));
+    // The watermark lands just past the last snapshot's timestamp, so its 1ms window can fire as
+    // soon as its records drain.
     assertEquals(
-        Instant.ofEpochMilli(snapshots.get(snapshots.size() - 1).timestampMillis()),
+        Instant.ofEpochMilli(snapshots.get(snapshots.size() - 1).timestampMillis())
+            .plus(Duration.millis(1L)),
         watermark.currentWatermark());
   }
 
@@ -189,12 +192,12 @@ public class WatchForSnapshotsSdfTest {
   public void emptyTableReturnsResumeAndAdvancesIdleWatermark() {
     TableIdentifier tableId = tableId();
     Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    Duration pollInterval = Duration.millis(25L);
     WatchForSnapshotsSdf sdf =
         new WatchForSnapshotsSdf(
             scanConfigBuilder(table, tableId)
                 .setStreaming(true)
-                .setMaxSnapshotDiscoveryDelay(Duration.ZERO)
-                .setPollInterval(Duration.millis(25L))
+                .setPollInterval(pollInterval)
                 .build());
     ManualWatermarkEstimator<Instant> watermark =
         sdf.newWatermarkEstimator(sdf.initialWatermarkState());
@@ -205,10 +208,46 @@ public class WatchForSnapshotsSdfTest {
         sdf.process(sdf.newTracker(sdf.initialRestriction()), watermark, out);
 
     assertTrue(continuation.shouldResume());
-    assertEquals(Duration.millis(25L), continuation.resumeDelay());
+    assertEquals(pollInterval, continuation.resumeDelay());
     assertThat(out.values, empty());
-    assertThat(watermark.currentWatermark(), greaterThan(beforeProcess.minus(Duration.millis(1L))));
+    // The idle bump advances the watermark to now() - pollInterval.
+    assertThat(
+        watermark.currentWatermark(),
+        greaterThan(beforeProcess.minus(pollInterval).minus(Duration.millis(1L))));
     assertThat(watermark.currentWatermark(), lessThanOrEqualTo(Instant.now()));
+  }
+
+  /**
+   * A snapshot discovered after the watermark has already advanced past its commit time (e.g. the
+   * idle bump ran ahead) must be emitted with a clamped timestamp rather than behind the watermark,
+   * where its records would be silently dropped as late data.
+   */
+  @Test
+  public void lateDiscoveredSnapshotsAreClampedToTheWatermark() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tableProperties());
+    commitAppend(table, "s1.parquet", records("one", 1L));
+    commitAppend(table, "s2.parquet", records("two", 2L));
+
+    WatchForSnapshotsSdf sdf =
+        new WatchForSnapshotsSdf(
+            scanConfigBuilder(table, tableId)
+                .setStreaming(true)
+                .setStartingStrategy(StartingStrategy.EARLIEST)
+                .setPollInterval(Duration.millis(1L))
+                .build());
+    // Seed a watermark ahead of both commit timestamps, as if the idle bump ran before discovery.
+    Instant seededWatermark = Instant.now().plus(Duration.standardHours(1));
+    ManualWatermarkEstimator<Instant> watermark = sdf.newWatermarkEstimator(seededWatermark);
+    CapturingOutputReceiver out = new CapturingOutputReceiver();
+
+    sdf.process(sdf.newTracker(sdf.initialRestriction()), watermark, out);
+
+    // Neither snapshot is emitted behind the seeded watermark; each lands 1ms after the previous.
+    assertEquals(2, out.values.size());
+    assertEquals(seededWatermark, out.values.get(0).getTimestamp());
+    assertEquals(seededWatermark.plus(Duration.millis(1L)), out.values.get(1).getTimestamp());
+    assertEquals(seededWatermark.plus(Duration.millis(2L)), watermark.currentWatermark());
   }
 
   private TableIdentifier tableId() {

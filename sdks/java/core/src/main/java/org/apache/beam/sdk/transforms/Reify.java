@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import io.opentelemetry.context.Context;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -162,7 +163,8 @@ public class Reify {
                                   pc.currentRecordId(),
                                   pc.currentRecordOffset(),
                                   causedByDrain,
-                                  null,
+                                  Context
+                                      .current(), // Otel context is not exposed via process context
                                   valueKind)));
                     }
                   }))

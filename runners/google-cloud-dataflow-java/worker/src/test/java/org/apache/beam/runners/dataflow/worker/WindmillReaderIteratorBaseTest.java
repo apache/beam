@@ -37,6 +37,7 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -269,6 +270,7 @@ public class WindmillReaderIteratorBaseTest {
                 org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender
                     .class)),
         false,
-        org.joda.time.Instant::now);
+        org.joda.time.Instant::now,
+        ImmutableList.of());
   }
 }

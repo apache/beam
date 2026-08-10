@@ -227,7 +227,7 @@ public class DataflowWorkerLoggingHandlerTest {
     String testWorkId = "testWorkId";
 
     DataflowWorkerLoggingMDC.setJobId(testJobId);
-    DataflowWorkerLoggingMDC.setStageName(testStage);
+    DataflowWorkerLoggingMDC.setSystemStageName(testStage);
     DataflowWorkerLoggingMDC.setWorkerId(testWorkerId);
     DataflowWorkerLoggingMDC.setWorkId(testWorkId);
 
@@ -514,7 +514,7 @@ public class DataflowWorkerLoggingHandlerTest {
     String testWorkId = "testWorkId";
     String testJobId = "testJobId";
 
-    DataflowWorkerLoggingMDC.setStageName(testStage);
+    DataflowWorkerLoggingMDC.setSystemStageName(testStage);
     DataflowWorkerLoggingMDC.setWorkerId(testWorkerId);
     DataflowWorkerLoggingMDC.setWorkId(testWorkId);
     DataflowWorkerLoggingMDC.setJobId(testJobId);
