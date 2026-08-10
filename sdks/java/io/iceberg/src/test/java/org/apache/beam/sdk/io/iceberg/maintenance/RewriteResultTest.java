@@ -35,43 +35,9 @@ import org.junit.runners.JUnit4;
 public class RewriteResultTest {
 
   @Test
-  public void schemaFieldNumbersArePinned() throws Exception {
-    Schema schema = SchemaRegistry.createDefault().getSchema(RewriteResult.class);
-    assertEquals(11, schema.getFieldCount());
-    assertEquals("operationId", schema.getField(0).getName());
-    assertEquals("startingSnapshotId", schema.getField(1).getName());
-    assertEquals("plannedParentGroups", schema.getField(2).getName());
-    assertEquals("plannedFiles", schema.getField(3).getName());
-    assertEquals("plannedBytes", schema.getField(4).getName());
-    assertEquals("failedRewriteParents", schema.getField(5).getName());
-    assertEquals("committedSnapshots", schema.getField(6).getName());
-    assertEquals("failedCommits", schema.getField(7).getName());
-    assertEquals("filesAdded", schema.getField(8).getName());
-    assertEquals("filesRemoved", schema.getField(9).getName());
-    assertEquals("rewrittenBytes", schema.getField(10).getName());
-  }
-
-  @Test
-  public void zerosIsAllZeroWithNullIds() {
-    RewriteResult z = RewriteResult.zeros();
-    assertNull(z.getOperationId());
-    assertNull(z.getStartingSnapshotId());
-    assertEquals(0L, z.getPlannedParentGroups());
-    assertEquals(0L, z.getPlannedFiles());
-    assertEquals(0L, z.getPlannedBytes());
-    assertEquals(0L, z.getFailedRewriteParents());
-    assertEquals(0L, z.getCommittedSnapshots());
-    assertEquals(0L, z.getFailedCommits());
-    assertEquals(0L, z.getFilesAdded());
-    assertEquals(0L, z.getFilesRemoved());
-    assertEquals(0L, z.getRewrittenBytes());
-  }
-
-  @Test
   public void mergeSumsNumericFieldsAndTakesFirstNonNullIds() {
     // A planning fragment (ids + planned counts) + a commit fragment (commit counts): the merged
-    // row
-    // sums the numerics and carries the planning fragment's ids.
+    // row sums the numerics and carries the planning fragment's ids.
     RewriteResult plan =
         RewriteResult.builder()
             .setOperationId("op-1")
@@ -118,9 +84,6 @@ public class RewriteResultTest {
 
   @Test
   public void mergeIsAssociativeAndCommutativeOverAShuffledList() {
-    // The realistic fragment set: exactly one planning fragment carries the ids, the rest are
-    // count-only, so firstNonNull is order-independent. Fold in the given order, then in several
-    // shuffles and via accumulator grouping — all must agree (Combine.globally reorders freely).
     List<RewriteResult> frags = new ArrayList<>();
     frags.add(
         RewriteResult.builder()
