@@ -2643,7 +2643,7 @@ class BeamModulePlugin implements Plugin<Project> {
       JavaExamplesArchetypeValidationConfiguration config = it as JavaExamplesArchetypeValidationConfiguration
 
       def taskName = "run${config.type}Java${config.runner}"
-      def releaseVersion = (project.findProperty('ver') && project.findProperty('ver') != '2.XX.0') ? project.findProperty('ver') : project.version
+      def releaseVersion = project.findProperty('ver') ?: project.version
       def releaseRepo = project.findProperty('repourl') ?: 'https://repository.apache.org/content/repositories/snapshots'
       // shared maven local path for maven archetype projects
       def sharedMavenLocal = project.findProperty('mavenLocalPath') ?: ''
