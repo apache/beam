@@ -73,13 +73,24 @@ public class ReadUtils {
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
 
-  static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
+  public static ParquetReader<Record> createReader(FileScanTask task, Table table, Schema schema) {
+    Map<Integer, ?> idToConstants =
+        ReadUtils.constantsMap(task, IdentityPartitionConverters::convertConstant, table.schema());
+    return createReader(task, table, schema, idToConstants);
+  }
+
+  /**
+   * Reader variant that takes a precomputed {@code idToConstants} map. Callers that need identity
+   * partition values only can use the {@code (task, table, schema)} overload; callers that also
+   * need metadata columns materialized (e.g. row-lineage {@code _row_id} / {@code
+   * _last_updated_sequence_number}) supply the row-lineage-aware constants here.
+   */
+  public static ParquetReader<Record> createReader(
+      FileScanTask task, Table table, Schema schema, Map<Integer, ?> idToConstants) {
     String filePath = task.file().path().toString();
     EncryptedInputFile encryptedInput =
         EncryptedFiles.encryptedInput(table.io().newInputFile(filePath), task.file().keyMetadata());
     InputFile inputFile = table.encryption().decrypt(encryptedInput);
-    Map<Integer, ?> idToConstants =
-        ReadUtils.constantsMap(task, IdentityPartitionConverters::convertConstant, table.schema());
 
     ParquetReadOptions.Builder optionsBuilder;
     if (inputFile instanceof HadoopInputFile) {

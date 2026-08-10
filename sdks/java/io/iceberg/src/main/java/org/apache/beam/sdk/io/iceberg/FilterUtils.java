@@ -132,7 +132,7 @@ public class FilterUtils {
    * parses a SQL filter expression string into an Iceberg {@link Expression} that can be used for
    * data pruning.
    */
-  static Expression convert(@Nullable String filter, Schema schema) {
+  public static Expression convert(@Nullable String filter, Schema schema) {
     if (filter == null) {
       return Expressions.alwaysTrue();
     }

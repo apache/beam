@@ -22,6 +22,7 @@ import java.time.Instant;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
@@ -40,7 +41,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * refreshed after a caller started its request, the caller reuses that refresh instead of making
  * another catalog call.
  */
-class TableCache {
+@Internal
+public class TableCache {
   static final Duration DEFAULT_REFRESH_INTERVAL = Duration.ofMinutes(2);
 
   private static final Cache<CacheKey, CachedTable> TABLES =
@@ -72,7 +74,7 @@ class TableCache {
   }
 
   /** Returns the cached table for a string identifier after refreshing any pre-existing entry. */
-  static Table getRefreshed(IcebergCatalogConfig catalogConfig, String identifier) {
+  public static Table getRefreshed(IcebergCatalogConfig catalogConfig, String identifier) {
     return getRefreshed(catalogConfig, TableIdentifier.parse(identifier));
   }
 
@@ -80,7 +82,7 @@ class TableCache {
    * Returns the cached table, refreshing it only if it is older than {@link
    * #DEFAULT_REFRESH_INTERVAL}.
    */
-  static Table getAndRefreshIfStale(
+  public static Table getAndRefreshIfStale(
       IcebergCatalogConfig catalogConfig, TableIdentifier identifier) {
     return getAndRefreshIfStale(
         catalogConfig, identifier, () -> catalogConfig.catalog().loadTable(identifier));

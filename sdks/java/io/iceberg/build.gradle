@@ -243,3 +243,20 @@ task loadTest(type: Test) {
     classpath = sourceSets.test.runtimeClasspath
     testClassesDirs = sourceSets.test.output.classesDirs
 }
+
+// CI-runnable smoke of the load-test pipeline: the SAME *LT class at small scale on the
+// DirectRunner with a local warehouse (no Dataflow / GCP). Exercises the full distributed
+// write -> rewrite path end to end. The large-scale Dataflow run stays in loadTest (above),
+// wired from IO_Iceberg_Performance_Tests.yml.
+task loadTestSmall(type: Test) {
+    systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+            "--testSize=small",
+            "--runner=DirectRunner"
+    ])
+
+    include '**/*LT.class'
+
+    classpath = sourceSets.test.runtimeClasspath
+    testClassesDirs = sourceSets.test.output.classesDirs
+}
+check.dependsOn loadTestSmall

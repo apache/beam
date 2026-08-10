@@ -26,9 +26,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Equivalence;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFile;
@@ -37,6 +39,8 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SingleValueParser;
+import org.apache.iceberg.StructLike;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -49,18 +53,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>NOTE: If you add any new fields here, you need to also update the {@link #equals} and {@link
  * #hashCode()} methods.
  *
- * <p>Use {@link #from(DataFile, String)} to create a {@link SerializableDataFile} and {@link
+ * <p>Use {@link #from(DataFile, PartitionSpec)} to create a {@link SerializableDataFile} and {@link
  * #createDataFile(Map)} to reconstruct the original {@link DataFile}.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
-abstract class SerializableDataFile {
+@Internal
+public abstract class SerializableDataFile {
   public static Builder builder() {
     return new AutoValue_SerializableDataFile.Builder();
   }
 
   @SchemaFieldNumber("0")
-  abstract String getPath();
+  public abstract String getPath();
 
   @SchemaFieldNumber("1")
   abstract String getFileFormat();
@@ -71,6 +76,11 @@ abstract class SerializableDataFile {
   @SchemaFieldNumber("3")
   abstract long getFileSizeInBytes();
 
+  // Kept non-null (populated alongside getJsonPartition) so this schema field's nullability is
+  // stable across releases — Dataflow's in-place pipeline update rejects a changed field
+  // nullability. jsonPartition (field 14) is the appended nullable field; getPartitionPath is the
+  // fallback for values that don't round-trip through JSON (e.g. NaN) and for elements decoded from
+  // pre-jsonPartition releases.
   @SchemaFieldNumber("4")
   abstract String getPartitionPath();
 
@@ -101,8 +111,11 @@ abstract class SerializableDataFile {
   @SchemaFieldNumber("13")
   abstract @Nullable Map<Integer, byte[]> getUpperBounds();
 
+  @SchemaFieldNumber("14")
+  abstract @Nullable String getJsonPartition();
+
   @AutoValue.Builder
-  abstract static class Builder {
+  public abstract static class Builder {
     abstract Builder setPath(String path);
 
     abstract Builder setFileFormat(String fileFormat);
@@ -112,6 +125,8 @@ abstract class SerializableDataFile {
     abstract Builder setFileSizeInBytes(long fileSizeInBytes);
 
     abstract Builder setPartitionPath(String partitionPath);
+
+    abstract Builder setJsonPartition(String jsonPartition);
 
     abstract Builder setPartitionSpecId(int partitionSpec);
 
@@ -134,11 +149,36 @@ abstract class SerializableDataFile {
     abstract SerializableDataFile build();
   }
 
+  public static SerializableDataFile from(DataFile f, Map<Integer, PartitionSpec> specs) {
+    return from(
+        f,
+        checkStateNotNull(
+            specs.get(f.specId()),
+            "Could not create a SerializableDataFile because DataFile is written using a partition spec id '%s' that is not found in the provided specs: %s",
+            f.specId(),
+            specs.keySet()));
+  }
+
   /**
    * Create a {@link SerializableDataFile} from a {@link DataFile} and its associated {@link
    * PartitionKey}.
    */
-  static SerializableDataFile from(DataFile f, String partitionPath) {
+  public static SerializableDataFile from(DataFile f, PartitionSpec spec) {
+    // The data file must be serialized with the EXACT spec it was written with: the partition value
+    // is interpreted against spec.partitionType(), so a mismatched spec (usually a spec evolution
+    // between writing the file and serializing it, on a shared/refreshed table) would silently
+    // encode the partition under the wrong field ids. Fail loudly instead.
+    if (spec.specId() != f.specId()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot serialize DataFile: its partition spec id %s does not match the provided "
+                  + "spec id %s. Serialize the file with the exact spec it was written with.",
+              f.specId(), spec.specId()));
+    }
+    // Populate BOTH representations: jsonPartition is the primary (handles evolved specs, special
+    // characters); partitionPath is the fallback for values that don't round-trip through JSON.
+    String jsonPartition = SingleValueParser.toJson(spec.partitionType(), f.partition());
+    String partitionPath = spec.partitionToPath(f.partition());
 
     return SerializableDataFile.builder()
         .setPath(f.location().toString())
@@ -146,6 +186,7 @@ abstract class SerializableDataFile {
         .setRecordCount(f.recordCount())
         .setFileSizeInBytes(f.fileSizeInBytes())
         .setPartitionPath(partitionPath)
+        .setJsonPartition(jsonPartition)
         .setPartitionSpecId(f.specId())
         .setKeyMetadata(f.keyMetadata())
         .setSplitOffsets(f.splitOffsets())
@@ -165,7 +206,7 @@ abstract class SerializableDataFile {
    * it from Beam-compatible types.
    */
   @SuppressWarnings("nullness")
-  DataFile createDataFile(Map<Integer, PartitionSpec> partitionSpecs) {
+  public DataFile createDataFile(Map<Integer, PartitionSpec> partitionSpecs) {
     PartitionSpec partitionSpec =
         checkStateNotNull(
             partitionSpecs.get(getPartitionSpecId()),
@@ -184,15 +225,35 @@ abstract class SerializableDataFile {
             toByteBufferMap(getLowerBounds()),
             toByteBufferMap(getUpperBounds()));
 
-    return DataFiles.builder(partitionSpec)
-        .withFormat(FileFormat.fromString(getFileFormat()))
-        .withPath(getPath())
-        .withPartitionPath(getPartitionPath())
-        .withEncryptionKeyMetadata(getKeyMetadata())
-        .withFileSizeInBytes(getFileSizeInBytes())
-        .withMetrics(dataFileMetrics)
-        .withSplitOffsets(getSplitOffsets())
-        .build();
+    DataFiles.Builder builder =
+        DataFiles.builder(partitionSpec)
+            .withFormat(FileFormat.fromString(getFileFormat()))
+            .withPath(getPath())
+            .withEncryptionKeyMetadata(getKeyMetadata())
+            .withFileSizeInBytes(getFileSizeInBytes())
+            .withMetrics(dataFileMetrics)
+            .withSplitOffsets(getSplitOffsets());
+
+    @Nullable String jsonPartition = getJsonPartition();
+    if (jsonPartition != null) {
+      try {
+        builder = builder.withPartition(partition(partitionSpec));
+      } catch (RuntimeException e) {
+        // Some partition values (e.g. NaN / Infinity floating-point) don't round-trip through the
+        // JSON representation; fall back to the partition-path string, which handles them.
+        builder = builder.withPartitionPath(getPartitionPath());
+      }
+    } else {
+      // Elements decoded from a pre-jsonPartition release carry only the partition path.
+      builder = builder.withPartitionPath(getPartitionPath());
+    }
+    return builder.build();
+  }
+
+  @VisibleForTesting
+  StructLike partition(PartitionSpec spec) {
+    return (StructLike)
+        SingleValueParser.fromJson(spec.partitionType(), checkStateNotNull(getJsonPartition()));
   }
 
   // ByteBuddyUtils has trouble converting Map value type ByteBuffer
@@ -247,8 +308,9 @@ abstract class SerializableDataFile {
         && getFileFormat().equals(that.getFileFormat())
         && getRecordCount() == that.getRecordCount()
         && getFileSizeInBytes() == that.getFileSizeInBytes()
-        && getPartitionPath().equals(that.getPartitionPath())
         && getPartitionSpecId() == that.getPartitionSpecId()
+        && Objects.equals(getPartitionPath(), that.getPartitionPath())
+        && Objects.equals(getJsonPartition(), that.getJsonPartition())
         && Objects.equals(getKeyMetadata(), that.getKeyMetadata())
         && Objects.equals(getSplitOffsets(), that.getSplitOffsets())
         && Objects.equals(getColumnSizes(), that.getColumnSizes())
@@ -291,6 +353,7 @@ abstract class SerializableDataFile {
             getRecordCount(),
             getFileSizeInBytes(),
             getPartitionPath(),
+            getJsonPartition(),
             getPartitionSpecId(),
             getKeyMetadata(),
             getSplitOffsets(),
