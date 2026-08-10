@@ -119,6 +119,7 @@ from apache_beam.transforms.window import BoundedWindow
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import IntervalWindow
+from apache_beam.transforms.window import TimestampedValue
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
@@ -292,32 +293,51 @@ class _WatchWindowTermination(TerminationCondition):
     return VarIntCoder()
 
 
+def _mtime_of(metadata: filesystem.FileMetadata, option: str) -> float:
+  # A missing (zero) timestamp is rejected because every file would then carry
+  # the same one, and updates could never be told apart.
+  if not metadata.last_updated_in_seconds:
+    raise BeamIOError(
+        'MatchContinuously(%s=True) requires file last-modified times, but '
+        '%s reports none.' % (option, metadata.path))
+  return metadata.last_updated_in_seconds
+
+
+def _mtime_timestamp(metadata: filesystem.FileMetadata) -> Timestamp:
+  # Floored to the millisecond a runner keeps for element timestamps, so the
+  # cursor compares against the same resolution it is persisted at.
+  micros = Timestamp.of(_mtime_of(metadata, 'timestamp_cursor')).micros
+  return Timestamp(micros=micros - micros % 1000)
+
+
 def _file_path_key(metadata: filesystem.FileMetadata) -> str:
   return metadata.path
 
 
 def _file_path_and_mtime_key(
     metadata: filesystem.FileMetadata) -> tuple[str, float]:
-  # Keying on the last-modified time makes a changed file look new again. A
-  # missing (zero) timestamp is rejected because updates could never be seen.
-  if not metadata.last_updated_in_seconds:
-    raise BeamIOError(
-        'MatchContinuously(match_updated_files=True) requires file '
-        'last-modified times, but %s reports none.' % metadata.path)
-  return metadata.path, metadata.last_updated_in_seconds
+  # Keying on the last-modified time makes a changed file look new again.
+  return metadata.path, _mtime_of(metadata, 'match_updated_files')
 
 
 class _MatchContinuouslyPollFn(PollFn):
   """Polls a file pattern, honoring empty-match rules.
 
-  A poll before ``start_timestamp`` emits nothing. Matches carry the poll time
-  as their event time, and the watermark advances to the poll time so
-  event-time windows progress even when nothing new matches.
+  A poll before ``start_timestamp`` emits nothing. The watermark advances to
+  the poll time so event-time windows progress even when nothing new matches.
+  Matches carry the poll time as their event time, or their last-modified time
+  under ``mtime_timestamps``, which is what the timestamp cursor dedups on.
   """
-  def __init__(self, empty_match_treatment, start_timestamp, clock=None):
+  def __init__(
+      self,
+      empty_match_treatment,
+      start_timestamp,
+      clock=None,
+      mtime_timestamps=False):
     self._empty_match_treatment = empty_match_treatment
     self._start_micros = Timestamp.of(start_timestamp).micros
     self._clock = clock if clock is not None else _PollClock()
+    self._mtime_timestamps = mtime_timestamps
 
   def __call__(self, file_pattern: str) -> PollResult[filesystem.FileMetadata]:
     now = Timestamp.now()
@@ -330,6 +350,12 @@ class _MatchContinuouslyPollFn(PollFn):
                                                   self._empty_match_treatment)):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
+    if self._mtime_timestamps:
+      outputs = [
+          TimestampedValue(metadata, _mtime_timestamp(metadata))
+          for metadata in match_result.metadata_list
+      ]
+      return PollResult.incomplete(outputs).with_watermark(now)
     return PollResult.incomplete(
         match_result.metadata_list, timestamp=now).with_watermark(now)
 
@@ -343,13 +369,18 @@ class MatchContinuously(beam.PTransform):
   MatchContinuously is experimental.  No backwards-compatibility
   guarantees.
 
-  Matching continuously scales poorly, as it is stateful, and requires storing
-  file ids for every file the pattern has matched. With ``has_deduplication``
-  enabled those ids are kept in the splittable DoFn restriction, so a runner
-  with checkpointing enabled restores them after a restart and does not
-  reprocess files. Consider an alternate technique, such as Pub/Sub
-  Notifications (https://cloud.google.com/storage/docs/pubsub-notifications)
-  when using GCS if possible.
+  Deduplication state lives in the splittable DoFn restriction, so a runner
+  with checkpointing enabled restores it after a restart and does not
+  reprocess files. That state holds one id per matched file and grows with the
+  directory, unless ``timestamp_cursor`` bounds it to a single timestamp. For
+  a growing directory on GCS, consider an alternate technique such as Pub/Sub
+  Notifications
+  (https://cloud.google.com/storage/docs/pubsub-notifications).
+
+  A match carries the poll time as its event time, or its last-modified time
+  under ``timestamp_cursor``. The watermark is the poll time either way, so a
+  file whose last-modified time lags its appearance in the listing is late for
+  event-time windows downstream.
   """
   def __init__(
       self,
@@ -360,7 +391,8 @@ class MatchContinuously(beam.PTransform):
       stop_timestamp=MAX_TIMESTAMP,
       match_updated_files=False,
       apply_windowing=False,
-      empty_match_treatment=EmptyMatchTreatment.ALLOW):
+      empty_match_treatment=EmptyMatchTreatment.ALLOW,
+      timestamp_cursor=False):
     """Initializes a MatchContinuously transform.
 
     Args:
@@ -373,6 +405,17 @@ class MatchContinuously(beam.PTransform):
         file with timestamp changes.
       apply_windowing: Whether each element should be assigned to
         individual window. If false, all elements will reside in global window.
+      timestamp_cursor: (When has_deduplication is set to True) dedup by
+        last-modified time instead of by file id, which bounds the state to a
+        single timestamp. Each poll emits only the files modified past the
+        newest one already emitted, compared at the millisecond resolution a
+        runner keeps for element timestamps. A file appearing with a
+        last-modified time at or below that mark is skipped, as happens with
+        copies that preserve the source time, backfills of older files, and
+        files written within the same millisecond as an earlier poll's newest
+        match. A file whose last-modified time advances is emitted again,
+        which makes match_updated_files redundant. Requires the filesystem to
+        report last-modified times.
     """
 
     self.file_pattern = file_pattern
@@ -383,11 +426,17 @@ class MatchContinuously(beam.PTransform):
     self.match_upd = match_updated_files
     self.apply_windowing = apply_windowing
     self.empty_match_treatment = empty_match_treatment
-    _LOGGER.warning(
-        'Matching Continuously is stateful, and can scale poorly. '
-        'Consider using Pub/Sub Notifications '
-        '(https://cloud.google.com/storage/docs/pubsub-notifications) '
-        'if possible')
+    self.timestamp_cursor = timestamp_cursor
+    if timestamp_cursor and not has_deduplication:
+      raise ValueError(
+          'MatchContinuously(timestamp_cursor=True) deduplicates, so it '
+          'requires has_deduplication=True.')
+    if not timestamp_cursor:
+      _LOGGER.warning(
+          'Matching Continuously is stateful, and can scale poorly. '
+          'Consider using Pub/Sub Notifications '
+          '(https://cloud.google.com/storage/docs/pubsub-notifications) '
+          'if possible')
 
   def expand(self, pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     if Duration.of(self.interval).micros <= 0:
@@ -405,8 +454,9 @@ class MatchContinuously(beam.PTransform):
 
   def _match_deduplicated(self,
                           pbegin) -> beam.PCollection[filesystem.FileMetadata]:
-    # Watch emits each file once per key: the path, joined by the mtime when
-    # matching updated files; stop_timestamp bounds the polls to [start, stop).
+    # Watch emits each file once per dedup key: the path, joined by the mtime
+    # when matching updated files, or the mtime alone under timestamp_cursor.
+    # stop_timestamp bounds the polls to [start, stop).
     clock = _PollClock()
     if self.stop_ts == MAX_TIMESTAMP:
       termination = never()
@@ -427,18 +477,26 @@ class MatchContinuously(beam.PTransform):
         # the output empty without Watch's unconditional first poll.
         return self._match_all_each_poll(pbegin)
       termination = _WatchWindowTermination(clock, start_ts.micros, max_polls)
-    if self.match_upd:
-      output_key_fn = _file_path_and_mtime_key
-    else:
-      output_key_fn = _file_path_key
     poll_fn = _MatchContinuouslyPollFn(
-        self.empty_match_treatment, self.start_ts, clock)
-    # The key coder is inferred from the key function's return annotation.
-    watch = Watch(
-        poll_fn,
-        poll_interval=self.interval,
-        termination=termination,
-        output_key_fn=output_key_fn)
+        self.empty_match_treatment,
+        self.start_ts,
+        clock,
+        mtime_timestamps=self.timestamp_cursor)
+    if self.timestamp_cursor:
+      # The cursor dedups on the mtime the poll stamps, so there is no key.
+      watch = Watch(
+          poll_fn,
+          poll_interval=self.interval,
+          termination=termination,
+          timestamp_cursor=True)
+    else:
+      # The key coder is inferred from the key function's return annotation.
+      watch = Watch(
+          poll_fn,
+          poll_interval=self.interval,
+          termination=termination,
+          output_key_fn=(
+              _file_path_and_mtime_key if self.match_upd else _file_path_key))
     # Watch emits (pattern, file) pairs; keep the FileMetadata output type so
     # downstream transforms stay typed instead of falling back to Any.
     return (

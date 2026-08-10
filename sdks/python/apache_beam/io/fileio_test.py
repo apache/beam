@@ -534,6 +534,101 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     self.assertEqual((), result.outputs)
     self.assertIsNotNone(result.watermark)
 
+  def test_poll_fn_stamps_outputs_with_mtime_for_the_cursor(self):
+    # The cursor dedups on the event time, so a match carries its own mtime
+    # while the watermark stays at the poll time.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    path = self._create_temp_file(dir=tempdir)
+    os.utime(path, (1234.5, 1234.5))
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        mtime_timestamps=True)
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertEqual(1, len(result.outputs))
+    self.assertEqual(Timestamp.of(1234.5), result.outputs[0].timestamp)
+    self.assertLess(result.outputs[0].timestamp, result.watermark)
+
+  def test_mtime_timestamp_floors_to_the_millisecond(self):
+    # A runner keeps element timestamps to the millisecond, so a cursor
+    # carrying finer mtimes would come back below the outputs it was taken
+    # from and match them all over again.
+    metadata = FileMetadata('/tmp/a', 1, 1786371369.335245)
+    self.assertEqual(
+        Timestamp.of(1786371369.335), fileio._mtime_timestamp(metadata))
+
+  def test_timestamp_cursor_rejects_missing_mtime(self):
+    # Without mtimes every match would carry the same event time, so the
+    # cursor would drop everything after the first poll.
+    with self.assertRaises(BeamIOError):
+      fileio._mtime_of(FileMetadata('/tmp/a', 1), 'timestamp_cursor')
+
+  def test_timestamp_cursor_requires_deduplication(self):
+    with self.assertRaisesRegex(ValueError, 'has_deduplication=True'):
+      fileio.MatchContinuously(
+          file_pattern='/tmp/*', has_deduplication=False, timestamp_cursor=True)
+
+  def test_timestamp_cursor_emits_files_modified_past_the_cursor(self):
+    files = []
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+
+    # Create a file to be matched before pipeline
+    files.append(self._create_temp_file(dir=tempdir))
+    # Add file name that will be created mid-pipeline
+    files.append(FileSystems.join(tempdir, 'extra'))
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    def _create_extra_file(element):
+      writer = FileSystems.create(FileSystems.join(tempdir, 'extra'))
+      writer.close()
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop,
+              timestamp_cursor=True)
+          | beam.Map(_create_extra_file))
+
+      assert_that(match_continiously, equal_to(files))
+
+  def test_timestamp_cursor_skips_files_modified_before_the_cursor(self):
+    # A file that lands with an mtime older than one already emitted sits
+    # behind the cursor, so it never appears.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    first = self._create_temp_file(dir=tempdir)
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    def _create_backdated_file(element):
+      path = FileSystems.join(tempdir, 'backdated')
+      writer = FileSystems.create(path)
+      writer.close()
+      os.utime(path, (1234.5, 1234.5))
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop,
+              timestamp_cursor=True)
+          | beam.Map(_create_backdated_file))
+
+      assert_that(match_continiously, equal_to([first]))
+
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
 
