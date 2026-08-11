@@ -551,17 +551,14 @@ public class StreamingModeExecutionContextTest {
         .thenReturn(executableWork2)
         .thenReturn(null);
 
+    StreamingModeExecutionContext.KeyTransitionListener mockListener =
+        mock(StreamingModeExecutionContext.KeyTransitionListener.class);
     executionContext.start(
-        work1,
-        workExecutor,
-        mockExecutor,
-        mockHandle,
-        null,
-        (oldWork, newWork) -> {},
-        ignored -> {});
+        work1, workExecutor, mockExecutor, mockHandle, null, mockListener, ignored -> {});
 
     assertTrue(executionContext.advance());
     assertEquals("key2", executionContext.getSerializedKey().toStringUtf8());
+    verify(mockListener, times(1)).onKeyTransition(work1, work2);
     assertFalse(executionContext.advance());
   }
 

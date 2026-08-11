@@ -283,7 +283,8 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   include '**/StorageApiDirectWriteProtosIT.class'
   include '**/StorageApiSinkFailedRowsIT.class'
   include '**/StorageApiSinkRowUpdateIT.class'
-  include '**/StorageApiSinkSchemaUpdateIT.class'
+  include '**/StorageApiSinkSchemaUpdateWithInputSchemaIT.class'
+  include '**/StorageApiSinkSchemaUpdateWithoutInputSchemaIT.class'
   include '**/TableRowToStorageApiProtoIT.class'
   // file loads
   include '**/BigQuerySchemaUpdateOptionsIT.class'

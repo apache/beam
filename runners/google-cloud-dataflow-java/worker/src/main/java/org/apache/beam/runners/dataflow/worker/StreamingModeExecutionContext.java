@@ -789,7 +789,6 @@ public class StreamingModeExecutionContext
       flushStateInternal();
       Work newWork = additionalWork.work();
       ++workItemsPolled;
-      checkStateNotNull(keyTransitionListener).onKeyTransition(activeWork, newWork);
       startForNewKey(newWork);
       return true;
     }
