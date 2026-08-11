@@ -28,17 +28,18 @@ import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.function.BiConsumer;
+import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache.ForComputation;
 import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudget;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -77,7 +78,7 @@ public final class ActiveWorkState {
 
   private ActiveWorkState(
       Map<Long, LinkedHashMap<WorkId, ExecutableWork>> activeWork,
-      WindmillStateCache.ForComputation computationStateCache) {
+      ForComputation computationStateCache) {
     this.activeWork = activeWork;
     this.computationStateCache = computationStateCache;
     this.activeGetWorkBudget = GetWorkBudget.noBudget();

@@ -32,13 +32,11 @@ import static org.mockito.Mockito.verify;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.util.MemoryMonitor;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
@@ -124,8 +122,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
   private FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider;
 
   private static WorkItemScheduler noOpProcessWorkItemFn() {
-    return (computationState,
-        workItem,
+    return (workItem,
         serializedWorkItemSize,
         watermarks,
         processingContext,
@@ -198,8 +195,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             getWorkBudgetDistributor,
             dispatcherClient,
             ignored -> mock(WorkCommitter.class),
-            new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)),
-            ignored -> Optional.of(mock(ComputationState.class)));
+            new ThrottlingGetDataMetricTracker(mock(MemoryMonitor.class)));
     getWorkerMetadataReady.await();
     return harness;
   }
@@ -250,8 +246,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             any(),
             any(),
             any(),
-            eq(noOpProcessWorkItemFn()),
-            any());
+            eq(noOpProcessWorkItemFn()));
     verify(streamFactory, times(1))
         .createDirectGetWorkStream(
             any(),
@@ -259,8 +254,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
             any(),
             any(),
             any(),
-            eq(noOpProcessWorkItemFn()),
-            any());
+            eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createDirectGetDataStream(any());
     verify(streamFactory, times(2)).createDirectCommitWorkStream(any());

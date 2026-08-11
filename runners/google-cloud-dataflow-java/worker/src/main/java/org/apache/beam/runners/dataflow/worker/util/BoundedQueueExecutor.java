@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -387,10 +389,14 @@ public class BoundedQueueExecutor {
   }
 
   public @Nullable ExecutableWork pollWork(
-      String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
+      String computationId,
+      Work.KeyGroup keyGroup,
+      BoundedQueueExecutorWorkHandle handle,
+      FailedWorkHandler onFailedWorkHandler) {
     checkArgument(
         computationId != null && keyGroup != null && !keyGroup.equals(Work.KeyGroup.DEFAULT));
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    checkStateNotNull(onFailedWorkHandler);
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     if (keyGroupWorkQueue == null) {
       return null;
@@ -403,8 +409,7 @@ public class BoundedQueueExecutor {
       Work work = queuedWork.getWork().work();
       if (work.isFailed()) {
         queuedWork.getHandle().close();
-        work.getComputationState()
-            .completeWorkAndScheduleNextWorkForKey(work.getShardedKey(), work.id());
+        onFailedWorkHandler.onFailedWork(work);
         continue;
       }
       internalHandle.merge(queuedWork.getHandle());

@@ -23,7 +23,6 @@ import com.google.auto.value.AutoBuilder;
 import java.io.PrintWriter;
 import java.util.Collection;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
@@ -38,7 +37,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc.CloudWindmillMetadataServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatResponse;
@@ -289,8 +287,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
       HeartbeatSender heartbeatSender,
       GetDataClient getDataClient,
       WorkCommitter workCommitter,
-      WorkItemScheduler workItemScheduler,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      WorkItemScheduler workItemScheduler) {
     return GrpcDirectGetWorkStream.create(
         connection.backendWorkerToken(),
         responseObserver ->
@@ -306,8 +303,7 @@ public class GrpcWindmillStreamFactory implements StatusDataProvider {
         workCommitter,
         workItemScheduler,
         directStreamingRpcPhysicalStreamHalfCloseAfter,
-        executorForDirectStreams(connection.backendWorkerToken(), "GetWork"),
-        computationStateFetcher);
+        executorForDirectStreams(connection.backendWorkerToken(), "GetWork"));
   }
 
   public GetDataStream createGetDataStream(CloudWindmillServiceV1Alpha1Stub stub) {

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker.util;
 
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -36,8 +35,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor.BoundedQueueExecutorWorkHandleImpl;
@@ -93,11 +92,8 @@ public class BoundedQueueExecutorTest {
         computationId, keyGroup, (work, handle) -> executeWorkFn.accept(work));
   }
 
-  private static ExecutableWork createWorkWithComputationStateAndKeyGroup(
-      ComputationState computationState,
-      Work.KeyGroup keyGroup,
-      long workToken,
-      Consumer<Work> executeWorkFn) {
+  private static ExecutableWork createWorkWithCompIdAndKeyGroupAndWorkToken(
+      String computationId, Work.KeyGroup keyGroup, long workToken, Consumer<Work> executeWorkFn) {
     WorkItem workItem =
         WorkItem.newBuilder()
             .setKey(ByteString.EMPTY)
@@ -116,10 +112,7 @@ public class BoundedQueueExecutorTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
-                computationState,
-                new FakeGetDataClient(),
-                ignored -> {},
-                mock(HeartbeatSender.class)),
+                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now,
             ImmutableList.of()),
@@ -148,10 +141,7 @@ public class BoundedQueueExecutorTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.now()).build(),
             Work.createProcessingContext(
-                createMockComputationState(computationId),
-                new FakeGetDataClient(),
-                ignored -> {},
-                mock(HeartbeatSender.class)),
+                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now,
             ImmutableList.of()),
@@ -550,7 +540,7 @@ public class BoundedQueueExecutorTest {
     assertEquals(3, testExecutor.elementsOutstanding());
 
     // Steal work2 using pollWork with compA and keyGroup2
-    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup2, stealHandle);
+    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup2, stealHandle, ignored -> {});
     assertNotNull(stolen);
     assertEquals(work2, stolen);
 
@@ -559,7 +549,7 @@ public class BoundedQueueExecutorTest {
     targetStart.await();
 
     // Steal work1 using pollWork with compA and keyGroup1
-    ExecutableWork stolen1 = testExecutor.pollWork("compA", keyGroup1, stealHandle);
+    ExecutableWork stolen1 = testExecutor.pollWork("compA", keyGroup1, stealHandle, ignored -> {});
     assertNotNull(stolen1);
     assertEquals(work1, stolen1);
 
@@ -608,7 +598,7 @@ public class BoundedQueueExecutorTest {
     ExecutableWork work = createWorkWithCompIdAndKeyGroup("compA", keyGroup, ignored -> {});
     testExecutor.execute(work, 100);
 
-    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle);
+    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle, ignored -> {});
     assertNull(stolen);
 
     blockerStop.countDown();
@@ -616,8 +606,7 @@ public class BoundedQueueExecutorTest {
   }
 
   @Test
-  public void testPollWork_skipsFailedWorkAndCallsCompleteWorkAndScheduleNextWorkForKey()
-      throws Exception {
+  public void testPollWork_skipsFailedWorkAndCallsOnFailedWorkHandler() throws Exception {
     BoundedQueueExecutor testExecutor =
         new BoundedQueueExecutor(
             1,
@@ -653,12 +642,12 @@ public class BoundedQueueExecutorTest {
     assertNotNull(stealHandle);
 
     Work.KeyGroup keyGroup = Work.KeyGroup.create(1, 1);
-    ComputationState mockCompState = createMockComputationState("compA");
+    FailedWorkHandler onFailedWorkHandler = mock(FailedWorkHandler.class);
 
     ExecutableWork work1 =
-        createWorkWithComputationStateAndKeyGroup(mockCompState, keyGroup, 101, ignored -> {});
+        createWorkWithCompIdAndKeyGroupAndWorkToken("compA", keyGroup, 101, ignored -> {});
     ExecutableWork work2 =
-        createWorkWithComputationStateAndKeyGroup(mockCompState, keyGroup, 102, ignored -> {});
+        createWorkWithCompIdAndKeyGroupAndWorkToken("compA", keyGroup, 102, ignored -> {});
 
     // Enqueue both tasks (they will wait in the queue because the thread is blocked).
     testExecutor.execute(work1, 100);
@@ -671,20 +660,19 @@ public class BoundedQueueExecutorTest {
     work1.work().setFailed();
 
     // pollWork should skip work1, close work1's handle, invoke
-    // completeWorkAndScheduleNextWorkForKey on mockCompState,
-    // and return work2.
-    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle);
+    // onFailedWorkHandler callback, and return work2.
+    ExecutableWork stolen =
+        testExecutor.pollWork("compA", keyGroup, stealHandle, onFailedWorkHandler);
     assertNotNull(stolen);
     assertEquals(work2, stolen);
 
-    verify(mockCompState)
-        .completeWorkAndScheduleNextWorkForKey(work1.work().getShardedKey(), work1.work().id());
+    verify(onFailedWorkHandler).onFailedWork(work1.work());
 
     // Verify stealHandle merged (blockerWork: 10 bytes, work2: 150 bytes).
     assertEquals(160, stealHandle.bytes());
 
     // Polling again should return null since no more tasks exist for keyGroup.
-    assertNull(testExecutor.pollWork("compA", keyGroup, stealHandle));
+    assertNull(testExecutor.pollWork("compA", keyGroup, stealHandle, onFailedWorkHandler));
 
     blockerStop.countDown();
     testExecutor.shutdown();

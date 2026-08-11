@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -28,7 +27,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.WindmillConnection;
 import org.apache.beam.runners.dataflow.worker.windmill.client.WindmillStream.CommitWorkStream;
@@ -77,8 +75,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
       Function<GetDataStream, GetDataClient> getDataClientFactory,
-      Function<CommitWorkStream, WorkCommitter> workCommitterFactory,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     this.started = new AtomicBoolean(false);
     this.getWorkBudget = getWorkBudget;
 
@@ -94,8 +91,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
             FixedStreamHeartbeatSender.create(getDataStream),
             getDataClientFactory.apply(getDataStream),
             workCommitter,
-            workItemScheduler,
-            computationStateFetcher);
+            workItemScheduler);
     // 3 threads, 1 for each stream type (GetWork, GetData, CommitWork).
     this.streamStarter =
         Executors.newFixedThreadPool(
@@ -109,8 +105,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
       GrpcWindmillStreamFactory streamingEngineStreamFactory,
       WorkItemScheduler workItemScheduler,
       Function<GetDataStream, GetDataClient> getDataClientFactory,
-      Function<CommitWorkStream, WorkCommitter> workCommitterFactory,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      Function<CommitWorkStream, WorkCommitter> workCommitterFactory) {
     return new WindmillStreamSender(
         connection,
         getWorkRequest,
@@ -118,8 +113,7 @@ final class WindmillStreamSender implements GetWorkBudgetSpender, StreamSender {
         streamingEngineStreamFactory,
         workItemScheduler,
         getDataClientFactory,
-        workCommitterFactory,
-        computationStateFetcher);
+        workCommitterFactory);
   }
 
   private static GetWorkRequest withRequestBudget(GetWorkRequest request, GetWorkBudget budget) {

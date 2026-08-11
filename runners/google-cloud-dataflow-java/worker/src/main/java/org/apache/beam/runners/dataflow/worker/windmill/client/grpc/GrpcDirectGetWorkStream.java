@@ -21,7 +21,6 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 
 import java.io.PrintWriter;
 import java.time.Duration;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -30,7 +29,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
 import net.jcip.annotations.ThreadSafe;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
@@ -83,7 +81,6 @@ final class GrpcDirectGetWorkStream
   private final HeartbeatSender heartbeatSender;
   private final WorkCommitter workCommitter;
   private final GetDataClient getDataClient;
-  private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final AtomicReference<StreamingGetWorkRequest> lastRequest;
 
   private final boolean requestBatchedGetWorkResponse;
@@ -105,8 +102,7 @@ final class GrpcDirectGetWorkStream
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler,
       Duration halfClosePhysicalStreamAfter,
-      ScheduledExecutorService executorService,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      ScheduledExecutorService executorService) {
     super(
         LOG,
         startGetWorkRpcFn,
@@ -122,7 +118,6 @@ final class GrpcDirectGetWorkStream
     this.heartbeatSender = heartbeatSender;
     this.workCommitter = workCommitter;
     this.getDataClient = getDataClient;
-    this.computationStateFetcher = computationStateFetcher;
     this.lastRequest = new AtomicReference<>();
     this.budgetTracker =
         new GetWorkBudgetTracker(
@@ -150,8 +145,7 @@ final class GrpcDirectGetWorkStream
       WorkCommitter workCommitter,
       WorkItemScheduler workItemScheduler,
       Duration halfClosePhysicalStreamAfter,
-      ScheduledExecutorService executor,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      ScheduledExecutorService executor) {
     return new GrpcDirectGetWorkStream(
         backendWorkerToken,
         startGetWorkRpcFn,
@@ -166,8 +160,7 @@ final class GrpcDirectGetWorkStream
         workCommitter,
         workItemScheduler,
         halfClosePhysicalStreamAfter,
-        executor,
-        computationStateFetcher);
+        executor);
   }
 
   private static Watermarks createWatermarks(
@@ -280,37 +273,25 @@ final class GrpcDirectGetWorkStream
   }
 
   private void consumeAssembledWorkItem(AssembledWorkItem assembledWorkItem) {
+    WorkItem workItem = assembledWorkItem.workItem();
     GetWorkResponseChunkAssembler.ComputationMetadata metadata =
         assembledWorkItem.computationMetadata();
-    Optional<ComputationState> maybeComputationState =
-        computationStateFetcher.apply(metadata.computationId());
-    if (maybeComputationState.isPresent()) {
-      ComputationState computationState = maybeComputationState.get();
-      WorkItem workItem = assembledWorkItem.workItem();
-      workItemScheduler.scheduleWork(
-          computationState,
-          workItem,
-          assembledWorkItem.bufferedSize(),
-          createWatermarks(workItem, metadata),
-          createProcessingContext(computationState),
-          metadata.drainMode(),
-          assembledWorkItem.appliedFinalizeIds(),
-          assembledWorkItem.latencyAttributions());
-    } else {
-      LOG.warn("Received work for unknown computation: {}", metadata.computationId());
-    }
+    workItemScheduler.scheduleWork(
+        workItem,
+        assembledWorkItem.bufferedSize(),
+        createWatermarks(workItem, metadata),
+        createProcessingContext(metadata.computationId()),
+        metadata.drainMode(),
+        assembledWorkItem.appliedFinalizeIds(),
+        assembledWorkItem.latencyAttributions());
     budgetTracker.recordBudgetReceived(assembledWorkItem.bufferedSize());
     GetWorkBudget extension = budgetTracker.computeBudgetExtension();
     maybeSendRequestExtension(extension);
   }
 
-  private Work.ProcessingContext createProcessingContext(ComputationState computationState) {
+  private Work.ProcessingContext createProcessingContext(String computationId) {
     return Work.createProcessingContext(
-        computationState,
-        getDataClient,
-        workCommitter::commit,
-        heartbeatSender,
-        backendWorkerToken());
+        computationId, getDataClient, workCommitter::commit, heartbeatSender, backendWorkerToken());
   }
 
   @Override

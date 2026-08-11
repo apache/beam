@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.refresh;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -137,10 +136,7 @@ public class ActiveWorkRefresherTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                createMockComputationState("computationId"),
-                new FakeGetDataClient(),
-                ignored -> {},
-                heartbeatSender),
+                "computationId", new FakeGetDataClient(), ignored -> {}, heartbeatSender),
             false,
             ActiveWorkRefresherTest::aLongTimeAgo,
             ImmutableList.of()),

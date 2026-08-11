@@ -17,17 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-
-/** Test utilities for creating and manipulating {@link ComputationState} objects in unit tests. */
-public final class ComputationStateTestUtils {
-
-  private ComputationStateTestUtils() {}
-
-  public static ComputationState createMockComputationState(String computationId) {
-    ComputationState computationState = mock(ComputationState.class);
-    when(computationState.getComputationId()).thenReturn(computationId);
-    return computationState;
-  }
+/** Handler for failed {@link Work}. */
+@FunctionalInterface
+public interface FailedWorkHandler {
+  void onFailedWork(Work work);
 }

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -262,7 +261,7 @@ public class WindmillReaderIteratorBaseTest {
             .setInputDataWatermark(new org.joda.time.Instant(1000))
             .build(),
         Work.createProcessingContext(
-            createMockComputationState("computationId"),
+            "computationId",
             mock(
                 org.apache.beam.runners.dataflow.worker.windmill.client.getdata.GetDataClient
                     .class),

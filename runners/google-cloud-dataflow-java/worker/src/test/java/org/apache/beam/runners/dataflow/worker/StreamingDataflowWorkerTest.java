@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker;
 import static org.apache.beam.runners.dataflow.util.Structs.addObject;
 import static org.apache.beam.runners.dataflow.util.Structs.addString;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.both;
 import static org.hamcrest.Matchers.contains;
@@ -383,10 +382,7 @@ public class StreamingDataflowWorkerTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                createMockComputationState(computationId),
-                new FakeGetDataClient(),
-                ignored -> {},
-                mock(HeartbeatSender.class)),
+                computationId, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
             false,
             Instant::now,
             ImmutableList.of()),
@@ -4101,7 +4097,7 @@ public class StreamingDataflowWorkerTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                createMockComputationState("computationId"),
+                "computationId",
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 
@@ -94,7 +93,7 @@ public class WorkFailureProcessorTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             Work.createProcessingContext(
-                createMockComputationState("computationId"),
+                "computationId",
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),

@@ -53,6 +53,7 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -172,10 +173,7 @@ public class StreamingModeExecutionContext
   private @Nullable WorkExecutor workExecutor;
   private boolean finishKeyCalled = false;
 
-  @SuppressWarnings("UnusedVariable")
   private @Nullable BoundedQueueExecutor workQueueExecutor;
-
-  @SuppressWarnings("UnusedVariable")
   private @Nullable BoundedQueueExecutorWorkHandle budgetHandle;
 
   private final HotKeyLogger hotKeyLogger;
@@ -192,8 +190,8 @@ public class StreamingModeExecutionContext
     void onKeyTransition(@Nullable Work oldWork, Work newWork);
   }
 
-  @SuppressWarnings("UnusedVariable")
   private @Nullable KeyTransitionListener keyTransitionListener;
+  private @Nullable FailedWorkHandler onFailedWorkHandler;
 
   private List<Work> executedWorks = Collections.emptyList();
   private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
@@ -335,6 +333,7 @@ public class StreamingModeExecutionContext
     this.workQueueExecutor = null;
     this.budgetHandle = null;
     this.keyTransitionListener = null;
+    this.onFailedWorkHandler = null;
     this.work = null;
     this.key = null;
     this.outputBuilder = null;
@@ -350,7 +349,8 @@ public class StreamingModeExecutionContext
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       @Nullable Coder<?> keyCoder,
-      KeyTransitionListener keyTransitionListener)
+      KeyTransitionListener keyTransitionListener,
+      @Nullable FailedWorkHandler onFailedWorkHandler)
       throws CoderException {
     reset();
     this.executedWorks = new ArrayList<>();
@@ -361,6 +361,7 @@ public class StreamingModeExecutionContext
     this.workQueueExecutor = workQueueExecutor;
     this.budgetHandle = budgetHandle;
     this.keyTransitionListener = keyTransitionListener;
+    this.onFailedWorkHandler = onFailedWorkHandler;
 
     this.workItemsPolled = 1;
     this.bundleStartTimeNanos = System.nanoTime();
@@ -779,7 +780,11 @@ public class StreamingModeExecutionContext
 
     @Nullable
     ExecutableWork additionalWork =
-        executor.pollWork(computationId, activeWork.getKeyGroup(), handle);
+        executor.pollWork(
+            computationId,
+            activeWork.getKeyGroup(),
+            handle,
+            checkStateNotNull(onFailedWorkHandler));
     if (additionalWork != null) {
       flushStateInternal();
       Work newWork = additionalWork.work();

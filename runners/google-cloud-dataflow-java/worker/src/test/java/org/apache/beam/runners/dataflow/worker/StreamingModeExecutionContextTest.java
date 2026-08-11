@@ -19,7 +19,6 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.longToSplitInt;
 import static org.apache.beam.runners.dataflow.worker.counters.DataflowCounterUpdateExtractor.splitIntToLong;
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -176,10 +175,7 @@ public class StreamingModeExecutionContextTest {
         workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
-            createMockComputationState(COMPUTATION_ID),
-            new FakeGetDataClient(),
-            ignored -> {},
-            mock(HeartbeatSender.class)),
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
         Instant::now,
         ImmutableList.of());
@@ -202,10 +198,11 @@ public class StreamingModeExecutionContextTest {
       context.start(
           work,
           workExecutor,
-          /* workQueueExecutor= */ null,
-          /* budgetHandle= */ null,
+          /* workQueueExecutor= */ mock(BoundedQueueExecutor.class),
+          /* budgetHandle= */ mock(BoundedQueueExecutorWorkHandle.class),
           keyCoder,
-          /* keyTransitionListener= */ (k, c) -> {});
+          /* keyTransitionListener= */ (k, c) -> {},
+          /* onFailedWorkHandler= */ ignored -> {});
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
@@ -550,12 +547,18 @@ public class StreamingModeExecutionContextTest {
             workItem2, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
     ExecutableWork executableWork2 = ExecutableWork.create(work2, (w, h) -> {});
 
-    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle)))
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any()))
         .thenReturn(executableWork2)
         .thenReturn(null);
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     assertTrue(executionContext.advance());
     assertEquals("key2", executionContext.getSerializedKey().toStringUtf8());
@@ -579,11 +582,17 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle)))
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any()))
         .thenReturn(null);
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     assertFalse(executionContext.advance());
   }
@@ -613,7 +622,14 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -644,7 +660,14 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -668,7 +691,13 @@ public class StreamingModeExecutionContextTest {
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     work1.setFailed();
 
@@ -691,7 +720,13 @@ public class StreamingModeExecutionContextTest {
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     assertFalse(executionContext.advance());
     verifyNoInteractions(mockExecutor);
@@ -719,7 +754,14 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -752,11 +794,19 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> {},
+        ignored -> {});
 
     context.reportBytesSinked(50);
     assertFalse(context.advance());
-    verify(mockExecutor).pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+    verify(mockExecutor)
+        .pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any());
 
     reset(mockExecutor);
 

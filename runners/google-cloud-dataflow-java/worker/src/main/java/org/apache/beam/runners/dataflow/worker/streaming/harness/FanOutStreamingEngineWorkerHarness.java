@@ -40,7 +40,6 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc.CloudWindmillServiceV1Alpha1Stub;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.GetWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
@@ -97,7 +96,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
   private final GetWorkBudget totalGetWorkBudget;
   private final Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory;
   private final ThrottlingGetDataMetricTracker getDataMetricTracker;
-  private final Function<String, Optional<ComputationState>> computationStateFetcher;
   private final ExecutorService windmillStreamManager;
   private final ExecutorService workerMetadataConsumer;
   private final Object metadataLock = new Object();
@@ -133,8 +131,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
       ThrottlingGetDataMetricTracker getDataMetricTracker,
-      ExecutorService workerMetadataConsumer,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      ExecutorService workerMetadataConsumer) {
     this.jobHeader = jobHeader;
     this.getDataMetricTracker = getDataMetricTracker;
     this.started = false;
@@ -153,7 +150,6 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
     this.activeMetadataType = WindmillEndpoints.Type.UNKNOWN;
     this.pendingMetadataType = WindmillEndpoints.Type.UNKNOWN;
     this.workCommitterFactory = workCommitterFactory;
-    this.computationStateFetcher = computationStateFetcher;
   }
 
   /**
@@ -170,8 +166,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      ThrottlingGetDataMetricTracker getDataMetricTracker,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      ThrottlingGetDataMetricTracker getDataMetricTracker) {
     return new FanOutStreamingEngineWorkerHarness(
         jobHeader,
         totalGetWorkBudget,
@@ -183,8 +178,9 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
         workCommitterFactory,
         getDataMetricTracker,
         Executors.newSingleThreadExecutor(
-            new ThreadFactoryBuilder().setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME).build()),
-        computationStateFetcher);
+            new ThreadFactoryBuilder()
+                .setNameFormat(WORKER_METADATA_CONSUMER_THREAD_NAME)
+                .build()));
   }
 
   @VisibleForTesting
@@ -197,8 +193,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
       GetWorkBudgetDistributor getWorkBudgetDistributor,
       GrpcDispatcherClient dispatcherClient,
       Function<WindmillStream.CommitWorkStream, WorkCommitter> workCommitterFactory,
-      ThrottlingGetDataMetricTracker getDataMetricTracker,
-      Function<String, Optional<ComputationState>> computationStateFetcher) {
+      ThrottlingGetDataMetricTracker getDataMetricTracker) {
     FanOutStreamingEngineWorkerHarness fanOutStreamingEngineWorkProvider =
         new FanOutStreamingEngineWorkerHarness(
             jobHeader,
@@ -215,8 +210,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             // blocked by the consumeWorkerMetadata() task. Test suites run in different
             // environments and non-determinism has lead to past flakiness. See
             // https://github.com/apache/beam/issues/28957.
-            MoreExecutors.newDirectExecutorService(),
-            computationStateFetcher);
+            MoreExecutors.newDirectExecutorService());
     fanOutStreamingEngineWorkProvider.start();
     return fanOutStreamingEngineWorkProvider;
   }
@@ -454,8 +448,7 @@ public final class FanOutStreamingEngineWorkerHarness implements StreamingWorker
             getDataStream ->
                 StreamGetDataClient.create(
                     getDataStream, this::getGlobalDataStream, getDataMetricTracker),
-            workCommitterFactory,
-            computationStateFetcher);
+            workCommitterFactory);
     windmillStreamSender.start();
     return windmillStreamSender;
   }

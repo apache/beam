@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import static com.google.common.truth.Truth.assertThat;
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -95,10 +94,7 @@ public class ActiveWorkStateTest {
 
   private static Work.ProcessingContext createWorkProcessingContext() {
     return Work.createProcessingContext(
-        createMockComputationState("computationId"),
-        new FakeGetDataClient(),
-        ignored -> {},
-        mock(HeartbeatSender.class));
+        "computationId", new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class));
   }
 
   private static WorkId workId(long workToken, long cacheToken) {

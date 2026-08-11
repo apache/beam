@@ -18,7 +18,6 @@
 package org.apache.beam.runners.dataflow.worker.windmill.work;
 
 import javax.annotation.CheckReturnValue;
-import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.LatencyAttribution;
@@ -33,7 +32,6 @@ public interface WorkItemScheduler {
   /**
    * Schedule {@link WorkItem}(s).
    *
-   * @param computationState {@link ComputationState} for the workItem.
    * @param workItem {@link WorkItem} to be processed.
    * @param watermarks processing watermarks for the workItem.
    * @param processingContext for processing the workItem.
@@ -43,7 +41,6 @@ public interface WorkItemScheduler {
    *     back to Streaming Engine backend.
    */
   void scheduleWork(
-      ComputationState computationState,
       WorkItem workItem,
       long serializedWorkItemSize,
       Watermarks watermarks,

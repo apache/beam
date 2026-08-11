@@ -26,7 +26,6 @@ import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.dic
 import static org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.readerProgressToCloudProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.getReaderProgress;
 import static org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedReaderIterator.longToParallelism;
-import static org.apache.beam.runners.dataflow.worker.streaming.ComputationStateTestUtils.createMockComputationState;
 import static org.apache.beam.sdk.testing.ExpectedLogs.verifyLogged;
 import static org.apache.beam.sdk.testing.SourceTestUtils.readFromSource;
 import static org.apache.beam.sdk.util.CoderUtils.encodeToByteArray;
@@ -90,6 +89,7 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
@@ -98,6 +98,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
@@ -208,10 +209,7 @@ public class WorkerCustomSourcesTest {
         workItem.getSerializedSize(),
         watermarks,
         Work.createProcessingContext(
-            createMockComputationState(COMPUTATION_ID),
-            new FakeGetDataClient(),
-            ignored -> {},
-            mock(HeartbeatSender.class)),
+            COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
         Instant::now,
         ImmutableList.of());
@@ -222,10 +220,11 @@ public class WorkerCustomSourcesTest {
       context.start(
           work,
           mock(WorkExecutor.class),
-          /* workQueueExecutor= */ null,
-          /* budgetHandle= */ null,
+          /* workQueueExecutor= */ mock(BoundedQueueExecutor.class),
+          /* budgetHandle= */ mock(BoundedQueueExecutorWorkHandle.class),
           /* keyCoder= */ null,
-          /* keyTransitionListener= */ mock(KeyTransitionListener.class));
+          /* keyTransitionListener= */ mock(KeyTransitionListener.class),
+          /* onFailedWorkHandler= */ ignored -> {});
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
@@ -1050,7 +1049,7 @@ public class WorkerCustomSourcesTest {
             workItem.getSerializedSize(),
             Watermarks.builder().setInputDataWatermark(new Instant(0)).build(),
             Work.createProcessingContext(
-                createMockComputationState(COMPUTATION_ID),
+                COMPUTATION_ID,
                 new FakeGetDataClient(),
                 ignored -> {},
                 mock(HeartbeatSender.class)),
