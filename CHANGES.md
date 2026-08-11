@@ -81,6 +81,7 @@
 ## Bugfixes
 
 * (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
+* (Python) Fixed cached partially-materialized bag state replaying a permanently invalid continuation token on every read; the cache entry is now invalidated when its continuation fails so the next read fetches fresh state ([#39383](https://github.com/apache/beam/issues/39383)).
 
 ## Security Fixes
 
