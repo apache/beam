@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -43,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -65,7 +67,7 @@ public class ActiveWorkStateTest {
     return ShardedKey.create(ByteString.copyFromUtf8(str), shardKey);
   }
 
-  private static ExecutableWork createWork(Windmill.WorkItem workItem) {
+  private static ExecutableWork createWork(Windmill.WorkItem workItem, Supplier<Instant> clock) {
     return ExecutableWork.create(
         Work.create(
             workItem,
@@ -73,22 +75,13 @@ public class ActiveWorkStateTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
             false,
-            Instant::now,
+            clock,
             ImmutableList.of()),
         (work, handle) -> {});
   }
 
-  private static ExecutableWork expiredWork(Windmill.WorkItem workItem) {
-    return ExecutableWork.create(
-        Work.create(
-            workItem,
-            workItem.getSerializedSize(),
-            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-            createWorkProcessingContext(),
-            false,
-            Instant::now,
-            ImmutableList.of()),
-        (work, handle) -> {});
+  private static ExecutableWork createWork(Windmill.WorkItem workItem) {
+    return createWork(workItem, Instant::now);
   }
 
   private static Work.ProcessingContext createWorkProcessingContext() {
@@ -322,17 +315,19 @@ public class ActiveWorkStateTest {
     ShardedKey shardedKey1 = shardedKey("someKey", 1L);
     ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
 
-    ExecutableWork stuckWork1 = expiredWork(createWorkItem(1L, 1L, shardedKey1));
-    Instant timestampBeforeCommiting = Instant.now();
-    stuckWork1.work().setState(Work.State.COMMITTING);
-    ExecutableWork unstuckWork2 = expiredWork(createWorkItem(2L, 1L, shardedKey2));
-    unstuckWork2.work().setState(Work.State.PROCESSING);
+    Instant now = Instant.now();
+    ExecutableWork stuckWork1 = createWork(createWorkItem(1L, 1L, shardedKey1), () -> now);
+    ExecutableWork unstuckWork2 = createWork(createWorkItem(2L, 1L, shardedKey2), () -> now);
 
     activeWorkState.activateWorkForKey(stuckWork1);
     activeWorkState.activateWorkForKey(unstuckWork2);
 
-    assertThat(activeWorkState.hasStuckCommits(timestampBeforeCommiting)).isFalse();
-    assertThat(activeWorkState.hasStuckCommits(Instant.now())).isTrue();
+    stuckWork1.work().setState(Work.State.COMMITTING);
+    unstuckWork2.work().setState(Work.State.PROCESSING);
+
+    assertThat(activeWorkState.hasStuckCommits(now.minus(Duration.millis(1)))).isFalse();
+    assertThat(activeWorkState.hasStuckCommits(now)).isFalse();
+    assertThat(activeWorkState.hasStuckCommits(now.plus(Duration.millis(1)))).isTrue();
   }
 
   @Test
