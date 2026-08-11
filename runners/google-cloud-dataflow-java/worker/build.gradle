@@ -229,6 +229,7 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.opentelemetry_context
+    testImplementation library.java.opentelemetry_sdk_testing
     implementation library.java.opentelemetry_api
     implementation library.java.slf4j_api
     implementation library.java.vendored_grpc_1_69_0

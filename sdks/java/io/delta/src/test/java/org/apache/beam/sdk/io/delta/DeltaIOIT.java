@@ -34,11 +34,14 @@ import io.delta.kernel.defaults.internal.data.DefaultColumnarBatch;
 import io.delta.kernel.engine.Engine;
 import io.delta.kernel.types.DataType;
 import io.delta.kernel.types.IntegerType;
+import io.delta.kernel.types.LongType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampType;
 import io.delta.kernel.utils.CloseableIterable;
 import io.delta.kernel.utils.CloseableIterator;
 import io.delta.kernel.utils.DataFileStatus;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -47,13 +50,17 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
+import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -77,6 +84,7 @@ public class DeltaIOIT {
   private String repoPath;
   private String repoPrefix;
   private Storage storage;
+  private String version0FilePath;
 
   private static final Schema ROW_SCHEMA =
       Schema.builder().addInt32Field("id").addStringField("name").build();
@@ -127,7 +135,11 @@ public class DeltaIOIT {
 
     TransactionBuilder txnBuilder =
         table.createTransactionBuilder(engine, "DeltaIOIT", Operation.CREATE_TABLE);
-    txnBuilder = txnBuilder.withSchema(engine, deltaSchema);
+    txnBuilder =
+        txnBuilder
+            .withSchema(engine, deltaSchema)
+            .withTableProperties(
+                engine, Collections.singletonMap("delta.enableChangeDataFeed", "true"));
     Transaction txn = txnBuilder.build(engine);
     io.delta.kernel.data.Row txnState = txn.getTransactionState(engine);
 
@@ -209,8 +221,33 @@ public class DeltaIOIT {
     CloseableIterator<io.delta.kernel.data.Row> dataActions =
         Transaction.generateAppendActions(engine, txnState, dataFiles, writeContext);
 
+    List<io.delta.kernel.data.Row> addActionsList = new ArrayList<>();
+    while (dataActions.hasNext()) {
+      addActionsList.add(dataActions.next());
+    }
+
+    if (!addActionsList.isEmpty()) {
+      io.delta.kernel.data.Row action = addActionsList.get(0);
+      int addOrdinal = action.getSchema().indexOf("add");
+      if (addOrdinal < 0) {
+        throw new IllegalStateException(
+            "Expected append action to contain 'add' field, but it didn't: " + action.getSchema());
+      }
+      io.delta.kernel.data.Row addAction = action.getStruct(addOrdinal);
+      if (addAction == null) {
+        throw new IllegalStateException("Action 'add' struct is null");
+      }
+      int pathOrdinal = addAction.getSchema().indexOf("path");
+      if (pathOrdinal < 0) {
+        throw new IllegalStateException(
+            "'add' action schema does not contain 'path': " + addAction.getSchema());
+      }
+      version0FilePath = addAction.getString(pathOrdinal);
+    }
+
     CloseableIterable<io.delta.kernel.data.Row> dataActionsIterable =
-        CloseableIterable.inMemoryIterable(dataActions);
+        CloseableIterable.inMemoryIterable(
+            io.delta.kernel.internal.util.Utils.toCloseableIterator(addActionsList.iterator()));
 
     TransactionCommitResult commitResult = txn.commit(engine, dataActionsIterable);
 
@@ -238,6 +275,9 @@ public class DeltaIOIT {
 
   @Test
   public void testReadDeltaLakeTable() {
+    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+
     Map<String, String> hadoopConfig = new HashMap<>();
     hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
     hadoopConfig.put(
@@ -260,5 +300,129 @@ public class DeltaIOIT {
 
     PAssert.that(output).containsInAnyOrder(TEST_ROWS);
     readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesDeltaLake() throws Exception {
+    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
+    List<String> experiments = options.getExperiments();
+    if (experiments != null) {
+      List<String> modifiableExperiments = new java.util.ArrayList<>(experiments);
+      // TODO: remove this when Runner v2 supports elements that includes CDC metadata
+      // (ValueKind).
+      modifiableExperiments.remove("use_runner_v2");
+      options.setExperiments(modifiableExperiments);
+    }
+
+    Map<String, String> hadoopConfig = new HashMap<>();
+    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    hadoopConfig.put(
+        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
+    String project =
+        readPipeline
+            .getOptions()
+            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+            .getProject();
+    if (project != null) {
+      hadoopConfig.put("fs.gs.project.id", project);
+    }
+
+    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+    for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+      conf.set(entry.getKey(), entry.getValue());
+    }
+    Engine engine = DefaultEngine.create(conf);
+
+    StructType deltaSchema =
+        new StructType().add("id", IntegerType.INTEGER).add("name", StringType.STRING);
+
+    // 1. Write version 1 containing cdc actions for testing updates and deletes
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("id", Schema.FieldType.INT32)
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("id", IntegerType.INTEGER)
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues(0, "name_0", "delete", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues(1, "name_1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues(1, "name_1_updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        repoPath,
+        1L,
+        System.currentTimeMillis(),
+        deltaSchema,
+        null,
+        version0FilePath,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 2. Read CDF data from table using Managed.read(Managed.DELTA_LAKE_CDC)
+    Map<String, Object> readConfig = new HashMap<>();
+    readConfig.put("table", repoPath);
+    readConfig.put("start_version", 0L);
+    readConfig.put("hadoop_config", hadoopConfig);
+    readConfig.put(
+        "include_metadata_columns",
+        java.util.Arrays.asList(
+            DeltaIO.CHANGE_TYPE_COLUMN,
+            DeltaIO.COMMIT_VERSION_COLUMN,
+            DeltaIO.COMMIT_TIMESTAMP_COLUMN));
+
+    PCollection<Row> output =
+        readPipeline
+            .apply(Managed.read(Managed.DELTA_LAKE_CDC).withConfig(readConfig))
+            .getSinglePCollection();
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row with Metadata", ParDo.of(new FormatITRowWithMetadata()));
+
+    // Generate expected outputs for version 0 (inserts of id 0-99)
+    List<String> expectedOutputs = new ArrayList<>();
+    for (int i = 0; i < 100; i++) {
+      expectedOutputs.add(String.format("%d:name_%d:insert:v0", i, i));
+    }
+    // Expected outputs for version 1
+    expectedOutputs.add("0:name_0:delete:v1");
+    expectedOutputs.add("1:name_1:update_preimage:v1");
+    expectedOutputs.add("1:name_1_updated:update_postimage:v1");
+
+    PAssert.that(formattedOutput).containsInAnyOrder(expectedOutputs);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  private static final class FormatITRowWithMetadata extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<String> out) {
+      out.output(
+          String.format(
+              "%d:%s:%s:v%d",
+              row.getInt32("id"),
+              row.getString("name"),
+              row.getString(DeltaIO.CHANGE_TYPE_COLUMN),
+              row.getInt64(DeltaIO.COMMIT_VERSION_COLUMN)));
+    }
   }
 }

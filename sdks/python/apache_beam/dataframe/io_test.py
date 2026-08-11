@@ -122,6 +122,12 @@ A     B
       pcoll = p | beam.io.ReadFromCsv(f'{input}tmp.csv', dtype=str)
       assert_that(pcoll | beam.Map(max), equal_to(['99']))
 
+  def test_empty_csv_read(self):
+    input = self.temp_dir({'empty.csv': 'col1,col2,col3\n'})
+    with beam.Pipeline() as p:
+      pcoll = p | beam.io.ReadFromCsv(input + 'empty.csv')
+      assert_that(pcoll, equal_to([]))
+
   def test_sharding_parameters(self):
     data = pd.DataFrame({'label': ['11a', '37a', '389a'], 'rank': [0, 1, 2]})
     output = self.temp_dir()

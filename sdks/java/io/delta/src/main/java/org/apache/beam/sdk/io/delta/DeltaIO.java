@@ -37,6 +37,8 @@ import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
 import io.delta.kernel.types.TimestampType;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
@@ -206,6 +208,26 @@ public class DeltaIO {
     }
   }
 
+  static Schema buildPublicBeamSchema(Schema baseSchema, @Nullable List<String> metadataColumns) {
+    if (metadataColumns == null || metadataColumns.isEmpty()) {
+      return baseSchema;
+    }
+    Schema.Builder builder = Schema.builder();
+    for (Schema.Field field : baseSchema.getFields()) {
+      builder.addField(field);
+    }
+    for (String col : metadataColumns) {
+      if (col.equals(CHANGE_TYPE_COLUMN)) {
+        builder.addField(CHANGE_TYPE_COLUMN, Schema.FieldType.STRING);
+      } else if (col.equals(COMMIT_VERSION_COLUMN)) {
+        builder.addField(COMMIT_VERSION_COLUMN, Schema.FieldType.INT64);
+      } else if (col.equals(COMMIT_TIMESTAMP_COLUMN)) {
+        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME);
+      }
+    }
+    return builder.build();
+  }
+
   @AutoValue
   public abstract static class ReadChanges extends PTransform<PBegin, PCollection<Row>> {
     public abstract @Nullable String getTablePath();
@@ -217,6 +239,8 @@ public class DeltaIO {
     public abstract @Nullable Long getEndVersion();
 
     public abstract @Nullable String getEndTimestamp();
+
+    public abstract @Nullable List<String> getMetadataColumns();
 
     public abstract @Nullable Map<String, String> getHadoopConfig();
 
@@ -233,6 +257,8 @@ public class DeltaIO {
       abstract Builder setEndVersion(@Nullable Long endVersion);
 
       abstract Builder setEndTimestamp(@Nullable String endTimestamp);
+
+      abstract Builder setMetadataColumns(@Nullable List<String> metadataColumns);
 
       abstract Builder setHadoopConfig(@Nullable Map<String, String> hadoopConfig);
 
@@ -257,6 +283,20 @@ public class DeltaIO {
 
     public ReadChanges withEndTimestamp(String endTimestamp) {
       return toBuilder().setEndTimestamp(endTimestamp).build();
+    }
+
+    public ReadChanges withMetadataColumns(String... metadataColumns) {
+      for (String col : metadataColumns) {
+        if (!col.equals(CHANGE_TYPE_COLUMN)
+            && !col.equals(COMMIT_VERSION_COLUMN)
+            && !col.equals(COMMIT_TIMESTAMP_COLUMN)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unsupported metadata column %s. Supported columns are: %s, %s, and %s.",
+                  col, CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN, COMMIT_TIMESTAMP_COLUMN));
+        }
+      }
+      return toBuilder().setMetadataColumns(Arrays.asList(metadataColumns)).build();
     }
 
     public ReadChanges withConfig(Map<String, String> config) {
@@ -310,7 +350,8 @@ public class DeltaIO {
       if (deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
       }
-      Schema beamSchema = ReadRows.convertToBeamSchema(deltaSchema);
+      Schema baseSchema = ReadRows.convertToBeamSchema(deltaSchema);
+      Schema publicBeamSchema = buildPublicBeamSchema(baseSchema, getMetadataColumns());
 
       return input
           .apply("Create Path", Create.of(path))
@@ -323,8 +364,9 @@ public class DeltaIO {
                       getStartTimestamp(),
                       getEndVersion(),
                       getEndTimestamp())))
-          .apply("Read CDF Data", ParDo.of(new DeltaCDCSourceDoFn(hadoopConfig)))
-          .setRowSchema(beamSchema);
+          .apply(
+              "Read CDF Data", ParDo.of(new DeltaCDCSourceDoFn(hadoopConfig, getMetadataColumns())))
+          .setRowSchema(publicBeamSchema);
     }
   }
 }

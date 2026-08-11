@@ -63,7 +63,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR
@@ -114,7 +114,7 @@ jobs:
       - name: Check out code
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

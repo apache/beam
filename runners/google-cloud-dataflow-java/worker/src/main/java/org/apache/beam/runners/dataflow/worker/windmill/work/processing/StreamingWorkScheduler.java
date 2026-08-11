@@ -175,8 +175,8 @@ public class StreamingWorkScheduler {
         .setCacheToken(workItem.getCacheToken());
   }
 
-  private static void setLoggingContextComputation(@Nullable String computationId) {
-    DataflowWorkerLoggingMDC.setStageName(computationId);
+  private static void setLoggingContextComputation(@Nullable String systemStageName) {
+    DataflowWorkerLoggingMDC.setSystemStageName(systemStageName);
   }
 
   private static void setLoggingContextWorkId(@Nullable String workLatencyTrackingId) {
@@ -228,13 +228,9 @@ public class StreamingWorkScheduler {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
     LOG.debug("Starting processing for {}:\n{}", computationId, work);
-    setLoggingContextComputation(computationId);
+    setLoggingContextComputation(computationState.getSystemName());
     KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
     keyTransitionListener.onKeyTransition(null, work);
-
-    // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
-    // cleanup should be done before this, since we might exit early here.
-    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
 
     if (workItem.getSourceState().getOnlyFinalize()) {
       handleOnlyFinalize(computationState, work, workItem);
