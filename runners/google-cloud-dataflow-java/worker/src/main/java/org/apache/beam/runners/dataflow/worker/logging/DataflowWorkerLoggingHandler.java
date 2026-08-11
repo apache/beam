@@ -43,6 +43,8 @@ import com.google.cloud.logging.Synchronicity;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.protobuf.Struct;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
 import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -147,6 +149,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
   /** If true, add SLF4J MDC to custom_data of the log message. */
   private final AtomicBoolean logCustomMdc = new AtomicBoolean(false);
 
+  private final AtomicBoolean logOpenTelemetryTraceSpanIdAndSampled = new AtomicBoolean(false);
+
   // Only instantiated and set if enableDirectLogging is called.
   private static class DirectLoggingState {
     DirectLoggingState(
@@ -250,6 +254,10 @@ public class DataflowWorkerLoggingHandler extends Handler {
     logCustomMdc.set(enabled);
   }
 
+  public void setLogOpenTelemetryTraceAndSpanId(boolean enabled) {
+    logOpenTelemetryTraceSpanIdAndSampled.set(enabled);
+  }
+
   private static Pair<ImmutableMap<String, String>, ImmutableMap<String, String>>
       labelsFromOptionsAndMetadata(PipelineOptions options) {
     DataflowPipelineOptions dataflowOptions = options.as(DataflowPipelineOptions.class);
@@ -350,7 +358,8 @@ public class DataflowWorkerLoggingHandler extends Handler {
     addLogField(
         payloadBuilder, "exception", formatException(record.getThrown()), MESSAGE_MAX_LENGTH);
     addLogField(payloadBuilder, "thread", String.valueOf(record.getThreadID()), FIELD_MAX_LENGTH);
-    addLogField(payloadBuilder, "stage", DataflowWorkerLoggingMDC.getStageName(), FIELD_MAX_LENGTH);
+    addLogField(
+        payloadBuilder, "stage", DataflowWorkerLoggingMDC.getSystemStageName(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "worker", DataflowWorkerLoggingMDC.getWorkerId(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "work", DataflowWorkerLoggingMDC.getWorkId(), FIELD_MAX_LENGTH);
     addLogField(payloadBuilder, "job", DataflowWorkerLoggingMDC.getJobId(), FIELD_MAX_LENGTH);
@@ -384,7 +393,15 @@ public class DataflowWorkerLoggingHandler extends Handler {
         LogEntry.newBuilder(Payload.JsonPayload.of(payloadBuilder.build()))
             .setTimestamp(Instant.ofEpochMilli(record.getMillis()))
             .setSeverity(severityFor(record.getLevel()));
-
+    if (logOpenTelemetryTraceSpanIdAndSampled.get()) {
+      SpanContext spanContext = Span.current().getSpanContext();
+      if (spanContext.isValid()) {
+        builder = builder.setTrace(spanContext.getTraceId()).setSpanId(spanContext.getSpanId());
+        if (spanContext.isSampled()) {
+          builder = builder.setTraceSampled(spanContext.isSampled());
+        }
+      }
+    }
     if (stepId != null) {
       builder.setResource(
           MonitoredResource.newBuilder(RESOURCE_TYPE)
@@ -593,7 +610,7 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty(generator, "message", getFormatter().formatMessage(record));
       writeIfNotEmpty(generator, "thread", String.valueOf(record.getThreadID()));
       writeIfNotEmpty(generator, "job", DataflowWorkerLoggingMDC.getJobId());
-      writeIfNotEmpty(generator, "stage", DataflowWorkerLoggingMDC.getStageName());
+      writeIfNotEmpty(generator, "stage", DataflowWorkerLoggingMDC.getSystemStageName());
 
       if (currentExecutionState != null) {
         NameContext nameContext = currentExecutionState.getStepName();
@@ -605,6 +622,18 @@ public class DataflowWorkerLoggingHandler extends Handler {
       writeIfNotEmpty(generator, "work", DataflowWorkerLoggingMDC.getWorkId());
       writeIfNotEmpty(generator, "logger", record.getLoggerName());
       writeIfNotEmpty(generator, "exception", formatException(record.getThrown()));
+
+      if (logOpenTelemetryTraceSpanIdAndSampled.get()) {
+        SpanContext spanContext = Span.current().getSpanContext();
+        if (spanContext.isValid()) {
+          generator.writeStringField("trace", spanContext.getTraceId());
+          generator.writeStringField("spanId", spanContext.getSpanId());
+          if (spanContext.isSampled()) {
+            generator.writeBooleanField("trace_sampled", spanContext.isSampled());
+          }
+        }
+      }
+
       if (logCustomMdc.get()) {
         @Nullable Map<String, String> mdcMap = MDC.getCopyOfContextMap();
         if (mdcMap != null && !mdcMap.isEmpty()) {

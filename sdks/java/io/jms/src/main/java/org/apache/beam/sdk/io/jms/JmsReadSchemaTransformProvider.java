@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.jms;
 
-import static org.apache.beam.sdk.io.jms.JmsIO.ConnectionConfiguration;
 import static org.apache.beam.sdk.io.jms.JmsReadSchemaTransformProvider.ReadConfiguration;
 
 import com.google.auto.service.AutoService;

@@ -213,7 +213,7 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
   }
 
   // Convert Delta `Row` to Beam `Row`.
-  private static Row toBeamRow(io.delta.kernel.data.Row deltaRow, Schema beamSchema) {
+  static Row toBeamRow(io.delta.kernel.data.Row deltaRow, Schema beamSchema) {
     Row.Builder builder = Row.withSchema(beamSchema);
     StructType deltaSchema = deltaRow.getSchema();
     List<StructField> fields = deltaSchema.fields();
