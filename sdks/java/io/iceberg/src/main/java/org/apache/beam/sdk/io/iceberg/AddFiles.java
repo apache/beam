@@ -650,6 +650,24 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               "Min and max transformed values were not equal, for column: " + field.name());
         }
 
+        // Equal transformed bounds only cover the values in between for
+        // order-preserving transforms. For bucket, which hashes the value mod N
+        // , min and max can land in the same bucket while intermediate values
+        // land in others. The void transform maps every value to null and needs
+        // no check.
+        if (!transform.preservesOrder()
+            && !transform.isVoid()
+            && !Objects.deepEquals(
+                Conversions.fromByteBuffer(type, lowerBytes),
+                Conversions.fromByteBuffer(type, upperBytes))) {
+          throw new UnknownPartitionException(
+              "Transform "
+                  + transform
+                  + " does not preserve ordering, and min and max raw values were not equal,"
+                  + " for column: "
+                  + field.name());
+        }
+
         pk.set(i, lowerTransformedValue);
       }
 

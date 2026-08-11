@@ -26,6 +26,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -75,6 +76,7 @@ import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializableFunction;
@@ -527,38 +529,32 @@ public class AddFilesTest {
             .identity("age")
             .build();
 
+    // The bucketed column ("id") is single-valued per file: bucket does not preserve
+    // ordering, so min/max stats can only prove a file's bucket when min == max.
     List<PartitionTestCase> testCases =
         Arrays.asList(
             PartitionTestCase.of(
                 root + "data_1.parquet",
-                record(1, "aaaa", 10),
                 Arrays.asList(
-                    record(1, "aaaa123", 10),
-                    record(10, "aaaa789", 10),
-                    record(100, "aaaa456", 10)),
+                    record(1, "aaaa123", 10), record(1, "aaaa789", 10), record(1, "aaaa456", 10)),
                 Arrays.asList(1, CharBuffer.wrap("aaaa123"), 10),
-                Arrays.asList(100, CharBuffer.wrap("aaaa789"), 10),
+                Arrays.asList(1, CharBuffer.wrap("aaaa789"), 10),
                 "id_bucket=0/name_trunc=aaaa/age=10"),
             PartitionTestCase.of(
                 root + "data_2.parquet",
-                record(1, "bbbb", 30),
                 Arrays.asList(
-                    record(5, "bbbb789", 30),
-                    record(55, "bbbb456", 30),
-                    record(500, "bbbb123", 30)),
+                    record(5, "bbbb789", 30), record(5, "bbbb456", 30), record(5, "bbbb123", 30)),
                 Arrays.asList(5, CharBuffer.wrap("bbbb123"), 30),
-                Arrays.asList(500, CharBuffer.wrap("bbbb789"), 30),
+                Arrays.asList(5, CharBuffer.wrap("bbbb789"), 30),
                 "id_bucket=1/name_trunc=bbbb/age=30"));
 
-    PartitionKey pk = new PartitionKey(partitionSpec, icebergSchema);
     MetricsConfig metricsConfig = MetricsConfig.fromProperties(tableProps);
     Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
 
     for (PartitionTestCase caze : testCases) {
       List<Record> records = caze.records;
       String fileName = caze.fileName;
-      pk.wrap(caze.partition);
-      DataWriter<Record> writer = createWriter(fileName, pk.copy());
+      DataWriter<Record> writer = createWriter(fileName);
 
       for (Record record : records) {
         writer.write(record);
@@ -598,32 +594,29 @@ public class AddFilesTest {
 
     List<PartitionTestCase> testCases =
         Arrays.asList(
+            // Straddles two truncate(name, 4) partitions.
             PartitionTestCase.of(
                 root + "data_1.parquet",
-                record(1, "aaaa", 10),
                 Arrays.asList(
-                    record(1, "aaaa123", 10), record(10, "abab", 10), record(100, "aaaa789", 10)),
+                    record(1, "aaaa123", 10), record(1, "abab", 10), record(1, "aaaa789", 10)),
                 Arrays.asList(1, CharBuffer.wrap("aaaa123"), 10),
-                Arrays.asList(100, CharBuffer.wrap("abab"), 10),
+                Arrays.asList(1, CharBuffer.wrap("abab"), 10),
                 "error"),
+            // Straddles two identity(age) partitions.
             PartitionTestCase.of(
                 root + "data_2.parquet",
-                record(1, "bbbb", 30),
-                Arrays.asList(
-                    record(5, "bbbb", 30), record(55, "bbbb", 30), record(500, "bbbb", 50)),
+                Arrays.asList(record(5, "bbbb", 30), record(5, "bbbb", 30), record(5, "bbbb", 50)),
                 Arrays.asList(5, CharBuffer.wrap("bbbb"), 30),
-                Arrays.asList(500, CharBuffer.wrap("bbbb"), 50),
+                Arrays.asList(5, CharBuffer.wrap("bbbb"), 50),
                 "error"));
 
-    PartitionKey pk = new PartitionKey(partitionSpec, icebergSchema);
     MetricsConfig metricsConfig = MetricsConfig.fromProperties(tableProps);
     Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
 
     for (PartitionTestCase caze : testCases) {
       List<Record> records = caze.records;
       String fileName = caze.fileName;
-      pk.wrap(caze.partition);
-      DataWriter<Record> writer = createWriter(fileName, pk.copy());
+      DataWriter<Record> writer = createWriter(fileName);
 
       for (Record record : records) {
         writer.write(record);
@@ -654,9 +647,102 @@ public class AddFilesTest {
     }
   }
 
+  /**
+   * Bucket is a hash, so equal transformed min/max bounds do not imply that the values in between
+   * fall in the same bucket. A file whose bounds collide into one bucket while an intermediate row
+   * hashes elsewhere must go to the DLQ; a silent wrong assignment would hide that row from
+   * partition-pruned queries.
+   */
+  @Test
+  public void testBucketPartitionRejectsMultiValuedColumn()
+      throws IOException, InterruptedException {
+    PartitionSpec partitionSpec = PartitionSpec.builderFor(icebergSchema).bucket("id", 2).build();
+
+    // Deterministic collision: ids 1 and 4 hash to bucket 0, while 3 (between them) hashes to
+    // bucket 1.
+    SerializableFunction<Object, Integer> bucket =
+        Transforms.bucket(2).bind(Types.IntegerType.get());
+    assertEquals(bucket.apply(1), bucket.apply(4));
+    assertNotEquals(bucket.apply(1), bucket.apply(3));
+
+    String fileName = root + "bucket_straddle.parquet";
+    DataWriter<Record> writer = createWriter(fileName);
+    writer.write(record(1, "aaaa", 10));
+    writer.write(record(3, "aaaa", 10));
+    writer.write(record(4, "aaaa", 10));
+    writer.close();
+
+    Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
+    InputFile file = table.io().newInputFile(fileName);
+    Metrics metrics =
+        AddFiles.getFileMetrics(
+            file,
+            FileFormat.PARQUET,
+            MetricsConfig.fromProperties(tableProps),
+            MappingUtil.create(icebergSchema));
+
+    AddFiles.UnknownPartitionException e =
+        assertThrows(
+            AddFiles.UnknownPartitionException.class,
+            () -> getPartitionFromMetrics(metrics, file, table));
+    assertThat(e.getMessage(), containsString("does not preserve ordering"));
+    assertThat(e.getMessage(), containsString("id_bucket"));
+  }
+
+  @Test
+  public void testBucketPartitionSingleValuedColumnResolves()
+      throws IOException, InterruptedException {
+    PartitionSpec partitionSpec = PartitionSpec.builderFor(icebergSchema).bucket("id", 2).build();
+
+    String fileName = root + "bucket_single.parquet";
+    DataWriter<Record> writer = createWriter(fileName);
+    writer.write(record(3, "aaaa", 10));
+    writer.write(record(3, "bbbb", 20));
+    writer.close();
+
+    Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
+    InputFile file = table.io().newInputFile(fileName);
+    Metrics metrics =
+        AddFiles.getFileMetrics(
+            file,
+            FileFormat.PARQUET,
+            MetricsConfig.fromProperties(tableProps),
+            MappingUtil.create(icebergSchema));
+
+    assertEquals("id_bucket=1", getPartitionFromMetrics(metrics, file, table));
+  }
+
+  /**
+   * The void transform does not preserve ordering either, but it maps every value to null, so any
+   * file is trivially single-partition and must not be rejected.
+   */
+  @Test
+  public void testVoidTransformResolvesForMultiValuedColumn()
+      throws IOException, InterruptedException {
+    PartitionSpec partitionSpec =
+        PartitionSpec.builderFor(icebergSchema).alwaysNull("id").identity("age").build();
+
+    String fileName = root + "void_multi.parquet";
+    DataWriter<Record> writer = createWriter(fileName);
+    writer.write(record(1, "aaaa", 10));
+    writer.write(record(3, "aaaa", 10));
+    writer.write(record(4, "aaaa", 10));
+    writer.close();
+
+    Table table = catalog.createTable(tableId, icebergSchema, partitionSpec);
+    InputFile file = table.io().newInputFile(fileName);
+    Metrics metrics =
+        AddFiles.getFileMetrics(
+            file,
+            FileFormat.PARQUET,
+            MetricsConfig.fromProperties(tableProps),
+            MappingUtil.create(icebergSchema));
+
+    assertEquals("id_null=null/age=10", getPartitionFromMetrics(metrics, file, table));
+  }
+
   static class PartitionTestCase {
     String fileName;
-    StructLike partition;
     List<Record> records;
     List<Object> expectedLower;
     List<Object> expectedUpper;
@@ -664,13 +750,11 @@ public class AddFilesTest {
 
     PartitionTestCase(
         String fileName,
-        StructLike partition,
         List<Record> records,
         List<Object> expectedLower,
         List<Object> expectedUpper,
         String expectedPartition) {
       this.fileName = fileName;
-      this.partition = partition;
       this.records = records;
       this.expectedLower = expectedLower;
       this.expectedUpper = expectedUpper;
@@ -679,13 +763,12 @@ public class AddFilesTest {
 
     static PartitionTestCase of(
         String fileName,
-        StructLike partition,
         List<Record> records,
         List<Object> expectedLower,
         List<Object> expectedUpper,
         String expectedPartition) {
       return new PartitionTestCase(
-          fileName, partition, records, expectedLower, expectedUpper, expectedPartition);
+          fileName, records, expectedLower, expectedUpper, expectedPartition);
     }
   }
 
