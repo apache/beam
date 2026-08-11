@@ -18,15 +18,14 @@
 import inspect
 import time
 import logging
-from google.cloud import pubsub_v1
 
 logger = logging.getLogger(__name__)
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
-  from google.cloud import pubsub
+  from google.cloud import pubsub_v1
 except ImportError:
-  pubsub = None
+  pubsub_v1 = None
 # pylint: enable=wrong-import-order, wrong-import-position
 
 class TestPubsubContext:
@@ -38,6 +37,13 @@ class TestPubsubContext:
     Any catastrophic leaks are handled independently by the global 'stale_cleaner.py'.
     """
     def __init__(self, project_id, dry_run=True): # Keep dry_run=True to avoid accidental deletions during testing
+
+        if pubsub_v1 is None:
+            raise ImportError(
+                "The 'google-cloud-pubsub' library is required for TestPubsubContext. "
+                "Please install it using 'pip install google-cloud-pubsub'."
+            )
+
         self.project_id = project_id
         self.dry_run = dry_run
         self.publisher = pubsub_v1.PublisherClient()
