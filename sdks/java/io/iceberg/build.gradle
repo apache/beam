@@ -64,7 +64,7 @@ dependencies {
     provided "org.immutables:value:2.8.8"
     permitUnusedDeclared "org.immutables:value:2.8.8"
     implementation library.java.vendored_calcite_1_40_0
-    runtimeOnly library.java.jackson_databind
+    implementation library.java.jackson_databind
     runtimeOnly "org.apache.iceberg:iceberg-gcp:$iceberg_version"
     runtimeOnly "org.apache.iceberg:iceberg-aws:$iceberg_version"
     runtimeOnly "org.apache.iceberg:iceberg-aws-bundle:$iceberg_version"
