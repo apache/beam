@@ -126,8 +126,7 @@ public class AddFilesIT {
           "warehouse", WAREHOUSE,
           "header.x-goog-user-project", PROJECT,
           "rest.auth.type", "google",
-          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-          "rest-metrics-reporting-enabled", "false");
+          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO");
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
