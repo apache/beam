@@ -598,13 +598,12 @@ public final class StreamingDataflowWorker {
   boolean isHealthy() {
     int stuckCommitDurationMillis =
         options.isEnableStreamingEngine() ? Math.max(options.getStuckCommitDurationMillis(), 0) : 0;
-    if (stuckCommitDurationMillis <= 0) {
-      return true;
-    }
-    Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
-    for (ComputationState computationState : computationStateCache.getAllPresentComputations()) {
-      if (computationState.hasStuckCommits(stuckCommitDeadline)) {
-        return false;
+    if (stuckCommitDurationMillis > 0) {
+      Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
+      for (ComputationState computationState : computationStateCache.getAllPresentComputations()) {
+        if (computationState.hasStuckCommits(stuckCommitDeadline)) {
+          return false;
+        }
       }
     }
     return true;

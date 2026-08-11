@@ -86,7 +86,7 @@ public class ActiveWorkStateTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
             false,
-            () -> Instant.EPOCH,
+            Instant::now,
             ImmutableList.of()),
         (work, handle) -> {});
   }
@@ -323,6 +323,7 @@ public class ActiveWorkStateTest {
     ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
 
     ExecutableWork stuckWork1 = expiredWork(createWorkItem(1L, 1L, shardedKey1));
+    Instant timestampBeforeCommiting = Instant.now();
     stuckWork1.work().setState(Work.State.COMMITTING);
     ExecutableWork unstuckWork2 = expiredWork(createWorkItem(2L, 1L, shardedKey2));
     unstuckWork2.work().setState(Work.State.PROCESSING);
@@ -330,6 +331,7 @@ public class ActiveWorkStateTest {
     activeWorkState.activateWorkForKey(stuckWork1);
     activeWorkState.activateWorkForKey(unstuckWork2);
 
+    assertThat(activeWorkState.hasStuckCommits(timestampBeforeCommiting)).isFalse();
     assertThat(activeWorkState.hasStuckCommits(Instant.now())).isTrue();
   }
 
