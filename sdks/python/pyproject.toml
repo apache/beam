@@ -25,7 +25,9 @@ requires = [
     # Currently Blocked on old dependencies of Beam tft extra:
     # https://github.com/apache/beam/issues/37854
     "grpcio-tools==1.62.1; python_version <= '3.12'",
-    "grpcio-tools==1.71.0; python_version >= '3.13'",
+    "grpcio-tools==1.71.0; python_version == '3.13'",
+    # 1.81.1 provides Windows cp314 wheels (1.71.0 does not).
+    "grpcio-tools==1.81.1; python_version >= '3.14'",
     "mypy-protobuf==3.5.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
     "distlib==0.4.3",
