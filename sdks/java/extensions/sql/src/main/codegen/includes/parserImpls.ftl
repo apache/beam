@@ -855,6 +855,38 @@ Schema.FieldType SimpleType() :
     }
 }
 
+/**
+ * CALL ( catalog_name '.' )? ( 'system' '.' )? procedure_name
+ *   '(' ( arg ( ',' arg )* )? ')'
+ *
+ * where arg := literal | param_name '=>' literal
+ */
+SqlCall SqlCallProcedure(Span s) :
+{
+    final SqlIdentifier procedureName;
+    final List<SqlNode> args = new ArrayList<SqlNode>();
+}
+{
+    <CALL> {
+        s.add(this);
+    }
+    procedureName = CompoundIdentifier()
+    <LPAREN>
+    [
+        AddArg0(args, ExprContext.ACCEPT_NONCURSOR)
+        (
+            <COMMA> {
+                checkNonQueryExpression(ExprContext.ACCEPT_NONCURSOR);
+            }
+            AddArg(args, ExprContext.ACCEPT_NONCURSOR)
+        )*
+    ]
+    <RPAREN>
+    {
+        return new SqlCallProcedure(s.end(this), procedureName, args);
+    }
+}
+
 SqlSetOptionBeam SqlSetOptionBeam(Span s, String scope) :
 {
     SqlIdentifier name;
