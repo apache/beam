@@ -120,6 +120,24 @@ public class TerminationTrackerTest {
   }
 
   @Test
+  public void shuttingDownDoesNotFireAgain() {
+    // What the callback does is stop the client, which closes every task's processors, and each of
+    // those unregisters on the way out. So the tracker is asked again several times after the
+    // pipeline has already been declared finished.
+    TerminationTracker tracker = tracker();
+    tracker.register("source#0_0");
+    tracker.register("stage#1_0");
+    tracker.terminate("source#0_0");
+    tracker.terminate("stage#1_0");
+    assertThat(calls.get(), is(1));
+
+    tracker.unregister("source#0_0");
+    tracker.unregister("stage#1_0");
+
+    assertThat("stopping the pipeline must not stop it a second time", calls.get(), is(1));
+  }
+
+  @Test
   public void aProcessorThatMigratesAwayIsNoLongerWaitedOn() {
     TerminationTracker tracker = tracker();
     tracker.register("stage#0_0");

@@ -70,10 +70,14 @@ public class TerminationTracker {
   /** Those of {@link #live} that have emitted the terminal watermark. */
   private final Set<String> terminated = new HashSet<>();
 
+  /**
+   * What to do when the pipeline is finished, cleared as it is taken.
+   *
+   * <p>Clearing it is what stops it running twice: a pipeline only finishes once, but processors go
+   * on reporting afterwards — the callback stops the client, and closing it makes every remaining
+   * task close its processors, each of which unregisters and asks again.
+   */
   private @Nullable Runnable onAllTerminated;
-
-  /** Fire the callback at most once, however many processors report in afterwards. */
-  private boolean fired;
 
   /**
    * Whether the topology is fully up, and so whether the registered processors are the whole set.
@@ -170,14 +174,15 @@ public class TerminationTracker {
    * Returns the callback to run if the pipeline is finished, having claimed the right to run it.
    */
   private @Nullable Runnable takeCallbackIfDone() {
-    if (fired || !started || live.isEmpty() || !terminated.containsAll(live)) {
+    if (!started || live.isEmpty() || !terminated.containsAll(live)) {
       return null;
     }
     Runnable callback = onAllTerminated;
     if (callback == null) {
+      // Never set, or already taken — either way there is nothing left to do.
       return null;
     }
-    fired = true;
+    onAllTerminated = null;
     LOG.info(
         "All {} processor instances reached the terminal watermark; stopping the pipeline",
         live.size());
