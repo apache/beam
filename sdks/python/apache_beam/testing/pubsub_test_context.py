@@ -22,6 +22,13 @@ from google.cloud import pubsub_v1
 
 logger = logging.getLogger(__name__)
 
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.cloud import pubsub
+except ImportError:
+  pubsub = None
+# pylint: enable=wrong-import-order, wrong-import-position
+
 class TestPubsubContext:
     """A highly advanced Pub/Sub resource lifecycle manager for Python integration tests.
     Implements cascading third-party subscription cleanup and selective

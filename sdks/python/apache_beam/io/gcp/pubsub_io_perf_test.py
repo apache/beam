@@ -60,7 +60,7 @@ from apache_beam.testing.synthetic_pipeline import SyntheticSource
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
-from apache_beam.testing.test_pubsub import TestPubsubContext
+from sdks.python.apache_beam.testing.pubsub_test_context import TestPubsubContext
 
 # pylint: disable=wrong-import-order, wrong-import-position
 try:
