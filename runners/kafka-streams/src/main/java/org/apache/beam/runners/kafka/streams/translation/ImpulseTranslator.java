@@ -79,7 +79,9 @@ class ImpulseTranslator implements PTransformTranslator {
         Serdes.ByteArray().deserializer(),
         bootstrapTopic);
     topology.addProcessor(
-        transformId, () -> new ImpulseProcessor(stateStoreName, transformId), sourceNodeName);
+        transformId,
+        () -> new ImpulseProcessor(stateStoreName, transformId, context.getTerminationTracker()),
+        sourceNodeName);
     topology.addStateStore(
         Stores.keyValueStoreBuilder(
             Stores.persistentKeyValueStore(stateStoreName), Serdes.String(), Serdes.Boolean()),

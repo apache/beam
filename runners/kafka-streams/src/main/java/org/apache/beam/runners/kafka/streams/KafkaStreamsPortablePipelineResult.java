@@ -53,11 +53,16 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
    * listener, and Kafka Streams rejects one once the application has left the CREATED state.
    */
   KafkaStreamsPortablePipelineResult(
-      KafkaStreams kafkaStreams, MetricsContainerStepMap metricsContainerStepMap) {
+      KafkaStreams kafkaStreams,
+      MetricsContainerStepMap metricsContainerStepMap,
+      Runnable onRunning) {
     this.kafkaStreams = kafkaStreams;
     this.metricsContainerStepMap = metricsContainerStepMap;
     kafkaStreams.setStateListener(
         (newState, oldState) -> {
+          if (newState == KafkaStreams.State.RUNNING) {
+            onRunning.run();
+          }
           if (newState == KafkaStreams.State.NOT_RUNNING || newState == KafkaStreams.State.ERROR) {
             terminated.countDown();
           }

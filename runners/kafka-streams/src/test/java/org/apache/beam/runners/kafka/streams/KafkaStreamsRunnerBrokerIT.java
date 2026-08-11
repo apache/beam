@@ -253,6 +253,28 @@ public class KafkaStreamsRunnerBrokerIT {
     }
   }
 
+  @Test
+  public void aBoundedPipelineTerminatesOnItsOwn() throws Exception {
+    // Kafka Streams runs a topology until something stops the client, so a bounded pipeline used to
+    // run for ever against a real broker: it produced the right answer and then sat there. The
+    // other tests here cannot see that, because they cancel rather than wait, and the
+    // ValidatesRunner
+    // suite cannot either, because TopologyTestDriver is synchronous and always reports DONE.
+    //
+    // Nothing cancels this one. Returning from run() at all is the assertion.
+    KafkaStreamsPipelineOptions options = options(4);
+    Pipeline pipeline = Pipeline.create(options);
+    buildChainedPipeline(pipeline);
+
+    PipelineResult result = runPipeline(pipeline, options);
+
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
+    // And it stopped for the right reason — having produced its output exactly once. Termination is
+    // driven from a wall-clock punctuator, which is the same mechanism that duplicates output when
+    // it is used to close bundles on time (#39633), so the count matters as much as the state.
+    assertThat(counterValue(result), is(1L));
+  }
+
   /**
    * Polls the pipeline's metrics until the counter reaches {@code expected} or the timeout hits.
    */

@@ -155,7 +155,8 @@ class ReadTranslator implements PTransformTranslator {
                 stateStoreName,
                 transformId,
                 maxElementsPerPoll,
-                checkpointEveryNPolls),
+                checkpointEveryNPolls,
+                context.getTerminationTracker()),
         sourceNodeName);
     topology.addStateStore(
         Stores.keyValueStoreBuilder(
@@ -198,7 +199,13 @@ class ReadTranslator implements PTransformTranslator {
         transformId,
         () ->
             new ReadProcessor<>(
-                source, options, sdkWireCoder, runnerWireCoder, stateStoreName, transformId),
+                source,
+                options,
+                sdkWireCoder,
+                runnerWireCoder,
+                stateStoreName,
+                transformId,
+                context.getTerminationTracker()),
         sourceNodeName);
     KeyValueBytesStoreSupplier storeSupplier = Stores.persistentKeyValueStore(stateStoreName);
     topology.addStateStore(

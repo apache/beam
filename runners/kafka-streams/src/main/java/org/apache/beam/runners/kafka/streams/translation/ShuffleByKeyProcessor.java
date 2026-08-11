@@ -57,11 +57,21 @@ class ShuffleByKeyProcessor
 
   private int upstreamPartition;
 
+  // Reports this shuffle as finished once it has written the terminal watermark to the repartition
+  // topic. The downstream side reading that topic reports separately, which is why the pipeline
+  // waits for every processor rather than the first.
+  private final TerminationReporter terminationReporter;
+
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
 
-  ShuffleByKeyProcessor(Coder<Object> keyCoder, int upstreamPartitionCount) {
+  ShuffleByKeyProcessor(
+      Coder<Object> keyCoder,
+      int upstreamPartitionCount,
+      String nodeName,
+      TerminationTracker terminationTracker) {
     this.keyCoder = keyCoder;
     this.upstreamPartitionCount = upstreamPartitionCount;
+    this.terminationReporter = new TerminationReporter(terminationTracker, nodeName);
   }
 
   @Override
@@ -70,6 +80,12 @@ class ShuffleByKeyProcessor
     // This processor runs in the upstream transform's task, so the task's partition is the
     // identity of the instance whose reports it is forwarding.
     this.upstreamPartition = context.taskId().partition();
+    terminationReporter.init(context);
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
   }
 
   @Override
@@ -109,6 +125,7 @@ class ShuffleByKeyProcessor
                   upstreamPartition,
                   upstreamPartitionCount),
               record.timestamp()));
+      terminationReporter.watermarkEmitted(ctx, report.getWatermarkMillis());
     }
   }
 

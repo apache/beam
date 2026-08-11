@@ -69,22 +69,32 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], KStreamsPayl
 
   private final String stateStoreName;
   private final String transformId;
+  // Reports this source as finished once it emits the terminal watermark.
+  private final TerminationReporter terminationReporter;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<byte[]>> context;
   private @Nullable KeyValueStore<String, Boolean> firedStore;
   private @Nullable Cancellable scheduledPunctuator;
 
-  ImpulseProcessor(String stateStoreName, String transformId) {
+  ImpulseProcessor(
+      String stateStoreName, String transformId, TerminationTracker terminationTracker) {
     this.stateStoreName = stateStoreName;
     this.transformId = transformId;
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
   }
 
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<byte[]>> context) {
     this.context = context;
     this.firedStore = context.getStateStore(stateStoreName);
+    terminationReporter.init(context);
     this.scheduledPunctuator =
         context.schedule(PUNCTUATION_DELAY, PunctuationType.WALL_CLOCK_TIME, ts -> maybeFire());
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
   }
 
   @Override
@@ -132,6 +142,7 @@ class ImpulseProcessor implements Processor<byte[], byte[], byte[], KStreamsPayl
     ctx.forward(
         new Record<byte[], KStreamsPayload<byte[]>>(
             new byte[0], KStreamsPayload.watermark(maxMillis, transformId, 0, 1), 0L));
+    terminationReporter.watermarkEmitted(ctx, maxMillis);
   }
 
   /** Cancels the wall-clock punctuator after the impulse has fired to stop periodic wakeups. */

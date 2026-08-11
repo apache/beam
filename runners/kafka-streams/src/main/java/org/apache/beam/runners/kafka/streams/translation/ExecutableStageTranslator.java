@@ -109,7 +109,8 @@ class ExecutableStageTranslator implements PTransformTranslator {
                 ImmutableSet.of(parentProcessor),
                 context.getMetricsContainerStepMap().getContainer(transformId),
                 outputChildByPCollectionId,
-                context.getPipelineOptions().getMaxBundleSize()),
+                context.getPipelineOptions().getMaxBundleSize(),
+                context.getTerminationTracker()),
         parentProcessor);
 
     if (multiOutput) {
@@ -118,7 +119,9 @@ class ExecutableStageTranslator implements PTransformTranslator {
       outputChildByPCollectionId.forEach(
           (outputPCollectionId, relayName) -> {
             topology.addProcessor(
-                relayName, () -> new StageOutputProcessor(relayName), transformId);
+                relayName,
+                () -> new StageOutputProcessor(relayName, context.getTerminationTracker()),
+                transformId);
             context.registerPCollectionProducer(outputPCollectionId, relayName);
             context.registerPCollectionPartitionCount(outputPCollectionId, partitionCount);
           });

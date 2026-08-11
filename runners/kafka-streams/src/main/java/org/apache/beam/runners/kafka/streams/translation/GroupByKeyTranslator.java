@@ -106,7 +106,8 @@ class GroupByKeyTranslator implements PTransformTranslator {
     String holdsIndexStoreName = transformId + HOLDS_INDEX_STORE_SUFFIX;
     String timerStoreName = transformId + TIMER_STORE_SUFFIX;
     String timerIndexStoreName = transformId + TIMER_INDEX_STORE_SUFFIX;
-    String repartitionTopic = repartitionTopic(transformId);
+    String repartitionTopic =
+        repartitionTopic(transformId, context.getPipelineOptions().getApplicationId());
 
     KStreamsPayloadSerde<KV<Object, Object>> payloadSerde = new KStreamsPayloadSerde<>(inputCoder);
 
@@ -118,7 +119,9 @@ class GroupByKeyTranslator implements PTransformTranslator {
     int upstreamPartitionCount = context.getPartitionCount(inputPCollectionId);
     topology.addProcessor(
         shuffleName,
-        () -> new ShuffleByKeyProcessor(keyCoder, upstreamPartitionCount),
+        () ->
+            new ShuffleByKeyProcessor(
+                keyCoder, upstreamPartitionCount, shuffleName, context.getTerminationTracker()),
         parentProcessor);
 
     // Shuffle through the repartition topic: data partitioned by key, watermark broadcast.
@@ -151,7 +154,8 @@ class GroupByKeyTranslator implements PTransformTranslator {
                 keyCoder,
                 valueCoder,
                 windowingStrategy,
-                context.getPipelineOptions()),
+                context.getPipelineOptions(),
+                context.getTerminationTracker()),
         sourceName);
     topology.addStateStore(
         Stores.keyValueStoreBuilder(
@@ -200,8 +204,19 @@ class GroupByKeyTranslator implements PTransformTranslator {
     }
   }
 
-  /** The internal repartition topic name for a GroupByKey transform. */
-  static String repartitionTopic(String transformId) {
-    return REPARTITION_TOPIC_PREFIX + transformId.replaceAll("[^a-zA-Z0-9._-]", "_");
+  /**
+   * The internal repartition topic name for a GroupByKey transform.
+   *
+   * <p>Namespaced by application id, as the Impulse and Read bootstrap topics already are.
+   * Transform ids come from the pipeline's structure, so two jobs running the same pipeline would
+   * otherwise shuffle through the same topic and read each other's data — and, because the topic is
+   * created only if it does not already exist, the second job would silently inherit the first
+   * job's partition count rather than the one it asked for.
+   */
+  static String repartitionTopic(String transformId, String applicationId) {
+    return REPARTITION_TOPIC_PREFIX
+        + applicationId.replaceAll("[^a-zA-Z0-9._-]", "_")
+        + "_"
+        + transformId.replaceAll("[^a-zA-Z0-9._-]", "_");
   }
 }

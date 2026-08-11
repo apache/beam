@@ -111,6 +111,9 @@ class ExecutableStageProcessor
   // Computes this stage's input watermark from its upstream transform's reports, holding until
   // every partition of the upstream transform has reported (see WatermarkAggregator).
   private final WatermarkAggregator watermarkAggregator;
+  // Reports this stage instance as finished once it emits the terminal watermark, so a bounded
+  // pipeline can stop itself.
+  private final TerminationReporter terminationReporter;
   // The last watermark actually forwarded downstream, so we only forward when it advances.
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
@@ -139,7 +142,8 @@ class ExecutableStageProcessor
       Set<String> upstreamTransformIds,
       MetricsContainerImpl metricsContainer,
       Map<String, String> outputChildByPCollectionId,
-      int maxBundleSize) {
+      int maxBundleSize,
+      TerminationTracker terminationTracker) {
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
     this.transformId = transformId;
@@ -147,6 +151,7 @@ class ExecutableStageProcessor
     this.metricsContainer = metricsContainer;
     this.outputChildByPCollectionId = ImmutableMap.copyOf(outputChildByPCollectionId);
     this.maxBundleSize = maxBundleSize;
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
   }
 
   /** A harness output element together with the id of the output PCollection it belongs to. */
@@ -163,6 +168,7 @@ class ExecutableStageProcessor
   @Override
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
+    terminationReporter.init(context);
     // The SDK harness (stage context + bundle factory) is created lazily on the first data
     // element, so a stage that only forwards watermarks never spins one up. This mirrors Spark's
     // SparkExecutableStageFunction, which likewise does not build a bundle factory when there are
@@ -336,6 +342,7 @@ class ExecutableStageProcessor
             record.key(),
             KStreamsPayload.watermark(watermarkMillis, transformId, 0, 1),
             record.timestamp()));
+    terminationReporter.watermarkEmitted(ctx, watermarkMillis);
   }
 
   @Override
@@ -364,6 +371,10 @@ class ExecutableStageProcessor
     } catch (Exception e) {
       LOG.warn("Error closing executable stage context", e);
     }
+    // Last: this is what stops the pipeline waiting on this stage, and closing the bundle above can
+    // still forward records downstream. Releasing it first would let the pipeline be declared
+    // finished while this stage was flushing.
+    terminationReporter.close();
   }
 
   private static <T> T checkInitialized(@Nullable T value) {

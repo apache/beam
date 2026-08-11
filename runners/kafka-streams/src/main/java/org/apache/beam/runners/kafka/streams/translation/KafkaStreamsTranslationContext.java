@@ -61,6 +61,11 @@ public class KafkaStreamsTranslationContext {
   // work.
   private final MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
 
+  // Decides when a bounded pipeline has finished. Owned by the context, so it is scoped to this one
+  // pipeline: the job server runs several jobs in a single process, and a tracker shared between
+  // them would let one pipeline finishing stop another.
+  private final TerminationTracker terminationTracker = new TerminationTracker();
+
   public static KafkaStreamsTranslationContext create(
       JobInfo jobInfo, KafkaStreamsPipelineOptions pipelineOptions) {
     return new KafkaStreamsTranslationContext(jobInfo, pipelineOptions, new Topology());
@@ -100,6 +105,15 @@ public class KafkaStreamsTranslationContext {
    */
   public MetricsContainerStepMap getMetricsContainerStepMap() {
     return metricsContainerStepMap;
+  }
+
+  /**
+   * Returns the tracker that decides when this pipeline has finished. Processors report themselves
+   * to it as they reach the terminal watermark; the runner asks it to stop the Kafka Streams client
+   * once they all have.
+   */
+  public TerminationTracker getTerminationTracker() {
+    return terminationTracker;
   }
 
   /**
