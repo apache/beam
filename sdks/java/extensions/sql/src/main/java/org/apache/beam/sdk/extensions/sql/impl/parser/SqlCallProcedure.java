@@ -57,10 +57,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * CALL [catalog_name.][system.]procedure_name(param2 => arg2, param1 => arg1, ...)
  * }</pre>
  *
- * <p>Arguments are passed either by position or by name, the namespace component (if any) must
- * be {@code system}, and procedure names
- * resolve case-insensitively. Procedures are provided by the target {@link Catalog} via {@link
- * Catalog#loadProcedure(String)}.
+ * <p>Arguments are passed either by position or by name, the namespace component (if any) must be
+ * {@code system}, and procedure names resolve case-insensitively. Procedures are provided by the
+ * target {@link Catalog} via {@link Catalog#loadProcedure(String)}.
  */
 public class SqlCallProcedure extends SqlCall implements BeamSqlParser.ExecutableStatement {
   private static final SqlOperator OPERATOR = new SqlSpecialOperator("CALL", SqlKind.OTHER_DDL);
