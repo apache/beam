@@ -168,7 +168,9 @@ public class DeltaIO {
     static Schema convertToBeamSchema(StructType deltaSchema) {
       Schema.Builder builder = Schema.builder();
       for (StructField field : deltaSchema.fields()) {
-        builder.addField(field.getName(), convertToBeamFieldType(field.getDataType()));
+        builder.addField(
+            Schema.Field.of(field.getName(), convertToBeamFieldType(field.getDataType()))
+                .withNullable(field.isNullable()));
       }
       return builder.build();
     }
