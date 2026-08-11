@@ -452,6 +452,26 @@ public class DeltaIOTest {
   }
 
   @Test
+  public void testConvertToBeamSchemaPreservesNullability() {
+    StructType deltaSchema =
+        new StructType(
+            java.util.Arrays.asList(
+                new StructField("nullable_string", StringType.STRING, true),
+                new StructField("non_nullable_integer", IntegerType.INTEGER, false)));
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addField(
+                Schema.Field.of("nullable_string", Schema.FieldType.STRING).withNullable(true))
+            .addField(
+                Schema.Field.of("non_nullable_integer", Schema.FieldType.INT32).withNullable(false))
+            .build();
+
+    Schema actualSchema = DeltaIO.ReadRows.convertToBeamSchema(deltaSchema);
+    org.junit.Assert.assertEquals(expectedSchema, actualSchema);
+  }
+
+  @Test
   public void testDeltaReadTaskTracker() {
     java.util.List<Long> sizes = java.util.Arrays.asList(100L, 200L, 300L);
     org.apache.beam.sdk.io.range.OffsetRange range =
@@ -1086,6 +1106,84 @@ public class DeltaIOTest {
             "row-1:update_preimage:v1:t123456789000",
             "row-1-updated:update_postimage:v1:t123456789000",
             "row-2:delete:v1:t123456789000");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithMissingMetadataColumns() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-missing-metadata");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions), but OMIT version and
+    // timestamp columns!
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING);
+
+    Row cdcRow1 = Row.withSchema(cdcWriteSchema).addValues("row-1", "update_preimage").build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema).addValues("row-1-updated", "update_postimage").build();
+    Row cdcRow3 = Row.withSchema(cdcWriteSchema).addValues("row-2", "delete").build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table requesting metadata columns
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .setIncludeMetadataColumns(
+                java.util.Arrays.asList(
+                    DeltaIO.CHANGE_TYPE_COLUMN,
+                    DeltaIO.COMMIT_VERSION_COLUMN,
+                    DeltaIO.COMMIT_TIMESTAMP_COLUMN))
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row with Metadata", ParDo.of(new FormatRowWithMetadata()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "row-1:insert:v0:t100000000000",
+            "row-2:insert:v0:t100000000000",
+            "row-1:update_preimage:v1:t200000000000",
+            "row-1-updated:update_postimage:v1:t200000000000",
+            "row-2:delete:v1:t200000000000");
 
     readPipeline.run().waitUntilFinish();
   }
