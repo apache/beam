@@ -18,6 +18,7 @@
 package org.apache.beam.runners.kafka.streams;
 
 import java.util.Properties;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
@@ -167,7 +168,15 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
     props.put(StreamsConfig.APPLICATION_ID_CONFIG, pipelineOptions.getApplicationId());
     props.put(StreamsConfig.STATE_DIR_CONFIG, pipelineOptions.getStateDir());
     props.put(StreamsConfig.PROCESSING_GUARANTEE_CONFIG, StreamsConfig.EXACTLY_ONCE_V2);
-    props.put(StreamsConfig.CLIENT_ID_CONFIG, jobInfo.jobId());
+    // The job id identifies the pipeline, which every instance of it shares, so on its own it does
+    // not identify an instance. Kafka Streams names threads, consumers and metrics after the client
+    // id, so two workers running the same job would produce logs and JMX metrics that cannot be
+    // told
+    // apart — in a deployment whose whole point is that you add workers. Keeping the job id as the
+    // prefix leaves the pipeline recognizable; the suffix is what makes each worker distinct, and
+    // is
+    // what Kafka Streams does by default when no client id is set.
+    props.put(StreamsConfig.CLIENT_ID_CONFIG, jobInfo.jobId() + "-" + UUID.randomUUID());
     return props;
   }
 }

@@ -21,7 +21,14 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.sdk.Pipeline;
@@ -123,11 +130,22 @@ public class KafkaStreamsRunnerBrokerIT {
   }
 
   private KafkaStreamsPipelineOptions options(int topicPartitions) {
+    return options(topicPartitions, "ks-broker-it-" + UUID.randomUUID());
+  }
+
+  /**
+   * Options for one runner instance.
+   *
+   * <p>Two instances of the same job share an application id — that is what puts them in one
+   * consumer group and so splits the work between them — but each needs its own state directory,
+   * since the local stores are per instance.
+   */
+  private KafkaStreamsPipelineOptions options(int topicPartitions, String applicationId) {
     KafkaStreamsPipelineOptions options =
         PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
     options.setRunner(CrashingRunner.class);
     options.setBootstrapServers(kafka.getBootstrapServers());
-    options.setApplicationId("ks-broker-it-" + UUID.randomUUID());
+    options.setApplicationId(applicationId);
     options.setInternalParallelism(topicPartitions);
     options
         .as(PortablePipelineOptions.class)
@@ -273,6 +291,52 @@ public class KafkaStreamsRunnerBrokerIT {
     // driven from a wall-clock punctuator, which is the same mechanism that duplicates output when
     // it is used to close bundles on time (#39633), so the count matters as much as the state.
     assertThat(counterValue(result), is(1L));
+  }
+
+  @Test
+  public void twoInstancesShareThreePartitions() throws Exception {
+    // Everything else here runs one instance, which leaves the thing the runner exists for
+    // untested: the work being split between instances by Kafka's own group membership.
+    //
+    // Three partitions across two instances is deliberate. It does not divide, so the instances
+    // take an unequal share, and a watermark aggregator on either of them has to hear from all
+    // three upstream partitions — some of which are being produced by the other instance — before
+    // it may let its watermark advance. If the reports were tied to the instance that produced
+    // them rather than to the partition, this is the shape that would break.
+    String applicationId = "ks-broker-it-" + UUID.randomUUID();
+    List<PipelineResult> results = Collections.synchronizedList(new ArrayList<>());
+    ExecutorService instances = Executors.newFixedThreadPool(2);
+    try {
+      List<Future<?>> running = new ArrayList<>();
+      for (int instance = 0; instance < 2; instance++) {
+        KafkaStreamsPipelineOptions options = options(3, applicationId);
+        Pipeline pipeline = Pipeline.create(options);
+        buildChainedPipeline(pipeline);
+        running.add(
+            instances.submit(
+                () -> {
+                  // run() blocks until its instance has finished, so each needs its own thread.
+                  results.add(runPipeline(pipeline, options));
+                }));
+      }
+      for (Future<?> future : running) {
+        // Fails rather than hangs if an instance never finishes — which is the interesting way for
+        // this to go wrong, since an instance only stops once every processor it owns is done.
+        future.get(TIMEOUT.getMillis(), TimeUnit.MILLISECONDS);
+      }
+    } finally {
+      instances.shutdownNow();
+    }
+
+    // The pipeline collapses everything onto one key, so exactly one group comes out of the second
+    // GroupByKey however the partitions were shared. Each instance counts what it processed, so the
+    // total across both is what has to be one: a group counted twice would mean the instances had
+    // both claimed the same partition's data.
+    long groups = 0;
+    for (PipelineResult result : results) {
+      groups += counterValue(result);
+    }
+    assertThat(groups, is(1L));
   }
 
   /**
