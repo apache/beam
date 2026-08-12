@@ -234,13 +234,35 @@ The recommended best-practice is to use the `dynamic_schema` helper:
             union_schema='id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN'),
         schema_side_inputs=(schema_dict_side_input,))
 
-.. note::
-  **Table Creation Behavior**: When using `method=STORAGE_WRITE_API` with dynamic
-  destinations, if target tables do not already exist and `create_disposition` is
-  `CREATE_IF_NEEDED`, the cross-language transform creates the tables using the
-  top-level union schema. If destination tables must strictly maintain distinct,
-  individual schemas in BigQuery without unpopulated union columns, pre-create the
-  destination tables prior to pipeline execution.
+Differences and Limitations Compared to Native Java BigQueryIO
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Because Python uses a cross-language expansion (`SchemaAwareExternalTransform`)
+to invoke the Java Storage Write API implementation, certain behaviors differ
+from native Java `DynamicDestinations`:
+
+1. **Table Creation on Write (`CREATE_IF_NEEDED`)**:
+   When writing to dynamic destinations with callable schemas, `WriteToBigQuery`
+   automatically creates destination tables in BigQuery using each table's exact
+   specific schema on the Python side before delegating writes to the Storage
+   Write API, ensuring that auto-created tables only contain their specific
+   columns (matching the behavior of native Java).
+
+2. **Streaming Schema Evolution**:
+   In native Java, pipelines can write dynamic `TableRow` objects and leverage BigQuery's
+   automatic schema update capabilities (`autoSchemaUpdates`) to append new fields to
+   existing tables at runtime. In Python cross-language execution, elements must pass
+   through a static `RowCoder` compiled at pipeline submission time. Introducing new fields
+   or destination tables not represented in the initial `union_schema` requires draining
+   and updating/restarting the pipeline.
+
+3. **Side Inputs for Schemas**:
+   Side inputs (`schema_side_inputs`) can dynamically dictate destination-to-schema
+   mappings and select subsets of fields per destination at runtime. However, side inputs
+   cannot introduce new fields that were omitted from the statically declared `union_schema`.
+
+4. **Field Type Compatibility Across Destinations**:
+   Overlapping column names across different destination tables must share compatible
+   BigQuery types (e.g. `status` cannot be `INTEGER` in one table and `STRING` in another).
 
 Additional Parameters for BigQuery Tables
 -----------------------------------------
@@ -2560,7 +2582,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           primary_key=self._primary_key,
           big_lake_configuration=self._big_lake_configuration,
           expansion_service=self.expansion_service,
-          type_overrides=self._type_overrides)
+          type_overrides=self._type_overrides,
+          test_client=self.test_client)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
 
@@ -2811,7 +2834,8 @@ class StorageWriteToBigQuery(PTransform):
       primary_key: list[str] = None,
       big_lake_configuration=None,
       expansion_service=None,
-      type_overrides=None):
+      type_overrides=None,
+      test_client=None):
     self._table = table
     self._table_side_inputs = table_side_inputs or ()
     self._schema = schema
@@ -2829,6 +2853,7 @@ class StorageWriteToBigQuery(PTransform):
     self._type_overrides = type_overrides
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
+    self._test_client = test_client
 
   def expand(self, input):
     if self._schema is None:
@@ -2863,7 +2888,13 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, False, self._type_overrides).with_output_types())
+                schema,
+                False,
+                self._type_overrides,
+                create_disposition=self._create_disposition,
+                write_disposition=self._write_disposition,
+                additional_bq_parameters=self.additional_bq_parameters,
+                test_client=self._test_client).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2898,8 +2929,11 @@ class StorageWriteToBigQuery(PTransform):
                 schema,
                 True,
                 self._type_overrides,
-                schema_side_inputs=self._schema_side_inputs).with_output_types(
-                ))
+                schema_side_inputs=self._schema_side_inputs,
+                create_disposition=self._create_disposition,
+                write_disposition=self._write_disposition,
+                additional_bq_parameters=self.additional_bq_parameters,
+                test_client=self._test_client).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
@@ -2966,17 +3000,111 @@ class StorageWriteToBigQuery(PTransform):
     def __exit__(self, *args):
       pass
 
+  class _ConvertDynamicRowDoFn(DoFn):
+    def __init__(
+        self,
+        schema,
+        union_field_names,
+        create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=BigQueryDisposition.WRITE_APPEND,
+        additional_bq_parameters=None,
+        test_client=None):
+      self.schema = schema
+      self.union_field_names = union_field_names
+      self.create_disposition = create_disposition
+      self.write_disposition = write_disposition
+      self.additional_bq_parameters = additional_bq_parameters
+      self.test_client = test_client
+      self.bigquery_wrapper = None
+
+    def start_bundle(self):
+      if self.create_disposition == BigQueryDisposition.CREATE_IF_NEEDED:
+        if self.test_client:
+          self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
+              client=self.test_client)
+        else:
+          try:
+            self.bigquery_wrapper = bigquery_tools.BigQueryWrapper()
+          except Exception:
+            self.bigquery_wrapper = None
+
+    def _create_table_if_needed(self, dest, record_schema):
+      if self.create_disposition != BigQueryDisposition.CREATE_IF_NEEDED:
+        return
+      try:
+        table_ref = bigquery_tools.parse_table_reference(dest)
+      except ValueError:
+        return
+      if not table_ref.datasetId or not table_ref.tableId:
+        return
+
+      if self.bigquery_wrapper is None:
+        if self.test_client:
+          self.bigquery_wrapper = bigquery_tools.BigQueryWrapper(
+              client=self.test_client)
+        else:
+          try:
+            self.bigquery_wrapper = bigquery_tools.BigQueryWrapper()
+          except Exception:
+            return
+
+      project_id = (
+          table_ref.projectId or self.bigquery_wrapper._get_project_id())
+      str_table_ref = '%s:%s.%s' % (
+          project_id, table_ref.datasetId, table_ref.tableId)
+      if str_table_ref in _KNOWN_TABLES or dest in _KNOWN_TABLES:
+        return
+
+      table_schema = bigquery_tools.get_bq_tableschema(record_schema)
+      self.bigquery_wrapper.get_or_create_table(
+          project_id=project_id,
+          dataset_id=table_ref.datasetId,
+          table_id=table_ref.tableId,
+          schema=table_schema,
+          create_disposition=self.create_disposition,
+          write_disposition=self.write_disposition,
+          additional_create_parameters=self.additional_bq_parameters)
+      _KNOWN_TABLES.add(str_table_ref)
+      _KNOWN_TABLES.add(dest)
+
+    def process(self, row, *schema_side_inputs):
+      dest, dict_row = row[0], row[1]
+      record_schema = self.schema(dest, *schema_side_inputs)
+      self._create_table_if_needed(dest, record_schema)
+
+      record_row = bigquery_tools.beam_row_from_dict(dict_row, record_schema)
+      if self.union_field_names:
+        record_dict = record_row._asdict()
+        record_row = beam.Row(
+            **{
+                name: record_dict.get(name, None)
+                for name in self.union_field_names
+            })
+      yield beam.Row(
+          **{
+              StorageWriteToBigQuery.DESTINATION: dest,
+              StorageWriteToBigQuery.RECORD: record_row
+          })
+
   class ConvertToBeamRows(PTransform):
     def __init__(
         self,
         schema,
         dynamic_destinations,
         type_overrides=None,
-        schema_side_inputs=None):
+        schema_side_inputs=None,
+        create_disposition=BigQueryDisposition.CREATE_IF_NEEDED,
+        write_disposition=BigQueryDisposition.WRITE_APPEND,
+        additional_bq_parameters=None,
+        test_client=None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
       self.type_overrides = type_overrides
       self.schema_side_inputs = schema_side_inputs or ()
+      self.create_disposition = create_disposition
+      self.write_disposition = write_disposition
+      self.additional_bq_parameters = additional_bq_parameters
+      self.test_client = test_client
 
     def _get_record_type_hint(self):
       if callable(self.schema):
@@ -3011,28 +3139,17 @@ class StorageWriteToBigQuery(PTransform):
               name for name, _ in getattr(record_hint, '_fields', ())
           ]
 
-          def convert_dynamic_row(row, *schema_side_inputs):
-            dest, dict_row = row[0], row[1]
-            record_schema = self.schema(dest, *schema_side_inputs)
-            record_row = bigquery_tools.beam_row_from_dict(
-                dict_row, record_schema)
-            if union_field_names:
-              record_dict = record_row._asdict()
-              record_row = beam.Row(
-                  **{
-                      name: record_dict.get(name, None)
-                      for name in union_field_names
-                  })
-            return beam.Row(
-                **{
-                    StorageWriteToBigQuery.DESTINATION: dest,
-                    StorageWriteToBigQuery.RECORD: record_row
-                })
-
           return (
               input_dicts
-              | "Convert dict to Beam Row" >> beam.Map(
-                  convert_dynamic_row, *self.schema_side_inputs))
+              | "Convert dict to Beam Row" >> beam.ParDo(
+                  StorageWriteToBigQuery._ConvertDynamicRowDoFn(
+                      self.schema,
+                      union_field_names,
+                      create_disposition=self.create_disposition,
+                      write_disposition=self.write_disposition,
+                      additional_bq_parameters=self.additional_bq_parameters,
+                      test_client=self.test_client),
+                  *self.schema_side_inputs))
         else:
           return (
               input_dicts

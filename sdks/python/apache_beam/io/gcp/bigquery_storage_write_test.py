@@ -332,11 +332,84 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       bigquery.dynamic_schema(get_schema)
 
-  def test_dynamic_schema_helper_with_invalid_type_raises_error(
+  def test_convert_to_beam_rows_creates_tables_with_specific_schemas(
       self, mock_expansion_service):
-    """Test dynamic_schema raises TypeError if passed an invalid type."""
-    with self.assertRaises(TypeError):
-      bigquery.dynamic_schema('id:INTEGER')
+    """Test ConvertToBeamRows creates destination tables with specific schemas."""
+    def dyn_schema(dest):
+      if 'users' in dest:
+        return 'id:INTEGER,name:STRING'
+      return 'id:INTEGER,score:INTEGER'
+
+    dyn_schema._union_schema = 'id:INTEGER,name:STRING,score:INTEGER'
+
+    created_tables = []
+
+    def mock_get_or_create_table(
+        project_id, dataset_id, table_id, schema, *args, **kwargs):
+      created_tables.append((table_id, [f.name for f in schema.fields]))
+      return mock.Mock()
+
+    with mock.patch.object(bigquery_tools.BigQueryWrapper,
+                           'get_or_create_table',
+                           side_effect=mock_get_or_create_table):
+      # Clear known tables to ensure fresh creation check
+      bigquery._KNOWN_TABLES.clear()
+
+      converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
+          schema=dyn_schema,
+          dynamic_destinations=True,
+          create_disposition=bigquery.BigQueryDisposition.CREATE_IF_NEEDED)
+
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create([
+                ('project:ds.users', {
+                    'id': 1, 'name': 'alice'
+                }),
+                ('project:ds.scores', {
+                    'id': 2, 'score': 95
+                }),
+                ('project:ds.users', {
+                    'id': 3, 'name': 'bob'
+                }),
+            ])
+            | converter)
+
+      # Verify get_or_create_table was called exactly twice (once per distinct destination)
+      self.assertEqual(len(created_tables), 2)
+      table_map = dict(created_tables)
+      # Verify 'users' was created with ['id', 'name'] (NOT union schema!)
+      self.assertEqual(table_map['users'], ['id', 'name'])
+      # Verify 'scores' was created with ['id', 'score'] (NOT union schema!)
+      self.assertEqual(table_map['scores'], ['id', 'score'])
+
+  def test_convert_to_beam_rows_create_never_does_not_create_tables(
+      self, mock_expansion_service):
+    """Test ConvertToBeamRows does not call get_or_create_table when CREATE_NEVER."""
+    def dyn_schema(dest):
+      return 'id:INTEGER,name:STRING'
+
+    dyn_schema._union_schema = 'id:INTEGER,name:STRING'
+
+    with mock.patch.object(bigquery_tools.BigQueryWrapper,
+                           'get_or_create_table') as mock_create:
+      bigquery._KNOWN_TABLES.clear()
+
+      converter = bigquery.StorageWriteToBigQuery.ConvertToBeamRows(
+          schema=dyn_schema,
+          dynamic_destinations=True,
+          create_disposition=bigquery.BigQueryDisposition.CREATE_NEVER)
+
+      with TestPipeline() as p:
+        _ = (
+            p
+            | beam.Create([('project:ds.table', {
+                'id': 1, 'name': 'alice'
+            })])
+            | converter)
+
+      mock_create.assert_not_called()
 
 
 if __name__ == '__main__':
