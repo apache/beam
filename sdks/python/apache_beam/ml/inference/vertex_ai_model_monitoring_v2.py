@@ -297,6 +297,12 @@ class VertexModelMonitoringV2(
     self.start_time = start_time
     self.end_time = end_time
 
+  def annotations(self) -> dict[str, Any]:
+    return {
+        'model_identifier': '',
+        **super().annotations(),
+    }
+
   def expand(
       self, pcoll: beam.PCollection[PredictionResult]
   ) -> beam.PCollection[PredictionResult]:

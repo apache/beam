@@ -1594,7 +1594,11 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           | 'BeamML_RunInference' >> run_inference_pardo)
 
     if self._monitoring_transform is not None:
-      _ = results | 'BeamML_RunInference_MonitoringOutlet' >> self._monitoring_transform
+      with results.pipeline.transform_annotations(model_identifier=''):
+        _ = (
+            results
+            | 'BeamML_RunInference_MonitoringOutlet' >>
+            self._monitoring_transform)
 
     results, bad_postprocessed = self._apply_fns(
       results, postprocess_fns, 'BeamML_RunInference_Postprocess')

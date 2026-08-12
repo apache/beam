@@ -427,6 +427,53 @@ class VertexModelMonitoringV2TransformTest(unittest.TestCase):
     )
     mock_monitor.run.assert_called_once()
 
+  def test_annotations_shadow_model_identifier(self):
+    transform = VertexModelMonitoringV2(
+        project_id=self.project_id,
+        location=self.location,
+        display_name=self.display_name,
+        model_name=self.model_name,
+        model_version_id=self.model_version_id,
+        model_monitoring_schema=self.schema,
+        training_dataset=self.training_dataset,
+        tabular_objective_spec=self.tabular_objective,
+        target_dataset=self.target_dataset,
+        unpack_fn=self.unpack_fn,
+        bigquery_table=self.bq_table,
+    )
+    annotations = transform.annotations()
+    self.assertIn("model_identifier", annotations)
+    self.assertEqual(annotations["model_identifier"], "")
+
+  def test_run_inference_monitoring_outlet_shadows_model_identifier(self):
+    class DummyMonitoring(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll | "Map" >> beam.Map(lambda x: x)
+
+    class DummyModelHandler(ModelHandler[int, PredictionResult, None]):
+      def run_inference(self, batch, model=None, inference_args=None):
+        return [PredictionResult(example=x, inference=x * 2) for x in batch]
+
+      def load_model(self):
+        return None
+
+    p = beam.Pipeline()
+    ri = RunInference(
+        DummyModelHandler(),
+        monitoring_transform=DummyMonitoring(),
+        model_identifier="test-model-identifier",
+    )
+    _ = p | beam.Create([1, 2, 3]) | ri
+    proto = p.to_runner_api()
+
+    outlet_transforms = [
+        t for t in proto.components.transforms.values()
+        if "BeamML_RunInference_MonitoringOutlet" in t.unique_name
+    ]
+    self.assertTrue(len(outlet_transforms) > 0)
+    for t in outlet_transforms:
+      self.assertEqual(t.annotations.get("model_identifier"), b"")
+
 
 if __name__ == "__main__":
   unittest.main()
