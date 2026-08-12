@@ -1651,18 +1651,13 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      // With dynamic read, we no longer require providing topic/partition during pipeline
-      // construction time. But it requires enabling beam_fn_api.
+      // With dynamic read, topics and partitions are discovered during pipeline execution.
       if (!isDynamicRead()) {
         checkArgument(
             (getTopics() != null && getTopics().size() > 0)
                 || (getTopicPartitions() != null && getTopicPartitions().size() > 0)
                 || getTopicPattern() != null,
             "Either withTopic(), withTopics(), withTopicPartitions() or withTopicPattern() is required");
-      } else {
-        checkArgument(
-            ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
-            "Kafka Dynamic Read requires enabling experiment beam_fn_api.");
       }
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
