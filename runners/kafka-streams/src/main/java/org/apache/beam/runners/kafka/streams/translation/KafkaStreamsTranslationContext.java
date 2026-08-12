@@ -192,4 +192,21 @@ public class KafkaStreamsTranslationContext {
         + "_"
         + sanitizedTransformId;
   }
+
+  /**
+   * Returns the name of a state store belonging to a transform.
+   *
+   * <p>The transform id is sanitized to Kafka's legal topic-name characters even though a store
+   * name is not itself a topic: Kafka Streams names a persistent store's changelog topic after the
+   * store, so a transform whose name contains a character a topic may not — which is ordinary,
+   * {@code CombinePerKey(MeanCombineFn)/Group} is a Beam transform name — would fail at runtime
+   * when the changelog is created.
+   *
+   * <p>Two transform ids differing only in characters that are replaced would sanitize to one name.
+   * Kafka Streams rejects a store name that is already taken when the topology is built, so that
+   * surfaces as a failure to start rather than as two transforms quietly sharing state.
+   */
+  public static String getStoreName(String transformId, String suffix) {
+    return ILLEGAL_TOPIC_CHARS.matcher(transformId).replaceAll("_") + suffix;
+  }
 }

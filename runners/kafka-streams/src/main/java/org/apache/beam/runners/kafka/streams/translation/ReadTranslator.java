@@ -126,7 +126,8 @@ class ReadTranslator implements PTransformTranslator {
 
     Topology topology = context.getTopology();
     String sourceNodeName = transformId + SOURCE_SUFFIX;
-    String stateStoreName = transformId + STATE_STORE_SUFFIX;
+    String stateStoreName =
+        KafkaStreamsTranslationContext.getStoreName(transformId, STATE_STORE_SUFFIX);
     String bootstrapTopic = context.getReadBootstrapTopic(transformId);
     SerializablePipelineOptions options =
         new SerializablePipelineOptions(context.getPipelineOptions());
@@ -185,7 +186,8 @@ class ReadTranslator implements PTransformTranslator {
 
     Topology topology = context.getTopology();
     String sourceNodeName = transformId + SOURCE_SUFFIX;
-    String stateStoreName = transformId + STATE_STORE_SUFFIX;
+    String stateStoreName =
+        KafkaStreamsTranslationContext.getStoreName(transformId, STATE_STORE_SUFFIX);
     String bootstrapTopic = context.getReadBootstrapTopic(transformId);
     SerializablePipelineOptions options =
         new SerializablePipelineOptions(context.getPipelineOptions());

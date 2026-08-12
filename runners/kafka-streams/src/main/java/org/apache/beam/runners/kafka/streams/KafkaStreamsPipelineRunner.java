@@ -18,6 +18,7 @@
 package org.apache.beam.runners.kafka.streams;
 
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.fnexecution.provisioning.JobInfo;
 import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
@@ -27,6 +28,7 @@ import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslation
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
+import org.apache.kafka.streams.errors.StreamsUncaughtExceptionHandler;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -77,6 +79,19 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
         topology.describe());
 
     KafkaStreams kafkaStreams = new KafkaStreams(topology, streamsConfig(jobInfo));
+    // Kafka Streams reports a failed task by moving the client to ERROR and keeping the exception
+    // to itself, which left a failed job with nothing to say beyond "unknown error". Hold on to the
+    // first failure so this method can rethrow it: the job service turns what run() throws into the
+    // job's error message.
+    AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
+    kafkaStreams.setUncaughtExceptionHandler(
+        throwable -> {
+          failure.compareAndSet(null, throwable);
+          LOG.error("Pipeline {} failed", jobInfo.jobId(), throwable);
+          // The pipeline is a job with an owner waiting on it, not a service to keep alive, so a
+          // failure stops the client rather than replacing the thread and carrying on.
+          return StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_CLIENT;
+        });
     // Build the result before starting: it registers a state listener, and Kafka Streams only
     // accepts one while the application is still in the CREATED state.
     KafkaStreamsPortablePipelineResult result =
@@ -109,6 +124,12 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
       // client so it does not outlive the job — from another thread, since close() waits on the
       // stream threads and the joins it does would throw straight back out of an interrupted one.
       closeInBackground(kafkaStreams, jobInfo.jobId(), "the job was cancelled");
+    }
+    Throwable thrown = failure.get();
+    if (thrown != null) {
+      // Thrown rather than returned as a failed result: the job service reads the state of what is
+      // returned, but only what is thrown carries a reason the user can act on.
+      throw new RuntimeException("Pipeline " + jobInfo.jobId() + " failed", thrown);
     }
     return result;
   }

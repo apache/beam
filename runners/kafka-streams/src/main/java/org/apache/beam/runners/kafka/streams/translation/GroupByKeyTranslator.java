@@ -102,10 +102,14 @@ class GroupByKeyTranslator implements PTransformTranslator {
     String shuffleName = transformId + SHUFFLE_SUFFIX;
     String sinkName = transformId + SINK_SUFFIX;
     String sourceName = transformId + SOURCE_SUFFIX;
-    String stateStoreName = transformId + STATE_STORE_SUFFIX;
-    String holdsIndexStoreName = transformId + HOLDS_INDEX_STORE_SUFFIX;
-    String timerStoreName = transformId + TIMER_STORE_SUFFIX;
-    String timerIndexStoreName = transformId + TIMER_INDEX_STORE_SUFFIX;
+    String stateStoreName =
+        KafkaStreamsTranslationContext.getStoreName(transformId, STATE_STORE_SUFFIX);
+    String holdsIndexStoreName =
+        KafkaStreamsTranslationContext.getStoreName(transformId, HOLDS_INDEX_STORE_SUFFIX);
+    String timerStoreName =
+        KafkaStreamsTranslationContext.getStoreName(transformId, TIMER_STORE_SUFFIX);
+    String timerIndexStoreName =
+        KafkaStreamsTranslationContext.getStoreName(transformId, TIMER_INDEX_STORE_SUFFIX);
     String repartitionTopic =
         repartitionTopic(transformId, context.getPipelineOptions().getApplicationId());
 
