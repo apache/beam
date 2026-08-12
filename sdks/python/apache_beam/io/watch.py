@@ -302,6 +302,33 @@ _EMPTY_STATE = _NonPollingGrowthState(PollResult((), None))
 # ------------------------------------------------------------------------------
 
 
+class _MicrosTimestampCoder(Coder):
+  """Coder for a :class:`Timestamp` that keeps microseconds.
+
+  :class:`TimestampCoder` keeps only milliseconds. A cursor rounded down that
+  way comes back below the outputs it was taken from and the next poll hands
+  them out again, and a replayed output can land in a different window than
+  the emission it repeats. The width is fixed so a cursor state stays one size.
+  """
+  _WIDTH = 8
+
+  def encode(self, value: Timestamp) -> bytes:
+    return value.micros.to_bytes(
+        _MicrosTimestampCoder._WIDTH, 'big', signed=True)
+
+  def decode(self, encoded: bytes) -> Timestamp:
+    if len(encoded) != _MicrosTimestampCoder._WIDTH:
+      # A short payload would decode to a smaller timestamp, which as a cursor
+      # hands out outputs already emitted.
+      raise ValueError(
+          'Watch timestamp payload is %d bytes, expected %d.' %
+          (len(encoded), _MicrosTimestampCoder._WIDTH))
+    return Timestamp(micros=int.from_bytes(encoded, 'big', signed=True))
+
+  def is_deterministic(self) -> bool:
+    return True
+
+
 class _TimestampedValueCoder(Coder):
   """Coder for :class:`TimestampedValue`.
 
@@ -311,7 +338,7 @@ class _TimestampedValueCoder(Coder):
   :class:`TupleCoder` and rebuilds the ``TimestampedValue`` on decode.
   """
   def __init__(self, value_coder: Coder):
-    self._tuple_coder = TupleCoder([value_coder, TimestampCoder()])
+    self._tuple_coder = TupleCoder([value_coder, _MicrosTimestampCoder()])
 
   def encode(self, value: TimestampedValue) -> bytes:
     return self._tuple_coder.encode((value.value, value.timestamp))
@@ -325,10 +352,16 @@ class _TimestampedValueCoder(Coder):
 
 
 class _StateTag(enum.IntEnum):
-  """Envelope tag selecting the encoded restriction variant."""
+  """Envelope tag selecting the encoded restriction variant.
+
+  A tag is retired rather than reused when its payload format changes. Tags 1
+  and 2 held the millisecond timestamps this coder no longer writes, and their
+  payloads are the width of the microsecond ones, so a reused tag would decode
+  them to a wrong timestamp instead of failing.
+  """
   POLLING = 0
-  NON_POLLING = 1
-  CURSOR_POLLING = 2
+  NON_POLLING = 3
+  CURSOR_POLLING = 4
 
 
 class _GrowthStateCoder(Coder):
@@ -353,7 +386,7 @@ class _GrowthStateCoder(Coder):
     ])
     self._cursor_polling_coder = TupleCoder([
         termination.state_coder(),
-        TimestampCoder(),
+        _MicrosTimestampCoder(),
     ])
     self._non_polling_coder = TupleCoder([
         nullable_ts,

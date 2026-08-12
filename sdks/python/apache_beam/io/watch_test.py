@@ -35,6 +35,7 @@ from apache_beam.io.watch import PollResult
 from apache_beam.io.watch import Watch
 from apache_beam.io.watch import _GrowthRestrictionTracker
 from apache_beam.io.watch import _GrowthStateCoder
+from apache_beam.io.watch import _MicrosTimestampCoder
 from apache_beam.io.watch import _never_seen_before
 from apache_beam.io.watch import _NonPollingGrowthState
 from apache_beam.io.watch import _past_cursor
@@ -56,6 +57,7 @@ from apache_beam.transforms.window import GlobalWindow
 from apache_beam.transforms.window import TimestampedValue
 from apache_beam.typehints import typehints
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
+from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.timestamp import Duration
 from apache_beam.utils.timestamp import Timestamp
 
@@ -145,6 +147,19 @@ class GrowthStateCoderTest(unittest.TestCase):
     self.assertEqual(0, len(decoded.completed))
     self.assertIsNone(decoded.poll_watermark)  # not part of the payload
 
+  def test_polling_round_trip_preserves_subsecond_cursors(self):
+    # A cursor rounded down to the millisecond, as TimestampCoder does, comes
+    # back below the outputs it was taken from and hands them out again.
+    coder = _GrowthStateCoder(StrUtf8Coder(), never())
+    termination_state = never().for_new_input(Timestamp(0), 'input')
+    for cursor in (Timestamp(micros=1786371369335245),
+                   MIN_TIMESTAMP,
+                   MAX_TIMESTAMP):
+      with self.subTest(cursor=cursor):
+        state = _PollingGrowthState(
+            collections.OrderedDict(), None, termination_state, cursor)
+        self.assertEqual(cursor, coder.decode(coder.encode(state)).cursor)
+
   def test_cursorless_state_keeps_the_pre_cursor_byte_format(self):
     # A polling state without a cursor must encode exactly as before the
     # cursor existed, so in-flight hash-mode restrictions decode across an
@@ -176,6 +191,33 @@ class GrowthStateCoderTest(unittest.TestCase):
     self.assertEqual(MAX_TIMESTAMP, decoded.pending.watermark)
     self.assertEqual([('a', Timestamp(1)), ('b', Timestamp(2))],
                      [(o.value, o.timestamp) for o in decoded.pending.outputs])
+
+  def test_truncated_timestamp_payload_fails_to_decode(self):
+    coder = _MicrosTimestampCoder()
+    encoded = coder.encode(Timestamp(micros=1786371369335245))
+    with self.assertRaisesRegex(ValueError, 'expected 8'):
+      coder.decode(encoded[:-1])
+
+  def test_retired_state_tag_fails_to_decode(self):
+    # The millisecond payloads the retired tags carried are the width of the
+    # microsecond ones, so a reused tag would decode them to a wrong timestamp.
+    coder = _GrowthStateCoder(StrUtf8Coder(), never())
+    for retired in (1, 2):
+      with self.subTest(tag=retired):
+        encoded = TupleCoder([VarIntCoder(), BytesCoder()]).encode(
+            (retired, TimestampCoder().encode(Timestamp(5))))
+        with self.assertRaisesRegex(ValueError, 'unknown Watch growth state'):
+          coder.decode(encoded)
+
+  def test_non_polling_round_trip_preserves_subsecond_pending_outputs(self):
+    # A replay repeats the emission it stands in for, so a rounded timestamp
+    # can land the replay in a different window than the original.
+    coder = _GrowthStateCoder(StrUtf8Coder(), never())
+    timestamp = Timestamp(micros=1000750)
+    state = _NonPollingGrowthState(
+        PollResult((TimestampedValue('a', timestamp), ), None))
+    decoded = coder.decode(coder.encode(state))
+    self.assertEqual(timestamp, decoded.pending.outputs[0].timestamp)
 
 
 class NeverSeenBeforeTest(unittest.TestCase):
