@@ -234,6 +234,14 @@ The recommended best-practice is to use the `dynamic_schema` helper:
             union_schema='id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN'),
         schema_side_inputs=(schema_dict_side_input,))
 
+.. note::
+  **Table Creation Behavior**: When using `method=STORAGE_WRITE_API` with dynamic
+  destinations, if target tables do not already exist and `create_disposition` is
+  `CREATE_IF_NEEDED`, the cross-language transform creates the tables using the
+  top-level union schema. If destination tables must strictly maintain distinct,
+  individual schemas in BigQuery without unpopulated union columns, pre-create the
+  destination tables prior to pipeline execution.
+
 Additional Parameters for BigQuery Tables
 -----------------------------------------
 

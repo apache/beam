@@ -32,6 +32,7 @@ from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -487,11 +488,30 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
   def test_write_to_dynamic_destinations_with_dynamic_schema(self):
     base_table_spec = '{}.dynamic_dest_dyn_schema_'.format(self.dataset_id)
     spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    table_id_a = 'dynamic_dest_dyn_schema_users'
+    table_id_b = 'dynamic_dest_dyn_schema_scores'
     table_a = base_table_spec + 'users'
     table_b = base_table_spec + 'scores'
 
     schema_a = "id:INTEGER,name:STRING"
     schema_b = "id:INTEGER,score:INTEGER,active:BOOLEAN"
+
+    # Pre-create destination tables with their distinct specific schemas prior
+    # to pipeline execution to ensure tables only contain their specific fields.
+    self.bigquery_client.get_or_create_table(
+        project_id=self.project,
+        dataset_id=self.dataset_id,
+        table_id=table_id_a,
+        schema=bigquery_tools.get_table_schema_from_string(schema_a),
+        create_disposition='CREATE_IF_NEEDED',
+        write_disposition='WRITE_APPEND')
+    self.bigquery_client.get_or_create_table(
+        project_id=self.project,
+        dataset_id=self.dataset_id,
+        table_id=table_id_b,
+        schema=bigquery_tools.get_table_schema_from_string(schema_b),
+        create_disposition='CREATE_IF_NEEDED',
+        write_disposition='WRITE_APPEND')
 
     elements_a = [
         {
@@ -519,11 +539,11 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
     bq_matchers = [
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT id, name FROM %s" % table_a,
+            query="SELECT * FROM %s" % table_a,
             data=self.parse_expected_data(elements_a)),
         BigqueryFullResultMatcher(
             project=self.project,
-            query="SELECT id, score, active FROM %s" % table_b,
+            query="SELECT * FROM %s" % table_b,
             data=self.parse_expected_data(elements_b)),
     ]
 
@@ -551,6 +571,17 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
+
+    # Verify destination tables retained their specific schemas and were not
+    # created or altered to the union schema
+    fetched_table_a = self.bigquery_client.get_table(
+        self.project, self.dataset_id, table_id_a)
+    fetched_table_b = self.bigquery_client.get_table(
+        self.project, self.dataset_id, table_id_b)
+    self.assertEqual([f.name for f in fetched_table_a.schema.fields],
+                     ['id', 'name'])
+    self.assertEqual([f.name for f in fetched_table_b.schema.fields],
+                     ['id', 'score', 'active'])
 
   def test_write_to_dynamic_destinations_with_beam_rows(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)
