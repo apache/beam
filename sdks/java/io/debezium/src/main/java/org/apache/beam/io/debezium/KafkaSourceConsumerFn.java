@@ -350,6 +350,11 @@ public class KafkaSourceConsumerFn<T> extends DoFn<Map<String, String>, T> {
       LOG.debug("------------- Creating an offset storage reader");
       return new DebeziumSourceOffsetStorageReader(initialOffset);
     }
+
+    @Override
+    public org.apache.kafka.common.metrics.PluginMetrics pluginMetrics() {
+      return null;
+    }
   }
 
   private static class DebeziumSourceOffsetStorageReader implements OffsetStorageReader {

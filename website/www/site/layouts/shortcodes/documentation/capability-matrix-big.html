@@ -24,32 +24,20 @@
         </a>
         <h4>{{ $category.description }}</h4>
         <div class="table-container">
-            <div class="table-left big-left">
+            <div id="{{ $category.description | urlize }}" class="table-center big-center">
                 <table>
-                    <tr>
-                        <th></th>
-                    </tr>
-                    {{ range $row := $category.rows }}
+                    <thead>
                         <tr>
-                            <th>{{ $row.name }}</th>
-                        </tr>
-                    {{ end }}
-                </table>
-            </div>
-            <div class="table-right big-right">
-                <div id="{{ $category.description | urlize }}" class="table-headers big-headers">
-                    <table>
-                        <tr>
+                            <th class="table-left-header"></th>
                             {{ range $column := $cap_data.columns }}
                                 <th>{{ $column.name }}</th>
                             {{ end }}
                         </tr>
-                    </table>
-                </div>
-                <div id="{{ $category.description | urlize }}" class="table-center big-center">
-                    <table>
+                    </thead>
+                    <tbody>
                         {{ range $row := $category.rows }}
                             <tr>
+                                <th class="table-left-header">{{ $row.name }}</th>
                                 {{ range $val := $row.values }}
                                     <td style='background-color:#{{ if eq $val.l1 "Yes" }}{{ index $category "color-y" }}{{ else if eq $val.l1 "Partially" }}{{ index $category "color-p" }}{{ else }}{{ index $category "color-n" }}{{ end }};border-color:#{{ if eq $val.l1 "Yes" }}{{ index $category "color-yb" }}{{ else if eq $val.l1 "Partially" }}{{ index $category "color-pb" }}{{ else }}{{ index $category "color-nb" }}{{ end }}'>
                                         {{ partial "documentation/capability-matrix-row" (dict "type" $cap_view "val" $val) }}
@@ -57,18 +45,10 @@
                                 {{ end }}
                             </tr>
                         {{ end }}
-                    </table>
-                </div>
+                    </tbody>
+                </table>
             </div>
         </div>
     {{ end }}
 {{ end }}
 
-<script>
-    $('.table-headers').bind('wheel',function(e){
-        $('#'+this.id+'.table-center').scrollLeft($(this).scrollLeft());
-    });
-    $('.table-center').bind('wheel',function(e){
-        $('#'+this.id+'.table-headers').scrollLeft($(this).scrollLeft());
-    });
-</script>

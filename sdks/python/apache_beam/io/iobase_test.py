@@ -224,22 +224,22 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
 class UseSdfUnboundedSourcesTests(unittest.TestCase):
   """Covers the UnboundedSource branch in
   ``iobase.Read.expand()``. Uses ``UnboundedCountingSource`` from
-  ``unbounded_source_test`` as a finite fake source (no network).
+  ``unbounded_source`` as a finite fake source (no network).
   """
   def test_read_end_to_end_unbounded(self):
-    from apache_beam.io.unbounded_source_test import UnboundedCountingSource
+    from apache_beam.io.unbounded_source import UnboundedCountingSource
     with beam.Pipeline() as p:
       out = p | beam.io.Read(UnboundedCountingSource(5))
       assert_that(out, equal_to([0, 1, 2, 3, 4]))
 
   def test_read_unbounded_pcollection_is_unbounded(self):
-    from apache_beam.io.unbounded_source_test import UnboundedCountingSource
+    from apache_beam.io.unbounded_source import UnboundedCountingSource
     p = beam.Pipeline()
     out = p | beam.io.Read(UnboundedCountingSource(3))
     self.assertFalse(out.is_bounded)
 
   def test_read_unbounded_serializes_as_expanded_composite(self):
-    from apache_beam.io.unbounded_source_test import UnboundedCountingSource
+    from apache_beam.io.unbounded_source import UnboundedCountingSource
     p = beam.Pipeline()
     p | 'ReadIt' >> beam.io.Read(UnboundedCountingSource(3))
 

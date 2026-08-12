@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -114,17 +115,22 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       try {
         Duration timeout = resolveDefaultApiTimeout(spec);
         future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
-      } catch (TimeoutException e) {
-        consumer.wakeup(); // This unblocks consumer stuck on network I/O.
-        // Likely reason : Kafka servers are configured to advertise internal ips, but
-        // those ips are not accessible from workers outside.
-        String msg =
-            String.format(
-                "%s: Timeout while initializing partition '%s'. "
-                    + "Kafka client may not be able to connect to servers.",
-                this, pState.topicPartition);
-        LOG.error("{}", msg);
-        throw new IOException(msg);
+      } catch (TimeoutException | ExecutionException e) {
+        if (e instanceof TimeoutException
+            || e.getCause() instanceof org.apache.kafka.common.errors.TimeoutException) {
+          // TODO: Find out if manually waking up was only relevant for legacy Kafka clients.
+          consumer.wakeup(); // This unblocks consumer stuck on network I/O.
+          // Likely reason : Kafka servers are configured to advertise internal ips, but
+          // those ips are not accessible from workers outside.
+          String msg =
+              String.format(
+                  "%s: Timeout while initializing partition '%s'. "
+                      + "Kafka client may not be able to connect to servers.",
+                  this, pState.topicPartition);
+          LOG.error("{}", msg);
+          throw new IOException(msg);
+        }
+        throw new IOException(e);
       } catch (Exception e) {
         throw new IOException(e);
       }

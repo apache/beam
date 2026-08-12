@@ -54,6 +54,7 @@ freezegun==1.5.5
 frozenlist==1.8.0
 future==1.0.0
 google-api-core==2.31.0
+google-api-python-client==2.198.0
 google-apitools==0.5.35
 google-auth==2.55.1
 google-auth-httplib2==0.2.1
@@ -90,7 +91,7 @@ grpcio-tools==1.81.1
 grpclib==0.4.9
 guppy3==3.1.7
 h11==0.16.0
-h2==4.3.0
+h2==4.4.1
 hpack==4.2.0
 httpcore==1.0.9
 httplib2==0.31.2
@@ -158,6 +159,7 @@ PyMySQL==1.2.0
 pyOpenSSL==26.2.0
 pyparsing==3.3.2
 pyproject_hooks==1.2.0
+pystack==1.7.0
 pytest==9.1.1
 pytest-timeout==2.4.0
 pytest-xdist==3.8.0
@@ -196,6 +198,7 @@ typing-inspection==0.4.2
 typing_extensions==4.15.0
 tzdata==2026.2
 uc-micro-py==2.0.0
+uritemplate==4.2.0
 urllib3==2.7.0
 virtualenv-clone==0.5.7
 websockets==16.0

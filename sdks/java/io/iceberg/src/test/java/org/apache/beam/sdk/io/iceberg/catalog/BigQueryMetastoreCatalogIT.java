@@ -58,6 +58,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .put("gcp_project", OPTIONS.getProject())
             .put("gcp_location", "us-central1")
             .put("warehouse", warehouse)
+            .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
             .build(),
         new Configuration());
   }

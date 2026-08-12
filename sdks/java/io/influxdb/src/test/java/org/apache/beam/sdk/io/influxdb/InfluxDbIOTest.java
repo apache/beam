@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.io.influxdb;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -28,10 +26,11 @@ import java.util.Date;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.atomic.AtomicInteger;
-import okhttp3.OkHttpClient;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.io.influxdb.InfluxDbIO.DataSourceConfiguration;
+import org.apache.beam.sdk.io.influxdb.InfluxDbIO.DataSourceConfiguration.ConnectionFactory;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -39,43 +38,71 @@ import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.values.PCollection;
 import org.influxdb.InfluxDB;
-import org.influxdb.InfluxDBFactory;
 import org.influxdb.dto.Query;
 import org.influxdb.dto.QueryResult;
 import org.influxdb.dto.QueryResult.Series;
+import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.runner.RunWith;
 import org.mockito.Mockito;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({
-  org.influxdb.InfluxDBFactory.class,
-  org.apache.beam.sdk.io.influxdb.InfluxDbIO.InfluxDBSource.class
-})
 public class InfluxDbIOTest {
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
+  // ACTIVE_MOCK provides access to the mock InfluxDB instance on worker threads after
+  // TestConnectionFactory is deserialized, avoiding non-serializable Mockito state.
+  private static final AtomicReference<InfluxDB> ACTIVE_MOCK = new AtomicReference<>();
+
+  private InfluxDB influxDb;
+
   @Before
   public void setupTest() {
-    PowerMockito.mockStatic(InfluxDBFactory.class);
+    influxDb = Mockito.mock(InfluxDB.class);
+    ACTIVE_MOCK.set(influxDb);
+  }
+
+  @After
+  public void tearDown() {
+    ACTIVE_MOCK.set(null);
+  }
+
+  private DataSourceConfiguration getDataSourceConfiguration(
+      String influxHost, String userName, String password) {
+    return DataSourceConfiguration.create(
+            StaticValueProvider.of(influxHost),
+            StaticValueProvider.of(userName),
+            StaticValueProvider.of(password))
+        .withConnectionFactory(new TestConnectionFactory(influxDb, influxHost, userName, password));
+  }
+
+  private static class TestConnectionFactory implements ConnectionFactory {
+    private final String expectedUrl;
+    private final String expectedUser;
+    private final String expectedPassword;
+    private final transient InfluxDB mockInstance;
+
+    TestConnectionFactory(
+        InfluxDB mockInstance, String expectedUrl, String expectedUser, String expectedPassword) {
+      this.mockInstance = mockInstance;
+      this.expectedUrl = expectedUrl;
+      this.expectedUser = expectedUser;
+      this.expectedPassword = expectedPassword;
+    }
+
+    @Override
+    public InfluxDB create(DataSourceConfiguration config, boolean disableCert) {
+      Assert.assertEquals(expectedUrl, config.url().get());
+      Assert.assertEquals(expectedUser, config.userName().get());
+      Assert.assertEquals(expectedPassword, config.password().get());
+      return mockInstance != null ? mockInstance : ACTIVE_MOCK.get();
+    }
   }
 
   @Test
   public void validateWriteTest() {
-    InfluxDB influxDb = Mockito.mock(InfluxDB.class);
-    PowerMockito.when(
-            InfluxDBFactory.connect(
-                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
-        .thenReturn(influxDb);
-    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
-        .thenReturn(influxDb);
     String influxHost = "http://localhost";
     String userName = "admin";
     String password = "admin";
@@ -84,7 +111,9 @@ public class InfluxDbIOTest {
     Mockito.doAnswer(invocation -> countInvocation.getAndIncrement())
         .when(influxDb)
         .write(any(List.class));
-    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
+    Mockito.doReturn(getDatabase(influxDatabaseName))
+        .when(influxDb)
+        .query(new Query("SHOW DATABASES"));
     final int numOfElementsToWrite = 1000;
     pipeline
         .apply("Generate data", Create.of(GenerateData.getMetric("test_m", numOfElementsToWrite)))
@@ -92,10 +121,7 @@ public class InfluxDbIOTest {
             "Write data to InfluxDB",
             InfluxDbIO.write()
                 .withDataSourceConfiguration(
-                    DataSourceConfiguration.create(
-                        StaticValueProvider.of(influxHost),
-                        StaticValueProvider.of(userName),
-                        StaticValueProvider.of(password)))
+                    getDataSourceConfiguration(influxHost, userName, password))
                 .withDatabase(influxDatabaseName));
     PipelineResult result = pipeline.run();
     Assert.assertEquals(State.DONE, result.waitUntilFinish());
@@ -108,20 +134,17 @@ public class InfluxDbIOTest {
     String userName = "admin";
     String password = "admin";
     String influxDatabaseName = "testDataBase";
-    InfluxDB influxDb = Mockito.mock(InfluxDB.class);
-    PowerMockito.when(
-            InfluxDBFactory.connect(
-                anyString(), anyString(), anyString(), any(OkHttpClient.Builder.class)))
-        .thenReturn(influxDb);
-    PowerMockito.when(InfluxDBFactory.connect(anyString(), anyString(), anyString()))
-        .thenReturn(influxDb);
-    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW DATABASES"));
-    doReturn(getDatabase(influxDatabaseName)).when(influxDb).query(new Query("SHOW SHARDS"));
-    doReturn(mockResultForNumberAndSizeOfBlocks())
+    Mockito.doReturn(getDatabase(influxDatabaseName))
+        .when(influxDb)
+        .query(new Query("SHOW DATABASES"));
+    Mockito.doReturn(getDatabase(influxDatabaseName))
+        .when(influxDb)
+        .query(new Query("SHOW SHARDS"));
+    Mockito.doReturn(mockResultForNumberAndSizeOfBlocks())
         .when(influxDb)
         .query(new Query("EXPLAIN SELECT * FROM cpu", influxDatabaseName));
 
-    doReturn(mockResult("cpu", 20))
+    Mockito.doReturn(mockResult("cpu", 20))
         .when(influxDb)
         .query(new Query("SELECT * FROM cpu", influxDatabaseName));
 
@@ -131,10 +154,7 @@ public class InfluxDbIOTest {
                 "Read data to InfluxDB",
                 InfluxDbIO.read()
                     .withDataSourceConfiguration(
-                        DataSourceConfiguration.create(
-                            StaticValueProvider.of(influxHost),
-                            StaticValueProvider.of(userName),
-                            StaticValueProvider.of(password)))
+                        getDataSourceConfiguration(influxHost, userName, password))
                     .withDatabase(influxDatabaseName)
                     .withQuery("SELECT * FROM cpu"))
             .apply(Count.globally());

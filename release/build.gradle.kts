@@ -41,7 +41,7 @@ task("runJavaExamplesValidationTask") {
   dependsOn(":runners:spark:3:runQuickstartJavaSpark")
   dependsOn(":runners:flink:2.2:runQuickstartJavaFlinkLocal")
   dependsOn(":runners:direct-java:runMobileGamingJavaDirect")
-  if (project.hasProperty("ver") || !project.version.toString().endsWith("SNAPSHOT")) {
+  if ((project.findProperty("ver")?.toString()?.isNotEmpty() == true && project.findProperty("ver") != "2.XX.0") || !project.version.toString().endsWith("SNAPSHOT")) {
     // only run one variant of MobileGaming on Dataflow for nightly
     dependsOn(":runners:google-cloud-dataflow-java:runMobileGamingJavaDataflow")
   }
