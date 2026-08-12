@@ -1385,6 +1385,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_identifier: Optional[str] = None,
       use_model_manager: bool = False,
       model_manager_args: Optional[dict[str, Any]] = None,
+      monitoring_transform: Optional[beam.PTransform] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1415,6 +1416,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           the same tag for different models will lead to non-deterministic
           results, so exercise caution when using this parameter. This only
           impacts models which are already being shared across processes.
+        monitoring_transform: A PTransform that receives a copy of the
+          un-postprocessed PCollection of PredictionResult objects produced
+          directly by inference.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -1427,6 +1431,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._watch_model_pattern = watch_model_pattern
     self._use_model_manager = use_model_manager
     self._model_manager_args = model_manager_args
+    self._monitoring_transform = monitoring_transform
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1437,12 +1442,16 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       self._model_tag = uuid.uuid4().hex
 
   def annotations(self):
+    extra = {}
+    if self._monitoring_transform is not None:
+      extra['monitoring_transform'] = str(self._monitoring_transform)
     return {
         'model_handler': str(self._model_handler),
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
         'model_identifier': self._model_tag,
+        **extra,
         **super().annotations()
     }
 
@@ -1584,6 +1593,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           batched_elements_pcoll
           | 'BeamML_RunInference' >> run_inference_pardo)
 
+    if self._monitoring_transform is not None:
+      _ = results | 'BeamML_RunInference_MonitoringOutlet' >> self._monitoring_transform
+
     results, bad_postprocessed = self._apply_fns(
       results, postprocess_fns, 'BeamML_RunInference_Postprocess')
 
@@ -1592,6 +1604,18 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       return results, dlq
 
     return results
+
+  def with_monitoring_transform(
+      self, monitoring_transform: beam.PTransform) -> 'RunInference':
+    """Allows attaching a monitoring PTransform that receives a copy of the
+    un-postprocessed PCollection of prediction objects (such as PredictionResult)
+    emitted by the underlying model inference step.
+
+    Args:
+      monitoring_transform: A PTransform accepting PCollection[PredictionT].
+    """
+    self._monitoring_transform = monitoring_transform
+    return self
 
   def with_exception_handling(
       self,
