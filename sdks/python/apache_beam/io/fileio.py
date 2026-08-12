@@ -293,21 +293,14 @@ class _WatchWindowTermination(TerminationCondition):
     return VarIntCoder()
 
 
-def _mtime_of(metadata: filesystem.FileMetadata, option: str) -> float:
+def _ensure_mtime(metadata: filesystem.FileMetadata) -> float:
   # A missing (zero) timestamp is rejected because every file would then carry
   # the same one, and updates could never be told apart.
   if not metadata.last_updated_in_seconds:
     raise BeamIOError(
-        'MatchContinuously(%s=True) requires file last-modified times, but '
-        '%s reports none.' % (option, metadata.path))
+        'MatchContinuously deduplicates by last-modified time, but %s reports '
+        'none.' % metadata.path)
   return metadata.last_updated_in_seconds
-
-
-def _mtime_timestamp(metadata: filesystem.FileMetadata) -> Timestamp:
-  # Floored to the millisecond a runner keeps for element timestamps, so the
-  # cursor compares against the same resolution it is persisted at.
-  micros = Timestamp.of(_mtime_of(metadata, 'timestamp_cursor')).micros
-  return Timestamp(micros=micros - micros % 1000)
 
 
 def _file_path_key(metadata: filesystem.FileMetadata) -> str:
@@ -317,16 +310,19 @@ def _file_path_key(metadata: filesystem.FileMetadata) -> str:
 def _file_path_and_mtime_key(
     metadata: filesystem.FileMetadata) -> tuple[str, float]:
   # Keying on the last-modified time makes a changed file look new again.
-  return metadata.path, _mtime_of(metadata, 'match_updated_files')
+  return metadata.path, _ensure_mtime(metadata)
 
 
 class _MatchContinuouslyPollFn(PollFn):
   """Polls a file pattern, honoring empty-match rules.
 
-  A poll before ``start_timestamp`` emits nothing. The watermark advances to
-  the poll time so event-time windows progress even when nothing new matches.
-  Matches carry the poll time as their event time, or their last-modified time
-  under ``mtime_timestamps``, which is what the timestamp cursor dedups on.
+  A poll before ``start_timestamp`` emits nothing. Matches carry the poll time
+  as their event time, and the watermark advances to the poll time so
+  event-time windows progress even when nothing new matches. Under
+  ``mtime_timestamps`` a match carries its last-modified time instead, which
+  is what the timestamp cursor dedups on, and the watermark is the newest
+  last-modified time matched, capped at the poll time. A poll that matches
+  nothing leaves the watermark where it is.
   """
   def __init__(
       self,
@@ -350,14 +346,23 @@ class _MatchContinuouslyPollFn(PollFn):
                                                   self._empty_match_treatment)):
       raise BeamIOError(
           'Empty match for pattern %s. Disallowed.' % file_pattern)
-    if self._mtime_timestamps:
-      outputs = [
-          TimestampedValue(metadata, _mtime_timestamp(metadata))
-          for metadata in match_result.metadata_list
-      ]
-      return PollResult.incomplete(outputs).with_watermark(now)
-    return PollResult.incomplete(
-        match_result.metadata_list, timestamp=now).with_watermark(now)
+    if not self._mtime_timestamps:
+      return PollResult.incomplete(
+          match_result.metadata_list, timestamp=now).with_watermark(now)
+    outputs = [
+        TimestampedValue(metadata, Timestamp.of(_ensure_mtime(metadata)))
+        for metadata in match_result.metadata_list
+    ]
+    if not outputs:
+      # Matching nothing is no reading of the filesystem clock. Holding the
+      # watermark keeps the files that clock has yet to reach from arriving
+      # behind it.
+      return PollResult.incomplete(())
+    # The filesystem clock can run behind the local one, so the watermark stops
+    # at the newest last-modified time matched, and never runs past the poll
+    # time when that clock is ahead.
+    newest = max(output.timestamp for output in outputs)
+    return PollResult.incomplete(outputs).with_watermark(min(newest, now))
 
 
 class MatchContinuously(beam.PTransform):
@@ -377,10 +382,12 @@ class MatchContinuously(beam.PTransform):
   Notifications
   (https://cloud.google.com/storage/docs/pubsub-notifications).
 
-  A match carries the poll time as its event time, or its last-modified time
-  under ``timestamp_cursor``. The watermark is the poll time either way, so a
-  file whose last-modified time lags its appearance in the listing is late for
-  event-time windows downstream.
+  A match carries the poll time as its event time, and the watermark follows
+  the poll time. Under ``timestamp_cursor`` a match carries its last-modified
+  time and the watermark tracks the filesystem clock instead: the newest
+  last-modified time matched, capped at the poll time, and left where it is by
+  a poll that matches nothing. A clock behind the local one then cannot make a
+  later file late, and one ahead cannot carry the watermark with it.
   """
   def __init__(
       self,
@@ -408,14 +415,15 @@ class MatchContinuously(beam.PTransform):
       timestamp_cursor: (When has_deduplication is set to True) dedup by
         last-modified time instead of by file id, which bounds the state to a
         single timestamp. Each poll emits only the files modified past the
-        newest one already emitted, compared at the millisecond resolution a
-        runner keeps for element timestamps. A file appearing with a
-        last-modified time at or below that mark is skipped, as happens with
-        copies that preserve the source time, backfills of older files, and
-        files written within the same millisecond as an earlier poll's newest
-        match. A file whose last-modified time advances is emitted again,
-        which makes match_updated_files redundant. Requires the filesystem to
-        report last-modified times.
+        newest last-modified time already emitted, compared to the microsecond
+        a Timestamp holds. A file at or below that mark is skipped, as happens
+        with copies that preserve the source time and with backfills of older
+        files. A modified file is emitted again once its reported time passes
+        the mark, and match_updated_files has no effect in this mode. Requires the filesystem to report
+        last-modified times, and a pipeline started fresh: turning it on while
+        updating a running pipeline seeds the cursor with the poll times the
+        old state recorded, which are not last-modified times, so files are
+        skipped or repeated.
     """
 
     self.file_pattern = file_pattern

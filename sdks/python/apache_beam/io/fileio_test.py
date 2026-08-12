@@ -535,33 +535,66 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     self.assertIsNotNone(result.watermark)
 
   def test_poll_fn_stamps_outputs_with_mtime_for_the_cursor(self):
-    # The cursor dedups on the event time, so a match carries its own mtime
-    # while the watermark stays at the poll time.
+    # The cursor dedups on the event time, so a match carries its own mtime.
+    # Sub-millisecond digits are kept, or a cursor taken from them would come
+    # back below the outputs it was taken from and match them all over again.
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     path = self._create_temp_file(dir=tempdir)
-    os.utime(path, (1234.5, 1234.5))
+    os.utime(path, (1234.567891, 1234.567891))
     poll_fn = fileio._MatchContinuouslyPollFn(
         fileio.EmptyMatchTreatment.ALLOW,
         Timestamp.now() - 3600,
         mtime_timestamps=True)
     result = poll_fn(FileSystems.join(tempdir, '*'))
     self.assertEqual(1, len(result.outputs))
-    self.assertEqual(Timestamp.of(1234.5), result.outputs[0].timestamp)
-    self.assertLess(result.outputs[0].timestamp, result.watermark)
-
-  def test_mtime_timestamp_floors_to_the_millisecond(self):
-    # A runner keeps element timestamps to the millisecond, so a cursor
-    # carrying finer mtimes would come back below the outputs it was taken
-    # from and match them all over again.
-    metadata = FileMetadata('/tmp/a', 1, 1786371369.335245)
     self.assertEqual(
-        Timestamp.of(1786371369.335), fileio._mtime_timestamp(metadata))
+        Timestamp.of(os.path.getmtime(path)), result.outputs[0].timestamp)
+
+  def test_poll_fn_holds_the_mtime_watermark_at_the_newest_match(self):
+    # The filesystem clock can run behind the local one, so a watermark at the
+    # poll time would make the files it has yet to hand out late.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    os.utime(self._create_temp_file(dir=tempdir), (1234.5, 1234.5))
+    os.utime(self._create_temp_file(dir=tempdir), (2345.5, 2345.5))
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        mtime_timestamps=True)
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertEqual(Timestamp.of(2345.5), result.watermark)
+
+  def test_poll_fn_caps_the_mtime_watermark_at_the_poll_time(self):
+    # A filesystem clock running ahead must not carry the watermark with it,
+    # which pins the watermark to the poll time.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    path = self._create_temp_file(dir=tempdir)
+    ahead = Timestamp.now() + 3600
+    os.utime(path, (float(ahead), float(ahead)))
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        mtime_timestamps=True)
+    before = Timestamp.now()
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertTrue(before <= result.watermark <= Timestamp.now())
+
+  def test_poll_fn_holds_the_mtime_watermark_on_empty_match(self):
+    # No match is no reading of the filesystem clock. A watermark at the poll
+    # time would leave the files that clock has yet to reach behind it.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        mtime_timestamps=True)
+    result = poll_fn(FileSystems.join(tempdir, '*'))
+    self.assertEqual((), result.outputs)
+    self.assertIsNone(result.watermark)
 
   def test_timestamp_cursor_rejects_missing_mtime(self):
     # Without mtimes every match would carry the same event time, so the
     # cursor would drop everything after the first poll.
     with self.assertRaises(BeamIOError):
-      fileio._mtime_of(FileMetadata('/tmp/a', 1), 'timestamp_cursor')
+      fileio._ensure_mtime(FileMetadata('/tmp/a', 1))
 
   def test_timestamp_cursor_requires_deduplication(self):
     with self.assertRaisesRegex(ValueError, 'has_deduplication=True'):
