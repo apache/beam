@@ -419,11 +419,11 @@ class MatchContinuously(beam.PTransform):
         a Timestamp holds. A file at or below that mark is skipped, as happens
         with copies that preserve the source time and with backfills of older
         files. A modified file is emitted again once its reported time passes
-        the mark, and match_updated_files has no effect in this mode. Requires the filesystem to report
-        last-modified times, and a pipeline started fresh: turning it on while
-        updating a running pipeline seeds the cursor with the poll times the
-        old state recorded, which are not last-modified times, so files are
-        skipped or repeated.
+        the mark, and match_updated_files has no effect in this mode. Requires
+        the filesystem to report last-modified times, and a pipeline started
+        fresh: turning it on while updating a running pipeline seeds the cursor
+        with the poll times the old state recorded, which are not last-modified
+        times, so files are skipped or repeated.
     """
 
     self.file_pattern = file_pattern
