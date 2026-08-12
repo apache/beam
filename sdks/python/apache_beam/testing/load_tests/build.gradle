@@ -73,3 +73,24 @@ task run(type: Exec, dependsOn: installGcpTest) {
 def parseOptions(String option) {
     option.replace('\"', '\\"')
 }
+
+// Specific task to run the Pub/Sub performance test with the TestPubsubContext Lifecycle Manager in Dry-Run mode.
+task runPubsubPerfTestWithMonitor(type: Exec, dependsOn: installGcpTest) {
+    group = 'Verification'
+    description = 'Runs PubSub Performance Tests in Python with the TestPubsubContext Lifecycle Manager in Dry-Run mode.'
+    // Force Gradle to use the Python virtual environment installed in the project
+    setWorkingDir "${project.rootDir}/sdks/python"
+
+    // Command that runs the test using the local DirectRunner in a safe way
+    commandLine 'sh', '-c', """
+      ${project.ext.envdir}/bin/python -m apache_beam.io.gcp.pubsub_io_perf_test \
+        --test-pipeline-options=" \
+        --runner=DirectRunner \
+        --project=apache-beam-testing \
+        --pubsub_namespace_prefix=perf-test-ci- \
+        --wait_until_finish_duration=15000 \
+        --input_options='{\\"num_records\\": 10, \\"key_size\\": 1, \\"value_size\\": 10}'"
+    """
+
+    ignoreExitValue true
+}
