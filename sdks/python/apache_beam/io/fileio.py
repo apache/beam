@@ -320,9 +320,9 @@ class _MatchContinuouslyPollFn(PollFn):
   as their event time, and the watermark advances to the poll time so
   event-time windows progress even when nothing new matches. Under
   ``mtime_timestamps`` a match carries its last-modified time instead, which
-  is what the timestamp cursor dedups on, and the watermark is the newest
+  is what bounds the timestamp cursor, and the watermark is the newest
   last-modified time matched, capped at the poll time. A poll that matches
-  nothing leaves the watermark where it is.
+  nothing takes the poll time.
   """
   def __init__(
       self,
@@ -353,15 +353,11 @@ class _MatchContinuouslyPollFn(PollFn):
         TimestampedValue(metadata, Timestamp.of(_ensure_mtime(metadata)))
         for metadata in match_result.metadata_list
     ]
-    if not outputs:
-      # Matching nothing is no reading of the filesystem clock. Holding the
-      # watermark keeps the files that clock has yet to reach from arriving
-      # behind it.
-      return PollResult.incomplete(())
     # The filesystem clock can run behind the local one, so the watermark stops
     # at the newest last-modified time matched, and never runs past the poll
-    # time when that clock is ahead.
-    newest = max(output.timestamp for output in outputs)
+    # time when that clock is ahead. Matching nothing gives no reading of that
+    # clock, and the poll time keeps event-time windows progressing.
+    newest = max((output.timestamp for output in outputs), default=now)
     return PollResult.incomplete(outputs).with_watermark(min(newest, now))
 
 
@@ -377,17 +373,16 @@ class MatchContinuously(beam.PTransform):
   Deduplication state lives in the splittable DoFn restriction, so a runner
   with checkpointing enabled restores it after a restart and does not
   reprocess files. That state holds one id per matched file and grows with the
-  directory, unless ``timestamp_cursor`` bounds it to a single timestamp. For
-  a growing directory on GCS, consider an alternate technique such as Pub/Sub
-  Notifications
+  directory, unless ``timestamp_cursor`` bounds it to the newest matched
+  last-modified time. For a growing directory on GCS, consider an alternate
+  technique such as Pub/Sub Notifications
   (https://cloud.google.com/storage/docs/pubsub-notifications).
 
   A match carries the poll time as its event time, and the watermark follows
   the poll time. Under ``timestamp_cursor`` a match carries its last-modified
-  time and the watermark tracks the filesystem clock instead: the newest
-  last-modified time matched, capped at the poll time, and left where it is by
-  a poll that matches nothing. A clock behind the local one then cannot make a
-  later file late, and one ahead cannot carry the watermark with it.
+  time and the watermark is the newest one matched, capped at the poll time,
+  so a filesystem clock ahead of the local one cannot carry the watermark with
+  it.
   """
   def __init__(
       self,
@@ -412,18 +407,16 @@ class MatchContinuously(beam.PTransform):
         file with timestamp changes.
       apply_windowing: Whether each element should be assigned to
         individual window. If false, all elements will reside in global window.
-      timestamp_cursor: (When has_deduplication is set to True) dedup by
-        last-modified time instead of by file id, which bounds the state to a
-        single timestamp. Each poll emits only the files modified past the
-        newest last-modified time already emitted, compared to the microsecond
-        a Timestamp holds. A file at or below that mark is skipped, as happens
-        with copies that preserve the source time and with backfills of older
-        files. A modified file is emitted again once its reported time passes
-        the mark, and match_updated_files has no effect in this mode. Requires
-        the filesystem to report last-modified times, and a pipeline started
-        fresh: turning it on while updating a running pipeline seeds the cursor
-        with the poll times the old state recorded, which are not last-modified
-        times, so files are skipped or repeated.
+      timestamp_cursor: (When has_deduplication is set to True) bound the
+        deduplication state by last-modified time. Files are still deduplicated
+        by id, but an id is retired once a newer file has been matched, so the
+        state holds the newest last-modified time and the ids sharing it rather
+        than one id per file the pattern has ever matched. A file whose
+        last-modified time is older than that mark is taken as already seen and
+        skipped, as happens with copies that preserve the source time and with
+        backfills of older files. Requires the filesystem to report
+        last-modified times, and matches then carry their last-modified time as
+        their event time instead of the poll time.
     """
 
     self.file_pattern = file_pattern
@@ -490,21 +483,14 @@ class MatchContinuously(beam.PTransform):
         self.start_ts,
         clock,
         mtime_timestamps=self.timestamp_cursor)
-    if self.timestamp_cursor:
-      # The cursor dedups on the mtime the poll stamps, so there is no key.
-      watch = Watch(
-          poll_fn,
-          poll_interval=self.interval,
-          termination=termination,
-          timestamp_cursor=True)
-    else:
-      # The key coder is inferred from the key function's return annotation.
-      watch = Watch(
-          poll_fn,
-          poll_interval=self.interval,
-          termination=termination,
-          output_key_fn=(
-              _file_path_and_mtime_key if self.match_upd else _file_path_key))
+    # The key coder is inferred from the key function's return annotation.
+    watch = Watch(
+        poll_fn,
+        poll_interval=self.interval,
+        termination=termination,
+        output_key_fn=(
+            _file_path_and_mtime_key if self.match_upd else _file_path_key),
+        timestamp_cursor=self.timestamp_cursor)
     # Watch emits (pattern, file) pairs; keep the FileMetadata output type so
     # downstream transforms stay typed instead of falling back to Any.
     return (

@@ -578,17 +578,18 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     result = poll_fn(FileSystems.join(tempdir, '*'))
     self.assertTrue(before <= result.watermark <= Timestamp.now())
 
-  def test_poll_fn_holds_the_mtime_watermark_on_empty_match(self):
-    # No match is no reading of the filesystem clock. A watermark at the poll
-    # time would leave the files that clock has yet to reach behind it.
+  def test_poll_fn_advances_the_mtime_watermark_on_empty_match(self):
+    # No match is no reading of the filesystem clock, so the watermark takes
+    # the poll time and event-time windows keep progressing.
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     poll_fn = fileio._MatchContinuouslyPollFn(
         fileio.EmptyMatchTreatment.ALLOW,
         Timestamp.now() - 3600,
         mtime_timestamps=True)
+    before = Timestamp.now()
     result = poll_fn(FileSystems.join(tempdir, '*'))
     self.assertEqual((), result.outputs)
-    self.assertIsNone(result.watermark)
+    self.assertTrue(before <= result.watermark <= Timestamp.now())
 
   def test_timestamp_cursor_rejects_missing_mtime(self):
     # Without mtimes every match would carry the same event time, so the
@@ -661,6 +662,66 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
           | beam.Map(_create_backdated_file))
 
       assert_that(match_continiously, equal_to([first]))
+
+  def test_timestamp_cursor_emits_a_file_sharing_the_newest_mtime(self):
+    # A file landing with the same last-modified time as the newest one
+    # already emitted is still new. Filesystems that report to the
+    # millisecond, GCS among them, hand out such ties routinely.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    first = self._create_temp_file(dir=tempdir)
+    os.utime(first, (1234.5, 1234.5))
+    twin = FileSystems.join(tempdir, 'twin')
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    def _create_twin(element):
+      writer = FileSystems.create(twin)
+      writer.close()
+      os.utime(twin, (1234.5, 1234.5))
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop,
+              timestamp_cursor=True)
+          | beam.Map(_create_twin))
+
+      assert_that(match_continiously, equal_to([first, twin]))
+
+  def test_timestamp_cursor_leaves_updated_files_out_by_default(self):
+    # match_updated_files still decides whether a changed file counts as new,
+    # so an update is skipped unless it is asked for.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    path = self._create_temp_file(dir=tempdir)
+    os.utime(path, (1234.5, 1234.5))
+
+    interval = 0.2
+    start = Timestamp.now()
+    stop = start + interval + 0.1
+
+    def _touch(element):
+      os.utime(path, (2345.5, 2345.5))
+      return element.path
+
+    with TestPipeline() as p:
+      match_continiously = (
+          p
+          | fileio.MatchContinuously(
+              file_pattern=FileSystems.join(tempdir, '*'),
+              interval=interval,
+              start_timestamp=start,
+              stop_timestamp=stop,
+              timestamp_cursor=True)
+          | beam.Map(_touch))
+
+      assert_that(match_continiously, equal_to([path]))
 
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
