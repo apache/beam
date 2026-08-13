@@ -386,6 +386,32 @@ class TimestampCursorTest(unittest.TestCase):
         lateness)
     self.assertEqual(['late'], [o.value for o in late.outputs])
 
+  def test_a_retired_key_returning_later_is_emitted_again(self):
+    # What bounding the state costs. A key is retired by the event time it was
+    # recorded with, so a key that comes back at a later event time, after the
+    # cursor has moved past the one it was recorded with, has nothing left to
+    # prove it was seen. This is the case for a file modified after the cursor
+    # passed it: it is emitted a second time, whatever the key function says
+    # about updates. Keep the default hash dedup where that matters.
+    state = _initial_polling()
+    tracker = _cursor_tracker(state)
+    first = _cursor_results(state, PollResult.incomplete([_ts('a', 10)]))
+    self.assertTrue(tracker.try_claim((first, 0)))
+    _, residual = tracker.try_split(0)
+    # 'b' moves the cursor past the event time 'a' was recorded with, which
+    # retires 'a'.
+    second = _cursor_results(
+        residual, PollResult.incomplete([_ts('a', 10), _ts('b', 20)]))
+    self.assertEqual(['b'], [o.value for o in second.outputs])
+    resumed = _cursor_tracker(residual)
+    self.assertTrue(resumed.try_claim((second, 0)))
+    _, residual = resumed.try_split(0)
+    self.assertEqual([Timestamp(20)], list(residual.completed.values()))
+    # 'a' now returns above the floor, so it reads as new.
+    third = _cursor_results(
+        residual, PollResult.incomplete([_ts('a', 30), _ts('b', 20)]))
+    self.assertEqual(['a'], [o.value for o in third.outputs])
+
   def test_relist_emits_each_output_exactly_once(self):
     # A full re-list of a growing collection at strictly increasing event
     # times emits each output once; the key set stays bounded throughout.

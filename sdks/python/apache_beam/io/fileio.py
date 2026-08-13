@@ -320,9 +320,9 @@ class _MatchContinuouslyPollFn(PollFn):
   as their event time, and the watermark advances to the poll time so
   event-time windows progress even when nothing new matches. Under
   ``mtime_timestamps`` a match carries its last-modified time instead, which
-  is what bounds the timestamp cursor, and the watermark is the newest
-  last-modified time matched, capped at the poll time. A poll that matches
-  nothing takes the poll time.
+  is what bounds the timestamp cursor, and the watermark trails the newest
+  last-modified time while that time keeps advancing, otherwise it takes the
+  poll time.
   """
   def __init__(
       self,
@@ -334,6 +334,9 @@ class _MatchContinuouslyPollFn(PollFn):
     self._start_micros = Timestamp.of(start_timestamp).micros
     self._clock = clock if clock is not None else _PollClock()
     self._mtime_timestamps = mtime_timestamps
+    # Greatest last-modified time handed out so far, to tell a poll that found
+    # something newer from one that only re-listed what was already there.
+    self._newest_mtime = None  # type: Optional[Timestamp]
 
   def __call__(self, file_pattern: str) -> PollResult[filesystem.FileMetadata]:
     now = Timestamp.now()
@@ -353,12 +356,21 @@ class _MatchContinuouslyPollFn(PollFn):
         TimestampedValue(metadata, Timestamp.of(_ensure_mtime(metadata)))
         for metadata in match_result.metadata_list
     ]
-    # The filesystem clock can run behind the local one, so the watermark stops
-    # at the newest last-modified time matched, and never runs past the poll
-    # time when that clock is ahead. Matching nothing gives no reading of that
-    # clock, and the poll time keeps event-time windows progressing.
-    newest = max((output.timestamp for output in outputs), default=now)
-    return PollResult.incomplete(outputs).with_watermark(min(newest, now))
+    # A poll that turned up a newer last-modified time than any before it just
+    # read the filesystem clock, so the watermark stops there rather than at
+    # the poll time, and files still in flight behind a filesystem clock that
+    # lags the local one are not late. It is also capped at the poll time, so a
+    # clock running ahead cannot carry the watermark with it. A poll that found
+    # nothing newer has no fresh reading to go on, so the watermark takes the
+    # poll time and a quiet directory does not stall event-time windows.
+    newest = max((output.timestamp for output in outputs), default=None)
+    if newest is not None and (self._newest_mtime is None or
+                               newest > self._newest_mtime):
+      self._newest_mtime = newest
+      watermark = min(newest, now)
+    else:
+      watermark = now
+    return PollResult.incomplete(outputs).with_watermark(watermark)
 
 
 class MatchContinuously(beam.PTransform):
@@ -380,9 +392,12 @@ class MatchContinuously(beam.PTransform):
 
   A match carries the poll time as its event time, and the watermark follows
   the poll time. Under ``timestamp_cursor`` a match carries its last-modified
-  time and the watermark is the newest one matched, capped at the poll time,
-  so a filesystem clock ahead of the local one cannot carry the watermark with
-  it.
+  time, and the watermark trails the newest last-modified time for as long as
+  polls keep turning up newer files, so files still in flight behind a
+  filesystem clock that lags the local one are not late. It is capped at the
+  poll time, so a filesystem clock ahead of the local one cannot carry the
+  watermark with it, and a poll that turns up nothing newer releases it to the
+  poll time, so a quiet directory does not stall event-time windows.
   """
   def __init__(
       self,
@@ -414,9 +429,12 @@ class MatchContinuously(beam.PTransform):
         than one id per file the pattern has ever matched. A file whose
         last-modified time is older than that mark is taken as already seen and
         skipped, as happens with copies that preserve the source time and with
-        backfills of older files. Requires the filesystem to report
-        last-modified times, and matches then carry their last-modified time as
-        their event time instead of the poll time.
+        backfills of older files. Bounding the state this way costs the
+        guarantee that a file is matched once for all time: a file modified
+        after its id was retired looks new again and is matched a second time,
+        whatever ``match_updated_files`` says. Requires the filesystem to
+        report last-modified times, and matches then carry their last-modified
+        time as their event time instead of the poll time.
     """
 
     self.file_pattern = file_pattern
