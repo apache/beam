@@ -62,6 +62,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfi
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
@@ -96,6 +97,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -109,6 +111,10 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class StreamingModeExecutionContextTest {
 
+  private static final FailedWorkHandler FAILING_FAILED_WORK_HANDLER =
+      ignored -> {
+        Assert.fail();
+      };
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Mock private WorkExecutor workExecutor;
@@ -202,7 +208,7 @@ public class StreamingModeExecutionContextTest {
           /* budgetHandle= */ mock(BoundedQueueExecutorWorkHandle.class),
           keyCoder,
           /* keyTransitionListener= */ (k, c) -> {},
-          /* onFailedWorkHandler= */ ignored -> {});
+          /* onFailedWorkHandler= */ FAILING_FAILED_WORK_HANDLER);
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
@@ -554,7 +560,13 @@ public class StreamingModeExecutionContextTest {
     StreamingModeExecutionContext.KeyTransitionListener mockListener =
         mock(StreamingModeExecutionContext.KeyTransitionListener.class);
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, mockListener, ignored -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        mockListener,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertTrue(executionContext.advance());
     assertEquals("key2", executionContext.getSerializedKey().toStringUtf8());
@@ -589,7 +601,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(executionContext.advance());
   }
@@ -626,7 +638,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -664,7 +676,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -694,7 +706,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     work1.setFailed();
 
@@ -723,7 +735,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(executionContext.advance());
     verifyNoInteractions(mockExecutor);
@@ -758,7 +770,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -798,7 +810,7 @@ public class StreamingModeExecutionContextTest {
         mockHandle,
         null,
         (oldWork, newWork) -> {},
-        ignored -> {});
+        FAILING_FAILED_WORK_HANDLER);
 
     context.reportBytesSinked(50);
     assertFalse(context.advance());

@@ -48,6 +48,7 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -69,6 +70,10 @@ public class BoundedQueueExecutorTest {
     return Arrays.asList(new Object[][] {{false}, {true}});
   }
 
+  private static final FailedWorkHandler FAILING_FAILED_WORK_HANDLER =
+      ignored -> {
+        Assert.fail();
+      };
   private static final long MAXIMUM_BYTES_OUTSTANDING = 10000000;
   private static final int DEFAULT_MAX_THREADS = 2;
   private static final int DEFAULT_THREAD_EXPIRATION_SEC = 60;
@@ -549,7 +554,8 @@ public class BoundedQueueExecutorTest {
     targetStart.await();
 
     // Steal work1 using pollWork with compA and keyGroup1
-    ExecutableWork stolen1 = testExecutor.pollWork("compA", keyGroup1, stealHandle, ignored -> {});
+    ExecutableWork stolen1 =
+        testExecutor.pollWork("compA", keyGroup1, stealHandle, FAILING_FAILED_WORK_HANDLER);
     assertNotNull(stolen1);
     assertEquals(work1, stolen1);
 
@@ -598,7 +604,8 @@ public class BoundedQueueExecutorTest {
     ExecutableWork work = createWorkWithCompIdAndKeyGroup("compA", keyGroup, ignored -> {});
     testExecutor.execute(work, 100);
 
-    ExecutableWork stolen = testExecutor.pollWork("compA", keyGroup, stealHandle, ignored -> {});
+    ExecutableWork stolen =
+        testExecutor.pollWork("compA", keyGroup, stealHandle, FAILING_FAILED_WORK_HANDLER);
     assertNull(stolen);
 
     blockerStop.countDown();
@@ -648,16 +655,20 @@ public class BoundedQueueExecutorTest {
         createWorkWithCompIdAndKeyGroupAndWorkToken("compA", keyGroup, 101, ignored -> {});
     ExecutableWork work2 =
         createWorkWithCompIdAndKeyGroupAndWorkToken("compA", keyGroup, 102, ignored -> {});
+    ExecutableWork work3 =
+        createWorkWithCompIdAndKeyGroupAndWorkToken("compA", keyGroup, 103, ignored -> {});
 
     // Enqueue both tasks (they will wait in the queue because the thread is blocked).
     testExecutor.execute(work1, 100);
     testExecutor.execute(work2, 150);
+    testExecutor.execute(work3, 200);
 
-    assertEquals(3, testExecutor.elementsOutstanding());
-    assertEquals(260, testExecutor.bytesOutstanding());
+    assertEquals(4, testExecutor.elementsOutstanding());
+    assertEquals(460, testExecutor.bytesOutstanding());
 
-    // Mark work1 as failed while waiting in the queue.
+    // Mark work1, work3 as failed while waiting in the queue.
     work1.work().setFailed();
+    work3.work().setFailed();
 
     // pollWork should skip work1, close work1's handle, invoke
     // onFailedWorkHandler callback, and return work2.
@@ -671,10 +682,20 @@ public class BoundedQueueExecutorTest {
     // Verify stealHandle merged (blockerWork: 10 bytes, work2: 150 bytes).
     assertEquals(160, stealHandle.bytes());
 
+    stolen = testExecutor.pollWork("compA", keyGroup, stealHandle, onFailedWorkHandler);
+    assertNull(stolen);
+    verify(onFailedWorkHandler).onFailedWork(work3.work());
+
+    // Still 160, nothing should be merged in.
+    assertEquals(160, stealHandle.bytes());
+
     // Polling again should return null since no more tasks exist for keyGroup.
     assertNull(testExecutor.pollWork("compA", keyGroup, stealHandle, onFailedWorkHandler));
 
     blockerStop.countDown();
+    stealHandle.close();
+    assertEquals(0, testExecutor.elementsOutstanding());
+    assertEquals(0, testExecutor.bytesOutstanding());
     testExecutor.shutdown();
   }
 }

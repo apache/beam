@@ -1628,6 +1628,8 @@ public class StreamingDataflowWorkerTest {
         .setWorkToken(2)
         .setShardingKey(2)
         .setFailed(true);
+
+    // Fake server processes heartbeat responses are processed synchronously in sendFailedHeartbeats
     server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
 
     // Unblock key1 to allow bundle to poll key2 (token 2 -> failed, skipped) and key2 (token 3).

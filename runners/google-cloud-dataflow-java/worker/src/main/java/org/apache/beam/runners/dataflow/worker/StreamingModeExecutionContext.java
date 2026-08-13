@@ -350,7 +350,7 @@ public class StreamingModeExecutionContext
       BoundedQueueExecutorWorkHandle budgetHandle,
       @Nullable Coder<?> keyCoder,
       KeyTransitionListener keyTransitionListener,
-      @Nullable FailedWorkHandler onFailedWorkHandler)
+      FailedWorkHandler onFailedWorkHandler)
       throws CoderException {
     reset();
     this.executedWorks = new ArrayList<>();
@@ -361,7 +361,7 @@ public class StreamingModeExecutionContext
     this.workQueueExecutor = workQueueExecutor;
     this.budgetHandle = budgetHandle;
     this.keyTransitionListener = keyTransitionListener;
-    this.onFailedWorkHandler = onFailedWorkHandler;
+    this.onFailedWorkHandler = checkStateNotNull(onFailedWorkHandler);
 
     this.workItemsPolled = 1;
     this.bundleStartTimeNanos = System.nanoTime();
