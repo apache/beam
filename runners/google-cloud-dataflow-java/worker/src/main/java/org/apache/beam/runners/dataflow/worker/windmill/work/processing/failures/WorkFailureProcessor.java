@@ -177,11 +177,12 @@ public final class WorkFailureProcessor {
       return RetryEvaluation.RETHROW_THROWABLE;
     }
 
-    if (!failureTracker.trackFailure(systemName, work.getWorkItem(), parsedException)) {
+    if (!failureTracker.trackFailure(computationId, work.getWorkItem(), parsedException)) {
       LOG.error(
-          "Execution of work for fused stage '{}' on sharding key '{}' failed with uncaught exception, "
+          "Execution of work for fused stage '{}' for computation '{}' on sharding key '{}' failed with uncaught exception, "
               + "and Windmill indicated not to retry locally.",
           systemName,
+          computationId,
           work.getWorkItem().getShardingKey(),
           parsedException);
       return RetryEvaluation.DO_NOT_RETRY;
