@@ -52,6 +52,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
@@ -96,6 +97,11 @@ import org.junit.runners.JUnit4;
 /** Tests for {@link FileIO}. */
 @RunWith(JUnit4.class)
 public class FileIOTest implements Serializable {
+  private enum TestMoveOptions implements MoveOptions {
+    DESTINATION_A,
+    DESTINATION_B
+  }
+
   @Rule public transient TestPipeline p = TestPipeline.create();
 
   @Rule public transient TemporaryFolder tmpFolder = new TemporaryFolder();
@@ -103,6 +109,25 @@ public class FileIOTest implements Serializable {
   @Rule public transient ExpectedException thrown = ExpectedException.none();
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(1200);
+
+  @Test
+  public void testMoveOptionsCanDependOnDestination() {
+    FileIO.Write<String, String> write =
+        FileIO.<String, String>writeDynamic()
+            .withMoveOptions(
+                destination ->
+                    Collections.singletonList(
+                        destination.equals("a")
+                            ? TestMoveOptions.DESTINATION_A
+                            : TestMoveOptions.DESTINATION_B));
+
+    assertEquals(
+        Collections.singletonList(TestMoveOptions.DESTINATION_A),
+        write.getMoveOptionsFn().apply("a"));
+    assertEquals(
+        Collections.singletonList(TestMoveOptions.DESTINATION_B),
+        write.getMoveOptionsFn().apply("b"));
+  }
 
   @Test
   @Category(NeedsRunner.class)

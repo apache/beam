@@ -167,9 +167,22 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
       MoveOptions... moveOptions)
       throws IOException {
     Stopwatch stopwatch = Stopwatch.createStarted();
+    @Nullable String destinationKmsKeyName = null;
+    for (MoveOptions moveOption : moveOptions) {
+      if (moveOption instanceof GcsMoveOptions) {
+        checkArgument(
+            destinationKmsKeyName == null,
+            "At most one GcsMoveOptions may be specified for a rename operation.");
+        destinationKmsKeyName = ((GcsMoveOptions) moveOption).destinationKmsKeyName();
+      }
+    }
     options
         .getGcsUtil()
-        .rename(toFilenames(srcResourceIds), toFilenames(destResourceIds), moveOptions);
+        .rename(
+            toFilenames(srcResourceIds),
+            toFilenames(destResourceIds),
+            destinationKmsKeyName,
+            moveOptions);
     stopwatch.stop();
     if (options.getGcsPerformanceMetrics()) {
       numRenames.inc(srcResourceIds.size());

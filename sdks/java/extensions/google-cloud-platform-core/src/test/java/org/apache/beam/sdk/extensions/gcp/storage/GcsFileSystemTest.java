@@ -20,6 +20,7 @@ package org.apache.beam.sdk.extensions.gcp.storage;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.contains;
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
@@ -41,6 +42,7 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOExceptio
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Status;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
@@ -121,6 +123,26 @@ public class GcsFileSystemTest {
     assertThat(
         ImmutableList.of("gs://testbucket/testdirectory/otherfile"),
         contains(toFilenames(matchResults.get(2)).toArray()));
+  }
+
+  @Test
+  public void testRenameUsesDestinationKmsKey() throws IOException {
+    GcsResourceId source = GcsResourceId.fromGcsPath(GcsPath.fromUri("gs://testbucket/source"));
+    GcsResourceId destination =
+        GcsResourceId.fromGcsPath(GcsPath.fromUri("gs://testbucket/destination"));
+    String kmsKey = "projects/project/locations/location/keyRings/keyring/cryptoKeys/key";
+
+    gcsFileSystem.rename(
+        ImmutableList.of(source),
+        ImmutableList.of(destination),
+        GcsMoveOptions.builder().setDestinationKmsKeyName(kmsKey).build());
+
+    verify(mockGcsUtil)
+        .rename(
+            eq(ImmutableList.of(source.toString())),
+            eq(ImmutableList.of(destination.toString())),
+            eq(kmsKey),
+            any(MoveOptions[].class));
   }
 
   @Test

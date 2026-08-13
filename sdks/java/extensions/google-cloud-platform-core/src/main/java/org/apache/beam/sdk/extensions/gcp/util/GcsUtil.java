@@ -371,6 +371,15 @@ public class GcsUtil {
     delegate.rename(srcFilenames, destFilenames, moveOptions);
   }
 
+  public void rename(
+      Iterable<String> srcFilenames,
+      Iterable<String> destFilenames,
+      @Nullable String destinationKmsKeyName,
+      MoveOptions... moveOptions)
+      throws IOException {
+    delegate.rename(srcFilenames, destFilenames, destinationKmsKeyName, moveOptions);
+  }
+
   /** experimental api. */
   public void renameV2(
       Iterable<GcsPath> srcPaths, Iterable<GcsPath> dstPaths, MoveOptions... moveOptions)

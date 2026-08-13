@@ -1188,6 +1188,27 @@ public class GcsUtilTest {
   }
 
   @Test
+  public void testMakeRewriteOpsWithDestinationKmsKey() throws IOException {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+
+    LinkedList<RewriteOp> rewrites =
+        gcsUtil.delegate.makeRewriteOps(
+            makeStrings("s", 2),
+            makeStrings("d", 2),
+            true,
+            false,
+            false,
+            "projects/project/locations/location/keyRings/keyring/cryptoKeys/key");
+
+    assertEquals(2, rewrites.size());
+    for (RewriteOp rewrite : rewrites) {
+      assertEquals(
+          "projects/project/locations/location/keyRings/keyring/cryptoKeys/key",
+          rewrite.rewriteRequest.getDestinationKmsKeyName());
+    }
+  }
+
+  @Test
   public void testMakeRewriteBatches() throws IOException {
     GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
 

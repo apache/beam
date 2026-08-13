@@ -52,6 +52,7 @@ import org.apache.beam.sdk.io.fs.CreateOptions;
 import org.apache.beam.sdk.io.fs.CreateOptions.StandardCreateOptions;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MatchResult.Metadata;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
@@ -325,6 +326,11 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
 
     /** Converts a destination into a {@link FilenamePolicy}. May not return null. */
     public abstract FilenamePolicy getFilenamePolicy(DestinationT destination);
+
+    /** Returns filesystem-specific options to use when moving files to {@code destination}. */
+    public List<MoveOptions> getMoveOptions(DestinationT destination) {
+      return ImmutableList.of();
+    }
 
     /** Populates the display data. */
     @Override
@@ -787,21 +793,41 @@ public abstract class FileBasedSink<UserT, DestinationT, OutputT>
       int numFiles = resultsToFinalFilenames.size();
 
       LOG.debug("Copying {} files.", numFiles);
-      List<ResourceId> srcFiles = new ArrayList<>();
-      List<ResourceId> dstFiles = new ArrayList<>();
+      Map<DestinationT, List<MoveOptions>> moveOptionsByDestination = Maps.newLinkedHashMap();
+      Map<List<MoveOptions>, List<KV<FileResult<DestinationT>, ResourceId>>> resultsByMoveOptions =
+          Maps.newLinkedHashMap();
       for (KV<FileResult<DestinationT>, ResourceId> entry : resultsToFinalFilenames) {
-        srcFiles.add(entry.getKey().getTempFilename());
-        dstFiles.add(entry.getValue());
+        DestinationT destination = entry.getKey().getDestination();
+        List<MoveOptions> destinationMoveOptions =
+            moveOptionsByDestination.computeIfAbsent(
+                destination,
+                unused ->
+                    ImmutableList.copyOf(
+                        checkNotNull(
+                            getSink().getDynamicDestinations().getMoveOptions(destination),
+                            "DynamicDestinations.getMoveOptions() must not return null")));
+        resultsByMoveOptions
+            .computeIfAbsent(destinationMoveOptions, unused -> new ArrayList<>())
+            .add(entry);
         LOG.info(
             "Will copy temporary file {} to final location {}", entry.getKey(), entry.getValue());
       }
-      // During a failure case, files may have been deleted in an earlier step. Thus
-      // we ignore missing files here.
-      FileSystems.rename(
-          srcFiles,
-          dstFiles,
-          StandardMoveOptions.IGNORE_MISSING_FILES,
-          StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+      for (Map.Entry<List<MoveOptions>, List<KV<FileResult<DestinationT>, ResourceId>>>
+          moveOptionsEntry : resultsByMoveOptions.entrySet()) {
+        List<ResourceId> srcFiles = new ArrayList<>();
+        List<ResourceId> dstFiles = new ArrayList<>();
+        for (KV<FileResult<DestinationT>, ResourceId> entry : moveOptionsEntry.getValue()) {
+          srcFiles.add(entry.getKey().getTempFilename());
+          dstFiles.add(entry.getValue());
+        }
+        List<MoveOptions> moveOptions = new ArrayList<>();
+        // During a failure case, files may have been deleted in an earlier step. Thus
+        // we ignore missing files here.
+        moveOptions.add(StandardMoveOptions.IGNORE_MISSING_FILES);
+        moveOptions.add(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+        moveOptions.addAll(moveOptionsEntry.getKey());
+        FileSystems.rename(srcFiles, dstFiles, moveOptions.toArray(new MoveOptions[0]));
+      }
 
       // The rename ensures that the source files are deleted.  However we may still need to clean
       // up the directory or orphaned files.

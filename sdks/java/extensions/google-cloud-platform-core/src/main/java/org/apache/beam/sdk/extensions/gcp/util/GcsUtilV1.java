@@ -712,7 +712,6 @@ class GcsUtilV1 {
     if (options.getContentType() != null) {
       createBuilder = createBuilder.setContentType(options.getContentType());
     }
-
     HashMap<String, String> baseLabels = new HashMap<>();
     baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
     baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
@@ -1076,7 +1075,12 @@ class GcsUtilV1 {
           });
     }
 
-    public RewriteOp(GcsPath from, GcsPath to, boolean deleteSource, boolean ignoreMissingSource)
+    public RewriteOp(
+        GcsPath from,
+        GcsPath to,
+        boolean deleteSource,
+        boolean ignoreMissingSource,
+        @Nullable String destinationKmsKeyName)
         throws IOException {
       this.from = from;
       this.to = to;
@@ -1086,6 +1090,9 @@ class GcsUtilV1 {
           storageClient
               .objects()
               .rewrite(from.getBucket(), from.getObject(), to.getBucket(), to.getObject(), null);
+      if (destinationKmsKeyName != null) {
+        rewriteRequest.setDestinationKmsKeyName(destinationKmsKeyName);
+      }
       if (maxBytesRewrittenPerCall != null) {
         rewriteRequest.setMaxBytesRewrittenPerCall(maxBytesRewrittenPerCall);
       }
@@ -1173,11 +1180,21 @@ class GcsUtilV1 {
         destFilenames,
         /*deleteSource=*/ false,
         /*ignoreMissingSource=*/ false,
-        /*ignoreExistingDest=*/ false);
+        /*ignoreExistingDest=*/ false,
+        /*destinationKmsKeyName=*/ null);
   }
 
   public void rename(
       Iterable<String> srcFilenames, Iterable<String> destFilenames, MoveOptions... moveOptions)
+      throws IOException {
+    rename(srcFilenames, destFilenames, null, moveOptions);
+  }
+
+  public void rename(
+      Iterable<String> srcFilenames,
+      Iterable<String> destFilenames,
+      @Nullable String destinationKmsKeyName,
+      MoveOptions... moveOptions)
       throws IOException {
     // Rename is implemented as a rewrite followed by deleting the source. If the new object is in
     // the same location, the copy is a metadata-only operation.
@@ -1187,7 +1204,12 @@ class GcsUtilV1 {
     final boolean ignoreExistingDest =
         moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
     rewriteHelper(
-        srcFilenames, destFilenames, /*deleteSource=*/ true, ignoreMissingSrc, ignoreExistingDest);
+        srcFilenames,
+        destFilenames,
+        /*deleteSource=*/ true,
+        ignoreMissingSrc,
+        ignoreExistingDest,
+        destinationKmsKeyName);
   }
 
   private void rewriteHelper(
@@ -1195,11 +1217,17 @@ class GcsUtilV1 {
       Iterable<String> destFilenames,
       boolean deleteSource,
       boolean ignoreMissingSource,
-      boolean ignoreExistingDest)
+      boolean ignoreExistingDest,
+      @Nullable String destinationKmsKeyName)
       throws IOException {
     LinkedList<RewriteOp> rewrites =
         makeRewriteOps(
-            srcFilenames, destFilenames, deleteSource, ignoreMissingSource, ignoreExistingDest);
+            srcFilenames,
+            destFilenames,
+            deleteSource,
+            ignoreMissingSource,
+            ignoreExistingDest,
+            destinationKmsKeyName);
     org.apache.beam.sdk.util.BackOff backoff = BACKOFF_FACTORY.backoff();
     while (true) {
       List<BatchInterface> batches = makeRewriteBatches(rewrites); // Removes completed rewrite ops.
@@ -1247,6 +1275,18 @@ class GcsUtilV1 {
       boolean ignoreMissingSource,
       boolean ignoreExistingDest)
       throws IOException {
+    return makeRewriteOps(
+        srcFilenames, destFilenames, deleteSource, ignoreMissingSource, ignoreExistingDest, null);
+  }
+
+  LinkedList<RewriteOp> makeRewriteOps(
+      Iterable<String> srcFilenames,
+      Iterable<String> destFilenames,
+      boolean deleteSource,
+      boolean ignoreMissingSource,
+      boolean ignoreExistingDest,
+      @Nullable String destinationKmsKeyName)
+      throws IOException {
     List<String> srcList = Lists.newArrayList(srcFilenames);
     List<String> destList = Lists.newArrayList(destFilenames);
     checkArgument(
@@ -1262,7 +1302,9 @@ class GcsUtilV1 {
         throw new UnsupportedOperationException(
             "Skipping dest existence is only supported within a bucket.");
       }
-      rewrites.addLast(new RewriteOp(sourcePath, destPath, deleteSource, ignoreMissingSource));
+      rewrites.addLast(
+          new RewriteOp(
+              sourcePath, destPath, deleteSource, ignoreMissingSource, destinationKmsKeyName));
     }
     return rewrites;
   }

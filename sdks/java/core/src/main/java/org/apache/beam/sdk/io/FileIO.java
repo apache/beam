@@ -41,6 +41,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.fs.EmptyMatchTreatment;
 import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.fs.MetadataCoderV2;
+import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -1039,6 +1040,8 @@ public class FileIO {
 
     abstract @Nullable Contextful<Fn<DestinationT, FileNaming>> getFileNamingFn();
 
+    abstract @Nullable SerializableFunction<DestinationT, List<MoveOptions>> getMoveOptionsFn();
+
     abstract @Nullable DestinationT getEmptyWindowDestination();
 
     abstract @Nullable Coder<DestinationT> getDestinationCoder();
@@ -1091,6 +1094,9 @@ public class FileIO {
 
       abstract Builder<DestinationT, UserT> setFileNamingFn(
           Contextful<Fn<DestinationT, FileNaming>> namingFn);
+
+      abstract Builder<DestinationT, UserT> setMoveOptionsFn(
+          SerializableFunction<DestinationT, List<MoveOptions>> moveOptionsFn);
 
       abstract Builder<DestinationT, UserT> setEmptyWindowDestination(
           DestinationT emptyWindowDestination);
@@ -1264,6 +1270,13 @@ public class FileIO {
         Contextful<Fn<DestinationT, FileNaming>> namingFn) {
       checkArgument(namingFn != null, "namingFn can not be null");
       return toBuilder().setFileNamingFn(namingFn).build();
+    }
+
+    /** Specifies filesystem-specific move options for final files in each destination. */
+    public Write<DestinationT, UserT> withMoveOptions(
+        SerializableFunction<DestinationT, List<MoveOptions>> moveOptionsFn) {
+      checkArgument(moveOptionsFn != null, "moveOptionsFn can not be null");
+      return toBuilder().setMoveOptionsFn(moveOptionsFn).build();
     }
 
     /** Specifies a directory into which all temporary files will be placed. */
@@ -1494,6 +1507,9 @@ public class FileIO {
       }
 
       resolvedSpec.setFileNamingFn(resolveFileNamingFn());
+      if (getMoveOptionsFn() != null) {
+        resolvedSpec.setMoveOptionsFn(getMoveOptionsFn());
+      }
       resolvedSpec.setEmptyWindowDestination(getEmptyWindowDestination());
       if (getTempDirectory() == null) {
         checkArgument(
@@ -1720,6 +1736,13 @@ public class FileIO {
         @Override
         public @Nullable Coder<DestinationT> getDestinationCoder() {
           return spec.getDestinationCoder();
+        }
+
+        @Override
+        public List<MoveOptions> getMoveOptions(DestinationT destination) {
+          return spec.getMoveOptionsFn() == null
+              ? super.getMoveOptions(destination)
+              : spec.getMoveOptionsFn().apply(destination);
         }
       }
     }
