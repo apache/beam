@@ -563,6 +563,39 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
     result = poll_fn(FileSystems.join(tempdir, '*'))
     self.assertEqual(Timestamp.of(2345.5), result.watermark)
 
+  def test_poll_fn_releases_the_mtime_watermark_once_nothing_is_newer(self):
+    # Holding at the newest match forever would stall a directory that is
+    # merely quiet rather than empty: every poll re-lists the same old files,
+    # and the watermark would sit at their last-modified time while the poll
+    # time ran away from it, so event-time windows would never close.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    os.utime(self._create_temp_file(dir=tempdir), (1234.5, 1234.5))
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        mtime_timestamps=True)
+    pattern = FileSystems.join(tempdir, '*')
+    self.assertEqual(Timestamp.of(1234.5), poll_fn(pattern).watermark)
+    before = Timestamp.now()
+    quiet = poll_fn(pattern)
+    self.assertEqual(1, len(quiet.outputs))
+    self.assertTrue(before <= quiet.watermark <= Timestamp.now())
+
+  def test_poll_fn_holds_the_mtime_watermark_again_for_a_newer_match(self):
+    # A poll that does turn up a newer file has read the filesystem clock
+    # again, so the hold comes back rather than being spent once.
+    tempdir = '%s%s' % (self._new_tempdir(), os.sep)
+    os.utime(self._create_temp_file(dir=tempdir), (1234.5, 1234.5))
+    poll_fn = fileio._MatchContinuouslyPollFn(
+        fileio.EmptyMatchTreatment.ALLOW,
+        Timestamp.now() - 3600,
+        mtime_timestamps=True)
+    pattern = FileSystems.join(tempdir, '*')
+    poll_fn(pattern)
+    poll_fn(pattern)
+    os.utime(self._create_temp_file(dir=tempdir), (2345.5, 2345.5))
+    self.assertEqual(Timestamp.of(2345.5), poll_fn(pattern).watermark)
+
   def test_poll_fn_caps_the_mtime_watermark_at_the_poll_time(self):
     # A filesystem clock running ahead must not carry the watermark with it,
     # which pins the watermark to the poll time.
@@ -695,9 +728,13 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(match_continiously, equal_to([first, twin]))
 
-  def test_timestamp_cursor_leaves_updated_files_out_by_default(self):
+  def test_timestamp_cursor_leaves_updated_files_out_while_their_id_is_held(
+      self):
     # match_updated_files still decides whether a changed file counts as new,
-    # so an update is skipped unless it is asked for.
+    # so an update is skipped unless it is asked for. That only holds while
+    # the file's id is still retained: once the cursor has moved past it and
+    # retired it, a later update looks new again. See the retirement test in
+    # watch_test.py.
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     path = self._create_temp_file(dir=tempdir)
     os.utime(path, (1234.5, 1234.5))
