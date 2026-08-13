@@ -54,6 +54,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -113,6 +114,11 @@ public class StreamingModeExecutionContextTest {
 
   private static final FailedWorkHandler FAILING_FAILED_WORK_HANDLER =
       ignored -> {
+        Assert.fail();
+      };
+
+  private static final KeyTransitionListener FAILING_KEY_TRANSISITON =
+      (oldWork, newWork) -> {
         Assert.fail();
       };
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
@@ -207,7 +213,7 @@ public class StreamingModeExecutionContextTest {
           /* workQueueExecutor= */ mock(BoundedQueueExecutor.class),
           /* budgetHandle= */ mock(BoundedQueueExecutorWorkHandle.class),
           keyCoder,
-          /* keyTransitionListener= */ (k, c) -> {},
+          FAILING_KEY_TRANSISITON,
           /* onFailedWorkHandler= */ FAILING_FAILED_WORK_HANDLER);
     } catch (CoderException e) {
       throw new RuntimeException(e);
@@ -600,7 +606,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(executionContext.advance());
@@ -637,7 +643,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
@@ -675,7 +681,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
@@ -705,7 +711,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     work1.setFailed();
@@ -734,7 +740,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(executionContext.advance());
@@ -769,7 +775,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
@@ -809,7 +815,7 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> {},
+        FAILING_KEY_TRANSISITON,
         FAILING_FAILED_WORK_HANDLER);
 
     context.reportBytesSinked(50);
