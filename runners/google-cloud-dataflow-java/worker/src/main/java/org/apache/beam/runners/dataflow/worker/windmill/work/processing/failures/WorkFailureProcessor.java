@@ -25,6 +25,7 @@ import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
@@ -159,6 +160,16 @@ public final class WorkFailureProcessor {
     }
     @Nullable final Throwable cause = t.getCause();
     Throwable parsedException = (t instanceof UserCodeException && cause != null) ? cause : t;
+
+    if (parsedException instanceof MultiKeyCommitValidationException) {
+      LOG.info(
+          "Execution of work for computation '{}' on sharding key '{}' for work token '{}' exceeded commit size limits. "
+              + "Work will be retried locally in smaller batches.",
+          computationId,
+          work.getWorkItem().getShardingKey(),
+          work.getWorkItem().getWorkToken());
+      return RetryEvaluation.RETRY_LOCALLY;
+    }
 
     LastExceptionDataProvider.reportException(parsedException);
     LOG.debug("Failed work: {}", work);

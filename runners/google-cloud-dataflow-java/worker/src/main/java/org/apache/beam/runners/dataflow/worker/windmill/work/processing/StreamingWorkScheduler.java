@@ -261,7 +261,7 @@ public class StreamingWorkScheduler {
     } catch (Throwable t) {
       handleProcessWorkFailure(computationState, handle.getWorkBatch(), computationId, work, t);
     } finally {
-      List<Work> processedWorkBatch = workBatch != null ? workBatch : ImmutableList.of(work);
+      List<Work> processedWorkBatch = workBatch != null ? workBatch : handle.getWorkBatch();
       // Update total processing time counters. Updating in finally clause ensures that
       // work items causing exceptions are also accounted in time spent.
       recordProcessingTime(stageInfo, processedWorkBatch, processingStartTimeNanos);
@@ -413,10 +413,6 @@ public class StreamingWorkScheduler {
     }
     for (int i = 0; i < workBatch.size(); i++) {
       Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
-      // TODO: Retry on commit truncations
-      checkState(
-          !commit.getExceedsMaxWorkItemCommitBytes(),
-          "Commit truncation with multikey bundles not implemented");
       Work w = workBatch.get(i);
       multiKeyBuilder.addRequests(
           commit
@@ -424,6 +420,8 @@ public class StreamingWorkScheduler {
               .addAllPerWorkItemLatencyAttributions(w.getLatencyAttributions(sampler))
               .build());
     }
+
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommitRequest = multiKeyBuilder.build();
 
     // Transition states of all completed works in the batch to COMMIT_QUEUED and submit
     for (Work w : workBatch) {
@@ -435,7 +433,7 @@ public class StreamingWorkScheduler {
         .workCommitter()
         .accept(
             Commit.createMultiKey(
-                multiKeyBuilder.build(), computationState, ImmutableList.copyOf(workBatch)));
+                multiKeyCommitRequest, computationState, ImmutableList.copyOf(workBatch)));
   }
 
   private void commitSingleKeyWork(

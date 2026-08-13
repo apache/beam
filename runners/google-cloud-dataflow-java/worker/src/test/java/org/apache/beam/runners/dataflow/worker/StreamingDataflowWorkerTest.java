@@ -154,6 +154,7 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
@@ -301,6 +302,11 @@ public class StreamingDataflowWorkerTest {
       };
 
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
+
+  @Rule
+  public ExpectedLogs expectedStreamingModeExecutionContextLogs =
+      ExpectedLogs.none(StreamingModeExecutionContext.class);
+
   @Rule public BlockingFn blockingFn = new BlockingFn();
   @Rule public TestRule restoreMDC = new RestoreDataflowLoggingMDC();
   @Rule public final GrpcCleanupRule grpcCleanup = new GrpcCleanupRule();
@@ -4751,6 +4757,395 @@ public class StreamingDataflowWorkerTest {
         "12345", commit.getOutputMessages(0).getBundles(0).getMessages(0).getData().toStringUtf8());
   }
 
+  @Test
+  public void testMultiKeyCommit_batchCommitSizeExceededUnBatchSucceeds() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new FixedSizeCommitFn(500), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams(
+                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=5000",
+                    "--numberOfWorkerHarnessThreads=1")
+                .setLocalRetryTimeoutMs(100)
+                .setInstructions(instructions)
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
+                        .build())
+                .build());
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 1"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertEquals(2, result.size());
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(2L));
+    for (Windmill.WorkItemCommitRequest commitRequest : result.values()) {
+      assertFalse(commitRequest.getExceedsMaxWorkItemCommitBytes());
+    }
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(2, multiKeyCommits.size());
+    assertEquals(1, multiKeyCommits.get(0).getRequestsCount());
+    assertEquals(1, multiKeyCommits.get(1).getRequestsCount());
+
+    expectedStreamingModeExecutionContextLogs.verifyWarn(
+        "Windmill Commit limit exceeded on a multi key bundle");
+
+    worker.stop();
+  }
+
+  @Test
+  public void testMultiKeyCommit_batchCommitSizeExceededUnBatchTruncates() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new FixedSizeCommitFn(500), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams(
+                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=5000",
+                    "--numberOfWorkerHarnessThreads=1")
+                .setLocalRetryTimeoutMs(100)
+                .setInstructions(instructions)
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            // Both workitems exceed commit limits
+                            OperationalLimits.builder().setMaxWorkItemCommitBytes(400).build())
+                        .build())
+                .build());
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 1"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertEquals(2, result.size());
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(2L));
+    for (Windmill.WorkItemCommitRequest commitRequest : result.values()) {
+      assertTrue(commitRequest.getExceedsMaxWorkItemCommitBytes());
+    }
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(2, multiKeyCommits.size());
+    assertEquals(1, multiKeyCommits.get(0).getRequestsCount());
+    assertEquals(1, multiKeyCommits.get(1).getRequestsCount());
+
+    expectedStreamingModeExecutionContextLogs.verifyWarn(
+        "Windmill Commit limit exceeded on a multi key bundle");
+
+    worker.stop();
+  }
+
+  @Test
+  public void testMultiKeyCommit_batchCommitSizeExceededUnBatchFirstItemTruncates()
+      throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams(
+                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=5000",
+                    "--numberOfWorkerHarnessThreads=1")
+                .setLocalRetryTimeoutMs(100)
+                .setInstructions(instructions)
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
+                        .build())
+                .build());
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"large_key\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 1"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"small_key\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertEquals(2, result.size());
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(2L));
+    assertTrue(result.get(1L).getExceedsMaxWorkItemCommitBytes());
+    assertFalse(result.get(2L).getExceedsMaxWorkItemCommitBytes());
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(2, multiKeyCommits.size());
+    assertEquals(1, multiKeyCommits.get(0).getRequestsCount());
+    assertEquals(1, multiKeyCommits.get(1).getRequestsCount());
+
+    expectedStreamingModeExecutionContextLogs.verifyWarn(
+        "Windmill Commit limit exceeded on a multi key bundle");
+
+    worker.stop();
+  }
+
+  @Test
+  public void testMultiKeyCommit_batchCommitSizeExceededUnBatchSecondItemTruncates()
+      throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(new LargeCommitFn(), 0, kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    StreamingDataflowWorker worker =
+        makeWorker(
+            defaultWorkerParams(
+                    "--experiments=unstable_enable_multi_key_bundle,windmill_max_key_group_batch_time_ms=5000",
+                    "--numberOfWorkerHarnessThreads=1")
+                .setLocalRetryTimeoutMs(100)
+                .setInstructions(instructions)
+                .setStreamingGlobalConfig(
+                    StreamingGlobalConfig.builder()
+                        .setOperationalLimits(
+                            OperationalLimits.builder().setMaxWorkItemCommitBytes(1000).build())
+                        .build())
+                .build());
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"small_key\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 1"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"large_key\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertEquals(2, result.size());
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(2L));
+    assertFalse(result.get(1L).getExceedsMaxWorkItemCommitBytes());
+    assertTrue(result.get(2L).getExceedsMaxWorkItemCommitBytes());
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(2, multiKeyCommits.size());
+    assertEquals(1, multiKeyCommits.get(0).getRequestsCount());
+    assertEquals(1, multiKeyCommits.get(1).getRequestsCount());
+
+    expectedStreamingModeExecutionContextLogs.verifyWarn(
+        "Windmill Commit limit exceeded on a multi key bundle");
+
+    worker.stop();
+  }
+
   static class BlockingFn extends DoFn<String, String> implements TestRule {
 
     public static AtomicReference<CountDownLatch> blocker =
@@ -4838,6 +5233,23 @@ public class StreamingDataflowWorkerTest {
       } else {
         c.output(c.element());
       }
+    }
+  }
+
+  static class FixedSizeCommitFn extends DoFn<KV<String, String>, KV<String, String>> {
+    private final int size;
+
+    FixedSizeCommitFn(int size) {
+      this.size = size;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      StringBuilder s = new StringBuilder();
+      for (int i = 0; i < size; ++i) {
+        s.append("a");
+      }
+      c.output(KV.of(c.element().getKey(), s.toString()));
     }
   }
 

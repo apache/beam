@@ -54,6 +54,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileSc
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
@@ -717,6 +718,25 @@ public class StreamingModeExecutionContext
       return;
     }
 
+    // Look at budgetHandle instead of executedWorks because when intermediate work items are
+    // validated during advance(), the next work item (additionalWork) has already been polled
+    // and merged into budgetHandle before startForNewKey() adds it to executedWorks. This means
+    // any item hitting truncation in a multi-key bundle will be retried at least once.
+    // TODO: Can we request truncation without retrying if the first commit exceed the limits?
+    BoundedQueueExecutorWorkHandle handle = checkNotNull(budgetHandle);
+    checkState(!handle.getWorkBatch().isEmpty());
+    List<Work> currentBatch = handle.getWorkBatch();
+    if (currentBatch.size() > 1) {
+      LOG.warn(
+          "Windmill Commit limit exceeded on a multi key bundle. Retrying without batching. Batch size: {}",
+          currentBatch.size());
+      for (Work w : currentBatch) {
+        w.setMultiKeyBatchingDisabled(true);
+      }
+      throw new MultiKeyCommitValidationException(
+          "Commit size validation failed for batch. Retrying individually.");
+    }
+
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(
             systemName, byteLimit, commitRequest, key, hotKeyLoggingEnabled);
@@ -730,11 +750,6 @@ public class StreamingModeExecutionContext
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
     currentBuilder.clear();
     currentBuilder.mergeFrom(truncationBuilder.build());
-
-    // TODO: throw and retry when truncation is not on a single key bundle.
-    checkState(
-        !multiKeyBundleOptions.multiKeyBundleEnabled(),
-        "Commit truncation not implemented for multikey bundles");
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
@@ -773,7 +788,9 @@ public class StreamingModeExecutionContext
       throw new WorkItemCancelledException(activeWork.getWorkItem().getShardingKey());
     }
 
-    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
+    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT)
+        || activeWork.isMultiKeyBatchingDisabled()
+        || shouldStopBatching()) {
       return false;
     }
 
@@ -792,7 +809,6 @@ public class StreamingModeExecutionContext
   }
 
   private boolean shouldStopBatching() {
-    // TODO: stop batching if the previous work item requested truncation
     if (workItemsPolled >= multiKeyBundleOptions.maxKeyGroupBatchSize()) {
       return true;
     }
