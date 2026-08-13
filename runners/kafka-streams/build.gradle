@@ -120,6 +120,7 @@ tasks.register("brokerIntegrationTest", Test) {
   }
   // A container start plus a streaming run is well past the default per-test expectations.
   timeout = Duration.ofMinutes(15)
+  testLogging { showStandardStreams = true }
 }
 
 // Known-failing @ValidatesRunner tests, excluded until the feature they need lands.
