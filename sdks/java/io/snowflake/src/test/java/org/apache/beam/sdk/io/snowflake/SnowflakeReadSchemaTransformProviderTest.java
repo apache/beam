@@ -124,7 +124,7 @@ public class SnowflakeReadSchemaTransformProviderTest {
             .build();
 
     String[] values = {
-      "1", "2", "3", "4", "5.5", "6.5", "hello", "true", "abc", "2026-08-13T09:00:00.000Z"
+      "1", "2", "3", "4", "5.5", "6.5", "hello", "true", "616263", "2026-08-13T09:00:00.000Z"
     };
 
     Row row = SnowflakeSchemaTransformUtils.toRow(values, schema);

@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.snowflake;
 
-import java.nio.charset.StandardCharsets;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeColumn;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
@@ -246,7 +245,7 @@ public class SnowflakeSchemaTransformUtils {
           throw new IllegalArgumentException(String.format("Invalid boolean value '%s'.", value));
 
         case BYTES:
-          return value.getBytes(StandardCharsets.UTF_8);
+          return decodeHex(value);
 
         case DATETIME:
           return Instant.parse(value);
@@ -267,6 +266,27 @@ public class SnowflakeSchemaTransformUtils {
               value, field.getType().getTypeName(), field.getName()),
           e);
     }
+  }
+
+  private static byte[] decodeHex(String value) {
+    if ((value.length() & 1) != 0) {
+      throw new IllegalArgumentException("Invalid hexadecimal Snowflake binary value.");
+    }
+
+    byte[] result = new byte[value.length() / 2];
+
+    for (int i = 0; i < value.length(); i += 2) {
+      int high = Character.digit(value.charAt(i), 16);
+      int low = Character.digit(value.charAt(i + 1), 16);
+
+      if (high == -1 || low == -1) {
+        throw new IllegalArgumentException("Invalid hexadecimal Snowflake binary value.");
+      }
+
+      result[i / 2] = (byte) ((high << 4) | low);
+    }
+
+    return result;
   }
 
   public static SnowflakeDataType toSnowflakeDataType(Schema.Field field) {

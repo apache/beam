@@ -31,6 +31,7 @@ dependencies {
   permitUnusedDeclared project(path: ":sdks:java:extensions:google-cloud-platform-core")
   implementation library.java.slf4j_api
   implementation library.java.everit_json_schema
+  permitUnusedDeclared library.java.everit_json_schema
   implementation group: 'net.snowflake', name: 'snowflake-jdbc', version: '4.0.2'
   implementation group: 'com.opencsv', name: 'opencsv', version: '5.12.0'
   implementation 'net.snowflake:snowflake-ingest-sdk:4.4.2'
