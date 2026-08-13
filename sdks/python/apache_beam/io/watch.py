@@ -35,11 +35,10 @@ not passed explicitly and converted to its deterministic form, so equal keys
 hash equally across workers and restarts.
 
 By default, the Watch transform internally stores the hash of all items
-seen. If the incremental items returned by the poll function guarantee
-monotonic timestamp growth (new items on the next poll have timestamps
-larger than the largest of the previous poll), consider setting
-``timestamp_cursor=True`` for better performance, as it replaces the hash
-dedup with an O(1) event-time cursor; see :class:`Watch`.
+seen. If the items returned by the poll function arrive in roughly
+non-decreasing event time, consider setting ``timestamp_cursor=True``, which
+retires a hash once the greatest emitted event time has moved past it and so
+holds a trailing window instead of every item ever seen; see :class:`Watch`.
 
 Example::
 
@@ -274,9 +273,9 @@ class _PollingGrowthState(_GrowthState):
   """Keep-polling state: dedup state, watermark, termination state.
 
   ``completed`` maps a 16-byte output-key hash to the event time it was first
-  seen; it is insertion-ordered and treated as immutable. In timestamp-cursor
-  mode ``completed`` is empty and ``cursor`` is the greatest emitted event
-  time.
+  seen; it is insertion-ordered and treated as immutable. ``cursor`` is the
+  greatest emitted event time, set only in timestamp-cursor mode, where it
+  retires the keys it has moved past and bounds ``completed``.
   """
   completed: 'collections.OrderedDict[bytes, Timestamp]'
   poll_watermark: Optional[Timestamp]
@@ -302,33 +301,6 @@ _EMPTY_STATE = _NonPollingGrowthState(PollResult((), None))
 # ------------------------------------------------------------------------------
 
 
-class _MicrosTimestampCoder(Coder):
-  """Coder for a :class:`Timestamp` that keeps microseconds.
-
-  :class:`TimestampCoder` keeps only milliseconds. A cursor rounded down that
-  way comes back below the outputs it was taken from and the next poll hands
-  them out again, and a replayed output can land in a different window than
-  the emission it repeats. The width is fixed so a cursor state stays one size.
-  """
-  _WIDTH = 8
-
-  def encode(self, value: Timestamp) -> bytes:
-    return value.micros.to_bytes(
-        _MicrosTimestampCoder._WIDTH, 'big', signed=True)
-
-  def decode(self, encoded: bytes) -> Timestamp:
-    if len(encoded) != _MicrosTimestampCoder._WIDTH:
-      # A short payload would decode to a smaller timestamp, which as a cursor
-      # hands out outputs already emitted.
-      raise ValueError(
-          'Watch timestamp payload is %d bytes, expected %d.' %
-          (len(encoded), _MicrosTimestampCoder._WIDTH))
-    return Timestamp(micros=int.from_bytes(encoded, 'big', signed=True))
-
-  def is_deterministic(self) -> bool:
-    return True
-
-
 class _TimestampedValueCoder(Coder):
   """Coder for :class:`TimestampedValue`.
 
@@ -338,7 +310,7 @@ class _TimestampedValueCoder(Coder):
   :class:`TupleCoder` and rebuilds the ``TimestampedValue`` on decode.
   """
   def __init__(self, value_coder: Coder):
-    self._tuple_coder = TupleCoder([value_coder, _MicrosTimestampCoder()])
+    self._tuple_coder = TupleCoder([value_coder, TimestampCoder()])
 
   def encode(self, value: TimestampedValue) -> bytes:
     return self._tuple_coder.encode((value.value, value.timestamp))
@@ -352,16 +324,10 @@ class _TimestampedValueCoder(Coder):
 
 
 class _StateTag(enum.IntEnum):
-  """Envelope tag selecting the encoded restriction variant.
-
-  A tag is retired rather than reused when its payload format changes. Tags 1
-  and 2 held the millisecond timestamps this coder no longer writes, and their
-  payloads are the width of the microsecond ones, so a reused tag would decode
-  them to a wrong timestamp instead of failing.
-  """
+  """Envelope tag selecting the encoded restriction variant."""
   POLLING = 0
-  NON_POLLING = 3
-  CURSOR_POLLING = 4
+  NON_POLLING = 1
+  CURSOR_POLLING = 2
 
 
 class _GrowthStateCoder(Coder):
@@ -370,23 +336,26 @@ class _GrowthStateCoder(Coder):
   A ``(tag, payload)`` envelope selects the variant; the payload is a
   variant-specific :class:`TupleCoder`. ``completed`` is encoded as an ordered
   list of ``(hash, timestamp)`` pairs so insertion order survives a round
-  trip. A cursor state encodes only its termination state and cursor; the
-  watermark is restored from the estimator state the runner persists. Hash
-  states keep the pre-cursor byte format. This format is internal to the
-  Python SDK.
+  trip. A cursor state adds the cursor to that payload; the keys it carries
+  are only those the cursor has yet to retire. States without a cursor keep
+  the pre-cursor byte format. This format is internal to the Python SDK.
   """
   def __init__(self, output_coder: Coder, termination: TerminationCondition):
     nullable_ts = NullableCoder(TimestampCoder())
+    completed_coder = coders.ListCoder(
+        TupleCoder([coders.BytesCoder(), TimestampCoder()]))
     self._envelope_coder = TupleCoder(
         [coders.VarIntCoder(), coders.BytesCoder()])
     self._polling_coder = TupleCoder([
         termination.state_coder(),
         nullable_ts,
-        coders.ListCoder(TupleCoder([coders.BytesCoder(), TimestampCoder()])),
+        completed_coder,
     ])
     self._cursor_polling_coder = TupleCoder([
         termination.state_coder(),
-        _MicrosTimestampCoder(),
+        nullable_ts,
+        completed_coder,
+        TimestampCoder(),
     ])
     self._non_polling_coder = TupleCoder([
         nullable_ts,
@@ -401,8 +370,11 @@ class _GrowthStateCoder(Coder):
             state.poll_watermark,
             list(state.completed.items())))
         return self._envelope_coder.encode((_StateTag.POLLING, payload))
-      payload = self._cursor_polling_coder.encode(
-          (state.termination_state, state.cursor))
+      payload = self._cursor_polling_coder.encode((
+          state.termination_state,
+          state.poll_watermark,
+          list(state.completed.items()),
+          state.cursor))
       return self._envelope_coder.encode((_StateTag.CURSOR_POLLING, payload))
     payload = self._non_polling_coder.encode(
         (state.pending.watermark, list(state.pending.outputs)))
@@ -419,9 +391,13 @@ class _GrowthStateCoder(Coder):
       watermark, outputs = self._non_polling_coder.decode(payload)
       return _NonPollingGrowthState(PollResult(tuple(outputs), watermark))
     if tag == _StateTag.CURSOR_POLLING:
-      termination_state, cursor = self._cursor_polling_coder.decode(payload)
+      termination_state, poll_watermark, items, cursor = (
+          self._cursor_polling_coder.decode(payload))
       return _PollingGrowthState(
-          collections.OrderedDict(), None, termination_state, cursor)
+          collections.OrderedDict(items),
+          poll_watermark,
+          termination_state,
+          cursor)
     raise ValueError('unknown Watch growth state tag: %r' % (tag, ))
 
   def is_deterministic(self) -> bool:
@@ -451,20 +427,39 @@ def _max_watermark(left: Optional[Timestamp],
   return max(left, right)
 
 
+def _retention_floor(
+    restriction: _PollingGrowthState,
+    allowed_lateness: Duration) -> Optional[Timestamp]:
+  """The event time below which a key is retired from ``completed``.
+
+  ``None`` leaves every key retained, which is hash dedup with unbounded
+  state. Otherwise an output at or above the floor is still deduped by key,
+  and one below it is taken as already seen.
+  """
+  if restriction.cursor is None:
+    return None
+  return restriction.cursor - allowed_lateness
+
+
 def _never_seen_before(
     restriction: _PollingGrowthState,
     result: PollResult,
     key_fn: Callable[[Any], Any],
-    key_coder: Coder) -> PollResult:
+    key_coder: Coder,
+    floor: Optional[Timestamp] = None) -> PollResult:
   """Filters a poll result down to outputs whose key was never seen before.
 
   Dedup hashes ``key_fn(output.value)`` against the restriction's completed
-  set, also dropping in-round duplicates. Outputs are sorted by timestamp so
-  the earliest one can serve as the inferred watermark.
+  set, also dropping in-round duplicates. An output below ``floor`` is dropped
+  without consulting the set, since the key that would prove it seen has been
+  retired. Outputs are sorted by timestamp so the earliest one can serve as
+  the inferred watermark.
   """
   new_outputs = []
   seen_this_round = set()
   for output in result.outputs:
+    if floor is not None and output.timestamp < floor:
+      continue
     key_hash = _hash_output(key_coder, key_fn(output.value))
     if key_hash in restriction.completed or key_hash in seen_this_round:
       continue
@@ -474,28 +469,18 @@ def _never_seen_before(
   return dataclasses.replace(result, outputs=tuple(new_outputs))
 
 
-def _cursor_of(restriction: _PollingGrowthState) -> Optional[Timestamp]:
-  """The dedup cursor: the stored one, or for a restriction switched over
-  from hash dedup, the greatest event time its hash map recorded."""
-  if restriction.cursor is not None:
-    return restriction.cursor
-  if restriction.completed:
-    return max(restriction.completed.values())
-  return None
-
-
-def _past_cursor(
-    restriction: _PollingGrowthState, result: PollResult) -> PollResult:
-  """Filters a poll result down to outputs strictly past the cursor, sorted
-  by timestamp so the earliest infers the watermark and the latest advances
-  the cursor."""
-  cursor = _cursor_of(restriction)
-  new_outputs = [
-      output for output in result.outputs
-      if cursor is None or output.timestamp > cursor
-  ]
-  new_outputs.sort(key=lambda output: output.timestamp)
-  return dataclasses.replace(result, outputs=tuple(new_outputs))
+def _retained(
+    completed: 'collections.OrderedDict[bytes, Timestamp]',
+    floor: Optional[Timestamp]) -> 'collections.OrderedDict[bytes, Timestamp]':
+  """Drops the keys the floor has retired, which bounds the state."""
+  if floor is None:
+    return completed
+  retained = collections.OrderedDict(
+      (key_hash, timestamp) for key_hash, timestamp in completed.items()
+      if timestamp >= floor)
+  # Reuse the parent map when the floor retired nothing, so a round that adds
+  # no key leaves the state object untouched.
+  return completed if len(retained) == len(completed) else retained
 
 
 class _GrowthRestrictionTracker(iobase.RestrictionTracker):
@@ -512,11 +497,13 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
       restriction: _GrowthState,
       key_fn: Callable[[Any], Any],
       key_coder: Coder,
-      timestamp_cursor: bool = False):
+      timestamp_cursor: bool = False,
+      allowed_lateness: Duration = Duration(0)):
     self._restriction = restriction
     self._key_fn = key_fn
     self._key_coder = key_coder
     self._timestamp_cursor = timestamp_cursor
+    self._allowed_lateness = allowed_lateness
     self._claimed_result = None  # type: Optional[PollResult]
     self._claimed_termination_state = None  # type: Any
     self._claimed_hashes = None  # type: Optional[collections.OrderedDict]
@@ -524,6 +511,12 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
 
   def _hash(self, value: Any) -> bytes:
     return _hash_output(self._key_coder, self._key_fn(value))
+
+  def _floor(self) -> Optional[Timestamp]:
+    if not self._timestamp_cursor or not isinstance(self._restriction,
+                                                    _PollingGrowthState):
+      return None
+    return _retention_floor(self._restriction, self._allowed_lateness)
 
   def current_restriction(self) -> _GrowthState:
     return self._restriction
@@ -538,35 +531,23 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
     if self._should_stop:
       return False
     result, termination_state = position
-    claimed_hashes = None
-    if self._timestamp_cursor:
-      # Cursor mode validates by timestamps and never hashes.
-      if isinstance(self._restriction, _PollingGrowthState):
-        cursor = _cursor_of(self._restriction)
-        if cursor is not None and any(output.timestamp <= cursor
-                                      for output in result.outputs):
-          return False
-      else:
-        # Values may lack stable equality without a deterministic coder, so a
-        # replay is identified by its timestamps.
-        expected = sorted(
-            output.timestamp for output in self._restriction.pending.outputs)
-        if expected != sorted(output.timestamp for output in result.outputs):
-          return False
+    claimed_hashes = collections.OrderedDict()
+    for output in result.outputs:
+      claimed_hashes[self._hash(output.value)] = output.timestamp
+    if isinstance(self._restriction, _PollingGrowthState):
+      if any(key_hash in self._restriction.completed
+             for key_hash in claimed_hashes):
+        return False
+      floor = self._floor()
+      if floor is not None and any(output.timestamp < floor
+                                   for output in result.outputs):
+        return False
     else:
-      claimed_hashes = collections.OrderedDict()
-      for output in result.outputs:
-        claimed_hashes[self._hash(output.value)] = output.timestamp
-      if isinstance(self._restriction, _PollingGrowthState):
-        if any(key_hash in self._restriction.completed
-               for key_hash in claimed_hashes):
-          return False
-      else:
-        expected = set(
-            self._hash(output.value)
-            for output in self._restriction.pending.outputs)
-        if expected != set(claimed_hashes):
-          return False
+      expected = set(
+          self._hash(output.value)
+          for output in self._restriction.pending.outputs)
+      if expected != set(claimed_hashes):
+        return False
     self._should_stop = True
     self._claimed_result = result
     self._claimed_termination_state = termination_state
@@ -587,24 +568,21 @@ class _GrowthRestrictionTracker(iobase.RestrictionTracker):
     else:
       # The primary becomes a replay of the claimed round; the residual
       # resumes polling with the claimed round folded into the dedup state.
-      # A state holds hashes or a cursor, never both, so each mode drops the
-      # other mode's leftovers after a switch.
-      if self._timestamp_cursor:
-        completed = self._restriction.completed
-        if completed:
-          completed = collections.OrderedDict()
-        if self._claimed_result.outputs:
-          cursor = self._claimed_result.outputs[-1].timestamp
-        else:
-          cursor = _cursor_of(self._restriction)
-      elif self._claimed_hashes:
+      if self._claimed_hashes:
         completed = collections.OrderedDict(self._restriction.completed)
         completed.update(self._claimed_hashes)
-        cursor = None
       else:
         # An idle round reuses the parent map so empty polls stay O(1).
         completed = self._restriction.completed
-        cursor = None
+      cursor = None
+      if self._timestamp_cursor:
+        # The cursor only ever advances, and retires the keys it moves past.
+        cursor = _max_watermark(
+            self._restriction.cursor,
+            max((output.timestamp for output in self._claimed_result.outputs),
+                default=None))
+        if cursor is not None:
+          completed = _retained(completed, cursor - self._allowed_lateness)
       residual = _PollingGrowthState(
           completed,
           _max_watermark(
@@ -656,6 +634,7 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
       key_fn: Callable[[Any], Any],
       key_coder: Coder,
       timestamp_cursor: bool = False,
+      allowed_lateness: Duration = Duration(0),
       now_fn: Optional[Callable[[], float]] = None):
     self._poll_fn = poll_fn
     self._termination = termination
@@ -664,6 +643,7 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     self._key_fn = key_fn
     self._key_coder = key_coder
     self._timestamp_cursor = timestamp_cursor
+    self._allowed_lateness = allowed_lateness
     self._now = now_fn or time.time
     self._restriction_coder = _GrowthStateCoder(output_coder, termination)
     # Count of late emissions seen on this worker, for throttled warnings.
@@ -678,7 +658,11 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
 
   def create_tracker(self, restriction) -> _GrowthRestrictionTracker:
     return _GrowthRestrictionTracker(
-        restriction, self._key_fn, self._key_coder, self._timestamp_cursor)
+        restriction,
+        self._key_fn,
+        self._key_coder,
+        self._timestamp_cursor,
+        self._allowed_lateness)
 
   def restriction_coder(self) -> Coder:
     return self._restriction_coder
@@ -718,11 +702,11 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     result = self._poll_fn(element)
     # Read the clock after the poll so a slow poll counts against termination.
     now = Timestamp.of(self._now())
+    floor = None
     if self._timestamp_cursor:
-      new_results = _past_cursor(restriction, result)
-    else:
-      new_results = _never_seen_before(
-          restriction, result, self._key_fn, self._key_coder)
+      floor = _retention_floor(restriction, self._allowed_lateness)
+    new_results = _never_seen_before(
+        restriction, result, self._key_fn, self._key_coder, floor)
     termination_state = restriction.termination_state
     if new_results.outputs:
       termination_state = self._termination.on_seen_new_output(
@@ -749,9 +733,10 @@ class _WatchGrowthDoFn(core.DoFn, core.RestrictionProvider):
     else:
       watermark = None
     if self._timestamp_cursor:
-      new_cursor = (
-          new_results.outputs[-1].timestamp
-          if new_results.outputs else restriction.cursor)
+      # Outputs are timestamp-sorted, so the last one is the greatest.
+      new_cursor = _max_watermark(
+          restriction.cursor,
+          new_results.outputs[-1].timestamp if new_results.outputs else None)
       if new_cursor is not None and new_cursor >= MAX_TIMESTAMP:
         # A cursor at MAX is terminal; polling on would only drop outputs.
         return
@@ -845,14 +830,17 @@ class Watch(PTransform):
       inferred like ``output_coder`` when omitted. It is converted with
       ``as_deterministic_coder`` so equal keys always hash equally; a coder
       with no deterministic form is rejected.
-    timestamp_cursor: dedup by event time instead of by key. Each round emits
-      only outputs strictly past the greatest event time already emitted, so
-      the per-input state is a single timestamp. Requires every new output to
-      carry an event time strictly greater than all previously emitted ones;
-      re-listed old outputs at or below the cursor are dropped as already
-      seen. For sources whose new outputs can arrive at or below the cursor,
-      keep the default hash dedup. Incompatible with ``output_key_fn`` and
-      ``output_key_coder``.
+    timestamp_cursor: bound the dedup state by event time. Dedup still goes by
+      key, but a key is retired once the greatest emitted event time has moved
+      more than ``allowed_lateness`` past it, so the state holds a trailing
+      window rather than every key ever seen. An output below that mark is
+      taken as already seen and dropped, so this suits sources whose outputs
+      arrive in roughly non-decreasing event time; keep the default for
+      sources that can hand out much older outputs at any time.
+    allowed_lateness: how far below the cursor a key is still retained, as a
+      :class:`Duration` or in seconds. Widen it for a source whose outputs
+      arrive out of order, at the cost of a larger state. Ignored unless
+      ``timestamp_cursor`` is set; defaults to zero.
     now_fn: clock used for termination decisions; tests can inject one.
   """
   def __init__(
@@ -864,15 +852,16 @@ class Watch(PTransform):
       output_key_fn: Optional[Callable[[Any], Any]] = None,
       output_key_coder: Optional[Coder] = None,
       timestamp_cursor: bool = False,
+      allowed_lateness=0,
       now_fn: Optional[Callable[[], float]] = None):
     super().__init__()
     if poll_interval is None:
       raise ValueError('Watch requires a poll_interval')
-    if timestamp_cursor and (output_key_fn is not None or
-                             output_key_coder is not None):
+    allowed_lateness = _as_duration(allowed_lateness)
+    if allowed_lateness < Duration(0):
       raise ValueError(
-          'timestamp_cursor dedups by event time, not by key; do not pass '
-          'output_key_fn or output_key_coder with timestamp_cursor=True.')
+          'Watch allowed_lateness must not be negative, got %s' %
+          allowed_lateness)
     self._poll_fn = poll_fn
     self._poll_interval = _as_duration(poll_interval)
     self._termination = termination or never()
@@ -880,6 +869,7 @@ class Watch(PTransform):
     self._output_key_fn = output_key_fn
     self._output_key_coder = output_key_coder
     self._timestamp_cursor = timestamp_cursor
+    self._allowed_lateness = allowed_lateness
     self._now = now_fn
 
   def expand(self, pcoll):
@@ -888,28 +878,22 @@ class Watch(PTransform):
       output_coder = self._poll_fn.default_output_coder()
     if output_coder is None:
       output_coder = _coder_for_hint(_poll_output_type(self._poll_fn))
-    if self._timestamp_cursor:
-      # Cursor dedup never hashes, so no deterministic key coder is needed.
+    if self._output_key_fn is None:
+      # The output is its own dedup key, so the key coder is the output coder.
       key_fn = _identity
-      key_coder = output_coder
+      key_coder = self._output_key_coder or output_coder
     else:
-      if self._output_key_fn is None:
-        # The output is its own dedup key, so the key coder is the output
-        # coder.
-        key_fn = _identity
-        key_coder = self._output_key_coder or output_coder
-      else:
-        key_fn = self._output_key_fn
-        key_coder = self._output_key_coder or _coder_for_hint(
-            _return_type(self._output_key_fn))
-      # Dedup hashes the encoded key, so equal keys must encode equally; use
-      # the coder's deterministic form and reject coders that have none.
-      key_coder = key_coder.as_deterministic_coder(
-          self.label,
-          'Watch dedups by hashing the encoded output key, so the key coder '
-          'must be deterministic. %s has no deterministic form; pass a '
-          'deterministic output_key_coder (or output_coder).' %
-          type(key_coder).__name__)
+      key_fn = self._output_key_fn
+      key_coder = self._output_key_coder or _coder_for_hint(
+          _return_type(self._output_key_fn))
+    # Dedup hashes the encoded key, so equal keys must encode equally; use the
+    # coder's deterministic form and reject coders that have none.
+    key_coder = key_coder.as_deterministic_coder(
+        self.label,
+        'Watch dedups by hashing the encoded output key, so the key coder '
+        'must be deterministic. %s has no deterministic form; pass a '
+        'deterministic output_key_coder (or output_coder).' %
+        type(key_coder).__name__)
     # Type the (input, output) pairs from the input type and the resolved
     # coder's type, so downstream transforms are typed and coder inference does
     # not fall back to pickling.
@@ -927,6 +911,7 @@ class Watch(PTransform):
             key_fn,
             key_coder,
             self._timestamp_cursor,
+            self._allowed_lateness,
             self._now)).with_output_types(tuple[input_type, value_type])
 
 
