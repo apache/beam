@@ -37,7 +37,6 @@ from apache_beam.ml.anomaly.base import AnomalyPrediction
 from apache_beam.ml.anomaly.base import AnomalyResult
 from apache_beam.ml.anomaly.base import EnsembleAnomalyDetector
 from apache_beam.ml.anomaly.detectors.offline import OfflineDetector
-from apache_beam.ml.anomaly.detectors.zscore import ZScore
 from apache_beam.ml.anomaly.specifiable import Spec
 from apache_beam.ml.anomaly.specifiable import Specifiable
 from apache_beam.ml.anomaly.specifiable import _spec_type_to_subspace
@@ -119,6 +118,10 @@ def _keyed_result_is_equal_to(
 
 @specifiable
 class _ValueDetector(AnomalyDetector):
+  """Provides order-independent scores for transform orchestration tests.
+
+  A score of -1 represents detector warmup and is returned as NaN.
+  """
   def learn_one(self, unused_x: beam.Row) -> None:
     pass
 
@@ -132,65 +135,39 @@ class TestAnomalyDetection(unittest.TestCase):
     unkeyed_input = [
         beam.Row(x1=1, x2=4, score_x1=-1.0, score_x2=-1.0),
         beam.Row(x1=2, x2=4, score_x1=-1.0, score_x2=-1.0),
-        beam.Row(x1=3, x2=5, score_x1=2.1213203435596424, score_x2=0.0),
-        beam.Row(x1=10, x2=4, score_x1=8.0, score_x2=0.5773502691896252),
-        beam.Row(x1=2, x2=10, score_x1=0.4898979485566356, score_x2=11.5),
-        beam.Row(
-            x1=3,
-            x2=4,
-            score_x1=0.16452254913212455,
-            score_x2=0.5368754921931594),
+        beam.Row(x1=3, x2=5, score_x1=2.0, score_x2=0.0),
+        beam.Row(x1=10, x2=4, score_x1=4.0, score_x2=1.0),
+        beam.Row(x1=2, x2=10, score_x1=1.0, score_x2=3.0),
+        beam.Row(x1=3, x2=4, score_x1=0.0, score_x2=1.0),
     ]
     keyed_input = list(zip(itertools.repeat(1), unkeyed_input)) + [
         (2, beam.Row(x1=100, x2=5, score_x1=-1.0, score_x2=-1.0))
     ]
 
-    zscore_x1_expected_predictions = [
+    score_x1_expected_predictions = [
         AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
+            model_id='value_x1', score=float('NaN'), label=-2, threshold=3),
         AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
+            model_id='value_x1', score=float('NaN'), label=-2, threshold=3),
+        AnomalyPrediction(model_id='value_x1', score=2.0, label=0, threshold=3),
+        AnomalyPrediction(model_id='value_x1', score=4.0, label=1, threshold=3),
+        AnomalyPrediction(model_id='value_x1', score=1.0, label=0, threshold=3),
+        AnomalyPrediction(model_id='value_x1', score=0.0, label=0, threshold=3),
         AnomalyPrediction(
-            model_id='zscore_x1',
-            score=2.1213203435596424,
-            label=0,
-            threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1', score=8.0, label=1, threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1',
-            score=0.4898979485566356,
-            label=0,
-            threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1',
-            score=0.16452254913212455,
-            label=0,
-            threshold=3),
-        AnomalyPrediction(
-            model_id='zscore_x1', score=float('NaN'), label=-2, threshold=3),
+            model_id='value_x1', score=float('NaN'), label=-2, threshold=3),
     ]
 
-    zscore_x2_expected_predictions = [
+    score_x2_expected_predictions = [
         AnomalyPrediction(
-            model_id='zscore_x2', score=float('NaN'), label=-2, threshold=2),
+            model_id='value_x2', score=float('NaN'), label=-2, threshold=2),
         AnomalyPrediction(
-            model_id='zscore_x2', score=float('NaN'), label=-2, threshold=2),
-        AnomalyPrediction(model_id='zscore_x2', score=0, label=0, threshold=2),
+            model_id='value_x2', score=float('NaN'), label=-2, threshold=2),
+        AnomalyPrediction(model_id='value_x2', score=0, label=0, threshold=2),
+        AnomalyPrediction(model_id='value_x2', score=1.0, label=0, threshold=2),
+        AnomalyPrediction(model_id='value_x2', score=3.0, label=1, threshold=2),
+        AnomalyPrediction(model_id='value_x2', score=1.0, label=0, threshold=2),
         AnomalyPrediction(
-            model_id='zscore_x2',
-            score=0.5773502691896252,
-            label=0,
-            threshold=2),
-        AnomalyPrediction(
-            model_id='zscore_x2', score=11.5, label=1, threshold=2),
-        AnomalyPrediction(
-            model_id='zscore_x2',
-            score=0.5368754921931594,
-            label=0,
-            threshold=2),
-        AnomalyPrediction(
-            model_id='zscore_x2', score=float('NaN'), label=-2, threshold=2),
+            model_id='value_x2', score=float('NaN'), label=-2, threshold=2),
     ]
 
     aggregated_expected_predictions = [
@@ -203,29 +180,29 @@ class TestAnomalyDetection(unittest.TestCase):
         AnomalyPrediction(model_id="custom", label=-2),
     ]
 
-    keyed_zscore_x1_expected = [
+    keyed_single_expected = [
         (input[0], AnomalyResult(example=input[1], predictions=[decision]))
-        for input, decision in zip(keyed_input, zscore_x1_expected_predictions)
+        for input, decision in zip(keyed_input, score_x1_expected_predictions)
     ]
 
-    unkeyed_zscore_x1_expected = [
+    unkeyed_single_expected = [
         AnomalyResult(example=input, predictions=[decision])
         for input, decision in zip(
-            unkeyed_input, zscore_x1_expected_predictions)
+            unkeyed_input, score_x1_expected_predictions)
     ]
 
     keyed_ensemble_expected = [(
         input[0],
         AnomalyResult(example=input[1], predictions=[decision1, decision2]))
                                for input, decision1, decision2 in zip(
-                                   keyed_input, zscore_x1_expected_predictions,
-                                   zscore_x2_expected_predictions)]
+                                   keyed_input, score_x1_expected_predictions,
+                                   score_x2_expected_predictions)]
 
     unkeyed_ensemble_expected = [
         AnomalyResult(example=input, predictions=[decision1, decision2])
         for input, decision1, decision2 in zip(
-            unkeyed_input, zscore_x1_expected_predictions,
-            zscore_x2_expected_predictions)
+            unkeyed_input, score_x1_expected_predictions,
+            score_x2_expected_predictions)
     ]
 
     keyed_ensemble_agg_expected = [
@@ -241,11 +218,14 @@ class TestAnomalyDetection(unittest.TestCase):
     ]
 
   @parameterized.expand([
-      (TestData.keyed_input, TestData.keyed_zscore_x1_expected),
-      (TestData.unkeyed_input, TestData.unkeyed_zscore_x1_expected),
+      (TestData.keyed_input, TestData.keyed_single_expected),
+      (TestData.unkeyed_input, TestData.unkeyed_single_expected),
   ])
   def test_one_detector(self, input, expected):
-    detector = ZScore(features=["x1"], model_id="zscore_x1")
+    detector = _ValueDetector(
+        features=["score_x1"],
+        threshold_criterion=FixedThreshold(3),
+        model_id="value_x1")
     with TestPipeline() as p:
       result = (p | beam.Create(input) | AnomalyDetection(detector))
 
@@ -264,12 +244,12 @@ class TestAnomalyDetection(unittest.TestCase):
         _ValueDetector(
             features=["score_x1"],
             threshold_criterion=FixedThreshold(3),
-            model_id="zscore_x1"))
+            model_id="value_x1"))
     sub_detectors.append(
         _ValueDetector(
             features=["score_x2"],
             threshold_criterion=FixedThreshold(2),
-            model_id="zscore_x2"))
+            model_id="value_x2"))
 
     with beam.Pipeline() as p:
       result = (
@@ -291,12 +271,12 @@ class TestAnomalyDetection(unittest.TestCase):
         _ValueDetector(
             features=["score_x1"],
             threshold_criterion=FixedThreshold(3),
-            model_id="zscore_x1"))
+            model_id="value_x1"))
     sub_detectors.append(
         _ValueDetector(
             features=["score_x2"],
             threshold_criterion=FixedThreshold(2),
-            model_id="zscore_x2"))
+            model_id="value_x2"))
 
     with beam.Pipeline() as p:
       result = (
