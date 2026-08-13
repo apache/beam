@@ -69,7 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* (Java) `Watch.growthOf` can bound its deduplication state by event time with `withTimestampCursor`, which retires an output key once the greatest emitted timestamp has moved past it ([#18459](https://github.com/apache/beam/issues/18459)).
+* (Java) `Watch.growthOf` can bound its deduplication state by event time with `withTimestampCursor`, which retires an output key once the greatest emitted timestamp has moved more than the allowed lateness past it ([#18459](https://github.com/apache/beam/issues/18459)).
 
 ## Breaking Changes
 

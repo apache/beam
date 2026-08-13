@@ -753,8 +753,13 @@ public class Watch {
      * <p>An output whose timestamp is below that mark is taken as already seen and is dropped, so
      * this suits a {@link PollFn} whose outputs arrive in roughly non-decreasing timestamp order.
      * Widen {@code allowedLateness} for a source that reports outputs further out of order, at the
-     * cost of a larger state. An output that a {@link PollFn} reports again with a later timestamp
-     * after its key was retired is emitted a second time.
+     * cost of a larger state.
+     *
+     * <p>Retiring a key costs the guarantee that an output is emitted once for all time. An output
+     * that a {@link PollFn} reports again at or above the current floor after its key was retired
+     * looks new and is emitted a second time. Updating a running pipeline to widen {@code
+     * allowedLateness}, or to drop the cursor altogether, lowers the floor over keys that are
+     * already gone and can emit them again for the same reason.
      */
     public Growth<InputT, OutputT, KeyT> withTimestampCursor(Duration allowedLateness) {
       checkArgument(allowedLateness != null, "allowedLateness can not be null");
@@ -941,11 +946,9 @@ public class Watch {
 
       Duration allowedLateness = spec.getTimestampCursorAllowedLateness();
       Instant cursor = pollingRestriction.getCursor();
-      if (allowedLateness != null
-          && cursor != null
-          && !cursor.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-        // Nothing can be past a cursor at the maximum timestamp, so claim an empty round and stop.
-        LOG.info("{} - will not poll, cursor is already at max timestamp.", c.element());
+      if (retentionFloorAtMaxTimestamp(cursor, allowedLateness)) {
+        // Nothing can be claimed above the floor, so claim an empty round and stop.
+        LOG.info("{} - will not poll, retention floor is already at max timestamp.", c.element());
         tracker.tryClaim(
             KV.of(
                 PollResult.<OutputT>incomplete(Collections.emptyList()),
@@ -999,17 +1002,17 @@ public class Watch {
       }
 
       if (allowedLateness != null && !newResults.getOutputs().isEmpty()) {
-        // The cursor only ever advances, and lands on the greatest timestamp emitted so far. A
-        // cursor at the maximum timestamp is terminal, since every later output would fall below
-        // the retention floor and be dropped.
+        // The cursor only ever advances, and lands on the greatest timestamp emitted so far. Once
+        // it carries the retention floor to the maximum timestamp, every later output falls below
+        // the floor and would be dropped, so polling stops.
         Instant newCursor =
             Ordering.natural()
                 .nullsFirst()
                 .max(
                     cursor,
                     newResults.getOutputs().get(newResults.getOutputs().size() - 1).getTimestamp());
-        if (!newCursor.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
-          LOG.info("{} - will stop polling, cursor reached max timestamp.", c.element());
+        if (retentionFloorAtMaxTimestamp(newCursor, allowedLateness)) {
+          LOG.info("{} - will stop polling, retention floor reached max timestamp.", c.element());
           return stop();
         }
       }
@@ -1113,7 +1116,29 @@ public class Watch {
     if (allowedLateness == null || state.getCursor() == null) {
       return null;
     }
-    return state.getCursor().minus(allowedLateness);
+    return retentionFloor(state.getCursor(), allowedLateness);
+  }
+
+  /** The retention floor for a cursor, saturated at the minimum timestamp. */
+  private static Instant retentionFloor(Instant cursor, Duration allowedLateness) {
+    long floorMillis;
+    try {
+      floorMillis = Math.subtractExact(cursor.getMillis(), allowedLateness.getMillis());
+    } catch (ArithmeticException e) {
+      floorMillis = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+    }
+    return new Instant(Math.max(floorMillis, BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+  }
+
+  /**
+   * Whether the retention floor has reached the maximum timestamp, after which no further output
+   * can be claimed and polling on would only drop outputs.
+   */
+  private static boolean retentionFloorAtMaxTimestamp(
+      @Nullable Instant cursor, @Nullable Duration allowedLateness) {
+    return cursor != null
+        && allowedLateness != null
+        && !retentionFloor(cursor, allowedLateness).isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE);
   }
 
   /**
@@ -1246,14 +1271,17 @@ public class Watch {
         newCompleted.putAll(claimedHashes);
         ImmutableMap<HashCode, Instant> completed = newCompleted.build();
 
-        Instant cursor = currentState.getCursor();
+        // A round that is not bounding the state retains every key, so it drops the cursor that
+        // would retire them and returns the restriction to the pre-cursor format.
+        Instant cursor = null;
         if (allowedLateness != null) {
           // The cursor only ever advances, and retires the keys it has moved past.
+          cursor = currentState.getCursor();
           for (Instant timestamp : claimedHashes.values()) {
             cursor = Ordering.natural().nullsFirst().max(cursor, timestamp);
           }
           if (cursor != null) {
-            completed = retainAtOrAfter(completed, cursor.minus(allowedLateness));
+            completed = retainAtOrAfter(completed, retentionFloor(cursor, allowedLateness));
           }
         }
 

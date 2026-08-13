@@ -722,6 +722,71 @@ public class WatchTest implements Serializable {
   }
 
   @Test
+  public void testPollingGrowthTrackerRoundWithoutCursorDropsStaleCursor() throws Exception {
+    Instant now = Instant.now();
+    // A round that is not bounding the state retains every key, so the cursor that would retire
+    // them is dropped and the restriction returns to the pre-cursor encoding.
+    GrowthState state =
+        PollingGrowthState.of(
+            ImmutableMap.of(), null, never().forNewInput(now, null), now.plus(standardSeconds(10)));
+    GrowthTracker<String, Integer> tracker = newTracker(state, null);
+
+    assertTrue(
+        tracker.tryClaim(
+            KV.of(
+                PollResult.incomplete(
+                    Arrays.asList(TimestampedValue.of("a", now.plus(standardSeconds(20))))),
+                1)));
+
+    PollingGrowthState<Integer> residual =
+        (PollingGrowthState<Integer>) tracker.trySplit(0).getResidual();
+
+    assertNull(residual.getCursor());
+    assertEquals(1, residual.getCompleted().size());
+    Coder<GrowthState> coder = Watch.GrowthStateCoder.of(StringUtf8Coder.of(), VarIntCoder.of());
+    assertEquals(0, CoderUtils.encodeToByteArray(coder, residual)[0]);
+  }
+
+  @Test
+  public void testPollingGrowthTrackerAllowedLatenessKeepsMaxCursorClaimable() throws Exception {
+    // A cursor at the maximum timestamp still leaves the allowed lateness window claimable.
+    GrowthState state =
+        PollingGrowthState.of(
+            ImmutableMap.of(),
+            null,
+            never().forNewInput(Instant.now(), null),
+            BoundedWindow.TIMESTAMP_MAX_VALUE);
+    GrowthTracker<String, Integer> tracker = newTracker(state, Duration.standardHours(1));
+
+    assertTrue(
+        tracker.tryClaim(
+            KV.of(
+                PollResult.incomplete(
+                    Arrays.asList(
+                        TimestampedValue.of(
+                            "late",
+                            BoundedWindow.TIMESTAMP_MAX_VALUE.minus(
+                                Duration.standardMinutes(30))))),
+                1)));
+  }
+
+  @Test
+  public void testPollingGrowthTrackerHugeAllowedLatenessDoesNotOverflow() {
+    Instant now = Instant.now();
+    GrowthState state =
+        PollingGrowthState.of(ImmutableMap.of(), null, never().forNewInput(now, null), now);
+    GrowthTracker<String, Integer> tracker = newTracker(state, Duration.millis(Long.MAX_VALUE));
+
+    // The floor saturates at the minimum timestamp rather than throwing.
+    assertTrue(
+        tracker.tryClaim(
+            KV.of(
+                PollResult.incomplete(
+                    Arrays.asList(TimestampedValue.of("a", BoundedWindow.TIMESTAMP_MIN_VALUE))),
+                1)));
+  }
+
+  @Test
   public void testPollingGrowthTrackerRejectsClaimBehindCursor() {
     Instant now = Instant.now();
     GrowthTracker<String, Integer> tracker = newPollingGrowthTracker(Duration.ZERO);
