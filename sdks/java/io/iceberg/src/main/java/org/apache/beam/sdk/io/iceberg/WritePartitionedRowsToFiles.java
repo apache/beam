@@ -152,7 +152,10 @@ class WritePartitionedRowsToFiles
         writer.close();
       }
 
-      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), partitionPath);
+      // Serialize against the file's OWN spec (looked up by its spec id among the table's specs),
+      // not table.spec(): the shared cached table can be refreshed to an evolved spec mid-bundle,
+      // and table.spec() would then no longer match the just-written file's spec.
+      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), table.specs());
       out.output(
           FileWriteResult.builder()
               .setTableIdentifier(destination.getTableIdentifier())

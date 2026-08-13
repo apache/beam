@@ -514,7 +514,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 .withPartitionPath(partitionPath)
                 .build();
         return new ProcessResult(
-            SerializableDataFile.from(df, partitionPath), null, timestamp, window, paneInfo);
+            SerializableDataFile.from(df, table.spec()), null, timestamp, window, paneInfo);
       };
     }
 

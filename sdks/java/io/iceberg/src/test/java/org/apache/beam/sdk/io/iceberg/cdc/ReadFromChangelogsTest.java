@@ -297,7 +297,7 @@ public class ReadFromChangelogsTest {
       long snapshotId) {
     return SerializableChangelogTask.builder()
         .setType(type)
-        .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
+        .setDataFile(dataFile, table.spec(), true)
         .setAddedDeletes(serializableDeletes(addedDeletes, table))
         .setExistingDeletes(serializableDeletes(existingDeletes, table))
         .setSpecId(table.spec().specId())

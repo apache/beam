@@ -31,6 +31,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.ContentScanTask;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
@@ -66,6 +67,34 @@ public class ReadUtils {
           "parquet.crypto.factory.class");
 
   public static CloseableIterable<Record> createReader(
+      FileScanTask task, Table table, Schema schema, long dataSequenceNumber) {
+    return createReader(
+        table,
+        null,
+        schema,
+        task.spec(),
+        task.file(),
+        dataSequenceNumber,
+        task.start(),
+        task.length(),
+        task.residual());
+  }
+
+  public static CloseableIterable<Record> createReader(
+      FileScanTask task, Table table, Schema schema) {
+    return createReader(
+        table,
+        null,
+        schema,
+        task.spec(),
+        task.file(),
+        null,
+        task.start(),
+        task.length(),
+        task.residual());
+  }
+
+  public static CloseableIterable<Record> createReader(
       ContentScanTask<?> task, Table table, IcebergScanConfig scanConfig) {
     return createReader(
         table,
@@ -81,18 +110,18 @@ public class ReadUtils {
 
   public static CloseableIterable<Record> createReader(
       Table table,
-      IcebergScanConfig scanConfig,
+      @Nullable IcebergScanConfig scanConfig,
       Schema requiredSchema,
       PartitionSpec spec,
       ContentFile<?> file,
-      @Nullable Long fileSequenceNumber,
+      @Nullable Long dataSequenceNumber,
       long start,
       long length,
       Expression residual) {
     EncryptedInputFile encryptedInput =
         EncryptedFiles.encryptedInput(table.io().newInputFile(file.location()), file.keyMetadata());
     InputFile inputFile = table.encryption().decrypt(encryptedInput);
-    Map<Integer, ?> idToConstants = PartitionUtils.constantsMap(spec, file, fileSequenceNumber);
+    Map<Integer, ?> idToConstants = PartitionUtils.constantsMap(spec, file, dataSequenceNumber);
 
     ParquetReadOptions.Builder optionsBuilder;
     if (inputFile instanceof HadoopInputFile) {
@@ -209,7 +238,12 @@ public class ReadUtils {
   }
 
   public static CloseableIterable<Record> maybeApplyFilter(
-      CloseableIterable<Record> iterable, IcebergScanConfig scanConfig, Schema requiredSchema) {
+      CloseableIterable<Record> iterable,
+      @Nullable IcebergScanConfig scanConfig,
+      Schema requiredSchema) {
+    if (scanConfig == null) {
+      return iterable;
+    }
     InternalRecordWrapper wrapper = new InternalRecordWrapper(requiredSchema.asStruct());
     Expression filter = scanConfig.getFilter();
     Evaluator evaluator = scanConfig.getEvaluator(requiredSchema);
