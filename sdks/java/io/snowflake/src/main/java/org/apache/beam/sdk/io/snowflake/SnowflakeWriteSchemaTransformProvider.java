@@ -17,7 +17,10 @@
  */
 package org.apache.beam.sdk.io.snowflake;
 
-import static org.apache.beam.sdk.io.snowflake.SnowflakeSchemaTransformUtils.*;
+import static org.apache.beam.sdk.io.snowflake.SnowflakeSchemaTransformUtils.parseCreateDisposition;
+import static org.apache.beam.sdk.io.snowflake.SnowflakeSchemaTransformUtils.parseStreamingLogLevel;
+import static org.apache.beam.sdk.io.snowflake.SnowflakeSchemaTransformUtils.parseWriteDisposition;
+import static org.apache.beam.sdk.io.snowflake.SnowflakeSchemaTransformUtils.toSnowflakeTableSchema;
 
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
