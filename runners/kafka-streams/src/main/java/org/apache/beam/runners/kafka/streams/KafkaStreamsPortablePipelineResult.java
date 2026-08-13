@@ -26,8 +26,6 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.kafka.streams.KafkaStreams;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Result of executing a portable pipeline as a {@link KafkaStreams} application.
@@ -37,9 +35,6 @@ import org.slf4j.LoggerFactory;
  * #waitUntilFinish()} to the {@code KafkaStreams} instance.
  */
 class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
-
-  private static final Logger LOG =
-      LoggerFactory.getLogger(KafkaStreamsPortablePipelineResult.class);
 
   private final KafkaStreams kafkaStreams;
   // The job's metrics accumulator, shared by reference with the topology's stage processors, which
@@ -126,8 +121,16 @@ class KafkaStreamsPortablePipelineResult implements PortablePipelineResult {
 
   @Override
   public JobApi.MetricResults portableMetrics() throws UnsupportedOperationException {
-    LOG.debug("portableMetrics() not yet implemented in the Kafka Streams runner");
-    return JobApi.MetricResults.newBuilder().build();
+    // How a pipeline from another SDK reads its metrics. The job service asks for these once the
+    // job is terminal and returns them over the job API. Without it a Python pipeline saw no
+    // metrics at all, even though the same values were already available to a Java one.
+    //
+    // Reported as attempted only, and deliberately not also as committed: the values are what the
+    // SDK harness reported per bundle, which is not tied to the commit of the records that produced
+    // them. Committed metrics are https://github.com/apache/beam/issues/39635.
+    return JobApi.MetricResults.newBuilder()
+        .addAllAttempted(metricsContainerStepMap.getMonitoringInfos())
+        .build();
   }
 
   private static State mapState(KafkaStreams.State state) {
