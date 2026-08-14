@@ -24,6 +24,7 @@ import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** A set of utility functions for schemas. */
 @SuppressWarnings({
@@ -270,7 +271,11 @@ public class SchemaUtils {
       case ARRAY:
       case ITERABLE:
         {
-          if (!(value instanceof List)) {
+          // An ITERABLE field declares an Iterable, and an ARRAY value need not be a List
+          // either, so require only what is actually iterated below. This is reached from
+          // Row#toString, where refusing to render one field takes out logging and debugger
+          // output for the entire row.
+          if (!(value instanceof Iterable)) {
             throw new IllegalArgumentException(
                 String.format(
                     "value type is '%s' for field type '%s'",
@@ -279,7 +284,7 @@ public class SchemaUtils {
           FieldType elementType = Objects.requireNonNull(fieldType.getCollectionElementType());
 
           @SuppressWarnings("unchecked")
-          List<Object> list = (List<Object>) value;
+          List<Object> list = Lists.newArrayList((Iterable<Object>) value);
           if (list.isEmpty()) {
             return "[]";
           }

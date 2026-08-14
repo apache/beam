@@ -147,4 +147,32 @@ public class SchemaUtilsTest {
     assertTrue(rendered, rendered.contains("1"));
     assertTrue(rendered, rendered.contains("null"));
   }
+
+  @Test
+  public void testToPrettyStringRendersIterableThatIsNotAList() {
+    Schema schema =
+        Schema.builder().addStringField("k").addIterableField("vals", FieldType.STRING).build();
+    // A bare Iterable, which is exactly what an ITERABLE field declares.
+    Iterable<String> bare = () -> Arrays.asList("p", "q").iterator();
+    Row row = Row.withSchema(schema).attachValues("k1", bare);
+
+    // The precondition that makes this test meaningful: if the value ever starts arriving as a
+    // List, the assertion below would pass for the wrong reason.
+    assertTrue(!(row.getValue("vals") instanceof java.util.List));
+
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("p"));
+    assertTrue(rendered, rendered.contains("q"));
+  }
+
+  @Test
+  public void testToPrettyStringStillRendersAListArray() {
+    // Control: the ordinary List case must be unchanged.
+    Schema schema = Schema.builder().addArrayField("vals", FieldType.STRING).build();
+    Row row = Row.withSchema(schema).attachValues((Object) Arrays.asList("p", "q"));
+
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("p"));
+    assertTrue(rendered, rendered.contains("q"));
+  }
 }
