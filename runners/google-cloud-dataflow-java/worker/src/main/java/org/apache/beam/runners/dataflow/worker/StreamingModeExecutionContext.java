@@ -719,10 +719,11 @@ public class StreamingModeExecutionContext
       return;
     }
 
-    // Look at budgetHandle instead of executedWorks because when intermediate work items are
-    // validated during advance(), the next work item (additionalWork) has already been polled
-    // and merged into budgetHandle before startForNewKey() adds it to executedWorks. This means
-    // any item hitting truncation in a multi-key bundle will be retried at least once.
+    // If this is a multi-key work item, then we need to retry all of the individual work items
+    // without merging so that we can identify large commits to truncate. We determine the work
+    // items that were part of the bundle by looking at the budgethandle instead of executedWorks
+    // because validateCommitRequestSize is called when transitioning and the handle has been
+    // updated but executedWorks has not.
     // TODO: Can we request truncation without retrying if the first commit exceed the limits?
     BoundedQueueExecutorWorkHandle handle = checkNotNull(budgetHandle);
     checkState(!handle.getWorkBatch().isEmpty());
