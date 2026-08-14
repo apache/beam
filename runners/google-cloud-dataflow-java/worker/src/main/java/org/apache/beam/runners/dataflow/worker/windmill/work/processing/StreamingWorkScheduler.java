@@ -228,8 +228,9 @@ public class StreamingWorkScheduler {
       ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle handle) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
-    LOG.debug("Starting processing for {}:\n{}", computationId, work);
-    setLoggingContextComputation(computationState.getSystemName());
+    String systemName = computationState.getSystemName();
+    LOG.debug("Starting processing for {}:\n{}", systemName, work);
+    setLoggingContextComputation(systemName);
     KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
     keyTransitionListener.onKeyTransition(null, work);
 
@@ -260,7 +261,8 @@ public class StreamingWorkScheduler {
       recordProcessingStats(workBatch, workItemCommits, executeWorkResult.stateBytesRead());
       LOG.debug("Processing done for work batch size: {}", workBatch.size());
     } catch (Throwable t) {
-      handleProcessWorkFailure(computationState, handle.getWorkBatch(), computationId, work, t);
+      handleProcessWorkFailure(
+          computationState, handle.getWorkBatch(), computationId, systemName, work, t);
     } finally {
       List<Work> processedWorkBatch = workBatch != null ? workBatch : ImmutableList.of(work);
       // Update total processing time counters. Updating in finally clause ensures that
@@ -457,6 +459,7 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       List<Work> failedBatch,
       String computationId,
+      String systemName,
       Work primaryWork,
       Throwable t) {
     try {
@@ -469,7 +472,7 @@ public class StreamingWorkScheduler {
       FailedWorkHandler onFailedWorkHandler = getFailedWorkHandler(computationState);
 
       workFailureProcessor.logAndProcessFailureBatch(
-          computationId, executableWorks, t, onFailedWorkHandler);
+          computationId, systemName, executableWorks, t, onFailedWorkHandler);
     } catch (OutOfMemoryError oom) {
       throw oom;
     } catch (Throwable t2) {

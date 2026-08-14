@@ -231,7 +231,7 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
                     "Field " + DeltaIO.CHANGE_TYPE_COLUMN + " must not be null.");
               }
               ValueKind kind = getValueKind(changeType);
-              Row publicRow = projectRow(beamRow, publicBeamSchema);
+              Row publicRow = projectRow(beamRow, publicBeamSchema, task);
               out.builder(publicRow).setValueKind(kind).output();
             }
           }
@@ -240,14 +240,18 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
     }
   }
 
-  private static Row projectRow(Row row, Schema targetSchema) {
-    if (row.getSchema().equals(targetSchema)) {
-      // We can return the original Row since schemas are the same.
-      return row;
-    }
+  private static Row projectRow(Row row, Schema targetSchema, DeltaCDCReadTask task) {
     Row.Builder builder = Row.withSchema(targetSchema);
     for (Schema.Field field : targetSchema.getFields()) {
-      builder.addValue(row.getValue(field.getName()));
+      Object value = row.getValue(field.getName());
+      if (value == null) {
+        if (field.getName().equals(DeltaIO.COMMIT_VERSION_COLUMN)) {
+          value = task.getVersion();
+        } else if (field.getName().equals(DeltaIO.COMMIT_TIMESTAMP_COLUMN)) {
+          value = new org.joda.time.Instant(task.getTimestamp());
+        }
+      }
+      builder.addValue(value);
     }
     return builder.build();
   }
@@ -271,9 +275,9 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
 
   private static StructType appendCDFColumns(StructType schema) {
     return schema
-        .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING, false)
-        .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG, false)
-        .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP, false);
+        .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING, true)
+        .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG, true)
+        .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP, true);
   }
 
   private ColumnarBatch appendConstantCDFColumns(

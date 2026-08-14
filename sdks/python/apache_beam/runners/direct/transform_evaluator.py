@@ -724,6 +724,11 @@ class _PubSubReadEvaluator(_TransformEvaluator):
             timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
           except ValueError as e:
             raise ValueError('Bad timestamp value: %s' % e)
+        if timestamp.precision() > Timestamp.MICROS_PRECISION:
+          # Element timestamps are limited to microsecond resolution, so
+          # ignore sub-microsecond digits, as the Dataflow service does.
+          timestamp = timestamp.to_precision(
+              Timestamp.MICROS_PRECISION, allow_lossy_conversion=True)
       else:
         if message.publish_time is None:
           raise ValueError('No publish time present in message: %s' % message)
