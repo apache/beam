@@ -753,8 +753,7 @@ public class StreamingGroupAlsoByWindowFnsTest {
             NullSideInputReader.empty(),
             outputManager,
             stepContext);
-    return DoFnRunners.lateDataDroppingRunner(
-        doFnRunner, stepContext.timerInternals(), windowingStrategy);
+    return DoFnRunners.lateDataDroppingRunner(doFnRunner, stepContext, windowingStrategy);
   }
 
   private IntervalWindow window(long start, long end) {

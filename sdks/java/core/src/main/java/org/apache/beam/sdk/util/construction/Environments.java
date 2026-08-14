@@ -522,6 +522,7 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.SDK_CONSUMING_RECEIVED_DATA));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.ORDERED_LIST_STATE));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTIMAP_STATE));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.NAMED_DATA_STREAMS));
     return capabilities.build();
   }
 

@@ -20,7 +20,6 @@ package org.apache.beam.runners.dataflow.worker.windmill.client.grpc;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
-import com.google.auto.value.AutoValue;
 import java.io.PrintWriter;
 import java.time.Duration;
 import java.util.HashMap;
@@ -35,6 +34,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.JobHeader;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.StreamingCommitRequestChunk;
@@ -77,6 +77,7 @@ final class GrpcCommitWorkStream
   private final JobHeader jobHeader;
   private final int streamingRpcBatchLimit;
   private volatile boolean logMissingResponse = true;
+  private final Duration maxRetryDuration;
 
   private GrpcCommitWorkStream(
       String backendWorkerToken,
@@ -90,6 +91,7 @@ final class GrpcCommitWorkStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       Duration halfClosePhysicalStreamAfter,
+      Duration maxRetryDuration,
       ScheduledExecutorService executor) {
     super(
         LOG,
@@ -104,6 +106,7 @@ final class GrpcCommitWorkStream
     this.idGenerator = idGenerator;
     this.jobHeader = jobHeader;
     this.streamingRpcBatchLimit = streamingRpcBatchLimit;
+    this.maxRetryDuration = maxRetryDuration;
   }
 
   static GrpcCommitWorkStream create(
@@ -118,6 +121,7 @@ final class GrpcCommitWorkStream
       AtomicLong idGenerator,
       int streamingRpcBatchLimit,
       Duration halfClosePhysicalStreamAfter,
+      Duration maxRetryDuration,
       ScheduledExecutorService executor) {
     return new GrpcCommitWorkStream(
         backendWorkerToken,
@@ -130,6 +134,7 @@ final class GrpcCommitWorkStream
         idGenerator,
         streamingRpcBatchLimit,
         halfClosePhysicalStreamAfter,
+        maxRetryDuration,
         executor);
   }
 
@@ -224,14 +229,48 @@ final class GrpcCommitWorkStream
       failureHandler.throwIfNonEmpty();
     }
 
-    @Override
     @SuppressWarnings("ReferenceEquality")
-    public boolean hasPendingRequests() {
-      return pending.entrySet().stream().anyMatch(e -> e.getValue().handler == this);
+    private boolean belongsToThisHandler(StreamAndRequest streamAndRequest) {
+      return streamAndRequest.handler == this;
     }
 
     @Override
+    public boolean hasPendingRequests() {
+      return pending.entrySet().stream().anyMatch(e -> belongsToThisHandler(e.getValue()));
+    }
+
+    @Override
+    @SuppressWarnings("ReferenceEquality")
     public void onDone(Status status) {
+      if (maxRetryDuration.compareTo(Duration.ZERO) > 0) {
+        // Remove the requests that have exceeded the retry time so they are not retried.
+        long nowNanos = System.nanoTime();
+        long maxRetryDurationNanos = maxRetryDuration.toNanos();
+        Iterator<Map.Entry<Long, StreamAndRequest>> iterator = pending.entrySet().iterator();
+        int keptRequests = 0, removedRequests = 0;
+        while (iterator.hasNext()) {
+          StreamAndRequest streamAndRequest = checkNotNull(iterator.next().getValue());
+          PendingRequest pendingRequest = streamAndRequest.request;
+          if (!belongsToThisHandler(streamAndRequest)
+              || nowNanos - pendingRequest.getStartTimeNanos() < maxRetryDurationNanos) {
+            ++keptRequests;
+            continue;
+          }
+          ++removedRequests;
+          iterator.remove();
+          try {
+            pendingRequest.completeWithStatus(CommitStatus.ABORTED);
+          } catch (RuntimeException e) {
+            LOG.warn("Exception while aborting commit due to retry timeout.", e);
+          }
+        }
+        if (removedRequests > 0) {
+          LOG.info(
+              "Aborting {} commits which have exceeded retry deadline, kept {}. Work will be retried as needed by service.",
+              removedRequests,
+              keptRequests);
+        }
+      }
       if (status.isOk() && hasPendingRequests()) {
         LOG.warn("Unexpected requests without responses on drained physical stream, retrying.");
       }
@@ -270,7 +309,7 @@ final class GrpcCommitWorkStream
 
     if (requests.size() == 1) {
       Map.Entry<Long, PendingRequest> elem = requests.entrySet().iterator().next();
-      if (elem.getValue().request().getSerializedSize()
+      if (elem.getValue().serializedCommit().size()
           > AbstractWindmillStream.RPC_STREAM_CHUNK_SIZE) {
         issueMultiChunkRequest(elem.getKey(), elem.getValue());
       } else {
@@ -289,6 +328,7 @@ final class GrpcCommitWorkStream
         .setComputationId(pendingRequest.computationId())
         .setRequestId(id)
         .setShardingKey(pendingRequest.shardingKey())
+        .setCommitType(pendingRequest.commitType())
         .setSerializedWorkItemCommit(pendingRequest.serializedCommit());
     StreamingCommitWorkRequest chunk = requestBuilder.build();
     synchronized (this) {
@@ -318,7 +358,8 @@ final class GrpcCommitWorkStream
       chunkBuilder
           .setRequestId(entry.getKey())
           .setShardingKey(request.shardingKey())
-          .setSerializedWorkItemCommit(request.serializedCommit());
+          .setSerializedWorkItemCommit(request.serializedCommit())
+          .setCommitType(request.commitType());
     }
     StreamingCommitWorkRequest request = requestBuilder.build();
     synchronized (this) {
@@ -360,7 +401,8 @@ final class GrpcCommitWorkStream
                 .setRequestId(id)
                 .setSerializedWorkItemCommit(chunk)
                 .setComputationId(pendingRequest.computationId())
-                .setShardingKey(pendingRequest.shardingKey());
+                .setShardingKey(pendingRequest.shardingKey())
+                .setCommitType(pendingRequest.commitType());
         int remaining = serializedCommit.size() - end;
         if (remaining > 0) {
           chunkBuilder.setRemainingBytesForWorkItem(remaining);
@@ -376,34 +418,58 @@ final class GrpcCommitWorkStream
     }
   }
 
-  @AutoValue
-  abstract static class PendingRequest {
+  private static class PendingRequest {
+    private final String computationId;
+    private final long shardingKey;
+    private final ByteString serializedCommit;
+    private final StreamingCommitRequestChunk.CommitType commitType;
+    private final Consumer<CommitStatus> onDone;
+    private final long startTimeNanos; // System.nanoTime() of when request began.
 
-    private static PendingRequest create(
-        String computationId, WorkItemCommitRequest request, Consumer<CommitStatus> onDone) {
-      return new AutoValue_GrpcCommitWorkStream_PendingRequest(computationId, request, onDone);
+    private PendingRequest(
+        String computationId,
+        long shardingKey,
+        ByteString serializedCommit,
+        StreamingCommitRequestChunk.CommitType commitType,
+        Consumer<CommitStatus> onDone) {
+      this.computationId = computationId;
+      this.shardingKey = shardingKey;
+      this.serializedCommit = serializedCommit;
+      this.commitType = commitType;
+      this.onDone = onDone;
+      this.startTimeNanos = System.nanoTime();
     }
 
-    abstract String computationId();
+    String computationId() {
+      return computationId;
+    }
 
-    abstract WorkItemCommitRequest request();
+    long shardingKey() {
+      return shardingKey;
+    }
 
-    abstract Consumer<CommitStatus> onDone();
+    ByteString serializedCommit() {
+      return serializedCommit;
+    }
+
+    StreamingCommitRequestChunk.CommitType commitType() {
+      return commitType;
+    }
+
+    Consumer<CommitStatus> onDone() {
+      return onDone;
+    }
+
+    long getStartTimeNanos() {
+      return startTimeNanos;
+    }
 
     private long getBytes() {
-      return (long) request().getSerializedSize() + computationId().length();
-    }
-
-    private ByteString serializedCommit() {
-      return request().toByteString();
+      return (long) serializedCommit.size() + computationId.length();
     }
 
     private void completeWithStatus(CommitStatus commitStatus) {
-      onDone().accept(commitStatus);
-    }
-
-    private long shardingKey() {
-      return request().getShardingKey();
+      onDone.accept(commitStatus);
     }
 
     private void abort() {
@@ -462,7 +528,34 @@ final class GrpcCommitWorkStream
         return false;
       }
 
-      PendingRequest request = PendingRequest.create(computation, commitRequest, onDone);
+      PendingRequest request =
+          new PendingRequest(
+              computation,
+              commitRequest.getShardingKey(),
+              commitRequest.toByteString(),
+              StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_SINGLE_KEY,
+              onDone);
+      add(idGenerator.incrementAndGet(), request);
+      return true;
+    }
+
+    @Override
+    public boolean commitMultiKeyWorkItem(
+        String computation,
+        Windmill.MultiKeyWorkItemCommitRequest commitRequest,
+        Consumer<CommitStatus> onDone) {
+      Preconditions.checkArgument(commitRequest.getRequestsCount() > 0);
+      if (!canAccept(commitRequest.getSerializedSize() + computation.length())) {
+        return false;
+      }
+      PendingRequest request =
+          new PendingRequest(
+              computation,
+              // Any key in the batch for routing
+              commitRequest.getRequests(0).getShardingKey(),
+              commitRequest.toByteString(),
+              StreamingCommitRequestChunk.CommitType.COMMIT_TYPE_MULTI_KEY,
+              onDone);
       add(idGenerator.incrementAndGet(), request);
       return true;
     }

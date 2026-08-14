@@ -19,6 +19,7 @@ package org.apache.beam.sdk.transforms;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertThrows;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -179,7 +180,7 @@ public class AsyncWrapperTest implements Serializable {
 
   // 4. Used for testing Timer mock implementations.
   private static class FakeTimer implements Timer {
-    private Instant time = Instant.EPOCH;
+    private volatile Instant time = Instant.EPOCH;
 
     @Override
     public void set(Instant absoluteTime) {
@@ -230,21 +231,20 @@ public class AsyncWrapperTest implements Serializable {
   }
 
   private void waitForEmpty(AsyncWrapper<?, ?, ?> asyncWrapper, int timeoutSeconds) {
-    int count = 0;
+    long limit = System.currentTimeMillis() + timeoutSeconds * 1000L;
     while (!asyncWrapper.isEmpty()) {
+      if (System.currentTimeMillis() > limit) {
+        throw new RuntimeException("Timed out waiting for async dofn to be empty");
+      }
       try {
-        Thread.sleep(1000);
+        Thread.sleep(5);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
-      count += 1;
-      if (count > timeoutSeconds) {
-        throw new RuntimeException("Timed out waiting for async dofn to be empty");
-      }
     }
     try {
-      Thread.sleep(1000);
+      Thread.sleep(5);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -419,7 +419,7 @@ public class AsyncWrapperTest implements Serializable {
   // execution task has not finished processing yet.
   @Test
   public void testLongItem() {
-    BasicDofn dofn = new BasicDofn(1000);
+    BasicDofn dofn = new BasicDofn(500);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -438,7 +438,7 @@ public class AsyncWrapperTest implements Serializable {
     assertEquals(0, dofn.getProcessed());
     assertEquals(1, fakeBagState.items.size());
 
-    waitForEmpty(asyncWrapper, 20);
+    waitForEmpty(asyncWrapper, 2);
 
     result =
         asyncWrapper.commitFinishedItemsDirect(
@@ -538,7 +538,7 @@ public class AsyncWrapperTest implements Serializable {
   // Identical elements should not spawn multiple concurrent background executions.
   @Test
   public void testDuplicates() {
-    BasicDofn dofn = new BasicDofn(1000);
+    BasicDofn dofn = new BasicDofn(10);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -568,7 +568,7 @@ public class AsyncWrapperTest implements Serializable {
   // has cleared are correctly tracked and processed.
   @Test
   public void testSlowDuplicates() {
-    BasicDofn dofn = new BasicDofn(5000);
+    BasicDofn dofn = new BasicDofn(20);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -581,7 +581,7 @@ public class AsyncWrapperTest implements Serializable {
     asyncWrapper.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     try {
-      Thread.sleep(10000);
+      Thread.sleep(100);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -610,7 +610,7 @@ public class AsyncWrapperTest implements Serializable {
   // and decrement immediately upon execution completion.
   @Test
   public void testBufferCount() {
-    BasicDofn dofn = new BasicDofn(1000);
+    BasicDofn dofn = new BasicDofn(10);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -637,7 +637,7 @@ public class AsyncWrapperTest implements Serializable {
   // the scheduler must block and delay submissions appropriately.
   @Test
   public void testBufferStopsAcceptingItems() {
-    BasicDofn dofn = new BasicDofn(1000);
+    BasicDofn dofn = new BasicDofn(500);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn,
@@ -670,7 +670,7 @@ public class AsyncWrapperTest implements Serializable {
     }
 
     try {
-      Thread.sleep(200);
+      Thread.sleep(100);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -707,7 +707,7 @@ public class AsyncWrapperTest implements Serializable {
   // Verifies actively cancelled elements are cleanly dropped from the buffer during throttling.
   @Test
   public void testBufferWithCancellation() {
-    BasicDofn dofn = new BasicDofn(1000);
+    BasicDofn dofn = new BasicDofn(10);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -746,7 +746,7 @@ public class AsyncWrapperTest implements Serializable {
   // across multiple keys correctly under heavy multi-threaded load.
   @Test
   public void testLoadCorrectness() {
-    BasicDofn dofn = new BasicDofn(1000);
+    BasicDofn dofn = new BasicDofn(10);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn,
@@ -791,14 +791,14 @@ public class AsyncWrapperTest implements Serializable {
                     timers.get(key));
               }));
       try {
-        Thread.sleep(random.nextInt(200));
+        Thread.sleep(random.nextInt(2));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
     }
 
     try {
-      Thread.sleep(3000 + random.nextInt(2000));
+      Thread.sleep(1000 + random.nextInt(1000));
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
@@ -834,7 +834,7 @@ public class AsyncWrapperTest implements Serializable {
         }
       }
       try {
-        Thread.sleep(1000 + random.nextInt(2000));
+        Thread.sleep(10 + random.nextInt(20));
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }
@@ -854,7 +854,7 @@ public class AsyncWrapperTest implements Serializable {
   // must complete cleanly without thread or lock deadlocks.
   @Test
   public void testResetStateConcurrentTeardown() {
-    BasicDofn dofn = new BasicDofn(500);
+    BasicDofn dofn = new BasicDofn(10);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
@@ -867,12 +867,75 @@ public class AsyncWrapperTest implements Serializable {
         KV.of("key1", "1"), GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
 
     try {
-      Thread.sleep(50);
+      Thread.sleep(2);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
     }
 
     // Verify calling resetState() while background tasks are running finishes cleanly
     AsyncWrapper.resetState();
+  }
+
+  // Test 15: testTransientRpcFailureRetry
+  // Verify DoFn exceptions wipe local active state so bundle retries reschedule work.
+  @Test
+  public void testTransientRpcFailureRetry() {
+    FlakyDoFn dofn = new FlakyDoFn();
+    AsyncWrapper<String, String, String> asyncWrapper =
+        new AsyncWrapper<>(
+            dofn, 1, Duration.standardSeconds(5), null, null, null, null, useThreadPool);
+    asyncWrapper.setup(null);
+
+    FakeBagState<KV<String, String>> fakeBagState = new FakeBagState<>();
+    FakeTimer fakeTimer = new FakeTimer();
+    KV<String, String> msg = KV.of("key1", "1");
+
+    asyncWrapper.processDirect(msg, GlobalWindow.INSTANCE, Instant.now(), fakeBagState, fakeTimer);
+    waitForEmpty(asyncWrapper);
+
+    // Attempt 1 should throw RuntimeException wrapping ExecutionException
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            asyncWrapper.commitFinishedItemsDirect(
+                fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer));
+
+    // Verify the failed Future was removed from local active elements
+    assertEquals(0, asyncWrapper.getItemsInBufferCount());
+
+    // Simulate runner bundle retry: commitFinishedItemsDirect runs again with msg still in state.
+    // Because the dead future was removed, it will reschedule msg and succeed on Attempt 2.
+    waitForEmpty(asyncWrapper);
+    List<String> result =
+        asyncWrapper.commitFinishedItemsDirect(
+            fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
+    if (result.isEmpty()) {
+      waitForEmpty(asyncWrapper);
+      result =
+          asyncWrapper.commitFinishedItemsDirect(
+              fakeTimer.getCurrentRelativeTime(), fakeBagState, fakeTimer);
+    }
+
+    checkOutput(result, Collections.singletonList("1"));
+    assertEquals(0, fakeBagState.items.size());
+  }
+
+  private static class FlakyDoFn extends DoFn<String, String> {
+    private int attempts = 0;
+    private final ReentrantLock lock = new ReentrantLock();
+
+    @ProcessElement
+    public void processElement(@Element String element, OutputReceiver<String> receiver) {
+      lock.lock();
+      try {
+        attempts++;
+        if (attempts == 1) {
+          throw new RuntimeException("Transient RPC Error");
+        }
+      } finally {
+        lock.unlock();
+      }
+      receiver.output(element);
+    }
   }
 }

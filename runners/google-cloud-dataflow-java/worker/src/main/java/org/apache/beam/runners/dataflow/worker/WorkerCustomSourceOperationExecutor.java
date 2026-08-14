@@ -90,7 +90,7 @@ public class WorkerCustomSourceOperationExecutor implements SourceOperationExecu
   }
 
   @Override
-  public void finishKey() throws Exception {}
+  public void finishKey(Object key) throws Exception {}
 
   @Override
   public SourceOperationResponse getResponse() {

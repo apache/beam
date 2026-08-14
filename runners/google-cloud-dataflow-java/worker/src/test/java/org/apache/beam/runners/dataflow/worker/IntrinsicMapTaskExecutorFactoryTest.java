@@ -330,7 +330,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),
@@ -535,7 +536,7 @@ public class IntrinsicMapTaskExecutorFactoryTest {
             ExecutionLocation.UNKNOWN);
 
     Node outputReceiverNode =
-        IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+        IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet, false)
             .apply(
                 InstructionOutputNode.create(
                     instructionNode.getParallelInstruction().getOutputs().get(0), PCOLLECTION_ID));
@@ -614,7 +615,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),
@@ -669,7 +671,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),
@@ -750,7 +753,8 @@ public class IntrinsicMapTaskExecutorFactoryTest {
     when(network.successors(instructionNode))
         .thenReturn(
             ImmutableSet.<Node>of(
-                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(STAGE, counterSet)
+                IntrinsicMapTaskExecutorFactory.createOutputReceiversTransform(
+                        STAGE, counterSet, false)
                     .apply(
                         InstructionOutputNode.create(
                             instructionNode.getParallelInstruction().getOutputs().get(0),

@@ -156,7 +156,7 @@ CREATE DATABASE other_catalog.sales_data;
 {{< /tab >}}
 {{< tab USE >}}
 <p>Sets the active Database for the current session. This simplifies queries by allowing you
-to reference Databases directly without their fully-qualified names (for example, <code>my_db</code> instead of <code>my_catalog.my_db</code>)</p>
+to reference Tables directly without their fully-qualified names (for example, <code>my_table</code> instead of <code>my_catalog.my_db.my_table</code>)</p>
 
 <p><i><strong>Note:</strong> All subsequent TABLE commands will be executed under this Database, unless fully qualified.</i></p>
 

@@ -22,10 +22,12 @@ import io.opentelemetry.context.Context;
 import io.opentelemetry.context.propagation.TextMapGetter;
 import io.opentelemetry.context.propagation.TextMapSetter;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class OpenTelemetryContextPropagator {
+@Internal
+public class OpenTelemetryContextPropagator {
 
   private static final TextMapSetter<BeamFnApi.Elements.ElementMetadata.Builder> SETTER =
       (carrier, key, value) -> {
@@ -61,11 +63,11 @@ class OpenTelemetryContextPropagator {
         }
       };
 
-  static void set(Context from, BeamFnApi.Elements.ElementMetadata.Builder builder) {
+  public static void set(Context from, BeamFnApi.Elements.ElementMetadata.Builder builder) {
     W3CTraceContextPropagator.getInstance().inject(from, builder, SETTER);
   }
 
-  static Context read(BeamFnApi.Elements.ElementMetadata from) {
+  public static Context read(BeamFnApi.Elements.ElementMetadata from) {
     return W3CTraceContextPropagator.getInstance().extract(Context.root(), from, GETTER);
   }
 }

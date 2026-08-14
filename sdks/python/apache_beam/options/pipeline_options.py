@@ -612,6 +612,7 @@ class PipelineOptions(HasDisplayData):
   def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
+      # Update sdks/go/container/tools/pipeline_options.go if :v1 part changes.
       assert key.endswith(':v1')
       return key[12:-3]
 
@@ -1249,12 +1250,22 @@ class GoogleCloudOptions(PipelineOptions):
   def _handle_temp_and_staging_locations(self, validator):
     temp_errors = validator.validate_gcs_path(self, 'temp_location')
     staging_errors = validator.validate_gcs_path(self, 'staging_location')
+
+    temp_location = getattr(self, 'temp_location', None)
+    staging_location = getattr(self, 'staging_location', None)
+
+    if temp_location is not None and temp_errors:
+      _LOGGER.warning(temp_errors[0])
+
+    if staging_location is not None and staging_errors:
+      _LOGGER.warning(staging_errors[0])
+
     if temp_errors and not staging_errors:
-      setattr(self, 'temp_location', getattr(self, 'staging_location'))
+      setattr(self, 'temp_location', staging_location)
       self._warn_if_soft_delete_policy_enabled('staging_location')
       return []
     elif staging_errors and not temp_errors:
-      setattr(self, 'staging_location', getattr(self, 'temp_location'))
+      setattr(self, 'staging_location', temp_location)
       self._warn_if_soft_delete_policy_enabled('temp_location')
       return []
     elif not staging_errors and not temp_errors:
@@ -1658,6 +1669,86 @@ class ProfilingOptions(PipelineOptions):
         default=1.0,
         help='A number between 0 and 1 indicating the ratio '
         'of bundles that should be profiled.')
+    parser.add_argument(
+        '--profiler_agent',
+        default=None,
+        help=(
+            'Specifies the profiling agent to launch the SDK worker harness '
+            'with (e.g., "memray", "tcmalloc", or a custom wrapper script/binary).'
+        ))
+    parser.add_argument(
+        '--profiler_extra_arg',
+        '--profiler_extra_args',
+        dest='profiler_extra_args',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=
+        'Comma-separated list of extra arguments to pass to the profiler agent.'
+    )
+    parser.add_argument(
+        '--profiler_extra_env_var',
+        '--profiler_extra_env_vars',
+        dest='profiler_extra_env_vars',
+        action=_CommaSeparatedListAction,
+        default=None,
+        help=(
+            'Comma-separated list of environment variables required by the profiler agent '
+            'in format "KEY1=VAL1,KEY2=VAL2".'))
+    parser.add_argument(
+        '--profile_temp_location',
+        default=None,
+        help=(
+            'Directory path on the worker where local profiles are saved. '
+            'Defaults to ${semi_persist_dir}/profiles if not specified.'))
+    parser.add_argument(
+        '--profile_upload_interval_sec',
+        type=int,
+        default=300,
+        help=(
+            'Frequency (in seconds) at which the local profiles are uploaded to GCS. '
+            'Defaults to 300 (5 min).'))
+    parser.add_argument(
+        '--profiler_stop_after_sec',
+        type=int,
+        default=0,
+        help=(
+            'Time limit (in seconds) for profiling a single process. When exceeded, '
+            'the worker process is restarted without the profiler.'))
+    parser.add_argument(
+        '--profiler_stop_after_crash',
+        action='store_true',
+        default=False,
+        help=(
+            'If True, the profiling agent won\'t be re-enabled after a worker '
+            'process crash.'))
+    parser.add_argument(
+        '--profile_postprocess_interval_sec',
+        type=int,
+        default=600,
+        help=(
+            'Frequency (in seconds) at which the local profiles are post-processed '
+            'on-the-fly. Defaults to 600 (10 minutes). Set to 0 to disable.'))
+
+  def validate(self, validator):
+    errors = []
+    if self.profiler_agent:
+      if self.profile_cpu or self.profile_memory:
+        errors.append(
+            '--profiler_agent is mutually exclusive with --profile_cpu '
+            'and --profile_memory.')
+
+      if not self.profile_location:
+        temp_location = self.view_as(GoogleCloudOptions).temp_location
+        if temp_location:
+          self.profile_location = temp_location.rstrip('/') + '/profiles'
+          _LOGGER.info(
+              'Setting --profile_location to %s since profiling is enabled.',
+              self.profile_location)
+
+      if self.profiler_agent == 'coredump':
+        debug_options = self.view_as(DebugOptions)
+        debug_options.add_experiment('core_pattern=/tmp/beam_coredump.%e.%p')
+    return errors
 
 
 class SetupOptions(PipelineOptions):
@@ -1777,6 +1868,7 @@ class SetupOptions(PipelineOptions):
             'workers will install them in same order they were specified on '
             'the command line.'))
     parser.add_argument(
+        '--file_to_stage',
         '--files_to_stage',
         dest='files_to_stage',
         action='append',
@@ -2030,7 +2122,7 @@ class JobServerOptions(PipelineOptions):
 class FlinkRunnerOptions(PipelineOptions):
 
   # These should stay in sync with gradle.properties.
-  PUBLISHED_FLINK_VERSIONS = ['1.17', '1.18', '1.19', '1.20', '2.0']
+  PUBLISHED_FLINK_VERSIONS = ['1.19', '1.20', '2.0', '2.1', '2.2']
 
   @classmethod
   def _add_argparse_args(cls, parser):

@@ -46,13 +46,13 @@ RUN  \
        # Required for using Beam Python SDK on ARM machines.
        libgeos-dev \
        && \
-    rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade pip setuptools wheel && \
+    rm -rf /var/lib/apt/lists/* && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
+    # use --prefer-binary to avoid compiling wheels from source when prebuilt wheels exist.
+    pip install --prefer-binary --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
@@ -90,17 +90,13 @@ RUN  \
     if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
         pip install upgrade_ensurepip; \
         python3 -m upgrade_ensurepip; \
+        find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
+        find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
+        pip uninstall upgrade_ensurepip -y; \
     else \
         python3 /tmp/upgrade_bundled_pip.py; \
     fi; \
-    # setuptools is not bundled with ensurepip in Python 3.12+
-    if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
-        find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
-    fi; \
-    find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
-    if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
-        pip uninstall upgrade_ensurepip -y; \
-    fi; \
+    # Verify ensurepip can bootstrap pip. Required by boot.go worker venv creation.
     python3 -m ensurepip;
 
 ENTRYPOINT ["/opt/apache/beam/boot"]

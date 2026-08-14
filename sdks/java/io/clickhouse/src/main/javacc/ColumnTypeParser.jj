@@ -79,6 +79,7 @@ TOKEN :
 {
     < ARRAY          : "ARRAY" >
   | < DATE           : "DATE" >
+  | < DATETIME64     : "DATETIME64" >
   | < DATETIME       : "DATETIME" >
   | < ENUM8          : "ENUM8" >
   | < ENUM16         : "ENUM16" >
@@ -206,6 +207,7 @@ private ColumnType primitive() :
 {
     TypeName type;
     String size;
+    ColumnType ct;
 }
 {
     (
@@ -214,8 +216,33 @@ private ColumnType primitive() :
       (<FIXEDSTRING> <LPAREN> ( size = integer() ) <RPAREN>) {
         return ColumnType.fixedString(Integer.valueOf(size));
       }
+    |
+      (ct = dateTime64()) { return ct; }
     )
 
+}
+
+private ColumnType dateTime64() :
+{
+    String precision = null;
+}
+{
+    (
+        <DATETIME64>
+        (
+            <LPAREN> ( precision = integer() )
+            // The timezone is display-only metadata; accept the syntax and ignore the value.
+            ( <COMMA> string() )?
+            <RPAREN>
+        )?
+    )
+    {
+        // Bare DateTime64 defaults to precision 3, matching ClickHouse.
+        if (precision == null) {
+            return ColumnType.dateTime64();
+        }
+        return ColumnType.dateTime64(Integer.parseInt(precision));
+    }
 }
 
 private ColumnType nullable() :

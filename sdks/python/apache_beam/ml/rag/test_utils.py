@@ -113,6 +113,7 @@ class CustomMilvusContainer(MilvusContainer):
     self.with_bind_ports(service_container_port, service_host_port)
     self.with_bind_ports(healthcheck_container_port, healthcheck_host_port)
     self.cmd = "milvus run standalone"
+    self.with_command(self.cmd)
 
     # Set environment variables needed for Milvus.
     envs = {
