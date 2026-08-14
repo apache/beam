@@ -50,6 +50,27 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
   void setMaxBundleSize(int maxBundleSize);
 
   @Description(
+      "How many elements an unbounded source may yield per poll. Separate from --maxBundleSize:"
+          + " a small bundle is how you get output promptly, while how much a source reads at a"
+          + " time is about throughput, and tying them together means a pipeline cannot have both.")
+  @Default.Integer(1000)
+  int getReadMaxElementsPerPoll();
+
+  void setReadMaxElementsPerPoll(int readMaxElementsPerPoll);
+
+  @Description(
+      "How long the consumer group waits before deciding an instance has gone, in milliseconds."
+          + " This is the floor on how quickly work moves to another instance after one is lost,"
+          + " since a departed instance is not noticed any sooner. Kafka's default of 45s is kept,"
+          + " but a pipeline that values recovery over tolerance of a slow or briefly paused"
+          + " instance can lower it — a broker will not accept a value below its"
+          + " group.min.session.timeout.ms, which itself defaults to 6s.")
+  @Default.Integer(45_000)
+  int getSessionTimeoutMs();
+
+  void setSessionTimeoutMs(int sessionTimeoutMs);
+
+  @Description(
       "Intended cap on how long a bundle may stay open, in milliseconds. NOT APPLIED YET: closing a"
           + " bundle from a wall-clock punctuator made a pipeline with two chained GroupByKeys"
           + " across several partitions emit its groups repeatedly against a real broker, so only"

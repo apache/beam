@@ -26,6 +26,7 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineResult;
 import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsPipelineTranslator;
 import org.apache.beam.runners.kafka.streams.translation.KafkaStreamsTranslationContext;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsConfig;
 import org.apache.kafka.streams.Topology;
@@ -162,7 +163,8 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
     }
   }
 
-  private Properties streamsConfig(JobInfo jobInfo) {
+  // Visible for testing: the session timeout and the heartbeat derived from it.
+  Properties streamsConfig(JobInfo jobInfo) {
     Properties props = new Properties();
     props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, pipelineOptions.getBootstrapServers());
     props.put(StreamsConfig.APPLICATION_ID_CONFIG, pipelineOptions.getApplicationId());
@@ -177,6 +179,16 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
     // is
     // what Kafka Streams does by default when no client id is set.
     props.put(StreamsConfig.CLIENT_ID_CONFIG, jobInfo.jobId() + "-" + UUID.randomUUID());
+    // How quickly a lost instance is noticed, which is the floor on how quickly its work moves
+    // elsewhere. The heartbeat must be shorter than the timeout, or a healthy instance would be
+    // declared dead between beats; a third is the ratio Kafka's own defaults use. Deriving it
+    // rather than exposing it keeps the pair consistent whatever the timeout is set to.
+    int sessionTimeoutMs = pipelineOptions.getSessionTimeoutMs();
+    props.put(
+        StreamsConfig.consumerPrefix(ConsumerConfig.SESSION_TIMEOUT_MS_CONFIG), sessionTimeoutMs);
+    props.put(
+        StreamsConfig.consumerPrefix(ConsumerConfig.HEARTBEAT_INTERVAL_MS_CONFIG),
+        Math.max(1, sessionTimeoutMs / 3));
     return props;
   }
 }
