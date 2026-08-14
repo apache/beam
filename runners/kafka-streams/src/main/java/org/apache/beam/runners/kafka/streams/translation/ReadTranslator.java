@@ -136,7 +136,7 @@ class ReadTranslator implements PTransformTranslator {
     // splitting a source that has already been split.
     UnboundedSource<T, CheckpointT> readableSource = singleSplitOf(source, context);
     Coder<CheckpointT> checkpointCoder = readableSource.getCheckpointMarkCoder();
-    int maxElementsPerPoll = context.getPipelineOptions().getMaxBundleSize();
+    int maxElementsPerPoll = context.getPipelineOptions().getReadMaxElementsPerPoll();
     int checkpointEveryNPolls = context.getPipelineOptions().getReadCheckpointNumBundles();
 
     topology.addSource(
