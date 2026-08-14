@@ -153,6 +153,7 @@ if (startParameter.projectProperties.containsKey("with-kafka-streams-runner")) {
     include(":runners:kafka-streams")
     include(":runners:kafka-streams:proto")
     include(":runners:kafka-streams:job-server")
+    include(":runners:kafka-streams:measurement")
 }
 include(":runners:local-java")
 include(":runners:portability:java")
