@@ -313,11 +313,14 @@ class AccountKeysPolicyComplianceCheck:
 
         # Check that all service accounts that exist are declared
         for service_account in live_service_accounts:
+
             if self._denormalize_account_email(service_account) not in [account["account_id"] for account in file_service_accounts]:
                 msg = f"Service account '{service_account}' is not declared in the service account keys file."
                 compliance_issues.append(msg)
                 self.logger.warning(msg)
-                iam_keys = self._get_user_managed_keys_from_iam(service_account)
+
+            iam_keys = self._get_user_managed_keys_from_iam(service_account)
+
             if iam_keys:
                 secret_name = f"{self._denormalize_account_email(service_account)}-key"
                 legal_keys = []
