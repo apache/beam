@@ -18,13 +18,11 @@
 package org.apache.beam.sdk.schemas;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.values.Row;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 
 /** A set of utility functions for schemas. */
 @SuppressWarnings({
@@ -284,24 +282,26 @@ public class SchemaUtils {
           FieldType elementType = Objects.requireNonNull(fieldType.getCollectionElementType());
 
           @SuppressWarnings("unchecked")
-          List<Object> list = Lists.newArrayList((Iterable<Object>) value);
-          if (list.isEmpty()) {
-            return "[]";
-          }
+          Iterable<Object> elements = (Iterable<Object>) value;
+
+          // Rendered in a single pass. The previous shape asked the collection for isEmpty(),
+          // then size(), then iterated it -- three traversals, which a List absorbs for free but
+          // which an Iterable that can only be read once would not survive.
           StringBuilder sb = new StringBuilder();
           sb.append("[\n");
-          int size = list.size();
-          int index = 0;
-          for (Object element : list) {
+          boolean empty = true;
+          for (Object element : elements) {
+            if (!empty) {
+              sb.append(",\n");
+            }
             sb.append(nextPrefix)
                 .append(toPrettyFieldValueString(elementType, element, nextPrefix));
-            if (index++ < size - 1) {
-              sb.append(",\n");
-            } else {
-              sb.append("\n");
-            }
+            empty = false;
           }
-          sb.append(prefix).append("]");
+          if (empty) {
+            return "[]";
+          }
+          sb.append("\n").append(prefix).append("]");
           return sb.toString();
         }
       case MAP:
