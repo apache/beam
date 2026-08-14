@@ -568,6 +568,13 @@ public class RowJsonTest {
     public void testSupportedFloatConversions() throws Exception {
       testSupportedConversion(FieldType.FLOAT, FLOAT_STRING, FLOAT_VALUE);
       testSupportedConversion(FieldType.FLOAT, SHORT_STRING, (float) SHORT_VALUE);
+
+      // Integral literals a float still represents exactly: 2^24 is the largest contiguous one,
+      // and Integer.MIN_VALUE is exact because it is a power of two. Both are accepted today and
+      // must stay accepted -- they are what keeps the fix from being an across-the-board reject.
+      testSupportedConversion(FieldType.FLOAT, "16777216", 16777216.0f);
+      testSupportedConversion(
+          FieldType.FLOAT, String.valueOf(Integer.MIN_VALUE), (float) Integer.MIN_VALUE);
     }
 
     @Test
@@ -686,9 +693,19 @@ public class RowJsonTest {
       testUnsupportedConversion(FieldType.DOUBLE, LONG_STRING); // too large to fit
     }
 
-    // The two cases below get a method each on purpose. testUnsupportedConversion relies on the
+    // The three cases below get a method each on purpose. testUnsupportedConversion relies on the
     // ExpectedException rule, which is satisfied by the first exception to leave the test method,
     // so a second call in the same body never runs and the assertion would be silently dead.
+
+    @Test
+    public void testUnsupportedFloatConversionAtIntegerMaxValue() throws Exception {
+      // Integer.MAX_VALUE, and the guard against "fixing" this extractor with an int round-trip.
+      // (float) 2147483647 rounds up to 2147483648, and narrowing 2147483648 back to int
+      // saturates at Integer.MAX_VALUE, so the round-trip wrongly accepts it and stores
+      // 2147483648.0. INT_STRING in testUnsupportedFloatConversions is far smaller and does not
+      // exercise this -- and, being the fourth call in that method, never runs anyway.
+      testUnsupportedConversion(FieldType.FLOAT, "2147483647");
+    }
 
     @Test
     public void testUnsupportedDoubleConversionJustPastContiguousRange() throws Exception {

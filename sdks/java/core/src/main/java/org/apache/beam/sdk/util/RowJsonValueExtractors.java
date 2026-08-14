@@ -113,10 +113,17 @@ class RowJsonValueExtractors {
                     || (jsonNode.isFloatingPointNumber()
                         && jsonNode.doubleValue() == (double) (float) jsonNode.doubleValue())
 
-                    // Or an integer number which allows lossless conversion to float
+                    // Or an integral number which allows lossless conversion to float.
+                    // Compared through BigDecimal for the same reason as the double branch
+                    // below: narrowing an out-of-range float back to int saturates rather than
+                    // overflowing, so Integer.MAX_VALUE survives an int round-trip even though
+                    // the float it went through is 2147483648.
                     || (jsonNode.isIntegralNumber()
                         && jsonNode.canConvertToInt()
-                        && jsonNode.asInt() == (int) (float) jsonNode.asInt()))
+                        && jsonNode
+                                .decimalValue()
+                                .compareTo(BigDecimal.valueOf(jsonNode.floatValue()))
+                            == 0))
         .build();
   }
 
