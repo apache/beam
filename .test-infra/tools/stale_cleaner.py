@@ -432,7 +432,7 @@ def clean_pubsub_subscriptions():
     cleaner.refresh()
 
     # Delete stale resources
-    cleaner.delete_stale(dry_run=True) # Keep dry_run=True to avoid accidental deletions during testing
+    cleaner.delete_stale(dry_run=False)
 
 if __name__ == "__main__":
     # Clean up stale PubSub topics
