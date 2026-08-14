@@ -423,16 +423,16 @@ class MatchContinuously(beam.PTransform):
       apply_windowing: Whether each element should be assigned to
         individual window. If false, all elements will reside in global window.
       timestamp_cursor: (When has_deduplication is set to True) bound the
-        deduplication state by last-modified time. Files are still deduplicated
-        by id, but an id is retired once a newer file has been matched, so the
-        state holds the newest last-modified time and the ids sharing it rather
-        than one id per file the pattern has ever matched. A file whose
-        last-modified time is older than that mark is taken as already seen and
-        skipped, as happens with copies that preserve the source time and with
-        backfills of older files. Bounding the state this way costs the
-        guarantee that a file is matched once for all time: a file modified
-        after its id was retired looks new again and is matched a second time,
-        whatever ``match_updated_files`` says. Requires the filesystem to
+        deduplication state by last-modified time. Files are deduplicated by
+        path and last-modified time, and a key is retired once the newest match
+        has moved past it, so the state holds a trailing window rather than one
+        key per file the pattern has ever matched. Retiring a key cannot
+        duplicate a match, because the only file that would recreate it carries
+        the same last-modified time and is skipped by the same mark. A file
+        whose last-modified time is older than that mark is taken as already
+        seen and skipped, as happens with copies that preserve the source time
+        and with backfills of older files. Implies the ``match_updated_files``
+        key, so an updated file is matched again. Requires the filesystem to
         report last-modified times, and matches then carry their last-modified
         time as their event time instead of the poll time.
     """
@@ -474,7 +474,8 @@ class MatchContinuously(beam.PTransform):
   def _match_deduplicated(self,
                           pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     # Watch emits each file once per dedup key: the path, joined by the mtime
-    # when matching updated files, or the mtime alone under timestamp_cursor.
+    # when matching updated files or under timestamp_cursor, which needs the
+    # mtime in the key so that retiring a key cannot duplicate a match.
     # stop_timestamp bounds the polls to [start, stop).
     clock = _PollClock()
     if self.stop_ts == MAX_TIMESTAMP:
@@ -507,7 +508,8 @@ class MatchContinuously(beam.PTransform):
         poll_interval=self.interval,
         termination=termination,
         output_key_fn=(
-            _file_path_and_mtime_key if self.match_upd else _file_path_key),
+            _file_path_and_mtime_key
+            if self.match_upd or self.timestamp_cursor else _file_path_key),
         timestamp_cursor=self.timestamp_cursor)
     # Watch emits (pattern, file) pairs; keep the FileMetadata output type so
     # downstream transforms stay typed instead of falling back to Any.

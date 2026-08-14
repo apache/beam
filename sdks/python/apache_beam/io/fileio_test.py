@@ -728,13 +728,11 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
 
       assert_that(match_continiously, equal_to([first, twin]))
 
-  def test_timestamp_cursor_leaves_updated_files_out_while_their_id_is_held(
-      self):
-    # match_updated_files still decides whether a changed file counts as new,
-    # so an update is skipped unless it is asked for. That only holds while
-    # the file's id is still retained: once the cursor has moved past it and
-    # retired it, a later update looks new again. See the retirement test in
-    # watch_test.py.
+  def test_timestamp_cursor_emits_an_updated_file(self):
+    # The cursor keys on the path and the last-modified time, so an update is
+    # a new key and is matched again. Keying on the path alone would leave the
+    # update out while the key is retained and let it through once the cursor
+    # retired the key, which made the outcome depend on cursor timing.
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)
     path = self._create_temp_file(dir=tempdir)
     os.utime(path, (1234.5, 1234.5))
@@ -758,7 +756,7 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
               timestamp_cursor=True)
           | beam.Map(_touch))
 
-      assert_that(match_continiously, equal_to([path]))
+      assert_that(match_continiously, equal_to([path, path]))
 
 
 class WriteFilesTest(_TestCaseWithTempDirCleanUp):
