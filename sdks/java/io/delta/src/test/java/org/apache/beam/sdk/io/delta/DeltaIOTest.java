@@ -110,6 +110,185 @@ public class DeltaIOTest {
   }
 
   @Test
+  public void testReadRowsBothVersionAndTimestampThrows() {
+    org.apache.beam.sdk.Pipeline p = org.apache.beam.sdk.Pipeline.create();
+    IllegalArgumentException exception =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                p.apply(
+                    DeltaIO.readRows()
+                        .from("/path/to/table")
+                        .withVersion(0L)
+                        .withTimestamp("2026-05-20T15:43:26Z")));
+    Assert.assertTrue(exception.getMessage().contains("Cannot set both version and timestamp."));
+  }
+
+  @Test
+  public void testReadRowsAtVersion() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-read-version");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    Row row3 = Row.withSchema(schema).addValues("row-3").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(row1, row2));
+
+    // Commit version 1
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(row3));
+
+    // Read at version 0
+    PCollection<Row> outputV0 =
+        readPipeline.apply(DeltaIO.readRows().from(tableDir.getAbsolutePath()).withVersion(0L));
+
+    PAssert.that(outputV0).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadRowsAtTimestamp() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-read-timestamp");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    Row row3 = Row.withSchema(schema).addValues("row-3").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0 at timestamp 100000000000L
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(row1, row2));
+
+    // Commit version 1 at timestamp 200000000000L
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(row3));
+
+    // Read at timestamp between version 0 and version 1
+    String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    PCollection<Row> outputV0 =
+        readPipeline.apply(
+            DeltaIO.readRows().from(tableDir.getAbsolutePath()).withTimestamp(timestampV0));
+
+    PAssert.that(outputV0).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testManagedDeltaReadWithVersion() throws Exception {
+    File tableDir = tempFolder.newFolder("managed-delta-table-version");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        Collections.singletonList(row1));
+
+    // Commit version 1
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        Collections.singletonList(row2));
+
+    // Read version 0 using Managed
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(
+                        ImmutableMap.of("table", tableDir.getAbsolutePath(), "version", 0L)))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(row1);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testManagedDeltaReadWithTimestamp() throws Exception {
+    File tableDir = tempFolder.newFolder("managed-delta-table-timestamp");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0 at timestamp 100000000000L
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        Collections.singletonList(row1));
+
+    // Commit version 1 at timestamp 200000000000L
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        Collections.singletonList(row2));
+
+    // Read timestamp after version 0 using Managed
+    String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table", tableDir.getAbsolutePath(), "timestamp", timestampV0)))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(row1);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testPrintScanStateSchema() throws Exception {
     File tableDir = tempFolder.newFolder("delta-table-schema");
     File logDir = new File(tableDir, "_delta_log");

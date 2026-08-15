@@ -20,6 +20,10 @@ package org.apache.beam.sdk.io.delta;
 import static org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.OUTPUT_TAG;
 
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.engine.Engine;
+import io.delta.kernel.types.StringType;
+import io.delta.kernel.types.StructType;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -121,6 +125,92 @@ public class DeltaReadSchemaTransformProviderTest {
             .get(OUTPUT_TAG);
 
     PAssert.that(output).containsInAnyOrder(row);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithVersion() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-provider-version");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Collections.singletonList(row1));
+
+    // Commit version 1
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        java.util.Collections.singletonList(row2));
+
+    Configuration readConfig =
+        Configuration.builder().setTable(tableDir.getAbsolutePath()).setVersion(0L).build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaReadSchemaTransformProvider().from(readConfig))
+            .get(OUTPUT_TAG);
+
+    PAssert.that(output).containsInAnyOrder(row1);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithTimestamp() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-provider-timestamp");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0 at timestamp 100000000000L
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Collections.singletonList(row1));
+
+    // Commit version 1 at timestamp 200000000000L
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        java.util.Collections.singletonList(row2));
+
+    String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    Configuration readConfig =
+        Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setTimestamp(timestampV0)
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaReadSchemaTransformProvider().from(readConfig))
+            .get(OUTPUT_TAG);
+
+    PAssert.that(output).containsInAnyOrder(row1);
 
     readPipeline.run().waitUntilFinish();
   }

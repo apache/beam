@@ -303,6 +303,116 @@ public class DeltaIOIT {
   }
 
   @Test
+  public void testReadDeltaLakeTableAtTimestamp() throws Exception {
+    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+
+    Map<String, String> hadoopConfig = new HashMap<>();
+    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    hadoopConfig.put(
+        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
+    String project =
+        readPipeline
+            .getOptions()
+            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+            .getProject();
+    if (project != null) {
+      hadoopConfig.put("fs.gs.project.id", project);
+    }
+
+    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+    for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+      conf.set(entry.getKey(), entry.getValue());
+    }
+    Engine engine = DefaultEngine.create(conf);
+
+    // Wait briefly to ensure timestamp is after version 0 commit
+    Thread.sleep(1000);
+    String timestampV0 = java.time.Instant.ofEpochMilli(System.currentTimeMillis()).toString();
+    Thread.sleep(1000);
+
+    // Write version 1 with additional rows
+    List<Row> additionalRows =
+        IntStream.range(100, 150)
+            .mapToObj(i -> Row.withSchema(ROW_SCHEMA).addValues(i, "name_" + i).build())
+            .collect(Collectors.toList());
+
+    StructType deltaSchema =
+        new StructType().add("id", IntegerType.INTEGER).add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine, repoPath, 1L, System.currentTimeMillis(), deltaSchema, additionalRows);
+
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table",
+                            repoPath,
+                            "timestamp",
+                            timestampV0,
+                            "hadoop_config",
+                            hadoopConfig)))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(TEST_ROWS);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadDeltaLakeTableAtVersion() throws Exception {
+    ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
+    ExperimentalOptions.addExperiment(options, "use_runner_v2");
+
+    Map<String, String> hadoopConfig = new HashMap<>();
+    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    hadoopConfig.put(
+        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
+    String project =
+        readPipeline
+            .getOptions()
+            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
+            .getProject();
+    if (project != null) {
+      hadoopConfig.put("fs.gs.project.id", project);
+    }
+
+    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+    for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+      conf.set(entry.getKey(), entry.getValue());
+    }
+    Engine engine = DefaultEngine.create(conf);
+
+    // Write version 1 with additional rows
+    List<Row> additionalRows =
+        IntStream.range(100, 150)
+            .mapToObj(i -> Row.withSchema(ROW_SCHEMA).addValues(i, "name_" + i).build())
+            .collect(Collectors.toList());
+
+    StructType deltaSchema =
+        new StructType().add("id", IntegerType.INTEGER).add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine, repoPath, 1L, System.currentTimeMillis(), deltaSchema, additionalRows);
+
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table", repoPath, "version", 0L, "hadoop_config", hadoopConfig)))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(TEST_ROWS);
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testReadChangesDeltaLake() throws Exception {
     ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
     List<String> experiments = options.getExperiments();

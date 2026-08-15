@@ -304,7 +304,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         <code style="color: green">str</code>
       </td>
       <td>
-        Timestamp of the Delta Lake table to read.
+        Timestamp of the Delta Lake table to read (in UTC ISO 8601 format, e.g. <code>2026-05-20T15:43:26Z</code>). Cannot be set if version is set.
       </td>
     </tr>
     <tr>
@@ -315,7 +315,7 @@ and Beam SQL is invoked via the Managed API under the hood.
         <code style="color: #f54251">int64</code>
       </td>
       <td>
-        Version of the Delta Lake table to read.
+        Version of the Delta Lake table to read. Cannot be set if timestamp is set.
       </td>
     </tr>
   </table>
