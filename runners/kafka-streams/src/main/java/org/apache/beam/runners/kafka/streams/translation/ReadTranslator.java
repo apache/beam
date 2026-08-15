@@ -138,6 +138,7 @@ class ReadTranslator implements PTransformTranslator {
     Coder<CheckpointT> checkpointCoder = readableSource.getCheckpointMarkCoder();
     int maxElementsPerPoll = context.getPipelineOptions().getReadMaxElementsPerPoll();
     int checkpointEveryNPolls = context.getPipelineOptions().getReadCheckpointNumBundles();
+    int maxPollTimeMs = context.getPipelineOptions().getReadMaxPollTimeMs();
 
     topology.addSource(
         sourceNodeName,
@@ -157,6 +158,7 @@ class ReadTranslator implements PTransformTranslator {
                 transformId,
                 maxElementsPerPoll,
                 checkpointEveryNPolls,
+                maxPollTimeMs,
                 context.getTerminationTracker()),
         sourceNodeName);
     topology.addStateStore(

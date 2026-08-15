@@ -59,6 +59,23 @@ public interface KafkaStreamsPipelineOptions extends PortablePipelineOptions {
   void setReadMaxElementsPerPoll(int readMaxElementsPerPoll);
 
   @Description(
+      "How long one turn of reading an unbounded source may take, in milliseconds, before the"
+          + " source yields the Kafka Streams thread. A source is polled from a punctuator"
+          + " scheduled every 50ms, and the same thread runs the rest of the topology, so a turn"
+          + " that overruns that interval is already due again when it returns and fires straight"
+          + " away: the source then holds the thread and the stages below it are never scheduled,"
+          + " which shows up as a pipeline that reads steadily and emits nothing at all rather"
+          + " than one that falls behind. Roughly, the source takes this fraction of a 50ms"
+          + " interval, so the default of 10ms leaves the thread four fifths of its time."
+          + " --readMaxElementsPerPoll bounds the same turn by count; whichever bound is reached"
+          + " first ends it, and a count alone cannot bound the time because how long an element"
+          + " takes depends on the pipeline below.")
+  @Default.Integer(10)
+  int getReadMaxPollTimeMs();
+
+  void setReadMaxPollTimeMs(int readMaxPollTimeMs);
+
+  @Description(
       "How long the consumer group waits before deciding an instance has gone, in milliseconds."
           + " This is the floor on how quickly work moves to another instance after one is lost,"
           + " since a departed instance is not noticed any sooner. Kafka's default of 45s is kept,"
