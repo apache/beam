@@ -30,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -285,9 +286,10 @@ public class WorkFailureProcessorTest {
 
     workFailureProcessor.logAndProcessFailureBatch(
         DEFAULT_COMPUTATION_ID,
+        DEFAULT_COMPUTATION_ID,
         List.of(work),
         new MultiKeyCommitValidationException("test"),
-        invalidWork::add);
+        (FailedWorkHandler) invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
