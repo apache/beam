@@ -45,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWor
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -321,8 +322,11 @@ public class StreamingWorkScheduler {
     try {
       StreamingModeExecutionContext context = computationWorkExecutor.context();
 
+      FailedWorkHandler onFailedWorkHandler = getFailedWorkHandler(computationState);
+
       // Blocks while executing work.
-      computationWorkExecutor.executeWork(work, workExecutor, handle, keyTransitionListener);
+      computationWorkExecutor.executeWork(
+          work, workExecutor, handle, keyTransitionListener, onFailedWorkHandler);
 
       List<Work> workBatch;
       List<Windmill.WorkItemCommitRequest> workItemCommits;
@@ -465,20 +469,22 @@ public class StreamingWorkScheduler {
             ExecutableWork.create(w, (retry, h) -> processWork(computationState, retry, h)));
       }
 
+      FailedWorkHandler onFailedWorkHandler = getFailedWorkHandler(computationState);
+
       workFailureProcessor.logAndProcessFailureBatch(
-          computationId,
-          systemName,
-          executableWorks,
-          t,
-          invalidWork ->
-              computationState.completeWorkAndScheduleNextWorkForKey(
-                  invalidWork.getShardedKey(), invalidWork.id()));
+          computationId, systemName, executableWorks, t, onFailedWorkHandler);
     } catch (OutOfMemoryError oom) {
       throw oom;
     } catch (Throwable t2) {
       LOG.warn("Failed to process work failure safely for work {}", primaryWork.id(), t2);
       throw ExceptionUtils.safeWrapThrowableAsException(t2);
     }
+  }
+
+  private static FailedWorkHandler getFailedWorkHandler(ComputationState computationState) {
+    return failedWork ->
+        computationState.completeWorkAndScheduleNextWorkForKey(
+            failedWork.getShardedKey(), failedWork.id());
   }
 
   private void recordProcessingTime(

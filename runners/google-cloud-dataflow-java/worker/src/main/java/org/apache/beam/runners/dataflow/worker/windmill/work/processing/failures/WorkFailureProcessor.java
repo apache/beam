@@ -19,12 +19,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failure
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
@@ -103,7 +103,7 @@ public final class WorkFailureProcessor {
       String systemName,
       List<ExecutableWork> executableWorks,
       Throwable t,
-      Consumer<Work> onInvalidWork)
+      FailedWorkHandler onFailedWorkHandler)
       throws Throwable {
     List<ExecutableWork> worksToRetryLocally = new java.util.ArrayList<>();
 
@@ -112,7 +112,7 @@ public final class WorkFailureProcessor {
         case DO_NOT_RETRY:
           // Consider the item invalid. It will eventually be retried by Windmill if it still needs
           // to be processed.
-          onInvalidWork.accept(executableWork.work());
+          onFailedWorkHandler.onFailedWork(executableWork.work());
           break;
         case RETRY_LOCALLY:
           // Try again after some delay and at the end of the queue to avoid a tight loop.
