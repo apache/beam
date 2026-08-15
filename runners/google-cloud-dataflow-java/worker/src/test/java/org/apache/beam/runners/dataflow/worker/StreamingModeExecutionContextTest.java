@@ -926,7 +926,9 @@ public class StreamingModeExecutionContextTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
     assertFalse(work1.isMultiKeyBatchingDisabled());
 
-    when(mockExecutor.pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle)).thenReturn(null);
+    when(mockExecutor.pollWork(
+            COMPUTATION_ID, work1.getKeyGroup(), mockHandle, FAILING_FAILED_WORK_HANDLER))
+        .thenReturn(null);
 
     AtomicBoolean transitionListenerCalled = new AtomicBoolean(false);
     context.start(
@@ -935,10 +937,12 @@ public class StreamingModeExecutionContextTest {
         mockExecutor,
         mockHandle,
         null,
-        (oldWork, newWork) -> transitionListenerCalled.set(true));
+        (oldWork, newWork) -> transitionListenerCalled.set(true),
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     assertFalse(transitionListenerCalled.get());
-    verify(mockExecutor).pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+    verify(mockExecutor)
+        .pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle, FAILING_FAILED_WORK_HANDLER);
   }
 }
