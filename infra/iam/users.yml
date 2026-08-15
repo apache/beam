@@ -490,8 +490,7 @@
   email: hansmarcus14@gmail.com
   member_type: user
   permissions:
-  - role: projects/apache-beam-testing/roles/beam_viewer
-  - role: projects/apache-beam-testing/roles/beam_writer
+  - role: projects/apache-beam-testing/roles/beam_infra_manager
 - username: harrisonlim
   email: harrisonlim@google.com
   member_type: user
