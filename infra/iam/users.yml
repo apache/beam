@@ -125,11 +125,6 @@
   member_type: user
   permissions:
   - role: roles/editor
-- username: andres.vervaecke
-  email: andres.vervaecke@ml6.eu
-  member_type: user
-  permissions:
-  - role: roles/viewer
 - username: andrey.devyatkin
   email: andrey.devyatkin@akvelon.com
   member_type: user
@@ -522,11 +517,6 @@
   - role: roles/pubsub.subscriber
   - role: roles/pubsub.viewer
   - role: roles/storage.admin
-- username: jasper.van.den.bossche
-  email: jasper.van.den.bossche@ml6.eu
-  member_type: user
-  permissions:
-  - role: roles/editor
 - username: jeffreylwang
   email: jeffreylwang@google.com
   member_type: user
