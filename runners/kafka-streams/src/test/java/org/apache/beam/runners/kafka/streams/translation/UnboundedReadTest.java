@@ -21,6 +21,7 @@ import static org.hamcrest.CoreMatchers.containsString;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
+import static org.hamcrest.Matchers.lessThan;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -120,6 +121,59 @@ public class UnboundedReadTest {
     for (int i = 0; i < RECEIVED.size(); i++) {
       assertThat(RECEIVED.get(i), is((long) i));
     }
+  }
+
+  /** A pipeline whose source may read {@code elementsPerPoll} elements and run for {@code ms}. */
+  private static Pipeline pipelineWithPollBounds(int elementsPerPoll, int maxPollTimeMs) {
+    KafkaStreamsPipelineOptions options =
+        KafkaStreamsTestRunner.testOptions().as(KafkaStreamsPipelineOptions.class);
+    options.setReadMaxElementsPerPoll(elementsPerPoll);
+    options.setReadMaxPollTimeMs(maxPollTimeMs);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply("read", Read.from(CountingSource.unbounded()))
+        .apply("record", ParDo.of(new RecordFn()));
+    return pipeline;
+  }
+
+  /** Drives one turn of the wall clock and reports how many elements the source produced. */
+  private static int elementsInOneTurn(Pipeline pipeline) {
+    KafkaStreamsTranslationContext context = KafkaStreamsTestRunner.translate(pipeline);
+    try (TopologyTestDriver driver =
+        new TopologyTestDriver(
+            context.getTopology(), KafkaStreamsTestRunner.streamsConfig(pipeline))) {
+      driver.advanceWallClockTime(Duration.ofMillis(100));
+    }
+    return RECEIVED.size();
+  }
+
+  /**
+   * The element bound cannot bound the time a turn takes, because how long an element takes is
+   * decided by the pipeline below the source. Left on the count alone, a source with data always
+   * available runs the full count every turn, overruns the punctuation interval, and is due again
+   * the moment it returns — so it keeps the thread and the rest of the topology never runs.
+   */
+  @Test
+  public void aPollOutOfTimeYieldsBeforeReachingItsElementBound() {
+    // A turn that is out of time before it starts, so what stops it can only be the time bound.
+    int elements = elementsInOneTurn(pipelineWithPollBounds(1_000, 0));
+
+    assertThat(
+        "the source should have yielded, not run to its element bound",
+        elements,
+        is(lessThan(1_000)));
+    assertThat("the source should still have made progress", elements, is(greaterThan(0)));
+  }
+
+  /** The time bound only cuts a turn short; with time to spare the element bound still applies. */
+  @Test
+  public void aPollWithTimeToSpareReachesItsElementBound() {
+    int elements = elementsInOneTurn(pipelineWithPollBounds(100, 60_000));
+
+    assertThat(
+        "a turn with time to spare should read at least a full batch",
+        elements,
+        is(greaterThan(99)));
   }
 
   @Test

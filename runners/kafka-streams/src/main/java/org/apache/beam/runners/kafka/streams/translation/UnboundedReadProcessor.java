@@ -79,6 +79,9 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
   /** How often the source is polled. */
   private static final Duration POLL_INTERVAL = Duration.ofMillis(50);
 
+  /** Elements read between two checks of whether the turn is out of time. */
+  private static final int ELEMENTS_BETWEEN_DEADLINE_CHECKS = 64;
+
   private final UnboundedSource<T, CheckpointT> source;
   private final SerializablePipelineOptions options;
   // See ReadProcessor: a source produces decoded objects, but the downstream stage's harness input
@@ -90,6 +93,7 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
   private final String transformId;
   private final int maxElementsPerPoll;
   private final int checkpointEveryNPolls;
+  private final int maxPollTimeMs;
 
   private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
   private @Nullable KeyValueStore<String, byte[]> checkpointStore;
@@ -115,6 +119,7 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
       String transformId,
       int maxElementsPerPoll,
       int checkpointEveryNPolls,
+      int maxPollTimeMs,
       TerminationTracker terminationTracker) {
     this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
     this.source = source;
@@ -126,6 +131,7 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     this.transformId = transformId;
     this.maxElementsPerPoll = maxElementsPerPoll;
     this.checkpointEveryNPolls = checkpointEveryNPolls;
+    this.maxPollTimeMs = maxPollTimeMs;
   }
 
   @Override
@@ -157,6 +163,16 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
    * Streams thread would never get back to committing or to the rest of the topology. So at most
    * {@link #checkpointEveryNPolls} batches are taken before yielding, which is also where the
    * checkpoint mark is stored, and the next punctuation carries on from there.
+   *
+   * <p>That batch bound is a count, and a count cannot bound the time: how long an element takes is
+   * decided by the pipeline underneath it, which the source knows nothing about. A punctuator is
+   * expected to be quick, and this one runs on the thread that also serves the rest of the
+   * topology, so a turn that overruns its own {@link #POLL_INTERVAL} is due again as soon as it
+   * returns and runs once more instead of the tasks below it. Measured on a grouping pipeline, a
+   * turn of 200 elements took 3ms and held the thread 6% of the time, while a turn of 5000 took
+   * 57ms and held it 89%, and the pipeline read tens of millions of elements while emitting none.
+   * {@link #maxPollTimeMs} bounds the turn in time as well, and whichever bound is reached first
+   * ends it.
    */
   private void poll() {
     if (exhausted) {
@@ -164,8 +180,9 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     }
     ProcessorContext<byte[], KStreamsPayload<?>> ctx = checkInitialized(context);
     UnboundedReader<T> currentReader = ensureReader();
+    long deadline = System.currentTimeMillis() + maxPollTimeMs;
     for (int batch = 0; batch < checkpointEveryNPolls; batch++) {
-      int emitted = readBatch(ctx, currentReader);
+      int emitted = readBatch(ctx, currentReader, deadline);
       Instant watermark = currentReader.getWatermark();
       forwardWatermarkIfAdvanced(ctx, watermark);
       if (!watermark.isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
@@ -181,11 +198,19 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
         return;
       }
       if (emitted < maxElementsPerPoll) {
-        // Short batch: the source has nothing more for now, so store what was read and wait for
-        // the next punctuation rather than spinning on a reader that keeps returning false.
+        // Short batch: either the source has nothing more for now, or the turn ran out of time.
+        // Either way, store what was read and wait for the next punctuation rather than spinning
+        // on a reader that keeps returning false.
         if (emitted > 0) {
           storeCheckpoint(currentReader);
         }
+        return;
+      }
+      if (System.currentTimeMillis() >= deadline) {
+        // A full batch and the turn is out of time: yield with the position recorded, so the next
+        // punctuation carries on rather than this one running the thread out from under the rest
+        // of the topology.
+        storeCheckpoint(currentReader);
         return;
       }
     }
@@ -193,12 +218,26 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     storeCheckpoint(currentReader);
   }
 
-  /** Forwards up to {@link #maxElementsPerPoll} elements, returning how many were available. */
+  /**
+   * Forwards up to {@link #maxElementsPerPoll} elements, returning how many were available.
+   *
+   * <p>Stops early if the turn's deadline passes, since one batch can be long enough on its own to
+   * overrun it. The clock is read every {@link #ELEMENTS_BETWEEN_DEADLINE_CHECKS} elements rather
+   * than every element, which bounds the overshoot to that many elements without putting a clock
+   * read in front of each one.
+   */
   private int readBatch(
-      ProcessorContext<byte[], KStreamsPayload<?>> ctx, UnboundedReader<T> currentReader) {
+      ProcessorContext<byte[], KStreamsPayload<?>> ctx,
+      UnboundedReader<T> currentReader,
+      long deadline) {
     int emitted = 0;
     try {
       while (emitted < maxElementsPerPoll) {
+        if (emitted % ELEMENTS_BETWEEN_DEADLINE_CHECKS == 0
+            && emitted > 0
+            && System.currentTimeMillis() >= deadline) {
+          break;
+        }
         // start() positions the reader on its first element; advance() moves to the next. Either
         // returning false means nothing is available right now — not that the source is finished,
         // which is the difference from a bounded read.
