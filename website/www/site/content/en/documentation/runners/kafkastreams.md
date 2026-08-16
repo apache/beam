@@ -119,6 +119,7 @@ Named as Java spells them below; from Python the same options are in snake case,
 | `topicReplicationFactor` | `1` | Replication factor for those topics. |
 | `maxBundleSize` | `1000` | Elements per bundle, and elements taken per poll of an unbounded source. |
 | `maxBundleTimeMs` | `1000` | Intended cap on how long a bundle may stay open. **Not applied yet** — see below. |
+| `readMaxPollTimeMs` | `10` | How long one turn of reading an unbounded source may take before it yields the Kafka Streams thread. A source is polled every 50ms and shares its thread with the rest of the topology, so a turn that overruns that interval leaves the stages below it unscheduled; a bound on elements alone cannot bound the time. |
 | `readCheckpointNumBundles` | `10` | Polls of an unbounded source between stores of its checkpoint mark. Larger values replay more after a restart. |
 | `stateDir` | temp directory | Where Kafka Streams keeps local state. |
 
