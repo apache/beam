@@ -90,6 +90,62 @@ class TestPubsubContextUnit(unittest.TestCase):
     context.publisher.delete_topic.assert_not_called()
     context.subscriber.delete_subscription.assert_not_called()
 
+  @patch('apache_beam.testing.pubsub_test_context.pubsub_v1')
+  def test_context_manager_stress_and_scale_cleanup(self, mock_pubsub):
+    """STRESS TEST: Tests that the manager can scale, monitor, and clean up
+    hundreds of concurrent topics and subscriptions safely and without leaks.
+    """
+    # Start the TestPubsubContext in active mode (dry_run=False) to simulate real GCP interactions
+    context = TestPubsubContext(project_id="test-project", dry_run=False)
+
+    total = 1000
+    expected_topics = []
+    expected_subscriptions = []
+
+    # Bulk register 1000 topics and 1000 simulated parallel test subscriptions.
+    for i in range(total):
+        topic_path = f"projects/test-project/topics/stress-topic-{i}"
+        sub_path = f"projects/test-project/subscriptions/stress-sub-{i}"
+
+        context.register_topic(topic_path)
+        context.register_subscription(sub_path)
+
+        expected_topics.append(topic_path)
+        expected_subscriptions.append(sub_path)
+
+    # Verify that all resources were recorded in the monitor's memory without omissions.
+    self.assertEqual(len(context.tracked_topics), total)
+    self.assertEqual(len(context.tracked_subscriptions), total)
+    self.assertEqual(context.tracked_topics, expected_topics)
+    self.assertEqual(context.tracked_subscriptions, expected_subscriptions)
+
+    # Configure the mock for the `list_topic_subscriptions` API to return an empty list.
+    # by default to avoid infinite loops in the cascade simulation
+    context.publisher.list_topic_subscriptions.return_value = []
+
+    # Execute the mass dismantling phase
+    with context:
+      pass
+
+    # VALIDATION OF MASS SUCCESSFUL DELETION IN GCP:
+    # Verify that exactly 1000 unsubscribe calls have been issued.
+    self.assertEqual(context.subscriber.delete_subscription.call_count, total)
+    for sub in expected_subscriptions:
+        context.subscriber.delete_subscription.assert_any_call(
+            request={"subscription": sub}
+        )
+
+    # Verify that exactly 1000 topic deletion calls have been issued.
+    self.assertEqual(context.publisher.delete_topic.call_count, total)
+    for topic in expected_topics:
+        context.publisher.delete_topic.assert_any_call(
+            request={"topic": topic}
+        )
+
+    # Verify that the manager's memory is completely clean (0 tracked resources).
+    self.assertEqual(len(context.tracked_topics), 0)
+    self.assertEqual(len(context.tracked_subscriptions), 0)
+
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO)
