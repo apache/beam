@@ -203,10 +203,14 @@ def createKafkaStreamsRunnerTestTask() {
   return task
 }
 
-createKafkaStreamsRunnerTestTask()
+// The Kafka Streams runner is opt-in (-Pwith-kafka-streams-runner), so its job server is only a
+// project when it was asked for; without it there is nothing for these tasks to run against.
+if (project.findProject(':runners:kafka-streams:job-server') != null) {
+  createKafkaStreamsRunnerTestTask()
 
-tasks.register("kafkaStreamsValidatesRunner") {
-  dependsOn 'kafkaStreamsCompatibilityMatrixLOOPBACK'
+  tasks.register("kafkaStreamsValidatesRunner") {
+    dependsOn 'kafkaStreamsCompatibilityMatrixLOOPBACK'
+  }
 }
 
 def createPrismRunnerTestTask(String workerType) {

@@ -31,7 +31,7 @@ groups, changelog topics, and transactions.
 That makes it worth considering if you already run Kafka and want Beam's programming model without
 introducing a second distributed system to operate.
 
-## The runner is experimental
+## The runner is experimental, and is not built by default
 
 **The Kafka Streams Runner is experimental.** It executes a meaningful subset of the Beam model
 correctly, and the parts it does support are covered by Beam's own `@ValidatesRunner` suite, but
@@ -40,6 +40,36 @@ supported](#what-is-not-supported-yet) before choosing it for anything real.
 
 It is also aimed squarely at streaming. A pipeline over bounded data will run, but there are more
 efficient choices for batch work; this runner exists for pipelines that do not end.
+
+It is **not part of a Beam release, and not part of the default build**. It is developed in the open
+so that people can build it, use it and work on it, but it is not ready to be released: there are
+known bugs, not only missing features — bundles are not yet closed after a bounded time
+([#39633](https://github.com/apache/beam/issues/39633)), for one. Building it takes an opt-in flag:
+
+```
+./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:build
+```
+
+Without `-Pwith-kafka-streams-runner` the runner's projects are left out of the build entirely, so
+it reaches nobody who has not asked for it. The intent is to give the runner somewhere to be
+developed and maintained by whoever is interested in it. If it becomes stable enough the flag will
+be dropped and the runner built like any other; if it does not, it can be removed again without
+affecting anyone, since no release ever contained it.
+
+## Building it
+
+Every command in this page needs the opt-in flag. To build the runner and run its tests:
+
+```
+./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:build
+./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:validatesRunner
+```
+
+To build the job server jar that the Python SDK submits to:
+
+```
+./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:job-server:shadowJar
+```
 
 ## Running a pipeline
 
@@ -74,14 +104,14 @@ python my_pipeline.py \
 
 The SDK harness runs in `LOOPBACK` mode by default, so a local run needs no Docker. Building the jar
 takes a while the first time; `--kafka_streams_job_server_jar` points at a prebuilt one, which
-`./gradlew :runners:kafka-streams:job-server:shadowJar` produces.
+`./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:job-server:shadowJar` produces.
 
 ### Against a job server you are already running
 
 Start one, which listens on `localhost:8099` by default:
 
 ```
-./gradlew :runners:kafka-streams:runJobServer
+./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:runJobServer
 ```
 
 Then point a pipeline at it instead of letting the runner start its own. From Java:
@@ -117,10 +147,12 @@ Named as Java spells them below; from Python the same options are in snake case,
 | `applicationId` | *(required)* | Kafka Streams `application.id`. Must be unique per pipeline. |
 | `internalParallelism` | `1` | Partitions for the internal topics the runner creates, which is the parallelism the shuffled parts of a pipeline can reach. |
 | `topicReplicationFactor` | `1` | Replication factor for those topics. |
-| `maxBundleSize` | `1000` | Elements per bundle, and elements taken per poll of an unbounded source. |
+| `maxBundleSize` | `1000` | Elements per bundle. |
 | `maxBundleTimeMs` | `1000` | Intended cap on how long a bundle may stay open. **Not applied yet** — see below. |
+| `readMaxElementsPerPoll` | `1000` | Elements an unbounded source may take per poll. Separate from `maxBundleSize`, so a pipeline can have small bundles without throttling its source. |
 | `readMaxPollTimeMs` | `10` | How long one turn of reading an unbounded source may take before it yields the Kafka Streams thread. A source is polled every 50ms and shares its thread with the rest of the topology, so a turn that overruns that interval leaves the stages below it unscheduled; a bound on elements alone cannot bound the time. |
 | `readCheckpointNumBundles` | `10` | Polls of an unbounded source between stores of its checkpoint mark. Larger values replay more after a restart. |
+| `sessionTimeoutMs` | `45000` | How long the consumer group waits before deciding an instance has gone, which is the floor on how quickly its work moves elsewhere. A broker refuses a value below its own `group.min.session.timeout.ms`. |
 | `stateDir` | temp directory | Where Kafka Streams keeps local state. |
 
 ### Topics the runner creates

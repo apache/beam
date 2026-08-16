@@ -89,6 +89,7 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :runners:kafka-streams:build
+          arguments: -Pwith-kafka-streams-runner
           max-workers: 4
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7

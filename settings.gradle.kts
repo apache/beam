@@ -143,9 +143,17 @@ include(":runners:google-cloud-dataflow-java:examples-streaming")
 include(":runners:java-fn-execution")
 include(":runners:java-job-service")
 include(":runners:jet")
-include(":runners:kafka-streams")
-include(":runners:kafka-streams:proto")
-include(":runners:kafka-streams:job-server")
+// The Kafka Streams runner is opt-in, and is left out of the build unless it is asked for with
+// -Pwith-kafka-streams-runner. It is being developed in the open so that others can build it and
+// work on it, but it is not ready to be released: bundles are not yet closed after a bounded time
+// (https://github.com/apache/beam/issues/39633), among other things. Keeping it out of the default
+// build means it reaches nobody who did not ask for it, and the flag can be dropped when the runner
+// is stable enough - or the runner can be dropped, without either affecting users.
+if (startParameter.projectProperties.containsKey("with-kafka-streams-runner")) {
+    include(":runners:kafka-streams")
+    include(":runners:kafka-streams:proto")
+    include(":runners:kafka-streams:job-server")
+}
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
