@@ -26,6 +26,8 @@ import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.construction.Environments;
+import org.apache.beam.sdk.util.construction.SplittableParDo;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -60,7 +62,7 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
 
   @Override
   public PipelineResult run(Pipeline pipeline) {
-    assignPortableDefaults(pipelineOptions);
+    prepareForTranslation(pipeline, pipelineOptions);
     @Nullable KafkaStreamsJobServerDriver jobServerDriver = null;
     try {
       if (Strings.isNullOrEmpty(pipelineOptions.getJobEndpoint())) {
@@ -89,6 +91,22 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
     }
   }
 
+  /**
+   * Settles the options the runner needs and rewrites the pipeline into what it can translate.
+   *
+   * <p>The runner does not translate splittable DoFns, and a {@link org.apache.beam.sdk.io.Read}
+   * expands into one by default, so a pipeline that merely reads would otherwise fail to translate.
+   * Beam keeps the primitive read for exactly this case, behind an experiment that {@link
+   * #assignPortableDefaults} sets, so a pipeline does not have to ask for it and the proto that
+   * reaches the job server already holds primitive reads.
+   */
+  @VisibleForTesting
+  static void prepareForTranslation(
+      Pipeline pipeline, KafkaStreamsPipelineOptions pipelineOptions) {
+    assignPortableDefaults(pipelineOptions);
+    SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReadsIfNecessary(pipeline);
+  }
+
   private static void assignPortableDefaults(KafkaStreamsPipelineOptions pipelineOptions) {
     if (Strings.isNullOrEmpty(pipelineOptions.getDefaultEnvironmentType())) {
       pipelineOptions.setDefaultEnvironmentType(Environments.ENVIRONMENT_LOOPBACK);
@@ -97,8 +115,18 @@ public class KafkaStreamsRunner extends PipelineRunner<PipelineResult> {
     @Nullable List<String> existingExperiments = experimentalOptions.getExperiments();
     List<String> experiments =
         existingExperiments == null ? new ArrayList<>() : new ArrayList<>(existingExperiments);
+    boolean changed = false;
     if (!experiments.contains("beam_fn_api")) {
       experiments.add("beam_fn_api");
+      changed = true;
+    }
+    // Splittable DoFns are not translated, so the Read that expands into one has to stay the
+    // primitive it used to be. This is the experiment Beam looks for when deciding that.
+    if (!experiments.contains("use_deprecated_read")) {
+      experiments.add("use_deprecated_read");
+      changed = true;
+    }
+    if (changed) {
       experimentalOptions.setExperiments(experiments);
     }
   }
