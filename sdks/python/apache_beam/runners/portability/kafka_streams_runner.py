@@ -89,8 +89,7 @@ class KafkaStreamsJarJobServer(job_server.JavaJarJobServer):
               'using `./gradlew runners:kafka-streams:job-server:shadowJar`.' %
               self._jar)
       return self._jar
-    return self.path_to_beam_jar(
-        ':runners:kafka-streams:job-server:shadowJar')
+    return self.path_to_beam_jar(':runners:kafka-streams:job-server:shadowJar')
 
   def java_arguments(
       self, job_port, artifact_port, expansion_port, artifacts_dir):
