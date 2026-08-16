@@ -104,14 +104,14 @@ class TestPubsubContextUnit(unittest.TestCase):
 
     # Bulk register 1000 topics and 1000 simulated parallel test subscriptions.
     for i in range(total):
-        topic_path = f"projects/test-project/topics/stress-topic-{i}"
-        sub_path = f"projects/test-project/subscriptions/stress-sub-{i}"
+      topic_path = f"projects/test-project/topics/stress-topic-{i}"
+      sub_path = f"projects/test-project/subscriptions/stress-sub-{i}"
 
-        context.register_topic(topic_path)
-        context.register_subscription(sub_path)
+      context.register_topic(topic_path)
+      context.register_subscription(sub_path)
 
-        expected_topics.append(topic_path)
-        expected_subscriptions.append(sub_path)
+      expected_topics.append(topic_path)
+      expected_subscriptions.append(sub_path)
 
     # Verify that all resources were recorded in the monitor's memory without omissions.
     self.assertEqual(len(context.tracked_topics), total)
@@ -131,16 +131,13 @@ class TestPubsubContextUnit(unittest.TestCase):
     # Verify that exactly 1000 unsubscribe calls have been issued.
     self.assertEqual(context.subscriber.delete_subscription.call_count, total)
     for sub in expected_subscriptions:
-        context.subscriber.delete_subscription.assert_any_call(
-            request={"subscription": sub}
-        )
+      context.subscriber.delete_subscription.assert_any_call(
+          request={"subscription": sub})
 
     # Verify that exactly 1000 topic deletion calls have been issued.
     self.assertEqual(context.publisher.delete_topic.call_count, total)
     for topic in expected_topics:
-        context.publisher.delete_topic.assert_any_call(
-            request={"topic": topic}
-        )
+      context.publisher.delete_topic.assert_any_call(request={"topic": topic})
 
     # Verify that the manager's memory is completely clean (0 tracked resources).
     self.assertEqual(len(context.tracked_topics), 0)

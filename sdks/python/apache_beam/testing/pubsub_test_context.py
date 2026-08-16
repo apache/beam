@@ -40,8 +40,8 @@ class TestPubsubContext:
   def __init__(
       self,
       project_id,
-      dry_run=True
-  ):  # Keep dry_run=True to avoid accidental deletions during testing
+      dry_run=False
+  ):  # Keep dry_run=False to allow actual deletions during testing
 
     if pubsub_v1 is None:
       raise ImportError(
