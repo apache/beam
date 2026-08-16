@@ -17,18 +17,28 @@
  */
 package org.apache.beam.runners.kafka.streams;
 
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.kafka.streams.translation.KStreamsPayload;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.io.CountingSource;
+import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
+import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.kafka.streams.Topology;
 import org.apache.kafka.streams.TopologyTestDriver;
 import org.apache.kafka.streams.processor.api.Processor;
@@ -49,6 +59,55 @@ import org.junit.Test;
  * {@code TopologyTestDriver} replaces the broker for unit-test purposes.
  */
 public class KafkaStreamsRunnerTest {
+
+  /** The transform urns the pipeline would hand to the job server. */
+  private static Set<String> translatedUrns(Pipeline pipeline) {
+    return PipelineTranslation.toProto(pipeline).getComponents().getTransformsMap().values()
+        .stream()
+        .map(transform -> transform.getSpec().getUrn())
+        .collect(Collectors.toSet());
+  }
+
+  /**
+   * A {@code Read} expands into a splittable DoFn by default, which this runner cannot translate.
+   * The runner asks for the primitive read instead, so that a pipeline does not have to know to.
+   */
+  @Test
+  public void aReadReachesTheJobServerAsAPrimitiveReadRatherThanASplittableDoFn() {
+    KafkaStreamsPipelineOptions options =
+        PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
+    options.setApplicationId("read-conversion-test");
+    // Pipeline.create insists on a runner; it does not run here, the pipeline is only translated.
+    options.setRunner(KafkaStreamsRunner.class);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply("read", Read.from(CountingSource.unbounded()));
+
+    // Left alone, the read is a splittable DoFn expansion and no primitive read is present.
+    assertThat(translatedUrns(pipeline), not(hasItem(PTransformTranslation.READ_TRANSFORM_URN)));
+
+    KafkaStreamsRunner.prepareForTranslation(pipeline, options);
+
+    assertThat(translatedUrns(pipeline), hasItem(PTransformTranslation.READ_TRANSFORM_URN));
+  }
+
+  /**
+   * A pipeline may ask for splittable reads outright. The runner cannot translate them, so it asks
+   * for the primitive read anyway rather than letting a pipeline choose something that cannot run.
+   */
+  @Test
+  public void aPipelineAskingForSplittableReadsStillGetsPrimitiveOnes() {
+    KafkaStreamsPipelineOptions options =
+        PipelineOptionsFactory.create().as(KafkaStreamsPipelineOptions.class);
+    options.setApplicationId("sdf-read-override-test");
+    options.setRunner(KafkaStreamsRunner.class);
+    options.as(ExperimentalOptions.class).setExperiments(new ArrayList<>(List.of("use_sdf_read")));
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply("read", Read.from(CountingSource.unbounded()));
+
+    KafkaStreamsRunner.prepareForTranslation(pipeline, options);
+
+    assertThat(translatedUrns(pipeline), hasItem(PTransformTranslation.READ_TRANSFORM_URN));
+  }
 
   @Test
   public void impulseOnlyPipelineEmitsDataAndTerminalWatermark() {
