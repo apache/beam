@@ -445,7 +445,7 @@ public final class FailoverChannel extends ManagedChannel {
     if (newState == ConnectivityState.READY || newState == ConnectivityState.IDLE) {
       if (state.markPrimaryReady()) {
         LOG.info(
-            "[channel-{}] Primary channel observed healthy during state change registration; switching back from fallback.",
+            "[channel-{}] Primary channel observed healthy during state change notification; switching back from fallback.",
             channelId);
       }
     } else {
