@@ -24,44 +24,23 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.joda.time.Instant;
 
 /**
- * In-memory tracker of a single fused stage's input watermark, computed from the committed
- * watermarks reported by the <i>upstream source partitions</i> that feed it (the output /
- * repartition-topic partitions of the parent stage).
+ * Tracks one fused stage's input watermark from the committed watermarks reported by the upstream
+ * source partitions feeding it. Kept free of Kafka wiring so it can be unit-tested on its own.
  *
- * <p>This is the core of the Kafka Streams runner's watermark propagation, decoupled from the Kafka
- * wiring so it can be unit-tested in isolation. The wiring that produces the reports (flushing
- * {@code (sourcePartition, committedWatermark, totalSourcePartitions)} atomically with each offset
- * commit and fanning it out to every downstream partition) and consumes them lands in a follow-up.
+ * <p>It counts source partitions rather than producer instances. A partition count is fixed, known,
+ * and travels in-band with every report, whereas instances come and go on every rebalance and can
+ * die without notice; a dead instance's partitions are reassigned and the new owner keeps
+ * reporting.
  *
- * <h3>Why source partitions, not producer instances</h3>
+ * <p>Until every source partition has reported, the stage's input watermark is undefined and {@link
+ * #advance()} returns {@link BoundedWindow#TIMESTAMP_MIN_VALUE}. A change in the partition count
+ * clears the reports and re-opens that hold, which subsumes an explicit epoch rule.
  *
- * <p>The question a stage has to answer is "have I received the watermark from every upstream
- * producer, so that {@code min()} across them is meaningful?". Counting <i>producer instances</i>
- * is hard: an instance can be killed without notice, leaving stale state, and the number changes on
- * every rebalance. Counting <i>source partitions</i> is robust instead, because the partition count
- * is fixed and known: it travels in-band with every report ({@code totalSourcePartitions}), a
- * partition is always owned by exactly one live instance, and when an instance dies its partitions
- * are reassigned and the new owner keeps reporting. So the manager only ever reasons about
- * partitions, never about instances. (Design agreed with the mentor; see the watermark
- * coordination-channel PoC findings.)
+ * <p>Watermarks must not go backwards, so each partition's watermark is held monotonic and the
+ * emitted one is clamped against the last emitted — a newly appeared partition may report an older
+ * watermark than the stage has already reached.
  *
- * <h3>Holding until ready</h3>
- *
- * <p>Until a committed watermark has been seen for <i>every</i> source partition, the stage's input
- * watermark is undefined and {@link #advance()} returns {@link BoundedWindow#TIMESTAMP_MIN_VALUE} —
- * i.e. the stage emits no meaningful watermark downstream. A change in {@code
- * totalSourcePartitions} (e.g. a repartition) clears the accumulated reports and re-opens this hold
- * until the new full set has reported, which subsumes the "new epoch / revert" rule without an
- * explicit epoch.
- *
- * <h3>Monotonicity</h3>
- *
- * <p>Beam watermarks must be non-decreasing. Each source partition's watermark is held monotonic (a
- * lower report is ignored), and the emitted stage watermark is additionally clamped so it never
- * regresses below the previously emitted value — relevant if a newly appeared partition reports an
- * older watermark after the stage had already advanced.
- *
- * <p>Not thread-safe; the caller (a single Kafka Streams processor thread) serializes access.
+ * <p>Not thread-safe; the calling Kafka Streams processor thread serializes access.
  */
 public final class WatermarkManager {
 

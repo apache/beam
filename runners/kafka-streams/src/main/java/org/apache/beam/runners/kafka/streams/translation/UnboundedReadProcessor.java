@@ -44,29 +44,24 @@ import org.slf4j.LoggerFactory;
  * Reads an {@link UnboundedSource} and forwards its elements and watermark downstream.
  *
  * <p>Where the bounded {@link ReadProcessor} drains its source once and jumps the watermark to the
- * end of time, an unbounded source never finishes: it is polled repeatedly, and its watermark
- * advances gradually as the reader reports progress. That difference is what makes this a streaming
- * runner rather than a batch one — downstream windows close because the source says time has moved
- * on, not because the input ran out.
+ * end of time, an unbounded source never finishes: it is polled repeatedly and its watermark
+ * advances as the reader reports progress. That is what makes downstream windows close because time
+ * moved on rather than because the input ran out.
  *
- * <p>Polling happens on a wall-clock punctuator rather than in {@code process}, because the
- * processor's bootstrap topic is empty and nothing else would drive it. Each turn reads at most
- * {@link #maxElementsPerPoll} elements so a busy source cannot monopolise the Kafka Streams thread
- * and starve the rest of the topology, then forwards the reader's watermark if it advanced.
+ * <p>Polling runs on a wall-clock punctuator, since the bootstrap topic is empty and nothing else
+ * would drive it. A turn is bounded by {@link #maxElementsPerPoll} and by {@link #maxPollTimeMs} so
+ * a busy source cannot hold the Kafka Streams thread and starve the rest of the topology.
  *
- * <p><b>Restart</b> is what the checkpoint mark is for. {@link UnboundedReader#getCheckpointMark()}
- * describes the position the reader has consumed to; it is written to a persistent state store, and
- * on {@link #init} the reader is created from the stored mark rather than from scratch, so a task
- * that moves or restarts resumes where it left off instead of re-reading from the beginning. The
- * store is changelogged and, under exactly-once, its writes commit atomically with the records the
- * processor forwarded, so the mark can never be ahead of the data that was actually emitted.
+ * <p>The checkpoint mark is what makes restart work. {@link UnboundedReader#getCheckpointMark()} is
+ * written to a persistent state store and the reader is recreated from it in {@link #init}, so a
+ * task that moves or restarts resumes where it left off. The store is changelogged and, under
+ * exactly-once, commits atomically with the records forwarded, so the mark cannot run ahead of the
+ * data actually emitted.
  *
- * <p>The source handed to this processor has already been split by {@link ReadTranslator}, which is
- * where splitting belongs: it happens once for the pipeline rather than once per task instance, and
- * the contract does not define splitting an already-split source. Reading several splits in
- * parallel arrives with the topic-based shuffle work (#18479). As in the bounded processor, Kafka
- * Streams disallows negative record timestamps, so each forwarded {@link Record} carries the Unix
- * epoch and the Beam event time travels inside the {@link WindowedValue}.
+ * <p>The source is split once by {@link ReadTranslator} rather than per task; reading several
+ * splits in parallel arrives with #18479. Kafka Streams rejects negative record timestamps, so each
+ * {@link Record} carries the Unix epoch and the event time travels inside the {@link
+ * WindowedValue}.
  */
 class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
     implements Processor<byte[], byte[], byte[], KStreamsPayload<?>> {
@@ -153,26 +148,16 @@ class UnboundedReadProcessor<T, CheckpointT extends CheckpointMark>
   /**
    * Drains what the source currently has, in batches, then publishes the watermark.
    *
-   * <p>A batch is capped at {@link #maxElementsPerPoll} so that the checkpoint mark and the
-   * watermark are updated as the reader progresses rather than only at the end. Batches run back to
-   * back while the source keeps filling them, since returning after every batch would cap
-   * throughput at one batch per punctuation interval.
+   * <p>A batch is capped at {@link #maxElementsPerPoll} so the checkpoint mark and the watermark
+   * move as the reader progresses, and batches run back to back while the source keeps filling
+   * them, since returning after each would cap throughput at one batch per punctuation.
    *
-   * <p>The run is bounded all the same. A source that always has data — which is the normal case
-   * for one that is keeping up — would otherwise never let this method return, and the Kafka
-   * Streams thread would never get back to committing or to the rest of the topology. So at most
-   * {@link #checkpointEveryNPolls} batches are taken before yielding, which is also where the
-   * checkpoint mark is stored, and the next punctuation carries on from there.
-   *
-   * <p>That batch bound is a count, and a count cannot bound the time: how long an element takes is
-   * decided by the pipeline underneath it, which the source knows nothing about. A punctuator is
-   * expected to be quick, and this one runs on the thread that also serves the rest of the
-   * topology, so a turn that overruns its own {@link #POLL_INTERVAL} is due again as soon as it
-   * returns and runs once more instead of the tasks below it. Measured on a grouping pipeline, a
-   * turn of 200 elements took 3ms and held the thread 6% of the time, while a turn of 5000 took
-   * 57ms and held it 89%, and the pipeline read tens of millions of elements while emitting none.
-   * {@link #maxPollTimeMs} bounds the turn in time as well, and whichever bound is reached first
-   * ends it.
+   * <p>Both bounds exist because this runs on the thread that also serves the rest of the topology.
+   * At most {@link #checkpointEveryNPolls} batches are taken before yielding, and {@link
+   * #maxPollTimeMs} bounds the turn in time — a count cannot, since how long an element takes is
+   * decided by the pipeline below the source. A turn that overruns {@link #POLL_INTERVAL} is due
+   * again the moment it returns and runs instead of the tasks beneath it, which shows up as a
+   * pipeline that reads steadily and emits nothing.
    */
   private void poll() {
     if (exhausted) {

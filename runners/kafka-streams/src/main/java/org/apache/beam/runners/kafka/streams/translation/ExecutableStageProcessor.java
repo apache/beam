@@ -48,39 +48,32 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Kafka Streams {@link Processor} that executes a fused {@link ExecutableStage} (stateless user
- * code such as ParDo) in the Beam SDK harness over the Fn API.
+ * Kafka Streams {@link Processor} that executes a fused {@link ExecutableStage} — stateless user
+ * code such as ParDo — in the Beam SDK harness over the Fn API.
  *
- * <p>For each {@link KStreamsPayload#isData() data} payload it unwraps the {@link WindowedValue}
- * and feeds it to the harness through the stage's main input {@link FnDataReceiver}. Harness
- * outputs are collected on the harness threads into {@link #pendingOutputs} and then flushed
- * downstream on the Kafka Streams processing thread when the bundle closes — Kafka Streams' {@link
- * ProcessorContext#forward} must only be called from the processing thread, so outputs are never
- * forwarded directly from a harness callback.
+ * <p>Each {@link KStreamsPayload#isData() data} payload is unwrapped and fed to the harness through
+ * the stage's main input {@link FnDataReceiver}. Harness outputs are collected on the harness
+ * threads into {@link #pendingOutputs} and flushed downstream when the bundle closes, because
+ * {@link ProcessorContext#forward} may only be called from the processing thread.
  *
- * <p>A {@link KStreamsPayload#isWatermark() watermark} payload is a report from one partition of
- * one upstream transform and marks a bundle boundary: the open bundle (if any) is closed (flushing
- * outputs), the report is fed to the {@link WatermarkAggregator}, and the stage's output watermark
- * is forwarded downstream — stamped with this stage's own transform id — only when the aggregate
- * across the upstream transform's partitions actually advances. Until every partition has reported,
- * the watermark is held and nothing is forwarded — but data is still processed in the meantime.
+ * <p>A {@link KStreamsPayload#isWatermark() watermark} payload marks a bundle boundary: the open
+ * bundle is closed and flushed, the report goes to the {@link WatermarkAggregator}, and the stage's
+ * output watermark is forwarded — stamped with this stage's transform id — only once the aggregate
+ * across the upstream partitions advances. Until every partition has reported the watermark is
+ * held, though data is still processed meanwhile.
  *
- * <p>A bundle is also bounded in size, by {@code --maxBundleSize}, and closed once that many
- * elements have been fed to it. Without the bound a bundle stays open until the next watermark,
- * which on a stream that produces steadily lets it grow without limit. The bound is checked as
- * elements arrive. A time bound ({@code --maxBundleTimeMs}) is not applied yet — see the option's
- * own documentation.
+ * <p>A bundle is also bounded by {@code --maxBundleSize}, checked as elements arrive; without it a
+ * bundle would stay open until the next watermark and grow without limit on a steady stream. The
+ * time bound {@code --maxBundleTimeMs} is not applied yet, see that option's documentation.
  *
- * <p>Closing a bundle asks Kafka Streams to commit, so the elements a bundle consumed and the
- * records it produced are committed together and a restart replays either all of the bundle or none
- * of it. Note that this aligns commits <em>to</em> bundle boundaries but does not stop Kafka
- * Streams from committing on its own interval part-way through a bundle; closing the bundle first
- * from a pre-commit hook would be needed to rule that out entirely.
+ * <p>Closing a bundle asks Kafka Streams to commit, so the elements consumed and the records
+ * produced commit together and a restart replays all of a bundle or none. This aligns commits to
+ * bundle boundaries but does not stop Kafka Streams committing on its own interval mid-bundle;
+ * ruling that out needs a pre-commit hook.
  *
- * <p>This is the Kafka Streams analogue of Flink's {@code ExecutableStageDoFnOperator} and Spark's
- * {@code SparkExecutableStageFunction}. State, timers, and side inputs are out of scope for this
- * first version: the stage is executed with {@link StateRequestHandler#unsupported()} and no timer
- * receivers.
+ * <p>The analogue of Flink's {@code ExecutableStageDoFnOperator} and Spark's {@code
+ * SparkExecutableStageFunction}. State, timers and side inputs are out of scope here: the stage
+ * runs with {@link StateRequestHandler#unsupported()} and no timer receivers.
  */
 class ExecutableStageProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {
@@ -89,30 +82,21 @@ class ExecutableStageProcessor
 
   private final RunnerApi.ExecutableStagePayload stagePayload;
   private final JobInfo jobInfo;
-  // This stage's own transform id, stamped on every watermark it forwards so downstream watermark
-  // aggregators know which transform the report came from — regardless of who consumes it.
+  // Stamped on every watermark forwarded, so downstream aggregators know which transform reported.
   private final String transformId;
-  // This stage's Beam metrics container, updated from the final MonitoringInfos the SDK harness
-  // reports as each bundle completes. The pipeline result reads the containing step map as
-  // MetricResults.
+  // Updated from the MonitoringInfos the harness reports as each bundle completes.
   private final MetricsContainerImpl metricsContainer;
 
-  // pendingOutputs is enqueued by SDK harness threads (inside the OutputReceiverFactory callback)
-  // and drained by the Kafka Streams processing thread on bundle close; needs to be thread-safe.
-  // Each entry carries the output PCollection id so it can be routed to that output's downstream on
-  // flush. The element type is intentionally wildcarded: the runner does not need to know the
-  // runtime value type — the bundle factory handles all coder application at the Fn-API boundary
-  // using the PCollection coders from the ExecutableStagePayload.
+  // Enqueued by harness threads and drained by the processing thread on bundle close, so it must
+  // be thread-safe. Each entry carries its output PCollection id for routing on flush. The element
+  // type is wildcarded: coders are applied by the bundle factory at the Fn-API boundary.
   private final Queue<PendingOutput> pendingOutputs = new ConcurrentLinkedQueue<>();
-  // Output PCollection id -> the child node (a StageOutputProcessor relay) to forward that output
-  // to. Empty for a single-output stage, which forwards to its one downstream directly.
+  // Output PCollection id -> relay child node. Empty for a single-output stage.
   private final Map<String, String> outputChildByPCollectionId;
 
-  // Computes this stage's input watermark from its upstream transform's reports, holding until
-  // every partition of the upstream transform has reported (see WatermarkAggregator).
+  // Holds until every partition of the upstream transform has reported; see WatermarkAggregator.
   private final WatermarkAggregator watermarkAggregator;
-  // Reports this stage instance as finished once it emits the terminal watermark, so a bounded
-  // pipeline can stop itself.
+  // Reports this stage finished at the terminal watermark, so a bounded pipeline can stop.
   private final TerminationReporter terminationReporter;
   // The last watermark actually forwarded downstream, so we only forward when it advances.
   private Instant lastForwardedWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
@@ -169,10 +153,8 @@ class ExecutableStageProcessor
   public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
     this.context = context;
     terminationReporter.init(context);
-    // The SDK harness (stage context + bundle factory) is created lazily on the first data
-    // element, so a stage that only forwards watermarks never spins one up. This mirrors Spark's
-    // SparkExecutableStageFunction, which likewise does not build a bundle factory when there are
-    // no inputs to process.
+    // Created lazily on the first data element, so a stage that only forwards watermarks never
+    // spins up a harness. Spark's SparkExecutableStageFunction does the same.
   }
 
   private void ensureStageBundleFactory() {
@@ -188,18 +170,16 @@ class ExecutableStageProcessor
   public void process(Record<byte[], KStreamsPayload<?>> record) {
     KStreamsPayload<?> payload = record.value();
     if (payload == null) {
-      // A topic feeding the runner can always be written to from outside (or carry a tombstone),
-      // so recover from the obvious error instead of crashing the task: warn and drop.
+      // A topic can always be written to from outside, so warn and drop rather than crash.
       LOG.warn(
           "Stage {} dropping record with null payload (external write or tombstone)", transformId);
       return;
     }
     if (payload.isWatermark()) {
-      // Emit any buffered outputs before the watermark. Data is processed regardless of watermark
-      // readiness; only the watermark itself is held until every source partition has reported.
+      // Flush buffered outputs before the watermark. Data is processed regardless of readiness;
+      // only the watermark waits for every source partition.
       closeBundleAndFlush(record);
-      // Feed the report into the aggregator and forward the stage's output watermark only when the
-      // aggregate across the upstream transform's partitions actually advances.
+      // Forward the output watermark only when the aggregate across upstream partitions advances.
       watermarkAggregator.observe(payload.asWatermark());
       Instant advanced = watermarkAggregator.advance();
       if (advanced.isAfter(lastForwardedWatermark)) {
@@ -230,8 +210,7 @@ class ExecutableStageProcessor
         new OutputReceiverFactory() {
           @Override
           public <OutputT> FnDataReceiver<OutputT> create(String pCollectionId) {
-            // Outputs are queued here on harness threads, tagged with their output PCollection id,
-            // and drained on the processing thread after the bundle closes.
+            // Queued on harness threads, drained on the processing thread after the bundle closes.
             return receivedElement -> {
               if (receivedElement != null) {
                 pendingOutputs.add(

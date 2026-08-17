@@ -45,56 +45,41 @@ import org.joda.time.Duration;
 
 /**
  * One instance of a streaming pipeline, run as an ordinary application, for measuring what happens
- * when instances are added and removed.
+ * when instances come and go.
  *
- * <p>Run several of these against one Kafka. They share an application id, so Kafka's consumer
- * group divides the work between them, and stopping one hands its share to the others.
+ * <p>Run several against one Kafka. They share an application id, so the consumer group divides the
+ * work between them and stopping one hands its share to the others. It is an application rather
+ * than a test because the numbers only mean something under a realistic load: a grouping over
+ * thousands of keys, fed fast enough that no partition sits idle holding a watermark back.
  *
- * <p>This is an application rather than a test on purpose. The numbers only mean something if the
- * pipeline is doing a realistic amount of work — a grouping over thousands of keys, fed fast enough
- * that every partition has something to do. A pipeline that trickles produces idle partitions, and
- * an idle partition holds a watermark back for reasons that have nothing to do with rescaling.
- *
- * <p>The source produces a fixed number of elements per second over a fixed set of keys, so what a
- * complete window looks like is known before the run starts: every window should report the same
- * number of groups. That is what makes a shortfall legible as a shortfall, rather than as one of
- * the many rates a pipeline could happen to be running at.
+ * <p>The source runs at a fixed rate over a fixed key space, so a complete window is known before
+ * the run starts — one line per key, the same count on each — which is what makes a shortfall
+ * legible as one.
  *
  * <pre>
  *   docker compose -f runners/kafka-streams/measurement/docker-compose.yml up -d
- *   ./gradlew :runners:kafka-streams:measurement:installDist
- * </pre>
+ *   ./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:measurement:installDist
  *
- * <p>Then start two instances, sharing an application id and differing in everything local to the
- * instance. Each needs its own {@code --stateDir}: two instances sharing one directory fail with a
- * {@code LockException}, because Kafka Streams locks the state it keeps on disk.
- *
- * <pre>
  *   BIN=runners/kafka-streams/measurement/build/install/measurement/bin/measurement
  *   $BIN --applicationId=demo --instanceName=one --stateDir=/tmp/ks-one &amp;
  *   $BIN --applicationId=demo --instanceName=two --stateDir=/tmp/ks-two &amp;
  * </pre>
  *
- * <p>The pipeline logs one line per key per window. Nothing is counted beside the pipeline: the
- * groups in a window are its own output, so the tally does not depend on how many instances are
- * running or on which of them happens to be doing the work.
+ * <p>Each instance needs its own {@code --stateDir}; sharing one fails with a {@code
+ * LockException}. Output is one line per key per window, counted by the pipeline itself rather than
+ * beside it, so the tally does not depend on how many instances are running:
  *
  * <pre>
  *   &lt;millis&gt; &lt;instance&gt; window_end=&lt;millis&gt; key=&lt;key&gt; count=&lt;n&gt; skew_ms=&lt;n&gt;
  * </pre>
  *
- * <p>Because the rate and the key space are both fixed, a complete window has one line per key and
- * the same count on each, so counting the lines for a window says whether the window was complete.
- *
- * <p>{@code skew_ms} is the gap between the window's event time and the wall clock when the group
- * came out. It is what falling behind should look like: a pipeline that cannot keep up ought to
- * report its groups later and later while still reporting all of them, so a climbing skew with
- * complete windows is congestion, and missing groups are something else.
- *
- * <p>To watch a handover, kill one instance and watch the other's lines. The delay before the
- * survivor reports the killed instance's share again is dominated by {@code --sessionTimeoutMs},
- * which is how long the consumer group waits before deciding the instance is gone.
+ * <p>{@code skew_ms} is the gap between the window's event time and the wall clock when it came
+ * out. A pipeline that cannot keep up should report its groups later and later while still
+ * reporting all of them, so climbing skew with complete windows is congestion and missing groups
+ * are something else. To watch a handover, kill one instance and watch the other; the delay before
+ * it reports the dead instance's share is dominated by {@code --sessionTimeoutMs}.
  */
+
 public final class RescalingMeasurement {
 
   private RescalingMeasurement() {}

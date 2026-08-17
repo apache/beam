@@ -52,18 +52,13 @@ public class KafkaStreamsTranslationContext {
    * has not been registered is produced by a single instance; only a shuffle raises the count.
    */
   private final Map<String, Integer> pCollectionIdToPartitionCount = new HashMap<>();
-  // Accumulates the Beam metrics reported by the SDK harness, one container per executable stage.
-  // Processors update it as bundles complete (in-JVM reference sharing); the pipeline result
-  // exposes it as MetricResults. Sharing one container across a stage's parallel tasks is safe and
-  // correct: the metric cells are thread-safe (atomic cells in concurrent maps) and the updates are
-  // per-bundle final values applied with add semantics, so concurrent tasks accumulate rather than
-  // overwrite. Aggregation across multiple runner JVMs is out of scope until the multi-instance
-  // work.
+  // Beam metrics from the SDK harness, one container per stage. Sharing a container across a
+  // stage's parallel tasks is safe: the cells are thread-safe and updates add rather than
+  // overwrite. Aggregating across runner JVMs is out of scope for now.
   private final MetricsContainerStepMap metricsContainerStepMap = new MetricsContainerStepMap();
 
-  // Decides when a bounded pipeline has finished. Owned by the context, so it is scoped to this one
-  // pipeline: the job server runs several jobs in a single process, and a tracker shared between
-  // them would let one pipeline finishing stop another.
+  // Scoped to this pipeline rather than the JVM: the job server runs several jobs in one process,
+  // and a shared tracker would let one job's completion stop another.
   private final TerminationTracker terminationTracker = new TerminationTracker();
 
   public static KafkaStreamsTranslationContext create(
@@ -92,34 +87,23 @@ public class KafkaStreamsTranslationContext {
     return pipelineOptions;
   }
 
-  /** Returns the {@link Topology} being built by the translation. */
   public Topology getTopology() {
     return topology;
   }
 
-  /**
-   * Returns the job's metrics accumulator: one {@link
-   * org.apache.beam.runners.core.metrics.MetricsContainerImpl container} per executable stage,
-   * updated by the stage processors as the SDK harness reports bundle metrics, and read by the
-   * pipeline result via {@link MetricsContainerStepMap#asAttemptedOnlyMetricResults}.
-   */
+  /** One container per stage, updated by the processors and read by the pipeline result. */
   public MetricsContainerStepMap getMetricsContainerStepMap() {
     return metricsContainerStepMap;
   }
 
   /**
-   * Returns the tracker that decides when this pipeline has finished. Processors report themselves
-   * to it as they reach the terminal watermark; the runner asks it to stop the Kafka Streams client
-   * once they all have.
+   * Processors report to it at the terminal watermark; the runner stops the client once all have.
    */
   public TerminationTracker getTerminationTracker() {
     return terminationTracker;
   }
 
-  /**
-   * Registers the processor node that produces the given Beam PCollection. Downstream translators
-   * resolve their parent processor names by looking up the input PCollection id.
-   */
+  /** Downstream translators resolve their parent node by looking up the input PCollection id. */
   public void registerPCollectionProducer(String pCollectionId, String processorName) {
     String existing = pCollectionIdToProcessorName.putIfAbsent(pCollectionId, processorName);
     if (existing != null && !existing.equals(processorName)) {
@@ -134,25 +118,14 @@ public class KafkaStreamsTranslationContext {
   }
 
   /**
-   * Records how many partitions the transform producing {@code pCollectionId} runs across.
-   *
-   * <p>This is the {@code totalSourcePartitions} its watermark reports carry, and what a downstream
-   * {@link WatermarkAggregator} waits to hear from before it lets the watermark advance. It changes
-   * only at a shuffle: everything fused downstream of one runs at the shuffle topic's partition
-   * count, and everything else runs as a single instance.
+   * The {@code totalSourcePartitions} this PCollection's watermark reports carry, which a
+   * downstream {@link WatermarkAggregator} waits on. It changes only at a shuffle.
    */
   public void registerPCollectionPartitionCount(String pCollectionId, int partitionCount) {
     pCollectionIdToPartitionCount.put(pCollectionId, partitionCount);
   }
 
-  /**
-   * How many partitions the transform producing {@code pCollectionId} runs across; one unless a
-   * shuffle upstream raised it.
-   *
-   * <p>Always at least one: an unregistered PCollection is produced by a single instance, and the
-   * only value ever registered is {@code --internalParallelism}, which the runner rejects below one
-   * before translating.
-   */
+  /** One unless a shuffle upstream raised it; never less, as --internalParallelism is validated. */
   public int getPartitionCount(String pCollectionId) {
     return pCollectionIdToPartitionCount.getOrDefault(pCollectionId, 1);
   }
@@ -167,10 +140,8 @@ public class KafkaStreamsTranslationContext {
   }
 
   /**
-   * Returns the dedicated bootstrap topic name for one Impulse transform. Keyed by transform id
-   * (sanitized to Kafka's legal topic-name character set) because a pipeline can contain several
-   * Impulses (e.g. an empty {@code Create} plus the dummy branch {@code PAssert} adds), and Kafka
-   * Streams rejects registering the same topic on two source nodes.
+   * Keyed by transform id, sanitized to Kafka's legal topic characters: a pipeline can hold several
+   * Impulses, and Kafka Streams rejects the same topic on two source nodes.
    */
   public String getImpulseBootstrapTopic(String transformId) {
     String sanitizedTransformId = ILLEGAL_TOPIC_CHARS.matcher(transformId).replaceAll("_");
@@ -180,11 +151,7 @@ public class KafkaStreamsTranslationContext {
         + sanitizedTransformId;
   }
 
-  /**
-   * Returns the dedicated bootstrap topic name a primitive Read reads from. Keyed by transform id
-   * (sanitized to Kafka's legal topic-name character set) so multiple Reads — and Impulse — never
-   * register the same topic on two source nodes, which Kafka Streams rejects.
-   */
+  /** Keyed by transform id, for the same reason as {@link #getImpulseBootstrapTopic}. */
   public String getReadBootstrapTopic(String transformId) {
     String sanitizedTransformId = ILLEGAL_TOPIC_CHARS.matcher(transformId).replaceAll("_");
     return READ_BOOTSTRAP_TOPIC_PREFIX

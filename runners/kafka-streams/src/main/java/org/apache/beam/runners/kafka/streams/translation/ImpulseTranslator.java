@@ -21,36 +21,20 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.kafka.common.serialization.Serdes;
 import org.apache.kafka.streams.Topology;
-import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
 /**
  * Translates the {@code beam:transform:impulse:v1} URN.
  *
- * <p>Adds three nodes to the Kafka Streams {@link Topology}:
+ * <p>Adds three nodes: a {@code byte[]} source bound to a per-transform bootstrap topic, which
+ * exists only because Kafka Streams refuses to start a topology with no source topic and whose
+ * records {@link ImpulseProcessor} ignores; the processor itself, which fires a one-shot wall-clock
+ * punctuator and emits one empty data payload followed by a terminal watermark; and a persistent
+ * state store recording whether it already fired, so a restart does not duplicate the impulse.
  *
- * <ul>
- *   <li>A {@code byte[]} source bound to a dedicated per-transform bootstrap topic (see {@link
- *       KafkaStreamsTranslationContext#getImpulseBootstrapTopic}). Kafka Streams refuses to start a
- *       topology that has no real source topic, so the bootstrap topic exists purely to satisfy
- *       that requirement — records published to it are ignored by {@link ImpulseProcessor}.
- *   <li>The {@link ImpulseProcessor} itself, which schedules a one-shot wall-clock punctuator on
- *       {@code init} and emits a single empty data {@link KStreamsPayload} followed by a terminal
- *       watermark payload at {@link
- *       org.apache.beam.sdk.transforms.windowing.BoundedWindow#TIMESTAMP_MAX_VALUE}.
- *   <li>A per-processor {@link KeyValueBytesStoreSupplier persistent state store} that records
- *       whether the impulse has already fired so task restarts do not duplicate it.
- * </ul>
- *
- * <p>The processor's output PCollection is registered with the translation context so subsequent
- * translators can wire themselves to this node by id.
- *
- * <p><b>Bootstrap topic lifecycle:</b> this translator does <em>not</em> auto-create the bootstrap
- * topic. The topic is expected to exist on the broker before the job starts; otherwise Kafka
- * Streams raises {@code MissingSourceTopicException} on startup. The auto-create-vs-pre-create
- * decision (design doc §12.1) is deferred to a follow-up sub-issue along with the {@code
- * AdminClient} wiring; pre-creation is sufficient for the {@code TopologyTestDriver}-based unit
- * tests in this PR.
+ * <p>The output PCollection is registered with the translation context so later translators can
+ * wire to this node by id. The bootstrap topic itself is created before startup by {@link
+ * org.apache.beam.runners.kafka.streams.KafkaStreamsTopicManager}.
  */
 class ImpulseTranslator implements PTransformTranslator {
 

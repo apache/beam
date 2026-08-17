@@ -39,28 +39,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Translates the {@code beam:transform:group_by_key:v1} URN — the runner's first stateful,
  * shuffle-bearing transform.
  *
- * <p>Windowing and triggering are executed by Beam's {@link
- * org.apache.beam.runners.core.ReduceFnRunner} inside {@link WindowedGroupByKeyProcessor}, the same
- * way the Flink and Spark portable runners do it — so fixed/sliding windows, the default trigger,
- * allowed lateness and timestamp combiners all work. The input PCollection's windowing strategy is
- * hydrated from the pipeline proto and handed to the processor.
+ * <p>Windowing and triggering run through Beam's {@link
+ * org.apache.beam.runners.core.ReduceFnRunner} inside {@link WindowedGroupByKeyProcessor}, as the
+ * Flink and Spark portable runners do, so fixed and sliding windows, the default trigger, allowed
+ * lateness and timestamp combiners all work. The input's windowing strategy is hydrated from the
+ * pipeline proto and handed to the processor.
  *
- * <p>Topology added (the Beam key becomes the Kafka record key so Kafka Streams shuffles by it):
- *
- * <ul>
- *   <li>a {@link ShuffleByKeyProcessor} wired to the input's producer, which sets the Kafka record
- *       key to the encoded Beam key for data records and passes watermark reports through;
- *   <li>a {@link Topology#addSink sink} to an internal repartition topic, with the payload encoded
- *       via {@link KStreamsPayloadSerde} and a {@link GroupByKeyBroadcastPartitioner} that hashes
- *       data by key and fans watermark reports out to every partition;
- *   <li>a {@link Topology#addSource source} reading the repartition topic back;
- *   <li>the {@link WindowedGroupByKeyProcessor} plus persistent state and timer stores, wired to
- *       the source.
- * </ul>
- *
- * <p>The repartition topic is expected to exist on the broker before the job starts (same
- * pre-create assumption as the Impulse bootstrap topic); auto-creation lands with the AdminClient
- * wiring in a follow-up.
+ * <p>The Beam key becomes the Kafka record key so Kafka Streams shuffles by it. The topology is a
+ * {@link ShuffleByKeyProcessor} that sets that key and passes watermark reports through, a sink to
+ * an internal repartition topic using a {@link GroupByKeyBroadcastPartitioner} that hashes data by
+ * key and fans watermarks out to every partition, a source reading that topic back, and the {@link
+ * WindowedGroupByKeyProcessor} with its state and timer stores.
  */
 class GroupByKeyTranslator implements PTransformTranslator {
 
