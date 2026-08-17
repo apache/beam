@@ -484,17 +484,22 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
             self.assertEqual(len(active), 1)
 
     def test_delete_resource(self):
-        """Test _delete_resource method."""
-        sub_name = "test-sub-to-delete"
-        subscription_path = f"projects/{self.project_id}/subscriptions/{sub_name}"
-        self.mock_subscriber_client.subscription_path.return_value = subscription_path
+        """Test _delete_resource method.
+
+        list_subscriptions() returns subscription names as fully-qualified
+        paths (e.g. "projects/<project>/subscriptions/<sub-id>"), so
+        _delete_resource must pass them directly to delete_subscription
+        without re-prefixing via subscription_path(). Double-prefixing
+        causes InvalidArgument 400 and is the cause of issue #39772.
+        """
+        sub_path = f"projects/{self.project_id}/subscriptions/test-sub-to-delete"
 
         with SilencePrint():
-            self.cleaner._delete_resource(sub_name)
+            self.cleaner._delete_resource(sub_path)
 
-        self.mock_subscriber_client.subscription_path.assert_called_once_with(self.project_id, sub_name)
+        self.mock_subscriber_client.subscription_path.assert_not_called()
         self.mock_subscriber_client.delete_subscription.assert_called_once_with(
-            request={'subscription': subscription_path}
+            request={'subscription': sub_path}
         )
 
 
