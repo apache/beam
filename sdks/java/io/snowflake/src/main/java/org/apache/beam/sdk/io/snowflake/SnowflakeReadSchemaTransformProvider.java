@@ -39,9 +39,6 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 
 /** A {@link SchemaTransformProvider} for reading rows from Snowflake. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(SchemaTransformProvider.class)
 public class SnowflakeReadSchemaTransformProvider
     extends TypedSchemaTransformProvider<SnowflakeReadSchemaTransformProvider.Configuration> {
@@ -115,14 +112,19 @@ public class SnowflakeReadSchemaTransformProvider
               .withCsvMapper(parts -> toRow(parts, outputSchema))
               .withCoder(RowCoder.of(outputSchema));
 
-      if (configuration.getTable() != null) {
-        read = read.fromTable(configuration.getTable());
+      String table = configuration.getTable();
+      if (table != null) {
+        read = read.fromTable(table);
       } else {
-        read = read.fromQuery(configuration.getQuery());
+        String query = configuration.getQuery();
+        if (query != null) {
+          read = read.fromQuery(query);
+        }
       }
 
-      if (configuration.getQuotationMark() != null) {
-        read = read.withQuotationMark(configuration.getQuotationMark());
+      String quotationMark = configuration.getQuotationMark();
+      if (quotationMark != null) {
+        read = read.withQuotationMark(quotationMark);
       }
 
       PCollection<Row> rows =
@@ -219,8 +221,10 @@ public class SnowflakeReadSchemaTransformProvider
           getPrivateKey(),
           getPrivateKeyPassphrase());
 
-      boolean tablePresent = getTable() != null && !getTable().isEmpty();
-      boolean queryPresent = getQuery() != null && !getQuery().isEmpty();
+      String table = getTable();
+      boolean tablePresent = table != null && !table.isEmpty();
+      String query = getQuery();
+      boolean queryPresent = query != null && !query.isEmpty();
 
       if (!tablePresent && !queryPresent) {
         throw new IllegalArgumentException("Either table or query must be specified.");
