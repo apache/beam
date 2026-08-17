@@ -59,9 +59,21 @@ public class ConnectionManager {
   }
 
   static Session getSession(Read<?> read) {
-    Cluster cluster =
+    String clusterHash = readToClusterHash(read);
+    String sessionHash = readToSessionHash(read);
+
+    Cluster cluster = clusterMap.get(clusterHash);
+
+    if(cluster != null && cluster.isClosed()) {
+      Session brokenSession = sessionMap.get(sessionHash);
+      if (brokenSession != null) {
+        sessionMap.remove(sessionHash,brokenSession);
+      }
+      clusterMap.remove(clusterHash,cluster);
+    }
+    cluster =
         clusterMap.computeIfAbsent(
-            readToClusterHash(read),
+            clusterHash,
             k ->
                 CassandraIO.getCluster(
                     Objects.requireNonNull(read.hosts()),
