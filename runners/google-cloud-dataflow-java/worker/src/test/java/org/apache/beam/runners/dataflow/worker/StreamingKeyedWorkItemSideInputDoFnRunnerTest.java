@@ -202,8 +202,7 @@ public class StreamingKeyedWorkItemSideInputDoFnRunnerTest {
             (WindowedValue<KV<String, Integer>> windowedValue) ->
                 outputManager.output(mainOutputTag, windowedValue),
             stepContext);
-    return new StreamingKeyedWorkItemSideInputDoFnRunner<
-        String, Integer, KV<String, Integer>, IntervalWindow>(
+    return new StreamingKeyedWorkItemSideInputDoFnRunner<>(
         simpleDoFnRunner, keyCoder, sideInputFetcher, stepContext);
   }
 }

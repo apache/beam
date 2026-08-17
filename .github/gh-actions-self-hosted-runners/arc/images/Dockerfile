@@ -26,7 +26,7 @@ RUN docker buildx install && docker buildx version
 USER root
 # Native build toolchain for Python C extensions.
 RUN apt-get update && \
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential time rsync openssh-client && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends build-essential time rsync openssh-client wget && \
     rm -rf /var/lib/apt/lists/*
 #Install Node
 RUN curl -OL https://nodejs.org/dist/v22.14.0/node-v22.14.0-linux-x64.tar.xz && \
@@ -41,16 +41,16 @@ RUN curl -OL https://go.dev/dl/go${go_version}.linux-amd64.tar.gz && \
     rm go${go_version}.linux-amd64.tar.gz
 ENV PATH="${PATH}:/usr/local/go/bin"
 #Install Java
-RUN curl -OL https://cdn.azul.com/zulu/bin/zulu11.74.15-ca-jdk11.0.24-linux_x64.tar.gz && \
-    tar -C /usr/local -xzf zulu11.74.15-ca-jdk11.0.24-linux_x64.tar.gz && \
-    rm zulu11.74.15-ca-jdk11.0.24-linux_x64.tar.gz && \
-    mv /usr/local/zulu11.74.15-ca-jdk11.0.24-linux_x64 /usr/local/java
+RUN curl -OL https://cdn.azul.com/zulu/bin/zulu21.50.19-ca-jdk21.0.11-linux_x64.tar.gz && \
+    tar -C /usr/local -xzf zulu21.50.19-ca-jdk21.0.11-linux_x64.tar.gz && \
+    rm zulu21.50.19-ca-jdk21.0.11-linux_x64.tar.gz && \
+    mv /usr/local/zulu21.50.19-ca-jdk21.0.11-linux_x64 /usr/local/java
 ENV PATH="${PATH}:/usr/local/java/bin"
 #Install Gradle
-RUN curl -OL https://services.gradle.org/distributions/gradle-8.4-bin.zip && \
-    unzip gradle-8.4-bin.zip && \
-    rm gradle-8.4-bin.zip && \
-    mv gradle-8.4 /usr/local/gradle
+RUN curl -OL https://services.gradle.org/distributions/gradle-8.14.3-bin.zip && \
+    unzip gradle-8.14.3-bin.zip && \
+    rm gradle-8.14.3-bin.zip && \
+    mv gradle-8.14.3 /usr/local/gradle
 ENV PATH="${PATH}:/usr/local/gradle/bin"
 #Install GitHub CLI
 RUN curl -OL https://github.com/cli/cli/releases/download/v2.31.0/gh_2.31.0_linux_amd64.tar.gz && \

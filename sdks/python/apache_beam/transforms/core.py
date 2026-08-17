@@ -1096,7 +1096,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
     before executing any of the other methods. The resources can then be
     disposed of in ``CombineFn.teardown``.
 
-    If you are using Dataflow, you need to enable Dataflow Runner V2
+    If you are using Dataflow, you need to enable Dataflow Portable Runner
     before using this feature.
 
     Args:
@@ -1194,7 +1194,7 @@ class CombineFn(WithTypeHints, HasDisplayData, urns.RunnerApiFn):
   def teardown(self, *args, **kwargs):
     """Called to clean up an instance before it is discarded.
 
-    If you are using Dataflow, you need to enable Dataflow Runner V2
+    If you are using Dataflow, you need to enable Dataflow Portable Runner
     before using this feature.
 
     Args:

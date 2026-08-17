@@ -35,6 +35,7 @@ import time
 from typing import Optional
 from typing import Union
 
+from google.api_core.exceptions import Conflict
 from google.api_core.exceptions import RetryError
 from google.cloud import storage
 from google.cloud.exceptions import NotFound
@@ -77,6 +78,48 @@ def default_gcs_bucket_name(project, region):
       region, md5(project.encode('utf8')).hexdigest())
 
 
+def _get_project_number(project_id, credentials=None):
+  """Resolves a project ID to its project number using Cloud Resource Manager API."""
+  from google.cloud import resourcemanager_v3
+  client = resourcemanager_v3.ProjectsClient(credentials=credentials)
+  project_info = client.get_project(name=f"projects/{project_id}")
+  # project_info.name is of the form "projects/PROJECT_NUMBER"
+  return int(project_info.name.split('/')[-1])
+
+
+def _validate_bucket_project(bucket, project_id, credentials=None):
+  """Verifies that the GCS bucket is owned by the executing project."""
+  bucket_project_number = bucket.project_number
+
+  # Skip validation if the bucket project number is a mock object
+  if (type(bucket_project_number).__name__.endswith('Mock') or
+      hasattr(bucket_project_number, '_mock_self')):
+    _LOGGER.warning(
+        'Bucket project number is a mock object. Skipping ownership validation.'
+    )
+    return
+
+  if bucket_project_number is None:
+    _LOGGER.warning(
+        'Bucket gs://%s does not have a project number. Skipping ownership validation.',
+        bucket.name)
+    return
+
+  try:
+    project_number = _get_project_number(project_id, credentials=credentials)
+  except Exception as e:
+    _LOGGER.warning(
+        'Failed to resolve project number for project %s: %s. '
+        'Skipping bucket ownership validation.',
+        project_id,
+        e)
+    return
+
+  if bucket_project_number != project_number:
+    raise ValueError(
+        f'Bucket gs://{bucket.name} is not owned by project {project_id}.')
+
+
 def get_or_create_default_gcs_bucket(options):
   """Create a default GCS bucket for this project."""
   if getattr(options, 'dataflow_kms_key', None):
@@ -90,16 +133,28 @@ def get_or_create_default_gcs_bucket(options):
     return None
 
   bucket_name = default_gcs_bucket_name(project, region)
-  bucket = GcsIO(pipeline_options=options).get_bucket(bucket_name)
+  gcs = GcsIO(pipeline_options=options)
+  bucket = gcs.get_bucket(bucket_name)
   if bucket:
+    _validate_bucket_project(
+        bucket, project, credentials=getattr(gcs.client, '_credentials', None))
     return bucket
   else:
     _LOGGER.warning(
         'Creating default GCS bucket for project %s: gs://%s',
         project,
         bucket_name)
-    return GcsIO(pipeline_options=options).create_bucket(
-        bucket_name, project, location=region)
+    try:
+      return gcs.create_bucket(bucket_name, project, location=region)
+    except Conflict:
+      bucket = gcs.get_bucket(bucket_name)
+      if bucket:
+        _validate_bucket_project(
+            bucket,
+            project,
+            credentials=getattr(gcs.client, '_credentials', None))
+        return bucket
+      raise
 
 
 def create_storage_client(pipeline_options, use_credentials=True):

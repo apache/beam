@@ -225,6 +225,7 @@ MILVUS_IT_CONFIG = {
 
 
 @pytest.mark.require_docker_in_docker
+@pytest.mark.no_xdist
 @unittest.skipUnless(
     platform.system() == "Linux",
     "Test runs only on Linux due to lack of support, as yet, for nested "

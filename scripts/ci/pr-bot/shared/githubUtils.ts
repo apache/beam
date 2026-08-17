@@ -70,6 +70,27 @@ export async function nextActionAuthor(
   });
 }
 
+export async function closePr(pullNumber: number) {
+  await getGitHubClient().rest.pulls.update({
+    owner: REPO_OWNER,
+    repo: REPO,
+    pull_number: pullNumber,
+    state: "closed",
+  });
+}
+
+export async function getPrFiles(pullNumber: number): Promise<string[]> {
+  const files = await getGitHubClient().paginate(
+    getGitHubClient().rest.pulls.listFiles,
+    {
+      owner: REPO_OWNER,
+      repo: REPO,
+      pull_number: pullNumber,
+    }
+  );
+  return files.map((file: any) => file.filename);
+}
+
 export async function checkIfCommitter(username: string): Promise<boolean> {
   const permissionLevel = (
     await getGitHubClient().rest.repos.getCollaboratorPermissionLevel({

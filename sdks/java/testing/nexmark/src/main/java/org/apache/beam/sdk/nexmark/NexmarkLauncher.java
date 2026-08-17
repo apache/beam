@@ -515,9 +515,11 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
         case UNRECOGNIZED:
         case STOPPED:
         case RUNNING:
+        case DRAINING:
           // Keep going.
           break;
         case DONE:
+        case DRAINED:
           // All done.
           running = false;
           break;

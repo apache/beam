@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.assertSchemaEquivalent;
 import static org.apache.beam.sdk.schemas.utils.SchemaTestUtils.equivalentTo;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ALL_NULLABLE_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ANNOTATED_SIMPLE_BEAN_SCHEMA;
@@ -24,6 +25,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ARRAY_OF_BYTE_ARRA
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.CASE_FORMAT_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.FIELD_WITH_DESCRIPTION_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.ITERABLE_BEAM_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.JAVA_TIME_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAYS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.NESTED_BEAN_SCHEMA;
@@ -32,6 +34,7 @@ import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PARAMETER_NULLABLE
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.PRIMITIVE_ARRAY_BEAN_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.RENAMED_FIELDS_AND_SETTERS_BEAM_SCHEMA;
 import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.SIMPLE_BEAN_SCHEMA;
+import static org.apache.beam.sdk.schemas.utils.TestJavaBeans.genericBeanSchema;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
@@ -46,9 +49,15 @@ import java.lang.reflect.Executable;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.utils.SchemaTestUtils;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.AllNullableBean;
@@ -56,7 +65,9 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.ArrayOfByteArray;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithCaseFormat;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithNoCreateOption;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.BeanWithRenamedFieldsAndSetters;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.GenericBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.IterableBean;
+import org.apache.beam.sdk.schemas.utils.TestJavaBeans.JavaTimeBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.MismatchingNullableBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArrayBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.NestedArraysBean;
@@ -68,9 +79,11 @@ import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBean;
 import org.apache.beam.sdk.schemas.utils.TestJavaBeans.SimpleBeanWithAnnotations;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Streams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.joda.time.DateTime;
 import org.junit.Ignore;
@@ -131,6 +144,16 @@ public class JavaBeanSchemaTest {
         .build();
   }
 
+  private <T> GenericBean<T> createGeneric(T t) {
+    GenericBean<T> genericBean = new GenericBean<>();
+    genericBean.setT(t);
+    return genericBean;
+  }
+
+  private Row createGenericRow(Schema.FieldType tFieldType, Object tFieldValue) {
+    return Row.withSchema(genericBeanSchema(tFieldType)).withFieldValue("t", tFieldValue).build();
+  }
+
   @Test
   public void testSchema() throws NoSuchSchemaException {
     SchemaRegistry registry = SchemaRegistry.createDefault();
@@ -138,14 +161,9 @@ public class JavaBeanSchemaTest {
     SchemaTestUtils.assertSchemaEquivalent(SIMPLE_BEAN_SCHEMA, schema);
   }
 
-  @Test
-  public void testToRow() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    SimpleBean bean = createSimple("string");
-    Row row = registry.getToRowFunction(SimpleBean.class).apply(bean);
-
+  private static void verifyRow(String expectedStrField, Row row) {
     assertEquals(12, row.getFieldCount());
-    assertEquals("string", row.getString("str"));
+    assertEquals(expectedStrField, row.getString("str"));
     assertEquals((byte) 1, (Object) row.getByte("aByte"));
     assertEquals((short) 2, (Object) row.getInt16("aShort"));
     assertEquals((int) 3, (Object) row.getInt32("anInt"));
@@ -159,13 +177,8 @@ public class JavaBeanSchemaTest {
     assertEquals("stringbuilder", row.getString("stringBuilder"));
   }
 
-  @Test
-  public void testFromRow() throws NoSuchSchemaException {
-    SchemaRegistry registry = SchemaRegistry.createDefault();
-    Row row = createSimpleRow("string");
-
-    SimpleBean bean = registry.getFromRowFunction(SimpleBean.class).apply(row);
-    assertEquals("string", bean.getStr());
+  private static void verifySimpleBean(String expectedStrField, SimpleBean bean) {
+    assertEquals(expectedStrField, bean.getStr());
     assertEquals((byte) 1, bean.getaByte());
     assertEquals((short) 2, bean.getaShort());
     assertEquals((int) 3, bean.getAnInt());
@@ -177,6 +190,98 @@ public class JavaBeanSchemaTest {
     assertArrayEquals("not equal", BYTE_ARRAY, bean.getByteBuffer().array());
     assertEquals(BigDecimal.ONE, bean.getBigDecimal());
     assertEquals("stringbuilder", bean.getStringBuilder().toString());
+  }
+
+  @Test
+  public void testJavaTimeSchema() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema schema = registry.getSchema(JavaTimeBean.class);
+    SchemaTestUtils.assertSchemaEquivalent(JAVA_TIME_BEAN_SCHEMA, schema);
+    Schema icebergStyleSchema =
+        Schema.builder()
+            .addLogicalTypeField("localDate", SqlTypes.DATE)
+            .addLogicalTypeField("localTime", SqlTypes.TIME)
+            .addLogicalTypeField("localDateTime", SqlTypes.DATETIME)
+            .addLogicalTypeField("instant", new NanosInstant())
+            .addLogicalTypeField("uuid", SqlTypes.UUID)
+            .build();
+    assertTrue(schema.assignableToIgnoreNullable(icebergStyleSchema));
+  }
+
+  @Test
+  public void testJavaTimeToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    JavaTimeBean bean = new JavaTimeBean();
+    bean.setLocalDate(LocalDate.of(2024, 1, 15));
+    bean.setLocalTime(LocalTime.of(10, 30, 45));
+    bean.setLocalDateTime(LocalDateTime.of(2024, 1, 15, 10, 30, 45));
+    bean.setInstant(java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L));
+    bean.setUuid(UUID.fromString("11111111-2222-3333-4444-555555555555"));
+
+    Row row = registry.getToRowFunction(JavaTimeBean.class).apply(bean);
+
+    assertEquals(5, row.getFieldCount());
+    assertEquals(bean.getLocalDate(), row.getLogicalTypeValue("localDate", LocalDate.class));
+    assertEquals(bean.getLocalTime(), row.getLogicalTypeValue("localTime", LocalTime.class));
+    assertEquals(
+        bean.getLocalDateTime(), row.getLogicalTypeValue("localDateTime", LocalDateTime.class));
+    assertEquals(bean.getInstant(), row.getLogicalTypeValue("instant", java.time.Instant.class));
+    assertEquals(bean.getUuid(), row.getLogicalTypeValue("uuid", UUID.class));
+  }
+
+  @Test
+  public void testJavaTimeFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    LocalDate localDate = LocalDate.of(2024, 1, 15);
+    LocalTime localTime = LocalTime.of(10, 30, 45);
+    LocalDateTime localDateTime = LocalDateTime.of(2024, 1, 15, 10, 30, 45);
+    java.time.Instant instant = java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L);
+    UUID uuid = UUID.fromString("11111111-2222-3333-4444-555555555555");
+    Row row =
+        Row.withSchema(JAVA_TIME_BEAN_SCHEMA)
+            .addValues(localDate, localTime, localDateTime, instant, uuid)
+            .build();
+
+    JavaTimeBean bean = registry.getFromRowFunction(JavaTimeBean.class).apply(row);
+
+    assertEquals(localDate, bean.getLocalDate());
+    assertEquals(localTime, bean.getLocalTime());
+    assertEquals(localDateTime, bean.getLocalDateTime());
+    assertEquals(instant, bean.getInstant());
+    assertEquals(uuid, bean.getUuid());
+  }
+
+  @Test
+  public void testJavaTimeRoundTrip() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    JavaTimeBean original = new JavaTimeBean();
+    original.setLocalDate(LocalDate.of(2024, 1, 15));
+    original.setLocalTime(LocalTime.of(10, 30, 45));
+    original.setLocalDateTime(LocalDateTime.of(2024, 1, 15, 10, 30, 45));
+    original.setInstant(java.time.Instant.ofEpochSecond(1_705_315_845L, 123_456_789L));
+    original.setUuid(UUID.fromString("11111111-2222-3333-4444-555555555555"));
+
+    Row row = registry.getToRowFunction(JavaTimeBean.class).apply(original);
+    JavaTimeBean roundTripped = registry.getFromRowFunction(JavaTimeBean.class).apply(row);
+
+    assertEquals(original, roundTripped);
+  }
+
+  @Test
+  public void testToRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    SimpleBean bean = createSimple("string");
+    Row row = registry.getToRowFunction(SimpleBean.class).apply(bean);
+    verifyRow("string", row);
+  }
+
+  @Test
+  public void testFromRow() throws NoSuchSchemaException {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row = createSimpleRow("string");
+
+    SimpleBean bean = registry.getFromRowFunction(SimpleBean.class).apply(row);
+    verifySimpleBean("string", bean);
   }
 
   @Test
@@ -624,5 +729,122 @@ public class JavaBeanSchemaTest {
     assertEquals(output, row);
     assertEquals(
         registry.getFromRowFunction(BeanWithCaseFormat.class).apply(row), beanWithCaseFormat);
+  }
+
+  @Test
+  public void testGenericBeamSchema() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema actual = registry.getSchema(new TypeDescriptor<GenericBean<SimpleBean>>() {});
+    Schema expected = genericBeanSchema(Schema.FieldType.row(SIMPLE_BEAN_SCHEMA));
+
+    assertSchemaEquivalent(expected, actual);
+  }
+
+  @Test
+  public void testGenericBeamSchemaToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    GenericBean<GenericBean<SimpleBean>> genericBean =
+        createGeneric(createGeneric(createSimple("string")));
+
+    Row row =
+        registry
+            .getToRowFunction(new TypeDescriptor<GenericBean<GenericBean<SimpleBean>>>() {})
+            .apply(genericBean);
+
+    verifyRow("string", row.getRow("t").getRow("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema nestedSchema = genericBeanSchema(Schema.FieldType.row(SIMPLE_BEAN_SCHEMA));
+    Row row =
+        createGenericRow(
+            Schema.FieldType.row(nestedSchema),
+            createGenericRow(Schema.FieldType.row(SIMPLE_BEAN_SCHEMA), createSimpleRow("string")));
+    GenericBean<GenericBean<SimpleBean>> actual =
+        registry
+            .getFromRowFunction(new TypeDescriptor<GenericBean<GenericBean<SimpleBean>>>() {})
+            .apply(row);
+
+    verifySimpleBean("string", actual.getT().getT());
+  }
+
+  @Test
+  public void testGenericBeamSchemaMapToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        registry
+            .getToRowFunction(
+                new TypeDescriptor<GenericBean<Map<String, GenericBean<String>>>>() {})
+            .apply(
+                createGeneric(
+                    ImmutableMap.<String, GenericBean<String>>builder()
+                        .put("k1", createGeneric("v1"))
+                        .put("k2", createGeneric("v2"))
+                        .build()));
+
+    assertEquals("v1", row.<String, Row>getMap("t").get("k1").getString("t"));
+    assertEquals("v2", row.<String, Row>getMap("t").get("k2").getString("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaMapFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema.FieldType mapValueFieldType =
+        Schema.FieldType.row(genericBeanSchema(Schema.FieldType.STRING));
+    GenericBean<Map<String, GenericBean<String>>> actual =
+        registry
+            .getFromRowFunction(
+                new TypeDescriptor<GenericBean<Map<String, GenericBean<String>>>>() {})
+            .apply(
+                createGenericRow(
+                    Schema.FieldType.map(Schema.FieldType.STRING, mapValueFieldType),
+                    ImmutableMap.<String, Row>builder()
+                        .put("k1", createGenericRow(Schema.FieldType.STRING, "v1"))
+                        .put("k2", createGenericRow(Schema.FieldType.STRING, "v2"))
+                        .build()));
+
+    assertEquals("v1", actual.getT().get("k1").getT());
+    assertEquals("v2", actual.getT().get("k2").getT());
+  }
+
+  @Test
+  public void testGenericBeamSchemaIterableToRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Row row =
+        registry
+            .getToRowFunction(new TypeDescriptor<GenericBean<Iterable<GenericBean<String>>>>() {})
+            .apply(
+                createGeneric(
+                    ImmutableList.<GenericBean<String>>builder()
+                        .add(createGeneric("v1"))
+                        .add(createGeneric("v2"))
+                        .build()));
+
+    Row[] rows = Streams.stream(row.<Row>getIterable("t")).toArray(Row[]::new);
+
+    assertEquals("v1", rows[0].getString("t"));
+    assertEquals("v2", rows[1].getString("t"));
+  }
+
+  @Test
+  public void testGenericBeamSchemaIterableFromRow() throws Exception {
+    SchemaRegistry registry = SchemaRegistry.createDefault();
+    Schema.FieldType elementFieldType =
+        Schema.FieldType.row(genericBeanSchema(Schema.FieldType.STRING));
+    GenericBean<Iterable<GenericBean<String>>> actual =
+        registry
+            .getFromRowFunction(new TypeDescriptor<GenericBean<Iterable<GenericBean<String>>>>() {})
+            .apply(
+                createGenericRow(
+                    Schema.FieldType.array(elementFieldType),
+                    ImmutableList.<Row>builder()
+                        .add(createGenericRow(Schema.FieldType.STRING, "v1"))
+                        .add(createGenericRow(Schema.FieldType.STRING, "v2"))
+                        .build()));
+    GenericBean<String>[] beans = Streams.stream(actual.getT()).toArray(GenericBean[]::new);
+    assertEquals("v1", beans[0].getT());
+    assertEquals("v2", beans[1].getT());
   }
 }

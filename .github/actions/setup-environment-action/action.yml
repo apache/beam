@@ -56,27 +56,45 @@ runs:
           sdks/python/setup.py
           sdks/python/tox.ini
 
+    # Multiline python-version (e.g. 3.10\n3.11\n...) must not be embedded raw
+    # in cache keys: actions/cache treats each newline-separated line as a
+    # separate key and fails when there are more than 10 ("Keys are limited to
+    # a maximum of 10"). Collapse whitespace into a single key fragment.
+    - name: Sanitize Python version for tox cache key
+      if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
+      id: py-cache-key
+      shell: bash
+      env:
+        PYTHON_VERSION_INPUT: ${{ inputs.python-version }}
+      run: |
+        if [[ "$PYTHON_VERSION_INPUT" == "default" ]]; then
+          sanitized="310"
+        else
+          sanitized=$(printf '%s' "$PYTHON_VERSION_INPUT" | tr -s '[:space:]' '-' | sed 's/^-//;s/-$//')
+        fi
+        echo "sanitized=$sanitized" >> "$GITHUB_OUTPUT"
+
     - name: Cache tox environments
       if: ${{ inputs.python-version != '' && inputs.tox-cache == 'true' }}
-      uses: actions/cache@v3
+      uses: actions/cache@v6
       with:
         path: |
           sdks/python/target/.tox
           !sdks/python/target/.tox/**/log
           !sdks/python/target/.tox/.package_cache
-        key: tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-${{ hashFiles('sdks/python/setup.py') }}
+        key: tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-${{ hashFiles('sdks/python/tox.ini') }}-${{ hashFiles('sdks/python/setup.py') }}
         restore-keys: |
-          tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-${{ hashFiles('sdks/python/tox.ini') }}-
-          tox-${{ runner.os }}-py${{ inputs.python-version == 'default' && '310' || inputs.python-version }}-
+          tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-${{ hashFiles('sdks/python/tox.ini') }}-
+          tox-${{ runner.os }}-py${{ steps.py-cache-key.outputs.sanitized }}-
 
     - name: Install Java
       if: ${{ inputs.java-version != '' }}
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v5
       with:
         distribution: 'temurin'
-        java-version: ${{ inputs.java-version == 'default' && '11' || inputs.java-version }}
+        java-version: ${{ inputs.java-version == 'default' && '21' || inputs.java-version }}
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@4d9f0ba0025fe599b4ebab900eb7f3a1d93ef4c2 # v5
+      uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
       with:
         cache-disabled: ${{ inputs.disable-cache }}
         validate-wrappers: false

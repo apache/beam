@@ -29,7 +29,6 @@ import static org.junit.Assert.assertFalse;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -37,10 +36,12 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import javax.annotation.concurrent.GuardedBy;
@@ -49,6 +50,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.WorkHeartbeatResponsePr
 import org.apache.beam.runners.dataflow.worker.streaming.WorkId;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillMetadataServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitWorkResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationCommitWorkRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
@@ -87,8 +89,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
   private final ResponseQueue<GetDataRequest, GetDataResponse> dataToOffer;
   private final ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse> commitsToOffer;
   private final Map<WorkId, Windmill.CommitStatus> streamingCommitsToOffer;
+  private final AtomicReference<Windmill.CommitStatus> multiKeyCommitStatusToOffer;
   // Keys are work tokens.
   private final Map<Long, WorkItemCommitRequest> commitsReceived;
+  private final List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommitsReceived =
+      new CopyOnWriteArrayList<>();
   private final ArrayList<Windmill.ReportStatsRequest> statsReceived;
   private final LinkedBlockingQueue<Windmill.Exception> exceptions;
   private final AtomicInteger expectedExceptionCount;
@@ -118,7 +123,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
     commitsToOffer =
         new ResponseQueue<Windmill.CommitWorkRequest, CommitWorkResponse>()
             .returnByDefault(CommitWorkResponse.getDefaultInstance());
-    streamingCommitsToOffer = new HashMap<>();
+    streamingCommitsToOffer = new ConcurrentHashMap<>();
+    // Respond multikey commits with ok, unless overridden.
+    multiKeyCommitStatusToOffer = new AtomicReference<>(CommitStatus.OK);
     commitsReceived = new ConcurrentHashMap<>();
     exceptions = new LinkedBlockingQueue<>();
     expectedExceptionCount = new AtomicInteger();
@@ -151,6 +158,11 @@ public final class FakeWindmillServer extends WindmillServerStub {
 
   public Map<WorkId, Windmill.CommitStatus> whenCommitWorkStreamCalled() {
     return streamingCommitsToOffer;
+  }
+
+  /** @param commitStatus status to return to multiKeyCommits */
+  public void setMultiKeyCommitStatus(CommitStatus commitStatus) {
+    this.multiKeyCommitStatusToOffer.set(commitStatus);
   }
 
   @Override
@@ -400,6 +412,7 @@ public final class FakeWindmillServer extends WindmillServerStub {
       public RequestBatcher batcher() {
         return new RequestBatcher() {
           final List<RequestAndDone> requests = new ArrayList<>();
+          final List<MultiKeyRequestAndDone> multiKeyRequests = new ArrayList<>();
 
           @Override
           public boolean commitWorkItem(
@@ -419,6 +432,17 @@ public final class FakeWindmillServer extends WindmillServerStub {
             commitsToOffer.getOrDefault(builder.build());
 
             requests.add(new RequestAndDone(request, onDone));
+            flush();
+            return true;
+          }
+
+          @Override
+          public boolean commitMultiKeyWorkItem(
+              String computation,
+              Windmill.MultiKeyWorkItemCommitRequest request,
+              Consumer<Windmill.CommitStatus> onDone) {
+            LOG.debug("commitWorkStream::commitMultiKeyWorkItem: {}", request);
+            multiKeyRequests.add(new MultiKeyRequestAndDone(request, onDone));
             flush();
             return true;
           }
@@ -445,6 +469,24 @@ public final class FakeWindmillServer extends WindmillServerStub {
                       .orElse(Windmill.CommitStatus.OK));
             }
             requests.clear();
+
+            for (MultiKeyRequestAndDone elem : multiKeyRequests) {
+              if (dropStreamingCommits) {
+                for (WorkItemCommitRequest workRequest : elem.request.getRequestsList()) {
+                  droppedStreamingCommits.put(workRequest.getWorkToken(), elem.onDone);
+                }
+                continue;
+              }
+
+              multiKeyCommitsReceived.add(elem.request);
+              for (WorkItemCommitRequest workRequest : elem.request.getRequestsList()) {
+                commitsReceived.put(workRequest.getWorkToken(), workRequest);
+              }
+
+              Windmill.CommitStatus status = multiKeyCommitStatusToOffer.get();
+              elem.onDone.accept(status);
+            }
+            multiKeyRequests.clear();
           }
 
           class RequestAndDone {
@@ -452,6 +494,18 @@ public final class FakeWindmillServer extends WindmillServerStub {
             final WorkItemCommitRequest request;
 
             RequestAndDone(WorkItemCommitRequest request, Consumer<Windmill.CommitStatus> onDone) {
+              this.request = request;
+              this.onDone = onDone;
+            }
+          }
+
+          class MultiKeyRequestAndDone {
+            final Consumer<Windmill.CommitStatus> onDone;
+            final Windmill.MultiKeyWorkItemCommitRequest request;
+
+            MultiKeyRequestAndDone(
+                Windmill.MultiKeyWorkItemCommitRequest request,
+                Consumer<Windmill.CommitStatus> onDone) {
               this.request = request;
               this.onDone = onDone;
             }
@@ -518,6 +572,15 @@ public final class FakeWindmillServer extends WindmillServerStub {
   public void clearCommitsReceived() {
     commitsRequested = 0;
     commitsReceived.clear();
+    multiKeyCommitsReceived.clear();
+  }
+
+  public List<Windmill.MultiKeyWorkItemCommitRequest> getMultiKeyCommitsReceived() {
+    return multiKeyCommitsReceived;
+  }
+
+  public void clearMultiKeyCommitsReceived() {
+    multiKeyCommitsReceived.clear();
   }
 
   public ConcurrentHashMap<Long, Consumer<Windmill.CommitStatus>> waitForDroppedCommits(

@@ -43,6 +43,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
@@ -149,10 +150,11 @@ public class SpannerChangeStreamPlacementTableIT {
     final Timestamp endAt = deleteTimestamps.getRight();
 
     SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId);
+        SpannerTestHelper.setUpSpannerConfig(
+            SpannerConfig.create()
+                .withProjectId(projectId)
+                .withInstanceId(instanceId)
+                .withDatabaseId(databaseId));
     if (role != null) {
       spannerConfig = spannerConfig.withDatabaseRole(StaticValueProvider.of(role));
     }
@@ -213,10 +215,11 @@ public class SpannerChangeStreamPlacementTableIT {
     final Timestamp endAt = deleteTimestamps.getRight();
 
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId);
+        SpannerTestHelper.setUpSpannerConfig(
+            SpannerConfig.create()
+                .withProjectId(projectId)
+                .withInstanceId(instanceId)
+                .withDatabaseId(databaseId));
 
     // Filter records to only those from transactions with tag "app=beam;action=update"
     final PCollection<String> tokens =

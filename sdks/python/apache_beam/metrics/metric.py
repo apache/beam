@@ -234,7 +234,7 @@ class Metrics(object):
       self.add = MetricUpdater(cells.StringSetCell, metric_name)  # type: ignore[method-assign]
 
   class DelegatingBoundedTrie(BoundedTrie):
-    """Metrics StringSet that Delegates functionality to MetricsEnvironment."""
+    """Metrics BoundedTrie that Delegates functionality to MetricsEnvironment."""
     def __init__(self, metric_name: MetricName) -> None:
       super().__init__(metric_name)
       self.add = MetricUpdater(cells.BoundedTrieCell, metric_name)  # type: ignore[method-assign]

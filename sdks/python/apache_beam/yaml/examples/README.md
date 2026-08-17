@@ -256,6 +256,10 @@ Jinja `% include` directive:
 - [wordCountInclude.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/wordCountInclude.yaml)
 - [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/include/README.md) on how to run the pipeline.
 
+Jinja template inheritance (`{% extends %}`):
+- [wordCountInheritance.yaml](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/inheritance/wordCountInheritance.yaml)
+- [Instructions](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/examples/transforms/jinja/inheritance/README.md) on how to run the pipeline.
+
 
 ### ML
 

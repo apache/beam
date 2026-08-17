@@ -23,12 +23,15 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateInternalsFactory;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateNamespaces;
+import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.core.StateTags;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternalsFactory;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.fn.IdGenerator;
 import org.apache.beam.sdk.fn.IdGenerators;
+import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.CoderUtils;
@@ -48,7 +51,7 @@ public class BundleCheckpointHandlers {
   /**
    * A {@link BundleCheckpointHandler} which uses {@link
    * org.apache.beam.runners.core.TimerInternals.TimerData} and {@link
-   * org.apache.beam.sdk.state.ValueState} to reschedule {@link DelayedBundleApplication}.
+   * org.apache.beam.sdk.state.MapState} to reschedule {@link DelayedBundleApplication}.
    */
   public static class StateAndTimerBundleCheckpointHandler<T> implements BundleCheckpointHandler {
 
@@ -80,6 +83,20 @@ public class BundleCheckpointHandlers {
 
     private static String constructSdfCheckpointId(String id, int index) {
       return SDF_PREFIX + ":" + id + ":" + index;
+    }
+
+    /** The state id under which all SDF self-checkpoint residuals for a key/window are stored. */
+    public static final String SDF_RESIDUAL_STATE = "sdf_checkpoint_residuals";
+
+    /**
+     * The single, stable state tag holding every SDF self-checkpoint residual for a key/window,
+     * keyed by the per-residual checkpoint id. Storing all residuals under one stable descriptor,
+     * instead of a fresh {@link StateTags#value} per residual, keeps a polling SDF's keyed state
+     * bounded. See https://github.com/apache/beam/issues/27648.
+     */
+    public static <T> StateTag<MapState<String, WindowedValue<T>>> residualStateTag(
+        Coder<WindowedValue<T>> residualCoder) {
+      return StateTags.map(SDF_RESIDUAL_STATE, StringUtf8Coder.of(), residualCoder);
     }
 
     @Override
@@ -126,8 +143,9 @@ public class BundleCheckpointHandlers {
                 Instant.ofEpochMilli(outputTimestamp),
                 TimeDomain.PROCESSING_TIME);
             stateInternals
-                .state(stateNamespace, StateTags.value(tag, residualCoder))
-                .write(
+                .state(stateNamespace, residualStateTag(residualCoder))
+                .put(
+                    tag,
                     WindowedValues.of(
                         stateValue.getValue(),
                         stateValue.getTimestamp(),

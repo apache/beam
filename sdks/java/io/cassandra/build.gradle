@@ -69,3 +69,24 @@ configurations.all (Configuration it) -> {
     force 'com.google.guava:guava:25.1-jre'
   }
 }
+
+def testJavaVer = project.findProperty('testJavaVersion') ?: JavaVersion.current().getMajorVersion()
+def isJava17OrHigher = testJavaVer.toInteger() >= 17
+
+test {
+  if (isJava17OrHigher) {
+    systemProperty 'java.security.manager', 'allow'
+  }
+  // Open and export modules for embedded Cassandra under Java 17+
+  jvmArgs '--add-exports=java.base/sun.nio.ch=ALL-UNNAMED',
+          '--add-exports=java.rmi/sun.rmi.registry=ALL-UNNAMED',
+          '--add-exports=java.base/jdk.internal.misc=ALL-UNNAMED',
+          '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+          '--add-opens=java.base/java.io=ALL-UNNAMED',
+          '--add-opens=java.base/java.net=ALL-UNNAMED',
+          '--add-opens=java.base/java.nio=ALL-UNNAMED'
+}

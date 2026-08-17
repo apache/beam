@@ -32,6 +32,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -59,6 +60,9 @@ var (
 	provisionEndpoint = flag.String("provision_endpoint", "", "Provision endpoint (required).")
 	controlEndpoint   = flag.String("control_endpoint", "", "Control endpoint (required).")
 	semiPersistDir    = flag.String("semi_persist_dir", "/tmp", "Local semi-persistent directory (optional).")
+
+	workerMu     sync.Mutex
+	shuttingDown bool
 )
 
 const (
@@ -128,22 +132,6 @@ func main() {
 //			 ],
 //		 }
 //	}
-type PipelineOptionsData struct {
-	Options OptionsData `json:"options"`
-}
-
-type OptionsData struct {
-	Experiments []string `json:"experiments"`
-}
-
-func getExperiments(options string) []string {
-	var opts PipelineOptionsData
-	err := json.Unmarshal([]byte(options), &opts)
-	if err != nil {
-		return nil
-	}
-	return opts.Options.Experiments
-}
 
 func launchSDKProcess() error {
 	ctx := grpcx.WriteWorkerID(context.Background(), *id)
@@ -179,24 +167,21 @@ func launchSDKProcess() error {
 
 	// (1) Obtain the pipeline options
 
-	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
-	if err != nil {
-		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
-	}
+	po := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "")
+	logger.Printf(ctx, "Parsed options in boot entrypoint: %v", po)
 
 	// Inject artifact validation enabled state into context
-	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
+	ctx = artifact.WithArtifactValidation(ctx, !po.HasExperiment("disable_staged_file_integrity_checks"))
 
-	experiments := getExperiments(options)
-	logger.Printf(ctx, "Experiments=%v", experiments)
-
-	pipNoBuildIsolation = false
-	if slices.Contains(experiments, "pip_no_build_isolation") {
-		pipNoBuildIsolation = true
+	pipNoBuildIsolation = !po.HasExperiment("pip_use_build_isolation")
+	if pipNoBuildIsolation {
 		logger.Printf(ctx, "Build isolation disabled when installing packages with pip")
 	} else {
 		logger.Printf(ctx, "Build isolation enabled when installing packages with pip")
 	}
+
+	ctx = setupProfilerConfig(ctx, logger, po)
+	startProfilerBackgroundTasks(ctx, logger)
 
 	// (2) Retrieve and install the staged packages.
 	//
@@ -264,6 +249,10 @@ func launchSDKProcess() error {
 	// (3) Invoke python
 
 	// Write the JSON string of pipeline options into a file to prevent "argument list too long" error.
+	options, err := tools.ProtoToJSON(info.GetPipelineOptions())
+	if err != nil {
+		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
+	}
 	if err := tools.MakePipelineOptionsFileAndEnvVar(options); err != nil {
 		logger.Fatalf(ctx, "Failed to load pipeline options to worker: %v", err)
 	}
@@ -288,19 +277,12 @@ func launchSDKProcess() error {
 
 	workerIds := append([]string{*id}, info.GetSiblingWorkerIds()...)
 
-	// Keep track of child PIDs for clean shutdown without zombies
-	childPids := struct {
-		v        []int
-		canceled bool
-		mu       sync.Mutex
-	}{v: make([]int, 0, len(workerIds))}
-
 	// Forward trapped signals to child process groups in order to terminate them gracefully and avoid zombies
 	go func() {
 		logger.Printf(ctx, "Received signal: %v", <-signalChannel)
-		childPids.mu.Lock()
-		childPids.canceled = true
-		for _, pid := range childPids.v {
+		workerMu.Lock()
+		shuttingDown = true
+		for _, pid := range activePids {
 			go func(pid int) {
 				// This goroutine will be canceled if the main process exits before the 5 seconds
 				// have elapsed, i.e., as soon as all subprocesses have returned from Wait().
@@ -311,13 +293,8 @@ func launchSDKProcess() error {
 			}(pid)
 			syscall.Kill(-pid, syscall.SIGTERM)
 		}
-		childPids.mu.Unlock()
+		workerMu.Unlock()
 	}()
-
-	args := []string{
-		"-m",
-		sdkHarnessEntrypoint,
-	}
 
 	var wg sync.WaitGroup
 	wg.Add(len(workerIds))
@@ -328,17 +305,75 @@ func launchSDKProcess() error {
 			bufLogger := tools.NewBufferedLogger(logger)
 			errorCount := 0
 			for {
-				childPids.mu.Lock()
-				if childPids.canceled {
-					childPids.mu.Unlock()
+				workerMu.Lock()
+				if shuttingDown {
+					workerMu.Unlock()
 					return
 				}
-				logger.Printf(ctx, "Executing Python (worker %v): python %v", workerId, strings.Join(args, " "))
-				cmd := StartCommandEnv(map[string]string{"WORKER_ID": workerId}, os.Stdin, bufLogger, bufLogger, "python", args...)
-				childPids.v = append(childPids.v, cmd.Process.Pid)
-				childPids.mu.Unlock()
 
-				if err := cmd.Wait(); err != nil {
+				currentProg := "python"
+				currentArgs := []string{"-m", sdkHarnessEntrypoint}
+				currentEnv := map[string]string{"WORKER_ID": workerId}
+
+				profilingActive := false
+				currentProg, currentArgs, currentEnv, profilingActive = maybeWithProfiler(
+					ctx, logger, workerId, currentProg, currentArgs, currentEnv,
+				)
+
+				var envStr string
+				if len(currentEnv) > 0 {
+					var envStrings []string
+					for k, v := range currentEnv {
+						envStrings = append(envStrings, k+"="+v)
+					}
+					slices.Sort(envStrings)
+					envStr = strings.Join(envStrings, ", ")
+				}
+
+				logger.Printf(ctx, "Executing Python (%v): %v %v", envStr, currentProg, strings.Join(currentArgs, " "))
+				cmd := StartCommandEnv(currentEnv, os.Stdin, bufLogger, bufLogger, currentProg, currentArgs...)
+				logger.Printf(ctx, "Started worker %s with PID %d", workerId, cmd.Process.Pid)
+				activePids = append(activePids, cmd.Process.Pid)
+				workerMu.Unlock()
+
+				var timer *time.Timer
+				var profilingTimedOut atomic.Bool
+
+				pcfg := getProfilerConfig(ctx)
+				if profilingActive && pcfg.StopAfterSec > 0 {
+					duration := time.Duration(pcfg.StopAfterSec) * time.Second
+					timer = time.AfterFunc(duration, func() {
+						workerMu.Lock()
+						defer workerMu.Unlock()
+						if cmd.Process != nil {
+							logger.Printf(ctx, "Profiling timeout of %d seconds reached. Sending SIGINT to worker %s",
+								pcfg.StopAfterSec, workerId)
+							profilingTimedOut.Store(true)
+							syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
+						}
+					})
+				}
+
+				err := cmd.Wait()
+				unregisterPid(cmd.Process.Pid)
+				if timer != nil {
+					timer.Stop()
+				}
+
+				if err != nil {
+					if profilingTimedOut.Load() {
+						stopProfiling(ctx)
+						bufLogger.FlushAtDebug(ctx)
+						logger.Printf(ctx, "Python worker %v terminated after profiling timeout. Restarting without profiler.", workerId)
+						// Error is not counted toward error budget.
+						continue
+					}
+
+					if profilingActive && pcfg.StopAfterCrash {
+						stopProfiling(ctx)
+						logger.Printf(ctx, "Python worker %v crashed. Disabling profiler on subsequent restarts because --profiler_stop_after_crash is enabled.", workerId)
+					}
+
 					// Retry on fatal errors, like OOMs and segfaults, not just
 					// DoFns throwing exceptions.
 					errorCount += 1
@@ -347,6 +382,7 @@ func launchSDKProcess() error {
 						logger.Warnf(ctx, "Python (worker %v) exited %v times: %v\nrestarting SDK process",
 							workerId, errorCount, err)
 					} else {
+						cleanUpProfiler(ctx, logger)
 						logger.Fatalf(ctx, "Python (worker %v) exited %v times: %v\nout of retries, failing container",
 							workerId, errorCount, err)
 					}
@@ -501,19 +537,13 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "Python version in %s:", phase)
-	args := []string{"--version"}
-	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
-		bufLogger.FlushAtError(ctx)
-	} else {
-		bufLogger.FlushAtDebug(ctx)
+	if out, err := executeWithOutput(ctx, bufLogger, pythonVersion, "--version"); err == nil {
+		bufLogger.Printf(ctx, "Python version in %s: %s", phase, strings.TrimSpace(string(out)))
 	}
-	bufLogger.Printf(ctx, "Dependencies in %s:", phase)
-	args = []string{"-m", "pip", "freeze", "--all"}
-	if err := execx.ExecuteEnvWithIO(nil, os.Stdin, bufLogger, bufLogger, pythonVersion, args...); err != nil {
-		bufLogger.FlushAtError(ctx)
-	} else {
-		bufLogger.FlushAtDebug(ctx)
+
+	args := []string{"-m", "pip", "freeze", "--all"}
+	if out, err := executeWithOutput(ctx, bufLogger, pythonVersion, args...); err == nil {
+		bufLogger.Printf(ctx, "Dependencies in %s:\n%s", phase, string(out))
 	}
 	return nil
 }
@@ -521,7 +551,6 @@ func logRuntimeDependencies(ctx context.Context, bufLogger *tools.BufferedLogger
 // logSubmissionEnvDependencies logs the python dependencies
 // installed in the submission environment.
 func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.BufferedLogger, dir string) error {
-	bufLogger.Printf(ctx, "Dependencies in submission environment:")
 	// path for submission environment dependencies should match with the
 	// one defined in apache_beam/runners/portability/stager.py.
 	filename := filepath.Join(dir, "submission_environment_dependencies.txt")
@@ -529,6 +558,26 @@ func logSubmissionEnvDependencies(ctx context.Context, bufLogger *tools.Buffered
 	if err != nil {
 		return err
 	}
-	bufLogger.Printf(ctx, "%s", string(content))
+	bufLogger.Printf(ctx, "Dependencies in submission environment:\n%s", string(content))
 	return nil
+}
+
+var (
+	activePids []int
+)
+
+func unregisterPid(pid int) {
+	workerMu.Lock()
+	defer workerMu.Unlock()
+	activePids = slices.DeleteFunc(activePids, func(p int) bool {
+		return p == pid
+	})
+}
+
+func getActivePids() []int {
+	workerMu.Lock()
+	defer workerMu.Unlock()
+	pids := make([]int, len(activePids))
+	copy(pids, activePids)
+	return pids
 }
