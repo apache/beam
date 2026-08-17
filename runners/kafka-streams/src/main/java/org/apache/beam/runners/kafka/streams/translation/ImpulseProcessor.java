@@ -34,28 +34,17 @@ import org.slf4j.LoggerFactory;
 /**
  * Kafka Streams {@link Processor} implementing Beam's {@code Impulse} transform.
  *
- * <p>For each task instance, emits exactly two {@link KStreamsPayload}s downstream:
+ * <p>Each task emits exactly two payloads: a {@link KStreamsPayload#data data} payload wrapping an
+ * empty {@code byte[]} in the {@link org.apache.beam.sdk.transforms.windowing.GlobalWindow} at
+ * {@link BoundedWindow#TIMESTAMP_MIN_VALUE}, then a {@link KStreamsPayload#watermark watermark} at
+ * {@link BoundedWindow#TIMESTAMP_MAX_VALUE} to say the source is done.
  *
- * <ol>
- *   <li>A {@link KStreamsPayload#data data} payload wrapping a {@link WindowedValue} of an empty
- *       {@code byte[]} in the {@link org.apache.beam.sdk.transforms.windowing.GlobalWindow}, with
- *       event-time {@link BoundedWindow#TIMESTAMP_MIN_VALUE}.
- *   <li>A {@link KStreamsPayload#watermark watermark} payload at {@link
- *       BoundedWindow#TIMESTAMP_MAX_VALUE} that tells downstream transforms the source is done.
- * </ol>
+ * <p>A persistent state store records whether the data element was already emitted, so a restart
+ * does not duplicate it. The terminal watermark is re-emitted on every restart instead, so
+ * downstream watermark holds still release after recovery.
  *
- * <p>A persistent state store records whether the data element has already been emitted so that
- * task restarts do not duplicate the data. The terminal watermark, on the other hand, is re-emitted
- * on every restart so downstream watermark holds release correctly after recovery (per Jan's review
- * on PR #38689).
- *
- * <p>The trigger comes from a wall-clock punctuator scheduled on {@link #init} — this lets the
- * processor fire even when the dedicated bootstrap source topic is empty, which is the expected
- * production state.
- *
- * <p>Kafka Streams disallows negative record timestamps, so the forwarded {@link Record} carries
- * the Unix epoch ({@code 0L}). The Beam event-time lives inside the {@link KStreamsPayload}
- * variant: inside the {@link WindowedValue} for data, or as the explicit watermark millis.
+ * <p>A wall-clock punctuator scheduled in {@link #init} drives it, so the processor fires even
+ * though its bootstrap topic is empty, which is the normal production state.
  */
 class ImpulseProcessor implements Processor<byte[], byte[], byte[], KStreamsPayload<byte[]>> {
 

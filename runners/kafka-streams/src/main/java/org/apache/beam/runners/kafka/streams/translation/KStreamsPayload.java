@@ -24,26 +24,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Sum-type envelope flowing between Kafka Streams processors in the Beam Kafka Streams runner.
+ * Envelope for every record value passed between the runner's processors. It is either a {@link
+ * #isData() data} element wrapping a {@link WindowedValue}, or a {@link #isWatermark() watermark}
+ * report carrying an event time plus the partition fields the downstream {@link WatermarkManager}
+ * needs.
  *
- * <p>Every record value emitted by a runner-introduced processor is one of:
- *
- * <ul>
- *   <li>A {@link #isData() data} element wrapping a {@link WindowedValue}, or
- *   <li>A {@link #isWatermark() watermark} report carrying an event-time milliseconds value plus
- *       the in-band coordination fields (source partition and total source partition count) the
- *       downstream {@link WatermarkManager} needs.
- * </ul>
- *
- * <p>The envelope lets a single Kafka Streams output channel carry both Beam data and the watermark
- * / synchronization primitives that Kafka Streams does not natively support. Future control
- * messages (e.g. the {@code (epoch, assigned_partitions)} propagation from design doc §5) can be
- * added here as additional variants.
- *
- * <p>This class is intentionally in-JVM only for now; serialization across topic boundaries
- * (repartition or sink topics) will be introduced when the first translator that emits to a topic
- * lands, at which point a corresponding Kafka {@link org.apache.kafka.common.serialization.Serde}
- * will be added.
+ * <p>One channel therefore carries both Beam data and the watermark coordination Kafka Streams has
+ * no notion of. Across topic boundaries it is encoded by {@link KStreamsPayloadSerde}.
  *
  * @param <T> element type carried by data variants
  */

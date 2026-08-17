@@ -38,34 +38,21 @@ import org.apache.kafka.streams.state.KeyValueBytesStoreSupplier;
 import org.apache.kafka.streams.state.Stores;
 
 /**
- * Translates the deprecated primitive {@code Read} URN ({@code beam:transform:read:v1}) over a
- * {@link BoundedSource}.
+ * Translates the deprecated primitive {@code Read} URN ({@code beam:transform:read:v1}).
  *
- * <p>The runner forces every {@code Read.Bounded} (including the one {@code Create} of two or more
- * elements expands to) into this primitive read before translation — see {@code
- * KafkaStreamsTestRunner.translate}, which applies {@code
- * SplittableParDo.convertReadBasedSplittableDoFnsToPrimitiveReads}. This deliberately avoids the
- * default {@code BoundedSourceAsSDFWrapperFn} splittable-DoFn expansion, which the runner cannot
- * execute yet (no SDF restriction protocol), as agreed with the mentor.
+ * <p>The runner converts every {@code Read} into this primitive before translation, rather than
+ * letting it expand into the default splittable-DoFn wrapper, which it cannot execute; see {@code
+ * KafkaStreamsRunner.prepareForTranslation}.
  *
- * <p>Adds the same three-node shape as {@link ImpulseTranslator}:
+ * <p>The topology is the same three-node shape as {@link ImpulseTranslator}: a {@code byte[]}
+ * source on a per-transform bootstrap topic, since Kafka Streams will not start a topology with no
+ * source topic and the records on it are ignored; the {@link ReadProcessor}; and a persistent state
+ * store recording whether the read already fired, so a restart does not duplicate elements.
  *
- * <ul>
- *   <li>A {@code byte[]} source bound to a dedicated per-transform bootstrap topic (see {@link
- *       KafkaStreamsTranslationContext#getReadBootstrapTopic(String)}). Kafka Streams refuses to
- *       start a topology with no real source topic; records published to it are ignored by {@link
- *       ReadProcessor}.
- *   <li>The {@link ReadProcessor}, which reads the {@link BoundedSource} on a one-shot wall-clock
- *       punctuator and emits one data payload per element followed by a terminal watermark.
- *   <li>A per-processor persistent state store recording whether the read has already fired so task
- *       restarts do not duplicate elements.
- * </ul>
- *
- * <p>The processor emits elements in the runner-side wire form the downstream stage's SDK harness
- * expects, so it is handed the SDK-side and runner-side wire coders for the read's output
- * PCollection (see {@link ReadProcessor} for why). Only {@link
- * org.apache.beam.model.pipeline.v1.RunnerApi.IsBounded.Enum#BOUNDED bounded} sources are
- * supported; {@link ReadTranslation#boundedSourceFromProto} rejects an unbounded payload.
+ * <p>Elements are emitted in the runner-side wire form the downstream harness expects, so the
+ * processor is handed both wire coders for the output PCollection — see {@link ReadProcessor}.
+ * Bounded and unbounded sources are both supported, by {@link ReadProcessor} and {@link
+ * UnboundedReadProcessor} respectively.
  */
 class ReadTranslator implements PTransformTranslator {
 

@@ -26,29 +26,20 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.joda.time.Instant;
 
 /**
- * Computes a transform's input watermark from the watermark reports of its upstream transforms.
+ * Computes a transform's input watermark from the reports of its upstream transforms.
  *
- * <p>A watermark report carries three orthogonal pieces of information (see {@link
- * WatermarkPayload}): <i>which transform</i> produced it, <i>which partition</i> (physical
- * instance) of that transform it is for, and <i>how many partitions</i> that transform has. A
- * producer stamps its own identity without regard to who consumes the report. This aggregator is
- * the consuming side, used by every transform that aggregates a watermark — ExecutableStage,
- * GroupByKey, Flatten (and CombinePerKey later):
+ * <p>A report says which transform produced it, which partition of that transform it is for, and
+ * how many partitions that transform has (see {@link WatermarkPayload}); a producer stamps its own
+ * identity without regard to who consumes it. This is the consuming side, used by every transform
+ * that aggregates a watermark — ExecutableStage, GroupByKey, Flatten.
  *
- * <ul>
- *   <li>It is constructed with the set of upstream transform ids the consumer expects, known from
- *       the pipeline graph at translation time (a single-input transform passes its one parent; a
- *       Flatten passes the producers of all of its input PCollections).
- *   <li>Per upstream transform it tracks partitions with a dedicated {@link WatermarkManager},
- *       which holds until every partition of that transform has reported and keeps each partition
- *       monotonic.
- *   <li>The aggregate input watermark is the {@code min()} across the upstream transforms'
- *       watermarks, defined only once <em>every</em> expected upstream transform is ready; until
- *       then {@link #advance()} returns {@link BoundedWindow#TIMESTAMP_MIN_VALUE} and the caller
- *       emits nothing.
- * </ul>
+ * <p>It is constructed with the upstream transform ids the consumer expects, known from the
+ * pipeline graph at translation time, and tracks each with its own {@link WatermarkManager}. The
+ * input watermark is the minimum across them, defined only once every expected upstream is ready;
+ * until then {@link #advance()} returns {@link BoundedWindow#TIMESTAMP_MIN_VALUE} and the caller
+ * emits nothing.
  *
- * <p>Not thread-safe; the caller (a single Kafka Streams processor thread) serializes access.
+ * <p>Not thread-safe; the calling Kafka Streams processor thread serializes access.
  */
 final class WatermarkAggregator {
 
