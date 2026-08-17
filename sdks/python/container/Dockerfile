@@ -23,6 +23,7 @@ ARG TARGETOS
 ARG TARGETARCH
 
 COPY target/base_image_requirements.txt /tmp/base_image_requirements.txt
+COPY target/license_scripts/upgrade_bundled_pip.py /tmp/upgrade_bundled_pip.py
 COPY target/apache-beam.tar.gz /opt/apache/beam/tars/
 COPY target/launcher/${TARGETOS}_${TARGETARCH}/boot target/LICENSE target/NOTICE target/LICENSE.python /opt/apache/beam/
 
@@ -45,13 +46,13 @@ RUN  \
        # Required for using Beam Python SDK on ARM machines.
        libgeos-dev \
        && \
-    rm -rf /var/lib/apt/lists/* && \
 
-    pip install --upgrade pip setuptools wheel && \
+    rm -rf /var/lib/apt/lists/* && \
 
     # Install required packages for Beam Python SDK and common dependencies used by users.
     # use --no-deps to ensure the list includes all transitive dependencies.
-    pip install --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
+    # use --prefer-binary to avoid compiling wheels from source when prebuilt wheels exist.
+    pip install --prefer-binary --no-deps -r /tmp/base_image_requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu && \
     rm -rf /tmp/base_image_requirements.txt && \
     python -c "import nltk; nltk.download('stopwords')" && \
     rm /root/nltk_data/corpora/stopwords.zip && \
@@ -85,14 +86,17 @@ RUN  \
     rm -rf /root/.cache/pip && \
 
     # Update ensurepip to use most recent versions of setuptools and pip. This avoids some vulnerabilities which won't be fixed on older versions of python.
-    pip install upgrade_ensurepip; \
-    python3 -m upgrade_ensurepip; \
-    # setuptools is not bundled with ensurepip in Python 3.12+
+    # upgrade_ensurepip is not maintained for Python 3.12+ (ensurepip no longer bundles setuptools).
     if [ "${py_version}" = "3.10" ] || [ "${py_version}" = "3.11" ]; then \
+        pip install upgrade_ensurepip; \
+        python3 -m upgrade_ensurepip; \
         find /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/setuptools-*-py3-none-any.whl | tail -n 1)) -delete; \
+        find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
+        pip uninstall upgrade_ensurepip -y; \
+    else \
+        python3 /tmp/upgrade_bundled_pip.py; \
     fi; \
-    find /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-* -type f ! -name $(basename $(ls -v /usr/local/lib/python${py_version}/ensurepip/_bundled/pip-*-py3-none-any.whl | tail -n 1)) -delete; \
-    pip uninstall upgrade_ensurepip -y; \
+    # Verify ensurepip can bootstrap pip. Required by boot.go worker venv creation.
     python3 -m ensurepip;
 
 ENTRYPOINT ["/opt/apache/beam/boot"]

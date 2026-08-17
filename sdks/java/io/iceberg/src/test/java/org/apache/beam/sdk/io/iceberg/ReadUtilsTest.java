@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -40,7 +41,6 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.io.CloseableIterable;
-import org.apache.iceberg.parquet.ParquetReader;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -75,14 +75,25 @@ public class ReadUtilsTest {
           .commit();
     }
 
+    IcebergScanConfig scanConfig =
+        IcebergScanConfig.builder()
+            .setCatalogConfig(
+                IcebergCatalogConfig.builder()
+                    .setCatalogProperties(
+                        ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+                    .build())
+            .setTableIdentifier(tableId)
+            .setSchema(IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema()))
+            .build();
+
     int numFiles = 0;
     try (CloseableIterable<CombinedScanTask> iterable = simpleTable.newScan().planTasks()) {
       for (CombinedScanTask combinedScanTask : iterable) {
         for (FileScanTask fileScanTask : combinedScanTask.tasks()) {
           String fileName = Iterables.getLast(Splitter.on("/").split(fileScanTask.file().path()));
           List<Record> recordsRead = new ArrayList<>();
-          try (ParquetReader<Record> reader =
-              ReadUtils.createReader(fileScanTask, simpleTable, simpleTable.schema())) {
+          try (CloseableIterable<Record> reader =
+              ReadUtils.createReader(fileScanTask, simpleTable, scanConfig)) {
             reader.forEach(recordsRead::add);
           }
 
@@ -92,6 +103,36 @@ public class ReadUtilsTest {
       }
     }
     assertEquals(data.size(), numFiles);
+  }
+
+  @Test
+  public void testMaybeApplyFilterUsesRequiredSchemaWithFilterOnlyField() throws IOException {
+    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
+    Table simpleTable = warehouse.createTable(tableId, TestFixtures.SCHEMA);
+
+    IcebergScanConfig scanConfig =
+        IcebergScanConfig.builder()
+            .setCatalogConfig(
+                IcebergCatalogConfig.builder()
+                    .setCatalogProperties(
+                        ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+                    .build())
+            .setTableIdentifier(tableId)
+            .setSchema(IcebergUtils.icebergSchemaToBeamSchema(simpleTable.schema()))
+            .setKeepFields(ImmutableList.of("data"))
+            .setFilterString("id = 2")
+            .build();
+
+    assertEquals(ImmutableList.of("data"), fieldNames(scanConfig.getProjectedSchema()));
+    assertEquals(ImmutableList.of("id", "data"), fieldNames(scanConfig.getRequiredSchema()));
+
+    CloseableIterable<Record> filtered =
+        ReadUtils.maybeApplyFilter(
+            CloseableIterable.withNoopClose(TestFixtures.FILE1SNAPSHOT1),
+            scanConfig,
+            scanConfig.getRequiredSchema());
+
+    assertEquals(ImmutableList.of("falafel"), dataOf(filtered));
   }
 
   @Test
@@ -238,5 +279,17 @@ public class ReadUtilsTest {
         IcebergScanConfig scanConfig, @Nullable Long expectedSnapshotId, String description) {
       return new TestCase(scanConfig, expectedSnapshotId, description);
     }
+  }
+
+  private static List<String> fieldNames(org.apache.iceberg.Schema schema) {
+    return schema.columns().stream()
+        .map(org.apache.iceberg.types.Types.NestedField::name)
+        .collect(Collectors.toList());
+  }
+
+  private static List<String> dataOf(CloseableIterable<Record> records) {
+    return ImmutableList.copyOf(records).stream()
+        .map(record -> (String) record.getField("data"))
+        .collect(Collectors.toList());
   }
 }

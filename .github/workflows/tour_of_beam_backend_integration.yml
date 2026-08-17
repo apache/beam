@@ -20,6 +20,7 @@
 name: Tour of Beam Go integration tests
 
 on:
+  workflow_dispatch:
   push:
     branches: ['master', 'release-*']
     tags: 'v*'
@@ -76,7 +77,9 @@ jobs:
       run:
         working-directory: ./learning/tour-of-beam/backend
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action

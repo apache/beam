@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.value.AutoValue;
@@ -24,10 +26,8 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDateTime;
@@ -51,9 +52,6 @@ import org.joda.time.format.ISODateTimeFormat;
 /** Write side {@link Row} to {@link PubsubMessage} converter. */
 @Internal
 @AutoValue
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollectionTuple> {
 
   static Builder builder() {
@@ -88,18 +86,15 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
    * The {@link PayloadSerializer} to {@link PayloadSerializer#serialize(Row)} the payload or user
    * fields row.
    */
-  @Nullable
-  abstract PayloadSerializer getPayloadSerializer();
+  abstract @Nullable PayloadSerializer getPayloadSerializer();
 
   /** The name of the attribute to apply to the {@link PubsubMessage}. */
-  @Nullable
-  abstract String getTargetTimestampAttributeName();
+  abstract @Nullable String getTargetTimestampAttributeName();
 
   /**
    * Use for testing, simplify assertions of generated timestamp when input lacks a timestamp field.
    */
-  @Nullable
-  abstract Instant getMockInstant();
+  abstract @Nullable Instant getMockInstant();
 
   /** Generates {@link Schema} of the {@link #ERROR} {@link PCollection}. */
   static Schema errorSchema(Schema inputSchema) {
@@ -345,9 +340,9 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     private final String name;
 
-    @Nullable private final TypeName typeName;
+    private final @Nullable TypeName typeName;
 
-    @Nullable private final FieldType fieldType;
+    private final @Nullable FieldType fieldType;
 
     private FieldMatcher(String name, @Nullable TypeName typeName, @Nullable FieldType fieldType) {
       this.name = name;
@@ -379,7 +374,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       if (typeName != null) {
         return field.getType().getTypeName().equals(typeName);
       }
-      return fieldType.equals(field.getType());
+      if (fieldType != null) {
+        return fieldType.equals(field.getType());
+      }
+      return true;
     }
   }
 
@@ -404,10 +402,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     private final String payloadKeyName;
     private final Schema errorSchema;
 
-    @Nullable private final String targetTimestampKeyName;
-    @Nullable private final PayloadSerializer payloadSerializer;
+    private final @Nullable String targetTimestampKeyName;
+    private final @Nullable PayloadSerializer payloadSerializer;
 
-    @Nullable private final Instant mockInstant;
+    private final @Nullable Instant mockInstant;
 
     PubsubRowToMessageDoFn(
         String attributesKeyName,
@@ -449,7 +447,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
         Row error =
             Row.withSchema(errorSchema)
                 .withFieldValue(ERROR_DATA_FIELD_NAME, row)
-                .withFieldValue(ERROR_MESSAGE_FIELD.getName(), message)
+                .withFieldValue(ERROR_MESSAGE_FIELD.getName(), message != null ? message : "")
                 .withFieldValue(ERROR_STACK_TRACE_FIELD.getName(), stackTrace)
                 .build();
 
@@ -465,7 +463,8 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       if (!row.getSchema().hasField(attributesKeyName)) {
         return new HashMap<>();
       }
-      return row.getMap(attributesKeyName);
+      Map<String, String> map = row.getMap(attributesKeyName);
+      return map == null ? new HashMap<>() : map;
     }
 
     /**
@@ -482,7 +481,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
      */
     ReadableDateTime timestamp(Row row) {
       if (row.getSchema().hasField(sourceTimestampKeyName)) {
-        return row.getDateTime(sourceTimestampKeyName);
+        ReadableDateTime dt = row.getDateTime(sourceTimestampKeyName);
+        if (dt != null) {
+          return dt;
+        }
       }
       Instant instant = Instant.now();
       if (mockInstant != null) {
@@ -503,9 +505,10 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
     byte[] payload(Row row) {
       if (SchemaReflection.of(row.getSchema())
           .matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_BYTES_TYPE_NAME))) {
-        return row.getBytes(payloadKeyName);
+        return checkArgumentNotNull(
+            row.getBytes(payloadKeyName), "Payload field '%s' cannot be null", payloadKeyName);
       }
-      return Objects.requireNonNull(payloadSerializer).serialize(serializableRow(row));
+      return checkStateNotNull(payloadSerializer).serialize(serializableRow(row));
     }
 
     /**
@@ -527,7 +530,8 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       }
 
       if (schemaReflection.matchesAll(FieldMatcher.of(payloadKeyName, PAYLOAD_ROW_TYPE_NAME))) {
-        return row.getRow(payloadKeyName);
+        return checkArgumentNotNull(
+            row.getRow(payloadKeyName), "Payload field '%s' cannot be null", payloadKeyName);
       }
       Schema withUserFieldsOnly =
           removeFields(row.getSchema(), attributesKeyName, sourceTimestampKeyName);
@@ -553,8 +557,7 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
 
     abstract Field getTimestampField();
 
-    @Nullable
-    abstract Field getPayloadField();
+    abstract @Nullable Field getPayloadField();
 
     /**
      * Builds a {@link Schema} from {@link #getAttributesField()} and {@link #getTimestampField()}
@@ -565,8 +568,9 @@ abstract class PubsubRowToMessage extends PTransform<PCollection<Row>, PCollecti
       Schema.Builder builder =
           Schema.builder().addField(getAttributesField()).addField(getTimestampField());
 
-      if (getPayloadField() != null) {
-        builder = builder.addField(getPayloadField());
+      Field payloadField = getPayloadField();
+      if (payloadField != null) {
+        builder = builder.addField(payloadField);
       }
 
       for (Field field : additionalFields) {

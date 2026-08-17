@@ -38,6 +38,21 @@ def get_transformed_categorical_column_name(column_name_or_id):
   return column_name + '_id'
 
 
+def fill_in_missing(feature, default_value):
+  """Fills missing values in a rank 2 SparseTensor.
+
+  Args:
+    feature: A rank 2 SparseTensor with at most one value per row.
+    default_value: The value to fill in for missing entries.
+
+  Returns:
+    A rank 1 Tensor with missing entries filled in.
+  """
+  feature = tft.sparse_tensor_to_dense_with_shape(
+      feature, [None, 1], default_value=default_value)
+  return tf.squeeze(feature, axis=1)
+
+
 _INTEGER_COLUMN_NAMES = [
     'int-feature-{}'.format(column_idx) for column_idx in range(1, 14)
 ]
@@ -132,23 +147,12 @@ def make_preprocessing_fn(frequency_threshold):
     result = {'clicked': inputs['clicked']}
     for name in _INTEGER_COLUMN_NAMES:
       feature = inputs[name]
-      # TODO(https://github.com/apache/beam/issues/24902):
-      #  Replace this boilerplate with a helper function.
-      # This is a SparseTensor because it is optional. Here we fill in a
-      # default value when it is missing.
-      feature = tft.sparse_tensor_to_dense_with_shape(
-          feature, [None, 1], default_value=-1)
-      # Reshaping from a batch of vectors of size 1 to a batch of scalars and
-      # adding a bucketized version.
-      feature = tf.squeeze(feature, axis=1)
+      feature = fill_in_missing(feature, -1)
       result[name] = feature
       result[name + '_bucketized'] = tft.bucketize(feature, _NUM_BUCKETS)
     for name in _CATEGORICAL_COLUMN_NAMES:
       feature = inputs[name]
-      # Similar to for integer columns, but use '' as default.
-      feature = tft.sparse_tensor_to_dense_with_shape(
-          feature, [None, 1], default_value='')
-      feature = tf.squeeze(feature, axis=1)
+      feature = fill_in_missing(feature, '')
       result[get_transformed_categorical_column_name(
           name)] = tft.compute_and_apply_vocabulary(
               feature, frequency_threshold=frequency_threshold)

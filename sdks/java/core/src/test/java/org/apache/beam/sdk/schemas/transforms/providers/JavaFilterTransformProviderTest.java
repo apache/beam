@@ -107,12 +107,18 @@ public class JavaFilterTransformProviderTest {
 
     PCollection<Row> errors = result.get("errors");
     Schema errorSchema = errors.getSchema();
+    // StringIndexOutOfBoundsException message format changed in Java 17+
+    int javaVersion =
+        Integer.parseInt(System.getProperty("java.specification.version").replace("1.", ""));
+    String expectedErrorMessage =
+        javaVersion >= 17 ? "Index 7 out of bounds for length 5" : "String index out of range: 7";
+
     PAssert.that(errors)
         .containsInAnyOrder(
             Row.withSchema(errorSchema)
                 .withFieldValue(
                     "failed_row", Row.withSchema(inputSchema).addValues("short").build())
-                .withFieldValue("error_message", "String index out of range: 7")
+                .withFieldValue("error_message", expectedErrorMessage)
                 .build());
     pipeline.run();
   }

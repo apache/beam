@@ -34,6 +34,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -97,6 +99,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
@@ -725,6 +728,7 @@ public class HadoopFormatIO {
         return ImmutableList.of(this);
       }
       computeSplitsIfNecessary();
+      reportSourceLineage(inputSplits);
       LOG.info(
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
@@ -742,6 +746,27 @@ public class HadoopFormatIO {
                       skipKeyClone,
                       skipValueClone))
           .collect(Collectors.toList());
+    }
+
+    private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
+      for (SerializableSplit serializableSplit : inputSplits) {
+        InputSplit split = serializableSplit.getSplit();
+        if (split instanceof FileSplit) {
+          URI uri = ((FileSplit) split).getPath().toUri();
+          String scheme = uri.getScheme();
+          if (scheme == null) {
+            continue;
+          }
+          ImmutableList.Builder<String> segments = ImmutableList.builder();
+          if (uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+            segments.add(uri.getAuthority());
+          }
+          if (uri.getPath() != null && !uri.getPath().isEmpty() && !uri.getPath().equals("/")) {
+            segments.add(uri.getPath());
+          }
+          Lineage.getSources().add(scheme, segments.build(), "/");
+        }
+      }
     }
 
     @Override

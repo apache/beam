@@ -134,7 +134,7 @@ public class DataflowWorkerLoggingInitializerTest {
   }
 
   @Test
-  public void testWithWorkerCustomLogLevels() {
+  public void testWithWorkerCustomLogLevels() throws IOException {
     DataflowWorkerLoggingOptions options =
         PipelineOptionsFactory.as(DataflowWorkerLoggingOptions.class);
     options.setWorkerLogLevelOverrides(
@@ -153,6 +153,9 @@ public class DataflowWorkerLoggingInitializerTest {
     assertEquals(Level.SEVERE, bLogger.getLevel());
     assertEquals(0, bLogger.getHandlers().length);
     assertTrue(aLogger.getUseParentHandlers());
+
+    List<String> logLines = retrieveLogLines();
+    assertThat(logLines, not(hasItem(containsString("Ignoring the direct logging level"))));
   }
 
   @Test
@@ -176,7 +179,7 @@ public class DataflowWorkerLoggingInitializerTest {
   }
 
   @Test
-  public void testWithSdkHarnessCustomLogLevels() {
+  public void testWithSdkHarnessCustomLogLevels() throws IOException {
     SdkHarnessOptions options = PipelineOptionsFactory.as(SdkHarnessOptions.class);
     options.setSdkHarnessLogLevelOverrides(
         new SdkHarnessLogLevelOverrides()
@@ -194,6 +197,43 @@ public class DataflowWorkerLoggingInitializerTest {
     assertEquals(Level.SEVERE, bLogger.getLevel());
     assertEquals(0, bLogger.getHandlers().length);
     assertTrue(aLogger.getUseParentHandlers());
+
+    List<String> logLines = retrieveLogLines();
+    assertThat(logLines, not(hasItem(containsString("Ignoring the direct logging level"))));
+  }
+
+  @Test
+  public void testWithSdkHarnessCustomLogLevels_DirectSpecifiedNotEnabled() throws IOException {
+    SdkHarnessOptions options = PipelineOptionsFactory.as(SdkHarnessOptions.class);
+    options.setSdkHarnessLogLevelOverrides(
+        new SdkHarnessLogLevelOverrides()
+            .addOverrideForName("B", SdkHarnessOptions.LogLevel.DEBUG)
+            .addOverrideForName("C", SdkHarnessOptions.LogLevel.ERROR));
+    DataflowWorkerLoggingOptions loggingOptions = options.as(DataflowWorkerLoggingOptions.class);
+    loggingOptions.setWorkerDirectLogLevelOverrides(
+        new WorkerLogLevelOverrides()
+            .addOverrideForName("A", DataflowWorkerLoggingOptions.Level.TRACE)
+            .addOverrideForName("C", DataflowWorkerLoggingOptions.Level.TRACE));
+
+    DataflowWorkerLoggingInitializer.configure(options.as(DataflowWorkerLoggingOptions.class));
+
+    Logger aLogger = LogManager.getLogManager().getLogger("A");
+    assertEquals(0, aLogger.getHandlers().length);
+    assertEquals(Level.INFO, aLogger.getLevel());
+    assertTrue(aLogger.getUseParentHandlers());
+
+    Logger bLogger = LogManager.getLogManager().getLogger("B");
+    assertEquals(Level.FINE, bLogger.getLevel());
+    assertEquals(0, bLogger.getHandlers().length);
+    assertTrue(aLogger.getUseParentHandlers());
+
+    Logger cLogger = LogManager.getLogManager().getLogger("C");
+    assertEquals(Level.SEVERE, cLogger.getLevel());
+    assertEquals(0, cLogger.getHandlers().length);
+    assertTrue(aLogger.getUseParentHandlers());
+
+    List<String> logLines = retrieveLogLines();
+    assertThat(logLines, hasItem(containsString("Ignoring the direct logging level")));
   }
 
   @Test

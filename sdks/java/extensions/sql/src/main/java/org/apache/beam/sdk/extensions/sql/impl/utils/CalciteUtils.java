@@ -29,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
@@ -75,7 +76,8 @@ public class CalciteUtils {
       return logicalId.equals(SqlTypes.DATE.getIdentifier())
           || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(SqlTypes.DATETIME.getIdentifier());
+          || logicalId.equals(SqlTypes.DATETIME.getIdentifier())
+          || logicalId.equals(Timestamp.IDENTIFIER);
     }
     return false;
   }
@@ -114,6 +116,8 @@ public class CalciteUtils {
       FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
+  // TODO: Default SQL TIMESTAMP to Timestamp.MICROS (or equivalent) instead of FieldType.DATETIME
+  // once Beam SQL / Calcite can preserve microsecond precision end-to-end.
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
   public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
@@ -170,6 +174,25 @@ public class CalciteUtils {
           FieldType.DATETIME, SqlTypeName.TIMESTAMP,
           FieldType.STRING, SqlTypeName.VARCHAR);
 
+  private static final Map<Class<?>, SqlTypeName> JAVA_TO_SQL_TYPE_MAPPING =
+      ImmutableMap.<Class<?>, SqlTypeName>builder()
+          .put(String.class, SqlTypeName.VARCHAR)
+          .put(Integer.class, SqlTypeName.INTEGER)
+          .put(int.class, SqlTypeName.INTEGER)
+          .put(Long.class, SqlTypeName.BIGINT)
+          .put(long.class, SqlTypeName.BIGINT)
+          .put(Double.class, SqlTypeName.DOUBLE)
+          .put(double.class, SqlTypeName.DOUBLE)
+          .put(Float.class, SqlTypeName.FLOAT)
+          .put(float.class, SqlTypeName.FLOAT)
+          .put(Short.class, SqlTypeName.SMALLINT)
+          .put(short.class, SqlTypeName.SMALLINT)
+          .put(Byte.class, SqlTypeName.TINYINT)
+          .put(byte.class, SqlTypeName.TINYINT)
+          .put(Boolean.class, SqlTypeName.BOOLEAN)
+          .put(boolean.class, SqlTypeName.BOOLEAN)
+          .build();
+
   // Associating FieldType to generated RelDataType objects for Beam logical types. Used for
   // recovering the original type in output schema after full Beam FieldType->Calcite Type->Beam
   // FieldType trip
@@ -203,6 +226,8 @@ public class CalciteUtils {
             if (logicalType instanceof PassThroughLogicalType) {
               // for pass through logical type, just return its base type
               return toSqlTypeName(logicalType.getBaseType());
+            } else if (Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
+              return SqlTypeName.TIMESTAMP;
             } else if ("SqlCharType".equals(logicalType.getIdentifier())) {
               LOG.warn(
                   "SqlCharType is used in Schema. It was removed in Beam 2.44.0 and should be"
@@ -365,7 +390,9 @@ public class CalciteUtils {
    * SQL-Java type mapping, with specified Beam rules: <br>
    * 1. redirect {@link AbstractInstant} to {@link Date} so Calcite can recognize it. <br>
    * 2. For a list, the component type is needed to create a Sql array type. <br>
-   * 3. For a Map, the component type is needed to create a Sql map type.
+   * 3. For a Map, the component type is needed to create a Sql map type. <br>
+   * 4. For standard Java classes (String, Integer, etc.), map them to corresponding Calcite SQL
+   * type with appropriate nullability.
    *
    * @param type
    * @return Calcite RelDataType
@@ -395,6 +422,14 @@ public class CalciteUtils {
               + type
               + ". This is currently unsupported, use List instead "
               + "of Array.");
+    }
+    if (type instanceof Class) {
+      Class<?> clazz = (Class<?>) type;
+      SqlTypeName sqlTypeName = JAVA_TO_SQL_TYPE_MAPPING.get(clazz);
+      if (sqlTypeName != null) {
+        return typeFactory.createTypeWithNullability(
+            typeFactory.createSqlType(sqlTypeName), !clazz.isPrimitive());
+      }
     }
     return typeFactory.createJavaType((Class) type);
   }

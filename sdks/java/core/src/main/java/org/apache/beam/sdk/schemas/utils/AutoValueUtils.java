@@ -162,7 +162,7 @@ public class AutoValueUtils {
     Optional<Constructor<?>> constructor =
         Arrays.stream(generatedTypeDescriptor.getRawType().getDeclaredConstructors())
             .filter(c -> !Modifier.isPrivate(c.getModifiers()))
-            .filter(c -> matchConstructor(c, schemaTypes))
+            .filter(c -> matchConstructor(generatedTypeDescriptor, c, schemaTypes))
             .findAny();
     return constructor
         .map(
@@ -177,7 +177,9 @@ public class AutoValueUtils {
   }
 
   private static boolean matchConstructor(
-      Constructor<?> constructor, List<FieldValueTypeInformation> getterTypes) {
+      TypeDescriptor typeDescriptor,
+      Constructor<?> constructor,
+      List<FieldValueTypeInformation> getterTypes) {
     if (constructor.getParameters().length != getterTypes.size()) {
       return false;
     }
@@ -197,7 +199,8 @@ public class AutoValueUtils {
     // Verify that constructor parameters match (name and type) the inferred schema.
     for (Parameter parameter : constructor.getParameters()) {
       FieldValueTypeInformation type = typeMap.get(parameter.getName());
-      if (type == null || type.getRawType() != parameter.getType()) {
+      if (type == null
+          || !type.getType().equals(typeDescriptor.resolveType(parameter.getParameterizedType()))) {
         valid = false;
         break;
       }

@@ -29,6 +29,7 @@ from apache_beam.options.pipeline_options import PortableOptions
 from apache_beam.runners.portability import job_server
 from apache_beam.runners.portability import portable_runner
 from apache_beam.runners.portability import portable_runner_test
+from apache_beam.runners.portability.spark_runner import SPARK_JAR_JOB_SERVER_JVM_ARGS
 from apache_beam.utils import subprocess_server
 
 # Run as
@@ -100,6 +101,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     try:
       return [
           subprocess_server.JavaHelper.get_java(),
+          *SPARK_JAR_JOB_SERVER_JVM_ARGS,
           '-Dbeam.spark.test.reuseSparkContext=true',
           '-jar',
           cls.spark_job_server_jar,
@@ -142,19 +144,7 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
     # Skip until Spark runner supports metrics.
     raise unittest.SkipTest("https://github.com/apache/beam/issues/19496")
 
-  def test_sdf(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_sdf_with_watermark_tracking(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_sdf_with_sdf_initiated_checkpointing(self):
-    # Skip until Spark runner supports SDF.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
-
-  def test_sdf_synthetic_source(self):
+  def test_unbounded_source_read(self):
     # Skip until Spark runner supports SDF.
     raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
@@ -165,10 +155,6 @@ class SparkRunnerTest(portable_runner_test.PortableRunnerTest):
   def test_register_finalizations(self):
     # Skip until Spark runner supports bundle finalization.
     raise unittest.SkipTest("https://github.com/apache/beam/issues/19517")
-
-  def test_sdf_with_dofn_as_watermark_estimator(self):
-    # Skip until Spark runner supports SDF and self-checkpoint.
-    raise unittest.SkipTest("https://github.com/apache/beam/issues/19468")
 
   def test_pardo_dynamic_timer(self):
     raise unittest.SkipTest("https://github.com/apache/beam/issues/20179")
