@@ -195,6 +195,8 @@ public class StreamingModeExecutionContext
 
   private List<Work> executedWorks = Collections.emptyList();
   private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
+  private List<Windmill.OutputMessageBundle> bundleOutputMessages = Collections.emptyList();
+  private List<Windmill.PubSubMessageBundle> bundlePubsubMessages = Collections.emptyList();
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
   private Map<Long, Pair<Instant, Runnable>> finalizationCallbacks = Collections.emptyMap();
@@ -321,6 +323,8 @@ public class StreamingModeExecutionContext
     // don't clear and reuse, instead reset the reference.
     this.executedWorks = Collections.emptyList();
     this.outputBuilders = Collections.emptyList();
+    this.bundleOutputMessages = Collections.emptyList();
+    this.bundlePubsubMessages = Collections.emptyList();
     this.finalizationCallbacks = Collections.emptyMap();
     // Work from prior bundles might have a reference to the old workBatchFailed.
     // If the work gets retried it'll get the new workBatchFailed to notify failure.
@@ -355,6 +359,8 @@ public class StreamingModeExecutionContext
     reset();
     this.executedWorks = new ArrayList<>();
     this.outputBuilders = new ArrayList<>();
+    this.bundleOutputMessages = new ArrayList<>();
+    this.bundlePubsubMessages = new ArrayList<>();
     this.finalizationCallbacks = new HashMap<>();
     this.keyCoder = keyCoder;
     this.workExecutor = workExecutor;
@@ -860,6 +866,26 @@ public class StreamingModeExecutionContext
       commits.add(builder.build());
     }
     return commits;
+  }
+
+  public void addBundleOutputMessages(Windmill.OutputMessageBundle outputBundle) {
+    this.bundleOutputMessages.add(outputBundle);
+  }
+
+  public List<Windmill.OutputMessageBundle> getBundleOutputMessages() {
+    return bundleOutputMessages;
+  }
+
+  public void addBundlePubsubMessages(Windmill.PubSubMessageBundle pubsubBundle) {
+    this.bundlePubsubMessages.add(pubsubBundle);
+  }
+
+  public List<Windmill.PubSubMessageBundle> getBundlePubsubMessages() {
+    return bundlePubsubMessages;
+  }
+
+  public boolean multiKeyBundleEnabled() {
+    return multiKeyBundleOptions.multiKeyBundleEnabled();
   }
 
   // Returns list of Work that was executed in the bundle

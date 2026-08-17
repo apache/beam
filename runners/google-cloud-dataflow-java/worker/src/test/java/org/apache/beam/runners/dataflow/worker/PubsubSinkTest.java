@@ -180,4 +180,134 @@ public class PubsubSinkTest {
         CoderException.class,
         () -> writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0))));
   }
+
+  @Test
+  public void testSingleKey_finishKeyDoesNotFlush_closeAttachesToKey() throws Exception {
+    when(mockContext.multiKeyBundleEnabled()).thenReturn(false);
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key"))
+            .setWorkToken(0);
+    when(mockContext.getOutputBuilder()).thenReturn(outputBuilder);
+
+    Map<String, Object> spec = new HashMap<>();
+    spec.put(PropertyNames.OBJECT_TYPE_NAME, "");
+    spec.put(PropertyNames.PUBSUB_TOPIC, "topic");
+    spec.put(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, "ts");
+    spec.put(PropertyNames.PUBSUB_ID_ATTRIBUTE, "id");
+    CloudObject cloudSinkSpec = CloudObject.fromSpec(spec);
+    PubsubSink.Factory factory = new PubsubSink.Factory();
+    PubsubSink<String> sink =
+        (PubsubSink<String>)
+            factory.create(
+                cloudSinkSpec,
+                WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                null,
+                mockContext,
+                null);
+
+    Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0)));
+
+    // In single key mode, finishKey should not flush
+    writer.finishKey("key");
+    assertEquals(0, outputBuilder.getPubsubMessagesCount());
+
+    // close should flush and attach to the key's outputBuilder
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e1", new Instant(1000)));
+    writer.close();
+
+    assertEquals(1, outputBuilder.getPubsubMessagesCount());
+    Windmill.PubSubMessageBundle bundle = outputBuilder.getPubsubMessages(0);
+    assertEquals("topic", bundle.getTopic());
+    assertEquals(2, bundle.getMessagesCount());
+    assertEquals("e0", bundle.getMessages(0).getData().toStringUtf8());
+    assertEquals("e1", bundle.getMessages(1).getData().toStringUtf8());
+  }
+
+  @Test
+  public void testMultiKey_finishKeyFlushesToKey_closeFlushesToBundleLevel() throws Exception {
+    when(mockContext.multiKeyBundleEnabled()).thenReturn(true);
+
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key1"))
+            .setWorkToken(1);
+    when(mockContext.getOutputBuilder()).thenReturn(outputBuilder);
+
+    Map<String, Object> spec = new HashMap<>();
+    spec.put(PropertyNames.OBJECT_TYPE_NAME, "");
+    spec.put(PropertyNames.PUBSUB_TOPIC, "topic");
+    spec.put(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, "ts");
+    spec.put(PropertyNames.PUBSUB_ID_ATTRIBUTE, "id");
+    CloudObject cloudSinkSpec = CloudObject.fromSpec(spec);
+    PubsubSink.Factory factory = new PubsubSink.Factory();
+    PubsubSink<String> sink =
+        (PubsubSink<String>)
+            factory.create(
+                cloudSinkSpec,
+                WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                null,
+                mockContext,
+                null);
+
+    Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0)));
+
+    // In multi-key mode, finishKey flushes to the active key's outputBuilder
+    writer.finishKey("key1");
+    assertEquals(1, outputBuilder.getPubsubMessagesCount());
+    assertEquals("e0", outputBuilder.getPubsubMessages(0).getMessages(0).getData().toStringUtf8());
+
+    // Messages added during finishBundle are flushed to bundle-level outputs in close()
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e1", new Instant(1000)));
+    writer.close();
+
+    // Verify key's outputBuilder still only has 1 bundle from finishKey
+    assertEquals(1, outputBuilder.getPubsubMessagesCount());
+
+    // Verify mockContext.addBundlePubsubMessages was called with the bundle from close()
+    org.mockito.ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
+        org.mockito.ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
+    org.mockito.Mockito.verify(mockContext).addBundlePubsubMessages(captor.capture());
+    Windmill.PubSubMessageBundle bundleLevel = captor.getValue();
+    assertEquals("topic", bundleLevel.getTopic());
+    assertEquals(1, bundleLevel.getMessagesCount());
+    assertEquals("e1", bundleLevel.getMessages(0).getData().toStringUtf8());
+  }
+
+  @Test
+  public void testAbort_doesNotFlushToContext() throws Exception {
+    Windmill.WorkItemCommitRequest.Builder outputBuilder =
+        Windmill.WorkItemCommitRequest.newBuilder()
+            .setKey(ByteString.copyFromUtf8("key"))
+            .setWorkToken(0);
+    when(mockContext.getOutputBuilder()).thenReturn(outputBuilder);
+
+    Map<String, Object> spec = new HashMap<>();
+    spec.put(PropertyNames.OBJECT_TYPE_NAME, "");
+    spec.put(PropertyNames.PUBSUB_TOPIC, "topic");
+    spec.put(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, "ts");
+    spec.put(PropertyNames.PUBSUB_ID_ATTRIBUTE, "id");
+    CloudObject cloudSinkSpec = CloudObject.fromSpec(spec);
+    PubsubSink.Factory factory = new PubsubSink.Factory();
+    PubsubSink<String> sink =
+        (PubsubSink<String>)
+            factory.create(
+                cloudSinkSpec,
+                WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                null,
+                mockContext,
+                null);
+
+    Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("e0", new Instant(0)));
+
+    writer.abort();
+
+    assertEquals(0, outputBuilder.getPubsubMessagesCount());
+    org.mockito.Mockito.verify(mockContext, org.mockito.Mockito.never())
+        .addBundlePubsubMessages(org.mockito.ArgumentMatchers.any());
+  }
 }
