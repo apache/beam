@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "ahmedabu98",
-    "bigtable": "shunping"
+    "java": "kennknowles",
+    "bigtable": "tvalentyn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
