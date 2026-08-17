@@ -60,6 +60,7 @@ import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.FluentIterable;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -361,13 +362,24 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
    *       setting holds, and invoking {@link ReduceFn#onTrigger}.
    * </ol>
    */
+  public void processElements(KeyedWorkItem<?, InputT> keyedWorkItem) throws Exception {
+    processElementsInternal(
+        keyedWorkItem.elementWindowsIterable(), keyedWorkItem.elementsIterable());
+  }
+
   public void processElements(Iterable<WindowedValue<InputT>> values) throws Exception {
-    if (!values.iterator().hasNext()) {
+    processElementsInternal(values, values);
+  }
+
+  private void processElementsInternal(
+      Iterable<? extends WindowedValue<?>> elementWindows, Iterable<WindowedValue<InputT>> values)
+      throws Exception {
+    if (Iterables.isEmpty(elementWindows)) {
       return;
     }
 
     // Determine all the windows for elements.
-    Set<W> windows = collectWindows(values);
+    Set<W> windows = collectWindows(elementWindows);
     // If an incoming element introduces a new window, attempt to merge it into an existing
     // window eagerly.
     Map<W, W> windowToMergeResult = mergeWindows(windows);
@@ -426,7 +438,7 @@ public class ReduceFnRunner<K, InputT, OutputT, W extends BoundedWindow> {
   }
 
   /** Extract the windows associated with the values. */
-  private Set<W> collectWindows(Iterable<WindowedValue<InputT>> values) throws Exception {
+  private Set<W> collectWindows(Iterable<? extends WindowedValue<?>> values) throws Exception {
     Set<W> windows = new HashSet<>();
     for (WindowedValue<?> value : values) {
       for (BoundedWindow untypedWindow : value.getWindows()) {

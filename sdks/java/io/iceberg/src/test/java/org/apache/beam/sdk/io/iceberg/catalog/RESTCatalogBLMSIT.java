@@ -41,7 +41,6 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
             .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
             .put("warehouse", BIGLAKE_WAREHOUSE)
             .put("header.x-goog-user-project", OPTIONS.getProject())
-            .put("rest-metrics-reporting-enabled", "false")
             .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
             .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
             .build();

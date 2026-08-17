@@ -19,12 +19,12 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing.failure
 
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.ThreadSafe;
 import org.apache.beam.runners.dataflow.worker.status.LastExceptionDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.sdk.annotations.Internal;
@@ -100,18 +100,19 @@ public final class WorkFailureProcessor {
 
   public void logAndProcessFailureBatch(
       String computationId,
+      String systemName,
       List<ExecutableWork> executableWorks,
       Throwable t,
-      Consumer<Work> onInvalidWork)
+      FailedWorkHandler onFailedWorkHandler)
       throws Throwable {
     List<ExecutableWork> worksToRetryLocally = new java.util.ArrayList<>();
 
     for (ExecutableWork executableWork : executableWorks) {
-      switch (evaluateRetry(computationId, executableWork.work(), t)) {
+      switch (evaluateRetry(computationId, systemName, executableWork.work(), t)) {
         case DO_NOT_RETRY:
           // Consider the item invalid. It will eventually be retried by Windmill if it still needs
           // to be processed.
-          onInvalidWork.accept(executableWork.work());
+          onFailedWorkHandler.onFailedWork(executableWork.work());
           break;
         case RETRY_LOCALLY:
           // Try again after some delay and at the end of the queue to avoid a tight loop.
@@ -148,12 +149,13 @@ public final class WorkFailureProcessor {
     RETHROW_THROWABLE,
   }
 
-  private RetryEvaluation evaluateRetry(String computationId, Work work, Throwable t) {
+  private RetryEvaluation evaluateRetry(
+      String computationId, String systemName, Work work, Throwable t) {
     if (work.isFailed()) {
       LOG.debug(
-          "Execution of work for computation '{}' on sharding key '{}' failed. "
+          "Execution of work for fused stage '{}' on sharding key '{}' failed. "
               + "Work is already marked as failed, not retrying locally.",
-          computationId,
+          systemName,
           work.getWorkItem().getShardingKey());
       return RetryEvaluation.DO_NOT_RETRY;
     }
@@ -166,9 +168,9 @@ public final class WorkFailureProcessor {
     if (isOutOfMemoryError(parsedException)) {
       String heapDump = tryToDumpHeap();
       LOG.error(
-          "Execution of work for computation '{}' for sharding key '{}' failed with out-of-memory. "
+          "Execution of work for fused stage '{}' for sharding key '{}' failed with out-of-memory. "
               + "Work will not be retried locally. Heap dump {}.",
-          computationId,
+          systemName,
           work.getWorkItem().getShardingKey(),
           heapDump,
           parsedException);
@@ -177,8 +179,9 @@ public final class WorkFailureProcessor {
 
     if (!failureTracker.trackFailure(computationId, work.getWorkItem(), parsedException)) {
       LOG.error(
-          "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception, "
+          "Execution of work for fused stage '{}' for computation '{}' on sharding key '{}' failed with uncaught exception, "
               + "and Windmill indicated not to retry locally.",
+          systemName,
           computationId,
           work.getWorkItem().getShardingKey(),
           parsedException);
@@ -186,10 +189,10 @@ public final class WorkFailureProcessor {
     }
     if (elapsedTimeSinceStart.isLongerThan(MAX_LOCAL_PROCESSING_RETRY_DURATION)) {
       LOG.error(
-          "Execution of work for computation '{}' for sharding key '{}' failed with uncaught exception, "
+          "Execution of work for fused stage '{}' for sharding key '{}' failed with uncaught exception, "
               + "and it will not be retried locally because the elapsed time since start {} "
               + "exceeds {}.",
-          computationId,
+          systemName,
           work.getWorkItem().getShardingKey(),
           elapsedTimeSinceStart,
           MAX_LOCAL_PROCESSING_RETRY_DURATION,
@@ -197,9 +200,9 @@ public final class WorkFailureProcessor {
       return RetryEvaluation.DO_NOT_RETRY;
     }
     LOG.error(
-        "Execution of work for computation '{}' on sharding key '{}' failed with uncaught exception. "
+        "Execution of work for fused stage '{}' on sharding key '{}' failed with uncaught exception. "
             + "Work will be retried locally.",
-        computationId,
+        systemName,
         work.getWorkItem().getShardingKey(),
         parsedException);
     return RetryEvaluation.RETRY_LOCALLY;

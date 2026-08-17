@@ -74,7 +74,6 @@ import java.util.Optional;
 import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -118,7 +117,6 @@ import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.WorkerPropertyNames;
 import org.apache.beam.runners.dataflow.worker.windmill.CloudWindmillServiceV1Alpha1Grpc;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
-import org.apache.beam.runners.dataflow.worker.windmill.Windmill.CommitStatus;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataRequest;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationGetDataResponse;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill.ComputationHeartbeatRequest;
@@ -1524,13 +1522,146 @@ public class StreamingDataflowWorkerTest {
     worker.stop();
   }
 
+  @Test
+  public void testMultiKeyCommit_queuedWorkItemFailsAndSubsequentWorkItemPickedUp()
+      throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    BlockingKvDoFn.reset();
+    StreamingDataflowWorker worker = makeMultiKeyEnabledWorker(new BlockingKvDoFn());
+    worker.start();
+
+    String batchInputText1 =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+
+    String batchInputText2 =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 3"
+            + "    cache_token: 4"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data3\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput1 =
+        buildInput(
+            batchInputText1,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+    Windmill.GetWorkResponse batchInput2 =
+        buildInput(
+            batchInputText2,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+
+    server.whenGetWorkCalled().thenReturn(batchInput1).thenReturn(batchInput2);
+    server.waitForEmptyWorkQueue();
+
+    // Wait for key1 to start processing and block on BlockingKvDoFn.
+    BlockingKvDoFn.counter.get().acquire(1);
+
+    // Fail key2 (work token 2) via failed heartbeat while key1 is still processing.
+    ComputationHeartbeatResponse.Builder failedHeartbeat =
+        ComputationHeartbeatResponse.newBuilder();
+    failedHeartbeat
+        .setComputationId(DEFAULT_COMPUTATION_ID)
+        .addHeartbeatResponsesBuilder()
+        .setCacheToken(3)
+        .setWorkToken(2)
+        .setShardingKey(2)
+        .setFailed(true);
+
+    // Fake server processes heartbeat responses are processed synchronously in sendFailedHeartbeats
+    server.sendFailedHeartbeats(Collections.singletonList(failedHeartbeat.build()));
+
+    // Unblock key1 to allow bundle to poll key2 (token 2 -> failed, skipped) and key2 (token 3).
+    BlockingKvDoFn.blocker.get().countDown();
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+
+    assertTrue(result.containsKey(1L));
+    assertTrue(result.containsKey(3L));
+    assertFalse(result.containsKey(2L));
+
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(2, multiKeyCommit.getRequestsCount());
+    assertEquals(1, multiKeyCommit.getRequests(0).getWorkToken());
+    assertEquals(3, multiKeyCommit.getRequests(1).getWorkToken());
+
+    worker.stop();
+  }
+
   private StreamingDataflowWorker makeMultiKeyEnabledWorker() {
+    return makeMultiKeyEnabledWorker(new WorkDoFn());
+  }
+
+  private StreamingDataflowWorker makeMultiKeyEnabledWorker(
+      DoFn<KV<String, String>, KV<String, String>> doFn) {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
 
     List<ParallelInstruction> instructions =
         Arrays.asList(
             makeSourceInstruction(kvCoder),
-            makeDoFnInstruction(new WorkDoFn(), 0, kvCoder),
+            makeDoFnInstruction(doFn, 0, kvCoder),
             makeSinkInstruction(kvCoder, 1));
 
     StreamingDataflowWorker worker =
@@ -4450,10 +4581,9 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testStuckCommit() throws Exception {
+  public void testStuckCommitMarksWorkerUnhealthy() throws Exception {
     if (!streamingEngine) {
-      // Stuck commits have only been observed with streaming engine and thus recovery from them is
-      // not implemented for non-streaming engine.
+      // Stuck commits have only been observed with streaming engine.
       return;
     }
 
@@ -4462,40 +4592,31 @@ public class StreamingDataflowWorkerTest {
             makeSourceInstruction(StringUtf8Coder.of()),
             makeSinkInstruction(StringUtf8Coder.of(), 0));
 
+    FakeClock clock = new FakeClock();
     StreamingDataflowWorker worker =
         makeWorker(
             defaultWorkerParams("--stuckCommitDurationMillis=2000")
                 .setInstructions(instructions)
+                .setClock(clock)
                 .publishCounters()
                 .build());
     worker.start();
+    assertTrue(worker.isHealthy());
+
     // Prevent commit callbacks from being called to simulate a stuck commit.
     server.setDropStreamingCommits(true);
 
-    // Add some work for key 1.
+    // Add work to trigger a commit that will get stuck.
     server
         .whenGetWorkCalled()
-        .thenReturn(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1))
-        .thenReturn(makeInput(15, TimeUnit.MILLISECONDS.toMicros(3), DEFAULT_KEY_STRING, 5));
-    ConcurrentHashMap<Long, Consumer<CommitStatus>> droppedCommits =
-        server.waitForDroppedCommits(2);
-    server.setDropStreamingCommits(false);
-    // Enqueue another work item for key 1.
-    server
-        .whenGetWorkCalled()
-        .thenReturn(makeInput(1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1));
-    // Ensure that this work item processes.
-    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
-    // Now ensure that nothing happens if a dropped commit actually completes.
-    droppedCommits.values().iterator().next().accept(CommitStatus.OK);
-    worker.stop();
+        .thenReturn(makeInput(10, TimeUnit.MILLISECONDS.toMicros(2), DEFAULT_KEY_STRING, 1));
+    server.waitForDroppedCommits(1);
 
-    assertTrue(result.containsKey(1L));
-    assertEquals(
-        makeExpectedOutput(
-                1, TimeUnit.MILLISECONDS.toMicros(1), DEFAULT_KEY_STRING, 1, DEFAULT_KEY_STRING)
-            .build(),
-        removeDynamicFields(result.get(1L)));
+    clock.sleep(Duration.millis(3000));
+
+    assertFalse(worker.isHealthy());
+    server.setDropStreamingCommits(false);
+    worker.stop();
   }
 
   @Test
@@ -4834,6 +4955,25 @@ public class StreamingDataflowWorkerTest {
       }
       state.read();
       c.output(c.element());
+    }
+  }
+
+  static class BlockingKvDoFn extends DoFn<KV<String, String>, KV<String, String>> {
+    public static final AtomicReference<CountDownLatch> blocker =
+        new AtomicReference<>(new CountDownLatch(1));
+    public static final AtomicReference<Semaphore> counter =
+        new AtomicReference<>(new Semaphore(0));
+
+    @ProcessElement
+    public void processElement(ProcessContext c) throws InterruptedException {
+      counter.get().release();
+      blocker.get().await();
+      c.output(c.element());
+    }
+
+    public static void reset() {
+      blocker.set(new CountDownLatch(1));
+      counter.set(new Semaphore(0));
     }
   }
 

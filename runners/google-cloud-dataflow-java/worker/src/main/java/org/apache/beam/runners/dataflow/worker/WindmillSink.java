@@ -265,20 +265,26 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       }
       if (key.size() > context.getMaxOutputKeyBytes()) {
         if (context.throwExceptionsForLargeOutput()) {
-          throw new OutputTooLargeException("Key too large: " + key.size());
+          throw new OutputTooLargeException(
+              String.format(
+                  "Key for fused stage %s too large: %s", context.getSystemName(), key.size()));
         } else {
           LOG.error(
-              "Trying to output too large key with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              "Trying to output too large key for fused stage {} with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              context.getSystemName(),
               key.size(),
               context.getMaxOutputKeyBytes());
         }
       }
       if (value.size() > context.getMaxOutputValueBytes()) {
         if (context.throwExceptionsForLargeOutput()) {
-          throw new OutputTooLargeException("Value too large: " + value.size());
+          throw new OutputTooLargeException(
+              String.format(
+                  "Value for fused stage %s too large: %s", context.getSystemName(), value.size()));
         } else {
           LOG.error(
-              "Trying to output too large value with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              "Trying to output too large value for fused stage {} with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              context.getSystemName(),
               value.size(),
               context.getMaxOutputValueBytes());
         }

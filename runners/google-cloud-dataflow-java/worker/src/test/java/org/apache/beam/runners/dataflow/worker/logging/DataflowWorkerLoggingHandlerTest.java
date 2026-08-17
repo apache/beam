@@ -29,6 +29,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.logging.LogEntry;
 import com.google.cloud.logging.Payload;
 import com.google.cloud.logging.Severity;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.testing.exporter.InMemorySpanExporter;
+import io.opentelemetry.sdk.trace.SdkTracerProvider;
+import io.opentelemetry.sdk.trace.export.BatchSpanProcessor;
+import io.opentelemetry.sdk.trace.samplers.Sampler;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -106,11 +116,14 @@ public class DataflowWorkerLoggingHandlerTest {
 
   /** Encodes a LogRecord into a Json string. */
   private static String createJson(LogRecord record) throws IOException {
-    return createJson(record, null, null);
+    return createJson(record, null, null, null);
   }
 
   private static String createJson(
-      LogRecord record, @Nullable Formatter formatter, @Nullable Boolean enableMdc)
+      LogRecord record,
+      @Nullable Formatter formatter,
+      @Nullable Boolean enableMdc,
+      @Nullable Boolean openTelemetryTraceAndSpanId)
       throws IOException {
     ByteArrayOutputStream output = new ByteArrayOutputStream();
     FixedOutputStreamFactory factory = new FixedOutputStreamFactory(output);
@@ -121,6 +134,9 @@ public class DataflowWorkerLoggingHandlerTest {
     if (enableMdc != null) {
       handler.setLogMdc(enableMdc);
     }
+    if (openTelemetryTraceAndSpanId != null) {
+      handler.setLogOpenTelemetryTraceAndSpanId(openTelemetryTraceAndSpanId);
+    }
     // Format the record as JSON.
     handler.publish(record);
     // Decode the binary output as UTF-8 and return the generated string.
@@ -128,7 +144,7 @@ public class DataflowWorkerLoggingHandlerTest {
   }
 
   private static LogEntry createLogEntry(LogRecord record) throws IOException {
-    return createLogEntry(record, null, null);
+    return createLogEntry(record, null, null, null);
   }
 
   private static PipelineOptions pipelineOptionsForTest() {
@@ -144,7 +160,10 @@ public class DataflowWorkerLoggingHandlerTest {
   }
 
   private static LogEntry createLogEntry(
-      LogRecord record, @Nullable Formatter formatter, @Nullable Boolean enableMdc)
+      LogRecord record,
+      @Nullable Formatter formatter,
+      @Nullable Boolean enableMdc,
+      @Nullable Boolean openTelemetryTraceAndSpanId)
       throws IOException {
     ByteArrayOutputStream fileOutput = new ByteArrayOutputStream();
     FixedOutputStreamFactory factory = new FixedOutputStreamFactory(fileOutput);
@@ -154,6 +173,9 @@ public class DataflowWorkerLoggingHandlerTest {
     }
     if (enableMdc != null) {
       handler.setLogMdc(enableMdc);
+    }
+    if (openTelemetryTraceAndSpanId != null) {
+      handler.setLogOpenTelemetryTraceAndSpanId(openTelemetryTraceAndSpanId);
     }
     handler.enableDirectLogging(pipelineOptionsForTest(), Level.SEVERE, (e) -> {});
     return handler.constructDirectLogEntry(
@@ -227,7 +249,7 @@ public class DataflowWorkerLoggingHandlerTest {
     String testWorkId = "testWorkId";
 
     DataflowWorkerLoggingMDC.setJobId(testJobId);
-    DataflowWorkerLoggingMDC.setStageName(testStage);
+    DataflowWorkerLoggingMDC.setSystemStageName(testStage);
     DataflowWorkerLoggingMDC.setWorkerId(testWorkerId);
     DataflowWorkerLoggingMDC.setWorkId(testWorkId);
 
@@ -279,7 +301,8 @@ public class DataflowWorkerLoggingHandlerTest {
               + "\"message\":\"testMdcValue:test.message\",\"thread\":\"2\",\"job\":\"testJobId\","
               + "\"worker\":\"testWorkerId\",\"work\":\"testWorkId\",\"logger\":\"LoggerName\"}"
               + System.lineSeparator(),
-          createJson(createLogRecord("test.message", null /* throwable */), customFormatter, null));
+          createJson(
+              createLogRecord("test.message", null /* throwable */), customFormatter, null, null));
     }
   }
 
@@ -345,7 +368,7 @@ public class DataflowWorkerLoggingHandlerTest {
         "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
             + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\"}"
             + System.lineSeparator(),
-        createJson(createLogRecord(), null, true));
+        createJson(createLogRecord(), null, true, null));
   }
 
   @Test
@@ -369,7 +392,43 @@ public class DataflowWorkerLoggingHandlerTest {
               + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\","
               + "\"custom_data\":{\"key1\":\"cool value\",\"key2\":\"another\"}}"
               + System.lineSeparator(),
-          createJson(createLogRecord(), null, true));
+          createJson(createLogRecord(), null, true, null));
+    }
+  }
+
+  @Test
+  public void testWithOpenTelemetryTrace() throws IOException {
+    SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder()
+            .setSampler(Sampler.alwaysOn())
+            .addSpanProcessor(BatchSpanProcessor.builder(InMemorySpanExporter.create()).build())
+            .build();
+
+    // 2. Build the OpenTelemetry instance
+    OpenTelemetry openTelemetry =
+        OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .build(); // Automatically calls GlobalOpenTelemetry.set()
+    Tracer tracer = openTelemetry.getTracer("foo");
+    Span span = tracer.spanBuilder("test").startSpan();
+    try (Scope scope = span.makeCurrent()) {
+      SpanContext spanContext = Span.current().getSpanContext();
+      assertEquals(
+          "{\"timestamp\":{\"seconds\":0,\"nanos\":1000000},\"severity\":\"INFO\","
+              + "\"message\":\"test.message\",\"thread\":\"2\",\"logger\":\"LoggerName\","
+              + "\"trace\":\""
+              + spanContext.getTraceId()
+              + "\","
+              + "\"spanId\":\""
+              + spanContext.getSpanId()
+              + "\","
+              + "\"trace_sampled\":"
+              + spanContext.isSampled()
+              + "}"
+              + System.lineSeparator(),
+          createJson(createLogRecord(), null, false, true));
+    } finally {
+      span.end();
     }
   }
 
@@ -514,7 +573,7 @@ public class DataflowWorkerLoggingHandlerTest {
     String testWorkId = "testWorkId";
     String testJobId = "testJobId";
 
-    DataflowWorkerLoggingMDC.setStageName(testStage);
+    DataflowWorkerLoggingMDC.setSystemStageName(testStage);
     DataflowWorkerLoggingMDC.setWorkerId(testWorkerId);
     DataflowWorkerLoggingMDC.setWorkId(testWorkId);
     DataflowWorkerLoggingMDC.setJobId(testJobId);
@@ -560,7 +619,7 @@ public class DataflowWorkerLoggingHandlerTest {
     try (MDC.MDCCloseable ignored = MDC.putCloseable("testMdcKey", "testMdcValue")) {
       LogEntry entry =
           createLogEntry(
-              createLogRecord("test.message", null /* throwable */), customFormatter, null);
+              createLogRecord("test.message", null /* throwable */), customFormatter, null, null);
       assertEquals(
           Payload.JsonPayload.of(
               ImmutableMap.of(
@@ -630,7 +689,7 @@ public class DataflowWorkerLoggingHandlerTest {
 
   @Test
   public void testDirectLoggingWithCustomDataEnabledNoMdc() throws IOException {
-    LogEntry entry = createLogEntry(createLogRecord(), null, true);
+    LogEntry entry = createLogEntry(createLogRecord(), null, true, null);
     assertEquals(
         Payload.JsonPayload.of(
             ImmutableMap.of("message", "test.message", "thread", "2", "logger", "LoggerName")),
@@ -650,11 +709,35 @@ public class DataflowWorkerLoggingHandlerTest {
   }
 
   @Test
+  public void testDirectMethodWithOpenTelemetryTrace() throws IOException {
+    SdkTracerProvider tracerProvider =
+        SdkTracerProvider.builder()
+            .setSampler(Sampler.alwaysOn())
+            .addSpanProcessor(BatchSpanProcessor.builder(InMemorySpanExporter.create()).build())
+            .build();
+    OpenTelemetry openTelemetry =
+        OpenTelemetrySdk.builder()
+            .setTracerProvider(tracerProvider)
+            .build(); // Automatically calls GlobalOpenTelemetry.set()
+    Tracer tracer = openTelemetry.getTracer("foo");
+    Span span = tracer.spanBuilder("test").startSpan();
+    try (Scope ignored = span.makeCurrent()) {
+      SpanContext spanContext = Span.current().getSpanContext();
+      LogEntry entry = createLogEntry(createLogRecord(), null, null, true);
+      assertEquals(spanContext.getSpanId(), entry.getSpanId());
+      assertEquals(spanContext.getTraceId(), entry.getTrace());
+      assertEquals(spanContext.isSampled(), entry.getTraceSampled());
+    } finally {
+      span.end();
+    }
+  }
+
+  @Test
   public void testDirectLoggingWithCustomDataEnabledWithMdc() throws IOException {
     MDC.clear();
     try (MDC.MDCCloseable ignored = MDC.putCloseable("key1", "cool value");
         MDC.MDCCloseable ignored2 = MDC.putCloseable("key2", "another")) {
-      LogEntry entry = createLogEntry(createLogRecord(), null, true);
+      LogEntry entry = createLogEntry(createLogRecord(), null, true, null);
       assertEquals(
           Payload.JsonPayload.of(
               ImmutableMap.of(

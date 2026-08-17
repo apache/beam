@@ -45,6 +45,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWor
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
@@ -175,8 +176,8 @@ public class StreamingWorkScheduler {
         .setCacheToken(workItem.getCacheToken());
   }
 
-  private static void setLoggingContextComputation(@Nullable String computationId) {
-    DataflowWorkerLoggingMDC.setStageName(computationId);
+  private static void setLoggingContextComputation(@Nullable String systemStageName) {
+    DataflowWorkerLoggingMDC.setSystemStageName(systemStageName);
   }
 
   private static void setLoggingContextWorkId(@Nullable String workLatencyTrackingId) {
@@ -227,14 +228,11 @@ public class StreamingWorkScheduler {
       ComputationState computationState, Work work, BoundedQueueExecutorWorkHandle handle) {
     Windmill.WorkItem workItem = work.getWorkItem();
     String computationId = computationState.getComputationId();
-    LOG.debug("Starting processing for {}:\n{}", computationId, work);
-    setLoggingContextComputation(computationId);
+    String systemName = computationState.getSystemName();
+    LOG.debug("Starting processing for {}:\n{}", systemName, work);
+    setLoggingContextComputation(systemName);
     KeyTransitionListener keyTransitionListener = createKeyTransitionListener();
     keyTransitionListener.onKeyTransition(null, work);
-
-    // Before any processing starts, call any pending OnCommit callbacks.  Nothing that requires
-    // cleanup should be done before this, since we might exit early here.
-    commitFinalizer.finalizeCommits(workItem.getSourceState().getFinalizeIdsList());
 
     if (workItem.getSourceState().getOnlyFinalize()) {
       handleOnlyFinalize(computationState, work, workItem);
@@ -263,7 +261,8 @@ public class StreamingWorkScheduler {
       recordProcessingStats(workBatch, workItemCommits, executeWorkResult.stateBytesRead());
       LOG.debug("Processing done for work batch size: {}", workBatch.size());
     } catch (Throwable t) {
-      handleProcessWorkFailure(computationState, handle.getWorkBatch(), computationId, work, t);
+      handleProcessWorkFailure(
+          computationState, handle.getWorkBatch(), computationId, systemName, work, t);
     } finally {
       List<Work> processedWorkBatch = workBatch != null ? workBatch : ImmutableList.of(work);
       // Update total processing time counters. Updating in finally clause ensures that
@@ -323,8 +322,11 @@ public class StreamingWorkScheduler {
     try {
       StreamingModeExecutionContext context = computationWorkExecutor.context();
 
+      FailedWorkHandler onFailedWorkHandler = getFailedWorkHandler(computationState);
+
       // Blocks while executing work.
-      computationWorkExecutor.executeWork(work, workExecutor, handle, keyTransitionListener);
+      computationWorkExecutor.executeWork(
+          work, workExecutor, handle, keyTransitionListener, onFailedWorkHandler);
 
       List<Work> workBatch;
       List<Windmill.WorkItemCommitRequest> workItemCommits;
@@ -457,6 +459,7 @@ public class StreamingWorkScheduler {
       ComputationState computationState,
       List<Work> failedBatch,
       String computationId,
+      String systemName,
       Work primaryWork,
       Throwable t) {
     try {
@@ -466,19 +469,22 @@ public class StreamingWorkScheduler {
             ExecutableWork.create(w, (retry, h) -> processWork(computationState, retry, h)));
       }
 
+      FailedWorkHandler onFailedWorkHandler = getFailedWorkHandler(computationState);
+
       workFailureProcessor.logAndProcessFailureBatch(
-          computationId,
-          executableWorks,
-          t,
-          invalidWork ->
-              computationState.completeWorkAndScheduleNextWorkForKey(
-                  invalidWork.getShardedKey(), invalidWork.id()));
+          computationId, systemName, executableWorks, t, onFailedWorkHandler);
     } catch (OutOfMemoryError oom) {
       throw oom;
     } catch (Throwable t2) {
       LOG.warn("Failed to process work failure safely for work {}", primaryWork.id(), t2);
       throw ExceptionUtils.safeWrapThrowableAsException(t2);
     }
+  }
+
+  private static FailedWorkHandler getFailedWorkHandler(ComputationState computationState) {
+    return failedWork ->
+        computationState.completeWorkAndScheduleNextWorkForKey(
+            failedWork.getShardedKey(), failedWork.id());
   }
 
   private void recordProcessingTime(

@@ -383,6 +383,10 @@ public class DataflowWorkerLoggingInitializer {
       loggingHandler.setLogMdc(true);
     }
 
+    if (harnessOptions.getLogOpenTelemetryTraceAndSpanId()) {
+      loggingHandler.setLogOpenTelemetryTraceAndSpanId(true);
+    }
+
     if (usedDeprecated) {
       LOG.warn(
           "Deprecated DataflowWorkerLoggingOptions are used for log level settings."

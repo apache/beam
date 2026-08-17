@@ -51,6 +51,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
@@ -460,6 +461,12 @@ public class SchemaTranslationTest {
           .add(FieldType.logicalType(FixedString.of(10)))
           .add(FieldType.logicalType(VariableString.of(10)))
           .add(FieldType.logicalType(FixedPrecisionNumeric.of(10)))
+          .add(FieldType.logicalType(Timestamp.MILLIS))
+          .add(FieldType.logicalType(Timestamp.MICROS))
+          .add(FieldType.logicalType(Timestamp.NANOS))
+          // INT16/INT32 subseconds representation boundary.
+          .add(FieldType.logicalType(Timestamp.of(4)))
+          .add(FieldType.logicalType(Timestamp.of(5)))
           .add(FieldType.logicalType(new PortableNullArgLogicalType()))
           .add(FieldType.logicalType(new NullArgumentLogicalType()))
           .build();

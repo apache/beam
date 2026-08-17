@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadImplementation.SDF;
 import static org.apache.beam.sdk.io.kafka.KafkaIOTest.mkKafkaReadTransformWithOffsetDedup;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
@@ -30,6 +31,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.KafkaIOReadProperties;
 import org.apache.beam.sdk.io.kafka.KafkaIOTest.ValueAsTimestampFn;
@@ -160,6 +162,26 @@ public class KafkaIOReadImplementationCompatibilityTest {
             .map(topic -> String.format("kafka:`%s`.%s", KafkaIOTest.mkKafkaServers, topic))
             .toArray(String[]::new);
     assertThat(Lineage.query(r.metrics(), Lineage.Type.SOURCE), containsInAnyOrder(expect));
+  }
+
+  @Test
+  public void testDynamicReadUsesSdfWithoutBeamFnApiExperiment() {
+    KafkaIO.Read<Integer, Long> read =
+        KafkaIOTest.mkKafkaReadTransform(
+                1000,
+                null,
+                new ValueAsTimestampFn(),
+                false, /* redistribute */
+                false, /* allowDuplicates */
+                0, /* numKeys */
+                null, /* offsetDeduplication */
+                null, /* topics */
+                null /* redistributeByRecordKey */)
+            .withDynamicRead(Duration.standardMinutes(1));
+
+    assertThat(
+        KafkaIOReadImplementationCompatibility.getCompatibility(read).supportsOnly(SDF), is(true));
+    Pipeline.create().apply(read);
   }
 
   @Test
