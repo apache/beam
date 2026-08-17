@@ -39,6 +39,7 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -151,7 +152,8 @@ class WritePartitionedRowsToFiles
         writer.close();
       }
 
-      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), partitionPath);
+      // Serialize against the file's own spec
+      SerializableDataFile sdf = SerializableDataFile.from(writer.getDataFile(), table.specs());
       out.output(
           FileWriteResult.builder()
               .setTableIdentifier(destination.getTableIdentifier())
@@ -189,6 +191,8 @@ class WritePartitionedRowsToFiles
       @Nullable IcebergTableCreateConfig createConfig = destination.getTableCreateConfig();
       PartitionSpec partitionSpec =
           createConfig != null ? createConfig.getPartitionSpec() : PartitionSpec.unpartitioned();
+      SortOrder sortOrder =
+          createConfig != null ? createConfig.getSortOrder() : SortOrder.unsorted();
       Map<String, String> tableProperties =
           createConfig != null && createConfig.getTableProperties() != null
               ? createConfig.getTableProperties()
@@ -217,13 +221,19 @@ class WritePartitionedRowsToFiles
         org.apache.iceberg.Schema tableSchema = IcebergUtils.beamSchemaToIcebergSchema(dataSchema);
         try {
           Table table =
-              catalog.createTable(identifier, tableSchema, partitionSpec, tableProperties);
+              catalog
+                  .buildTable(identifier, tableSchema)
+                  .withPartitionSpec(partitionSpec)
+                  .withSortOrder(sortOrder)
+                  .withProperties(tableProperties)
+                  .create();
           LOG.info(
               "Created Iceberg table '{}' with schema: {}\n"
-                  + ", partition spec: {}, table properties: {}",
+                  + ", partition spec: {}, sort order: {}, table properties: {}",
               identifier,
               tableSchema,
               partitionSpec,
+              sortOrder,
               tableProperties);
           return table;
         } catch (AlreadyExistsException ignored) {

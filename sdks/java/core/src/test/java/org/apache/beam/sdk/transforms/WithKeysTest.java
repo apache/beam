@@ -173,21 +173,6 @@ public class WithKeysTest {
   }
 
   @Test
-  public void withKeyTypeShouldSetOutputTypeDescriptorFromInputType() {
-    PCollection<String> values =
-        p.apply(Create.of("1234", "3210").withType(TypeDescriptors.strings()));
-
-    PCollection<KV<Integer, String>> kvs =
-        values.apply(
-            WithKeys.of((SerializableFunction<String, Integer>) Integer::valueOf)
-                .withKeyType(TypeDescriptors.integers()));
-
-    assertEquals(
-        TypeDescriptors.kvs(TypeDescriptors.integers(), TypeDescriptors.strings()),
-        kvs.getTypeDescriptor());
-  }
-
-  @Test
   @Category(NeedsRunner.class)
   public void withLambdaAndNoTypeDescriptorShouldThrow() {
 

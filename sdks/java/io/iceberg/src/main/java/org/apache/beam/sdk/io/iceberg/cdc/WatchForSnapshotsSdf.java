@@ -62,10 +62,15 @@ import org.slf4j.LoggerFactory;
  * {@code @ProcessElement} claims the sequence numbers of newly discovered snapshots in
  * chronological order.
  *
- * <p>Uses a {@link Manual} watermark estimator. After emitting a snapshot, the watermark is set to
- * that snapshot's commit time. On empty polls, the watermark is bumped to {@code now() -
- * MAX_SNAPSHOT_DISCOVERY_DELAY} to prevent downstream windows from stalling indefinitely during
- * quiet periods.
+ * <p>Uses a {@link Manual} watermark estimator. After emitting a snapshot, the watermark is set
+ * just <i>past</i> that snapshot's timestamp, so its {@link SnapshotWindowFn} window can fire as
+ * soon as its records drain. On empty polls, the watermark is bumped to {@code now() -
+ * pollInterval} to prevent downstream windows from stalling indefinitely during quiet periods.
+ *
+ * <p>If a snapshot is somehow discovered after the watermark has already moved past its commit time
+ * (e.g. idle bump ran ahead of a slow/downed catalog), it will be emitted with its timestamp
+ * clamped to the current watermark instead. This guarantees that no snapshot is ever late, and no
+ * records are silently dropped.
  */
 @DoFn.UnboundedPerElement
 class WatchForSnapshotsSdf extends DoFn<String, Long> {
@@ -75,10 +80,10 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
 
   private static final Counter snapshotsEmitted =
       Metrics.counter(WatchForSnapshotsSdf.class, "snapshotsEmitted");
+  private static final Counter lateDiscoveredSnapshots =
+      Metrics.counter(WatchForSnapshotsSdf.class, "lateDiscoveredSnapshots");
   private static final Gauge latestEmittedSnapshotId =
       Metrics.gauge(WatchForSnapshotsSdf.class, "latestEmittedSnapshotId");
-  // TODO(ahmedabu98): consider exposing this as a config option
-  private static final Duration MAX_SNAPSHOT_DISCOVERY_DELAY = Duration.standardMinutes(5);
   private static final Long POLL_FOREVER = Long.MAX_VALUE;
 
   private final IcebergScanConfig scanConfig;
@@ -231,35 +236,45 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
       if (!tracker.tryClaim(snap.getSequenceNumber())) {
         return ProcessContinuation.stop();
       }
-      Instant ts = Instant.ofEpochMilli(snap.getTimestampMillis());
+      Instant commitTs = Instant.ofEpochMilli(snap.getTimestampMillis());
+      Instant ts = commitTs;
+      if (ts.isBefore(watermark.currentWatermark())) {
+        // The watermark already moved past this snapshot's commit time (e.g. the idle bump ran
+        // ahead of a slow discovery). Use the current watermark so the snapshot is not dropped
+        ts = watermark.currentWatermark();
+        lateDiscoveredSnapshots.inc();
+        LOG.warn(
+            "Snapshot {} (commit ts: {}) was discovered after the watermark already advanced "
+                + "to {}. Emitting it with the current watermark.",
+            snap.getSnapshotId(),
+            commitTs,
+            ts);
+      }
       out.outputWithTimestamp(snap.getSnapshotId(), ts);
 
-      if (watermark.currentWatermark().isBefore(ts)) {
-        watermark.setWatermark(ts);
-      }
+      // Advance just past `ts` so this snapshot's window can fire as
+      // soon as its records drain
+      watermark.setWatermark(ts.plus(Duration.millis(1)));
       snapshotsEmitted.inc();
       latestEmittedSnapshotId.set(snap.getSnapshotId());
       LOG.info(
-          "Emitted snapshot {} (sequence id: {}, commit ts: {})",
+          "Emitted snapshot {} (sequence id: {}, timestamp: {})",
           snap.getSnapshotId(),
           snap.getSequenceNumber(),
           ts);
     }
 
-    return pauseOrStop(watermark, bounded);
+    return continueOrStop(bounded);
   }
 
   /**
-   * On an empty poll, bump the watermark to {@code now() - MAX_SNAPSHOT_DISCOVERY_DELAY} so
-   * downstream windows can still fire. Returns {@code stop()} when end snapshot has been reached,
-   * otherwise {@code resume()} after the poll interval.
+   * On an empty poll, bump the watermark to {@code now() - pollInterval} so downstream windows and
+   * timers can make progress while the table is quiet. Returns {@code stop()} when end snapshot has
+   * been reached, otherwise {@code resume()} after the poll interval.
    */
   private ProcessContinuation pauseOrStop(
       ManualWatermarkEstimator<Instant> watermark, boolean bounded) {
-    Duration delay =
-        MoreObjects.firstNonNull(
-            scanConfig.getMaxSnapshotDiscoveryDelay(), MAX_SNAPSHOT_DISCOVERY_DELAY);
-    Instant idleWatermark = Instant.now().minus(delay);
+    Instant idleWatermark = Instant.now().minus(pollInterval);
     if (watermark.currentWatermark().isBefore(idleWatermark)) {
       LOG.info(
           "Sitting idle for {} seconds. Bumping watermark to {}",
@@ -268,6 +283,10 @@ class WatchForSnapshotsSdf extends DoFn<String, Long> {
           idleWatermark);
       watermark.setWatermark(idleWatermark);
     }
+    return continueOrStop(bounded);
+  }
+
+  private ProcessContinuation continueOrStop(boolean bounded) {
     return bounded
         ? ProcessContinuation.stop()
         : ProcessContinuation.resume().withResumeDelay(pollInterval);

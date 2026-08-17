@@ -27,6 +27,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoClientSettings.Builder;
 import com.mongodb.MongoCommandException;
+import com.mongodb.MongoDriverInformation;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -144,6 +145,9 @@ import org.slf4j.LoggerFactory;
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
+
+  private static final MongoDriverInformation DRIVER_INFO =
+      MongoDriverInformation.builder().driverName("Apache Beam").build();
 
   public static final String ERROR_MSG_QUERY_FN =
       " class is not supported. "
@@ -427,7 +431,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      try (MongoClient mongoClient = MongoClients.create(settings)) {
+      try (MongoClient mongoClient = MongoClients.create(settings, DRIVER_INFO)) {
         return getDocumentCount(mongoClient, database, collection);
       } catch (Exception e) {
         return -1;
@@ -459,7 +463,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      try (MongoClient mongoClient = MongoClients.create(settings)) {
+      try (MongoClient mongoClient = MongoClients.create(settings, DRIVER_INFO)) {
         try {
           return getEstimatedSizeBytes(mongoClient, database, collection);
         } catch (MongoCommandException exception) {
@@ -496,7 +500,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      try (MongoClient mongoClient = MongoClients.create(settings)) {
+      try (MongoClient mongoClient = MongoClients.create(settings, DRIVER_INFO)) {
         MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
 
         List<Document> splitKeys;
@@ -812,7 +816,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      return MongoClients.create(settings);
+      return MongoClients.create(settings, DRIVER_INFO);
     }
   }
 
@@ -1012,7 +1016,7 @@ public class MongoDbIO {
                     spec.ignoreSSLCertificate())
                 .applyConnectionString(new ConnectionString(uri))
                 .build();
-        client = MongoClients.create(settings);
+        client = MongoClients.create(settings, DRIVER_INFO);
       }
 
       @StartBundle
