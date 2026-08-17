@@ -32,12 +32,10 @@ import org.apache.beam.sdk.io.snowflake.enums.StreamingLogLevel;
 import org.apache.beam.sdk.io.snowflake.enums.WriteDisposition;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
+import org.checkerframework.checker.nullness.qual.EnsuresNonNullIf;
 import org.joda.time.Instant;
 
 /** Utilities shared by Snowflake schema transform providers. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class SnowflakeSchemaTransformUtils {
 
   public static SnowflakeIO.DataSourceConfiguration createDataSourceConfiguration(
@@ -55,11 +53,11 @@ public class SnowflakeSchemaTransformUtils {
     SnowflakeIO.DataSourceConfiguration configuration =
         SnowflakeIO.DataSourceConfiguration.create();
 
-    if (isNotEmpty(password)) {
+    if (isNotEmpty(password) && isNotEmpty(username)) {
       configuration = configuration.withUsernamePasswordAuth(username, password);
     } else if (isNotEmpty(oauthToken)) {
       configuration = configuration.withOAuth(oauthToken);
-    } else if (isNotEmpty(privateKey)) {
+    } else if (isNotEmpty(privateKey) && isNotEmpty(username)) {
       if (isNotEmpty(privateKeyPassphrase)) {
         configuration =
             configuration.withKeyPairRawAuth(username, privateKey, privateKeyPassphrase);
@@ -119,6 +117,7 @@ public class SnowflakeSchemaTransformUtils {
     }
   }
 
+  @EnsuresNonNullIf(expression = "#1", result = true)
   public static boolean isNotEmpty(@Nullable String value) {
     return value != null && !value.isEmpty();
   }
@@ -189,7 +188,7 @@ public class SnowflakeSchemaTransformUtils {
     return builder.build();
   }
 
-  public static Object toBeamValue(String value, Schema.Field field) {
+  public static @Nullable Object toBeamValue(String value, Schema.Field field) {
     if (value == null || value.isEmpty()) {
       if (field.getType().getNullable()) {
         return null;

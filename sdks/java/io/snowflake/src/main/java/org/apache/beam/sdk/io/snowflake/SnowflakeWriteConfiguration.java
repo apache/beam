@@ -139,6 +139,7 @@ public abstract class SnowflakeWriteConfiguration implements Serializable {
       throw new IllegalArgumentException("stagingBucketName must end with '/'");
     }
 
+    // Parse configured enum values to validate that they are supported.
     String createDisposition = getCreateDisposition();
     if (createDisposition != null) {
       parseCreateDisposition(createDisposition);

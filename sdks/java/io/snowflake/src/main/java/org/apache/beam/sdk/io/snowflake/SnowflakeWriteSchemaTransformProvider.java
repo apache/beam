@@ -36,9 +36,6 @@ import org.apache.beam.sdk.values.Row;
 import org.joda.time.Duration;
 
 /** A {@link SchemaTransformProvider} for writing Beam rows to Snowflake. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(SchemaTransformProvider.class)
 public class SnowflakeWriteSchemaTransformProvider
     extends TypedSchemaTransformProvider<SnowflakeWriteConfiguration> {
