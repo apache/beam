@@ -28,25 +28,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Kafka Streams {@link Processor} implementing Beam's {@code Flatten} primitive ({@code
- * beam:transform:flatten:v1}): the union of N input PCollections into one output PCollection.
+ * Kafka Streams {@link Processor} implementing Beam's {@code Flatten} primitive: the union of N
+ * input PCollections into one.
  *
- * <p><b>Data</b> records are forwarded straight through unchanged — the merge of the N parents'
- * data streams <em>is</em> the flatten.
+ * <p>Data records pass straight through — merging the parents' streams is the flatten. The work is
+ * in the watermark, which Flatten owns as GroupByKey does: a {@link WatermarkAggregator} over its
+ * inputs, forwarding its own watermark only when the minimum across them advances and stamping it
+ * as a single source. That holds the output back until every branch has reported, so a downstream
+ * GroupByKey cannot fire before all branches are drained.
  *
- * <p><b>Watermark</b> reports are where Flatten does real work, and it owns its output watermark
- * the same way GroupByKey does: it runs a {@link WatermarkAggregator} over its inputs, forwards its
- * own watermark only when the {@code min()} across them advances, and stamps that as a single
- * source ({@code 0 of 1}) to its downstream. This holds the output watermark back until
- * <em>every</em> input branch has reported, so a downstream GroupByKey does not fire before all
- * flattened branches are drained.
- *
- * <p>The {@link WatermarkAggregator} tells the input branches apart by the transform id each
- * branch's producer stamps on its watermark (Kafka Streams does not tell a processor which parent
- * forwarded a record). Each producer stamps its own identity regardless of who consumes it, so a
- * PCollection feeding several Flattens reports one identity and every Flatten still waits only for
- * the upstream transforms it expects — the set handed to it at construction from the pipeline
- * graph.
+ * <p>Branches are told apart by the transform id each producer stamps, since Kafka Streams does not
+ * say which parent forwarded a record. A producer stamps its own identity regardless of who
+ * consumes it, so a PCollection feeding several Flattens reports one identity and each Flatten
+ * still waits only for the upstream transforms handed to it at construction.
  */
 class FlattenProcessor
     implements Processor<byte[], KStreamsPayload<?>, byte[], KStreamsPayload<?>> {

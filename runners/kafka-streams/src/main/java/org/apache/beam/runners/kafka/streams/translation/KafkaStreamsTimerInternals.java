@@ -33,26 +33,19 @@ import org.joda.time.Instant;
  * A {@link TimerInternals} for one key, backed by two Kafka Streams stores shared by a GroupByKey.
  *
  * <p>Kafka Streams has no per-key timer service, so timers are persisted like any other state, in
- * two stores that serve the two ways a timer is looked up:
+ * two stores serving the two ways a timer is looked up. The identity store, keyed by {@code key |
+ * domain | timerFamily | timerId | namespace}, is how {@link #setTimer} overwrites and {@link
+ * #deleteTimer} removes exactly one timer as the contract requires; its value is the index key, so
+ * an overwritten timer's index entry can be removed without knowing what time it was set for. The
+ * index store, keyed by {@code domain | fireTimestamp | identity}, is how due timers are found: the
+ * timestamp is in the sortable form described on {@link StoreKeys}, so every event-time timer due
+ * at a watermark is one range scan rather than a scan of every timer of every key, and its value is
+ * the {@link TimerData} so firing needs no second lookup.
  *
- * <ul>
- *   <li>the <b>identity store</b>, keyed by {@code key | domain | timerFamily | timerId |
- *       namespace}, is how {@link #setTimer} overwrites and {@link #deleteTimer} removes exactly
- *       one timer, as {@link TimerInternals}' contract requires. Its value is the index key below,
- *       so a timer that is overwritten or deleted can have its index entry removed without knowing
- *       what time it had been set for.
- *   <li>the <b>index store</b>, keyed by {@code domain | fireTimestamp | identity}, is how due
- *       timers are found. Because the timestamp is written in the sortable form described on {@link
- *       StoreKeys}, all event-time timers due at a watermark are one range scan — {@link
- *       #dueEventTimeRangeStart} to {@link #dueEventTimeRangeEnd} — rather than a scan of every
- *       timer of every key. Its value is the {@link TimerData}, so firing needs no second lookup.
- * </ul>
- *
- * <p>Firing is driven by {@link WindowedGroupByKeyProcessor}: on a watermark advance it range-scans
- * the index for event-time timers that are due and replays them through {@link
- * org.apache.beam.runners.core.ReduceFnRunner#onTimers}.
- *
- * <p>This instance reports the times it was constructed with; it never fires timers itself.
+ * <p>Firing is driven by {@link WindowedGroupByKeyProcessor}, which range-scans the index on a
+ * watermark advance and replays due timers through {@link
+ * org.apache.beam.runners.core.ReduceFnRunner#onTimers}. This instance only reports the times it
+ * was constructed with; it never fires timers itself.
  */
 class KafkaStreamsTimerInternals implements TimerInternals {
 

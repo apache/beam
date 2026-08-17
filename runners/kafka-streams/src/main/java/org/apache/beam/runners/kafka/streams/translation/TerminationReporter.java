@@ -25,25 +25,19 @@ import org.apache.kafka.streams.processor.api.ProcessorContext;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * The bit of every watermark-emitting processor that reports it has finished, so a bounded pipeline
- * can stop itself. See {@link TerminationTracker} for why the runner has to work this out at all.
+ * The part of every watermark-emitting processor that reports it has finished, so a bounded
+ * pipeline can stop itself; see {@link TerminationTracker} for why that has to be worked out at
+ * all. A processor calls {@link #init} from {@code Processor#init}, passes every watermark it emits
+ * to {@link #watermarkEmitted}, and calls {@link #close} from {@code Processor#close}.
  *
- * <p>A processor creates one of these, calls {@link #init} from {@code Processor#init}, passes
- * every watermark it emits to {@link #watermarkEmitted}, and calls {@link #close} from {@code
- * Processor#close}.
+ * <p>The report is scheduled rather than made inline, because reporting from inside {@code
+ * process()} would announce the processor finished while it is still handling the record that
+ * carried the terminal watermark; deferring it lets flushing, forwarding and committing happen
+ * first.
  *
- * <h3>Why termination is scheduled rather than reported inline</h3>
- *
- * <p>Reporting from inside {@code process()} would announce the processor as finished while it is
- * still in the middle of handling the record that carried the terminal watermark. Scheduling a
- * punctuator instead defers the report until the current processing has completed, so anything that
- * has to happen after the final watermark — flushing a bundle, forwarding downstream, committing —
- * still runs first.
- *
- * <p>The punctuator is {@link PunctuationType#WALL_CLOCK_TIME} rather than stream time: no further
- * records arrive after the terminal watermark, so stream time would never advance and a stream-time
- * punctuator would never fire. The interval is the smallest Kafka Streams accepts — it rejects
- * anything below a millisecond with "The minimum supported scheduling interval is 1 millisecond."
+ * <p>It uses {@link PunctuationType#WALL_CLOCK_TIME}: no records arrive after the terminal
+ * watermark, so stream time would never advance and a stream-time punctuator would never fire. The
+ * interval is 1ms, the smallest Kafka Streams accepts.
  */
 class TerminationReporter {
 

@@ -42,37 +42,26 @@ import org.slf4j.LoggerFactory;
  * Kafka Streams {@link Processor} implementing Beam's deprecated primitive {@code Read}
  * (beam:transform:read:v1) over a {@link BoundedSource}.
  *
- * <p>For each task instance, reads the whole {@link BoundedSource} once and emits, in order:
+ * <p>Each task reads the whole source once, emitting one {@link KStreamsPayload#data data} payload
+ * per element in the {@link org.apache.beam.sdk.transforms.windowing.GlobalWindow} at its own event
+ * time, then a {@link KStreamsPayload#watermark watermark} at {@link
+ * BoundedWindow#TIMESTAMP_MAX_VALUE} to say the source is done.
  *
- * <ol>
- *   <li>One {@link KStreamsPayload#data data} payload per source element, each wrapping a {@link
- *       WindowedValue} in the {@link org.apache.beam.sdk.transforms.windowing.GlobalWindow} at the
- *       element's own event time (from {@link BoundedReader#getCurrentTimestamp()}).
- *   <li>A {@link KStreamsPayload#watermark watermark} payload at {@link
- *       BoundedWindow#TIMESTAMP_MAX_VALUE} telling downstream transforms the source is done.
- * </ol>
+ * <p><b>Wire form.</b> A Read produces decoded Java objects, but the harness's main-input receiver
+ * expects the runner-side wire form: a raw object for a model coder, a length-prefixed {@code
+ * byte[]} for a coder the runner does not know. Stage-to-stage edges already carry that form, so
+ * each element is transcoded here, encoded with the SDK-side wire coder and decoded with the
+ * runner-side one. The two are byte-compatible by construction, so this yields exactly what the
+ * receiver expects, nesting and all.
  *
- * <p><b>Wire form.</b> Unlike Impulse (whose element is already an opaque {@code byte[]}), a Read
- * produces <em>decoded</em> Java objects. Downstream {@link ExecutableStageProcessor} feeds
- * whatever it receives straight into the SDK harness, whose main-input receiver expects each
- * element in the runner-side wire form — a raw object for a model coder, but a length-prefixed
- * {@code byte[]} for a coder the runner does not know (e.g. {@code VarIntCoder}). Stage-to-stage
- * edges already carry that wire form because harness outputs are decoded with the runner-side wire
- * coder; this processor reproduces it for the source edge by transcoding each element through the
- * SDK-side wire coder (encode) and back through the runner-side wire coder (decode). The two are
- * byte-compatible by construction, so the transcode yields exactly the object the receiver expects,
- * nesting and all.
+ * <p>As in {@link ImpulseProcessor}, a state store records whether the elements were already
+ * emitted so a restart does not duplicate them, while the terminal watermark is re-emitted on every
+ * restart so downstream holds still release. A wall-clock punctuator scheduled in {@link #init}
+ * drives it, since the bootstrap topic is empty.
  *
- * <p>This mirrors {@link ImpulseProcessor}: a persistent state store records whether the elements
- * have already been emitted so task restarts do not duplicate them, while the terminal watermark is
- * re-emitted on every restart so downstream watermark holds still release after recovery. The
- * trigger is a wall-clock punctuator scheduled on {@link #init} so the processor fires even though
- * its bootstrap source topic is empty.
- *
- * <p>The source is read in a single instance with no splitting — parallelism across the source's
- * splits arrives with the topic-based shuffle work (#18479). Kafka Streams disallows negative
- * record timestamps, so each forwarded {@link Record} carries the Unix epoch ({@code 0L}); the Beam
- * event time lives inside the {@link WindowedValue}.
+ * <p>The source is read single-instance without splitting; parallel reads arrive with #18479. Kafka
+ * Streams rejects negative record timestamps, so each {@link Record} carries the Unix epoch and the
+ * Beam event time travels inside the {@link WindowedValue}.
  */
 class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayload<?>> {
 

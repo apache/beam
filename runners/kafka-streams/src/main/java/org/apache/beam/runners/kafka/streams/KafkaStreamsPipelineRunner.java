@@ -48,17 +48,13 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
 
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
-    // Surface a clear error if an option this runner needs is missing, instead of letting
-    // Properties.put fail with a raw NullPointerException further down. Only the options that are
-    // meaningful here are checked, rather than validating the whole interface: this runs on the job
-    // server, executing a pipeline that has already been submitted, so the client-side options
-    // PortablePipelineOptions marks required — jobEndpoint above all — do not apply. Flink's
-    // equivalent PortablePipelineRunner does not validate here either.
+    // Only the options meaningful here are checked, not the whole interface: this runs on the job
+    // server, so the client-side options PortablePipelineOptions marks required — jobEndpoint above
+    // all — do not apply. Flink's PortablePipelineRunner does not validate here either.
     checkRequiredOption("applicationId", pipelineOptions.getApplicationId());
     checkRequiredOption("bootstrapServers", pipelineOptions.getBootstrapServers());
-    // A topic cannot have fewer than one partition, and the value is also the number of watermark
-    // reports a shuffle's consumer waits for, so a non-positive value would leave it waiting
-    // forever rather than failing.
+    // Also the number of watermark reports a shuffle's consumer waits for, so a non-positive value
+    // would leave it waiting forever rather than failing.
     if (pipelineOptions.getInternalParallelism() < 1) {
       throw new IllegalArgumentException(
           "--internalParallelism must be at least 1, but was "
@@ -81,31 +77,26 @@ public class KafkaStreamsPipelineRunner implements PortablePipelineRunner {
         topology.describe());
 
     KafkaStreams kafkaStreams = new KafkaStreams(topology, streamsConfig(jobInfo));
-    // Kafka Streams reports a failed task by moving the client to ERROR and keeping the exception
-    // to itself, which left a failed job with nothing to say beyond "unknown error". Hold on to the
-    // first failure so this method can rethrow it: the job service turns what run() throws into the
-    // job's error message.
+    // Kafka Streams moves the client to ERROR and keeps the exception to itself, which left failed
+    // jobs saying only "unknown error". Keep the first failure so run() can rethrow it.
     AtomicReference<@Nullable Throwable> failure = new AtomicReference<>();
     kafkaStreams.setUncaughtExceptionHandler(
         throwable -> {
           failure.compareAndSet(null, throwable);
           LOG.error("Pipeline {} failed", jobInfo.jobId(), throwable);
-          // The pipeline is a job with an owner waiting on it, not a service to keep alive, so a
-          // failure stops the client rather than replacing the thread and carrying on.
+          // A job with an owner waiting on it, not a service: a failure stops the client.
           return StreamsUncaughtExceptionHandler.StreamThreadExceptionResponse.SHUTDOWN_CLIENT;
         });
-    // Build the result before starting: it registers a state listener, and Kafka Streams only
-    // accepts one while the application is still in the CREATED state.
+    // Before start(): Kafka Streams only accepts a state listener while still in CREATED.
     KafkaStreamsPortablePipelineResult result =
         new KafkaStreamsPortablePipelineResult(
             kafkaStreams,
             context.getMetricsContainerStepMap(),
-            // Only once every task is initialized are the processors that have registered the whole
-            // set, and only then can "all of them are finished" mean the pipeline is finished.
+            // Only once every task is initialized is the registered set complete, so that "all
+            // finished" can mean the pipeline is finished.
             context.getTerminationTracker()::started);
-    // A bounded pipeline finishes; Kafka Streams has no notion of that, so the runner stops the
-    // client itself once every processor has reached the terminal watermark. Registered before
-    // start(), so a pipeline that drains quickly cannot finish before anything is listening.
+    // Kafka Streams has no notion of a finished pipeline, so the runner stops the client once every
+    // processor reaches the terminal watermark. Registered before start() so a fast drain is seen.
     context
         .getTerminationTracker()
         .onAllTerminated(

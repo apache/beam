@@ -26,39 +26,24 @@ import org.slf4j.LoggerFactory;
 /**
  * Decides when a bounded pipeline has finished, so the Kafka Streams client can be stopped.
  *
- * <p>Kafka Streams has no notion of a processor being finished: a topology runs until something
- * closes the client. A bounded Beam pipeline does finish, though, and the runner already knows
- * when: every processor emits a watermark of {@link
+ * <p>Kafka Streams has no notion of a finished processor; a topology runs until something closes
+ * the client. A bounded pipeline does finish, and the runner already knows when, because every
+ * processor emits {@link
  * org.apache.beam.sdk.transforms.windowing.BoundedWindow#TIMESTAMP_MAX_VALUE} once its input is
- * exhausted. This class collects those reports and fires a callback when there is nothing left to
- * do.
+ * exhausted. This collects those reports and fires a callback when nothing is left to do.
  *
- * <h3>Why no coordination between instances is needed</h3>
+ * <p>No coordination between instances is needed: a watermark crossing a repartition topic is
+ * broadcast to every partition (see {@link GroupByKeyBroadcastPartitioner}), so every task observes
+ * the terminal watermark itself and all instances reach the same conclusion independently.
  *
- * <p>A watermark that crosses a repartition topic is broadcast to <em>every</em> partition (see
- * {@link GroupByKeyBroadcastPartitioner}), so every task of every downstream transform observes the
- * terminal watermark on its own, whichever instance it happens to run on. Each instance can
- * therefore decide to stop from what it sees locally, and they all reach the same conclusion
- * without talking to each other.
+ * <p>Every local processor is counted, not just the first. One instance can own tasks from both
+ * sides of a repartition topic, and the upstream side goes terminal as soon as it has written to
+ * the topic while the downstream side still has to consume it. Stopping at the first would drop
+ * that work and still report success.
  *
- * <h3>Why every local processor has to be counted, not just the first</h3>
- *
- * <p>One instance can own tasks from both sides of a repartition topic. The upstream side goes
- * terminal as soon as it has written its data to the topic, while the downstream side still has to
- * consume it. Stopping the client when the first processor finishes would cut that downstream work
- * off and report the pipeline as done having silently dropped it. So the callback only fires once
- * every processor instance registered here has terminated.
- *
- * <p>An instance that happens to own only upstream tasks still terminates on its own, which is
- * correct: what it wrote is durable in the topic for whichever instance reads it.
- *
- * <h3>Scope</h3>
- *
- * <p>One tracker belongs to one pipeline, not to the JVM. The job server runs many jobs in a single
- * process, so a shared static tracker would let one pipeline finishing tear down another.
- *
- * <p>A pipeline with an unbounded source never produces a terminal watermark, so the callback never
- * fires and the client keeps running — which is the intended behaviour for a streaming job.
+ * <p>A tracker belongs to one pipeline rather than to the JVM: the job server runs many jobs in one
+ * process, and a static tracker would let one job stop another. An unbounded pipeline never
+ * produces a terminal watermark, so the callback never fires and the client keeps running.
  */
 public class TerminationTracker {
 
