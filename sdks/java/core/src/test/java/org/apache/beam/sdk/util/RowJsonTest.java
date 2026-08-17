@@ -30,6 +30,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
@@ -80,7 +82,8 @@ public class RowJsonTest {
           makeArrayOfArraysTestCase(),
           makeNestedRowTestCase(),
           makeDoublyNestedRowTestCase(),
-          makeNullsTestCase());
+          makeNullsTestCase(),
+          makeMapFieldTestCase());
     }
 
     private static Object[] makeFlatRowTestCase() {
@@ -242,6 +245,21 @@ public class RowJsonTest {
       Row expectedRow = Row.withSchema(schema).addValues((byte) 12, null).build();
 
       return new Object[] {"Nulls", schema, rowString, expectedRow};
+    }
+
+    private static Object[] makeMapFieldTestCase() {
+      Schema schema =
+          Schema.builder().addMapField("f_map", FieldType.STRING, FieldType.INT32).build();
+
+      String rowString = "{\n" + "\"f_map\" : {\"key1\": 1, \"key2\": 2}\n" + "}";
+
+      Map<String, Integer> expectedMap = new HashMap<>();
+      expectedMap.put("key1", 1);
+      expectedMap.put("key2", 2);
+
+      Row expectedRow = Row.withSchema(schema).addValues(expectedMap).build();
+
+      return new Object[] {"Map field", schema, rowString, expectedRow};
     }
 
     @Test
@@ -562,6 +580,12 @@ public class RowJsonTest {
     @Test
     public void testSupportedDatetimeConversions() throws Exception {
       testSupportedConversion(FieldType.DATETIME, quoted(DATETIME_STRING), DATETIME_VALUE);
+    }
+
+    @Test
+    public void testSupportedDatetimeWithSpaceConversions() throws Exception {
+      String datetimeWithSpace = DATETIME_STRING.replace('T', ' ');
+      testSupportedConversion(FieldType.DATETIME, quoted(datetimeWithSpace), DATETIME_VALUE);
     }
 
     private void testSupportedConversion(

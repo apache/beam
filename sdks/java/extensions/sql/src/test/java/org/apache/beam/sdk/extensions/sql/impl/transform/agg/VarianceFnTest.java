@@ -26,6 +26,7 @@ import java.math.BigDecimal;
 import java.util.Arrays;
 import org.apache.beam.sdk.coders.CoderRegistry;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.schemas.Schema;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -51,18 +52,38 @@ public class VarianceFnTest {
             VarianceFn.newSample(BigDecimal::intValue),
             newVarianceAccumulator(FIFTEEN, FOUR, ZERO),
             5
+          },
+          {
+            VarianceFn.newPopulationStddev(Schema.TypeName.INT32),
+            newVarianceAccumulator(new BigDecimal(36), new BigDecimal(4), ZERO),
+            3
+          },
+          {
+            VarianceFn.newSampleStddev(Schema.TypeName.INT32),
+            newVarianceAccumulator(new BigDecimal(36), new BigDecimal(5), ZERO),
+            3
+          },
+          {
+            VarianceFn.newPopulationStddev(Schema.TypeName.DOUBLE),
+            newVarianceAccumulator(new BigDecimal("1e700"), BigDecimal.ONE, ZERO),
+            Double.POSITIVE_INFINITY
+          },
+          {
+            VarianceFn.newPopulationStddev(Schema.TypeName.FLOAT),
+            newVarianceAccumulator(new BigDecimal("1e700"), BigDecimal.ONE, ZERO),
+            Float.POSITIVE_INFINITY
           }
         });
   }
 
   private VarianceFn varianceFn;
   private VarianceAccumulator testAccumulatorInput;
-  private int expectedExtractedResult;
+  private Object expectedExtractedResult;
 
   public VarianceFnTest(
       VarianceFn varianceFn,
       VarianceAccumulator testAccumulatorInput,
-      int expectedExtractedResult) {
+      Object expectedExtractedResult) {
 
     this.varianceFn = varianceFn;
     this.testAccumulatorInput = testAccumulatorInput;

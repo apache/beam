@@ -1,0 +1,374 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.delta;
+
+import com.google.auto.value.AutoValue;
+import io.delta.kernel.Snapshot;
+import io.delta.kernel.Table;
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.engine.Engine;
+import io.delta.kernel.internal.TableImpl;
+import io.delta.kernel.types.ArrayType;
+import io.delta.kernel.types.BinaryType;
+import io.delta.kernel.types.BooleanType;
+import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
+import io.delta.kernel.types.DoubleType;
+import io.delta.kernel.types.FloatType;
+import io.delta.kernel.types.IntegerType;
+import io.delta.kernel.types.LongType;
+import io.delta.kernel.types.MapType;
+import io.delta.kernel.types.StringType;
+import io.delta.kernel.types.StructField;
+import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampType;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.annotations.Internal;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.values.PBegin;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.Row;
+import org.apache.hadoop.conf.Configuration;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+/**
+ * A connector that reads from <a href="https://delta.io/">Delta Lake</a> tables.
+ *
+ * <h2>Configuration Options</h2>
+ *
+ * Please check the <a href="https://beam.apache.org/documentation/io/managed-io/">Managed IO
+ * configuration page</a> for more details.
+ *
+ * <p>This is work in progress and is subject to change. For more details and to track progress, see
+ * <a href="https://github.com/apache/beam/issues/21100">Issue 21100</a>.
+ */
+@Internal
+public class DeltaIO {
+
+  public static final String CHANGE_TYPE_COLUMN = "_change_type";
+  public static final String COMMIT_VERSION_COLUMN = "_commit_version";
+  public static final String COMMIT_TIMESTAMP_COLUMN = "_commit_timestamp";
+
+  /**
+   * Reads rows from a Delta Lake table.
+   *
+   * <p>Normally, it is recommended to use {@link org.apache.beam.sdk.managed.Managed#read(String)}
+   * with {@code Managed.DELTA_LAKE} instead of directly using this transform.
+   */
+  public static ReadRows readRows() {
+    return new AutoValue_DeltaIO_ReadRows.Builder().build();
+  }
+
+  /** Reads change data feed (CDC) from a Delta Lake table. */
+  public static ReadChanges readChanges() {
+    return new AutoValue_DeltaIO_ReadChanges.Builder().build();
+  }
+
+  @AutoValue
+  public abstract static class ReadRows extends PTransform<PBegin, PCollection<Row>> {
+
+    public abstract @Nullable String getTablePath();
+
+    public abstract @Nullable Long getVersion();
+
+    public abstract @Nullable String getTimestamp();
+
+    public abstract @Nullable Map<String, String> getHadoopConfig();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setTablePath(String tablePath);
+
+      abstract Builder setVersion(@Nullable Long version);
+
+      abstract Builder setTimestamp(@Nullable String timestamp);
+
+      abstract Builder setHadoopConfig(@Nullable Map<String, String> hadoopConfig);
+
+      abstract ReadRows build();
+    }
+
+    public ReadRows from(String tablePath) {
+      return toBuilder().setTablePath(tablePath).build();
+    }
+
+    public ReadRows withVersion(@Nullable Long version) {
+      return toBuilder().setVersion(version).build();
+    }
+
+    public ReadRows withTimestamp(@Nullable String timestamp) {
+      return toBuilder().setTimestamp(timestamp).build();
+    }
+
+    public ReadRows withConfig(Map<String, String> config) {
+      return toBuilder().setHadoopConfig(config).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      String path = getTablePath();
+      if (path == null) {
+        throw new IllegalArgumentException("Table path must be set.");
+      }
+      if (getTimestamp() != null) {
+        throw new UnsupportedOperationException(
+            "Reading from a specific timestamp is not supported yet");
+      }
+
+      if (getVersion() != null) {
+        throw new UnsupportedOperationException(
+            "Reading from a specific version is not supported yet");
+      }
+
+      Configuration conf = new Configuration();
+      Map<String, String> hadoopConfig = getHadoopConfig();
+      if (hadoopConfig != null) {
+        for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+          conf.set(entry.getKey(), entry.getValue());
+        }
+      }
+      Engine engine = DefaultEngine.create(conf);
+      Table table = Table.forPath(engine, path);
+      io.delta.kernel.Snapshot snapshot = table.getLatestSnapshot(engine);
+      StructType deltaSchema = snapshot.getSchema();
+      if (deltaSchema == null) {
+        throw new IllegalStateException("Table schema is null.");
+      }
+      Schema beamSchema = convertToBeamSchema(deltaSchema);
+
+      return input
+          .apply("Create Path", Create.of(path))
+          .apply("Plan Files", ParDo.of(new CreateReadTasksDoFn(hadoopConfig)))
+          .apply("Read Logical Data", ParDo.of(new DeltaSourceDoFn(hadoopConfig)))
+          .setRowSchema(beamSchema);
+    }
+
+    static Schema convertToBeamSchema(StructType deltaSchema) {
+      Schema.Builder builder = Schema.builder();
+      for (StructField field : deltaSchema.fields()) {
+        builder.addField(
+            Schema.Field.of(field.getName(), convertToBeamFieldType(field.getDataType()))
+                .withNullable(field.isNullable()));
+      }
+      return builder.build();
+    }
+
+    static Schema.FieldType convertToBeamFieldType(DataType deltaType) {
+      if (deltaType instanceof StringType) {
+        return Schema.FieldType.STRING;
+      } else if (deltaType instanceof IntegerType) {
+        return Schema.FieldType.INT32;
+      } else if (deltaType instanceof LongType) {
+        return Schema.FieldType.INT64;
+      } else if (deltaType instanceof FloatType) {
+        return Schema.FieldType.FLOAT;
+      } else if (deltaType instanceof DoubleType) {
+        return Schema.FieldType.DOUBLE;
+      } else if (deltaType instanceof BooleanType) {
+        return Schema.FieldType.BOOLEAN;
+      } else if (deltaType instanceof BinaryType) {
+        return Schema.FieldType.BYTES;
+      } else if (deltaType instanceof TimestampType) {
+        return Schema.FieldType.DATETIME;
+      } else if (deltaType instanceof DateType) {
+        return Schema.FieldType.DATETIME;
+      } else if (deltaType instanceof ArrayType) {
+        DataType elementType = ((ArrayType) deltaType).getElementType();
+        return Schema.FieldType.iterable(convertToBeamFieldType(elementType));
+      } else if (deltaType instanceof MapType) {
+        DataType keyType = ((MapType) deltaType).getKeyType();
+        DataType valueType = ((MapType) deltaType).getValueType();
+        return Schema.FieldType.map(
+            convertToBeamFieldType(keyType), convertToBeamFieldType(valueType));
+      } else if (deltaType instanceof StructType) {
+        return Schema.FieldType.row(convertToBeamSchema((StructType) deltaType));
+      } else {
+        throw new UnsupportedOperationException("Unsupported Delta type: " + deltaType.getClass());
+      }
+    }
+  }
+
+  static Schema buildPublicBeamSchema(Schema baseSchema, @Nullable List<String> metadataColumns) {
+    if (metadataColumns == null || metadataColumns.isEmpty()) {
+      return baseSchema;
+    }
+    Schema.Builder builder = Schema.builder();
+    for (Schema.Field field : baseSchema.getFields()) {
+      builder.addField(field);
+    }
+    for (String col : metadataColumns) {
+      if (col.equals(CHANGE_TYPE_COLUMN)) {
+        builder.addField(CHANGE_TYPE_COLUMN, Schema.FieldType.STRING);
+      } else if (col.equals(COMMIT_VERSION_COLUMN)) {
+        builder.addField(COMMIT_VERSION_COLUMN, Schema.FieldType.INT64);
+      } else if (col.equals(COMMIT_TIMESTAMP_COLUMN)) {
+        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME);
+      }
+    }
+    return builder.build();
+  }
+
+  @AutoValue
+  public abstract static class ReadChanges extends PTransform<PBegin, PCollection<Row>> {
+    public abstract @Nullable String getTablePath();
+
+    public abstract @Nullable Long getStartVersion();
+
+    public abstract @Nullable String getStartTimestamp();
+
+    public abstract @Nullable Long getEndVersion();
+
+    public abstract @Nullable String getEndTimestamp();
+
+    public abstract @Nullable List<String> getMetadataColumns();
+
+    public abstract @Nullable Map<String, String> getHadoopConfig();
+
+    abstract Builder toBuilder();
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setTablePath(String tablePath);
+
+      abstract Builder setStartVersion(@Nullable Long startVersion);
+
+      abstract Builder setStartTimestamp(@Nullable String startTimestamp);
+
+      abstract Builder setEndVersion(@Nullable Long endVersion);
+
+      abstract Builder setEndTimestamp(@Nullable String endTimestamp);
+
+      abstract Builder setMetadataColumns(@Nullable List<String> metadataColumns);
+
+      abstract Builder setHadoopConfig(@Nullable Map<String, String> hadoopConfig);
+
+      abstract ReadChanges build();
+    }
+
+    public ReadChanges from(String tablePath) {
+      return toBuilder().setTablePath(tablePath).build();
+    }
+
+    public ReadChanges withStartVersion(long startVersion) {
+      return toBuilder().setStartVersion(startVersion).build();
+    }
+
+    public ReadChanges withStartTimestamp(String startTimestamp) {
+      return toBuilder().setStartTimestamp(startTimestamp).build();
+    }
+
+    public ReadChanges withEndVersion(long endVersion) {
+      return toBuilder().setEndVersion(endVersion).build();
+    }
+
+    public ReadChanges withEndTimestamp(String endTimestamp) {
+      return toBuilder().setEndTimestamp(endTimestamp).build();
+    }
+
+    public ReadChanges withMetadataColumns(String... metadataColumns) {
+      for (String col : metadataColumns) {
+        if (!col.equals(CHANGE_TYPE_COLUMN)
+            && !col.equals(COMMIT_VERSION_COLUMN)
+            && !col.equals(COMMIT_TIMESTAMP_COLUMN)) {
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unsupported metadata column %s. Supported columns are: %s, %s, and %s.",
+                  col, CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN, COMMIT_TIMESTAMP_COLUMN));
+        }
+      }
+      return toBuilder().setMetadataColumns(Arrays.asList(metadataColumns)).build();
+    }
+
+    public ReadChanges withConfig(Map<String, String> config) {
+      return toBuilder().setHadoopConfig(config).build();
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      String path = getTablePath();
+      if (path == null) {
+        throw new IllegalArgumentException("Table path must be set.");
+      }
+      if (getStartVersion() == null && getStartTimestamp() == null) {
+        // TODO: for unbounded reads, support using current HEAD or the latest snapshot
+        // as the default starting point.
+        throw new IllegalArgumentException("Either startVersion or startTimestamp must be set.");
+      }
+      if (getStartVersion() != null && getStartTimestamp() != null) {
+        throw new IllegalArgumentException("Cannot set both startVersion and startTimestamp.");
+      }
+      if (getEndVersion() != null && getEndTimestamp() != null) {
+        throw new IllegalArgumentException("Cannot set both endVersion and endTimestamp.");
+      }
+
+      Configuration conf = new Configuration();
+      Map<String, String> hadoopConfig = getHadoopConfig();
+      if (hadoopConfig != null) {
+        for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
+          conf.set(entry.getKey(), entry.getValue());
+        }
+      }
+      Engine engine = DefaultEngine.create(conf);
+      Table table = Table.forPath(engine, path);
+
+      TableImpl tableImpl = (TableImpl) table;
+
+      long resolvedEndVersion;
+      Long endVersionVal = getEndVersion();
+      String endTimestampVal = getEndTimestamp();
+      if (endVersionVal != null) {
+        resolvedEndVersion = endVersionVal;
+      } else if (endTimestampVal != null) {
+        long endMillis = java.time.Instant.parse(endTimestampVal).toEpochMilli();
+        resolvedEndVersion = tableImpl.getVersionBeforeOrAtTimestamp(engine, endMillis);
+      } else {
+        resolvedEndVersion = table.getLatestSnapshot(engine).getVersion();
+      }
+
+      Snapshot endSnapshot = table.getSnapshotAsOfVersion(engine, resolvedEndVersion);
+      StructType deltaSchema = endSnapshot.getSchema();
+      if (deltaSchema == null) {
+        throw new IllegalStateException("Table schema is null.");
+      }
+      Schema baseSchema = ReadRows.convertToBeamSchema(deltaSchema);
+      Schema publicBeamSchema = buildPublicBeamSchema(baseSchema, getMetadataColumns());
+
+      return input
+          .apply("Create Path", Create.of(path))
+          .apply(
+              "Plan CDF Files",
+              ParDo.of(
+                  new CreateCDCReadTasksDoFn(
+                      hadoopConfig,
+                      getStartVersion(),
+                      getStartTimestamp(),
+                      getEndVersion(),
+                      getEndTimestamp())))
+          .apply(
+              "Read CDF Data", ParDo.of(new DeltaCDCSourceDoFn(hadoopConfig, getMetadataColumns())))
+          .setRowSchema(publicBeamSchema);
+    }
+  }
+}

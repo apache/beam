@@ -64,6 +64,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.LocalDate;
 import org.joda.time.chrono.ISOChronology;
 
@@ -256,7 +257,7 @@ class SingleStoreDefaultRowMapper
         return null;
       }
       return new DateTime(time.getTime(), ISOChronology.getInstanceUTC())
-          .withDate(new LocalDate(0L));
+          .withDate(new LocalDate(0L, DateTimeZone.UTC));
     }
 
     @Override

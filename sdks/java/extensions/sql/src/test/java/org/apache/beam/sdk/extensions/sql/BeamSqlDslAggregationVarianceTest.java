@@ -30,7 +30,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 
-/** Integration tests for {@code VAR_POP} and {@code VAR_SAMP}. */
+/**
+ * Integration tests for {@code VAR_POP}, {@code VAR_SAMP}, {@code STDDEV_POP} and {@code
+ * STDDEV_SAMP}.
+ */
 public class BeamSqlDslAggregationVarianceTest {
 
   private static final double PRECISION = 1e-7;
@@ -91,6 +94,44 @@ public class BeamSqlDslAggregationVarianceTest {
     String sql = "SELECT VAR_SAMP(f_int) FROM PCOLLECTION GROUP BY f_int2";
 
     PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(30));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPopulationStddevDouble() {
+    String sql = "SELECT STDDEV_POP(f_double) FROM PCOLLECTION GROUP BY f_int2";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
+        .satisfies(matchesScalar(5.138887357, PRECISION));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testPopulationStddevInt() {
+    String sql = "SELECT STDDEV_POP(f_int) FROM PCOLLECTION GROUP BY f_int2";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(5));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSampleStddevDouble() {
+    String sql = "SELECT STDDEV_SAMP(f_double) FROM PCOLLECTION GROUP BY f_int2";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql)))
+        .satisfies(matchesScalar(5.550632739, PRECISION));
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testSampleStddevInt() {
+    String sql = "SELECT STDDEV_SAMP(f_int) FROM PCOLLECTION GROUP BY f_int2";
+
+    PAssert.that(boundedInput.apply(SqlTransform.query(sql))).satisfies(matchesScalar(5));
 
     pipeline.run().waitUntilFinish();
   }

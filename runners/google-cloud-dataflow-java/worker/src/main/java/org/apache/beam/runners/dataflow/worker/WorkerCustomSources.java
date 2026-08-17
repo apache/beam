@@ -824,6 +824,7 @@ public class WorkerCustomSources {
       }
       try {
         if (!reader.start()) {
+          context.finishKey();
           return false;
         }
       } catch (Exception e) {
@@ -841,10 +842,13 @@ public class WorkerCustomSources {
       // that there are regular checkpoints and that state does not become too large.
       BackOff backoff = backoffFactory.backoff();
       while (true) {
+        if (context.workIsFailed()) {
+          throw new WorkItemCancelledException(context.getWorkItem().getShardingKey());
+        }
         if (elemsRead >= maxElems
             || Instant.now().isAfter(endTime)
-            || context.isSinkFullHintSet()
-            || context.workIsFailed()) {
+            || context.isSinkFullHintSet()) {
+          context.finishKey();
           return false;
         }
         try {
@@ -857,6 +861,7 @@ public class WorkerCustomSources {
         }
         long nextBackoff = backoff.nextBackOffMillis();
         if (nextBackoff == BackOff.STOP) {
+          context.finishKey();
           return false;
         }
         Uninterruptibles.sleepUninterruptibly(nextBackoff, TimeUnit.MILLISECONDS);

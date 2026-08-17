@@ -35,6 +35,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -115,6 +116,7 @@ import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQuerySinkMetrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslation;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.auth.MoreCallCredentials;
@@ -207,7 +209,7 @@ public final class StreamingDataflowWorker {
   private StreamingDataflowWorker(
       WindmillServerStub windmillServer,
       long clientId,
-      ComputationConfig.Fetcher configFetcher,
+      Fetcher configFetcher,
       ComputationStateCache computationStateCache,
       WindmillStateCache windmillStateCache,
       BoundedQueueExecutor workUnitExecutor,
@@ -224,7 +226,8 @@ public final class StreamingDataflowWorker {
       GrpcWindmillStreamFactory windmillStreamFactory,
       ScheduledExecutorService activeWorkRefreshExecutorFn,
       ConcurrentMap<String, StageInfo> stageInfoMap,
-      @Nullable GrpcDispatcherClient dispatcherClient) {
+      @Nullable GrpcDispatcherClient dispatcherClient,
+      MultiKeyBundleOptions multiKeyBundleOptions) {
     // Register standard file systems.
     FileSystems.setDefaultPipelineOptions(options);
     this.configFetcher = configFetcher;
@@ -253,6 +256,7 @@ public final class StreamingDataflowWorker {
     this.streamingWorkScheduler =
         StreamingWorkScheduler.create(
             options,
+            multiKeyBundleOptions,
             clock,
             readerCache,
             mapTaskExecutorFactory,
@@ -308,9 +312,6 @@ public final class StreamingDataflowWorker {
         new ActiveWorkRefresher(
             clock,
             options.getActiveWorkRefreshPeriodMillis(),
-            options.isEnableStreamingEngine()
-                ? Math.max(options.getStuckCommitDurationMillis(), 0)
-                : 0,
             computationStateCache::getAllPresentComputations,
             sampler,
             activeWorkRefreshExecutorFn,
@@ -318,7 +319,10 @@ public final class StreamingDataflowWorker {
 
     this.statusPages.set(
         createStatusPageBuilder(
-                this.options, this.windmillStreamFactory, this.memoryMonitor.memoryMonitor())
+                this.options,
+                this.windmillStreamFactory,
+                this.memoryMonitor.memoryMonitor(),
+                this::isHealthy)
             .setClock(this.clock)
             .setClientId(this.clientId)
             .setIsRunning(this.running)
@@ -570,7 +574,10 @@ public final class StreamingDataflowWorker {
     }
     this.statusPages.set(
         createStatusPageBuilder(
-                this.options, this.windmillStreamFactory, this.memoryMonitor.memoryMonitor())
+                this.options,
+                this.windmillStreamFactory,
+                this.memoryMonitor.memoryMonitor(),
+                this::isHealthy)
             .setClock(this.clock)
             .setClientId(this.clientId)
             .setIsRunning(this.running)
@@ -587,12 +594,28 @@ public final class StreamingDataflowWorker {
     LOG.info("Started new StreamingWorkerStatusPages instance.");
   }
 
+  @VisibleForTesting
+  boolean isHealthy() {
+    int stuckCommitDurationMillis =
+        options.isEnableStreamingEngine() ? Math.max(options.getStuckCommitDurationMillis(), 0) : 0;
+    if (stuckCommitDurationMillis > 0) {
+      Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
+      for (ComputationState computationState : computationStateCache.getAllPresentComputations()) {
+        if (computationState.hasStuckCommits(stuckCommitDeadline)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   private static StreamingWorkerStatusPages.Builder createStatusPageBuilder(
       DataflowWorkerHarnessOptions options,
       GrpcWindmillStreamFactory windmillStreamFactory,
-      MemoryMonitor memoryMonitor) {
+      MemoryMonitor memoryMonitor,
+      BooleanSupplier healthyIndicator) {
     WorkerStatusPages workerStatusPages =
-        WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
+        WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor, healthyIndicator);
 
     StreamingWorkerStatusPages.Builder streamingStatusPages =
         StreamingWorkerStatusPages.builder().setStatusPages(workerStatusPages);
@@ -623,7 +646,8 @@ public final class StreamingDataflowWorker {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
     StreamingCounters streamingCounters = StreamingCounters.create();
     WorkUnitClient dataflowServiceClient = new DataflowWorkUnitClient(options, LOG);
-    BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
+    MultiKeyBundleOptions multiKeyBundleOptions = MultiKeyBundleOptions.fromOptions(options);
+    BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options, multiKeyBundleOptions);
     ScheduledExecutorService commitFinalizerCleanupExecutor =
         Executors.newScheduledThreadPool(
             1,
@@ -722,7 +746,8 @@ public final class StreamingDataflowWorker {
         Executors.newSingleThreadScheduledExecutor(
             new ThreadFactoryBuilder().setNameFormat("RefreshWork").build()),
         stageInfo,
-        configFetcherComputationStateCacheAndWindmillClient.windmillDispatcherClient());
+        configFetcherComputationStateCacheAndWindmillClient.windmillDispatcherClient(),
+        multiKeyBundleOptions);
   }
 
   /**
@@ -752,6 +777,8 @@ public final class StreamingDataflowWorker {
                   new WorkHeartbeatResponseProcessor(computationStateCache::get))
               .setHealthCheckIntervalMillis(
                   options.getWindmillServiceStreamingRpcHealthCheckPeriodMs())
+              .setCommitWorkStreamRetryTimeout(
+                  java.time.Duration.ofMillis(options.getCommitWorkStreamRetryTimeoutMillis()))
               .build();
       return ConfigFetcherComputationStateCacheAndWindmillClient.builder()
           .setWindmillDispatcherClient(dispatcherClient)
@@ -870,7 +897,8 @@ public final class StreamingDataflowWorker {
       StreamingCounters streamingCounters,
       WindmillStubFactoryFactory stubFactory) {
     ConcurrentMap<String, StageInfo> stageInfo = new ConcurrentHashMap<>();
-    BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options);
+    MultiKeyBundleOptions multiKeyBundleOptions = MultiKeyBundleOptions.fromOptions(options);
+    BoundedQueueExecutor workExecutor = createWorkUnitExecutor(options, multiKeyBundleOptions);
     ScheduledExecutorService commitFinalizerCleanupExecutor =
         Executors.newScheduledThreadPool(
             1,
@@ -984,7 +1012,8 @@ public final class StreamingDataflowWorker {
             : windmillStreamFactory.build(),
         executorSupplier.apply("RefreshWork"),
         stageInfo,
-        grpcDispatcherClient);
+        grpcDispatcherClient,
+        multiKeyBundleOptions);
   }
 
   private static GrpcWindmillStreamFactory.Builder createGrpcwindmillStreamFactoryBuilder(
@@ -1014,9 +1043,11 @@ public final class StreamingDataflowWorker {
         .build();
   }
 
-  private static BoundedQueueExecutor createWorkUnitExecutor(DataflowWorkerHarnessOptions options) {
+  private static BoundedQueueExecutor createWorkUnitExecutor(
+      DataflowWorkerHarnessOptions options, MultiKeyBundleOptions multiKeyBundleOptions) {
     boolean useFairMonitor =
         DataflowRunner.hasExperiment(options, BOUNDED_QUEUE_EXECUTOR_USE_FAIR_MONITOR_EXPERIMENT);
+    boolean useKeyGroupWorkQueue = multiKeyBundleOptions.multiKeyBundleEnabled();
     return new BoundedQueueExecutor(
         chooseMaxThreads(options),
         THREAD_EXPIRATION_TIME_SEC,
@@ -1024,7 +1055,8 @@ public final class StreamingDataflowWorker {
         chooseMaxBundlesOutstanding(options),
         chooseMaxBytesOutstanding(options),
         new ThreadFactoryBuilder().setNameFormat("DataflowWorkUnits-%d").setDaemon(true).build(),
-        useFairMonitor);
+        useFairMonitor,
+        useKeyGroupWorkQueue);
   }
 
   public static void main(String[] args) throws Exception {
@@ -1040,6 +1072,24 @@ public final class StreamingDataflowWorker {
     CoderTranslation.verifyModelCodersRegistered();
     if (DataflowRunner.hasExperiment(options, ELEMENT_METADATA_SUPPORTED_EXPERIMENT)) {
       WindowedValues.FullWindowedValueCoder.setMetadataSupported();
+    }
+
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
     }
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
@@ -1179,9 +1229,14 @@ public final class StreamingDataflowWorker {
     computationStateCache
         .getIfPresent(completeCommit.computationId())
         .ifPresent(
-            state ->
+            state -> {
+              if (completeCommit.retryableFailure()) {
+                state.reexecuteActiveWork(completeCommit.shardedKey(), completeCommit.workId());
+              } else {
                 state.completeWorkAndScheduleNextWorkForKey(
-                    completeCommit.shardedKey(), completeCommit.workId()));
+                    completeCommit.shardedKey(), completeCommit.workId());
+              }
+            });
   }
 
   @AutoValue

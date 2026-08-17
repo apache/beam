@@ -367,6 +367,17 @@ func pullDecoderNoAlloc(c *pipepb.Coder, coders map[string]*pipepb.Coder) func(i
 			ed(r)
 			wd(r)
 		}
+	case urns.CoderShardedKey:
+		ccids := c.GetComponentCoderIds()
+		if len(ccids) != 1 {
+			panic(fmt.Sprintf("ShardedKey coder must have only 1 component: %s", prototext.Format(c)))
+		}
+		kd := pullDecoderNoAlloc(coders[ccids[0]], coders)
+		return func(r io.Reader) {
+			l, _ := coder.DecodeVarInt(r)
+			ioutilx.ReadN(r, int(l))
+			kd(r)
+		}
 	case urns.CoderRow:
 		panic(fmt.Sprintf("Runner forgot to LP this Row Coder. %v", prototext.Format(c)))
 	default:

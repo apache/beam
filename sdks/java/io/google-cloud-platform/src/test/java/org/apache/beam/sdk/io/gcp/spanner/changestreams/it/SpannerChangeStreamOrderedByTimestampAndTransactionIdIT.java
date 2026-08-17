@@ -37,6 +37,7 @@ import javax.annotation.Nullable;
 import org.apache.beam.sdk.coders.BooleanCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.Mod;
 import org.apache.beam.sdk.state.BagState;
@@ -102,10 +103,11 @@ public class SpannerChangeStreamOrderedByTimestampAndTransactionIdIT {
   @Test
   public void testTransactionBoundaries() {
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId);
+        SpannerTestHelper.setUpSpannerConfig(
+            SpannerConfig.create()
+                .withProjectId(projectId)
+                .withInstanceId(instanceId)
+                .withDatabaseId(databaseId));
     // Commit a initial transaction to get the timestamp to start reading from.
     List<Mutation> mutations = new ArrayList<>();
     mutations.add(insertRecordMutation(0, "FirstName0", "LastName0"));

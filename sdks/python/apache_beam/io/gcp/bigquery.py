@@ -2006,7 +2006,8 @@ class WriteToBigQuery(PTransform):
       use_cdc_writes: bool = False,
       primary_key: list[str] = None,
       expansion_service=None,
-      big_lake_configuration=None):
+      big_lake_configuration=None,
+      type_overrides=None):
     """Initialize a WriteToBigQuery transform.
 
     Args:
@@ -2154,8 +2155,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         all of FILE_LOADS, STREAMING_INSERTS, and STORAGE_WRITE_API. Only
         applicable to unbounded input.
       num_storage_api_streams: Specifies the number of write streams that the
-        Storage API sink will use. This parameter is only applicable when
-        writing unbounded data.
+        Storage API sink will use.
       ignore_unknown_columns: Accept rows that contain values that do not match
         the schema. The unknown values are ignored. Default is False,
         which treats unknown values as errors. This option is only valid for
@@ -2183,6 +2183,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
         CREATE_IF_NEEDED mode for the underlying tables a list of column names
         is required to be configured as the primary key. Used for
         STORAGE_WRITE_API, working on 'at least once' mode.
+      type_overrides (dict): Optional mapping of BigQuery type names (uppercase)
+        to Python types. These override the default type mappings when
+        converting BigQuery schemas to Python types for STORAGE_WRITE_API.
+        For example: ``{'DATE': datetime.date, 'JSON': dict}``.
+        Default mappings include STRING->str, INT64->np.int64, etc.
     """
     self._table = table
     self._dataset = dataset
@@ -2228,6 +2233,7 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
     self._big_lake_configuration = big_lake_configuration
+    self._type_overrides = type_overrides
 
   # Dict/schema methods were moved to bigquery_tools, but keep references
   # here for backward compatibility.
@@ -2392,7 +2398,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
           use_cdc_writes=self._use_cdc_writes,
           primary_key=self._primary_key,
           big_lake_configuration=self._big_lake_configuration,
-          expansion_service=self.expansion_service)
+          expansion_service=self.expansion_service,
+          type_overrides=self._type_overrides)
     else:
       raise ValueError(f"Unsupported method {method_to_use}")
 
@@ -2641,7 +2648,8 @@ class StorageWriteToBigQuery(PTransform):
       use_cdc_writes: bool = False,
       primary_key: list[str] = None,
       big_lake_configuration=None,
-      expansion_service=None):
+      expansion_service=None,
+      type_overrides=None):
     self._table = table
     self._table_side_inputs = table_side_inputs
     self._schema = schema
@@ -2655,6 +2663,7 @@ class StorageWriteToBigQuery(PTransform):
     self._use_cdc_writes = use_cdc_writes
     self._primary_key = primary_key
     self._big_lake_configuration = big_lake_configuration
+    self._type_overrides = type_overrides
     self._expansion_service = expansion_service or BeamJarExpansionService(
         'sdks:java:io:google-cloud-platform:expansion-service:build')
 
@@ -2688,7 +2697,7 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, False).with_output_types())
+                schema, False, self._type_overrides).with_output_types())
 
     # For dynamic destinations, we first figure out where each row is going.
     # Then we send (destination, record) rows over to Java SchemaTransform.
@@ -2720,7 +2729,7 @@ class StorageWriteToBigQuery(PTransform):
         input_beam_rows = (
             input_rows
             | "Convert dict to Beam Row" >> self.ConvertToBeamRows(
-                schema, True).with_output_types())
+                schema, True, self._type_overrides).with_output_types())
       # communicate to Java that this write should use dynamic destinations
       table = StorageWriteToBigQuery.DYNAMIC_DESTINATIONS
 
@@ -2788,9 +2797,10 @@ class StorageWriteToBigQuery(PTransform):
       pass
 
   class ConvertToBeamRows(PTransform):
-    def __init__(self, schema, dynamic_destinations):
+    def __init__(self, schema, dynamic_destinations, type_overrides=None):
       self.schema = schema
       self.dynamic_destinations = dynamic_destinations
+      self.type_overrides = type_overrides
 
     def expand(self, input_dicts):
       if self.dynamic_destinations:
@@ -2816,7 +2826,7 @@ class StorageWriteToBigQuery(PTransform):
 
     def with_output_types(self):
       row_type_hints = bigquery_tools.get_beam_typehints_from_tableschema(
-          self.schema)
+          self.schema, self.type_overrides)
       if self.dynamic_destinations:
         type_hint = RowTypeConstraint.from_fields([
             (StorageWriteToBigQuery.DESTINATION, str),
@@ -2927,6 +2937,13 @@ class ReadFromBigQuery(PTransform):
       PCollection with a schema and yielding Beam Rows via the option
       `BEAM_ROW`. For more information on schemas, see
       https://beam.apache.org/documentation/programming-guide/#what-is-a-schema)
+    query_output_schema: Required when output_type is 'BEAM_ROW' and a query
+      is specified. A BigQuery schema describing the query result columns,
+      since the schema cannot be auto-derived from an existing table when
+      using a query. Accepts the same formats as WriteToBigQuery's schema
+      parameter: a dict like
+      ``{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}]}``,
+      a JSON string, or a TableSchema object.
       """
   class Method(object):
     EXPORT = 'EXPORT'  #  This is currently the default.
@@ -2942,10 +2959,12 @@ class ReadFromBigQuery(PTransform):
       output_type=None,
       timeout=None,
       *args,
+      query_output_schema=None,
       **kwargs):
     self.method = method or ReadFromBigQuery.Method.EXPORT
     self.use_native_datetime = use_native_datetime
     self.output_type = output_type
+    self.query_output_schema = query_output_schema
     self._args = args
     self._kwargs = kwargs
     if timeout is not None:
@@ -2969,9 +2988,15 @@ class ReadFromBigQuery(PTransform):
 
     if self.output_type == 'BEAM_ROW' and self._kwargs.get('query',
                                                            None) is not None:
-      raise ValueError(
-          "Both a query and an output type of 'BEAM_ROW' were specified. "
-          "'BEAM_ROW' is not currently supported with queries.")
+      if self.query_output_schema is None:
+        raise ValueError(
+            "Both a query and an output type of 'BEAM_ROW' were specified "
+            "without a query_output_schema. When using a query, you must "
+            "provide query_output_schema so the output schema can be "
+            "determined without reading an existing table. The schema should "
+            "be a BigQuery schema dict, e.g. "
+            "{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}"
+            ", ...]}, or a TableSchema object.")
 
     self.gcs_location = gcs_location
     self.bigquery_dataset_labels = {
@@ -2994,6 +3019,11 @@ class ReadFromBigQuery(PTransform):
     if self.output_type == 'PYTHON_DICT' or self.output_type is None:
       return output_pcollection
     elif self.output_type == 'BEAM_ROW':
+      if self._kwargs.get('query', None) is not None:
+        user_schema = bigquery_tools.get_dict_table_schema(
+            self.query_output_schema)
+        return output_pcollection | bigquery_schema_tools.convert_to_usertype(
+            user_schema, self._kwargs.get('selected_fields', None))
       table_details = bigquery_tools.parse_table_reference(
           table=self._kwargs.get("table", None),
           dataset=self._kwargs.get("dataset", None),

@@ -64,6 +64,7 @@ func init() {
 	register.Function2x1(combineIntSum)
 
 	register.DoFn3x1[*sdf.LockRTracker, SourceConfig, func(int64), error]((*intRangeFn)(nil))
+	register.DoFn4x1[context.Context, *sdf.LockRTracker, SourceConfig, func(int64), error]((*slowFailSDF)(nil))
 	register.Emitter1[int64]()
 	register.Emitter2[int64, int64]()
 }
@@ -403,4 +404,37 @@ func (fn *selfCheckpointingDoFn) ProcessElement(rt *sdf.LockRTracker, _ []byte, 
 			return sdf.ResumeProcessingIn(5 * time.Second)
 		}
 	}
+}
+
+type errorSplitTracker struct {
+	*offsetrange.Tracker
+}
+
+func (t *errorSplitTracker) TrySplit(fraction float64) (any, any, error) {
+	return nil, nil, fmt.Errorf("intentional split error from tracker")
+}
+
+type slowFailSDF struct{}
+
+func (fn *slowFailSDF) CreateInitialRestriction(config SourceConfig) offsetrange.Restriction {
+	return offsetrange.Restriction{Start: 0, End: config.NumElements}
+}
+
+func (fn *slowFailSDF) SplitRestriction(config SourceConfig, rest offsetrange.Restriction) []offsetrange.Restriction {
+	return rest.EvenSplits(config.InitialSplits)
+}
+
+func (fn *slowFailSDF) RestrictionSize(_ SourceConfig, rest offsetrange.Restriction) float64 {
+	return rest.Size()
+}
+
+func (fn *slowFailSDF) CreateTracker(rest offsetrange.Restriction) *sdf.LockRTracker {
+	return sdf.NewLockRTracker(&errorSplitTracker{Tracker: offsetrange.NewTracker(rest)})
+}
+
+func (fn *slowFailSDF) ProcessElement(ctx context.Context, rt *sdf.LockRTracker, config SourceConfig, emit func(int64)) error {
+	for i := rt.GetRestriction().(offsetrange.Restriction).Start; rt.TryClaim(i); i++ {
+		<-ctx.Done()
+	}
+	return nil
 }

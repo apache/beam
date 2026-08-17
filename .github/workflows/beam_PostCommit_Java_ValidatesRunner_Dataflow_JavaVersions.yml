@@ -60,14 +60,16 @@ jobs:
       matrix:
         job_name: [beam_PostCommit_Java_ValidatesRunner_Dataflow_JavaVersions]
         job_phrase: [Run Dataflow ValidatesRunner Java]
-        java_version: ['8', '25']
+        java_version: ['25']
     if: |
       github.event_name == 'workflow_dispatch' ||
       github.event_name == 'pull_request_target' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startswith(github.event.comment.body, 'Run Dataflow ValidatesRunner Java')
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

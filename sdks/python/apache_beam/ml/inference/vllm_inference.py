@@ -20,10 +20,12 @@
 import asyncio
 import logging
 import os
+import shutil
 import subprocess
 import sys
 import threading
 import time
+import urllib.request
 import uuid
 from collections.abc import Callable
 from collections.abc import Iterable
@@ -109,35 +111,215 @@ def getAsyncVLLMClient(port) -> AsyncOpenAI:
   )
 
 
+# Embedded Dynamo runtime defaults proven on the smoke test: etcd discovery,
+# TCP request plane, ZMQ event plane, KV events disabled. KV-aware routing,
+# disaggregated prefill/decode, and the Planner are not active in this mode.
+_DYNAMO_FRONTEND_DEFAULT_KWARGS: dict[str, Optional[str]] = {
+    'discovery-backend': 'etcd',
+    'request-plane': 'tcp',
+    'event-plane': 'zmq',
+    'router-mode': 'round-robin',
+    'no-router-kv-events': None,
+}
+
+_DYNAMO_ENGINE_DEFAULT_KWARGS: dict[str, Optional[str]] = {
+    'discovery-backend': 'etcd',
+    'request-plane': 'tcp',
+    'event-plane': 'zmq',
+    'kv-events-config': '{"enable_kv_cache_events": false}',
+}
+
+
+def _append_kwargs(cmd: list[str], kwargs: dict[str, Optional[str]]) -> None:
+  for k, v in kwargs.items():
+    cmd.append(f'--{k}')
+    # Only add values for commands with value part.
+    if v is not None:
+      cmd.append(v)
+
+
+def _uses_etcd_discovery(kwargs: dict[str, Optional[str]]) -> bool:
+  return kwargs.get('discovery-backend') == 'etcd'
+
+
 class _VLLMModelServer():
-  def __init__(self, model_name: str, vllm_server_kwargs: dict[str, str]):
+  def __init__(
+      self,
+      model_name: str,
+      vllm_server_kwargs: dict[str, Optional[str]],
+      dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
+      use_dynamo: bool = False):
     self._model_name = model_name
     self._vllm_server_kwargs = vllm_server_kwargs
+    self._dynamo_frontend_kwargs = dynamo_frontend_kwargs or {}
     self._server_started = False
     self._server_process = None
+    self._dynamo_process = None
+    self._etcd_process = None
+    self._etcd_data_dir: Optional[str] = None
+    self._managed_etcd_endpoint = None
     self._server_port: int = -1
     self._server_process_lock = threading.RLock()
+    self._use_dynamo = use_dynamo
 
     self.start_server()
+
+  @staticmethod
+  def _stop_process(process: Optional[subprocess.Popen]) -> None:
+    if process is None or process.poll() is not None:
+      return
+    # A process may exit between poll() and terminate() / kill(), in which
+    # case the OS raises ProcessLookupError (or another OSError). Treat that
+    # as already-stopped so we don't bail out of the broader cleanup.
+    try:
+      process.terminate()
+      try:
+        process.wait(timeout=10)
+      except subprocess.TimeoutExpired:
+        process.kill()
+        process.wait()
+    except OSError:
+      pass
+
+  def _stop_processes(self) -> None:
+    self._stop_process(self._dynamo_process)
+    self._stop_process(self._server_process)
+    self._stop_process(self._etcd_process)
+    if (self._managed_etcd_endpoint is not None and
+        os.environ.get('ETCD_ENDPOINTS') == self._managed_etcd_endpoint):
+      os.environ.pop('ETCD_ENDPOINTS', None)
+    if self._etcd_data_dir is not None:
+      shutil.rmtree(self._etcd_data_dir, ignore_errors=True)
+      self._etcd_data_dir = None
+    self._dynamo_process = None
+    self._server_process = None
+    self._etcd_process = None
+    self._managed_etcd_endpoint = None
+    self._server_started = False
+    self._server_port = -1
+
+  def _process_status(self) -> str:
+    process_status = []
+    if self._server_process is not None:
+      process_status.append(
+          'frontend/server exit code: %s' % self._server_process.poll())
+    if self._dynamo_process is not None:
+      process_status.append(
+          'dynamo worker exit code: %s' % self._dynamo_process.poll())
+    if self._etcd_process is not None:
+      process_status.append('etcd exit code: %s' % self._etcd_process.poll())
+    return ', '.join(process_status) or 'no process status available'
+
+  def __del__(self):
+    # __del__ may run during interpreter shutdown when module globals can
+    # already be torn down; swallow any cleanup failures so we don't print
+    # a noisy traceback.
+    try:
+      self._stop_processes()
+    except Exception:  # pylint: disable=broad-except
+      pass
+
+  def _uses_embedded_etcd(self) -> bool:
+    return (
+        self._use_dynamo and
+        _uses_etcd_discovery(self._dynamo_frontend_kwargs) and
+        _uses_etcd_discovery(self._vllm_server_kwargs) and
+        'ETCD_ENDPOINTS' not in os.environ)
+
+  def _wait_for_etcd(self, endpoint: str, timeout_secs=30) -> None:
+    deadline = time.time() + timeout_secs
+    health_url = endpoint.rstrip('/') + '/health'
+    while time.time() < deadline and self._etcd_process.poll() is None:
+      try:
+        with urllib.request.urlopen(health_url, timeout=2) as response:
+          if response.status < 500:
+            return
+      except Exception:  # pylint: disable=broad-except
+        time.sleep(1)
+
+    process_status = self._process_status()
+    self._stop_processes()
+    raise RuntimeError(
+        "Failed to start embedded etcd for Dynamo. Process status: "
+        f"{process_status}. Install etcd in the worker container or set "
+        "ETCD_ENDPOINTS to an external etcd service.")
+
+  def _ensure_etcd(self) -> None:
+    if not self._uses_embedded_etcd():
+      return
+    if shutil.which('etcd') is None:
+      raise RuntimeError(
+          "Embedded Dynamo mode requires etcd when ETCD_ENDPOINTS is not "
+          "set. Install etcd in the worker container or set ETCD_ENDPOINTS "
+          "to an external etcd service.")
+
+    etcd_name = f'beam-dynamo-etcd-{uuid.uuid4().hex}'
+    self._etcd_data_dir = f'/tmp/{etcd_name}'
+    peer_port, = subprocess_server.pick_port(None)
+    etcd_cmd = [
+        'etcd',
+        '--name',
+        etcd_name,
+        '--listen-client-urls',
+        'http://127.0.0.1:{{PORT}}',
+        '--advertise-client-urls',
+        'http://127.0.0.1:{{PORT}}',
+        '--listen-peer-urls',
+        f'http://127.0.0.1:{peer_port}',
+        '--initial-advertise-peer-urls',
+        f'http://127.0.0.1:{peer_port}',
+        '--initial-cluster',
+        f'{etcd_name}=http://127.0.0.1:{peer_port}',
+        '--data-dir',
+        self._etcd_data_dir,
+        '--log-level',
+        'warn',
+    ]
+    self._etcd_process, etcd_port = start_process(etcd_cmd)
+    endpoint = f'http://127.0.0.1:{etcd_port}'
+    os.environ['ETCD_ENDPOINTS'] = endpoint
+    self._managed_etcd_endpoint = endpoint
+    self._wait_for_etcd(endpoint)
 
   def start_server(self, retries=3):
     with self._server_process_lock:
       if not self._server_started:
-        server_cmd = [
-            sys.executable,
-            '-m',
-            'vllm.entrypoints.openai.api_server',
-            '--model',
-            self._model_name,
-            '--port',
-            '{{PORT}}',
-        ]
-        for k, v in self._vllm_server_kwargs.items():
-          server_cmd.append(f'--{k}')
-          # Only add values for commands with value part.
-          if v is not None:
-            server_cmd.append(v)
+        self._stop_processes()
+        self._ensure_etcd()
+        if self._use_dynamo:
+          # Dynamo embedded mode uses the frontend as its OpenAI-compatible
+          # local endpoint and a separate vLLM worker process.
+          server_cmd = [
+              sys.executable,
+              '-m',
+              'dynamo.frontend',
+              '--http-port',
+              '{{PORT}}',
+          ]
+          _append_kwargs(server_cmd, self._dynamo_frontend_kwargs)
+        else:
+          server_cmd = [
+              sys.executable,
+              '-m',
+              'vllm.entrypoints.openai.api_server',
+              '--model',
+              self._model_name,
+              '--port',
+              '{{PORT}}',
+          ]
+          _append_kwargs(server_cmd, self._vllm_server_kwargs)
         self._server_process, self._server_port = start_process(server_cmd)
+
+        if self._use_dynamo:
+          server_cmd = [
+              sys.executable,
+              '-m',
+              'dynamo.vllm',
+              '--model',
+              self._model_name,
+          ]
+          _append_kwargs(server_cmd, self._vllm_server_kwargs)
+          self._dynamo_process, _ = start_process(server_cmd)
 
       self.check_connectivity(retries)
 
@@ -146,9 +328,14 @@ class _VLLMModelServer():
       self.start_server()
     return self._server_port
 
-  def check_connectivity(self, retries=3):
+  def check_connectivity(self, retries=3, timeout_secs=600):
+    start_time = time.time()
     with getVLLMClient(self._server_port) as client:
-      while self._server_process.poll() is None:
+      while (time.time() - start_time < timeout_secs and
+             self._server_process.poll() is None and
+             (self._dynamo_process is None or
+              self._dynamo_process.poll() is None) and
+             (self._etcd_process is None or self._etcd_process.poll() is None)):
         try:
           models = client.models.list().data
           logging.info('models: %s' % models)
@@ -160,12 +347,13 @@ class _VLLMModelServer():
         # Sleep while bringing up the process
         time.sleep(5)
 
+      process_status = self._process_status()
+      self._stop_processes()
       if retries == 0:
-        self._server_started = False
         raise Exception(
-            "Failed to start vLLM server, polling process exited with code " +
-            "%s.  Next time a request is tried, the server will be restarted" %
-            self._server_process.poll())
+            "Failed to start vLLM server. Process status: "
+            f"{process_status}. Next time a request is tried, the server "
+            "will be restarted")
       else:
         self.start_server(retries - 1)
 
@@ -176,8 +364,10 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
   def __init__(
       self,
       model_name: str,
-      vllm_server_kwargs: Optional[dict[str, str]] = None,
+      vllm_server_kwargs: Optional[dict[str, Optional[str]]] = None,
       *,
+      use_dynamo: bool = False,
+      dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -197,15 +387,28 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         https://docs.vllm.ai/en/latest/models/supported_models.html for
         supported models.
       vllm_server_kwargs: Any additional kwargs to be passed into your vllm
-        server when it is being created. Will be invoked using
-        `python -m vllm.entrypoints.openai.api_serverv <beam provided args>
-        <vllm_server_kwargs>`. For example, you could pass
-        `{'echo': 'true'}` to prepend new messages with the previous message.
-        On ~16GB GPUs, pass lower ``max-num-seqs`` and
-        ``gpu-memory-utilization`` values (see
-        ``apache_beam.examples.inference.vllm_text_completion``). For a list of
-        possible kwargs, see
+        server when it is being created. When ``use_dynamo`` is disabled,
+        this is invoked using ``python -m vllm.entrypoints.openai.api_server
+        <beam provided args> <vllm_server_kwargs>``. When ``use_dynamo`` is
+        enabled, these kwargs are passed to the ``dynamo.vllm`` worker
+        process. For example, you could pass ``{'echo': 'true'}`` to prepend
+        new messages with the previous message. On ~16GB GPUs, pass lower
+        ``max-num-seqs`` and ``gpu-memory-utilization`` values (see
+        ``apache_beam.examples.inference.vllm_text_completion``). For a list
+        of possible kwargs, see
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-completions-api
+      use_dynamo: Whether to use NVIDIA Dynamo as the underlying vLLM engine.
+        Requires installing Dynamo in your runtime environment
+        (``pip install ai-dynamo[vllm]``). This is an opt-in single-worker
+        embedded mode; KV-aware routing, disaggregated prefill/decode, KVBM
+        offload across nodes, the Planner, and Grove are not active in
+        embedded mode. Dynamo also requires an etcd-style discovery service:
+        when ``ETCD_ENDPOINTS`` is unset, Beam starts a local etcd, which
+        requires the ``etcd`` binary in the worker environment.
+      dynamo_frontend_kwargs: Additional kwargs to be passed to the
+        ``dynamo.frontend`` process when ``use_dynamo`` is enabled. By
+        default, embedded Dynamo uses etcd discovery, TCP request plane, ZMQ
+        event plane, round-robin routing, and disables router KV events.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
@@ -229,10 +432,20 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
         batch_length_fn=batch_length_fn,
         batch_bucket_boundaries=batch_bucket_boundaries)
     self._model_name = model_name
-    self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
+    self._vllm_server_kwargs: dict[str, Optional[str]] = ({
+        **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
+    } if use_dynamo else vllm_server_kwargs or {})
+    self._dynamo_frontend_kwargs: dict[str, Optional[str]] = {
+        **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
+    }
+    self._use_dynamo = use_dynamo
 
   def load_model(self) -> _VLLMModelServer:
-    return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
+    return _VLLMModelServer(
+        self._model_name,
+        self._vllm_server_kwargs,
+        self._dynamo_frontend_kwargs,
+        self._use_dynamo)
 
   async def _async_run_inference(
       self,
@@ -274,6 +487,12 @@ class VLLMCompletionsModelHandler(ModelHandler[str,
     """
     return asyncio.run(self._async_run_inference(batch, model, inference_args))
 
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    # Override the base validator so OpenAI-compatible request kwargs such as
+    # ``max_tokens`` can be passed through ``RunInference`` to the vLLM /
+    # Dynamo server.
+    pass
+
   def share_model_across_processes(self) -> bool:
     return True
 
@@ -285,8 +504,10 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       self,
       model_name: str,
       chat_template_path: Optional[str] = None,
-      vllm_server_kwargs: Optional[dict[str, str]] = None,
+      vllm_server_kwargs: Optional[dict[str, Optional[str]]] = None,
       *,
+      use_dynamo: bool = False,
+      dynamo_frontend_kwargs: Optional[dict[str, Optional[str]]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -311,12 +532,26 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         For info on chat templates, see:
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#chat-template
       vllm_server_kwargs: Any additional kwargs to be passed into your vllm
-        server when it is being created. Will be invoked using
-        `python -m vllm.entrypoints.openai.api_serverv <beam provided args>
-        <vllm_server_kwargs>`. For example, you could pass
-        `{'echo': 'true'}` to prepend new messages with the previous message.
-        For a list of possible kwargs, see
+        server when it is being created. When ``use_dynamo`` is disabled,
+        this is invoked using ``python -m vllm.entrypoints.openai.api_server
+        <beam provided args> <vllm_server_kwargs>``. When ``use_dynamo`` is
+        enabled, these kwargs are passed to the ``dynamo.vllm`` worker
+        process. For example, you could pass ``{'echo': 'true'}`` to prepend
+        new messages with the previous message. For a list of possible
+        kwargs, see
         https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html#extra-parameters-for-chat-api
+      use_dynamo: Whether to use NVIDIA Dynamo as the underlying vLLM engine.
+        Requires installing Dynamo in your runtime environment
+        (``pip install ai-dynamo[vllm]``). This is an opt-in single-worker
+        embedded mode; KV-aware routing, disaggregated prefill/decode, KVBM
+        offload across nodes, the Planner, and Grove are not active in
+        embedded mode. Dynamo also requires an etcd-style discovery service:
+        when ``ETCD_ENDPOINTS`` is unset, Beam starts a local etcd, which
+        requires the ``etcd`` binary in the worker environment.
+      dynamo_frontend_kwargs: Additional kwargs to be passed to the
+        ``dynamo.frontend`` process when ``use_dynamo`` is enabled. By
+        default, embedded Dynamo uses etcd discovery, TCP request plane, ZMQ
+        event plane, round-robin routing, and disables router KV events.
       min_batch_size: optional. the minimum batch size to use when batching
         inputs.
       max_batch_size: optional. the maximum batch size to use when batching
@@ -340,9 +575,15 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
         batch_length_fn=batch_length_fn,
         batch_bucket_boundaries=batch_bucket_boundaries)
     self._model_name = model_name
-    self._vllm_server_kwargs: dict[str, str] = vllm_server_kwargs or {}
+    self._vllm_server_kwargs: dict[str, Optional[str]] = ({
+        **_DYNAMO_ENGINE_DEFAULT_KWARGS, **(vllm_server_kwargs or {})
+    } if use_dynamo else vllm_server_kwargs or {})
+    self._dynamo_frontend_kwargs: dict[str, Optional[str]] = {
+        **_DYNAMO_FRONTEND_DEFAULT_KWARGS, **(dynamo_frontend_kwargs or {})
+    }
     self._chat_template_path = chat_template_path
     self._chat_file = f'template-{uuid.uuid4().hex}.jinja'
+    self._use_dynamo = use_dynamo
 
   def load_model(self) -> _VLLMModelServer:
     chat_template_contents = ''
@@ -355,7 +596,11 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
           f.write(chat_template_contents)
       self._vllm_server_kwargs['chat_template'] = local_chat_template_path
 
-    return _VLLMModelServer(self._model_name, self._vllm_server_kwargs)
+    return _VLLMModelServer(
+        self._model_name,
+        self._vllm_server_kwargs,
+        self._dynamo_frontend_kwargs,
+        self._use_dynamo)
 
   async def _async_run_inference(
       self,
@@ -399,6 +644,12 @@ class VLLMChatModelHandler(ModelHandler[Sequence[OpenAIChatMessage],
       An Iterable of type PredictionResult.
     """
     return asyncio.run(self._async_run_inference(batch, model, inference_args))
+
+  def validate_inference_args(self, inference_args: Optional[dict[str, Any]]):
+    # Override the base validator so OpenAI-compatible request kwargs such as
+    # ``max_tokens`` can be passed through ``RunInference`` to the vLLM /
+    # Dynamo server.
+    pass
 
   def share_model_across_processes(self) -> bool:
     return True

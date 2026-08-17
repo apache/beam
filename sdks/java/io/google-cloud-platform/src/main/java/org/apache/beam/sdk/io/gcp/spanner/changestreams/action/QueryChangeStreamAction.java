@@ -22,6 +22,10 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsCons
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerException;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Scope;
 import java.util.List;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -48,6 +52,7 @@ import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -92,6 +97,8 @@ public class QueryChangeStreamAction {
   private final ChangeStreamMetrics metrics;
   private final boolean isMutableChangeStream;
   private final Duration realTimeCheckpointInterval;
+  private final OpenTelemetry openTelemetry;
+  private transient volatile @MonotonicNonNull Tracer tracer = null;
 
   /**
    * Constructs an action class for performing a change stream query for a given partition.
@@ -111,6 +118,7 @@ public class QueryChangeStreamAction {
    * @param metrics metrics gathering class
    * @param isMutableChangeStream whether the change stream is mutable or not
    * @param realTimeCheckpointInterval duration to add to current time
+   * @param openTelemetry instance for tracing
    */
   QueryChangeStreamAction(
       ChangeStreamDao changeStreamDao,
@@ -125,7 +133,8 @@ public class QueryChangeStreamAction {
       PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics,
       boolean isMutableChangeStream,
-      Duration realTimeCheckpointInterval) {
+      Duration realTimeCheckpointInterval,
+      OpenTelemetry openTelemetry) {
     this.changeStreamDao = changeStreamDao;
     this.partitionMetadataDao = partitionMetadataDao;
     this.changeStreamRecordMapper = changeStreamRecordMapper;
@@ -139,6 +148,7 @@ public class QueryChangeStreamAction {
     this.metrics = metrics;
     this.isMutableChangeStream = isMutableChangeStream;
     this.realTimeCheckpointInterval = realTimeCheckpointInterval;
+    this.openTelemetry = openTelemetry;
   }
 
   /**
@@ -240,14 +250,19 @@ public class QueryChangeStreamAction {
         Optional<ProcessContinuation> maybeContinuation;
         for (final ChangeStreamRecord record : records) {
           if (record instanceof DataChangeRecord) {
-            maybeContinuation =
-                dataChangeRecordAction.run(
-                    updatedPartition,
-                    (DataChangeRecord) record,
-                    tracker,
-                    interrupter,
-                    receiver,
-                    watermarkEstimator);
+            Span span = getTracer().spanBuilder("DataChangeRecord.run").startSpan();
+            try (Scope ignored = span.makeCurrent()) {
+              maybeContinuation =
+                  dataChangeRecordAction.run(
+                      updatedPartition,
+                      (DataChangeRecord) record,
+                      tracker,
+                      interrupter,
+                      receiver,
+                      watermarkEstimator);
+            } finally {
+              span.end();
+            }
           } else if (record instanceof HeartbeatRecord) {
             maybeContinuation =
                 heartbeatRecordAction.run(
@@ -421,5 +436,16 @@ public class QueryChangeStreamAction {
       return nextTimestamp.compareTo(endTimestamp) < 0 ? nextTimestamp : endTimestamp;
     }
     return endTimestamp;
+  }
+
+  private Tracer getTracer() {
+    if (tracer == null) {
+      synchronized (this) {
+        if (tracer == null) {
+          tracer = openTelemetry.getTracer("SpannerIO.ChangeStreams");
+        }
+      }
+    }
+    return tracer;
   }
 }

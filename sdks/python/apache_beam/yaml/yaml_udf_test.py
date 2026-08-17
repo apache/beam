@@ -14,11 +14,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+import datetime
 import logging
 import os
 import shutil
 import tempfile
 import unittest
+from decimal import Decimal
 
 import apache_beam as beam
 from apache_beam.io import localfilesystem
@@ -32,10 +34,10 @@ from apache_beam.yaml.yaml_provider import dicts_to_rows
 from apache_beam.yaml.yaml_transform import YamlTransform
 
 try:
-  import js2py
+  import quickjs
 except ImportError:
-  js2py = None
-  logging.warning('js2py is not installed; some tests will be skipped.')
+  quickjs = None
+  logging.warning('quickjs-ng is not installed; some tests will be skipped.')
 
 
 def as_rows():
@@ -63,7 +65,7 @@ class YamlUDFMappingTest(unittest.TestCase):
   def tearDown(self):
     shutil.rmtree(self.tmpdir)
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
   def test_map_to_fields_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -88,6 +90,46 @@ class YamlUDFMappingTest(unittest.TestCase):
           row:
             callable: |
               function row_map(x) {
+                x.row.values.push(x.row.rank + 10)
+                return x.row
+              }
+      ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  label='11ax',
+                  conductor=12,
+                  row=beam.Row(rank=0, values=[1, 2, 3, 10])),
+              beam.Row(
+                  label='37ax',
+                  conductor=38,
+                  row=beam.Row(rank=1, values=[4, 5, 6, 11])),
+              beam.Row(
+                  label='389ax',
+                  conductor=390,
+                  row=beam.Row(rank=2, values=[7, 8, 9, 12])),
+          ]))
+
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
+  def test_map_to_fields_js_callable_styles(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      elements = p | beam.Create(self.data)
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          label:
+            callable: "(x) => x.label + 'x'"
+          conductor:
+            callable: "function(x) { return x.conductor + 1 }"
+          row:
+            callable: |
+              (x) => {
                 x.row.values.push(x.row.rank + 10)
                 return x.row
               }
@@ -197,7 +239,7 @@ class YamlUDFMappingTest(unittest.TestCase):
               beam.Row(label='389a', timestamp=2, label_copy="389a"),
           ]))
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
   def test_filter_inline_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -252,7 +294,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
   def test_filter_expression_js(self):
     with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
         pickle_library='cloudpickle', yaml_experimental_features=['javascript'
@@ -296,7 +338,7 @@ class YamlUDFMappingTest(unittest.TestCase):
                   row=beam.Row(rank=0, values=[1, 2, 3])),
           ]))
 
-  @unittest.skipIf(js2py is None, 'js2py not installed.')
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
   def test_filter_inline_js_file(self):
     data = '''
     function f(x) {
@@ -373,6 +415,69 @@ class YamlUDFMappingTest(unittest.TestCase):
                   conductor=389,
                   row=beam.Row(rank=2, values=[7, 8, 9])),
           ]))
+
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
+  def test_map_to_fields_js_non_serializable_types(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      data = [
+          beam.Row(
+              b=b'hello',
+              dt=datetime.datetime(2026, 5, 14, 12, 0, 0),
+              dec=Decimal('10.5'))
+      ]
+      elements = p | beam.Create(data)
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          b_out:
+            expression: "b + '_world'"
+          dt_out:
+            expression: "dt"
+          dt_year:
+            expression: "dt.getFullYear()"
+          dt_month:
+            expression: "dt.getMonth() + 1"
+          dt_date:
+            expression: "dt.getDate()"
+          dec_out:
+            expression: "dec * 2"
+      ''')
+      assert_that(
+          result,
+          equal_to([
+              beam.Row(
+                  b_out='hello_world',
+                  dt_out='2026-05-14T12:00:00.000Z',
+                  dt_year=2026,
+                  dt_month=5,
+                  dt_date=14,
+                  dec_out=21.0),
+          ]))
+
+  @unittest.skipIf(quickjs is None, 'quickjs-ng not installed.')
+  def test_map_to_fields_js_robustness(self):
+    with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
+        pickle_library='cloudpickle', yaml_experimental_features=['javascript'
+                                                                  ])) as p:
+      data = [beam.Row(a=100, x=-42)]
+      elements = p | beam.Create(data)
+      result = elements | YamlTransform(
+          '''
+      type: MapToFields
+      config:
+        language: javascript
+        fields:
+          abs_val:
+            expression: "Math.abs(x)"
+      ''')
+      assert_that(result, equal_to([
+          beam.Row(abs_val=42),
+      ]))
 
 
 if __name__ == '__main__':

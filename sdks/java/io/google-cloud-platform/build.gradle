@@ -30,8 +30,14 @@ applyJavaNature(
 description = "Apache Beam :: SDKs :: Java :: IO :: Google Cloud Platform"
 ext.summary = "IO library to read and write Google Cloud Platform systems from Beam."
 
+tasks.withType(Test).configureEach {
+  // Open java.nio for Apache Arrow direct memory access under Java 17+
+  jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+}
+
 dependencies {
   implementation(enforcedPlatform(library.java.google_cloud_platform_libraries_bom))
+  implementation platform(library.java.opentelemetry_bom)
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -41,6 +47,7 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:extensions:google-cloud-platform-core")
   implementation project(":sdks:java:extensions:protobuf")
+  implementation project(":sdks:java:io:components")
   implementation project(":sdks:java:extensions:arrow")
   implementation library.java.avro
   implementation library.java.bigdataoss_util
@@ -58,6 +65,8 @@ dependencies {
   implementation library.java.google_api_client
   implementation library.java.google_api_common
   implementation library.java.google_api_services_bigquery
+  implementation library.java.opentelemetry_api
+  implementation library.java.opentelemetry_context
   implementation library.java.google_api_services_healthcare
   implementation library.java.google_api_services_pubsub
   implementation library.java.google_api_services_storage
@@ -274,7 +283,8 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   include '**/StorageApiDirectWriteProtosIT.class'
   include '**/StorageApiSinkFailedRowsIT.class'
   include '**/StorageApiSinkRowUpdateIT.class'
-  include '**/StorageApiSinkSchemaUpdateIT.class'
+  include '**/StorageApiSinkSchemaUpdateWithInputSchemaIT.class'
+  include '**/StorageApiSinkSchemaUpdateWithoutInputSchemaIT.class'
   include '**/TableRowToStorageApiProtoIT.class'
   // file loads
   include '**/BigQuerySchemaUpdateOptionsIT.class'
