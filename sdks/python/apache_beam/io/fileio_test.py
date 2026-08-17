@@ -635,6 +635,13 @@ class MatchContinuouslyTest(_TestCaseWithTempDirCleanUp):
       fileio.MatchContinuously(
           file_pattern='/tmp/*', has_deduplication=False, timestamp_cursor=True)
 
+  def test_timestamp_cursor_implies_matching_updated_files(self):
+    # timestamp_cursor forces match_updated_files=True, so an update is a new
+    # key whatever the caller passed.
+    match = fileio.MatchContinuously(
+        file_pattern='/tmp/*', timestamp_cursor=True)
+    self.assertTrue(match.match_upd)
+
   def test_timestamp_cursor_emits_files_modified_past_the_cursor(self):
     files = []
     tempdir = '%s%s' % (self._new_tempdir(), os.sep)

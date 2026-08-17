@@ -446,11 +446,17 @@ class MatchContinuously(beam.PTransform):
     self.apply_windowing = apply_windowing
     self.empty_match_treatment = empty_match_treatment
     self.timestamp_cursor = timestamp_cursor
-    if timestamp_cursor and not has_deduplication:
-      raise ValueError(
-          'MatchContinuously(timestamp_cursor=True) deduplicates, so it '
-          'requires has_deduplication=True.')
-    if not timestamp_cursor:
+    if timestamp_cursor:
+      if not has_deduplication:
+        raise ValueError(
+            'MatchContinuously(timestamp_cursor=True) deduplicates, so it '
+            'requires has_deduplication=True.')
+      if not match_updated_files:
+        _LOGGER.warning(
+            'MatchContinuously(timestamp_cursor=True) implies '
+            'match_updated_files=True.')
+        self.match_upd = True
+    else:
       _LOGGER.warning(
           'Matching Continuously is stateful, and can scale poorly. '
           'Consider using Pub/Sub Notifications '
@@ -474,9 +480,8 @@ class MatchContinuously(beam.PTransform):
   def _match_deduplicated(self,
                           pbegin) -> beam.PCollection[filesystem.FileMetadata]:
     # Watch emits each file once per dedup key: the path, joined by the mtime
-    # when matching updated files or under timestamp_cursor, which needs the
-    # mtime in the key so that retiring a key cannot duplicate a match.
-    # stop_timestamp bounds the polls to [start, stop).
+    # when matching updated files. stop_timestamp bounds the polls to
+    # [start, stop).
     clock = _PollClock()
     if self.stop_ts == MAX_TIMESTAMP:
       termination = never()
@@ -508,8 +513,7 @@ class MatchContinuously(beam.PTransform):
         poll_interval=self.interval,
         termination=termination,
         output_key_fn=(
-            _file_path_and_mtime_key
-            if self.match_upd or self.timestamp_cursor else _file_path_key),
+            _file_path_and_mtime_key if self.match_upd else _file_path_key),
         timestamp_cursor=self.timestamp_cursor)
     # Watch emits (pattern, file) pairs; keep the FileMetadata output type so
     # downstream transforms stay typed instead of falling back to Any.
