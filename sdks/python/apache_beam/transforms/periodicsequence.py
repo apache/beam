@@ -168,16 +168,6 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       if current_output_timestamp > time.time():
         # We are ahead of time, let's wait. No element will be produced before
         # the next fire time, so advance the watermark up to that timestamp.
-        # Without this the reported watermark stalls at the last emitted
-        # element's timestamp and lags by up to one fire_interval, producing a
-        # saw-tooth watermark age (regression introduced in 2.67.0 by the
-        # process() rewrite in #35412, see
-        # https://github.com/apache/beam/issues/39026).
-        #
-        # For pre-timestamped data the provided event times may be out of order
-        # (a later element can carry an earlier timestamp, treated as a late
-        # event), so we must not advance the watermark past what has already
-        # been emitted.
         next_output_timestamp = timestamp.Timestamp(current_output_timestamp)
         if not self._is_pre_timestamped:
           current_watermark = watermark_estimator.current_watermark()
