@@ -350,8 +350,10 @@ class PubSubSubscriptionCleaner(StaleCleaner):
         self.client = pubsub_v1.SubscriberClient()
         print(f"{self.clock()} - Deleting PubSub subscription {resource_name}")
         with self.client:
-            subscription_path = self.client.subscription_path(self.project_id, resource_name)
-            self.client.delete_subscription(request={"subscription": subscription_path})
+            # resource_name from list_subscriptions() is already a fully-qualified
+            # path (e.g. "projects/<project>/subscriptions/<sub-id>"). Passing it
+            # to subscription_path() would double-prefix and cause a 400 error.
+            self.client.delete_subscription(request={"subscription": resource_name})
 
 def clean_pubsub_topics():
     """ Clean up stale PubSub topics in the specified GCP project.
