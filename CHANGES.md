@@ -71,7 +71,7 @@
 
 ## New Features / Improvements
 
-* (Java) Added a `runners/kafka-streams` Gradle module with portable job server and runner entry points; translation fails fast with an explicit unsupported-URN message until transforms are implemented ([#38465](https://github.com/apache/beam/issues/38465)).
+* (Java) Added an experimental Kafka Streams runner, which executes a Beam pipeline as an ordinary Kafka Streams application with no cluster to operate. It supports a subset of the model and is not built by default; pass `-Pwith-kafka-streams-runner` to include it ([#18479](https://github.com/apache/beam/issues/18479)).
 * Capability introduces an indicator for aggregations and timers firing during a pipeline drain, allowing users and sinks to recognize and appropriately handle potentially incomplete or partial data ([#36884](https://github.com/apache/beam/issues/36884)).
 * Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go/Python) ([#38349](https://github.com/apache/beam/issues/38349)).
 * TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
