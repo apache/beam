@@ -36,9 +36,8 @@ hash equally across workers and restarts.
 
 By default, the Watch transform internally stores the hash of all items
 seen. If the items returned by the poll function arrive in roughly
-non-decreasing event time, consider setting ``timestamp_cursor=True``, which
-retires a hash once the greatest emitted event time has moved past it and so
-holds a trailing window instead of every item ever seen; see :class:`Watch`.
+non-decreasing event time, consider setting ``timestamp_cursor=True`` for
+better performance; see :class:`Watch`.
 
 Example::
 
@@ -830,17 +829,17 @@ class Watch(PTransform):
       inferred like ``output_coder`` when omitted. It is converted with
       ``as_deterministic_coder`` so equal keys always hash equally; a coder
       with no deterministic form is rejected.
-    timestamp_cursor: bound the dedup state by event time. Dedup still goes by
-      key, but a key is retired once the greatest emitted event time has moved
-      more than ``allowed_lateness`` past it, so the state holds a trailing
-      window rather than every key ever seen. An output below that mark is
-      taken as already seen and dropped, so this suits sources whose outputs
-      arrive in roughly non-decreasing event time; keep the default for
-      sources that can hand out much older outputs at any time.
-    allowed_lateness: how far below the cursor a key is still retained, as a
-      :class:`Duration` or in seconds. Widen it for a source whose outputs
-      arrive out of order, at the cost of a larger state. Ignored unless
-      ``timestamp_cursor`` is set; defaults to zero.
+    timestamp_cursor: bound the dedup state by event time, for better
+      performance. An output more than ``allowed_lateness`` behind the greatest
+      event time emitted so far is taken as already seen and dropped, so this
+      suits sources whose outputs arrive in roughly non-decreasing event time;
+      keep the default for sources that can hand out much older outputs at any
+      time.
+    allowed_lateness: how far behind the greatest emitted event time an output
+      is still deduplicated by key, as a :class:`Duration` or in seconds.
+      Widen it for a source whose outputs arrive out of order, at the cost of a
+      larger state. Ignored unless ``timestamp_cursor`` is set; defaults to
+      zero.
     now_fn: clock used for termination decisions; tests can inject one.
   """
   def __init__(

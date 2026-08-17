@@ -317,12 +317,9 @@ class _MatchContinuouslyPollFn(PollFn):
   """Polls a file pattern, honoring empty-match rules.
 
   A poll before ``start_timestamp`` emits nothing. Matches carry the poll time
-  as their event time, and the watermark advances to the poll time so
-  event-time windows progress even when nothing new matches. Under
-  ``mtime_timestamps`` a match carries its last-modified time instead, which
-  is what bounds the timestamp cursor, and the watermark trails the newest
-  last-modified time while that time keeps advancing, otherwise it takes the
-  poll time.
+  as their event time, or their last-modified time under ``mtime_timestamps``,
+  where the watermark trails the newest last-modified time for as long as
+  polls keep turning up newer ones.
   """
   def __init__(
       self,
@@ -356,13 +353,10 @@ class _MatchContinuouslyPollFn(PollFn):
         TimestampedValue(metadata, Timestamp.of(_ensure_mtime(metadata)))
         for metadata in match_result.metadata_list
     ]
-    # A poll that turned up a newer last-modified time than any before it just
-    # read the filesystem clock, so the watermark stops there rather than at
-    # the poll time, and files still in flight behind a filesystem clock that
-    # lags the local one are not late. It is also capped at the poll time, so a
-    # clock running ahead cannot carry the watermark with it. A poll that found
-    # nothing newer has no fresh reading to go on, so the watermark takes the
-    # poll time and a quiet directory does not stall event-time windows.
+    # A poll that turned up a newer last-modified time has just read the
+    # filesystem clock, so the watermark stops there, capped at the poll time.
+    # A poll that found nothing newer takes the poll time, so a quiet
+    # directory does not stall event-time windows.
     newest = max((output.timestamp for output in outputs), default=None)
     if newest is not None and (self._newest_mtime is None or
                                newest > self._newest_mtime):
@@ -382,22 +376,16 @@ class MatchContinuously(beam.PTransform):
   MatchContinuously is experimental.  No backwards-compatibility
   guarantees.
 
-  Deduplication state lives in the splittable DoFn restriction, so a runner
-  with checkpointing enabled restores it after a restart and does not
-  reprocess files. That state holds one id per matched file and grows with the
-  directory, unless ``timestamp_cursor`` bounds it to the newest matched
-  last-modified time. For a growing directory on GCS, consider an alternate
-  technique such as Pub/Sub Notifications
-  (https://cloud.google.com/storage/docs/pubsub-notifications).
+  Deduplication state is checkpointed, so a runner with checkpointing enabled
+  restores it after a restart and does not reprocess files. That state grows
+  with the number of files matched, unless ``timestamp_cursor`` bounds it. For
+  a growing directory on GCS, consider an alternate technique such as Pub/Sub
+  Notifications (https://cloud.google.com/storage/docs/pubsub-notifications).
 
   A match carries the poll time as its event time, and the watermark follows
   the poll time. Under ``timestamp_cursor`` a match carries its last-modified
-  time, and the watermark trails the newest last-modified time for as long as
-  polls keep turning up newer files, so files still in flight behind a
-  filesystem clock that lags the local one are not late. It is capped at the
-  poll time, so a filesystem clock ahead of the local one cannot carry the
-  watermark with it, and a poll that turns up nothing newer releases it to the
-  poll time, so a quiet directory does not stall event-time windows.
+  time instead, and the watermark holds at the newest one matched, capped at
+  the poll time, until a poll turns up nothing newer and releases it.
   """
   def __init__(
       self,
@@ -422,19 +410,12 @@ class MatchContinuously(beam.PTransform):
         file with timestamp changes.
       apply_windowing: Whether each element should be assigned to
         individual window. If false, all elements will reside in global window.
-      timestamp_cursor: (When has_deduplication is set to True) bound the
-        deduplication state by last-modified time. Files are deduplicated by
-        path and last-modified time, and a key is retired once the newest match
-        has moved past it, so the state holds a trailing window rather than one
-        key per file the pattern has ever matched. Retiring a key cannot
-        duplicate a match, because the only file that would recreate it carries
-        the same last-modified time and is skipped by the same mark. A file
-        whose last-modified time is older than that mark is taken as already
-        seen and skipped, as happens with copies that preserve the source time
-        and with backfills of older files. Implies the ``match_updated_files``
-        key, so an updated file is matched again. Requires the filesystem to
-        report last-modified times, and matches then carry their last-modified
-        time as their event time instead of the poll time.
+      timestamp_cursor: (When match_updated_files and has_deduplication are set
+        to True) bound the deduplication state by last-modified time. By
+        default, all file modification history is tracked. If set to true, file
+        modification history prior to the max(mtime of last poll result) are
+        dropped, for better performance. A file that appears with an older
+        last-modified time is then taken as already seen and skipped.
     """
 
     self.file_pattern = file_pattern
