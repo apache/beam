@@ -69,13 +69,13 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     @Nullable Node nextKeyGroupNode;
 
     private static boolean isMultiKeyBatchingDisabled(Runnable task) {
-      return (task instanceof QueuedWork)
-          && ((QueuedWork) task).getWork().isMultiKeyBatchingDisabled();
+      return !(task instanceof QueuedWork)
+          || ((QueuedWork) task).getWork().isMultiKeyBatchingDisabled();
     }
 
     Node(Runnable task) {
       this.task = task;
-      if (task instanceof QueuedWork && !isMultiKeyBatchingDisabled(task)) {
+      if (!isMultiKeyBatchingDisabled(task)) {
         this.computationId = ((QueuedWork) task).getWork().getComputationId();
         this.keyGroup = ((QueuedWork) task).getWork().getKeyGroup();
       } else {

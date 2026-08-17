@@ -726,8 +726,8 @@ public class StreamingModeExecutionContext
     // updated but executedWorks has not.
     // TODO: Can we request truncation without retrying if the first commit exceed the limits?
     BoundedQueueExecutorWorkHandle handle = checkNotNull(budgetHandle);
-    checkState(!handle.getWorkBatch().isEmpty());
     List<Work> currentBatch = handle.getWorkBatch();
+    checkState(!currentBatch.isEmpty());
     if (currentBatch.size() > 1) {
       LOG.warn(
           "Windmill Commit limit exceeded on a multi key bundle. Retrying without batching. Batch size: {}",
@@ -877,11 +877,6 @@ public class StreamingModeExecutionContext
       commits.add(builder.build());
     }
     return commits;
-  }
-
-  // Returns list of Work that was executed in the bundle
-  public List<Work> getExecutedWorks() {
-    return executedWorks;
   }
 
   // Returns finalization callbacks recorded during the bundle execution
