@@ -47,6 +47,7 @@ import org.apache.iceberg.SnapshotRef;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.StatisticsFile;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.TableScan;
 import org.apache.iceberg.Transaction;
 import org.apache.iceberg.UpdateLocation;
@@ -55,38 +56,53 @@ import org.apache.iceberg.UpdateProperties;
 import org.apache.iceberg.UpdateSchema;
 import org.apache.iceberg.UpdateStatistics;
 import org.apache.iceberg.encryption.EncryptionManager;
+import org.apache.iceberg.encryption.EncryptionUtil;
+import org.apache.iceberg.encryption.KeyManagementClient;
 import org.apache.iceberg.encryption.PlaintextEncryptionManager;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.io.LocationProvider;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A lightweight adapter that implements {@link Table} backed by a {@link SerializableTableSpec}.
  *
- * <p>Delegates declarative metadata (schema, partition specs, sort order, properties) to the
- * broadcasted {@link SerializableTableSpec} and file I/O to a worker-local {@link FileIO} instance.
+ * <p>Delegates declarative metadata (schemas, partition specs, sort orders, properties) and {@link
+ * FileIO} to the broadcasted {@link SerializableTableSpec}, and reconstructs the {@link
+ * EncryptionManager} from catalog properties or falls back to {@link PlaintextEncryptionManager}.
  *
- * <p>Mutation operations (e.g. {@code newAppend()}, {@code updateSchema()}) throw {@link
- * UnsupportedOperationException} because table commits are handled centrally in {@link
- * AppendFilesToTables}.
+ * <p>All non-metadata or mutating operations (e.g. {@code refresh()}, {@code currentSnapshot()},
+ * {@code newAppend()}, {@code updateSchema()}) throw {@link UnsupportedOperationException}. Table
+ * commits are handled centrally in {@link AppendFilesToTables}.
  */
 @Internal
 @SuppressWarnings("nullness")
 public class SideInputTable implements Table {
 
   private final SerializableTableSpec spec;
-  private final FileIO fileIO;
   private final EncryptionManager encryptionManager;
   private final LocationProvider locationProvider;
 
-  public SideInputTable(SerializableTableSpec spec, FileIO fileIO) {
-    this(spec, fileIO, PlaintextEncryptionManager.instance());
+  public SideInputTable(SerializableTableSpec spec) {
+    this(spec, Collections.emptyMap());
   }
 
-  public SideInputTable(
-      SerializableTableSpec spec, FileIO fileIO, EncryptionManager encryptionManager) {
+  public SideInputTable(SerializableTableSpec spec, Map<String, String> catalogProperties) {
     this.spec = checkNotNull(spec, "spec must not be null");
-    this.fileIO = checkNotNull(fileIO, "fileIO must not be null");
+    checkNotNull(catalogProperties, "catalogProperties must not be null");
+    this.locationProvider =
+        LocationProviders.locationsFor(spec.getLocation(), spec.getProperties());
+
+    Map<String, String> properties = spec.getProperties();
+    if (!properties.containsKey(TableProperties.ENCRYPTION_TABLE_KEY)) {
+      this.encryptionManager = PlaintextEncryptionManager.instance();
+    } else {
+      KeyManagementClient kmsClient = EncryptionUtil.createKmsClient(catalogProperties);
+      this.encryptionManager =
+          EncryptionUtil.createEncryptionManager(spec.getEncryptedKeys(), properties, kmsClient);
+    }
+  }
+
+  public SideInputTable(SerializableTableSpec spec, EncryptionManager encryptionManager) {
+    this.spec = checkNotNull(spec, "spec must not be null");
     this.encryptionManager = checkNotNull(encryptionManager, "encryptionManager must not be null");
     this.locationProvider =
         LocationProviders.locationsFor(spec.getLocation(), spec.getProperties());
@@ -113,7 +129,7 @@ public class SideInputTable implements Table {
 
   @Override
   public Map<Integer, Schema> schemas() {
-    return Collections.singletonMap(spec.getSchema().schemaId(), spec.getSchema());
+    return spec.getSchemas();
   }
 
   @Override
@@ -123,7 +139,7 @@ public class SideInputTable implements Table {
 
   @Override
   public Map<Integer, PartitionSpec> specs() {
-    return Collections.singletonMap(spec.getPartitionSpec().specId(), spec.getPartitionSpec());
+    return spec.getPartitionSpecs();
   }
 
   @Override
@@ -133,7 +149,7 @@ public class SideInputTable implements Table {
 
   @Override
   public Map<Integer, SortOrder> sortOrders() {
-    return Collections.singletonMap(spec.getSortOrder().orderId(), spec.getSortOrder());
+    return spec.getSortOrders();
   }
 
   @Override
@@ -148,7 +164,7 @@ public class SideInputTable implements Table {
 
   @Override
   public FileIO io() {
-    return fileIO;
+    return spec.getFileIO();
   }
 
   @Override
@@ -158,42 +174,50 @@ public class SideInputTable implements Table {
 
   @Override
   public void refresh() {
-    // No-op: refresh is managed by the periodic side-input update mechanism
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support refresh.");
   }
 
   @Override
-  public @Nullable Snapshot currentSnapshot() {
-    return null;
+  public Snapshot currentSnapshot() {
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support snapshots.");
   }
 
   @Override
-  public @Nullable Snapshot snapshot(long snapshotId) {
-    return null;
+  public Snapshot snapshot(long snapshotId) {
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support snapshots.");
   }
 
   @Override
   public Iterable<Snapshot> snapshots() {
-    return Collections.emptyList();
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support snapshots.");
   }
 
   @Override
   public List<HistoryEntry> history() {
-    return Collections.emptyList();
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support snapshots.");
   }
 
   @Override
   public Map<String, SnapshotRef> refs() {
-    return Collections.emptyMap();
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support snapshot refs.");
   }
 
   @Override
   public List<StatisticsFile> statisticsFiles() {
-    return Collections.emptyList();
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support statisticsFiles.");
   }
 
   @Override
   public List<PartitionStatisticsFile> partitionStatisticsFiles() {
-    return Collections.emptyList();
+    throw new UnsupportedOperationException(
+        "SideInputTable is a read-only metadata adapter and does not support partitionStatisticsFiles.");
   }
 
   @Override
@@ -326,20 +350,18 @@ public class SideInputTable implements Table {
     }
     SideInputTable that = (SideInputTable) o;
     return Objects.equals(spec, that.spec)
-        && Objects.equals(fileIO, that.fileIO)
         && Objects.equals(encryptionManager, that.encryptionManager);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(spec, fileIO, encryptionManager);
+    return Objects.hash(spec, encryptionManager);
   }
 
   @Override
   public String toString() {
     return MoreObjects.toStringHelper(this)
         .add("spec", spec)
-        .add("fileIO", fileIO)
         .add("encryptionManager", encryptionManager)
         .toString();
   }

@@ -20,13 +20,10 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
-import java.util.Collections;
 import java.util.Map;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
@@ -68,13 +65,12 @@ public class SideInputTableTest {
 
   @Test
   public void testConstructorNullChecks() {
+    assertThrows(NullPointerException.class, () -> new SideInputTable(null));
     TableIdentifier tableId = TableIdentifier.of("default", "null_check_table");
     Table realTable = catalog.createTable(tableId, TestFixtures.SCHEMA);
     SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
-
-    assertThrows(NullPointerException.class, () -> new SideInputTable(null, realTable.io()));
-    assertThrows(NullPointerException.class, () -> new SideInputTable(spec, null));
-    assertThrows(NullPointerException.class, () -> new SideInputTable(spec, realTable.io(), null));
+    assertThrows(
+        NullPointerException.class, () -> new SideInputTable(spec, (Map<String, String>) null));
   }
 
   @Test
@@ -98,8 +94,7 @@ public class SideInputTableTest {
             .create();
 
     SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
-    SideInputTable sideInputTable =
-        new SideInputTable(spec, realTable.io(), PlaintextEncryptionManager.instance());
+    SideInputTable sideInputTable = new SideInputTable(spec, ImmutableMap.of());
 
     assertEquals(realTable.name(), sideInputTable.name());
     assertEquals(realTable.location(), sideInputTable.location());
@@ -111,30 +106,13 @@ public class SideInputTableTest {
     assertEquals(realTable.sortOrders().keySet(), sideInputTable.sortOrders().keySet());
     assertEquals(
         realTable.properties().get("user.key"), sideInputTable.properties().get("user.key"));
-    assertEquals(realTable.io(), sideInputTable.io());
+    assertNotNull(sideInputTable.io());
+    assertEquals(realTable.io().getClass().getName(), sideInputTable.io().getClass().getName());
     assertNotNull(sideInputTable.locationProvider());
     assertNotNull(sideInputTable.encryption());
+    assertTrue(sideInputTable.encryption() instanceof PlaintextEncryptionManager);
     assertEquals(spec, sideInputTable.getTableSpec());
-    assertTrue(sideInputTable.specs().containsKey(spec.getPartitionSpec().specId()));
-
-    // Verify refresh is a safe no-op
-    sideInputTable.refresh();
-  }
-
-  @Test
-  public void testSnapshotQueriesReturnEmptyOrNull() {
-    TableIdentifier tableId = TableIdentifier.of("default", "snapshot_query_table");
-    Table realTable = catalog.createTable(tableId, TestFixtures.SCHEMA);
-    SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
-    SideInputTable sideInputTable = new SideInputTable(spec, realTable.io());
-
-    assertNull(sideInputTable.currentSnapshot());
-    assertNull(sideInputTable.snapshot(12345L));
-    assertEquals(Collections.emptyList(), ImmutableList.copyOf(sideInputTable.snapshots()));
-    assertEquals(Collections.emptyList(), sideInputTable.history());
-    assertEquals(Collections.emptyMap(), sideInputTable.refs());
-    assertEquals(Collections.emptyList(), sideInputTable.statisticsFiles());
-    assertEquals(Collections.emptyList(), sideInputTable.partitionStatisticsFiles());
+    assertTrue(sideInputTable.specs().containsKey(spec.getSpecId()));
   }
 
   @Test
@@ -146,7 +124,7 @@ public class SideInputTableTest {
         catalog.buildTable(tableId, TestFixtures.SCHEMA).withPartitionSpec(partitionSpec).create();
 
     SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
-    SideInputTable sideInputTable = new SideInputTable(spec, realTable.io());
+    SideInputTable sideInputTable = new SideInputTable(spec);
 
     PartitionKey partitionKey = new PartitionKey(sideInputTable.spec(), sideInputTable.schema());
     Record record = GenericRecord.create(sideInputTable.schema());
@@ -173,7 +151,7 @@ public class SideInputTableTest {
     Table realTable = catalog.createTable(tableId, TestFixtures.SCHEMA);
 
     SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
-    SideInputTable sideInputTable = new SideInputTable(spec, realTable.io());
+    SideInputTable sideInputTable = new SideInputTable(spec);
 
     PartitionKey partitionKey = new PartitionKey(sideInputTable.spec(), sideInputTable.schema());
     Record record = GenericRecord.create(sideInputTable.schema());
@@ -199,12 +177,23 @@ public class SideInputTableTest {
   }
 
   @Test
-  public void testUnsupportedOperationsThrowExceptions() {
+  public void testUnsupportedAndNoOpOperationsThrowExceptions() {
     TableIdentifier tableId = TableIdentifier.of("default", "mutations_test_table");
     Table realTable = catalog.createTable(tableId, TestFixtures.SCHEMA);
     SerializableTableSpec spec = SerializableTableSpec.fromTable(tableId, realTable);
-    SideInputTable sideInputTable = new SideInputTable(spec, realTable.io());
+    SideInputTable sideInputTable = new SideInputTable(spec);
 
+    // Refresh & Snapshot operations must throw UnsupportedOperationException
+    assertThrows(UnsupportedOperationException.class, sideInputTable::refresh);
+    assertThrows(UnsupportedOperationException.class, sideInputTable::currentSnapshot);
+    assertThrows(UnsupportedOperationException.class, () -> sideInputTable.snapshot(12345L));
+    assertThrows(UnsupportedOperationException.class, sideInputTable::snapshots);
+    assertThrows(UnsupportedOperationException.class, sideInputTable::history);
+    assertThrows(UnsupportedOperationException.class, sideInputTable::refs);
+    assertThrows(UnsupportedOperationException.class, sideInputTable::statisticsFiles);
+    assertThrows(UnsupportedOperationException.class, sideInputTable::partitionStatisticsFiles);
+
+    // Scans & Mutations
     assertThrows(UnsupportedOperationException.class, sideInputTable::newScan);
     assertThrows(UnsupportedOperationException.class, sideInputTable::newIncrementalAppendScan);
     assertThrows(UnsupportedOperationException.class, sideInputTable::newIncrementalChangelogScan);
@@ -237,9 +226,9 @@ public class SideInputTableTest {
     SerializableTableSpec spec1 = SerializableTableSpec.fromTable(tableId1, realTable1);
     SerializableTableSpec spec2 = SerializableTableSpec.fromTable(tableId2, realTable2);
 
-    SideInputTable table1a = new SideInputTable(spec1, realTable1.io());
-    SideInputTable table1b = new SideInputTable(spec1, realTable1.io());
-    SideInputTable table2 = new SideInputTable(spec2, realTable2.io());
+    SideInputTable table1a = new SideInputTable(spec1);
+    SideInputTable table1b = new SideInputTable(spec1);
+    SideInputTable table2 = new SideInputTable(spec2);
 
     assertEquals(table1a, table1b);
     assertEquals(table1a.hashCode(), table1b.hashCode());

@@ -21,7 +21,10 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -29,6 +32,9 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.schemas.annotations.SchemaIgnore;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.EncryptedKeyParser;
+import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.PartitionSpecParser;
 import org.apache.iceberg.Schema;
@@ -36,14 +42,20 @@ import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.SortOrderParser;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.encryption.EncryptedKey;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.FileIOParser;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A serializable, lightweight representation of an Iceberg {@link Table}'s declarative metadata.
  *
- * <p>Captures the table's schema, partition spec, sort order, location, properties, and identifier.
- * Suitable for broadcasting across worker nodes via Beam's side-input mechanism.
+ * <p>Captures the table's schemas, partition specs, sort orders, location, properties, identifier,
+ * encrypted keys, and serialized {@link FileIO} configuration. Suitable for broadcasting across
+ * worker nodes via Beam's side-input mechanism.
  */
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
@@ -59,35 +71,87 @@ public abstract class SerializableTableSpec implements Serializable {
   public abstract String getLocation();
 
   @SchemaFieldNumber("3")
-  public abstract int getSpecId();
+  public abstract int getSchemaId();
 
   @SchemaFieldNumber("4")
-  public abstract String getSchemaJson();
+  public abstract Map<Integer, String> getSchemasJson();
 
   @SchemaFieldNumber("5")
-  public abstract String getPartitionSpecJson();
+  public abstract int getSpecId();
 
   @SchemaFieldNumber("6")
-  public abstract String getSortOrderJson();
+  public abstract Map<Integer, String> getPartitionSpecsJson();
 
   @SchemaFieldNumber("7")
+  public abstract int getOrderId();
+
+  @SchemaFieldNumber("8")
+  public abstract Map<Integer, String> getSortOrdersJson();
+
+  @SchemaFieldNumber("9")
   public abstract Map<String, String> getProperties();
 
-  private transient volatile @MonotonicNonNull Schema cachedSchema;
-  private transient volatile @MonotonicNonNull PartitionSpec cachedPartitionSpec;
-  private transient volatile @MonotonicNonNull SortOrder cachedSortOrder;
+  @SchemaFieldNumber("10")
+  public abstract String getFileIoJson();
+
+  @SchemaFieldNumber("11")
+  public abstract List<String> getEncryptedKeyJsons();
+
+  private transient volatile @MonotonicNonNull Map<Integer, Schema> cachedSchemas;
+  private transient volatile @MonotonicNonNull Map<Integer, PartitionSpec> cachedPartitionSpecs;
+  private transient volatile @MonotonicNonNull Map<Integer, SortOrder> cachedSortOrders;
   private transient volatile @MonotonicNonNull TableIdentifier cachedTableIdentifier;
+  private transient volatile @MonotonicNonNull FileIO cachedFileIO;
+  private transient volatile @MonotonicNonNull List<EncryptedKey> cachedEncryptedKeys;
 
   private static volatile @MonotonicNonNull SchemaCoder<SerializableTableSpec> cachedCoder;
 
   @SchemaIgnore
-  public Schema getSchema() {
-    Schema local = cachedSchema;
+  public Map<Integer, Schema> getSchemas() {
+    Map<Integer, Schema> local = cachedSchemas;
     if (local == null) {
       synchronized (this) {
-        local = cachedSchema;
+        local = cachedSchemas;
         if (local == null) {
-          cachedSchema = local = SchemaParser.fromJson(getSchemaJson());
+          ImmutableMap.Builder<Integer, Schema> builder = ImmutableMap.builder();
+          for (Map.Entry<Integer, String> entry : getSchemasJson().entrySet()) {
+            builder.put(entry.getKey(), SchemaParser.fromJson(entry.getValue()));
+          }
+          cachedSchemas = local = builder.build();
+        }
+      }
+    }
+    return local;
+  }
+
+  @SchemaIgnore
+  public Schema getSchema() {
+    Schema schema = getSchemas().get(getSchemaId());
+    if (schema == null) {
+      throw new IllegalStateException(
+          "Schema with id " + getSchemaId() + " not found in schemas map");
+    }
+    return schema;
+  }
+
+  @SchemaIgnore
+  public @Nullable Schema getSchema(int schemaId) {
+    return getSchemas().get(schemaId);
+  }
+
+  @SchemaIgnore
+  public Map<Integer, PartitionSpec> getPartitionSpecs() {
+    Map<Integer, PartitionSpec> local = cachedPartitionSpecs;
+    if (local == null) {
+      synchronized (this) {
+        local = cachedPartitionSpecs;
+        if (local == null) {
+          ImmutableMap.Builder<Integer, PartitionSpec> builder = ImmutableMap.builder();
+          for (Map.Entry<Integer, String> entry : getPartitionSpecsJson().entrySet()) {
+            builder.put(
+                entry.getKey(), PartitionSpecParser.fromJson(getSchema(), entry.getValue()));
+          }
+          cachedPartitionSpecs = local = builder.build();
         }
       }
     }
@@ -96,13 +160,31 @@ public abstract class SerializableTableSpec implements Serializable {
 
   @SchemaIgnore
   public PartitionSpec getPartitionSpec() {
-    PartitionSpec local = cachedPartitionSpec;
+    PartitionSpec spec = getPartitionSpecs().get(getSpecId());
+    if (spec == null) {
+      throw new IllegalStateException(
+          "PartitionSpec with id " + getSpecId() + " not found in partitionSpecs map");
+    }
+    return spec;
+  }
+
+  @SchemaIgnore
+  public @Nullable PartitionSpec getPartitionSpec(int specId) {
+    return getPartitionSpecs().get(specId);
+  }
+
+  @SchemaIgnore
+  public Map<Integer, SortOrder> getSortOrders() {
+    Map<Integer, SortOrder> local = cachedSortOrders;
     if (local == null) {
       synchronized (this) {
-        local = cachedPartitionSpec;
+        local = cachedSortOrders;
         if (local == null) {
-          cachedPartitionSpec =
-              local = PartitionSpecParser.fromJson(getSchema(), getPartitionSpecJson());
+          ImmutableMap.Builder<Integer, SortOrder> builder = ImmutableMap.builder();
+          for (Map.Entry<Integer, String> entry : getSortOrdersJson().entrySet()) {
+            builder.put(entry.getKey(), SortOrderParser.fromJson(getSchema(), entry.getValue()));
+          }
+          cachedSortOrders = local = builder.build();
         }
       }
     }
@@ -111,16 +193,17 @@ public abstract class SerializableTableSpec implements Serializable {
 
   @SchemaIgnore
   public SortOrder getSortOrder() {
-    SortOrder local = cachedSortOrder;
-    if (local == null) {
-      synchronized (this) {
-        local = cachedSortOrder;
-        if (local == null) {
-          cachedSortOrder = local = SortOrderParser.fromJson(getSchema(), getSortOrderJson());
-        }
-      }
+    SortOrder order = getSortOrders().get(getOrderId());
+    if (order == null) {
+      throw new IllegalStateException(
+          "SortOrder with id " + getOrderId() + " not found in sortOrders map");
     }
-    return local;
+    return order;
+  }
+
+  @SchemaIgnore
+  public @Nullable SortOrder getSortOrder(int orderId) {
+    return getSortOrders().get(orderId);
   }
 
   @SchemaIgnore
@@ -132,6 +215,38 @@ public abstract class SerializableTableSpec implements Serializable {
         if (local == null) {
           cachedTableIdentifier =
               local = IcebergUtils.parseTableIdentifier(getTableIdentifierString());
+        }
+      }
+    }
+    return local;
+  }
+
+  @SchemaIgnore
+  public FileIO getFileIO() {
+    FileIO local = cachedFileIO;
+    if (local == null) {
+      synchronized (this) {
+        local = cachedFileIO;
+        if (local == null) {
+          cachedFileIO = local = FileIOParser.fromJson(getFileIoJson());
+        }
+      }
+    }
+    return local;
+  }
+
+  @SchemaIgnore
+  public List<EncryptedKey> getEncryptedKeys() {
+    List<EncryptedKey> local = cachedEncryptedKeys;
+    if (local == null) {
+      synchronized (this) {
+        local = cachedEncryptedKeys;
+        if (local == null) {
+          cachedEncryptedKeys =
+              local =
+                  getEncryptedKeyJsons().stream()
+                      .map(EncryptedKeyParser::fromJson)
+                      .collect(Collectors.toList());
         }
       }
     }
@@ -152,15 +267,28 @@ public abstract class SerializableTableSpec implements Serializable {
 
     public abstract Builder setLocation(String location);
 
+    public abstract Builder setSchemaId(int schemaId);
+
+    public abstract Builder setSchemasJson(Map<Integer, String> schemasJson);
+
     public abstract Builder setSpecId(int specId);
 
-    public abstract Builder setSchemaJson(String schemaJson);
+    public abstract Builder setPartitionSpecsJson(Map<Integer, String> partitionSpecsJson);
 
-    public abstract Builder setPartitionSpecJson(String partitionSpecJson);
+    public abstract Builder setOrderId(int orderId);
 
-    public abstract Builder setSortOrderJson(String sortOrderJson);
+    public abstract Builder setSortOrdersJson(Map<Integer, String> sortOrdersJson);
 
     public abstract Builder setProperties(Map<String, String> properties);
+
+    public abstract Builder setFileIoJson(String fileIoJson);
+
+    public abstract Builder setEncryptedKeyJsons(List<String> encryptedKeyJsons);
+
+    @SchemaIgnore
+    public Builder setFileIO(FileIO fileIO) {
+      return setFileIoJson(FileIOParser.toJson(fileIO));
+    }
 
     public abstract SerializableTableSpec build();
   }
@@ -188,15 +316,50 @@ public abstract class SerializableTableSpec implements Serializable {
    * {@link Table}.
    */
   public static SerializableTableSpec fromTable(String tableIdentifierString, Table table) {
+    if (!(table instanceof HasTableOperations)) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Table %s of class %s does not implement HasTableOperations",
+              table.name(), table.getClass().getName()));
+    }
+
+    TableMetadata metadata = ((HasTableOperations) table).operations().current();
+    List<String> encryptedKeyJsons = Collections.emptyList();
+    if (metadata != null && metadata.encryptionKeys() != null) {
+      encryptedKeyJsons =
+          metadata.encryptionKeys().stream()
+              .map(key -> EncryptedKeyParser.toJson(key, false))
+              .collect(Collectors.toList());
+    }
+
+    ImmutableMap.Builder<Integer, String> schemasJson = ImmutableMap.builder();
+    for (Map.Entry<Integer, Schema> entry : table.schemas().entrySet()) {
+      schemasJson.put(entry.getKey(), SchemaParser.toJson(entry.getValue()));
+    }
+
+    ImmutableMap.Builder<Integer, String> specsJson = ImmutableMap.builder();
+    for (Map.Entry<Integer, PartitionSpec> entry : table.specs().entrySet()) {
+      specsJson.put(entry.getKey(), PartitionSpecParser.toJson(entry.getValue()));
+    }
+
+    ImmutableMap.Builder<Integer, String> sortOrdersJson = ImmutableMap.builder();
+    for (Map.Entry<Integer, SortOrder> entry : table.sortOrders().entrySet()) {
+      sortOrdersJson.put(entry.getKey(), SortOrderParser.toJson(entry.getValue()));
+    }
+
     return builder()
         .setTableIdentifierString(tableIdentifierString)
         .setName(table.name())
         .setLocation(table.location())
+        .setSchemaId(table.schema().schemaId())
+        .setSchemasJson(schemasJson.build())
         .setSpecId(table.spec().specId())
-        .setSchemaJson(SchemaParser.toJson(table.schema()))
-        .setPartitionSpecJson(PartitionSpecParser.toJson(table.spec()))
-        .setSortOrderJson(SortOrderParser.toJson(table.sortOrder()))
+        .setPartitionSpecsJson(specsJson.build())
+        .setOrderId(table.sortOrder().orderId())
+        .setSortOrdersJson(sortOrdersJson.build())
         .setProperties(table.properties())
+        .setFileIoJson(FileIOParser.toJson(table.io()))
+        .setEncryptedKeyJsons(encryptedKeyJsons)
         .build();
   }
 
