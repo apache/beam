@@ -65,6 +65,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* [IcebergIO] is now compliant with encrypted tables ([39808](https://github.com/apache/beam/issues/39808)).
 
 ## New Features / Improvements
 
