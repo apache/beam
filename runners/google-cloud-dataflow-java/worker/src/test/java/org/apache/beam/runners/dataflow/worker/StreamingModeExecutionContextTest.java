@@ -902,7 +902,7 @@ public class StreamingModeExecutionContextTest {
   }
 
   @Test
-  public void testAdvance_stopsWhenQueuedWorkBatchingDisabled() throws Exception {
+  public void testAdvance_stopsWhenCurrentWorkBatchingDisabled() throws Exception {
     DataflowWorkerHarnessOptions optionsMultiKey =
         PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
     optionsMultiKey
@@ -924,11 +924,7 @@ public class StreamingModeExecutionContextTest {
                 .setKeyGroup(keyGroup)
                 .build(),
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
-    assertFalse(work1.isMultiKeyBatchingDisabled());
-
-    when(mockExecutor.pollWork(
-            COMPUTATION_ID, work1.getKeyGroup(), mockHandle, FAILING_FAILED_WORK_HANDLER))
-        .thenReturn(null);
+    work1.setMultiKeyBatchingDisabled(true);
 
     AtomicBoolean transitionListenerCalled = new AtomicBoolean(false);
     context.start(
@@ -942,7 +938,6 @@ public class StreamingModeExecutionContextTest {
 
     assertFalse(context.advance());
     assertFalse(transitionListenerCalled.get());
-    verify(mockExecutor)
-        .pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle, FAILING_FAILED_WORK_HANDLER);
+    verifyNoInteractions(mockExecutor);
   }
 }
