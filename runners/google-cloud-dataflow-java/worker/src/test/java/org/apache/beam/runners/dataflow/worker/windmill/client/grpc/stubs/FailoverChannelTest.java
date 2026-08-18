@@ -84,12 +84,12 @@ public class FailoverChannelTest {
       LongSupplier nanoClock,
       @Nullable Long rpcFailureThresholdNanos) {
     return FailoverChannel.forTest(
-      primary,
-      fallback,
-      fallbackCallCredentials,
-      nanoClock,
-      rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L,
-      () -> TimeUnit.SECONDS.toMillis(10));
+            primary,
+            fallback,
+            fallbackCallCredentials,
+            nanoClock,
+            rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L,
+            () -> TimeUnit.SECONDS.toMillis(10));
   }
 
   /**
