@@ -107,28 +107,6 @@ jobs:
       # The env variables are created and populated in the test-arguments-action as "<github.job>_test_arguments_<argument_file_paths_index>"
       - name: get current time
         run: echo "NOW_UTC=$(date '+%m%d%H%M%S' --utc)" >> $GITHUB_ENV
-      - name: run PyTorch Image Captioning BLIP + CLIP Batch CPU
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        timeout-minutes: 180
-        with:
-          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
-          arguments: |
-            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
-            -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=batch --job_name=benchmark-tests-pytorch-image-captioning-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_batch_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_batch_cpu'
-      - name: run PyTorch Image Captioning BLIP + CLIP Streaming CPU
-        uses: ./.github/actions/gradle-command-self-hosted-action
-        timeout-minutes: 180
-        with:
-          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
-          arguments: |
-            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
-            -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
-            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
       - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) CPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -161,4 +139,15 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.10 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_12 }} --device=CPU --mode=batch --job_name=benchmark-tests-pytorch-image-object-detection-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_batch_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_batch_cpu'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_12 }} --device=CPU --mode=batch --job_name=benchmark-tests-pytorch-image-object-detection-batch-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_batch_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_batch_cpu' \
+      - name: run PyTorch Image Captioning BLIP + CLIP Streaming CPU
+        uses: ./.github/actions/gradle-command-self-hosted-action
+        timeout-minutes: 180
+        with:
+          gradle-command: :sdks:python:apache_beam:testing:load_tests:run
+          arguments: |
+            -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_image_captioning_benchmarks \
+            -Prunner=DataflowRunner \
+            -PpythonVersion=3.10 \
+            -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
