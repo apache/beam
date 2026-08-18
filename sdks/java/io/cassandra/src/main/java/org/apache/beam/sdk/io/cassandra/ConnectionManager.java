@@ -62,16 +62,17 @@ public class ConnectionManager {
     String clusterHash = readToClusterHash(read);
     String sessionHash = readToSessionHash(read);
 
-    Cluster cluster = clusterMap.get(clusterHash);
+    Cluster cachedCluster = clusterMap.get(clusterHash);
 
-    if(cluster != null && cluster.isClosed()) {
+    if (cachedCluster != null && cachedCluster.isClosed()) {
       Session brokenSession = sessionMap.get(sessionHash);
       if (brokenSession != null) {
-        sessionMap.remove(sessionHash,brokenSession);
+        sessionMap.remove(sessionHash, brokenSession);
       }
-      clusterMap.remove(clusterHash,cluster);
+      // Removing broken cluster object
+      clusterMap.remove(clusterHash, cachedCluster);
     }
-    cluster =
+    Cluster cluster =
         clusterMap.computeIfAbsent(
             clusterHash,
             k ->
