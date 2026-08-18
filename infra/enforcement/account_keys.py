@@ -328,7 +328,7 @@ class AccountKeysPolicyComplianceCheck:
                     legal_keys = self._get_verified_keys_from_secret_manager(secret_name)
                 unmanaged_keys = set(iam_keys) - set(legal_keys)
                 for unmanaged_key in unmanaged_keys:
-                    msg = f"SECURITY ALERT: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
+                    msg = f"IAC_DRIFT_SA_KEY: Unmanaged key '{unmanaged_key}' detected on account '{service_account}'. This key was created outside of Beam's service account management system. "
                     compliance_issues.append(msg)
                     self.logger.warning(msg)
 
@@ -379,8 +379,8 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.info("No compliance issues found, no announcement will be created.")
             return
 
-        unmanaged_keys_issues = [issue for issue in diff if "SECURITY ALERT" in issue]
-        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
+        unmanaged_keys_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" in issue]
+        general_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" not in issue]
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general compliance issues. Triggering announcement...")
@@ -417,8 +417,8 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
-        unmanaged_keys_issues = [issue for issue in diff if "SECURITY ALERT" in issue]
-        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
+        unmanaged_keys_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" in issue]
+        general_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" not in issue]
 
         if general_issues:
             self.logger.info("Printing general compliance announcement...")

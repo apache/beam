@@ -21,7 +21,7 @@ import sys
 import yaml
 from google.api_core import exceptions
 from google.cloud import resourcemanager_v3
-from typing import Optional, List, Dict, tuple
+from typing import Optional, List, Dict
 from sending import SendingClient
 from datetime import datetime, timezone
 
@@ -224,7 +224,7 @@ class IAMPolicyComplianceChecker:
             existing_user = existing_users.get(email)
 
             if current_user and not existing_user:
-                differences.append(f"SECURITY ALERT: Unauthorized user '{email}' detected in GCP but not found in existing policy.")
+                differences.append(f"IAC_DRIFT_IAM_USER: Unauthorized user '{email}' detected in GCP but not found in existing policy.")
             elif not current_user and existing_user:
                 differences.append(f"User {email} found in policy file but not in GCP.")
             elif current_user and existing_user:
@@ -254,8 +254,8 @@ class IAMPolicyComplianceChecker:
             self.logger.info("No compliance issues found, no announcement will be created.")
             return
 
-        security_alerts = [issue for issue in diff if "SECURITY ALERT" in issue]
-        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
+        iam_drift_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" in issue]
+        general_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" not in issue]
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general IAM compliance issues. Triggering announcement...")
@@ -270,15 +270,15 @@ class IAMPolicyComplianceChecker:
 
             self.sending_client.create_announcement(title, body, recipient, announcement)
 
-        if security_alerts:
-            self.logger.info(f"Found {len(security_alerts)} critical IAM security alerts. Dispatching to GitHub security issue...")
+        if iam_drift_issues:
+            self.logger.info(f"Found {len(iam_drift_issues)} critical IAM security alerts. Dispatching to GitHub security issue...")
             title = f"[SECURITY] Action Required: Unauthorized IAM Users Detected"
             body = f"Critical security violations detected in IAM policies for project {self.project_id}:\n\n"
-            for issue in security_alerts:
+            for issue in iam_drift_issues:
                 body += f"- {issue}\n"
 
             announcement = f"URGENT: Dear team,\n\nThis is an automated security alert regarding unauthorized IAM access in project {self.project_id}.\n\n"
-            announcement += f"We found {len(security_alerts)} critical security alert(s) that require IMMEDIATE attention.\n"
+            announcement += f"We found {len(iam_drift_issues)} critical security alert(s) that require IMMEDIATE attention.\n"
             announcement += f"\nPlease check the GitHub issue for detailed information and revoke unauthorized access immediately."
 
             self.sending_client.create_announcement(title, body, recipient, announcement)
@@ -299,8 +299,8 @@ class IAMPolicyComplianceChecker:
             self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
-        security_alerts = [issue for issue in diff if "SECURITY ALERT" in issue]
-        general_issues = [issue for issue in diff if "SECURITY ALERT" not in issue]
+        iam_drift_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" in issue]
+        general_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" not in issue]
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general IAM compliance issues. Printing announcement...")
@@ -315,15 +315,15 @@ class IAMPolicyComplianceChecker:
 
             self.sending_client.print_announcement(title, body, recipient, announcement)
 
-        if security_alerts:
+        if iam_drift_issues:
             self.logger.info("Printing security dashboard update for IAM vulnerabilities...")
             title = f"[SECURITY] Action Required: Unauthorized IAM Users Detected"
             body = f"Critical security violations detected in IAM policies for project {self.project_id}:\n\n"
-            for issue in security_alerts:
+            for issue in iam_drift_issues:
                 body += f"- {issue}\n"
 
             announcement = f"URGENT: Dear team,\n\nThis is an automated security alert regarding unauthorized IAM access in project {self.project_id}.\n\n"
-            announcement += f"We found {len(security_alerts)} critical security alert(s) that require IMMEDIATE attention.\n"
+            announcement += f"We found {len(iam_drift_issues)} critical security alert(s) that require IMMEDIATE attention.\n"
             announcement += f"\nPlease check the GitHub issue for detailed information and revoke unauthorized access immediately."
 
             self.sending_client.print_announcement(title, body, recipient, announcement)
