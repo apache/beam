@@ -80,39 +80,47 @@ public class GcpSecret extends Secret {
     if (Strings.isNullOrEmpty(secretId)) {
       throw new IllegalArgumentException("Secret name must be specified in secret spec.");
     }
-    String projectId = specMap.get("project");
-    if (Strings.isNullOrEmpty(projectId)) {
-      projectId = System.getenv("GOOGLE_CLOUD_PROJECT");
-    }
-    if (Strings.isNullOrEmpty(projectId)) {
-      projectId = System.getenv("GCP_PROJECT");
-    }
-    if (Strings.isNullOrEmpty(projectId)) {
-      try {
-        Class<?> clazz = Class.forName("com.google.cloud.ServiceOptions");
-        java.lang.reflect.Method method = clazz.getMethod("getDefaultProjectId");
-        @SuppressWarnings("nullness")
-        Object result = method.invoke(null);
-        if (result != null) {
-          projectId = result.toString();
-        }
-      } catch (Throwable e) {
-        LOG.debug("Could not resolve GCP project via ServiceOptions reflection", e);
-      }
-    }
-    if (Strings.isNullOrEmpty(projectId)) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Could not resolve GCP project ID for secret '%s'. "
-                  + "Please specify 'project' in the secret spec, set GOOGLE_CLOUD_PROJECT environment variable, "
-                  + "or configure Application Default Credentials.",
-              secretId));
-    }
+    String projectId = resolveGcpProjectId(specMap.get("project"), "secret '" + secretId + "'");
     String versionId = specMap.getOrDefault("version", "latest");
     if (Strings.isNullOrEmpty(versionId)) {
       versionId = "latest";
     }
     return String.format("projects/%s/secrets/%s/versions/%s", projectId, secretId, versionId);
+  }
+
+  /**
+   * Resolves the GCP project ID from the provided value, environment variables, or Application
+   * Default Credentials.
+   */
+  static String resolveGcpProjectId(@Nullable String projectId, @Nullable String context) {
+    if (!Strings.isNullOrEmpty(projectId)) {
+      return Preconditions.checkNotNull(projectId);
+    }
+    String envProject = System.getenv("GOOGLE_CLOUD_PROJECT");
+    if (!Strings.isNullOrEmpty(envProject)) {
+      return Preconditions.checkNotNull(envProject);
+    }
+    envProject = System.getenv("GCP_PROJECT");
+    if (!Strings.isNullOrEmpty(envProject)) {
+      return Preconditions.checkNotNull(envProject);
+    }
+    try {
+      Class<?> clazz = Class.forName("com.google.cloud.ServiceOptions");
+      java.lang.reflect.Method method = clazz.getMethod("getDefaultProjectId");
+      @SuppressWarnings("nullness")
+      Object result = method.invoke(null);
+      if (result != null && !Strings.isNullOrEmpty(result.toString())) {
+        return result.toString();
+      }
+    } catch (Throwable e) {
+      LOG.debug("Could not resolve GCP project via ServiceOptions reflection", e);
+    }
+    throw new IllegalArgumentException(
+        String.format(
+            "Could not resolve GCP project ID%s. "
+                + "Please specify 'project' in the secret spec, set GOOGLE_CLOUD_PROJECT environment variable, "
+                + "or configure Application Default Credentials.",
+            context != null ? " for " + context : ""));
   }
 
   /**

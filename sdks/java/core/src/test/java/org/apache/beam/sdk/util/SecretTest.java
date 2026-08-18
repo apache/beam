@@ -219,8 +219,16 @@ public class SecretTest {
     spec.put("project_id", "test-proj");
     spec.put("location_id", "global");
     Exception exception =
-        assertThrows(IllegalArgumentException.class, () -> GcpHsmGeneratedSecret.fromMap(spec));
-    assertTrue(exception.getMessage().contains("Missing required parameter(s)"));
+        assertThrows(NullPointerException.class, () -> GcpHsmGeneratedSecret.fromMap(spec));
+    assertTrue(
+        exception
+            .getMessage()
+            .contains("key_ring_id must contain a valid value for keyRingId parameter"));
+  }
+
+  @Test
+  public void testResolveGcpProjectIdExplicit() {
+    assertEquals("my-proj", GcpSecret.resolveGcpProjectId("my-proj", "context"));
   }
 
   @Test

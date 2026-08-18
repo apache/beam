@@ -44,7 +44,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,18 +77,6 @@ public class GcpHsmGeneratedSecret extends Secret {
     Set<String> allowedKeys =
         new HashSet<>(
             Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
-    Set<String> missing = new HashSet<>();
-    for (String key : allowedKeys) {
-      if (!specMap.containsKey(key) || Strings.isNullOrEmpty(specMap.get(key))) {
-        missing.add(key);
-      }
-    }
-    if (!missing.isEmpty()) {
-      List<String> sortedMissing = new ArrayList<>(missing);
-      Collections.sort(sortedMissing);
-      throw new IllegalArgumentException(
-          "Missing required parameter(s) for GcpHsmGeneratedSecret: " + sortedMissing);
-    }
     Set<String> invalid = new HashSet<>(specMap.keySet());
     invalid.removeAll(allowedKeys);
     if (!invalid.isEmpty()) {
@@ -98,20 +85,23 @@ public class GcpHsmGeneratedSecret extends Secret {
       throw new IllegalArgumentException(
           "Invalid secret parameter " + String.join(", ", sortedInvalid));
     }
-    return new GcpHsmGeneratedSecret(
-        Preconditions.checkNotNull(
-            specMap.get("project_id"),
-            "project_id must contain a valid value for projectId parameter"),
+    String locationId =
         Preconditions.checkNotNull(
             specMap.get("location_id"),
-            "location_id must contain a valid value for locationId parameter"),
+            "location_id must contain a valid value for locationId parameter");
+    String keyRingId =
         Preconditions.checkNotNull(
             specMap.get("key_ring_id"),
-            "key_ring_id must contain a valid value for keyRingId parameter"),
+            "key_ring_id must contain a valid value for keyRingId parameter");
+    String keyId =
         Preconditions.checkNotNull(
-            specMap.get("key_id"), "key_id must contain a valid value for keyId parameter"),
+            specMap.get("key_id"), "key_id must contain a valid value for keyId parameter");
+    String jobName =
         Preconditions.checkNotNull(
-            specMap.get("job_name"), "job_name must contain a valid value for jobName parameter"));
+            specMap.get("job_name"), "job_name must contain a valid value for jobName parameter");
+    String projectId =
+        GcpSecret.resolveGcpProjectId(specMap.get("project_id"), "job '" + jobName + "'");
+    return new GcpHsmGeneratedSecret(projectId, locationId, keyRingId, keyId, jobName);
   }
 
   /**
