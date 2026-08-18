@@ -194,7 +194,6 @@ public class StreamingModeExecutionContext
   private @Nullable KeyTransitionListener keyTransitionListener;
   private @Nullable FailedWorkHandler onFailedWorkHandler;
 
-  private List<Work> executedWorks = Collections.emptyList();
   private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
@@ -320,7 +319,6 @@ public class StreamingModeExecutionContext
   public void reset() {
     // these lists and maps are returned to callers after processing
     // don't clear and reuse, instead reset the reference.
-    this.executedWorks = Collections.emptyList();
     this.outputBuilders = Collections.emptyList();
     this.finalizationCallbacks = Collections.emptyMap();
     // Work from prior bundles might have a reference to the old workBatchFailed.
@@ -354,7 +352,6 @@ public class StreamingModeExecutionContext
       FailedWorkHandler onFailedWorkHandler)
       throws CoderException {
     reset();
-    this.executedWorks = new ArrayList<>();
     this.outputBuilders = new ArrayList<>();
     this.finalizationCallbacks = new HashMap<>();
     this.keyCoder = keyCoder;
@@ -579,11 +576,13 @@ public class StreamingModeExecutionContext
 
   /** Invalidate the state and reader caches for this computation and key. */
   public void invalidateCache() {
-    for (Work w : executedWorks) {
-      WindmillComputationKey compKey =
-          WindmillComputationKey.create(computationId, w.getShardedKey());
-      readerCache.invalidateReader(compKey);
-      stateCache.invalidate(w.getShardedKey());
+    if (budgetHandle != null) {
+      for (Work w : budgetHandle.getWorkBatch()) {
+        WindmillComputationKey compKey =
+            WindmillComputationKey.create(computationId, w.getShardedKey());
+        readerCache.invalidateReader(compKey);
+        stateCache.invalidate(w.getShardedKey());
+      }
     }
     if (activeReader != null) {
       try {
@@ -720,10 +719,7 @@ public class StreamingModeExecutionContext
     }
 
     // If this is a multi-key work item, then we need to retry all of the individual work items
-    // without merging so that we can identify large commits to truncate. We determine the work
-    // items that were part of the bundle by looking at the budgethandle instead of executedWorks
-    // because validateCommitRequestSize is called when transitioning and the handle has been
-    // updated but executedWorks has not.
+    // without merging so that we can identify large commits to truncate.
     // TODO: Can we request truncation without retrying if the first commit exceed the limits?
     BoundedQueueExecutorWorkHandle handle = checkNotNull(budgetHandle);
     List<Work> currentBatch = handle.getWorkBatch();
@@ -838,7 +834,6 @@ public class StreamingModeExecutionContext
     this.outputBuilder = createOutputBuilder(newWork);
     this.outputBuilders.add(this.outputBuilder);
     newWork.setOnFailureListener(this.workBatchFailed);
-    this.executedWorks.add(newWork);
 
     logHotKeyIfDetected(newWork, this.key);
 
