@@ -22,6 +22,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
@@ -166,6 +167,24 @@ func TestControl_getOrCreatePlan(t *testing.T) {
 
 }
 
+func TestFail(t *testing.T) {
+	ctx := context.Background()
+	resp := fail(ctx, "test-id", "error %s %d", "msg", 42)
+
+	if resp == nil {
+		t.Fatal("fail returned nil")
+	}
+	if got, want := resp.GetInstructionId(), "test-id"; got != want {
+		t.Errorf("got InstructionId %v, want %v", got, want)
+	}
+	if !strings.Contains(resp.GetError(), "error msg 42") {
+		t.Errorf("got Error %v, want to contain 'error msg 42'", resp.GetError())
+	}
+	if resp.GetRegister() == nil {
+		t.Error("expected Register dummy response to be non-nil")
+	}
+}
+
 func TestCircleBuffer(t *testing.T) {
 	expected1 := instructionID("expected1")
 	expected2 := instructionID("expected2")
@@ -256,5 +275,114 @@ func TestElementProcessingTimeoutParsing(t *testing.T) {
 		if got != test.want {
 			t.Errorf("parseTimeoutDurationFlag(ctx, %q) = %v, want %v", test.in, got, test.want)
 		}
+	}
+}
+
+func TestControl_MetStoreToString(t *testing.T) {
+	ctx := metrics.SetBundleID(context.Background(), "test-bundle")
+	store := metrics.GetStore(ctx)
+	if store == nil {
+		t.Fatal("GetStore returned nil")
+	}
+	ctrl := &control{
+		metStore: map[instructionID]*metrics.Store{
+			"inst1": store,
+		},
+	}
+	b := &strings.Builder{}
+	ctrl.metStoreToString(b)
+	out := b.String()
+	if !strings.Contains(out, "Bundle ID: inst1") {
+		t.Errorf("metStoreToString output missing bundle ID, got: %s", out)
+	}
+}
+
+func TestControl_GetPlanOrResponse(t *testing.T) {
+	tests := []struct {
+		name           string
+		active         map[instructionID]*exec.Plan
+		awaitFinalize  map[instructionID]awaitingFinalization
+		failed         map[instructionID]error
+		inactive       circleBuffer
+		wantErr        bool // response has Error field set (non-nil response)
+		wantNilPlan    bool // response is non-nil and plan is nil -> response is returned
+		wantEmpty      bool // both plan and response are nil - empty response needed
+	}{
+		{
+			name: "active",
+			active: map[instructionID]*exec.Plan{
+				"ref": {},
+			},
+		},
+		{
+			name: "awaitingFinalization",
+			awaitFinalize: map[instructionID]awaitingFinalization{
+				"ref": {plan: &exec.Plan{}},
+			},
+		},
+		{
+			name:    "failed",
+			failed:  map[instructionID]error{"ref": fmt.Errorf("test failure")},
+			wantErr: true,
+		},
+		{
+			name: "inactive",
+			inactive: func() circleBuffer {
+				c := newCircleBuffer()
+				c.Add("ref")
+				return c
+			}(),
+			wantEmpty: true,
+		},
+		{
+			name:       "notFound",
+			wantErr:    true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctrl := &control{
+				active:               make(map[instructionID]*exec.Plan),
+				awaitingFinalization: make(map[instructionID]awaitingFinalization),
+				failed:               make(map[instructionID]error),
+				inactive:             newCircleBuffer(),
+			}
+			if test.active != nil {
+				ctrl.active = test.active
+			}
+			if test.awaitFinalize != nil {
+				ctrl.awaitingFinalization = test.awaitFinalize
+			}
+			if test.failed != nil {
+				ctrl.failed = test.failed
+			}
+			if len(test.inactive.buf) > 0 {
+				ctrl.inactive = test.inactive
+			}
+
+			plan, store, resp := ctrl.getPlanOrResponse(context.Background(), "test", "instID", "ref")
+
+			if test.wantEmpty {
+				if plan != nil || store != nil || resp != nil {
+					t.Error("expected all nil for inactive instruction")
+				}
+				return
+			}
+
+			if test.wantErr {
+				if resp == nil {
+					t.Fatal("expected non-nil error response")
+				}
+				if resp.Error == "" {
+					t.Error("expected error in response")
+				}
+				return
+			}
+
+			if plan == nil {
+				t.Error("expected non-nil plan")
+			}
+		})
 	}
 }
