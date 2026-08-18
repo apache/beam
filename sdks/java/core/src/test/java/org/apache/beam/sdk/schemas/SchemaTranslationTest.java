@@ -27,6 +27,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -41,6 +42,7 @@ import org.apache.beam.model.pipeline.v1.SchemaApi.FieldValue;
 import org.apache.beam.model.pipeline.v1.SchemaApi.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.schemas.logicaltypes.Date;
 import org.apache.beam.sdk.schemas.logicaltypes.DateTime;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
@@ -51,6 +53,7 @@ import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PythonCallable;
 import org.apache.beam.sdk.schemas.logicaltypes.SchemaLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Time;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.UnknownLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
@@ -145,6 +148,7 @@ public class SchemaTranslationTest {
           .add(Schema.of(Field.of("fixed_bytes", FieldType.logicalType(FixedBytes.of(24)))))
           .add(Schema.of(Field.of("micros_instant", FieldType.logicalType(new MicrosInstant()))))
           .add(Schema.of(Field.of("date", FieldType.logicalType(SqlTypes.DATE))))
+          .add(Schema.of(Field.of("time", FieldType.logicalType(SqlTypes.TIME))))
           .add(Schema.of(Field.of("python_callable", FieldType.logicalType(new PythonCallable()))))
           .add(
               Schema.of(
@@ -392,6 +396,7 @@ public class SchemaTranslationTest {
           .add(simpleRow(FieldType.logicalType(new PortableNullArgLogicalType()), "str"))
           .add(simpleRow(FieldType.logicalType(new DateTime()), LocalDateTime.of(2000, 1, 3, 3, 1)))
           .add(simpleRow(FieldType.logicalType(SqlTypes.DATE), LocalDate.of(2000, 1, 3)))
+          .add(simpleRow(FieldType.logicalType(SqlTypes.TIME), LocalTime.of(3, 1, 2, 3000)))
           .add(simpleNullRow(FieldType.STRING))
           .add(simpleNullRow(FieldType.INT32))
           .add(simpleNullRow(FieldType.map(FieldType.STRING, FieldType.INT32)))
@@ -441,6 +446,41 @@ public class SchemaTranslationTest {
 
       assertThat(exception.getMessage(), containsString("field_no_typeInfo"));
       assertThat(exception.getCause().getMessage(), containsString("TYPEINFO_NOT_SET"));
+    }
+  }
+
+  /**
+   * A portable logical type has to be recoverable from its URN alone, because that is all a schema
+   * coming from another SDK carries. {@link LogicalTypesTest#testLogicalTypeFromToProtoCorrectly}
+   * cannot check this: it branches on {@code STANDARD_LOGICAL_TYPES} itself, so it passes whether
+   * or not the type is registered there.
+   */
+  @RunWith(JUnit4.class)
+  public static class PortableLogicalTypeFromUrnTest {
+
+    @Test
+    public void timeIsRecoveredFromItsUrnAlone() {
+      FieldType fieldType = FieldType.logicalType(SqlTypes.TIME);
+
+      // serializeLogicalType = false, so the proto carries the URN and no Java payload
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, false, false);
+      assertThat(proto.getLogicalType().getUrn(), equalTo("beam:logical_type:time:v1"));
+      assertThat(proto.getLogicalType().getPayload().size(), equalTo(0));
+
+      Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
+      assertThat(translated.getLogicalType().getClass(), equalTo(Time.class));
+      assertThat(translated.getLogicalType().getBaseType(), equalTo(FieldType.INT64));
+    }
+
+    @Test
+    public void dateIsRecoveredFromItsUrnAlone() {
+      FieldType fieldType = FieldType.logicalType(SqlTypes.DATE);
+
+      SchemaApi.FieldType proto = SchemaTranslation.fieldTypeToProto(fieldType, false, false);
+      assertThat(proto.getLogicalType().getUrn(), equalTo("beam:logical_type:date:v1"));
+
+      Schema.FieldType translated = SchemaTranslation.fieldTypeFromProto(proto);
+      assertThat(translated.getLogicalType().getClass(), equalTo(Date.class));
     }
   }
 
