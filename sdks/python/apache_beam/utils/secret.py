@@ -36,7 +36,7 @@ class Secret(abc.ABC):
   def __init__(self):
     self._cached_secret_bytes: Optional[bytes] = None
 
-  def get(self, cacheSecret: bool = False) -> str:
+  def get_str(self, cacheSecret: bool = False) -> str:
     """Retrieve secret value as string.
 
     Args:

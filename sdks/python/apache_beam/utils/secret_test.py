@@ -78,7 +78,7 @@ class GcpSecretTest(unittest.TestCase):
     spec_dict = {"name": "my-secret", "version": "1", "project": "my-project"}
     secret = GcpSecret.from_dict(spec_dict)
 
-    secret_val = secret.get(cacheSecret=True)
+    secret_val = secret.get_str(cacheSecret=True)
     self.assertEqual(secret_val, "secret-payload-value")
     secret_bytes = secret.get_bytes(cacheSecret=True)
     self.assertEqual(secret_bytes, b"secret-payload-value")
@@ -87,7 +87,7 @@ class GcpSecretTest(unittest.TestCase):
 
     # Second call with cacheSecret=True should return cached value without calling client again
     mock_client.reset_mock()
-    secret_val_cached = secret.get(cacheSecret=True)
+    secret_val_cached = secret.get_str(cacheSecret=True)
     self.assertEqual(secret_val_cached, "secret-payload-value")
     mock_client.access_secret_version.assert_not_called()
 
@@ -118,7 +118,7 @@ class GcpSecretTest(unittest.TestCase):
     secret = GcpSecret.from_dict(spec_dict)
 
     # Cache the secret in memory
-    secret.get(cacheSecret=True)
+    secret.get_str(cacheSecret=True)
     self.assertEqual(secret._cached_secret_bytes, b"secret-payload-value")
 
     # When pickled / getstate is called during pipeline submission
@@ -138,7 +138,7 @@ class GcpSecretTest(unittest.TestCase):
     spec_dict = {"name": "env-secret", "version": "latest"}
     secret = GcpSecret.from_dict(spec_dict)
 
-    secret_val = secret.get(cacheSecret=False)
+    secret_val = secret.get_str(cacheSecret=False)
     self.assertEqual(secret_val, "env-secret-val")
     self.assertEqual(secret.get_bytes(cacheSecret=False), b"env-secret-val")
     mock_client.access_secret_version.assert_called_with(
@@ -157,7 +157,7 @@ class GcpSecretTest(unittest.TestCase):
     secret = GcpSecret.from_dict(spec_dict)
 
     with self.assertRaises(RuntimeError) as ctx:
-      secret.get(cacheSecret=False)
+      secret.get_str(cacheSecret=False)
     self.assertIn("Permission denied or secret not found", str(ctx.exception))
 
   @mock.patch.dict("os.environ", {}, clear=True)
@@ -351,12 +351,12 @@ class GcpHsmGeneratedSecretTest(unittest.TestCase):
 class RawSecretTest(unittest.TestCase):
   def test_raw_secret_str(self):
     secret = RawSecret("STATIC_SECRET_")
-    self.assertEqual(secret.get(cacheSecret=True), "STATIC_SECRET_")
+    self.assertEqual(secret.get_str(cacheSecret=True), "STATIC_SECRET_")
     self.assertEqual(secret.get_bytes(cacheSecret=True), b"STATIC_SECRET_")
 
   def test_raw_secret_bytes(self):
     secret = RawSecret(b"STATIC_BYTES_")
-    self.assertEqual(secret.get(cacheSecret=True), "STATIC_BYTES_")
+    self.assertEqual(secret.get_str(cacheSecret=True), "STATIC_BYTES_")
     self.assertEqual(secret.get_bytes(cacheSecret=True), b"STATIC_BYTES_")
 
 
