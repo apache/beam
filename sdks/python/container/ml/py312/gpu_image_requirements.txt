@@ -317,7 +317,7 @@ urllib3==2.7.0
 uvicorn==0.52.3
 uvloop==0.22.1
 virtualenv-clone==0.5.7
-vllm==0.10.1.1
+vllm==0.26.0
 watchfiles==1.2.0
 websockets==16.1.1
 wheel==0.48.0
