@@ -164,9 +164,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
   public PCollectionTuple expand(PCollection<KV<DestinationT, StorageApiWritePayload>> input) {
     String operationName = input.getName() + "/" + getName();
     BigQueryOptions options = input.getPipeline().getOptions().as(BigQueryOptions.class);
-    org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument(
-        !options.getUseStorageApiConnectionPool(),
-        "useStorageApiConnectionPool only supported " + "when using STORAGE_API_AT_LEAST_ONCE");
     TupleTagList tupleTagList = TupleTagList.of(failedRowsTag);
     if (successfulRowsTag != null) {
       tupleTagList = tupleTagList.and(successfulRowsTag);
@@ -835,7 +832,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 if (status.getCode() == Status.Code.INVALID_ARGUMENT) {
                   String description = status.getDescription();
                   schemaMismatchError =
-                      description != null && description.contains("incompatible fields");
+                      description != null
+                          && (description.contains("incompatible fields")
+                              || description.contains("extra proto fields"));
                 }
               }
               if (schemaMismatchError) {
@@ -1147,7 +1146,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
             writeStreamService,
             useDefaultStream,
             streamAppendClientCount,
-            bigQueryOptions.getUseStorageApiConnectionPool(),
+            useDefaultStream ? bigQueryOptions.getUseStorageApiConnectionPool() : false,
             bigQueryOptions.getStorageWriteApiMaxRequestSize(),
             tryCreateTable,
             useCdc);
