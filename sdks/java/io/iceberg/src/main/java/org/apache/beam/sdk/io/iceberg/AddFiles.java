@@ -98,10 +98,11 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.avro.Avro;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.encryption.EncryptedOutputFile;
+import org.apache.iceberg.encryption.EncryptingFileIO;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.io.InputFile;
-import org.apache.iceberg.io.OutputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
@@ -692,11 +693,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       String manifestPath =
           String.format(
               "%s/metadata/%s-%s-m0.avro", table.location(), MANIFEST_PREFIX, UUID.randomUUID());
-      OutputFile outputFile = table.io().newOutputFile(manifestPath);
-
       int numDataFiles = 0;
       ManifestFile manifestFile;
-      try (ManifestWriter<DataFile> writer = ManifestFiles.write(spec, outputFile)) {
+      try (ManifestWriter<DataFile> writer = createManifestWriter(table, spec, manifestPath)) {
         for (SerializableDataFile sdf : batch.getValue()) {
           DataFile df = sdf.createDataFile(table.specs());
           writer.add(df);
@@ -712,6 +711,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
       output.output(KV.of(identifier, ManifestFiles.encode(manifestFile)));
       numDataFilesAdded.inc(numDataFiles);
+    }
+
+    /** Encrypts the manifest when the table is encrypted. */
+    @SuppressWarnings("argument")
+    private static ManifestWriter<DataFile> createManifestWriter(
+        Table table, PartitionSpec spec, String manifestPath) {
+      EncryptedOutputFile outputFile =
+          EncryptingFileIO.combine(table.io(), table.encryption())
+              .newEncryptingOutputFile(manifestPath);
+      return ManifestFiles.write(1, spec, outputFile, null);
     }
   }
 

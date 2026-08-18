@@ -83,19 +83,16 @@ class RecordWriter {
           fileFormat.addExtension(
               table.locationProvider().newDataLocation(table.spec(), partitionKey, filename));
     }
-    OutputFile outputFile;
-    EncryptionKeyMetadata keyMetadata;
     // table.io() may return a shared FileIO instance.
     // FileIO lifecycle is managed by RecordWriterManager.close().
     OutputFile tmpFile = table.io().newOutputFile(absoluteFilename);
     EncryptedOutputFile encryptedOutputFile = table.encryption().encrypt(tmpFile);
-    outputFile = encryptedOutputFile.encryptingOutputFile();
-    keyMetadata = encryptedOutputFile.keyMetadata();
+    EncryptionKeyMetadata keyMetadata = encryptedOutputFile.keyMetadata();
 
     switch (fileFormat) {
       case AVRO:
         icebergDataWriter =
-            Avro.writeData(outputFile)
+            Avro.writeData(encryptedOutputFile)
                 .forTable(table)
                 .createWriterFunc(org.apache.iceberg.data.avro.DataWriter::create)
                 .withPartition(partitionKey)
@@ -105,7 +102,7 @@ class RecordWriter {
         break;
       case PARQUET:
         Parquet.DataWriteBuilder parquetBuilder =
-            Parquet.writeData(outputFile)
+            Parquet.writeData(encryptedOutputFile)
                 .forTable(table)
                 .createWriterFunc(GenericParquetWriter::create)
                 .withPartition(partitionKey)

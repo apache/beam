@@ -44,6 +44,7 @@ import org.apache.iceberg.data.DeleteLoader;
 import org.apache.iceberg.data.InternalRecordWrapper;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.deletes.PositionDeleteIndex;
+import org.apache.iceberg.encryption.EncryptingFileIO;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
@@ -54,6 +55,8 @@ import org.apache.iceberg.parquet.ParquetMetricsRowGroupFilter;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.StructLikeSet;
+import org.apache.parquet.ParquetReadOptions;
+import org.apache.parquet.crypto.FileDecryptionProperties;
 import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
@@ -141,11 +144,26 @@ public final class CdcReadUtils {
         combined);
   }
 
+  /**
+   * Wraps the table's {@link FileIO} so files in an encrypted table are decrypted on open. Returns
+   * the plain IO unchanged for unencrypted tables.
+   */
+  private static EncryptingFileIO encryptingIO(Table table) {
+    return EncryptingFileIO.combine(table.io(), table.encryption());
+  }
+
+  /** Applies Parquet decryption properties to {@code builder} if {@code decrypted} needs them. */
+  private static ParquetReadOptions.Builder withDecryption(
+      ParquetReadOptions.Builder builder, InputFile decrypted) {
+    @Nullable FileDecryptionProperties decryption = ReadUtils.parquetDecryption(decrypted);
+    return decryption == null ? builder : builder.withDecryption(decryption);
+  }
+
   /** Returns a filter that skips records marked for deletion. */
   public static DeleteFilter<Record> genericDeleteFilter(
       Table table, Schema outputSchema, String dataFilePath, List<SerializableDeleteFile> deletes) {
     return new GenericDeleteFilter(
-        table.io(),
+        encryptingIO(table),
         dataFilePath,
         table.schema(),
         outputSchema,
@@ -162,7 +180,7 @@ public final class CdcReadUtils {
       List<SerializableDeleteFile> deletes,
       DeleteReader.PreloadedDeletes preloadedDeletes) {
     return new GenericDeleteReader(
-        table.io(),
+        encryptingIO(table),
         dataFilePath,
         table.schema(),
         outputSchema,
@@ -340,7 +358,7 @@ public final class CdcReadUtils {
     // 1. pre-load the position index for this data file.
     PositionDeleteIndex posIndex;
     try {
-      DeleteLoader loader = new BaseDeleteLoader(df -> table.io().newInputFile(df.location()));
+      DeleteLoader loader = new BaseDeleteLoader(encryptingIO(table)::newInputFile);
       posIndex = loader.loadPositionDeletes(posFiles, dataFilePath);
     } catch (RuntimeException e) {
       LOG.info(
@@ -381,8 +399,14 @@ public final class CdcReadUtils {
 
     try {
       long[] sortedDeletePositions = sortedDeletePositions(posIndex);
-      InputFile inputFile = table.io().newInputFile(dataFilePath);
-      try (ParquetFileReader reader = ParquetFileReader.open(asParquetInputFile(inputFile))) {
+      // decrypt via the table's encryption manager
+      InputFile decrypted =
+          encryptingIO(table).newInputFile(task.getDataFile().createDataFile(table.specs()));
+      ParquetReadOptions readOptions =
+          withDecryption(ParquetReadOptions.builder(), decrypted).build();
+      try (ParquetFileReader reader =
+          ParquetFileReader.open(
+              asParquetInputFile(ReadUtils.parquetInputFile(decrypted)), readOptions)) {
         ParquetMetadata footer = reader.getFooter();
         MessageType parquetSchema = footer.getFileMetaData().getSchema();
 
@@ -505,7 +529,7 @@ public final class CdcReadUtils {
     }
     Schema deleteSchema = TypeUtil.select(table.schema(), sharedIds);
 
-    DeleteLoader loader = new BaseDeleteLoader(df -> table.io().newInputFile(df.location()));
+    DeleteLoader loader = new BaseDeleteLoader(encryptingIO(table)::newInputFile);
     StructLikeSet set;
     try {
       set = loader.loadEqualityDeletes(eqFiles, deleteSchema);
@@ -597,12 +621,12 @@ public final class CdcReadUtils {
   }
 
   public static class GenericDeleteFilter extends DeleteFilter<Record> {
-    private final FileIO io;
+    private final EncryptingFileIO io;
     private final InternalRecordWrapper asStructLike;
 
     @SuppressWarnings("method.invocation")
     public GenericDeleteFilter(
-        FileIO io,
+        EncryptingFileIO io,
         String dataFilePath,
         Schema tableSchema,
         Schema requiredSchema,
@@ -621,15 +645,21 @@ public final class CdcReadUtils {
     protected InputFile getInputFile(String location) {
       return io.newInputFile(location);
     }
+
+    /** Overridden so delete files in an encrypted table are decrypted. */
+    @Override
+    protected InputFile loadInputFile(DeleteFile deleteFile) {
+      return io.newInputFile(deleteFile);
+    }
   }
 
   public static class GenericDeleteReader extends DeleteReader<Record> {
-    private final FileIO io;
+    private final EncryptingFileIO io;
     private final InternalRecordWrapper asStructLike;
 
     @SuppressWarnings("method.invocation")
     public GenericDeleteReader(
-        FileIO io,
+        EncryptingFileIO io,
         String dataFilePath,
         Schema tableSchema,
         Schema requiredSchema,
@@ -648,6 +678,12 @@ public final class CdcReadUtils {
     @Override
     protected InputFile getInputFile(String location) {
       return io.newInputFile(location);
+    }
+
+    /** Overridden so delete files in an encrypted table are decrypted. */
+    @Override
+    protected InputFile loadInputFile(DeleteFile deleteFile) {
+      return io.newInputFile(deleteFile);
     }
   }
 
