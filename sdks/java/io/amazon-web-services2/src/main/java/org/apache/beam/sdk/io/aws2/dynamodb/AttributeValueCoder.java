@@ -89,10 +89,10 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> {
     } else if (value.bs() != null && value.bs().size() > 0) {
       StringUtf8Coder.of().encode(AttributeValueType.bs.toString(), outStream);
       LIST_BYTE_CODER.encode(convertToListByteArray(value.bs()), outStream);
-    } else if (value.l() != null && value.l().size() > 0) {
+    } else if (value.l() != null) {
       StringUtf8Coder.of().encode(AttributeValueType.l.toString(), outStream);
       LIST_ATTRIBUTE_CODER.encode(value.l(), outStream);
-    } else if (value.m() != null && value.m().size() > 0) {
+    } else if (value.m() != null) {
       StringUtf8Coder.of().encode(AttributeValueType.m.toString(), outStream);
       MAP_ATTRIBUTE_CODER.encode(value.m(), outStream);
     } else if (value.nul() != null) {
