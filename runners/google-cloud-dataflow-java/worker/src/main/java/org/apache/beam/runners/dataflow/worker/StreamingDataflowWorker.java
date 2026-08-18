@@ -173,8 +173,8 @@ public final class StreamingDataflowWorker {
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
   private static final String ELEMENT_METADATA_SUPPORTED_EXPERIMENT = "element_metadata_supported";
-  private static final AtomicLong DIRECTPATH_PRIMARY_NOT_READY_WAIT_NANOS =
-      new AtomicLong(TimeUnit.SECONDS.toNanos(15));
+  private static final AtomicLong DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS =
+      new AtomicLong(TimeUnit.SECONDS.toMillis(15));
 
   @SuppressWarnings("unused")
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
@@ -851,7 +851,7 @@ public final class StreamingDataflowWorker {
                                   currentFlowControlSettings),
                           MoreCallCredentials.from(
                               new VendoredCredentialsAdapter(workerOptions.getGcpCredential())),
-                          DIRECTPATH_PRIMARY_NOT_READY_WAIT_NANOS::get),
+                          DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS::get),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
 
@@ -859,8 +859,8 @@ public final class StreamingDataflowWorker {
         .getGlobalConfigHandle()
         .registerConfigObserver(
             config -> {
-              DIRECTPATH_PRIMARY_NOT_READY_WAIT_NANOS.set(
-                  config.userWorkerJobSettings().getDirectpathPrimaryNotReadyWaitNanos());
+              DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS.set(
+                  config.userWorkerJobSettings().getDirectpathPrimaryNotReadyWaitMillis());
               channelCache.consumeFlowControlSettings(
                   config.userWorkerJobSettings().getFlowControlSettings());
             });

@@ -95,15 +95,15 @@ public final class FailoverChannel extends ManagedChannel {
 
     private final int channelId;
     private final long rpcFailureThresholdNanos;
-    private final LongSupplier primaryNotReadyWaitNanosSupplier;
+    private final LongSupplier primaryNotReadyWaitMillisSupplier;
 
     FailoverState(
         int channelId,
         long rpcFailureThresholdNanos,
-        LongSupplier primaryNotReadyWaitNanosSupplier) {
+        LongSupplier primaryNotReadyWaitMillisSupplier) {
       this.channelId = channelId;
       this.rpcFailureThresholdNanos = rpcFailureThresholdNanos;
-      this.primaryNotReadyWaitNanosSupplier = primaryNotReadyWaitNanosSupplier;
+      this.primaryNotReadyWaitMillisSupplier = primaryNotReadyWaitMillisSupplier;
     }
 
     /**
@@ -122,14 +122,16 @@ public final class FailoverChannel extends ManagedChannel {
       }
       // Check if primary has been not-ready long enough to switch to fallback.
       // primaryNotReadySinceNanos is set by the state-change callback when primary is not ready.
-      if (!useFallbackDueToRPC
-          && !useFallbackDueToState
-          && primaryNotReadySinceNanos >= 0
-          && nowNanos - primaryNotReadySinceNanos > primaryNotReadyWaitNanosSupplier.getAsLong()) {
-        useFallbackDueToState = true;
-        LOG.warn(
-            "[channel-{}] Primary connection unavailable. Switching to secondary connection.",
-            channelId);
+      if (!useFallbackDueToRPC && !useFallbackDueToState && primaryNotReadySinceNanos >= 0) {
+        long elapsedPrimaryNotReadyNanos = nowNanos - primaryNotReadySinceNanos;
+        long primaryNotReadyWaitNanos =
+            TimeUnit.MILLISECONDS.toNanos(primaryNotReadyWaitMillisSupplier.getAsLong());
+        if (elapsedPrimaryNotReadyNanos > primaryNotReadyWaitNanos) {
+          useFallbackDueToState = true;
+          LOG.warn(
+              "[channel-{}] Primary connection unavailable. Switching to secondary connection.",
+              channelId);
+        }
       }
       return useFallbackDueToRPC || useFallbackDueToState;
     }
@@ -198,12 +200,12 @@ public final class FailoverChannel extends ManagedChannel {
       @Nullable CallCredentials fallbackCallCredentials,
       LongSupplier nanoClock,
       long rpcFailureThresholdNanos,
-      LongSupplier primaryNotReadyWaitNanosSupplier) {
+      LongSupplier primaryNotReadyWaitMillisSupplier) {
     this.primary = primary;
     this.fallbackSupplier = Suppliers.memoize(fallbackSupplier::get);
     this.channelId = CHANNEL_ID_COUNTER.getAndIncrement();
     this.state =
-        new FailoverState(channelId, rpcFailureThresholdNanos, primaryNotReadyWaitNanosSupplier);
+        new FailoverState(channelId, rpcFailureThresholdNanos, primaryNotReadyWaitMillisSupplier);
     this.fallbackCallCredentials = fallbackCallCredentials;
     this.nanoClock = nanoClock;
     // Register callback to monitor primary channel state changes
@@ -214,14 +216,14 @@ public final class FailoverChannel extends ManagedChannel {
       ManagedChannel primary,
       Supplier<ManagedChannel> fallbackSupplier,
       CallCredentials fallbackCallCredentials,
-      LongSupplier primaryNotReadyWaitNanosSupplier) {
+      LongSupplier primaryNotReadyWaitMillisSupplier) {
     return new FailoverChannel(
         primary,
         fallbackSupplier,
         fallbackCallCredentials,
         System::nanoTime,
         RPC_FAILURE_THRESHOLD_NANOS,
-        primaryNotReadyWaitNanosSupplier);
+        primaryNotReadyWaitMillisSupplier);
   }
 
   static FailoverChannel forTest(
@@ -230,14 +232,14 @@ public final class FailoverChannel extends ManagedChannel {
       CallCredentials fallbackCallCredentials,
       LongSupplier nanoClock,
       long rpcFailureThresholdNanos,
-      LongSupplier primaryNotReadyWaitNanosSupplier) {
+      LongSupplier primaryNotReadyWaitMillisSupplier) {
     return new FailoverChannel(
         primary,
         () -> fallback,
         fallbackCallCredentials,
         nanoClock,
         rpcFailureThresholdNanos,
-        primaryNotReadyWaitNanosSupplier);
+        primaryNotReadyWaitMillisSupplier);
   }
 
   /** Returns the fallback channel, creating it from the supplier at most once. */

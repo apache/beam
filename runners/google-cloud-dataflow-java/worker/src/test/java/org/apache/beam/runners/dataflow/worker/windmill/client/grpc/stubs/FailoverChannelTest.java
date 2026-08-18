@@ -25,6 +25,7 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -83,12 +84,12 @@ public class FailoverChannelTest {
       LongSupplier nanoClock,
       @Nullable Long rpcFailureThresholdNanos) {
     return FailoverChannel.forTest(
-        primary,
-        fallback,
-        fallbackCallCredentials,
-        nanoClock,
-        rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L,
-        () -> TimeUnit.SECONDS.toNanos(10));
+      primary,
+      fallback,
+      fallbackCallCredentials,
+      nanoClock,
+      rpcFailureThresholdNanos != null ? rpcFailureThresholdNanos : 0L,
+      () -> TimeUnit.SECONDS.toMillis(10));
   }
 
   /**
@@ -292,7 +293,7 @@ public class FailoverChannelTest {
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
     // Primary must not have been used for this call (still only 1 invocation).
-    verify(mockChannel, org.mockito.Mockito.times(1)).newCall(any(), any());
+    verify(mockChannel, times(1)).newCall(any(), any());
   }
 
   @Test
@@ -306,7 +307,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     // Start with 10s timeout
-    AtomicLong timeoutThreshold = new AtomicLong(TimeUnit.SECONDS.toNanos(10));
+    AtomicLong timeoutThreshold = new AtomicLong(TimeUnit.SECONDS.toMillis(10));
 
     // Constructor seeds timer at time=0.
     FailoverChannel failoverChannel =
@@ -323,19 +324,19 @@ public class FailoverChannelTest {
     // Call at time=5s. elapsed 5s <= 10s —> failover condition false.
     // Primary is used.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    verify(mockChannel, org.mockito.Mockito.times(2)).newCall(any(), any());
+    verify(mockChannel, times(2)).newCall(any(), any());
     // Fallback must not have been used yet.
     verify(mockFallbackChannel, never()).newCall(any(), any());
 
     // Decrease threshold to 2 seconds.
-    timeoutThreshold.set(TimeUnit.SECONDS.toNanos(2));
+    timeoutThreshold.set(TimeUnit.SECONDS.toMillis(2));
 
     // Call at time=5s. elapsed 5s > 2s —> failover condition true.
     // Fallback is used.
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
     // Primary must not have been used for this call (still only 2 invocations).
-    verify(mockChannel, org.mockito.Mockito.times(2)).newCall(any(), any());
+    verify(mockChannel, times(2)).newCall(any(), any());
   }
 
   @Test
@@ -349,7 +350,7 @@ public class FailoverChannelTest {
 
     AtomicLong time = new AtomicLong(0);
     // Start with 10s timeout
-    AtomicLong timeoutThreshold = new AtomicLong(TimeUnit.SECONDS.toNanos(10));
+    AtomicLong timeoutThreshold = new AtomicLong(TimeUnit.SECONDS.toMillis(10));
 
     // Constructor seeds timer at time=0.
     FailoverChannel failoverChannel =
@@ -367,7 +368,7 @@ public class FailoverChannelTest {
     verify(mockFallbackChannel, never()).newCall(any(), any());
 
     // Increase threshold to 20 seconds.
-    timeoutThreshold.set(TimeUnit.SECONDS.toNanos(20));
+    timeoutThreshold.set(TimeUnit.SECONDS.toMillis(20));
 
     // Advance time by 5 seconds (total 14s).
     time.addAndGet(TimeUnit.SECONDS.toNanos(5));
@@ -375,7 +376,7 @@ public class FailoverChannelTest {
     // Call at time=14s. elapsed 14s <= 20s —> failover condition false.
     // Still routes to primary because of increased threshold
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
-    verify(mockChannel, org.mockito.Mockito.times(2)).newCall(any(), any());
+    verify(mockChannel, times(2)).newCall(any(), any());
     // Fallback must still not have been used yet.
     verify(mockFallbackChannel, never()).newCall(any(), any());
 
@@ -387,7 +388,7 @@ public class FailoverChannelTest {
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
     // Primary must not have been used for this call (still only 2 invocations).
-    verify(mockChannel, org.mockito.Mockito.times(2)).newCall(any(), any());
+    verify(mockChannel, times(2)).newCall(any(), any());
   }
 
   @Test
@@ -415,7 +416,7 @@ public class FailoverChannelTest {
     failoverChannel.newCall(methodDescriptor, CallOptions.DEFAULT);
     verify(mockFallbackChannel).newCall(any(), any());
     // Primary must not have been used for this call (still only 1 invocation).
-    verify(mockChannel, org.mockito.Mockito.times(1)).newCall(any(), any());
+    verify(mockChannel, times(1)).newCall(any(), any());
   }
 
   @Test
