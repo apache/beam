@@ -23,6 +23,7 @@
 # ruff: noqa: UP006
 import collections
 import logging
+import sys
 import threading
 import warnings
 from typing import TYPE_CHECKING
@@ -51,6 +52,7 @@ from apache_beam.runners.worker import opcounters
 from apache_beam.runners.worker import operation_specs
 from apache_beam.runners.worker import sideinputs
 from apache_beam.runners.worker.data_sampler import DataSampler
+from apache_beam.runners.worker.statecache import get_deep_size
 from apache_beam.transforms import combiners
 from apache_beam.transforms import core
 from apache_beam.transforms import sideinputs as apache_sideinputs
@@ -1234,6 +1236,16 @@ class PGBKOperation(Operation):
       self.output(windowed_value)
 
 
+def _safe_get_deep_size(*objs):
+  try:
+    return get_deep_size(*objs)
+  except Exception:
+    try:
+      return sum(sys.getsizeof(o) for o in objs)
+    except Exception:
+      return 128
+
+
 class PGBKCVOperation(Operation):
   """Partial group-by-key operation.
 
@@ -1241,7 +1253,14 @@ class PGBKCVOperation(Operation):
 a combine function applied.
   """
   def __init__(
-      self, name_context, spec, counter_factory, state_sampler, windowing=None):
+      self,
+      name_context,
+      spec,
+      counter_factory,
+      state_sampler,
+      windowing=None,
+      max_bytes=None,
+      max_keys=None):
     super(PGBKCVOperation,
           self).__init__(name_context, spec, counter_factory, state_sampler)
     # Combiners do not accept deferred side-inputs (the ignored fourth
@@ -1265,16 +1284,27 @@ a combine function applied.
       self.timestamp_combiner = None
     # Optimization for the (known tiny accumulator, often wide keyspace)
     # combine functions.
-    # TODO(b/36567833): Bound by in-memory size rather than key count.
-    self.max_keys = (
-        1000 * 1000 if
+    self._is_tiny_accumulator = (
         isinstance(fn, (combiners.CountCombineFn, combiners.MeanCombineFn)) or
         # TODO(b/36597732): Replace this 'or' part by adding the 'cy' optimized
         # combiners to the short list above.
         (
             isinstance(fn, core.CallableWrapperCombineFn) and
-            fn._fn in (min, max, sum)) else 100 * 1000)  # pylint: disable=protected-access
+            fn._fn in (min, max, sum)))  # pylint: disable=protected-access
+
+    if max_keys is not None:
+      self.max_keys = max_keys
+    else:
+      self.max_keys = 1000 * 1000 if self._is_tiny_accumulator else 100 * 1000
+
+    if max_bytes is not None:
+      self.max_bytes = max_bytes
+    else:
+      self.max_bytes = (
+          100 * 1024 * 1024 if self._is_tiny_accumulator else 10 * 1024 * 1024)
+
     self.key_count = 0
+    self.estimated_bytes = 0
     self.table = {}
 
   def setup(self, data_sampler=None):
@@ -1301,27 +1331,49 @@ a combine function applied.
   def add_key_value(self, wkey, value, timestamp):
     entry = self.table.get(wkey, None)
     if entry is None:
-      if self.key_count >= self.max_keys:
-        target = self.key_count * 9 // 10
+      if (self.key_count >= self.max_keys
+          or self.estimated_bytes >= self.max_bytes):
+        target_keys = self.key_count * 9 // 10
+        target_bytes = self.max_bytes * 9 // 10
         old_wkeys = []
         # TODO(robertwb): Use an LRU cache?
         for old_wkey, old_wvalue in self.table.items():
           old_wkeys.append(old_wkey)  # Can't mutate while iterating.
           self.output_key(old_wkey, old_wvalue[0], old_wvalue[1])
           self.key_count -= 1
-          if self.key_count <= target:
+          if len(old_wvalue) > 3:
+            self.estimated_bytes -= old_wvalue[3]
+          if (self.key_count <= target_keys
+              and self.estimated_bytes <= target_bytes):
             break
+        if self.estimated_bytes < 0:
+          self.estimated_bytes = 0
         for old_wkey in reversed(old_wkeys):
           del self.table[old_wkey]
       self.key_count += 1
-      # We save the accumulator as a one element list so we can efficiently
+      # We save the accumulator as a list so we can efficiently
       # mutate when new values are added without searching the cache again.
+      # Format: [accumulator, timestamp, input_count, entry_bytes]
       entry = self.table[wkey] = [
-          self.combine_fn.create_accumulator(), timestamp
+          self.combine_fn.create_accumulator(), timestamp, 0, 0
       ]
     entry[0] = self.combine_fn_add_input(entry[0], value)
     if not self.is_default_windowing and self.timestamp_combiner:
       entry[1] = self.timestamp_combiner.combine(entry[1], timestamp)
+
+    entry[2] += 1
+    count = entry[2]
+    if count == 1:
+      entry_bytes = _safe_get_deep_size(wkey, entry[0])
+      entry[3] = entry_bytes
+      self.estimated_bytes += entry_bytes
+    elif not self._is_tiny_accumulator:
+      val_size = sys.getsizeof(value)
+      if (count & (count - 1)) == 0 or count % 64 == 0 or val_size > 10000:
+        new_size = _safe_get_deep_size(wkey, entry[0])
+        delta = new_size - entry[3]
+        self.estimated_bytes += delta
+        entry[3] = new_size
 
   def finish(self):
     # type: () -> None
@@ -1329,6 +1381,8 @@ a combine function applied.
       self.output_key(wkey, value[0], value[1])
     self.table = {}
     self.key_count = 0
+    self.estimated_bytes = 0
+    super(PGBKCVOperation, self).finish()
 
   def teardown(self):
     # type: () -> None

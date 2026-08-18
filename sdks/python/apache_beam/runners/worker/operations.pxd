@@ -138,8 +138,11 @@ cdef class PGBKCVOperation(Operation):
   cdef public bint is_default_windowing
   cdef public object timestamp_combiner
   cdef dict table
-  cdef long max_keys
-  cdef long key_count
+  cdef public long max_keys
+  cdef public long key_count
+  cdef public long max_bytes
+  cdef public long estimated_bytes
+  cdef bint _is_tiny_accumulator
 
   cpdef add_key_value(self, wkey, value, timestamp)
   cpdef output_key(self, wkey, value, timestamp)
