@@ -26,6 +26,7 @@ from sending import SendingClient
 from datetime import datetime, timezone
 
 CONFIG_FILE = "config.yml"
+IAC_DRIFT_IAM_USER = "IAC_DRIFT_IAM_USER"
 
 class IAMPolicyComplianceChecker:
 
@@ -254,8 +255,8 @@ class IAMPolicyComplianceChecker:
             self.logger.info("No compliance issues found, no announcement will be created.")
             return
 
-        iam_drift_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" in issue]
-        general_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" not in issue]
+        iam_drift_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER in issue]
+        general_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER not in issue]
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general IAM compliance issues. Triggering announcement...")
@@ -272,7 +273,7 @@ class IAMPolicyComplianceChecker:
 
         if iam_drift_issues:
             self.logger.info(f"Found {len(iam_drift_issues)} critical IAM security alerts. Dispatching to GitHub security issue...")
-            title = f"[SECURITY] Action Required: Unauthorized IAM Users Detected"
+            title = f"[{IAC_DRIFT_IAM_USER}] Action Required: Unauthorized IAM Users Detected"
             body = f"Critical security violations detected in IAM policies for project {self.project_id}:\n\n"
             for issue in iam_drift_issues:
                 body += f"- {issue}\n"
@@ -299,8 +300,8 @@ class IAMPolicyComplianceChecker:
             self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
-        iam_drift_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" in issue]
-        general_issues = [issue for issue in diff if "IAC_DRIFT_IAM_USER" not in issue]
+        iam_drift_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER in issue]
+        general_issues = [issue for issue in diff if IAC_DRIFT_IAM_USER not in issue]
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general IAM compliance issues. Printing announcement...")
@@ -317,7 +318,7 @@ class IAMPolicyComplianceChecker:
 
         if iam_drift_issues:
             self.logger.info("Printing security dashboard update for IAM vulnerabilities...")
-            title = f"[SECURITY] Action Required: Unauthorized IAM Users Detected"
+            title = f"[{IAC_DRIFT_IAM_USER}] Action Required: Unauthorized IAM Users Detected"
             body = f"Critical security violations detected in IAM policies for project {self.project_id}:\n\n"
             for issue in iam_drift_issues:
                 body += f"- {issue}\n"

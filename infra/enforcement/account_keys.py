@@ -27,6 +27,7 @@ from google.cloud.iam_admin_v1 import types
 from sending import SendingClient
 
 SECRET_MANAGER_LABEL = "beam-infra-secret-manager"
+IAC_DRIFT_SA_KEY = "IAC_DRIFT_SA_KEY"
 
 class AuthorizedUser(TypedDict):
     email: str
@@ -379,12 +380,12 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.info("No compliance issues found, no announcement will be created.")
             return
 
-        unmanaged_keys_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" in issue]
-        general_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" not in issue]
+        unmanaged_keys_issues = [issue for issue in diff if IAC_DRIFT_SA_KEY in issue]
+        general_issues = [issue for issue in diff if IAC_DRIFT_SA_KEY not in issue]
 
         if general_issues:
             self.logger.info(f"Found {len(general_issues)} general compliance issues. Triggering announcement...")
-            title = f"[SECURITY] Action Required: Unauthorized Service Accounts Detected"
+            title = f"[{IAC_DRIFT_SA_KEY}] Action Required: Unauthorized Service Accounts Detected"
             body = f"Unauthorized Service Accounts Report\n\n"
             body += f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
             for issue in general_issues:
@@ -417,12 +418,12 @@ class AccountKeysPolicyComplianceCheck:
             self.logger.info("No compliance issues found, no announcement will be printed.")
             return
 
-        unmanaged_keys_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" in issue]
-        general_issues = [issue for issue in diff if "IAC_DRIFT_SA_KEY" not in issue]
+        unmanaged_keys_issues = [issue for issue in diff if IAC_DRIFT_SA_KEY in issue]
+        general_issues = [issue for issue in diff if IAC_DRIFT_SA_KEY not in issue]
 
         if general_issues:
             self.logger.info("Printing general compliance announcement...")
-            title = f"[SECURITY] Action Required: Unauthorized Service Accounts Detected"
+            title = f"[IAC_DRIFT_SA_KEY] Action Required: Unauthorized Service Accounts Detected"
             body = f"Unauthorized Service Accounts Report\n\n"
             body += f"Account keys for project {self.project_id} are not compliant with the defined policies on {self.service_account_keys_file}\n\n"
             for issue in general_issues:
@@ -440,7 +441,7 @@ class AccountKeysPolicyComplianceCheck:
             print("\n" + "="*60)
             print("SIMULATING GITHUB SECURITY ISSUE CREATION/UPDATE")
             print("="*60)
-            print("Title: [SECURITY] Action Required: Unmanaged Service Account Keys Detected\n")
+            print(f"Title: [{IAC_DRIFT_SA_KEY}] Action Required: Unmanaged Service Account Keys Detected\n")
             print(f"Body:\n### Unmanaged Keys Audit Report ({timestamp})")
             print(f"The following unauthorized or unmanaged keys were detected in `{self.project_id}`:\n")
             for issue in unmanaged_keys_issues:
