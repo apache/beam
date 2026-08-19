@@ -698,6 +698,29 @@ def temp_iceberg_table_with_pk(table_data):
 
 
 @contextlib.contextmanager
+def temp_jms_activemq_server():
+  """Context manager to provide a temporary ActiveMQ broker for JMS tests."""
+
+  broker = DockerContainer(
+    'apache/activemq-classic:5.18.3').with_exposed_ports(61616)
+
+  try:
+    broker.start()
+    wait_for_logs(broker, '.*ActiveMQ .* started.*', timeout=30)
+
+    host = broker.get_container_host_ip()
+    port = broker.get_exposed_port(61616)
+
+    yield {
+      'SERVER_URI': f'tcp://{host}:{port}',
+      'CONNECTION_FACTORY_CLASS_NAME':
+        'org.apache.activemq.ActiveMQConnectionFactory',
+    }
+  finally:
+    broker.stop()
+
+
+@contextlib.contextmanager
 def temp_kafka_server():
   """Context manager to provide a temporary Kafka server for testing.
 

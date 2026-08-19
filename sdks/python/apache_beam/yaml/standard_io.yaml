@@ -183,6 +183,34 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# JMS
+- type: renaming
+  transforms:
+    'ReadFromJms': 'ReadFromJms'
+    'WriteToJms': 'WriteToJms'
+  config:
+    mappings:
+      'ReadFromJms':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+        max_num_records: 'max_num_records'
+        max_read_time_seconds: 'max_read_time_seconds'
+        close_timeout_seconds: 'close_timeout_seconds'
+        acknowledge_mode: 'acknowledge_mode'
+        individual_acknowledge_mode_code: 'individual_acknowledge_mode_code'
+      'WriteToJms':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromJms': 'beam:schematransform:org.apache.beam:jms_read:v1'
+        'WriteToJms': 'beam:schematransform:org.apache.beam:jms_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
+
 # Debezium
 - type: renaming
   transforms:

@@ -1,0 +1,39 @@
+fixtures:
+  - name: JMS
+    type: "apache_beam.yaml.integration_tests.temp_jms_activemq_server"
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - payload: message-1
+              - payload: message-2
+              - payload: message-3
+
+        - type: WriteToJms
+          config:
+            connection_configuration:
+              server_uri: "{JMS[SERVER_URI]}"
+              connection_factory_class_name: "{JMS[CONNECTION_FACTORY_CLASS_NAME]}"
+            queue: yaml-jms-test
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJms
+          config:
+            connection_configuration:
+              server_uri: "{JMS[SERVER_URI]}"
+              connection_factory_class_name: "{JMS[CONNECTION_FACTORY_CLASS_NAME]}"
+            queue: yaml-jms-test
+            max_num_records: 3
+
+        - type: AssertEqual
+          config:
+            elements:
+              - payload: message-1
+              - payload: message-2
+              - payload: message-3
