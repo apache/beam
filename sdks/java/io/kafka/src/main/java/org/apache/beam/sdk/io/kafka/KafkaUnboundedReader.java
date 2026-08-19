@@ -39,6 +39,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -199,7 +200,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
         int recordSize =
             (rawRecord.key() == null ? 0 : rawRecord.key().length)
                 + (rawRecord.value() == null ? 0 : rawRecord.value().length);
-        pState.recordConsumed(rawRecord.offset(), recordSize);
+        pState.recordConsumed(rawRecord.offset(), recordSize, Instant.now());
         bytesRead.inc(recordSize);
         bytesReadBySplit.inc(recordSize);
 
@@ -436,25 +437,35 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
 
   // maintains state of each assigned partition (buffered records, consumed offset, etc)
   private static class PartitionState<K, V> {
+    @SuppressWarnings("rawtypes")
+    private static final AtomicReferenceFieldUpdater<PartitionState, Instant> LAST_UPDATED =
+        AtomicReferenceFieldUpdater.newUpdater(PartitionState.class, Instant.class, "lastUpdated");
+
     private final TopicPartition topicPartition;
+    // Note that nextOffset and latestOffset are updated on different threads.
+    // Writes are ordered by a subsequent write of lastUpdated.
+    // Reads are ordered by a preceding read of lastUpdated.
     private long nextOffset;
     private long latestOffset;
-    private Instant latestOffsetFetchTime;
+    private volatile Instant lastUpdated;
     private Instant lastWatermark; // As returned by timestampPolicy
     private final TimestampPolicy<K, V> timestampPolicy;
 
     private Iterator<ConsumerRecord<byte[], byte[]>> recordIter = Collections.emptyIterator();
 
-    private KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
+    // Note that avgRecordSize is indepedently synchronized, but also needs to be ordered in
+    // relation to lastUpdated to avoid observing independent states.
+    private final KafkaIOUtils.MovingAvg avgRecordSize = new KafkaIOUtils.MovingAvg();
 
     PartitionState(
         TopicPartition partition, long nextOffset, TimestampPolicy<K, V> timestampPolicy) {
       this.topicPartition = partition;
       this.nextOffset = nextOffset;
       this.latestOffset = UNINITIALIZED_OFFSET;
-      this.latestOffsetFetchTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.lastWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
       this.timestampPolicy = timestampPolicy;
+      this.lastUpdated =
+          BoundedWindow.TIMESTAMP_MIN_VALUE; // volatile store (sequentially consistent release)
     }
 
     public TopicPartition topicPartition() {
@@ -462,41 +473,51 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
 
     // Update consumedOffset and avgRecordSize
-    void recordConsumed(long offset, int size) {
-      nextOffset = offset + 1;
-      avgRecordSize.update(size);
+    void recordConsumed(long offset, int size, Instant consumeTime) {
+      nextOffset = offset + 1; // normal store
+      avgRecordSize.update(size); // independent ordered store (release)
+      LAST_UPDATED.lazySet(this, consumeTime); // ordered store (release)
     }
 
-    synchronized void setLatestOffset(long latestOffset, Instant fetchTime) {
-      this.latestOffset = latestOffset;
-      this.latestOffsetFetchTime = fetchTime;
-      LOG.debug(
-          "{}: latest offset update for {} : {} (consumer offset {}, avg record size {})",
-          this,
-          topicPartition,
-          latestOffset,
-          nextOffset,
-          avgRecordSize);
+    void setLatestOffset(long latestOffset, Instant fetchTime) {
+      this.latestOffset = latestOffset; // normal store
+      LAST_UPDATED.lazySet(this, fetchTime); // ordered store (release)
     }
 
-    synchronized long approxBacklogInBytes() {
+    long approxBacklogInBytes() {
       // Note that is an estimate of uncompressed backlog.
       long backlogMessageCount = backlogMessageCount();
       if (backlogMessageCount == UnboundedReader.BACKLOG_UNKNOWN) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
-      return (long) (backlogMessageCount * avgRecordSize.get());
+      return (long)
+          (backlogMessageCount * avgRecordSize.get()); // independent volatile load (acquire)
     }
 
-    synchronized long backlogMessageCount() {
-      if (latestOffset < 0 || nextOffset < 0 || latestOffset < nextOffset) {
+    long backlogMessageCount() {
+      return backlogMessageCountInternal(this.lastUpdated); // volatile load (acquire)
+    }
+
+    // This is ugly, but needed because mkTimestampPolicyContext would otherwise issue two volatile
+    // reads that could be observed as holding different values.
+    // Note that the argument must always be the result of acquiring the member lastUpdated.
+    @SuppressWarnings("ReferenceEquality")
+    private long backlogMessageCountInternal(Instant lastUpdated) {
+      final long nextOffset = this.nextOffset; // normal load
+      final long latestOffset = this.latestOffset; // normal load
+
+      if (lastUpdated == BoundedWindow.TIMESTAMP_MIN_VALUE
+          || latestOffset < 0
+          || nextOffset < 0
+          || latestOffset < nextOffset) {
         return UnboundedReader.BACKLOG_UNKNOWN;
       }
       return latestOffset - nextOffset;
     }
 
-    synchronized TimestampPolicyContext mkTimestampPolicyContext() {
-      return new TimestampPolicyContext(backlogMessageCount(), latestOffsetFetchTime);
+    TimestampPolicyContext mkTimestampPolicyContext() {
+      final Instant lastUpdated = this.lastUpdated; // volatile load (acquire)
+      return new TimestampPolicyContext(backlogMessageCountInternal(lastUpdated), lastUpdated);
     }
 
     Instant updateAndGetWatermark() {
