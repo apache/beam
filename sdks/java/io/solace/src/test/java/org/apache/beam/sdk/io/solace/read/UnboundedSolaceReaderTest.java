@@ -18,10 +18,13 @@
 package org.apache.beam.sdk.io.solace.read;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.InvalidOperationException;
 import com.solacesystems.jcsmp.XMLMessage.Outcome;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.sdk.io.solace.MockSempClientFactory;
 import org.apache.beam.sdk.io.solace.MockSessionServiceFactory;
@@ -37,19 +40,14 @@ import org.junit.runners.JUnit4;
 public class UnboundedSolaceReaderTest {
 
   @Test
-  public void testCheckpointTimeoutAndNack() throws Exception {
+  public void testCheckpointTimeoutDefault_EvictsWithoutNack() throws Exception {
     AtomicReference<Outcome> settledOutcome = new AtomicReference<>();
 
-    // 1. Create a mock message that captures the settle outcome
     SerializableFunction<Integer, BytesXMLMessage> recordFn =
         index -> {
           if (index == 0) {
             return SolaceDataUtils.getBytesXmlMessageWithSettle(
-                "payload_test0",
-                "450",
-                null, // ackCallback
-                settledOutcome::set // settleCallback
-                );
+                "payload_test0", "450", null, settledOutcome::set);
           }
           return null;
         };
@@ -57,7 +55,6 @@ public class UnboundedSolaceReaderTest {
     MockSessionServiceFactory fakeSessionServiceFactory =
         MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(1).build();
 
-    // 2. Create the source directly
     UnboundedSolaceSource<Solace.Record> source =
         new UnboundedSolaceSource<>(
             com.solacesystems.jcsmp.JCSMPFactory.onlyInstance().createQueue("queue"),
@@ -65,44 +62,154 @@ public class UnboundedSolaceReaderTest {
             fakeSessionServiceFactory,
             1, // maxNumConnections
             false, // enableDeduplication
-            null, // coder (not needed for direct reader test if we don't serialize)
+            null, // coder
             input -> org.joda.time.Instant.ofEpochMilli(1000L), // timestampFn
             org.joda.time.Duration.standardSeconds(1), // watermarkIdleDurationThreshold
             input -> SolaceDataUtils.getSolaceRecord("payload_test0", "450"), // parseFn
-            org.joda.time.Duration.standardSeconds(30) // ackDeadline
+            org.joda.time.Duration.standardSeconds(30), // ackDeadline
+            false // nackOnTimeout (default)
             );
 
     UnboundedSolaceReader<Solace.Record> reader =
         (UnboundedSolaceReader<Solace.Record>)
             source.createReader(PipelineOptionsFactory.create(), null);
 
-    // 3. Inject a controllable clock
     AtomicReference<Long> currentTime = new AtomicReference<>(1000L);
     reader.clock = currentTime::get;
 
-    // 4. Start the reader (ingests message 0)
     assertTrue(reader.start());
 
-    // 5. Create a checkpoint (T1)
+    // Create a checkpoint (T1)
     reader.getCheckpointMark();
+    assertNull(settledOutcome.get());
 
-    // Verify no nack yet
-    assertEquals(null, settledOutcome.get());
-
-    // 6. Advance time by 10 seconds (less than 30s timeout) and advance reader
-    currentTime.set(11000L);
-    reader.advance(); // This calls checkTimeouts()
-    assertEquals(null, settledOutcome.get());
-
-    // 7. Advance time by 21 more seconds (total 31 seconds, > 30s timeout) and advance reader
+    // Advance time by 31 seconds (> 30s timeout)
     currentTime.set(32000L);
-    reader.advance(); // This calls checkTimeouts() which should trigger Nack
+    reader.advance(); // Calls checkTimeouts()
 
-    // 8. Wait for async nack to complete (since it runs in ackExecutor)
-    // We shut down the reader which awaits termination of the executor
+    // Shut down reader to wait for any background executions
     reader.close();
 
-    // 9. Verify that the message was Nacked with FAILED outcome
+    // Verify that settle() was NEVER called because nackOnTimeout is false
+    assertNull(settledOutcome.get());
+  }
+
+  @Test
+  public void testCheckpointTimeout_WithNackEnabled() throws Exception {
+    AtomicReference<Outcome> settledOutcome = new AtomicReference<>();
+
+    SerializableFunction<Integer, BytesXMLMessage> recordFn =
+        index -> {
+          if (index == 0) {
+            return SolaceDataUtils.getBytesXmlMessageWithSettle(
+                "payload_test0", "450", null, settledOutcome::set);
+          }
+          return null;
+        };
+
+    MockSessionServiceFactory fakeSessionServiceFactory =
+        MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(1).build();
+
+    UnboundedSolaceSource<Solace.Record> source =
+        new UnboundedSolaceSource<>(
+            com.solacesystems.jcsmp.JCSMPFactory.onlyInstance().createQueue("queue"),
+            MockSempClientFactory.getDefaultMock(),
+            fakeSessionServiceFactory,
+            1, // maxNumConnections
+            false, // enableDeduplication
+            null, // coder
+            input -> org.joda.time.Instant.ofEpochMilli(1000L), // timestampFn
+            org.joda.time.Duration.standardSeconds(1), // watermarkIdleDurationThreshold
+            input -> SolaceDataUtils.getSolaceRecord("payload_test0", "450"), // parseFn
+            org.joda.time.Duration.standardSeconds(30), // ackDeadline
+            true // nackOnTimeout
+            );
+
+    UnboundedSolaceReader<Solace.Record> reader =
+        (UnboundedSolaceReader<Solace.Record>)
+            source.createReader(PipelineOptionsFactory.create(), null);
+
+    AtomicReference<Long> currentTime = new AtomicReference<>(1000L);
+    reader.clock = currentTime::get;
+
+    assertTrue(reader.start());
+
+    // Create a checkpoint (T1)
+    reader.getCheckpointMark();
+    assertNull(settledOutcome.get());
+
+    // Advance time by 10 seconds (less than 30s timeout)
+    currentTime.set(11000L);
+    reader.advance();
+    assertNull(settledOutcome.get());
+
+    // Advance time by 21 more seconds (total 31 seconds, > 30s timeout)
+    currentTime.set(32000L);
+    reader.advance(); // Triggers NACK
+
+    // Wait for async nack to complete
+    reader.close();
+
+    // Verify that the message was Nacked with FAILED outcome
     assertEquals(Outcome.FAILED, settledOutcome.get());
+  }
+
+  @Test
+  public void testCheckpointTimeout_NackExceptionHandledGracefully() throws Exception {
+    AtomicBoolean settleAttempted = new AtomicBoolean(false);
+
+    SerializableFunction<Integer, BytesXMLMessage> recordFn =
+        index -> {
+          if (index == 0) {
+            return SolaceDataUtils.getBytesXmlMessageWithSettle(
+                "payload_test0",
+                "450",
+                null,
+                outcome -> {
+                  settleAttempted.set(true);
+                  throw new InvalidOperationException("Flow does not support outcome FAILED");
+                });
+          }
+          return null;
+        };
+
+    MockSessionServiceFactory fakeSessionServiceFactory =
+        MockSessionServiceFactory.builder().recordFn(recordFn).minMessagesReceived(1).build();
+
+    UnboundedSolaceSource<Solace.Record> source =
+        new UnboundedSolaceSource<>(
+            com.solacesystems.jcsmp.JCSMPFactory.onlyInstance().createQueue("queue"),
+            MockSempClientFactory.getDefaultMock(),
+            fakeSessionServiceFactory,
+            1, // maxNumConnections
+            false, // enableDeduplication
+            null, // coder
+            input -> org.joda.time.Instant.ofEpochMilli(1000L), // timestampFn
+            org.joda.time.Duration.standardSeconds(1), // watermarkIdleDurationThreshold
+            input -> SolaceDataUtils.getSolaceRecord("payload_test0", "450"), // parseFn
+            org.joda.time.Duration.standardSeconds(30), // ackDeadline
+            true // nackOnTimeout
+            );
+
+    UnboundedSolaceReader<Solace.Record> reader =
+        (UnboundedSolaceReader<Solace.Record>)
+            source.createReader(PipelineOptionsFactory.create(), null);
+
+    AtomicReference<Long> currentTime = new AtomicReference<>(1000L);
+    reader.clock = currentTime::get;
+
+    assertTrue(reader.start());
+
+    // Create a checkpoint (T1)
+    reader.getCheckpointMark();
+
+    // Advance time past deadline
+    currentTime.set(32000L);
+    reader.advance(); // Triggers NACK which throws InvalidOperationException asynchronously
+
+    // Reader close gracefully shuts down executor without throwing unhandled exceptions
+    reader.close();
+
+    assertTrue(settleAttempted.get());
   }
 }

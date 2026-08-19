@@ -98,7 +98,8 @@ public class SolaceIOReadTest {
         configuration.getTimestampFn(),
         configuration.getWatermarkIdleDurationThreshold(),
         configuration.getParseFn(),
-        configuration.getAckDeadline());
+        configuration.getAckDeadline(),
+        configuration.getNackOnTimeout());
   }
 
   @Test
@@ -541,7 +542,7 @@ public class SolaceIOReadTest {
   @Test
   public void testDefaultCoder() {
     Coder<SolaceCheckpointMark> coder =
-        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null, null)
+        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null, null, false)
             .getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
   }
@@ -665,5 +666,34 @@ public class SolaceIOReadTest {
 
     // checkpointMark2 should have caught up and acked both T1 and T2 (4 + 3 = 7 messages)
     assertEquals(7, countAckMessages.get());
+  }
+
+  @Test
+  public void testWithNackOnTimeout() {
+    Read<Record> defaultRead =
+        getDefaultRead()
+            .withSessionServiceFactory(
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build());
+    assertFalse(defaultRead.configurationBuilder.build().getNackOnTimeout());
+
+    Read<Record> readWithNack =
+        getDefaultRead()
+            .withSessionServiceFactory(
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build())
+            .withNackOnTimeout(true);
+    assertTrue(readWithNack.configurationBuilder.build().getNackOnTimeout());
+
+    Read<Record> readWithoutNack =
+        getDefaultRead()
+            .withSessionServiceFactory(
+                MockSessionServiceFactory.builder()
+                    .sessionServiceType(SessionServiceType.EMPTY)
+                    .build())
+            .withNackOnTimeout(false);
+    assertFalse(readWithoutNack.configurationBuilder.build().getNackOnTimeout());
   }
 }

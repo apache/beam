@@ -36,7 +36,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
-import java.util.function.Consumer;
 import org.apache.beam.sdk.schemas.JavaBeanSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -45,6 +44,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class SolaceDataUtils {
   public static final ReplicationGroupMessageId DEFAULT_REPLICATION_GROUP_ID =
       new ReplicationGroupMessageIdImpl(1L, 136L);
+
+  @FunctionalInterface
+  public interface SettleConsumer {
+    void accept(Outcome outcome) throws JCSMPException;
+  }
 
   @DefaultSchema(JavaBeanSchema.class)
   public static class SimpleRecord {
@@ -135,7 +139,7 @@ public class SolaceDataUtils {
       String payload,
       String messageId,
       SerializableFunction<Integer, Integer> ackMessageFn,
-      Consumer<Outcome> settleCallback) {
+      SettleConsumer settleCallback) {
     return getBytesXmlMessageInternal(payload, messageId, ackMessageFn, null, settleCallback);
   }
 
@@ -153,7 +157,7 @@ public class SolaceDataUtils {
       String messageId,
       SerializableFunction<Integer, Integer> ackMessageFn,
       ReplicationGroupMessageId replicationGroupMessageId,
-      Consumer<Outcome> settleCallback) {
+      SettleConsumer settleCallback) {
     long receiverTimestamp = 1708100477067L;
     long expiration = 1000L;
     long timeToLive = 1000L;

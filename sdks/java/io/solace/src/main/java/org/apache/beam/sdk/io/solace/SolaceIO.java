@@ -415,6 +415,7 @@ public class SolaceIO {
   private static final Duration DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD =
       Duration.standardSeconds(30);
   private static final Duration DEFAULT_ACK_DEADLINE = Duration.standardSeconds(30);
+  public static final boolean DEFAULT_NACK_ON_TIMEOUT = false;
   public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
   public static final int DEFAULT_WRITER_CLIENTS_PER_WORKER = 4;
   public static final Boolean DEFAULT_WRITER_PUBLISH_LATENCY_METRICS = false;
@@ -463,7 +464,8 @@ public class SolaceIO {
             .setTimestampFn(SENDER_TIMESTAMP_FUNCTION)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
-            .setAckDeadline(DEFAULT_ACK_DEADLINE));
+            .setAckDeadline(DEFAULT_ACK_DEADLINE)
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
   }
 
   /**
@@ -493,7 +495,8 @@ public class SolaceIO {
             .setTimestampFn(timestampFn)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
-            .setAckDeadline(DEFAULT_ACK_DEADLINE));
+            .setAckDeadline(DEFAULT_ACK_DEADLINE)
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
   }
 
   /**
@@ -586,6 +589,23 @@ public class SolaceIO {
      */
     public Read<T> withAckDeadline(Duration ackDeadline) {
       configurationBuilder.setAckDeadline(ackDeadline);
+      return this;
+    }
+
+    /**
+     * Optional. Sets whether to explicitly negative-acknowledge (NACK) messages when a checkpoint
+     * times out (exceeds {@link #withAckDeadline(Duration)}).
+     *
+     * <p>Default is {@code false}. When disabled, timed out checkpoints are evicted from memory to
+     * prevent unbounded memory growth, and the broker will redeliver unacknowledged messages upon
+     * session reconnection or flow rebind.
+     *
+     * <p>Note: Enabling NACK requires Solace broker version 10.2.1+ and consumer flows configured
+     * to support settlement outcomes (e.g. {@code Outcome.FAILED}). Calling NACK on standard flows
+     * throws {@link com.solacesystems.jcsmp.InvalidOperationException}.
+     */
+    public Read<T> withNackOnTimeout(boolean nackOnTimeout) {
+      configurationBuilder.setNackOnTimeout(nackOnTimeout);
       return this;
     }
 
@@ -704,6 +724,8 @@ public class SolaceIO {
 
       abstract Duration getAckDeadline();
 
+      abstract boolean getNackOnTimeout();
+
       public static <T> Builder<T> builder() {
         Builder<T> builder =
             new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>();
@@ -735,6 +757,8 @@ public class SolaceIO {
         abstract Builder<T> setWatermarkIdleDurationThreshold(Duration idleDurationThreshold);
 
         abstract Builder<T> setAckDeadline(Duration ackDeadline);
+
+        abstract Builder<T> setNackOnTimeout(boolean nackOnTimeout);
 
         abstract Configuration<T> build();
       }
@@ -774,7 +798,8 @@ public class SolaceIO {
                   configuration.getTimestampFn(),
                   configuration.getWatermarkIdleDurationThreshold(),
                   configuration.getParseFn(),
-                  configuration.getAckDeadline())));
+                  configuration.getAckDeadline(),
+                  configuration.getNackOnTimeout())));
     }
 
     @VisibleForTesting

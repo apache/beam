@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.read;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
+import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.XMLMessage;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -78,6 +79,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       Metrics.counter(UnboundedSolaceReader.class, "messages_acked");
 
   private final Duration ackDeadline;
+  private final boolean nackOnTimeout;
 
   /**
    * Map to track pending checkpoints and their messages. Accessed by both reader
@@ -132,6 +134,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     this.readerUuid = UUID.randomUUID().toString();
     this.ackExecutor = Executors.newFixedThreadPool(4);
     this.ackDeadline = java.time.Duration.ofMillis(currentSource.getAckDeadline().getMillis());
+    this.nackOnTimeout = currentSource.getNackOnTimeout();
   }
 
   private SessionService getSessionService() {
@@ -247,20 +250,37 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       }
     }
 
+    if (expired.isEmpty()) {
+      return;
+    }
+
     for (PendingCheckpoint cp : expired) {
-      LOG.warn(
-          "SolaceIO.Read: Checkpoint {} timed out after {}ms. Nacking messages.",
-          cp.id,
-          now - cp.timestamp);
-      for (BytesXMLMessage msg : cp.messages) {
-        ackExecutor.execute(
-            () -> {
-              try {
-                msg.settle(XMLMessage.Outcome.FAILED);
-              } catch (Exception e) {
-                LOG.warn("SolaceIO.Read: Failed to nack message", e);
-              }
-            });
+      if (nackOnTimeout) {
+        LOG.warn(
+            "SolaceIO.Read: Checkpoint {} timed out after {}ms. Nacking {} messages.",
+            cp.id,
+            now - cp.timestamp,
+            cp.messages.size());
+        for (BytesXMLMessage msg : cp.messages) {
+          ackExecutor.execute(
+              () -> {
+                try {
+                  msg.settle(XMLMessage.Outcome.FAILED);
+                } catch (JCSMPException | IllegalStateException e) {
+                  LOG.warn(
+                      "SolaceIO.Read: Failed to nack message with applicationMessageId={}, ackMessageId={}",
+                      msg.getApplicationMessageId(),
+                      msg.getAckMessageId(),
+                      e);
+                }
+              });
+        }
+      } else {
+        LOG.warn(
+            "SolaceIO.Read: Checkpoint {} timed out after {}ms. Evicting {} messages from memory without explicit nack (messages will be redelivered if session reconnects).",
+            cp.id,
+            now - cp.timestamp,
+            cp.messages.size());
       }
     }
   }
