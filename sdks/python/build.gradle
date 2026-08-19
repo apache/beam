@@ -152,6 +152,7 @@ tasks.register("yamlIntegrationTests") {
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
 
   doLast {
     exec {
