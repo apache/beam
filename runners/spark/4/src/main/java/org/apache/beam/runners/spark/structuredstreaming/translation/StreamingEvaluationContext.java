@@ -20,14 +20,17 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Stream;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.sdk.annotations.Internal;
@@ -37,6 +40,7 @@ import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryException;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.Trigger;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,6 +98,13 @@ public class StreamingEvaluationContext extends EvaluationContext {
   private final Object lock = new Object();
   private final List<StreamingQuery> queries = new ArrayList<>();
   private boolean stopped = false;
+
+  // Set by checkpointBaseDir() when no checkpointDir was configured, so a temporary directory was
+  // created as a fallback. Written once in evaluate() before any query starts and read back in the
+  // finally block of that same method on the same thread, so unlike `queries` and `stopped` it does
+  // not need `lock`. Never set when the user configured a checkpointDir, which evaluate() must
+  // never delete.
+  private @Nullable Path tempCheckpointDir;
 
   StreamingEvaluationContext(
       Collection<? extends NamedDataset<?>> leaves,
@@ -161,6 +172,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
     } finally {
       if (idleStopListener != null) {
         getSparkSession().streams().removeListener(idleStopListener);
+      }
+      if (tempCheckpointDir != null) {
+        deleteTempCheckpointDir(tempCheckpointDir);
       }
     }
   }
@@ -249,17 +263,47 @@ public class StreamingEvaluationContext extends EvaluationContext {
     }
   }
 
-  private static String checkpointBaseDir(SparkCommonPipelineOptions options) {
+  private String checkpointBaseDir(SparkCommonPipelineOptions options) {
     String dir = options.getCheckpointDir();
     if (dir == null || dir.isEmpty()) {
       try {
-        dir = Files.createTempDirectory("beam-spark4-streaming-checkpoint").toString();
+        tempCheckpointDir = Files.createTempDirectory("beam-spark4-streaming-checkpoint");
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
+      dir = tempCheckpointDir.toString();
       LOG.warn("No checkpoint directory configured, falling back to temporary directory {}.", dir);
     }
     return dir;
+  }
+
+  /**
+   * Best-effort, recursive delete of the fallback temporary checkpoint directory created by {@link
+   * #checkpointBaseDir}. RocksDB and Spark write nested state and log files under it, so plain
+   * {@link Files#delete} is not enough. Failures are logged rather than thrown: cleanup is a
+   * courtesy, not something that should fail a pipeline that otherwise ran to completion.
+   */
+  private static void deleteTempCheckpointDir(Path dir) {
+    try (Stream<Path> paths = Files.walk(dir)) {
+      paths
+          .sorted(Comparator.reverseOrder())
+          .forEach(
+              path -> {
+                try {
+                  Files.delete(path);
+                } catch (IOException e) {
+                  LOG.warn(
+                      "Failed to delete temporary checkpoint path {}: {}",
+                      path,
+                      String.valueOf(e.getMessage()));
+                }
+              });
+    } catch (IOException e) {
+      LOG.warn(
+          "Failed to clean up temporary checkpoint directory {}: {}",
+          dir,
+          String.valueOf(e.getMessage()));
+    }
   }
 
   /**

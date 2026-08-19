@@ -20,10 +20,14 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
@@ -189,5 +193,54 @@ public class StreamingPipelineLifecycleTest implements Serializable {
           System.currentTimeMillis() < deadline);
       Thread.sleep(50L);
     }
+  }
+
+  /**
+   * When no {@code checkpointDir} is configured, {@code StreamingEvaluationContext} falls back to a
+   * {@code beam-spark4-streaming-checkpoint*} temporary directory under {@code java.io.tmpdir}.
+   * That fallback directory must not survive the pipeline: it is cleaned up in {@code evaluate()}'s
+   * {@code finally} block once every query has reached a terminal state.
+   */
+  @Test(timeout = 300_000)
+  public void tempCheckpointDirIsCleanedUpWhenNoneConfigured() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId("lifecycle-tempdir");
+    StreamingTestUtils.clear(collectorId);
+
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(checkpointDir);
+    SESSION.configure(options);
+    options.setTestMode(false);
+    // Unset the checkpointDir that streamingOptions() configured, to exercise the fallback path.
+    options.setCheckpointDir(null);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    tenElements(), VarIntCoder.of())))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    Set<String> tempDirsBefore = tempCheckpointDirNames();
+
+    PipelineResult result = pipeline.run();
+    PipelineResult.State finalState = result.waitUntilFinish();
+    assertEquals(PipelineResult.State.DONE, finalState);
+
+    Set<String> survivors = tempCheckpointDirNames();
+    survivors.removeAll(tempDirsBefore);
+    assertTrue("leftover temporary checkpoint directories: " + survivors, survivors.isEmpty());
+  }
+
+  /**
+   * Names of {@code beam-spark4-streaming-checkpoint*} entries currently under {@code
+   * java.io.tmpdir}.
+   */
+  private static Set<String> tempCheckpointDirNames() {
+    File tmpDir = new File(System.getProperty("java.io.tmpdir"));
+    String[] names =
+        tmpDir.list((dir, name) -> name.startsWith("beam-spark4-streaming-checkpoint"));
+    return names == null ? new HashSet<>() : new HashSet<>(Arrays.asList(names));
   }
 }
