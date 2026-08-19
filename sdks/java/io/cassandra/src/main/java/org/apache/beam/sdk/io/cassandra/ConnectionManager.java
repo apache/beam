@@ -58,7 +58,7 @@ public class ConnectionManager {
     return readToClusterHash(read) + read.keyspace().get();
   }
 
-  static Session getSession(Read<?> read) {
+  static synchronized Session getSession(Read<?> read) {
     String clusterHash = readToClusterHash(read);
     String sessionHash = readToSessionHash(read);
 
