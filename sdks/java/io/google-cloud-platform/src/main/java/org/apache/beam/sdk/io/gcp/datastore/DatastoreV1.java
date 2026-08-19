@@ -28,6 +28,7 @@ import static com.google.datastore.v1.client.DatastoreHelper.makeUpsert;
 import static com.google.datastore.v1.client.DatastoreHelper.makeValue;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Verify.verify;
 
 import com.google.api.client.http.HttpRequestInitializer;
@@ -2338,9 +2339,12 @@ public class DatastoreV1 {
       Mutation mutation = c.element();
       int size = mutation.getSerializedSize();
       ProcessContextAdapter<OutT> contextAdapter = new ProcessContextAdapter<>(c);
+      com.google.datastore.v1.Key key = getKey(mutation);
 
-      if (!uniqueMutationKeys.add(getKey(mutation))) {
+      if (!uniqueMutationKeys.add(key)) {
         flushBatch(contextAdapter);
+        checkState(
+            uniqueMutationKeys.add(key), "Key %s still present in batch after flushing.", key);
       }
 
       if (mutations.size() > 0
