@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
@@ -674,5 +675,256 @@ public class BeamRowToStorageApiProtoTest {
     assertEquals(
         TEST_INSTANT_NANOS.getNano() * 1000L,
         picos.getField(picosDesc.findFieldByName("picoseconds")));
+  }
+
+  @Test
+  public void testMessageFromBeamRow_withFieldSubset() throws Exception {
+    Schema unionSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("name", FieldType.STRING.withNullable(true))
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .addField("active", FieldType.BOOLEAN.withNullable(true))
+            .build();
+
+    Schema subsetSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .addField("active", FieldType.BOOLEAN.withNullable(true))
+            .build();
+
+    Row row =
+        Row.withSchema(unionSchema)
+            .withFieldValue("id", 42L)
+            .withFieldValue("name", "Alice")
+            .withFieldValue("score", 99.5)
+            .withFieldValue("active", true)
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(subsetSchema), true, false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, row, null, -1);
+
+    assertEquals(3, msg.getAllFields().size());
+    FieldDescriptor idField = descriptor.findFieldByName("id");
+    FieldDescriptor scoreField = descriptor.findFieldByName("score");
+    FieldDescriptor activeField = descriptor.findFieldByName("active");
+
+    assertNotNull(idField);
+    assertNotNull(scoreField);
+    assertNotNull(activeField);
+    assertNull(descriptor.findFieldByName("name"));
+
+    assertEquals(42L, msg.getField(idField));
+    assertEquals(99.5, msg.getField(scoreField));
+    assertEquals(true, msg.getField(activeField));
+  }
+
+  @Test
+  public void testMessageFromBeamRow_withNestedSubset() throws Exception {
+    Schema innerUnionSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("name", FieldType.STRING.withNullable(true))
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .build();
+
+    Schema innerSubsetSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .build();
+
+    Schema topUnionSchema =
+        Schema.builder()
+            .addField("nested", FieldType.row(innerUnionSchema).withNullable(true))
+            .addField("topName", FieldType.STRING.withNullable(true))
+            .build();
+
+    Schema topSubsetSchema =
+        Schema.builder()
+            .addField("nested", FieldType.row(innerSubsetSchema).withNullable(true))
+            .build();
+
+    Row innerRow =
+        Row.withSchema(innerUnionSchema)
+            .withFieldValue("id", 100L)
+            .withFieldValue("name", "Bob")
+            .withFieldValue("score", 85.0)
+            .build();
+
+    Row topRow =
+        Row.withSchema(topUnionSchema)
+            .withFieldValue("nested", innerRow)
+            .withFieldValue("topName", "TopLevelName")
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(topSubsetSchema), true, false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, topRow, null, -1);
+
+    assertEquals(1, msg.getAllFields().size());
+    FieldDescriptor nestedField = descriptor.findFieldByName("nested");
+    assertNotNull(nestedField);
+    assertNull(descriptor.findFieldByName("topname"));
+
+    DynamicMessage nestedMsg = (DynamicMessage) msg.getField(nestedField);
+    assertEquals(2, nestedMsg.getAllFields().size());
+
+    FieldDescriptor innerIdField = nestedField.getMessageType().findFieldByName("id");
+    FieldDescriptor innerScoreField = nestedField.getMessageType().findFieldByName("score");
+    assertNotNull(innerIdField);
+    assertNotNull(innerScoreField);
+    assertNull(nestedField.getMessageType().findFieldByName("name"));
+
+    assertEquals(100L, nestedMsg.getField(innerIdField));
+    assertEquals(85.0, nestedMsg.getField(innerScoreField));
+  }
+
+  @Test
+  public void testMessageFromBeamRow_withArrayOfNestedRowsSubset() throws Exception {
+    Schema innerUnionSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("name", FieldType.STRING.withNullable(true))
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .build();
+
+    Schema innerSubsetSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .build();
+
+    Schema topUnionSchema =
+        Schema.builder()
+            .addField("nestedArray", FieldType.array(FieldType.row(innerUnionSchema)))
+            .addField("nestedIterable", FieldType.iterable(FieldType.row(innerUnionSchema)))
+            .build();
+
+    Schema topSubsetSchema =
+        Schema.builder()
+            .addField("nestedArray", FieldType.array(FieldType.row(innerSubsetSchema)))
+            .addField("nestedIterable", FieldType.iterable(FieldType.row(innerSubsetSchema)))
+            .build();
+
+    Row innerRow1 =
+        Row.withSchema(innerUnionSchema)
+            .withFieldValue("id", 1L)
+            .withFieldValue("name", "Alice")
+            .withFieldValue("score", 90.0)
+            .build();
+
+    Row innerRow2 =
+        Row.withSchema(innerUnionSchema)
+            .withFieldValue("id", 2L)
+            .withFieldValue("name", "Bob")
+            .withFieldValue("score", 80.0)
+            .build();
+
+    Row topRow =
+        Row.withSchema(topUnionSchema)
+            .withFieldValue("nestedArray", ImmutableList.of(innerRow1, innerRow2))
+            .withFieldValue("nestedIterable", ImmutableList.of(innerRow1, innerRow2))
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(topSubsetSchema), true, false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, topRow, null, -1);
+
+    FieldDescriptor arrayField = descriptor.findFieldByName("nestedarray");
+    assertNotNull(arrayField);
+    assertEquals(2, msg.getRepeatedFieldCount(arrayField));
+
+    DynamicMessage elem0 = (DynamicMessage) msg.getRepeatedField(arrayField, 0);
+    assertEquals(2, elem0.getAllFields().size());
+    assertEquals(1L, elem0.getField(elem0.getDescriptorForType().findFieldByName("id")));
+    assertEquals(90.0, elem0.getField(elem0.getDescriptorForType().findFieldByName("score")));
+    assertNull(elem0.getDescriptorForType().findFieldByName("name"));
+
+    FieldDescriptor iterField = descriptor.findFieldByName("nestediterable");
+    assertNotNull(iterField);
+    assertEquals(2, msg.getRepeatedFieldCount(iterField));
+  }
+
+  @Test
+  public void testMessageFromBeamRow_withMapOfNestedRowsSubsetAndNullValues() throws Exception {
+    Schema innerUnionSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("name", FieldType.STRING.withNullable(true))
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .build();
+
+    Schema innerSubsetSchema =
+        Schema.builder()
+            .addField("id", FieldType.INT64)
+            .addField("score", FieldType.DOUBLE.withNullable(true))
+            .build();
+
+    Schema topUnionSchema =
+        Schema.builder()
+            .addField(
+                "nestedMap",
+                FieldType.map(FieldType.STRING, FieldType.row(innerUnionSchema).withNullable(true)))
+            .addField(
+                "primitiveMapWithNulls",
+                FieldType.map(FieldType.STRING, FieldType.INT32.withNullable(true))
+                    .withNullable(true))
+            .build();
+
+    Schema topSubsetSchema =
+        Schema.builder()
+            .addField(
+                "nestedMap",
+                FieldType.map(
+                    FieldType.STRING, FieldType.row(innerSubsetSchema).withNullable(true)))
+            .addField(
+                "primitiveMapWithNulls",
+                FieldType.map(FieldType.STRING, FieldType.INT32.withNullable(true))
+                    .withNullable(true))
+            .build();
+
+    Row innerRow =
+        Row.withSchema(innerUnionSchema)
+            .withFieldValue("id", 10L)
+            .withFieldValue("name", "Carol")
+            .withFieldValue("score", 75.0)
+            .build();
+
+    Map<String, Row> rowMap = new HashMap<>();
+    rowMap.put("k1", innerRow);
+    rowMap.put("k2_null", null);
+
+    Map<String, Integer> primMap = new HashMap<>();
+    primMap.put("a", 100);
+    primMap.put("b_null", null);
+
+    Row topRow =
+        Row.withSchema(topUnionSchema)
+            .withFieldValue("nestedMap", rowMap)
+            .withFieldValue("primitiveMapWithNulls", primMap)
+            .build();
+
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(
+            BeamRowToStorageApiProto.protoTableSchemaFromBeamSchema(topSubsetSchema), true, false);
+
+    DynamicMessage msg = BeamRowToStorageApiProto.messageFromBeamRow(descriptor, topRow, null, -1);
+
+    FieldDescriptor mapField = descriptor.findFieldByName("nestedmap");
+    assertNotNull(mapField);
+    assertEquals(2, msg.getRepeatedFieldCount(mapField));
+
+    FieldDescriptor primMapField = descriptor.findFieldByName("primitivemapwithnulls");
+    assertNotNull(primMapField);
+    assertEquals(2, msg.getRepeatedFieldCount(primMapField));
   }
 }

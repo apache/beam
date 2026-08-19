@@ -168,9 +168,11 @@ public class BeamRowToStorageApiProto {
     for (int i = 0; i < row.getFieldCount(); ++i) {
       Field beamField = beamSchema.getField(i);
       FieldDescriptor fieldDescriptor =
-          Preconditions.checkNotNull(
-              descriptor.findFieldByName(beamField.getName().toLowerCase()),
-              beamField.getName().toLowerCase());
+          descriptor.findFieldByName(beamField.getName().toLowerCase());
+      if (fieldDescriptor == null) {
+        // Field in the union row is not present in the destination table's descriptor; skip it.
+        continue;
+      }
       @Nullable Object value = messageValueFromRowValue(fieldDescriptor, beamField, i, row);
       if (value != null) {
         builder.setField(fieldDescriptor, value);
@@ -330,7 +332,8 @@ public class BeamRowToStorageApiProto {
       FieldDescriptor fieldDescriptor, FieldType beamFieldType, Object value) {
     switch (beamFieldType.getTypeName()) {
       case ROW:
-        return messageFromBeamRow(fieldDescriptor.getMessageType(), (Row) value, null, -1);
+        return messageFromBeamRow(
+            fieldDescriptor.getMessageType(), (Row) value, null, (String) null);
       case ARRAY:
       case ITERABLE:
         Iterable<Object> iterable = (Iterable<Object>) value;
@@ -419,14 +422,21 @@ public class BeamRowToStorageApiProto {
     DynamicMessage.Builder builder = DynamicMessage.newBuilder(descriptor);
     FieldDescriptor keyFieldDescriptor =
         Preconditions.checkNotNull(descriptor.findFieldByName("key"));
-    @Nullable Object key = toProtoValue(keyFieldDescriptor, keyFieldType, entryValue.getKey());
+    @Nullable
+    Object key =
+        entryValue.getKey() != null
+            ? toProtoValue(keyFieldDescriptor, keyFieldType, entryValue.getKey())
+            : null;
     if (key != null) {
       builder.setField(keyFieldDescriptor, key);
     }
     FieldDescriptor valueFieldDescriptor =
         Preconditions.checkNotNull(descriptor.findFieldByName("value"));
     @Nullable
-    Object value = toProtoValue(valueFieldDescriptor, valueFieldType, entryValue.getValue());
+    Object value =
+        entryValue.getValue() != null
+            ? toProtoValue(valueFieldDescriptor, valueFieldType, entryValue.getValue())
+            : null;
     if (value != null) {
       builder.setField(valueFieldDescriptor, value);
     }

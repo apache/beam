@@ -887,7 +887,7 @@ public class TableRowToStorageApiProto {
         if (unknownFields != null) {
           unknownFields.set(key, entry.getValue());
         }
-        if (ignoreUnknownValues) {
+        if (ignoreUnknownValues || entry.getValue() == null) {
           continue;
         } else {
           String prefix = schemaInformation.getFullName();

@@ -38,9 +38,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(StorageApiDynamicDestinationsTableRow.class);
   private final BigQueryIO.TableRowFormatFunction<T> formatFunction;
   private final BigQueryIO.@Nullable TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
@@ -94,8 +98,23 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
           }
         };
 
+    TableSchema schemaToUse = null;
+    TableDestination tableDestination = getTable(destination);
+    TableReference tableReference =
+        tableDestination != null ? tableDestination.getTableReference() : null;
+    if (tableReference != null && datasetService != null) {
+      try {
+        schemaToUse = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+      } catch (Exception e) {
+        LOG.debug("Could not fetch schema from BigQuery for destination {}", destination, e);
+      }
+    }
+    if (schemaToUse == null) {
+      schemaToUse = getSchema(destination);
+    }
+
     return schemaUpdateOptions.isEmpty()
-        ? getConverter.apply(getSchema(destination))
+        ? getConverter.apply(schemaToUse)
         : new SchemaUpgradingTableRowConverter(
             getConverter, options, datasetService, writeStreamService);
   }
