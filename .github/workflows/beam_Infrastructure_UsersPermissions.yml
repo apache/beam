@@ -61,7 +61,12 @@ jobs:
         run: |
           echo "[DevSecOps] Safely overwriting users.yml with data from the Pull Request..."
           cp ./pr_users/infra/iam/users.yml ./infra/iam/users.yml
-
+      - name: Download users.yml directly from PR fork
+        run: |
+          echo "[DevSecOps] Descargando de forma segura users.yml desde el Pull Request..."
+          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/infra/iam/users.yml?ref=${{ github.event.pull_request.head.ref }}" \
+            | jq -r '.content' | base64 --decode > ./infra/iam/users.yml
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Install Terraform
