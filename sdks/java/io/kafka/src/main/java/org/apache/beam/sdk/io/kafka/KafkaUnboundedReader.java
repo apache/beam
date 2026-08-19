@@ -34,7 +34,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -64,7 +63,9 @@ import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
+import org.apache.kafka.clients.consumer.InvalidOffsetException;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
+import org.apache.kafka.common.KafkaException;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.WakeupException;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -145,18 +146,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     // Note that consumer is not thread safe, should not be accessed out side consumerPollLoop().
     consumerPollThread.submit(this::consumerPollLoop);
 
-    // offsetConsumer setup :
-    Map<String, Object> offsetConsumerConfig =
-        KafkaIOUtils.getOffsetConsumerConfig(
-            name, spec.getOffsetConsumerConfig(), spec.getConsumerConfig());
-
-    offsetConsumer = spec.getConsumerFactoryFn().apply(offsetConsumerConfig);
-
-    // Fetch offsets once before running periodically.
-    updateLatestOffsets();
-
-    offsetFetcherThread.scheduleAtFixedRate(
-        this::updateLatestOffsets, 0, OFFSET_UPDATE_INTERVAL_SECONDS, TimeUnit.SECONDS);
     return advance();
   }
 
@@ -409,16 +398,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   private AtomicBoolean closed = new AtomicBoolean(false);
   private Instant nextAllowedCommitFailLogTime = Instant.ofEpochMilli(0);
 
-  // Backlog support :
-  // Kafka consumer does not have an API to fetch latest offset for topic. We need to seekToEnd()
-  // then look at position(). Use another consumer to do this so that the primary consumer does
-  // not need to be interrupted. The latest offsets are fetched periodically on a thread. This is
-  // still a bit of a hack, but so far there haven't been any issues reported by the users.
-  private @Nullable Consumer<byte[], byte[]> offsetConsumer = null;
-  private final ScheduledExecutorService offsetFetcherThread =
-      Executors.newSingleThreadScheduledExecutor();
-  private static final int OFFSET_UPDATE_INTERVAL_SECONDS = 1;
-
   private static final long UNINITIALIZED_OFFSET = -1;
 
   /** watermark before any records have been read. */
@@ -586,9 +565,30 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   }
 
   private void consumerPollLoop() {
-    // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
     Consumer<byte[], byte[]> consumer = Preconditions.checkStateNotNull(this.consumer);
+    List<TopicPartition> topicPartitions =
+        Preconditions.checkStateNotNull(source.getSpec().getTopicPartitions());
 
+    // Set initial latest offset for each partition.
+    try {
+      Instant fetchTime = Instant.now();
+      Map<TopicPartition, Long> endOffsets = consumer.endOffsets(topicPartitions);
+      for (PartitionState<K, V> p : partitionStates) {
+        p.setLatestOffset(
+            endOffsets.getOrDefault(p.topicPartition, UNINITIALIZED_OFFSET), fetchTime);
+      }
+    } catch (KafkaException e) {
+      if (!closed.get()) { // Ignore the exception if the reader is closed.
+        LOG.warn(
+            "{}: exception while fetching latest offset for partitions {}. will be retried.",
+            this,
+            topicPartitions,
+            e);
+      }
+      // Don't update the latest offset.
+    }
+
+    // Read in a loop and enqueue the batch of records, if any, to availableRecordsQueue.
     try {
       ConsumerRecords<byte[], byte[]> records = ConsumerRecords.empty();
       while (!closed.get()) {
@@ -601,6 +601,32 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
               kafkaResults.updateSuccessfulRpcMetrics(
                   kafkaTopic,
                   java.time.Duration.ofMillis(stopwatch.elapsed(TimeUnit.MILLISECONDS)));
+            }
+
+            // Fetch the current offsets and update the latest offset.
+            Instant fetchTime = Instant.now();
+            for (PartitionState<K, V> pState : partitionStates) {
+              try {
+                final long position = consumer.position(pState.topicPartition);
+                consumer
+                    .currentLag(pState.topicPartition)
+                    .ifPresent(lag -> pState.setLatestOffset(position + lag, fetchTime));
+              } catch (InvalidOffsetException e) {
+                // The position is undefined or out of range.
+                pState.setLatestOffset(UNINITIALIZED_OFFSET, fetchTime);
+              } catch (KafkaException e) {
+                if (!closed.get()) { // Ignore the exception if the reader is closed.
+                  LOG.warn(
+                      "{}: exception while fetching latest offset for partitions {}. will be retried.",
+                      this,
+                      topicPartitions,
+                      e);
+                }
+                // Wakeups, interrupts, authentication failures, authorization failures, timeouts
+                // and unrecoverable errors can be ignored. This routine is reattempted on every
+                // iteration and fallback methods would likely trigger the same unrecoverable
+                // errors.
+              }
             }
           } else if (availableRecordsQueue.offer(
               records, RECORDS_ENQUEUE_POLL_TIMEOUT.getMillis(), TimeUnit.MILLISECONDS)) {
@@ -789,37 +815,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     }
   }
 
-  // Update latest offset for each partition.
-  // Called from setupInitialOffset() at the start and then periodically from offsetFetcher thread.
-  private void updateLatestOffsets() {
-    Consumer<byte[], byte[]> offsetConsumer = Preconditions.checkStateNotNull(this.offsetConsumer);
-    List<TopicPartition> topicPartitions =
-        Preconditions.checkStateNotNull(source.getSpec().getTopicPartitions());
-    Instant fetchTime = Instant.now();
-    try {
-      Map<TopicPartition, Long> endOffsets = offsetConsumer.endOffsets(topicPartitions);
-      for (PartitionState<K, V> p : partitionStates) {
-        p.setLatestOffset(
-            Preconditions.checkStateNotNull(
-                endOffsets.get(p.topicPartition),
-                "No end offset found for partition %s.",
-                p.topicPartition),
-            fetchTime);
-      }
-    } catch (Exception e) {
-      if (!closed.get()) { // Ignore the exception if the reader is closed.
-        LOG.warn(
-            "{}: exception while fetching latest offset for partitions {}. will be retried.",
-            this,
-            topicPartitions,
-            e);
-      }
-      // Don't update the latest offset.
-    }
-
-    LOG.debug("{}:  backlog {}", this, getSplitBacklogBytes());
-  }
-
   private void reportBacklog() {
     long splitBacklogBytes = getSplitBacklogBytes();
     if (splitBacklogBytes < 0) {
@@ -861,7 +856,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
   public void close() throws IOException {
     closed.set(true);
     consumerPollThread.shutdown();
-    offsetFetcherThread.shutdown();
 
     boolean isShutdown = false;
 
@@ -872,14 +866,9 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
       if (consumer != null) {
         consumer.wakeup();
       }
-      if (offsetConsumer != null) {
-        offsetConsumer.wakeup();
-      }
       availableRecordsQueue.poll(); // drain unread batch, this unblocks consumer thread.
       try {
-        isShutdown =
-            consumerPollThread.awaitTermination(10, TimeUnit.SECONDS)
-                && offsetFetcherThread.awaitTermination(10, TimeUnit.SECONDS);
+        isShutdown = consumerPollThread.awaitTermination(10, TimeUnit.SECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(e); // not expected
@@ -896,7 +885,6 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
     Closeables.close(keyDeserializerInstance, true);
     Closeables.close(valueDeserializerInstance, true);
 
-    Closeables.close(offsetConsumer, true);
     Closeables.close(consumer, true);
   }
 
