@@ -225,18 +225,6 @@ public class BigQueryHelpersTest {
   }
 
   @Test
-  public void testTableParsing_moreThanTwoColonsBindsAtLastColon() {
-    // More than two colons cannot form a valid reference (project ids contain at most one
-    // colon), but such specs pass the character-set gate; they bind at the last colon so the
-    // impossible project id is rejected by the service rather than producing a malformed
-    // dataset id.
-    TableReference ref = BigQueryHelpers.parseTableSpec("d1:d2:d3:data_set.tbl");
-    assertEquals("d1:d2:d3", ref.getProjectId());
-    assertEquals("data_set", ref.getDatasetId());
-    assertEquals("tbl", ref.getTableId());
-  }
-
-  @Test
   public void testTableParsing_consecutiveDotsPreservedInDataset() {
     // Dataset content is preserved verbatim; degenerate consecutive dots are not collapsed
     // (the service rejects the invalid dataset id; the parser must not mangle it).
@@ -337,6 +325,7 @@ public class BigQueryHelpersTest {
       "p1:d2.t3.", // trailing separator
       "p1::ds.t", // colon cannot follow the separator colon
       "MyProj:ds.t", // uppercase cannot precede a colon
+      "d1:d2:d3:data_set.tbl", // project ids contain at most one colon, so two is the maximum
     };
     for (String spec : rejected) {
       try {

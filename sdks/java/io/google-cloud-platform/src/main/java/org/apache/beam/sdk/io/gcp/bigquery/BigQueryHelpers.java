@@ -477,15 +477,7 @@ public class BigQueryHelpers {
   public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
-      throw new IllegalArgumentException(
-          String.format(
-              "Table specification [%s] is not in one of the expected formats ("
-                  + " [project_id]:[dataset_id].[table_id],"
-                  + " [project_id].[dataset_id].[table_id],"
-                  + " [dataset_id].[table_id],"
-                  + " [project_id]:[catalog_id].[namespace_id].[table_id],"
-                  + " [project_id].[catalog_id].[namespace_id].[table_id])",
-              tableSpec));
+      throw invalidTableSpec(tableSpec);
     }
 
     // Table ids cannot contain '.', so the table is always the segment after
@@ -516,10 +508,12 @@ public class BigQueryHelpers {
       }
     } else if (colonCount == 1) {
       // One colon ("p:d.t", "p:catalog.ns.t", "example.com:proj.ds.t"). If the
-      // project part is dotted, it is a legacy domain-scoped id written with
-      // a '.' separator after the project: the first dataset segment completes
-      // the project id, and any remaining middle segments bind as a (possibly
-      // composite) dataset. (Domain-scoped project names cannot contain dots)
+      // part before the colon is dotted, it is the domain half of a legacy
+      // domain-scoped project id ("example.com:proj") spelled with '.',
+      // the first segment after the colon completes the project id, and any
+      // remaining middle segments bind as a (possibly composite) dataset.
+      // (Only the domain half of a domain-scoped id may contain dots, so
+      // exactly one segment can complete it.)
       int colon = prefix.indexOf(':');
       project = prefix.substring(0, colon);
       dataset = prefix.substring(colon + 1);
@@ -533,24 +527,38 @@ public class BigQueryHelpers {
         project = project + ":" + dataset.substring(0, firstDot);
         dataset = dataset.substring(firstDot + 1);
       }
-    } else {
+    } else if (colonCount == 2) {
       // Two colons - the last colon is an explicit project terminator. This is
       // the canonical spelling for a domain-scoped project, whose id itself
       // contains a colon ("example.com:proj:ds.t"), including with a composite
       // Lakehouse catalog dataset ("example.com:proj:catalog.ns.t"). Both
       // domain-scoped spellings keep toTableSpec/parseTableSpec a round trip
-      // for composite dataset ids. (More than two colons cannot form a valid
-      // reference - project ids contain at most one colon, but such specs pass
-      // the character-set gate, so they bind here too and the impossible
-      // project id is rejected by the service.)
+      // for composite dataset ids.
       int lastColon = prefix.lastIndexOf(':');
       project = prefix.substring(0, lastColon);
       dataset = prefix.substring(lastColon + 1);
+    } else {
+      // Project ids contain at most one colon (domain-scoped), so no valid
+      // reference has more than two. Fail early rather than binding an
+      // invalid project id.
+      throw invalidTableSpec(tableSpec);
     }
 
     TableReference ref = new TableReference();
     ref.setProjectId(project);
     return ref.setDatasetId(dataset).setTableId(table);
+  }
+
+  private static IllegalArgumentException invalidTableSpec(String tableSpec) {
+    return new IllegalArgumentException(
+        String.format(
+            "Table specification [%s] is not in one of the expected formats ("
+                + " [project_id]:[dataset_id].[table_id],"
+                + " [project_id].[dataset_id].[table_id],"
+                + " [dataset_id].[table_id],"
+                + " [project_id]:[catalog_id].[namespace_id].[table_id],"
+                + " [project_id].[catalog_id].[namespace_id].[table_id])",
+            tableSpec));
   }
 
   @SuppressWarnings({

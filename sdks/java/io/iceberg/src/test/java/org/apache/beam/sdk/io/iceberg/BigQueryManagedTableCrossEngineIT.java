@@ -44,7 +44,8 @@ import org.junit.runners.JUnit4;
 
 /**
  * Reads a managed Apache Iceberg table in BigQuery through {@code Managed.ICEBERG} with the
- * BigQueryMetastore catalog, addressing it by its ordinary 3-part name.
+ * BigQuery Lakehouse Iceberg REST catalog, using the {@code bq://} warehouse that surfaces BigQuery
+ * datasets as namespaces.
  *
  * <p>Shares the {@code beam.bq.imt.*} system properties with BigQueryIOIcebergManagedTableIT in the
  * google-cloud-platform module.
@@ -136,24 +137,47 @@ public class BigQueryManagedTableCrossEngineIT {
             .put(
                 "catalog_properties",
                 ImmutableMap.<String, String>builder()
-                    .put("gcp_project", PROJECT)
-                    .put("gcp_location", connectionLocation())
-                    .put("warehouse", STORAGE_URI_ROOT)
-                    .put("catalog-impl", "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog")
+                    .put("type", "rest")
+                    .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
+                    .put(
+                        "warehouse",
+                        String.format(
+                            "bq://projects/%s/locations/%s", PROJECT, connectionLocation()))
+                    .put("header.x-goog-user-project", PROJECT)
+                    .put("rest-metrics-reporting-enabled", "false")
                     .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
+                    .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
                     .build())
             .build();
 
+    List<String> expected =
+        LongStream.range(0, 10).mapToObj(i -> i + "|row_" + i).collect(Collectors.toList());
+
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
-    PCollection<String> rows =
-        p.apply(Managed.read(Managed.ICEBERG).withConfig(config))
+    PCollection<String> icebergRead =
+        p.apply("Iceberg read", Managed.read(Managed.ICEBERG).withConfig(config))
             .getSinglePCollection()
             .apply(
+                "canonicalize iceberg",
                 MapElements.into(TypeDescriptors.strings())
                     .via(row -> row.getInt64("id") + "|" + row.getString("name")));
-    PAssert.that(rows)
-        .containsInAnyOrder(
-            LongStream.range(0, 10).mapToObj(i -> i + "|row_" + i).collect(Collectors.toList()));
+    PAssert.that(icebergRead).containsInAnyOrder(expected);
+
+    // The same table read through the BigQuery lens, addressed project.dataset.table.
+    PCollection<String> bigQueryRead =
+        p.apply(
+                "BigQuery read",
+                Managed.read(Managed.BIGQUERY)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table", String.format("%s.%s.%s", PROJECT, DATASET_ID, table))))
+            .getSinglePCollection()
+            .apply(
+                "canonicalize bigquery",
+                MapElements.into(TypeDescriptors.strings())
+                    .via(row -> row.getInt64("id") + "|" + row.getString("name")));
+    PAssert.that(bigQueryRead).containsInAnyOrder(expected);
+
     p.run().waitUntilFinish();
   }
 }
