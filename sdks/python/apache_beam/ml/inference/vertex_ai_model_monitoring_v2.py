@@ -65,6 +65,7 @@ class _V2JobManager(beam.DoFn):
       output_spec: Optional[Any] = None,
       notification_spec: Optional[Any] = None,
       credentials: Optional[Any] = None,
+      **kwargs,
   ):
     self.project_id = project_id
     self.location = location
@@ -80,6 +81,7 @@ class _V2JobManager(beam.DoFn):
     self.notification_spec = notification_spec
     self.credentials = credentials
     self.manager = None
+    self.kwargs = kwargs
 
   def create_model_monitor(self):
     """Creates a ModelMonitor with a deterministic ID or retrieves existing one."""
@@ -102,6 +104,7 @@ class _V2JobManager(beam.DoFn):
           location=self.location,
           credentials=self.credentials,
           model_monitor_id=self.model_monitor_id,
+          **self.kwargs,
       )
     except (exceptions.AlreadyExists, exceptions.Conflict):
       logging.info(
@@ -245,6 +248,7 @@ class VertexModelMonitoringV2(
       credentials: Optional[Any] = None,
       start_time: Optional[Any] = None,
       end_time: Optional[Any] = None,
+      **kwargs,
   ):
     """
     Args:
@@ -296,6 +300,7 @@ class VertexModelMonitoringV2(
     self.credentials = credentials
     self.start_time = start_time
     self.end_time = end_time
+    self.kwargs = kwargs
 
   def annotations(self) -> dict[str, Any]:
     return {
@@ -352,6 +357,7 @@ class VertexModelMonitoringV2(
           credentials=self.credentials,
           start_time=self.start_time,
           end_time=self.end_time,
+          **self.kwargs,
       )
       _ = (
           pipeline
@@ -375,6 +381,7 @@ class VertexModelMonitoringV2(
           output_spec=self.output_spec,
           notification_spec=self.notification_spec,
           credentials=self.credentials,
+          **self.kwargs,
       )
 
       # Handle WriteResult from WriteToBigQuery to extract completion PCollection for WaitOn
