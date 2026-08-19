@@ -22,12 +22,12 @@ import groovy.json.JsonSlurper
 import static groovy.test.GroovyAssert.shouldFail
 
 /**
- * Prober tests which performs health checks on deployed infrasture for
+ * Prober tests which performs health checks on deployed infrastructure for
  * community metrics.
  */
 class ProberTests {
   // TODO: Make this configurable
-  def grafanaEndpoint = 'http://metrics.beam.apache.org'
+  def grafanaEndpoint = 'https://metrics.beam.apache.org'
 
   @Test
   void PingGrafanaHttpApi() {
@@ -36,14 +36,14 @@ class ProberTests {
     def dashboardNames = allDashboards.title
     // Validate at least one expected dashboard exists
     assert dashboardNames.contains('Post-commit Test Reliability') : 'Expected dashboard does not exist'
-    assert dashboardNames.size > 0 : "No dashboards found. Check Grafana dashboard initialization script."
+    assert dashboardNames.size() > 0 : "No dashboards found. Check Grafana dashboard initialization script."
   }
 
   @Test
   void CheckGrafanaStalenessAlerts() {
     def alertsJson = "${grafanaEndpoint}/api/alerts?dashboardQuery=Source%20Data%20Freshness".toURL().text
     def alerts = new JsonSlurper().parseText(alertsJson)
-    assert alerts.size > 0
+    assert alerts.size() > 0
     alerts.each { alert ->
       assert alert.state == 'ok' : "Input data is stale! ${alert}\n   See: ${grafanaEndpoint}/d/data-freshness"
     }

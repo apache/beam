@@ -77,8 +77,8 @@ class OpenSearchEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         """
         self.opensearch_host = opensearch_host
         self.opensearch_port = opensearch_port
-        self.username = username | os.getenv("OPENSEARCH_USERNAME")
-        self.password = password | os.getenv("OPENSEARCH_PASSWORD")
+        self.username = username or os.getenv("OPENSEARCH_USERNAME")
+        self.password = password or os.getenv("OPENSEARCH_PASSWORD")
         self.index_name = index_name
         self.vector_field = vector_field
         self.k = k

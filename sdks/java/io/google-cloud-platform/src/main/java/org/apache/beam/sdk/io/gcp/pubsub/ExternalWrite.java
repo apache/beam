@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.auto.service.AutoService;
 import java.util.Map;
 import org.apache.beam.sdk.expansion.ExternalTransformRegistrar;
@@ -35,9 +37,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Exposes {@link PubsubIO.Write} as an external transform for cross-language usage. */
 @AutoService(ExternalTransformRegistrar.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public final class ExternalWrite implements ExternalTransformRegistrar {
   public ExternalWrite() {}
 
@@ -50,9 +49,10 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
 
   /** Parameters class to expose the transform to an external SDK. */
   public static class Configuration {
-    private String topic;
+    private @Nullable String topic;
     private @Nullable String idAttribute;
     private @Nullable String timestampAttribute;
+    private boolean publishWithOrderingKey = false;
 
     public void setTopic(String topic) {
       this.topic = topic;
@@ -65,6 +65,10 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
     public void setTimestampAttribute(@Nullable String timestampAttribute) {
       this.timestampAttribute = timestampAttribute;
     }
+
+    public void setPublishWithOrderingKey(Boolean publishWithOrderingKey) {
+      this.publishWithOrderingKey = publishWithOrderingKey != null && publishWithOrderingKey;
+    }
   }
 
   public static class WriteBuilder
@@ -75,8 +79,9 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
     public PTransform<PCollection<byte[]>, PDone> buildExternal(Configuration config) {
       PubsubIO.Write.Builder<byte[]> writeBuilder =
           PubsubIO.Write.newBuilder(new ParsePubsubMessageProtoAsPayloadFromWindowedValue());
-      if (config.topic != null) {
-        StaticValueProvider<String> topic = StaticValueProvider.of(config.topic);
+      String topicStr = config.topic;
+      if (topicStr != null) {
+        StaticValueProvider<String> topic = StaticValueProvider.of(topicStr);
         writeBuilder.setTopicProvider(NestedValueProvider.of(topic, PubsubTopic::fromPath));
       }
       if (config.idAttribute != null) {
@@ -85,6 +90,7 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
       if (config.timestampAttribute != null) {
         writeBuilder.setTimestampAttribute(config.timestampAttribute);
       }
+      writeBuilder.setPublishWithOrderingKey(config.publishWithOrderingKey);
       writeBuilder.setDynamicDestinations(false);
       return writeBuilder.build();
     }
@@ -96,7 +102,8 @@ public final class ExternalWrite implements ExternalTransformRegistrar {
 
     @Override
     public PubsubMessage apply(ValueInSingleWindow<byte[]> input) {
-      return INNER.apply(input.getValue());
+      return INNER.apply(
+          checkArgumentNotNull(input.getValue(), "Windowed value input cannot be null"));
     }
   }
 }

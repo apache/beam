@@ -296,6 +296,44 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string('test message'))
 
+  def test_failed_instruction_id_cache_size_is_capped(self):
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    with mock.patch(
+        'apache_beam.runners.worker.sdk_worker.MAX_FAILED_INSTRUCTIONS', 10):
+      for i in range(15):
+        bundle_processor_cache.discard(f'inst_{i}', RuntimeError(f'error {i}'))
+
+      for i in range(5):
+        self.assertNotIn(
+            f'inst_{i}', bundle_processor_cache.failed_instruction_ids)
+      for i in range(5, 15):
+        self.assertIn(
+            f'inst_{i}', bundle_processor_cache.failed_instruction_ids)
+
+  def test_failed_instruction_tracebacks_are_truncated_when_too_long(self):
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    long_message = "x" * 15000
+    bundle_processor_cache.discard('instruction_id', RuntimeError(long_message))
+
+    stored_exception = bundle_processor_cache.failed_instruction_ids[
+        'instruction_id']
+    tb_str = str(stored_exception)
+
+    self.assertLessEqual(len(tb_str), 13000)
+    self.assertIn('[traceback truncated]', tb_str)
+
   def test_data_sampling_response(self):
     # Create a data sampler with some fake sampled data. This data will be seen
     # in the sample response.

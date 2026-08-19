@@ -286,6 +286,10 @@ if [[ "$RUNNER" == "flink" || "$RUNNER" == "spark" || "$RUNNER" == "portable" ||
           --artifact-port 0 &
     elif [[ "$RUNNER" == "spark" ]]; then
       "$JAVA_CMD" \
+          --add-opens=java.base/sun.nio.ch=ALL-UNNAMED \
+          --add-opens=java.base/java.nio=ALL-UNNAMED \
+          --add-opens=java.base/java.util=ALL-UNNAMED \
+          --add-opens=java.base/java.lang.invoke=ALL-UNNAMED \
           -jar $SPARK_JOB_SERVER_JAR \
           --spark-master-url local \
           --job-port $JOB_PORT \

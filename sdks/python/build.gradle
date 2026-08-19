@@ -73,6 +73,7 @@ tasks.register("generateExternalTransformsConfig") {
   // Need to build all expansion services listed in sdks/standard_expansion_services.yaml
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:expansion-service:build"
+  dependsOn ":sdks:java:io:messaging-expansion-service:build"
   // Keep this in-sync with pyproject.toml
   def PyYaml = "'pyyaml>=3.12,<7.0.0'"
 
@@ -101,16 +102,32 @@ tasks.register("generateManagedIOPage") {
   }
 }
 
+tasks.register("prepareExpansionServicesForYamlDocs") {
+  description "Builds all expansion services referenced in apache_beam/yaml/*.*"
+
+  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
+  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+
+  doLast {
+    // Copy expansion service jar into cache path (.apache_beam/cache/jars/).
+    copy {
+      from project.tasks.findByPath(":sdks:java:extensions:schemaio-expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:extensions:sql:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+      into "${System.getProperty('user.home')}/.apache_beam/cache/jars/"
+    }
+  }
+}
+
 tasks.register("generateYamlDocs") {
   description "Generates the reference documentation for all YAML transforms."
 
   dependsOn buildPython
-  // Need to build all expansion services referenced in apache_beam/yaml/*.*
-  // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
-  dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
-  dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn prepareExpansionServicesForYamlDocs
+
   def extraPackages = "pyyaml markdown docstring_parser pandas pygments Jinja2 virtualenv-clone"
 
   doLast {
@@ -134,6 +151,7 @@ tasks.register("yamlIntegrationTests") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
 
   doLast {
     exec {
@@ -153,9 +171,10 @@ tasks.register("postCommitYamlIntegrationTests") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
 
   doLast {
-    def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging'
+    def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging,e2e'
     def testSetsToRun = testSetInput.tokenize(',').collect { it.trim() }.findAll { !it.isEmpty() }
     testSetsToRun.each { currentTestSet ->
       def test_files_dir
@@ -170,8 +189,11 @@ tasks.register("postCommitYamlIntegrationTests") {
         case 'messaging':
           test_files_dir = 'extended_tests/messaging'
           break
+        case 'e2e':
+          test_files_dir = 'extended_tests/e2e'
+          break
         default:
-          throw StopExecutionException("Unknown yamlTestSet: ${testSet}. Must be one of 'data', 'databases', or 'messaging'.")
+          throw StopExecutionException("Unknown yamlTestSet: ${currentTestSet}. Must be one of 'data', 'databases', 'messaging', or 'e2e'.")
       }
       exec {
         executable 'sh'

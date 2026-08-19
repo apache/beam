@@ -34,7 +34,17 @@ import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Base64;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +53,7 @@ import org.slf4j.LoggerFactory;
  * entropy from a GCP HSM key and stores it in Google Cloud Secret Manager. If the secret already
  * exists, it will be retrieved.
  */
-public class GcpHsmGeneratedSecret implements Secret {
+public class GcpHsmGeneratedSecret extends Secret {
   private static final Logger LOG = LoggerFactory.getLogger(GcpHsmGeneratedSecret.class);
   private final String projectId;
   private final String locationId;
@@ -60,6 +70,38 @@ public class GcpHsmGeneratedSecret implements Secret {
     this.keyRingId = keyRingId;
     this.keyId = keyId;
     this.secretId = "HsmGeneratedSecret_" + jobName;
+  }
+
+  /** Initialize GcpHsmGeneratedSecret from a map specification. */
+  static GcpHsmGeneratedSecret fromMap(Map<String, String> specMap) {
+    Set<String> allowedKeys =
+        new HashSet<>(
+            Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
+    Set<String> invalid = new HashSet<>(specMap.keySet());
+    invalid.removeAll(allowedKeys);
+    if (!invalid.isEmpty()) {
+      List<String> sortedInvalid = new ArrayList<>(invalid);
+      Collections.sort(sortedInvalid);
+      throw new IllegalArgumentException(
+          "Invalid secret parameter " + String.join(", ", sortedInvalid));
+    }
+    String locationId =
+        Preconditions.checkNotNull(
+            specMap.get("location_id"),
+            "location_id must contain a valid value for locationId parameter");
+    String keyRingId =
+        Preconditions.checkNotNull(
+            specMap.get("key_ring_id"),
+            "key_ring_id must contain a valid value for keyRingId parameter");
+    String keyId =
+        Preconditions.checkNotNull(
+            specMap.get("key_id"), "key_id must contain a valid value for keyId parameter");
+    String jobName =
+        Preconditions.checkNotNull(
+            specMap.get("job_name"), "job_name must contain a valid value for jobName parameter");
+    String projectId =
+        GcpSecret.resolveGcpProjectId(specMap.get("project_id"), "job '" + jobName + "'");
+    return new GcpHsmGeneratedSecret(projectId, locationId, keyRingId, keyId, jobName);
   }
 
   /**
@@ -187,5 +229,26 @@ public class GcpHsmGeneratedSecret implements Secret {
    */
   public String getSecretId() {
     return secretId;
+  }
+
+  @Override
+  public boolean equals(@Nullable Object obj) {
+    if (this == obj) {
+      return true;
+    }
+    if (!(obj instanceof GcpHsmGeneratedSecret)) {
+      return false;
+    }
+    GcpHsmGeneratedSecret other = (GcpHsmGeneratedSecret) obj;
+    return Objects.equals(this.projectId, other.projectId)
+        && Objects.equals(this.locationId, other.locationId)
+        && Objects.equals(this.keyRingId, other.keyRingId)
+        && Objects.equals(this.keyId, other.keyId)
+        && Objects.equals(this.secretId, other.secretId);
+  }
+
+  @Override
+  public int hashCode() {
+    return Objects.hash(projectId, locationId, keyRingId, keyId, secretId);
   }
 }

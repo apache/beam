@@ -932,6 +932,12 @@ public class BigQueryUtils {
           return java.time.Instant.parse(jsonBQString);
         }
       } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
+        if (!jsonBQString.contains("UTC")) {
+          BigDecimal bd = new BigDecimal(jsonBQString);
+          long seconds = bd.longValue();
+          long nanos = bd.subtract(BigDecimal.valueOf(seconds)).movePointRight(9).longValue();
+          return java.time.Instant.ofEpochSecond(seconds, nanos);
+        }
         return VAR_PRECISION_FORMATTER.parse(jsonBQString, java.time.Instant::from);
       }
     }

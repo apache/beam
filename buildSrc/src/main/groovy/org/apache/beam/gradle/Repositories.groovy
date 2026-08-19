@@ -31,7 +31,7 @@ class Repositories {
     }
 
     project.repositories {
-      maven { url project.offlineRepositoryRoot }
+      maven { url project.rootProject.file(project.offlineRepositoryRoot) }
 
       // To run gradle in offline mode, one must first invoke
       // 'updateOfflineRepository' to create an offline repo
@@ -86,7 +86,7 @@ class Repositories {
         maven { url "https://plugins.gradle.org/m2/" }
         maven { url "https://repo.spring.io/plugins-release" }
         maven { url "https://packages.confluent.io/maven/" }
-        maven { url project.offlineRepositoryRoot }
+        maven { url project.rootProject.file(project.offlineRepositoryRoot) }
       }
       includeSources = false
       includeJavadocs = false

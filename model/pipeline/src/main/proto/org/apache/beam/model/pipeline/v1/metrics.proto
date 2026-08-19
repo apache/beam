@@ -58,7 +58,9 @@ message MonitoringInfoSpec {
 
 // The key name and value string of MonitoringInfo annotations.
 message Annotation {
+  // The annotation key, e.g. "description", "units".
   string key = 1;
+  // The annotation value as a string.
   string value = 2;
 }
 
@@ -198,7 +200,8 @@ message MonitoringInfoSpecs {
       }]
     }];
 
-    // Represents a set of strings seen across bundles.
+    // Represents a bounded trie of strings seen across bundles. The trie has a
+    // maximum number of elements it will store before truncating.
     USER_BOUNDED_TRIE = 22 [(monitoring_info_spec) = {
       urn: "beam:metric:user:bounded_trie:v1",
       type: "beam:metrics:bounded_trie:v1",
@@ -225,6 +228,7 @@ message MonitoringInfoSpecs {
     //   }]
     // }];
 
+    // The total number of elements output to a PCollection by a PTransform.
     ELEMENT_COUNT = 10 [(monitoring_info_spec) = {
       urn: "beam:metric:element_count:v1",
       type: "beam:metrics:sum_int64:v1",
@@ -235,6 +239,8 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    // The distribution of byte sizes of a sampled set of elements in a PCollection.
+    // Sampling is used because serializing elements to compute byte size is CPU-intensive.
     SAMPLED_BYTE_SIZE = 11 [(monitoring_info_spec) = {
       urn: "beam:metric:sampled_byte_size:v1",
       type: "beam:metrics:distribution_int64:v1",
@@ -248,6 +254,8 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    // The total estimated execution time (in milliseconds) of the startBundle
+    // function in a ParDo transform.
     START_BUNDLE_MSECS = 12 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:start_bundle_msecs:v1",
       type: "beam:metrics:sum_int64:v1",
@@ -259,6 +267,8 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    // The total estimated execution time (in milliseconds) of the processElement
+    // function in a ParDo transform.
     PROCESS_BUNDLE_MSECS = 13 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:process_bundle_msecs:v1",
       type: "beam:metrics:sum_int64:v1",
@@ -270,6 +280,8 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    // The total estimated execution time (in milliseconds) of the finishBundle
+    // function in a ParDo transform.
     FINISH_BUNDLE_MSECS = 14 [(monitoring_info_spec) = {
       urn: "beam:metric:pardo_execution_time:finish_bundle_msecs:v1",
       type: "beam:metrics:sum_int64:v1",
@@ -281,6 +293,7 @@ message MonitoringInfoSpecs {
       } ]
     }];
 
+    // The total estimated execution time (in milliseconds) of the entire PTransform.
     TOTAL_MSECS = 15 [(monitoring_info_spec) = {
       urn: "beam:metric:ptransform_execution_time:total_msecs:v1",
       type: "beam:metrics:sum_int64:v1",
@@ -330,6 +343,8 @@ message MonitoringInfoSpecs {
       }]
     }];
 
+    // The total number of API requests made to an I/O service, grouped by
+    // service, method, resource, PTransform, and status.
     API_REQUEST_COUNT = 19 [(monitoring_info_spec) = {
       urn: "beam:metric:io:api_request_count:v1",
       type: "beam:metrics:sum_int64:v1",
@@ -353,6 +368,8 @@ message MonitoringInfoSpecs {
       ]
     }];
 
+    // A histogram of API request latencies (in milliseconds) made to I/O service
+    // APIs for batching reads or writes.
     API_REQUEST_LATENCIES = 20 [(monitoring_info_spec) = {
       urn: "beam:metric:io:api_request_latencies:v1",
       type: "beam:metrics:histogram_int64:v1",
@@ -379,6 +396,8 @@ message MonitoringInfoSpecs {
       ]
     }];
 
+    // Represents a user-defined histogram metric tracking the distribution of
+    // integer values across bundles.
     USER_HISTOGRAM = 23 [(monitoring_info_spec) = {
       urn: "beam:metric:user:histogram_int64:v1",
       type: "beam:metrics:histogram_int64:v1",
@@ -400,13 +419,23 @@ message MonitoringInfoLabelProps {
 
 // Enum extension to store MonitoringInfo related
 // specifications, constants, etc.
+// This extension mechanism allows enum values in MonitoringInfoSpecs and
+// MonitoringInfoLabels to carry structured metadata (specs and label names)
+// directly on the enum value definition.
 extend google.protobuf.EnumValueOptions {
+  // Properties for MonitoringInfoLabel enum values, specifying the label name
+  // to use in the MonitoringInfo labels map.
   MonitoringInfoLabelProps label_props = 127337796;  // From: commit 0x7970544.
 
-  // Enum extension to store the MonitoringInfoSpecs.
+  // Enum extension to store the MonitoringInfoSpec.
   MonitoringInfoSpec monitoring_info_spec = 207174266;
 }
 
+// A monitoring info represents a single data point or aggregated metric reported
+// by the SDK or runner. It contains the URN identifying the metric, the type
+// encoding, the payload (encoded metric value), labels providing context (such
+// as which PTransform or PCollection the metric is associated with), and an
+// optional start_time for cumulative metrics.
 message MonitoringInfo {
   // (Required) Defines the semantic meaning of the metric or monitored state.
   //
@@ -429,33 +458,62 @@ message MonitoringInfo {
     // refer to them. For actively processed bundles, these should match the
     // values within the ProcessBundleDescriptor. For job management APIs,
     // these should match values within the original pipeline representation.
+    // Label referencing the PTransform that this metric is associated with.
     TRANSFORM = 0 [(label_props) = { name: "PTRANSFORM" }];
+    // Label referencing the PCollection that this metric is associated with.
     PCOLLECTION = 1 [(label_props) = { name: "PCOLLECTION" }];
+    // Label referencing the WindowingStrategy that this metric is associated with.
     WINDOWING_STRATEGY = 2 [(label_props) = { name: "WINDOWING_STRATEGY" }];
+    // Label referencing the Coder used for encoding elements.
     CODER = 3 [(label_props) = { name: "CODER" }];
+    // Label referencing the Environment that this metric is associated with.
     ENVIRONMENT = 4 [(label_props) = { name: "ENVIRONMENT" }];
+    // Label for the namespace of a user metric, used to avoid name collisions
+    // between user-defined metrics.
     NAMESPACE = 5 [(label_props) = { name: "NAMESPACE" }];
+    // Label for the name of a user metric within its namespace.
     NAME = 6 [(label_props) = { name: "NAME" }];
+    // Label for the I/O service name (e.g. "bigquery", "pubsub").
     SERVICE = 7 [(label_props) = { name: "SERVICE" }];
+    // Label for the I/O API method name (e.g. "read", "write").
     METHOD = 8 [(label_props) = { name: "METHOD" }];
+    // Label for the I/O resource being accessed (e.g. a table or topic name).
     RESOURCE = 9 [(label_props) = { name: "RESOURCE" }];
+    // Label for the HTTP status code of an I/O API request.
     STATUS = 10 [(label_props) = { name: "STATUS" }];
+    // Label for the BigQuery project ID associated with this metric.
     BIGQUERY_PROJECT_ID = 11 [(label_props) = { name: "BIGQUERY_PROJECT_ID" }];
+    // Label for the BigQuery dataset associated with this metric.
     BIGQUERY_DATASET = 12 [(label_props) = { name: "BIGQUERY_DATASET" }];
+    // Label for the BigQuery table associated with this metric.
     BIGQUERY_TABLE = 13 [(label_props) = { name: "BIGQUERY_TABLE" }];
+    // Label for the BigQuery view associated with this metric.
     BIGQUERY_VIEW = 14 [(label_props) = { name: "BIGQUERY_VIEW" }];
+    // Label for a user-provided query name used to identify a BigQuery query.
     BIGQUERY_QUERY_NAME = 15 [(label_props) = { name: "BIGQUERY_QUERY_NAME" }];
+    // Label for the GCS bucket associated with this metric.
     GCS_BUCKET = 16 [(label_props) = { name: "GCS_BUCKET"}];
+    // Label for the GCP project ID associated with a GCS operation.
     GCS_PROJECT_ID = 17 [(label_props) = { name: "GCS_PROJECT_ID"}];
+    // Label for the Datastore project associated with this metric.
     DATASTORE_PROJECT = 18 [(label_props) = { name: "DATASTORE_PROJECT" }];
+    // Label for the Datastore namespace associated with this metric.
     DATASTORE_NAMESPACE = 19 [(label_props) = { name: "DATASTORE_NAMESPACE" }];
+    // Label for the Bigtable project ID associated with this metric.
     BIGTABLE_PROJECT_ID = 20 [(label_props) = { name: "BIGTABLE_PROJECT_ID"}];
+    // Label for the instance ID of a Bigtable or other service.
     INSTANCE_ID = 21 [(label_props) = { name: "INSTANCE_ID"}];
+    // Label for the table ID of a Bigtable or other service.
     TABLE_ID = 22 [(label_props) = { name: "TABLE_ID"}];
+    // Label for the Spanner project ID associated with this metric.
     SPANNER_PROJECT_ID = 23 [(label_props) = { name: "SPANNER_PROJECT_ID" }];
+    // Label for the Spanner database ID associated with this metric.
     SPANNER_DATABASE_ID = 24 [(label_props) = { name: "SPANNER_DATABASE_ID" }];
+    // Label for the Spanner table ID associated with this metric.
     SPANNER_TABLE_ID = 25 [(label_props) = { name: "SPANNER_TABLE_ID" }];
+    // Label for the Spanner instance ID associated with this metric.
     SPANNER_INSTANCE_ID = 26 [(label_props) = { name: "SPANNER_INSTANCE_ID" }];
+    // Label for a user-provided query name used to identify a Spanner query.
     SPANNER_QUERY_NAME = 27 [(label_props) = { name: "SPANNER_QUERY_NAME" }];
     // Label which if has a "true" value indicates that the metric is intended
     // to be aggregated per-worker.
@@ -489,7 +547,10 @@ message MonitoringInfo {
   google.protobuf.Timestamp start_time = 5;
 }
 
-// A set of well known URNs that specify the encoding and aggregation method.
+// A set of well known URNs that specify the encoding and aggregation method
+// for metric payloads. Each URN defines how the payload bytes of a MonitoringInfo
+// should be decoded and how values from multiple bundles should be aggregated
+// together by the runner.
 message MonitoringInfoTypeUrns {
   enum Enum {
     // Represents an integer counter where values are summed across bundles.
@@ -594,6 +655,9 @@ message MonitoringInfoTypeUrns {
     BOTTOM_N_DOUBLE_TYPE = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
                            "beam:metrics:bottom_n_double:v1"];
 
+    // Represents progress information for a PTransform, containing both completed
+    // and remaining work as separate values.
+    //
     // Encoding: <iter><value1><value2>...<valueN></iter>
     //   - iter:   beam:coder:iterable:v1
     //   - valueX: beam:coder:double:v1
@@ -614,7 +678,8 @@ message MonitoringInfoTypeUrns {
     BOUNDED_TRIE_TYPE = 12 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:bounded_trie:v1"];
 
-    // Represents a histogram.
+    // Represents a histogram of integer values. The payload is encoded as a
+    // HistogramValue protobuf message.
     HISTOGRAM = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:metrics:histogram_int64:v1"];
 

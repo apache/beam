@@ -17,7 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -51,14 +51,10 @@ import org.apache.beam.sdk.extensions.gcp.util.Transport;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Pubsub client using JSON transport. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubJsonClient extends PubsubClient {
 
   private static class PubsubJsonClientFactory implements PubsubClientFactory {
@@ -85,7 +81,7 @@ public class PubsubJsonClient extends PubsubClient {
         @Nullable String timestampAttribute,
         @Nullable String idAttribute,
         PubsubOptions options,
-        String rootUrlOverride)
+        @Nullable String rootUrlOverride)
         throws IOException {
       Pubsub pubsub =
           new Pubsub.Builder(
@@ -163,8 +159,9 @@ public class PubsubJsonClient extends PubsubClient {
       attributes.put(
           timestampAttribute, String.valueOf(outgoingMessage.getTimestampMsSinceEpoch()));
     }
-    if (idAttribute != null && !Strings.isNullOrEmpty(outgoingMessage.recordId())) {
-      attributes.put(idAttribute, outgoingMessage.recordId());
+    String recordId = outgoingMessage.recordId();
+    if (idAttribute != null && recordId != null && !recordId.isEmpty()) {
+      attributes.put(idAttribute, recordId);
     }
     return attributes;
   }
@@ -181,45 +178,51 @@ public class PubsubJsonClient extends PubsubClient {
         new PullRequest().setReturnImmediately(returnImmediately).setMaxMessages(batchSize);
     PullResponse response =
         pubsub.projects().subscriptions().pull(subscription.getPath(), request).execute();
-    if (response.getReceivedMessages() == null || response.getReceivedMessages().isEmpty()) {
+    List<ReceivedMessage> receivedMessages = response.getReceivedMessages();
+    if (receivedMessages == null || receivedMessages.isEmpty()) {
       return ImmutableList.of();
     }
-    List<IncomingMessage> incomingMessages = new ArrayList<>(response.getReceivedMessages().size());
-    for (ReceivedMessage message : response.getReceivedMessages()) {
+    List<IncomingMessage> incomingMessages = new ArrayList<>(receivedMessages.size());
+    for (ReceivedMessage message : receivedMessages) {
       PubsubMessage pubsubMessage = message.getMessage();
-      Map<String, String> attributes;
-      if (pubsubMessage.getAttributes() != null) {
-        attributes = pubsubMessage.getAttributes();
-      } else {
+      if (pubsubMessage == null) {
+        continue;
+      }
+      Map<String, String> attributes = pubsubMessage.getAttributes();
+      if (attributes == null) {
         attributes = new HashMap<>();
       }
 
       // Payload.
-      byte[] elementBytes = pubsubMessage.getData() == null ? null : pubsubMessage.decodeData();
-      if (elementBytes == null) {
-        elementBytes = new byte[0];
-      }
+      String dataStr = pubsubMessage.getData();
+      byte[] elementBytes = (dataStr == null) ? new byte[0] : pubsubMessage.decodeData();
 
       // Timestamp.
       long timestampMsSinceEpoch;
-      if (Strings.isNullOrEmpty(timestampAttribute)) {
-        timestampMsSinceEpoch = parseTimestampAsMsSinceEpoch(message.getMessage().getPublishTime());
+      if (timestampAttribute == null || timestampAttribute.isEmpty()) {
+        String publishTime = pubsubMessage.getPublishTime();
+        if (publishTime == null) {
+          throw new IllegalStateException("Received message missing publishTime");
+        }
+        timestampMsSinceEpoch = parseTimestampAsMsSinceEpoch(publishTime);
       } else {
         timestampMsSinceEpoch = extractTimestampAttribute(timestampAttribute, attributes);
       }
 
       // Ack id.
       String ackId = message.getAckId();
-      checkState(!Strings.isNullOrEmpty(ackId));
+      if (ackId == null || ackId.isEmpty()) {
+        throw new IllegalStateException("Received message missing ackId");
+      }
 
       // Record id, if any.
       @Nullable String recordId = null;
       if (idAttribute != null) {
         recordId = attributes.get(idAttribute);
       }
-      if (Strings.isNullOrEmpty(recordId)) {
+      if (recordId == null || recordId.isEmpty()) {
         // Fall back to the Pubsub provided message id.
-        recordId = pubsubMessage.getMessageId();
+        recordId = checkStateNotNull(pubsubMessage.getMessageId(), "Message ID is missing");
       }
 
       com.google.pubsub.v1.PubsubMessage.Builder protoMessage =
@@ -229,8 +232,9 @@ public class PubsubJsonClient extends PubsubClient {
       // {@link PubsubMessage} uses `null` or empty string to represent no ordering key.
       // {@link com.google.pubsub.v1.PubsubMessage} does not track string field presence and uses
       // empty string as a default.
-      if (pubsubMessage.getOrderingKey() != null) {
-        protoMessage.setOrderingKey(pubsubMessage.getOrderingKey());
+      String orderingKey = pubsubMessage.getOrderingKey();
+      if (orderingKey != null) {
+        protoMessage.setOrderingKey(orderingKey);
       }
       incomingMessages.add(
           IncomingMessage.of(
@@ -289,19 +293,25 @@ public class PubsubJsonClient extends PubsubClient {
   public List<TopicPath> listTopics(ProjectPath project) throws IOException {
     Topics.List request = pubsub.projects().topics().list(project.getPath());
     ListTopicsResponse response = request.execute();
-    if (response.getTopics() == null || response.getTopics().isEmpty()) {
+    List<Topic> topicsList = response.getTopics();
+    if (topicsList == null || topicsList.isEmpty()) {
       return ImmutableList.of();
     }
-    List<TopicPath> topics = new ArrayList<>(response.getTopics().size());
+    List<TopicPath> topics = new ArrayList<>(topicsList.size());
     while (true) {
-      for (Topic topic : response.getTopics()) {
+      for (Topic topic : topicsList) {
         topics.add(topicPathFromPath(topic.getName()));
       }
-      if (Strings.isNullOrEmpty(response.getNextPageToken())) {
+      String nextPageToken = response.getNextPageToken();
+      if (nextPageToken == null || nextPageToken.isEmpty()) {
         break;
       }
-      request.setPageToken(response.getNextPageToken());
+      request.setPageToken(nextPageToken);
       response = request.execute();
+      topicsList = response.getTopics();
+      if (topicsList == null) {
+        break;
+      }
     }
     return topics;
   }
@@ -345,21 +355,28 @@ public class PubsubJsonClient extends PubsubClient {
       throws IOException {
     Subscriptions.List request = pubsub.projects().subscriptions().list(project.getPath());
     ListSubscriptionsResponse response = request.execute();
-    if (response.getSubscriptions() == null || response.getSubscriptions().isEmpty()) {
+    List<Subscription> subscriptionsList = response.getSubscriptions();
+    if (subscriptionsList == null || subscriptionsList.isEmpty()) {
       return ImmutableList.of();
     }
-    List<SubscriptionPath> subscriptions = new ArrayList<>(response.getSubscriptions().size());
+    List<SubscriptionPath> subscriptions = new ArrayList<>(subscriptionsList.size());
     while (true) {
-      for (Subscription subscription : response.getSubscriptions()) {
-        if (subscription.getTopic().equals(topic.getPath())) {
+      for (Subscription subscription : subscriptionsList) {
+        String subTopic = subscription.getTopic();
+        if (subTopic != null && subTopic.equals(topic.getPath())) {
           subscriptions.add(subscriptionPathFromPath(subscription.getName()));
         }
       }
-      if (Strings.isNullOrEmpty(response.getNextPageToken())) {
+      String nextPageToken = response.getNextPageToken();
+      if (nextPageToken == null || nextPageToken.isEmpty()) {
         break;
       }
-      request.setPageToken(response.getNextPageToken());
+      request.setPageToken(nextPageToken);
       response = request.execute();
+      subscriptionsList = response.getSubscriptions();
+      if (subscriptionsList == null) {
+        break;
+      }
     }
     return subscriptions;
   }
@@ -391,13 +408,14 @@ public class PubsubJsonClient extends PubsubClient {
 
   /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
   @Override
-  public SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
+  public @Nullable SchemaPath getSchemaPath(TopicPath topicPath) throws IOException {
     Topic topic = pubsub.projects().topics().get(topicPath.getPath()).execute();
-    if (topic.getSchemaSettings() == null) {
+    com.google.api.services.pubsub.model.SchemaSettings schemaSettings = topic.getSchemaSettings();
+    if (schemaSettings == null) {
       return null;
     }
-    String schemaPath = topic.getSchemaSettings().getSchema();
-    if (schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
+    String schemaPath = schemaSettings.getSchema();
+    if (schemaPath == null || schemaPath.equals(SchemaPath.DELETED_SCHEMA_PATH)) {
       return null;
     }
     return PubsubClient.schemaPathFromPath(schemaPath);

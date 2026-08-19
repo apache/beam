@@ -39,7 +39,7 @@ pluginManagement {
 
 plugins {
     id("com.gradle.develocity") version "3.19"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.6.0"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.8.0"
 }
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
@@ -122,6 +122,7 @@ include(":it:conditions")
 include(":it:datadog")
 include(":it:elasticsearch")
 include(":it:google-cloud-platform")
+include(":it:iceberg")
 include(":it:jdbc")
 include(":it:kafka")
 include(":it:testcontainers")
@@ -192,6 +193,7 @@ include(":sdks:java:extensions:avro")
 include(":sdks:java:extensions:euphoria")
 include(":sdks:java:extensions:kryo")
 include(":sdks:java:extensions:google-cloud-platform-core")
+include(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
 include(":sdks:java:extensions:jackson")
 include(":sdks:java:extensions:join-library")
 include(":sdks:java:extensions:kafka-factories")
@@ -220,6 +222,7 @@ include(":sdks:java:harness:jmh")
 include(":sdks:java:io:amazon-web-services2")
 include(":sdks:java:io:amazon-web-services2:expansion-service")
 include(":sdks:java:io:amqp")
+include(":sdks:java:io:arrow-flight")
 include(":sdks:java:io:azure")
 include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")
@@ -235,6 +238,7 @@ include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-8")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-9")
 include(":sdks:java:io:elasticsearch-tests:elasticsearch-tests-common")
 include(":sdks:java:io:expansion-service")
+include(":sdks:java:io:messaging-expansion-service")
 include(":sdks:java:io:file-based-io-tests")
 include(":sdks:java:io:bigquery-io-perf-tests")
 include(":sdks:java:io:cdap")
@@ -282,6 +286,7 @@ include(":sdks:java:maven-archetypes:gcp-bom-examples")
 include(":sdks:java:maven-archetypes:starter")
 include(":sdks:java:ml:inference:remote")
 include(":sdks:java:ml:inference:openai")
+include(":sdks:java:ml:inference:gemini")
 include(":sdks:java:testing:nexmark")
 include(":sdks:java:testing:expansion-service")
 include(":sdks:java:testing:jpms-tests")
@@ -362,20 +367,8 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
-include("sdks:java:io:kafka:kafka-390")
-findProject(":sdks:java:io:kafka:kafka-390")?.name = "kafka-390"
-include("sdks:java:io:kafka:kafka-312")
-findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
-include("sdks:java:io:kafka:kafka-282")
-findProject(":sdks:java:io:kafka:kafka-282")?.name = "kafka-282"
-include("sdks:java:io:kafka:kafka-251")
-findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
-include("sdks:java:io:kafka:kafka-241")
-findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
-include("sdks:java:io:kafka:kafka-231")
-findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
-include("sdks:java:io:kafka:kafka-201")
-findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
+include("sdks:java:io:kafka:kafka-392")
+findProject(":sdks:java:io:kafka:kafka-392")?.name = "kafka-392"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")

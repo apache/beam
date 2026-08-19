@@ -305,6 +305,8 @@ public abstract class DoFnSignature {
         return cases.dispatch((ProcessContextParameter) this);
       } else if (this instanceof OnTimerContextParameter) {
         return cases.dispatch((OnTimerContextParameter) this);
+      } else if (this instanceof OnWindowExpirationContextParameter) {
+        return cases.dispatch((OnWindowExpirationContextParameter) this);
       } else if (this instanceof WindowParameter) {
         return cases.dispatch((WindowParameter) this);
       } else if (this instanceof PaneInfoParameter) {
@@ -390,6 +392,8 @@ public abstract class DoFnSignature {
       ResultT dispatch(FireTimestampParameter p);
 
       ResultT dispatch(OnTimerContextParameter p);
+
+      ResultT dispatch(OnWindowExpirationContextParameter p);
 
       ResultT dispatch(WindowParameter p);
 
@@ -495,6 +499,11 @@ public abstract class DoFnSignature {
 
         @Override
         public ResultT dispatch(OnTimerContextParameter p) {
+          return dispatchDefault(p);
+        }
+
+        @Override
+        public ResultT dispatch(OnWindowExpirationContextParameter p) {
           return dispatchDefault(p);
         }
 

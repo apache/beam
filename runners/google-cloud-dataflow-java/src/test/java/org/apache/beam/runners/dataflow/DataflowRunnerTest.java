@@ -285,6 +285,11 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs) throws IOException {
+    return buildMockDataflow(mockJobs, "JOB_STATE_RUNNING");
+  }
+
+  static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs, String currentState)
+      throws IOException {
     Dataflow mockDataflowClient = mock(Dataflow.class);
     Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
     Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
@@ -308,7 +313,7 @@ public class DataflowRunnerTest implements Serializable {
                         new Job()
                             .setName("oldjobname")
                             .setId("oldJobId")
-                            .setCurrentState("JOB_STATE_RUNNING"))));
+                            .setCurrentState(currentState))));
 
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -375,6 +380,10 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   private DataflowPipelineOptions buildPipelineOptions() throws IOException {
+    return buildPipelineOptions("JOB_STATE_RUNNING");
+  }
+
+  private DataflowPipelineOptions buildPipelineOptions(String currentState) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject(PROJECT_ID);
@@ -382,7 +391,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new ArrayList<>());
-    options.setDataflowClient(buildMockDataflow(mockJobs));
+    options.setDataflowClient(buildMockDataflow(mockJobs, currentState));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
@@ -791,6 +800,19 @@ public class DataflowRunnerTest implements Serializable {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testUpdateDrainingJob() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions("JOB_STATE_DRAINING");
+    options.setUpdate(true);
+    options.setJobName("oldJobName");
+    Pipeline p = buildDataflowPipeline(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    assertEquals("oldJobId", jobCaptor.getValue().getReplaceJobId());
   }
 
   @Test
@@ -1855,7 +1877,10 @@ public class DataflowRunnerTest implements Serializable {
         ExperimentalOptions.addExperiment(options, disabledExperiment);
         Pipeline p = Pipeline.create(options);
         p.apply(Create.of("A"));
-        assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
+        assertThrows(
+            "Dataflow Portable Runner both disabled and enabled",
+            IllegalArgumentException.class,
+            p::run);
       }
     }
   }
@@ -2919,5 +2944,49 @@ public class DataflowRunnerTest implements Serializable {
 
     PAssert.that(output).containsInAnyOrder("value:UPDATE_BEFORE");
     pipeline.run();
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PreCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.74.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertFalse(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PostCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2NoCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
   }
 }

@@ -185,6 +185,10 @@ public interface DoFnInvoker<InputT, OutputT> {
     /** Provide a {@link DoFn.OnTimerContext} to use with the given {@link DoFn}. */
     DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn);
 
+    /** Provide a {@link DoFn.OnWindowExpirationContext} to use with the given {@link DoFn}. */
+    DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn);
+
     /** Provide a reference to the input element. */
     InputT element(DoFn<InputT, OutputT> doFn);
 
@@ -448,6 +452,13 @@ public interface DoFnInvoker<InputT, OutputT> {
     }
 
     @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          String.format("OnWindowExpirationContext unsupported in %s", getErrorContext()));
+    }
+
+    @Override
     public State state(String stateId, boolean alwaysFetched) {
       throw new UnsupportedOperationException(
           String.format("State unsupported in %s", getErrorContext()));
@@ -536,6 +547,12 @@ public interface DoFnInvoker<InputT, OutputT> {
     @Override
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       return delegate.onTimerContext(doFn);
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      return delegate.onWindowExpirationContext(doFn);
     }
 
     @Override
