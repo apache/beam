@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.solace.RetryCallableManager;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
@@ -59,6 +60,7 @@ public abstract class JcsmpSessionService extends SessionService {
   @Nullable private transient MessageProducer messageProducer;
   private final java.util.Queue<PublishResult> publishedResultsQueue =
       new ConcurrentLinkedQueue<>();
+  private final AtomicInteger pendingPublishCount = new AtomicInteger(0);
   private final RetryCallableManager retryCallableManager = RetryCallableManager.create();
 
   public static JcsmpSessionService create(JCSMPProperties jcsmpProperties, @Nullable Queue queue) {
@@ -117,6 +119,11 @@ public abstract class JcsmpSessionService extends SessionService {
     return publishedResultsQueue;
   }
 
+  @Override
+  public AtomicInteger getPendingPublishCount() {
+    return pendingPublishCount;
+  }
+
   private MessageProducer createXMLMessageProducer(SubmissionMode submissionMode)
       throws JCSMPException, IOException {
 
@@ -128,7 +135,7 @@ public abstract class JcsmpSessionService extends SessionService {
     Callable<XMLMessageProducer> initProducer =
         () ->
             Objects.requireNonNull(jcsmpSession)
-                .getMessageProducer(new PublishResultHandler(publishedResultsQueue));
+                .getMessageProducer(new PublishResultHandler(publishedResultsQueue, pendingPublishCount));
 
     XMLMessageProducer producer =
         retryCallableManager.retryCallable(initProducer, ImmutableSet.of(JCSMPException.class));
