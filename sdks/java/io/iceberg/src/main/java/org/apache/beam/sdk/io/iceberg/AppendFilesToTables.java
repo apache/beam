@@ -47,7 +47,8 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
-import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.encryption.EncryptedOutputFile;
+import org.apache.iceberg.encryption.EncryptingFileIO;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -189,8 +190,7 @@ class AppendFilesToTables
         int specId = entry.getKey();
         List<DataFile> files = entry.getValue();
         PartitionSpec spec = Preconditions.checkStateNotNull(specs.get(specId));
-        FileIO io = table.io();
-        ManifestWriter<DataFile> writer = createManifestWriter(table.location(), uuid, spec, io);
+        ManifestWriter<DataFile> writer = createManifestWriter(table, uuid, spec);
         for (DataFile file : files) {
           writer.add(file);
           committedDataFileByteSize.update(file.fileSizeInBytes());
@@ -202,14 +202,19 @@ class AppendFilesToTables
       update.commit();
     }
 
+    @SuppressWarnings("argument")
     private ManifestWriter<DataFile> createManifestWriter(
-        String tableLocation, String uuid, PartitionSpec spec, FileIO io) {
+        Table table, String uuid, PartitionSpec spec) {
       String location =
           FileFormat.AVRO.addExtension(
               String.format(
                   "%s/metadata/%s-%s-%s.manifest",
-                  tableLocation, manifestFilePrefix, uuid, spec.specId()));
-      return ManifestFiles.write(spec, io.newOutputFile(location));
+                  table.location(), manifestFilePrefix, uuid, spec.specId()));
+      // Encrypts the manifest when the table is encrypted
+      EncryptedOutputFile outputFile =
+          EncryptingFileIO.combine(table.io(), table.encryption())
+              .newEncryptingOutputFile(location);
+      return ManifestFiles.write(1, spec, outputFile, null);
     }
 
     // If the process call fails immediately after a successful commit, it gets
