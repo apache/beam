@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -271,5 +273,26 @@ public class WorkFailureProcessorTest {
     runWork1.await();
     assertThat(executedWork2).isEmpty();
     assertThat(invalidWork).containsExactly(work2.work());
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_retriesOnMultiKeyCommitValidationException()
+      throws Throwable {
+    CountDownLatch runWork = new CountDownLatch(1);
+    ExecutableWork work = createWork(ignored -> runWork.countDown());
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    WorkFailureProcessor workFailureProcessor = createWorkFailureProcessor(failureTracker);
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_COMPUTATION_ID,
+        List.of(work),
+        new MultiKeyCommitValidationException("test"),
+        (FailedWorkHandler) invalidWork::add);
+
+    runWork.await();
+    assertThat(invalidWork).isEmpty();
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
   }
 }
