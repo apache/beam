@@ -54,7 +54,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_BRANCH_REF: ${{ github.event.pull_request.head.ref }}
         run: |
-          echo "[DevSecOps] Descargando de forma segura users.yml desde el Pull Request..."
+          echo "[DevSecOps] Downloading users.yml directly from the Pull Request fork..."
           curl -s --retry 3 --retry-delay 5 -H "Authorization: token $GH_TOKEN" \
             "https://api.github.com/repos/${{ github.repository }}/contents/infra/iam/users.yml?ref=$PR_BRANCH_REF" \
             | jq -r '.content' | base64 --decode > ./infra/iam/users.yml
