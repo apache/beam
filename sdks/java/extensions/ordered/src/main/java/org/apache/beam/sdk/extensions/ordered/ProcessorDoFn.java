@@ -93,7 +93,7 @@ abstract class ProcessorDoFn<
     numberOfResultsBeforeBundleStart = null;
   }
 
-  /** @return true if each event needs to be examined. */
+  /** Returns true if each event needs to be examined. */
   abstract boolean checkForFirstOrLastEvent();
 
   /**
@@ -245,7 +245,7 @@ abstract class ProcessorDoFn<
       MultiOutputReceiver outputReceiver,
       Instant statusTimestamp) {
     if (LOG.isTraceEnabled()) {
-      LOG.trace("Emitting status for: " + processingState.getKey() + ", " + processingState);
+      LOG.trace("Emitting status for: {}, {}", processingState.getKey(), processingState);
     }
     outputReceiver
         .get(statusTupleTag)
@@ -274,9 +274,8 @@ abstract class ProcessorDoFn<
     if (exceeded) {
       if (LOG.isTraceEnabled()) {
         LOG.trace(
-            "Setting the timer to output next batch of events for key '"
-                + processingState.getKey()
-                + "'");
+            "Setting the timer to output next batch of events for key '{}'",
+            processingState.getKey());
       }
       // See GroupIntoBatches for examples on how to hold the timestamp.
       // TODO: test that on draining the pipeline all the results are still produced correctly.
@@ -388,12 +387,12 @@ abstract class ProcessorDoFn<
       try {
         if (state == null) {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Creating a new state: " + processingState.getKey() + " " + bufferedEvent);
+            LOG.trace("Creating a new state: {} {}", processingState.getKey(), bufferedEvent);
           }
           state = eventExaminer.createStateOnInitialEvent(bufferedEvent);
         } else {
           if (LOG.isTraceEnabled()) {
-            LOG.trace("Mutating " + processingState.getKey() + " " + bufferedEvent);
+            LOG.trace("Mutating {} {}", processingState.getKey(), bufferedEvent);
           }
           state.mutate(bufferedEvent);
         }

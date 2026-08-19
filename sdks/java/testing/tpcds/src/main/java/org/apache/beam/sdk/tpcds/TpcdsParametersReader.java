@@ -62,7 +62,6 @@ public class TpcdsParametersReader {
    * @param tpcdsOptions TpcdsOptions object constructed from user input
    * @return An array of query names, for example "1,2,14b" will be output as
    *     "query1,query2,query14b"
-   * @throws Exception
    */
   public static String[] getAndCheckQueryNames(TpcdsOptions tpcdsOptions) {
     if (tpcdsOptions.getQueries().equalsIgnoreCase("all")) {
@@ -109,7 +108,6 @@ public class TpcdsParametersReader {
    *
    * @param tpcdsOptions TpcdsOptions object constructed from user input.
    * @return The TpcParallel user entered.
-   * @throws Exception
    */
   public static int getAndCheckTpcParallel(TpcdsOptions tpcdsOptions) throws Exception {
     int nThreads = tpcdsOptions.getTpcParallel();

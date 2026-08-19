@@ -23,6 +23,7 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.joda.time.Instant;
@@ -54,6 +55,7 @@ public class TestOutputReceiver<T> implements DoFn.OutputReceiver<T> {
         .setWindow(fakeWindow)
         .setPaneInfo(PaneInfo.NO_FIRING)
         .setTimestamp(BoundedWindow.TIMESTAMP_MIN_VALUE)
+        .setCausedByDrain(CausedByDrain.NORMAL)
         .setReceiver(windowedValue -> records.add(windowedValue.getValue()));
   }
 

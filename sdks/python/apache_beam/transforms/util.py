@@ -35,9 +35,7 @@ from collections.abc import Callable
 from collections.abc import Iterable
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -84,16 +82,22 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
+from apache_beam.utils.secret import Secret
+from apache_beam.utils.secret import GcpSecret
+from apache_beam.utils.secret import GcpHsmGeneratedSecret
 from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 
 if TYPE_CHECKING:
   from apache_beam.runners.pipeline_context import PipelineContext
 
+_LOGGER = logging.getLogger(__name__)
+
 __all__ = [
     'BatchElements',
     'CoGroupByKey',
     'Distinct',
+    'GcpHsmGeneratedSecret',
     'GcpSecret',
     'GroupByEncryptedKey',
     'Keys',
@@ -104,6 +108,7 @@ __all__ = [
     'RemoveDuplicates',
     'Reshuffle',
     'Secret',
+    'SortAndBatchElements',
     'ToString',
     'Tee',
     'Values',
@@ -326,247 +331,6 @@ def RemoveDuplicates(pcoll):
   return pcoll | 'RemoveDuplicates' >> Distinct()
 
 
-class Secret():
-  """A secret management class used for handling sensitive data.
-
-  This class provides a generic interface for secret management. Implementations
-  of this class should handle fetching secrets from a secret management system.
-  """
-  def get_secret_bytes(self) -> bytes:
-    """Returns the secret as a byte string."""
-    raise NotImplementedError()
-
-  @staticmethod
-  def generate_secret_bytes() -> bytes:
-    """Generates a new secret key."""
-    return Fernet.generate_key()
-
-  @staticmethod
-  def parse_secret_option(secret) -> 'Secret':
-    """Parses a secret string and returns the appropriate secret type.
-
-    The secret string should be formatted like:
-    'type:<secret_type>;<secret_param>:<value>'
-
-    For example, 'type:GcpSecret;version_name:my_secret/versions/latest'
-    would return a GcpSecret initialized with 'my_secret/versions/latest'.
-    """
-    param_map = {}
-    for param in secret.split(';'):
-      parts = param.split(':')
-      param_map[parts[0]] = parts[1]
-
-    if 'type' not in param_map:
-      raise ValueError('Secret string must contain a valid type parameter')
-
-    secret_type = param_map['type'].lower()
-    del param_map['type']
-    secret_class = Secret
-    secret_params = None
-    if secret_type == 'gcpsecret':
-      secret_class = GcpSecret  # type: ignore[assignment]
-      secret_params = ['version_name']
-    elif secret_type == 'gcphsmgeneratedsecret':
-      secret_class = GcpHsmGeneratedSecret  # type: ignore[assignment]
-      secret_params = [
-          'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
-      ]
-    else:
-      raise ValueError(
-          f'Invalid secret type {secret_type}, currently only '
-          'GcpSecret and GcpHsmGeneratedSecret are supported')
-
-    for param_name in param_map.keys():
-      if param_name not in secret_params:
-        raise ValueError(
-            f'Invalid secret parameter {param_name}, '
-            f'{secret_type} only supports the following '
-            f'parameters: {secret_params}')
-    return secret_class(**param_map)
-
-
-class GcpSecret(Secret):
-  """A secret manager implementation that retrieves secrets from Google Cloud
-  Secret Manager.
-  """
-  def __init__(self, version_name: str):
-    """Initializes a GcpSecret object.
-
-    Args:
-      version_name: The full version name of the secret in Google Cloud Secret
-        Manager. For example:
-        projects/<id>/secrets/<secret_name>/versions/1.
-        For more info, see
-        https://cloud.google.com/python/docs/reference/secretmanager/latest/google.cloud.secretmanager_v1beta1.services.secret_manager_service.SecretManagerServiceClient#google_cloud_secretmanager_v1beta1_services_secret_manager_service_SecretManagerServiceClient_access_secret_version
-    """
-    self._version_name = version_name
-
-  def get_secret_bytes(self) -> bytes:
-    try:
-      from google.cloud import secretmanager
-      client = secretmanager.SecretManagerServiceClient()
-      response = client.access_secret_version(
-          request={"name": self._version_name})
-      secret = response.payload.data
-      return secret
-    except Exception as e:
-      raise RuntimeError(
-          'Failed to retrieve secret bytes for secret '
-          f'{self._version_name} with exception {e}')
-
-  def __eq__(self, secret):
-    return self._version_name == getattr(secret, '_version_name', None)
-
-
-class GcpHsmGeneratedSecret(Secret):
-  """A secret manager implementation that generates a secret using a GCP HSM key
-  and stores it in Google Cloud Secret Manager. If the secret already exists,
-  it will be retrieved.
-  """
-  def __init__(
-      self,
-      project_id: str,
-      location_id: str,
-      key_ring_id: str,
-      key_id: str,
-      job_name: str):
-    """Initializes a GcpHsmGeneratedSecret object.
-
-    Args:
-      project_id: The GCP project ID.
-      location_id: The GCP location ID for the HSM key.
-      key_ring_id: The ID of the KMS key ring.
-      key_id: The ID of the KMS key.
-      job_name: The name of the job, used to generate a unique secret name.
-    """
-    self._project_id = project_id
-    self._location_id = location_id
-    self._key_ring_id = key_ring_id
-    self._key_id = key_id
-    self._secret_version_name = f'HsmGeneratedSecret_{job_name}'
-
-  def get_secret_bytes(self) -> bytes:
-    """Retrieves the secret bytes.
-
-    If the secret version already exists in Secret Manager, it is retrieved.
-    Otherwise, a new secret and version are created. The new secret is
-    generated using the HSM key.
-
-    Returns:
-      The secret as a byte string.
-    """
-    try:
-      from google.api_core import exceptions as api_exceptions
-      from google.cloud import secretmanager
-      client = secretmanager.SecretManagerServiceClient()
-
-      project_path = f"projects/{self._project_id}"
-      secret_path = f"{project_path}/secrets/{self._secret_version_name}"
-      # Since we may generate multiple versions when doing this on workers,
-      # just always take the first version added to maintain consistency.
-      secret_version_path = f"{secret_path}/versions/1"
-
-      try:
-        response = client.access_secret_version(
-            request={"name": secret_version_path})
-        return response.payload.data
-      except api_exceptions.NotFound:
-        # Don't bother logging yet, we'll only log if we actually add the
-        # secret version below
-        pass
-
-      try:
-        client.create_secret(
-            request={
-                "parent": project_path,
-                "secret_id": self._secret_version_name,
-                "secret": {
-                    "replication": {
-                        "automatic": {}
-                    }
-                },
-            })
-      except api_exceptions.AlreadyExists:
-        # Don't bother logging yet, we'll only log if we actually add the
-        # secret version below
-        pass
-
-      new_key = self.generate_dek()
-      try:
-        # Try one more time in case it was created while we were generating the
-        # DEK.
-        response = client.access_secret_version(
-            request={"name": secret_version_path})
-        return response.payload.data
-      except api_exceptions.NotFound:
-        logging.info(
-            "Secret version %s not found. "
-            "Creating new secret and version.",
-            secret_version_path)
-      client.add_secret_version(
-          request={
-              "parent": secret_path, "payload": {
-                  "data": new_key
-              }
-          })
-      response = client.access_secret_version(
-          request={"name": secret_version_path})
-      return response.payload.data
-
-    except Exception as e:
-      raise RuntimeError(
-          f'Failed to retrieve or create secret bytes for secret '
-          f'{self._secret_version_name} with exception {e}')
-
-  def generate_dek(self, dek_size: int = 32) -> bytes:
-    """Generates a new Data Encryption Key (DEK) using an HSM-backed key.
-
-    This function follows a key derivation process that incorporates entropy
-    from the HSM-backed key into the nonce used for key derivation.
-
-    Args:
-      dek_size: The size of the DEK to generate.
-
-    Returns:
-        A new DEK of the specified size, url-safe base64-encoded.
-    """
-    try:
-      import base64
-      import os
-
-      from cryptography.hazmat.primitives import hashes
-      from cryptography.hazmat.primitives.kdf.hkdf import HKDF
-      from google.cloud import kms
-
-      # 1. Generate a random nonce (nonce_one)
-      nonce_one = os.urandom(dek_size)
-
-      # 2. Use the HSM-backed key to encrypt nonce_one to create nonce_two
-      kms_client = kms.KeyManagementServiceClient()
-      key_path = kms_client.crypto_key_path(
-          self._project_id, self._location_id, self._key_ring_id, self._key_id)
-      response = kms_client.encrypt(
-          request={
-              'name': key_path, 'plaintext': nonce_one
-          })
-      nonce_two = response.ciphertext
-
-      # 3. Generate a Derivation Key (DK)
-      dk = os.urandom(dek_size)
-
-      # 4. Use a KDF to derive the DEK using DK and nonce_two
-      hkdf = HKDF(
-          algorithm=hashes.SHA256(),
-          length=dek_size,
-          salt=nonce_two,
-          info=None,
-      )
-      dek = hkdf.derive(dk)
-      return base64.urlsafe_b64encode(dek)
-    except Exception as e:
-      raise RuntimeError(f'Failed to generate DEK with exception {e}')
-
-
 class _EncryptMessage(DoFn):
   """A DoFn that encrypts the key and value of each element."""
   def __init__(
@@ -583,7 +347,7 @@ class _EncryptMessage(DoFn):
     self.fernet = Fernet(self._hmac_key)
 
   def process(self,
-              element: Any) -> Iterable[Tuple[bytes, Tuple[bytes, bytes]]]:
+              element: Any) -> Iterable[tuple[bytes, tuple[bytes, bytes]]]:
     """Encrypts the key and value of an element.
 
     Args:
@@ -619,7 +383,7 @@ class _DecryptMessage(DoFn):
     hmac_key = self.hmac_key_secret.get_secret_bytes()
     self.fernet = Fernet(hmac_key)
 
-  def decode_value(self, encoded_element: Tuple[bytes, bytes]) -> Any:
+  def decode_value(self, encoded_element: tuple[bytes, bytes]) -> Any:
     encrypted_value = encoded_element[1]
     encoded_value = self.fernet.decrypt(encrypted_value)
     real_val = self.value_coder.decode(encoded_value)
@@ -628,7 +392,7 @@ class _DecryptMessage(DoFn):
   def filter_elements_by_key(
       self,
       encrypted_key: bytes,
-      encoded_elements: Iterable[Tuple[bytes, bytes]]) -> Iterable[Any]:
+      encoded_elements: Iterable[tuple[bytes, bytes]]) -> Iterable[Any]:
     for e in encoded_elements:
       if encrypted_key == self.fernet.decrypt(e[0]):
         yield self.decode_value(e)
@@ -637,8 +401,8 @@ class _DecryptMessage(DoFn):
   # here. This does mean that the whole list will be materialized every time,
   # but passing an Iterable containing an Iterable breaks when pickling happens
   def process(
-      self, element: Tuple[bytes, Iterable[Tuple[bytes, bytes]]]
-  ) -> Iterable[Tuple[Any, List[Any]]]:
+      self, element: tuple[bytes, Iterable[tuple[bytes, bytes]]]
+  ) -> Iterable[tuple[Any, list[Any]]]:
     """Decrypts the key and values of an element.
 
     Args:
@@ -666,8 +430,8 @@ class _DecryptMessage(DoFn):
           list(self.filter_elements_by_key(encoded_key, encoded_elements)))
 
 
-@typehints.with_input_types(Tuple[K, V])
-@typehints.with_output_types(Tuple[K, Iterable[V]])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, Iterable[V]])
 class GroupByEncryptedKey(PTransform):
   """A PTransform that provides a secure alternative to GroupByKey.
 
@@ -704,7 +468,7 @@ class GroupByEncryptedKey(PTransform):
       try:
         coder = coder.as_deterministic_coder(self.label)
       except ValueError:
-        logging.warning(
+        _LOGGER.warning(
             'GroupByEncryptedKey %s: '
             'The key coder is not deterministic. This may result in incorrect '
             'pipeline output. This can be fixed by adding a type hint to the '
@@ -724,7 +488,7 @@ class GroupByEncryptedKey(PTransform):
 
     gbk = beam.GroupByKey()
     gbk._inside_gbek = True
-    output_type = Tuple[key_type, Iterable[value_type]]
+    output_type = tuple[key_type, Iterable[value_type]]
 
     return (
         pcoll
@@ -1025,7 +789,7 @@ class _GlobalWindowsBatchingDoFn(DoFn):
       self._batch = None
       self._running_batch_size = 0
     self._target_batch_size = self._batch_size_estimator.next_batch_size()
-    logging.info(
+    _LOGGER.info(
         "BatchElements statistics: " + self._batch_size_estimator.stats())
 
 
@@ -1372,6 +1136,285 @@ class BatchElements(PTransform):
       return pcoll | ParDo(
           _WindowAwareBatchingDoFn(
               self._batch_size_estimator, self._element_size_fn))
+
+
+class _SortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with the default (global) window. It accumulates all
+  elements in the current bundle, sorts them by size in ascending order,
+  and emits optimally-sized batches on ``finish_bundle``.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: An optional callable mapping an element to its integer
+        size/weight.
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
+    self._buffer = []
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
+
+  def start_bundle(self):
+    self._buffer = []
+
+  def process(self, element):
+    self._buffer.append(element)
+
+  def finish_bundle(self):
+    if not self._buffer:
+      return
+
+    # Sort elements by size (ascending) for optimal batching
+    # Elements of similar sizes will be grouped together
+    sorted_elements = sorted(self._buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      # Check if adding this element would exceed limits
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        # Emit current batch
+        yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    # Emit remaining elements
+    if batch:
+      yield window.GlobalWindows.windowed_value_at_end_of_window(batch)
+
+    self._buffer = None
+
+
+class _WindowAwareSortAndBatchElementsDoFn(DoFn):
+  """DoFn that buffers, sorts by element size, and batches elements per window.
+
+  This DoFn is used internally by ``SortAndBatchElements`` for
+  PCollections with non-default (e.g. fixed, sliding, or session) windows.
+  Elements are buffered per window and each window is flushed independently.
+  To prevent a single bundle from retaining too many per-window buffers at
+  once, when the number of live windows exceeds ``_MAX_LIVE_WINDOWS`` the
+  largest window buffer is flushed early. This DoFn reuses
+  ``_WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS`` so it follows the same
+  existing window-aware batching behavior already used in this module.
+
+  Args:
+    min_batch_size: The minimum number of elements per batch. Must be >= 1.
+    max_batch_size: The maximum number of elements per batch.
+        Must be >= ``min_batch_size``.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by ``element_size_fn``. Must be >= 1.
+    element_size_fn: An optional callable mapping an element to its integer
+        size/weight.
+  """
+
+  _MAX_LIVE_WINDOWS = _WindowAwareBatchingDoFn._MAX_LIVE_WINDOWS
+
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]]):
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+    self._element_size_fn = element_size_fn or self._default_element_size
+    self._has_warned_type_error = False
+    self._buffers = collections.defaultdict(list)
+
+  def _default_element_size(self, element):
+    try:
+      return len(element)
+    except TypeError:
+      if not self._has_warned_type_error:
+        _LOGGER.warning(
+            'Element of type %s does not support len(). Falling back to '
+            'size 1. Consider providing a custom element_size_fn to '
+            'SortAndBatchElements for meaningful size-based batching.',
+            type(element).__name__)
+        self._has_warned_type_error = True
+      return 1
+
+  def start_bundle(self):
+    self._buffers = collections.defaultdict(list)
+
+  def process(self, element, window=DoFn.WindowParam):
+    self._buffers[window].append(element)
+
+    # If we have too many live windows, flush the largest one
+    if len(self._buffers) > self._MAX_LIVE_WINDOWS:
+      largest_window = max(
+          self._buffers.keys(), key=lambda w: len(self._buffers[w]))
+      yield from self._flush_window(largest_window)
+
+  def _flush_window(self, win):
+    """Flush all elements for a given window."""
+    buffer = self._buffers.pop(win, [])
+    if not buffer:
+      return
+
+    # Sort elements by size (ascending)
+    sorted_elements = sorted(buffer, key=self._element_size_fn)
+
+    batch = []
+    batch_weight = 0
+
+    for element in sorted_elements:
+      element_size = self._element_size_fn(element)
+
+      would_exceed_count = len(batch) >= self._max_batch_size
+      would_exceed_weight = (
+          batch_weight + element_size >= self._max_batch_weight and batch)
+
+      if would_exceed_count or would_exceed_weight:
+        yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+        batch = []
+        batch_weight = 0
+
+      batch.append(element)
+      batch_weight += element_size
+
+    if batch:
+      yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
+
+  def finish_bundle(self):
+    for win in list(self._buffers.keys()):
+      yield from self._flush_window(win)
+    self._buffers = None
+
+
+@typehints.with_input_types(T)
+@typehints.with_output_types(list[T])
+class SortAndBatchElements(PTransform):
+  """A Transform that sorts elements by size before batching.
+
+  This transform is designed to optimize batch processing by grouping elements
+  of similar sizes together. This is particularly useful for ML inference
+  workloads where input sequences of varying lengths need to be padded to the
+  maximum length in the batch - by sorting elements by size before batching,
+  padding overhead is minimized.
+
+  The transform consumes a PCollection of element type T and produces a
+  PCollection of element type list[T], where elements within each batch are
+  sorted by their size (as determined by element_size_fn).
+
+  Elements are batched per-window and batches emitted in the window
+  corresponding to its contents. Each batch is emitted with a timestamp at
+  the end of their window.
+
+  Unlike BatchElements which emits batches as soon as size limits are reached,
+  SortAndBatchElements buffers all elements in a bundle, sorts them by size,
+  and then creates optimally-sized batches. This trade-off of increased memory
+  usage for better batch homogeneity can significantly reduce padding overhead.
+
+  Args:
+    min_batch_size: The minimum number of elements in a batch. Must be >= 1.
+    max_batch_size: The maximum number of elements in a batch.
+        Must be >= min_batch_size.
+    max_batch_weight: The maximum total weight of elements in a batch,
+        where weight is computed by element_size_fn. Must be >= 1.
+    element_size_fn: (optional) A function mapping an element to its
+        size/weight.
+        If not provided, defaults to trying len(element) and falling back to 1
+        if the element doesn't support len(). This default allows sorting to
+        work for common types like strings, lists, and arrays.
+
+  Example usage::
+
+      # Batch strings by total character count
+      strings = ['a', 'bb', 'ccc', 'dddd', 'eeeee']
+      batched = strings | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=3,
+          max_batch_weight=10)
+      # Possible output: [['a', 'bb', 'ccc'], ['dddd', 'eeeee']]
+      # Elements are sorted by length and batched optimally
+
+      # Batch with custom size function
+      data = [{'text': 'short'}, {'text': 'medium text'},
+              {'text': 'long text here'}]
+      batched = data | SortAndBatchElements(
+          min_batch_size=1,
+          max_batch_size=10,
+          max_batch_weight=100,
+          element_size_fn=lambda x: len(x['text']))
+  """
+  def __init__(
+      self,
+      min_batch_size: int,
+      max_batch_size: int,
+      max_batch_weight: int,
+      element_size_fn: Optional[Callable[[Any], int]] = None):
+    if min_batch_size < 1:
+      raise ValueError(f'min_batch_size must be >= 1, got {min_batch_size}')
+    if max_batch_size < min_batch_size:
+      raise ValueError(
+          f'max_batch_size ({max_batch_size}) must be >= '
+          f'min_batch_size ({min_batch_size})')
+    if max_batch_weight < 1:
+      raise ValueError(f'max_batch_weight must be >= 1, got {max_batch_weight}')
+    if element_size_fn is not None and not callable(element_size_fn):
+      raise TypeError('element_size_fn must be callable')
+
+    self._min_batch_size = min_batch_size
+    self._max_batch_size = max_batch_size
+    self._max_batch_weight = max_batch_weight
+
+    # None means the DoFn will use its own _default_element_size method,
+    # which tries len() and warns once on TypeError before falling back to 1.
+    self._element_size_fn = element_size_fn
+
+  def expand(self, pcoll):
+    if pcoll.windowing.is_default():
+      return pcoll | ParDo(
+          _SortAndBatchElementsDoFn(
+              self._min_batch_size,
+              self._max_batch_size,
+              self._max_batch_weight,
+              self._element_size_fn))
+    return pcoll | ParDo(
+        _WindowAwareSortAndBatchElementsDoFn(
+            self._min_batch_size,
+            self._max_batch_size,
+            self._max_batch_weight,
+            self._element_size_fn))
 
 
 class _IdentityWindowFn(NonMergingWindowFn):
@@ -1957,15 +2000,15 @@ class LogElements(PTransform):
         log_line += ', pane_info=' + repr(pane_info)
 
       if self.level == logging.DEBUG:
-        logging.debug(log_line)
+        _LOGGER.debug(log_line)
       elif self.level == logging.INFO:
-        logging.info(log_line)
+        _LOGGER.info(log_line)
       elif self.level == logging.WARNING:
-        logging.warning(log_line)
+        _LOGGER.warning(log_line)
       elif self.level == logging.ERROR:
-        logging.error(log_line)
+        _LOGGER.error(log_line)
       elif self.level == logging.CRITICAL:
-        logging.critical(log_line)
+        _LOGGER.critical(log_line)
       else:
         print(log_line)
 

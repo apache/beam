@@ -298,6 +298,7 @@ public class FlinkExecutionEnvironments {
     configureStateBackend(options, flinkStreamEnv);
 
     configureWebUIOptions(flinkStreamEnv.getConfig(), options.as(PipelineOptions.class));
+    configureCustomKryoSerializers(flinkStreamEnv.getConfig());
 
     return flinkStreamEnv;
   }
@@ -322,6 +323,13 @@ public class FlinkExecutionEnvironments {
     }
   }
 
+  private static void configureCustomKryoSerializers(ExecutionConfig config) {
+    // Force Beam schema to use JavaSerializer to fix serialization involving ImmutableMap
+    config.registerTypeWithKryoSerializer(
+        org.apache.beam.sdk.schemas.Schema.class,
+        com.esotericsoftware.kryo.serializers.JavaSerializer.class);
+  }
+
   private static class GlobalJobParametersImpl extends ExecutionConfig.GlobalJobParameters {
     private final Map<String, String> jobOptions;
 
@@ -336,7 +344,7 @@ public class FlinkExecutionEnvironments {
 
     @Override
     public boolean equals(Object obj) {
-      if (obj == null || this.getClass() != obj.getClass()) {
+      if (!(obj instanceof GlobalJobParametersImpl)) {
         return false;
       }
 

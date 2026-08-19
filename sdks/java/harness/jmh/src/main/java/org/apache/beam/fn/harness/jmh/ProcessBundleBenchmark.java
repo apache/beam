@@ -198,12 +198,16 @@ public class ProcessBundleBenchmark {
     @TearDown
     public void tearDown() {
       try {
+        // Shutting down the control server should terminate the sdk client.
+        // We do this before shutting down logging server in particular as that can
+        // trigger exceptions if the client was not yet shutdown.
         controlServer.close();
+        sdkHarnessExecutorFuture.get();
+
         stateServer.close();
         dataServer.close();
         loggingServer.close();
         controlClient.close();
-        sdkHarnessExecutorFuture.get();
       } catch (InterruptedException ignored) {
         Thread.currentThread().interrupt();
       } catch (Exception e) {

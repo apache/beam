@@ -88,8 +88,8 @@ public enum NexmarkQueryName {
   }
 
   /**
-   * @return The given {@link NexmarkQueryName} for the id. The id can be the query number (for
-   *     backwards compatibility) or its name.
+   * Returns the given {@link NexmarkQueryName} for the id. The id can be the query number (for
+   * backwards compatibility) or its name.
    */
   public static NexmarkQueryName fromId(String id) {
     NexmarkQueryName query;

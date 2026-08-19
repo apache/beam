@@ -210,11 +210,9 @@ public class DatadogIO {
 
       private static class CreateKeysFn extends DoFn<DatadogEvent, KV<Integer, DatadogEvent>> {
 
-        @Nullable private Integer specifiedParallelism;
         private Integer calculatedParallelism;
 
         CreateKeysFn(@Nullable Integer specifiedParallelism) {
-          this.specifiedParallelism = specifiedParallelism;
           this.calculatedParallelism =
               MoreObjects.firstNonNull(specifiedParallelism, DEFAULT_PARALLELISM);
           LOG.info("Parallelism set to: {}", calculatedParallelism);

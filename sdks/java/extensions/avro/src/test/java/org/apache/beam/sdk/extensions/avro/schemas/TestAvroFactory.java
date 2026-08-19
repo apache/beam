@@ -17,11 +17,12 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
+
 import java.lang.reflect.Constructor;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
-import org.apache.avro.Schema;
 import org.joda.time.DateTime;
 import org.joda.time.LocalDate;
 import org.slf4j.Logger;
@@ -30,7 +31,6 @@ import org.slf4j.LoggerFactory;
 /** Create a {@link TestAvro} instance with different constructors. */
 public class TestAvroFactory {
   private static final Logger LOG = LoggerFactory.getLogger(TestAvroFactory.class);
-  private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   public static TestAvro newInstance(
       Boolean boolNonNullable,
@@ -118,7 +118,7 @@ public class TestAvroFactory {
                 map);
       }
     } catch (ReflectiveOperationException e) {
-      LOG.error(String.format("Fail to create a TestAvro instance: %s", e.getMessage()));
+      LOG.error("Fail to create a TestAvro instance", e);
       return new TestAvro(); // return an empty instance to fail the tests
     }
   }

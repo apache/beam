@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
@@ -25,6 +26,13 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
@@ -40,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -61,6 +70,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.Kafka
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -124,6 +134,9 @@ import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
+import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
+import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -612,6 +625,7 @@ public class KafkaIO {
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .setConsumerPollingTimeout(2L)
         .setRedistributed(false)
+        .setEnableOpenTelemetryTracing(false)
         .setAllowDuplicates(false)
         .setRedistributeNumKeys(0)
         .build();
@@ -651,6 +665,7 @@ public class KafkaIO {
         .setEosTriggerNumElements(1) // keep default numElements
         .setEosTriggerTimeout(null) // keep default trigger (timeout)
         .setNumShards(0)
+        .setEnableOpenTelemetryTracing(false)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
@@ -739,6 +754,9 @@ public class KafkaIO {
 
     @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
+
+    @Pure
+    public abstract boolean isEnableOpenTelemetryTracing();
 
     @Pure
     public abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
@@ -830,6 +848,8 @@ public class KafkaIO {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
 
+      abstract Builder<K, V> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
+
       abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
 
       abstract Builder<K, V> setLogTopicVerification(@Nullable Boolean logTopicVerification);
@@ -863,6 +883,7 @@ public class KafkaIO {
 
         // Set required defaults
         builder.setTopicPartitions(Collections.emptyList());
+        builder.setEnableOpenTelemetryTracing(false);
         builder.setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         if (config.maxReadTime != null) {
           builder.setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
@@ -1300,6 +1321,10 @@ public class KafkaIO {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
     }
 
+    public Read<K, V> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
+    }
+
     public Read<K, V> withValueDeserializerProviderAndCoder(
         DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
       return toBuilder()
@@ -1626,18 +1651,13 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      // With dynamic read, we no longer require providing topic/partition during pipeline
-      // construction time. But it requires enabling beam_fn_api.
+      // With dynamic read, topics and partitions are discovered during pipeline execution.
       if (!isDynamicRead()) {
         checkArgument(
             (getTopics() != null && getTopics().size() > 0)
                 || (getTopicPartitions() != null && getTopicPartitions().size() > 0)
                 || getTopicPattern() != null,
             "Either withTopic(), withTopics(), withTopicPartitions() or withTopicPattern() is required");
-      } else {
-        checkArgument(
-            ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
-            "Kafka Dynamic Read requires enabling experiment beam_fn_api.");
       }
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
@@ -1918,6 +1938,14 @@ public class KafkaIO {
                   .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
         PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+
+        if (kafkaRead.isEnableOpenTelemetryTracing()) {
+          output =
+              output.apply(
+                  "Extract OpenTelemetry context from Header",
+                  ParDo.of(new OpenTelemetryHeaderConsumer<>()));
+        }
+
         if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
           output =
               output.apply(
@@ -2039,9 +2067,15 @@ public class KafkaIO {
                     .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
           }
         }
+        PCollection<KafkaRecord<K, V>> pcol =
+            output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+        if (kafkaRead.isEnableOpenTelemetryTracing()) {
+          pcol =
+              pcol.apply(
+                  "Extract OpenTelemetry context from Header",
+                  ParDo.of(new OpenTelemetryHeaderConsumer<>()));
+        }
         if (kafkaRead.isRedistributed()) {
-          PCollection<KafkaRecord<K, V>> pcol =
-              output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
           if (kafkaRead.getRedistributeNumKeys() == 0) {
             return pcol.apply(
                 "Insert Redistribute",
@@ -2055,7 +2089,7 @@ public class KafkaIO {
                     .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
           }
         }
-        return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+        return pcol;
       }
     }
 
@@ -2069,8 +2103,7 @@ public class KafkaIO {
         String uniqueId = null;
         if (element != null) {
           offset = element.getOffset();
-          uniqueId =
-              (String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset));
+          uniqueId = String.format("%s-%d-%d", element.getTopic(), element.getPartition(), offset);
         }
         outputReceiver.builder(element).setRecordId(uniqueId).setRecordOffset(offset).output();
       }
@@ -2132,10 +2165,8 @@ public class KafkaIO {
                 if (logTopicVerification == null || !logTopicVerification) {
                   checkState(
                       partitionInfoList != null && !partitionInfoList.isEmpty(),
-                      "Could not find any partitions info for topic "
-                          + topic
-                          + ". Please check Kafka configuration and make sure "
-                          + "that provided topics exist.");
+                      "Could not find any partitions info for topic %s. Please check Kafka configuration and make sure that provided topics exist.",
+                      topic);
                 } else {
                   LOG.warn(
                       "Could not find any partitions info for topic {}. Please check Kafka configuration "
@@ -2216,6 +2247,101 @@ public class KafkaIO {
           builder.add(DisplayData.item(key, ValueProvider.StaticValueProvider.of(value)));
         }
       }
+    }
+  }
+
+  static class OpenTelemetryHeaderConsumer<K, V>
+      extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
+    @Nullable Tracer tracer = null;
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      // inject tracer via options
+      io.opentelemetry.api.OpenTelemetry openTelemetry =
+          options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      if (openTelemetry != null) {
+        tracer = openTelemetry.getTracer("KafkaIO");
+      }
+    }
+
+    Context extractSpanContext(KafkaRecord<K, V> message) {
+      TextMapGetter<KafkaRecord<K, V>> extractMessageAttributes =
+          new TextMapGetter<KafkaRecord<K, V>>() {
+
+            @Override
+            public @Nullable String get(@Nullable KafkaRecord<K, V> carrier, String key) {
+              if (carrier == null) {
+                return null;
+              }
+              Headers headers = carrier.getHeaders();
+              if (headers == null) {
+                return null;
+              }
+              Header header = headers.lastHeader(key);
+              if (header == null) {
+                return null;
+              }
+              return new String(header.value(), UTF_8);
+            }
+
+            @Override
+            public Iterable<String> keys(@Nullable KafkaRecord<K, V> carrier) {
+              if (carrier == null || carrier.getHeaders() == null) {
+                return ImmutableList.of();
+              }
+              return StreamSupport.stream(carrier.getHeaders().spliterator(), false)
+                  .map(Header::key)
+                  .collect(Collectors.toList());
+            }
+          };
+      return W3CTraceContextPropagator.getInstance()
+          .extract(Context.current(), message, extractMessageAttributes);
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KafkaRecord<K, V> element, OutputReceiver<KafkaRecord<K, V>> receiver) {
+      Context context = extractSpanContext(element);
+      Span span =
+          Preconditions.checkArgumentNotNull(tracer)
+              .spanBuilder("KafkaIO.Read")
+              .setParent(context)
+              .startSpan();
+      try (Scope ignored = span.makeCurrent()) {
+        receiver.output(element);
+      } finally {
+        span.end();
+      }
+    }
+  }
+
+  static class OpenTelemetryHeaderPropagator<K, V>
+      extends DoFn<ProducerRecord<K, V>, ProducerRecord<K, V>> {
+    ProducerRecord<K, V> injectTraceContext(ProducerRecord<K, V> message) {
+      org.apache.kafka.common.header.internals.RecordHeaders headers =
+          new org.apache.kafka.common.header.internals.RecordHeaders(message.headers());
+      TextMapSetter<org.apache.kafka.common.header.internals.RecordHeaders>
+          injectMessageAttributes =
+              (carrier, key, value) -> {
+                if (carrier != null) {
+                  carrier.add(key, value.getBytes(UTF_8));
+                }
+              };
+      W3CTraceContextPropagator.getInstance()
+          .inject(Context.current(), headers, injectMessageAttributes);
+      return new ProducerRecord<>(
+          message.topic(),
+          message.partition(),
+          message.timestamp(),
+          message.key(),
+          message.value(),
+          headers);
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element ProducerRecord<K, V> element, OutputReceiver<ProducerRecord<K, V>> receiver) {
+      receiver.output(injectTraceContext(element));
     }
   }
 
@@ -3163,6 +3289,8 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
+    public abstract boolean isEnableOpenTelemetryTracing();
+
     @Pure
     public abstract @Nullable String getTopic();
 
@@ -3212,6 +3340,8 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setTopic(String topic);
+
+      abstract Builder<K, V> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
@@ -3276,6 +3406,10 @@ public class KafkaIO {
     /** Sets a {@link Serializer} for serializing value to bytes. */
     public WriteRecords<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
       return toBuilder().setValueSerializer(valueSerializer).build();
+    }
+
+    public WriteRecords<K, V> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
     }
 
     /**
@@ -3414,7 +3548,11 @@ public class KafkaIO {
 
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
-
+      if (this.isEnableOpenTelemetryTracing()) {
+        input =
+            input.apply(
+                "Propagate OpenTelemetry Tracing", ParDo.of(new OpenTelemetryHeaderPropagator<>()));
+      }
       if (isEOS()) {
         checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
         checkArgument(
@@ -3554,12 +3692,17 @@ public class KafkaIO {
     public static class External implements ExternalTransformRegistrar {
 
       public static final String URN = "beam:transform:org.apache.beam:kafka_write:v1";
+      public static final String URN_WITH_HEADERS =
+          "beam:transform:org.apache.beam:kafka_write_with_headers:v1";
 
       @Override
       public Map<String, Class<? extends ExternalTransformBuilder<?, ?, ?>>> knownBuilders() {
         return ImmutableMap.of(
             URN,
-            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class);
+            (Class<KafkaIO.Write.Builder<?, ?>>) (Class<?>) AutoValue_KafkaIO_Write.Builder.class,
+            URN_WITH_HEADERS,
+            (Class<? extends ExternalTransformBuilder<?, ?, ?>>)
+                (Class<?>) WriteWithHeaders.Builder.class);
       }
 
       /** Parameters class to expose the Write transform to an external SDK. */
@@ -3647,6 +3790,10 @@ public class KafkaIO {
      */
     public Write<K, V> withInputTimestamp() {
       return withWriteRecordsTransform(getWriteRecordsTransform().withInputTimestamp());
+    }
+
+    public Write<K, V> withEnableOpenTelemetryTracing() {
+      return withWriteRecordsTransform(getWriteRecordsTransform().withEnableOpenTelemetryTracing());
     }
 
     /**
@@ -3844,6 +3991,7 @@ public class KafkaIO {
     }
   }
 
+  @SuppressWarnings("NullableTypeParameter")
   private static class NullOnlyCoder<@Nullable T> extends AtomicCoder<T> {
     @Override
     public void encode(T value, OutputStream outStream) {
@@ -3854,6 +4002,137 @@ public class KafkaIO {
     @Override
     public T decode(InputStream inStream) {
       return null;
+    }
+  }
+
+  /**
+   * A {@link PTransform} to write to Kafka with support for record headers.
+   *
+   * <p>This transform accepts {@link Row} elements with the following schema:
+   *
+   * <ul>
+   *   <li>key: bytes (required) - The key of the record.
+   *   <li>value: bytes (required) - The value of the record.
+   *   <li>headers: List&lt;Row(key=str, value=bytes)&gt; (optional) - Record headers.
+   *   <li>topic: str (optional) - Per-record topic override.
+   *   <li>partition: int (optional) - Per-record partition.
+   *   <li>timestamp: long (optional) - Per-record timestamp in milliseconds.
+   * </ul>
+   *
+   * <p>This class is primarily used as a cross-language transform.
+   */
+  static class WriteWithHeaders extends PTransform<PCollection<Row>, PDone> {
+    private static final String FIELD_KEY = "key";
+    private static final String FIELD_VALUE = "value";
+    private static final String FIELD_HEADERS = "headers";
+    private static final String FIELD_TOPIC = "topic";
+    private static final String FIELD_PARTITION = "partition";
+    private static final String FIELD_TIMESTAMP = "timestamp";
+    private static final String HEADER_FIELD_KEY = "key";
+    private static final String HEADER_FIELD_VALUE = "value";
+
+    private final WriteRecords<byte[], byte[]> writeRecords;
+
+    WriteWithHeaders(WriteRecords<byte[], byte[]> writeRecords) {
+      this.writeRecords = writeRecords;
+    }
+
+    static class Builder
+        implements ExternalTransformBuilder<Write.External.Configuration, PCollection<Row>, PDone> {
+
+      @Override
+      @SuppressWarnings("unchecked")
+      public PTransform<PCollection<Row>, PDone> buildExternal(
+          Write.External.Configuration configuration) {
+        Map<String, Object> producerConfig = new HashMap<>(configuration.producerConfig);
+        Class<Serializer<byte[]>> keySerializer =
+            (Class<Serializer<byte[]>>) resolveClass(configuration.keySerializer);
+        Class<Serializer<byte[]>> valueSerializer =
+            (Class<Serializer<byte[]>>) resolveClass(configuration.valueSerializer);
+
+        WriteRecords<byte[], byte[]> writeRecords =
+            KafkaIO.<byte[], byte[]>writeRecords()
+                .withProducerConfigUpdates(producerConfig)
+                .withKeySerializer(keySerializer)
+                .withValueSerializer(valueSerializer);
+
+        if (configuration.topic != null) {
+          writeRecords = writeRecords.withTopic(configuration.topic);
+        }
+
+        return new WriteWithHeaders(writeRecords);
+      }
+    }
+
+    @Override
+    public PDone expand(PCollection<Row> input) {
+      final @Nullable String defaultTopic = writeRecords.getTopic();
+      return input
+          .apply(
+              "Row to ProducerRecord",
+              MapElements.via(
+                  new SimpleFunction<Row, ProducerRecord<byte[], byte[]>>() {
+                    @Override
+                    public ProducerRecord<byte[], byte[]> apply(Row row) {
+                      return toProducerRecord(row, defaultTopic);
+                    }
+                  }))
+          .setCoder(
+              ProducerRecordCoder.of(
+                  NullableCoder.of(ByteArrayCoder.of()), NullableCoder.of(ByteArrayCoder.of())))
+          .apply(writeRecords);
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      writeRecords.populateDisplayData(builder);
+    }
+
+    @SuppressWarnings("argument")
+    private static ProducerRecord<byte[], byte[]> toProducerRecord(
+        Row row, @Nullable String defaultTopic) {
+      String topic = defaultTopic;
+      if (row.getSchema().hasField(FIELD_TOPIC)) {
+        String rowTopic = row.getString(FIELD_TOPIC);
+        if (rowTopic != null) {
+          topic = rowTopic;
+        }
+      }
+      checkArgument(
+          topic != null, "Row is missing field '%s' and no default topic configured", FIELD_TOPIC);
+
+      byte[] key = row.getBytes(FIELD_KEY);
+      byte[] value = row.getBytes(FIELD_VALUE);
+      Integer partition =
+          row.getSchema().hasField(FIELD_PARTITION) ? row.getInt32(FIELD_PARTITION) : null;
+      Long timestamp =
+          row.getSchema().hasField(FIELD_TIMESTAMP) ? row.getInt64(FIELD_TIMESTAMP) : null;
+
+      boolean hasHeaders = ConsumerSpEL.hasHeaders();
+      Iterable<Header> headers = Collections.emptyList();
+      if (hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+        Iterable<Row> headerRows = row.getArray(FIELD_HEADERS);
+        if (headerRows != null) {
+          List<Header> headerList = new ArrayList<>();
+          for (Row headerRow : headerRows) {
+            String headerKey = headerRow.getString(HEADER_FIELD_KEY);
+            checkArgument(headerKey != null, "Header key is required");
+            byte[] headerValue = headerRow.getBytes(HEADER_FIELD_VALUE);
+            headerList.add(new RecordHeader(headerKey, headerValue));
+          }
+          headers = headerList;
+        }
+      } else if (!hasHeaders && row.getSchema().hasField(FIELD_HEADERS)) {
+        // Log warning when headers are present but Kafka client doesn't support them
+        LOG.warn(
+            "Dropping headers from Kafka record because the Kafka client version "
+                + "does not support headers (requires Kafka 0.11+).");
+      }
+
+      return hasHeaders
+          ? new ProducerRecord<>(topic, partition, timestamp, key, value, headers)
+          : new ProducerRecord<>(topic, partition, timestamp, key, value);
     }
   }
 

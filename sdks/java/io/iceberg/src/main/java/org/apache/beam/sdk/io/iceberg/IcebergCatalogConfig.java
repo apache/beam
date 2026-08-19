@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.util.ReleaseInfo;
@@ -45,7 +46,6 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.AlreadyExistsException;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.types.Type;
-import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -54,7 +54,8 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 public abstract class IcebergCatalogConfig implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergCatalogConfig.class);
-  private transient @MonotonicNonNull Catalog cachedCatalog;
+  private static final ConcurrentHashMap<IcebergCatalogConfig, Catalog> CATALOG_CACHE =
+      new ConcurrentHashMap<>();
 
   @Pure
   @Nullable
@@ -75,27 +76,28 @@ public abstract class IcebergCatalogConfig implements Serializable {
 
   public abstract Builder toBuilder();
 
-  public org.apache.iceberg.catalog.Catalog catalog() {
-    if (cachedCatalog == null) {
-      String catalogName = getCatalogName();
-      if (catalogName == null) {
-        catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
-      }
-      Map<String, String> catalogProps = getCatalogProperties();
-      if (catalogProps == null) {
-        catalogProps = Maps.newHashMap();
-      }
-      Map<String, String> confProps = getConfigProperties();
-      if (confProps == null) {
-        confProps = Maps.newHashMap();
-      }
-      Configuration config = new Configuration();
-      for (Map.Entry<String, String> prop : confProps.entrySet()) {
-        config.set(prop.getKey(), prop.getValue());
-      }
-      cachedCatalog = CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
+  public Catalog catalog() {
+    return CATALOG_CACHE.computeIfAbsent(this, IcebergCatalogConfig::buildCatalog);
+  }
+
+  private static Catalog buildCatalog(IcebergCatalogConfig catalogConfig) {
+    String catalogName = catalogConfig.getCatalogName();
+    if (catalogName == null) {
+      catalogName = "apache-beam-" + ReleaseInfo.getReleaseInfo().getVersion();
     }
-    return cachedCatalog;
+    Map<String, String> catalogProps = catalogConfig.getCatalogProperties();
+    if (catalogProps == null) {
+      catalogProps = Maps.newHashMap();
+    }
+    Map<String, String> confProps = catalogConfig.getConfigProperties();
+    if (confProps == null) {
+      confProps = Maps.newHashMap();
+    }
+    Configuration config = new Configuration();
+    for (Map.Entry<String, String> prop : confProps.entrySet()) {
+      config.set(prop.getKey(), prop.getValue());
+    }
+    return CatalogUtil.buildIcebergCatalog(catalogName, catalogProps, config);
   }
 
   private void checkSupportsNamespaces() {
@@ -152,8 +154,8 @@ public abstract class IcebergCatalogConfig implements Serializable {
       String tableIdentifier,
       Schema tableSchema,
       @Nullable List<String> partitionFields,
-      Map<String, String> properties) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+      @Nullable Map<String, String> properties) {
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
@@ -162,7 +164,13 @@ public abstract class IcebergCatalogConfig implements Serializable {
           icebergIdentifier,
           icebergSchema,
           icebergSpec);
-      catalog().createTable(icebergIdentifier, icebergSchema, icebergSpec, properties);
+      Catalog.TableBuilder builder =
+          catalog().buildTable(icebergIdentifier, icebergSchema).withPartitionSpec(icebergSpec);
+      if (properties != null) {
+        builder = builder.withProperties(properties);
+      }
+      builder.create();
+
       LOG.info("Successfully created table '{}'.", icebergIdentifier);
     } catch (AlreadyExistsException e) {
       throw new TableAlreadyExistsException(e);
@@ -170,7 +178,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     try {
       Table table = catalog().loadTable(icebergIdentifier);
       return new IcebergTableInfo(tableIdentifier, table);
@@ -262,13 +270,13 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public boolean dropTable(String tableIdentifier) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     return catalog().dropTable(icebergIdentifier);
   }
 
   public Set<String> listTables(String namespace) {
     return catalog().listTables(Namespace.of(namespace)).stream()
-        .map(TableIdentifier::name)
+        .map(TableIdentifier::toString)
         .collect(Collectors.toSet());
   }
 

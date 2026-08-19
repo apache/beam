@@ -61,6 +61,7 @@ $(document).ready(function() {
             "valueToTabTitle": function (value) {
                 switch (value) {
                     case 'py': return 'Python';
+                    case 'sql': return 'SQL';
                     case 'scio': return 'SCIO';
                     case 'typescript': return 'TypeScript';
                 }
@@ -287,6 +288,7 @@ $(document).ready(function() {
     }).render();
 
     Switcher({"name": "runner", "default": "direct"}).render();
+    Switcher({"name": "tab"}).render();
     Switcher({"name": "shell", "default": "unix"}).render();
     Switcher({"name": "version"}).render();
 });

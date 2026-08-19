@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** DoFnRunner decorator which registers {@link MetricsContainerImpl}. */
@@ -102,6 +103,9 @@ public class DoFnRunnerWithMetrics<InputT, OutputT> implements DoFnRunner<InputT
       throw new RuntimeException(e);
     }
   }
+
+  @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
   @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {

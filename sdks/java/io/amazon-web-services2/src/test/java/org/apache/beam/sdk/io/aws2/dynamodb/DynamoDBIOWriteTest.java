@@ -257,7 +257,7 @@ public class DynamoDBIOWriteTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Item)) {
         return false;
       }
       return Objects.equals(entries, ((Item) o).entries);

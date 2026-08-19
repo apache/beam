@@ -63,7 +63,7 @@ public class DefaultParDoFnFactoryTest {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) {
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {
       // This is called to ensure the SimpleParDoFn is fully initialized
     }
   }

@@ -203,6 +203,14 @@ public class ProcessManager {
         }
       }
     }
+    // Reap the child process to prevent zombie accumulation. destroy()/destroyForcibly() send
+    // signals but do not call waitpid(), so the terminated process remains in the kernel process
+    // table as a zombie until waitFor() collects its exit status.
+    try {
+      process.waitFor();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
   }
 
   /** Returns true if the process exists within maxWaitTimeMillis. */
@@ -249,8 +257,16 @@ public class ProcessManager {
     processes.forEach((id, process) -> process.destroy());
   }
 
-  /** Kill all remaining processes forcibly, i.e. upon JVM shutdown */
+  /** Kill all remaining processes forcibly and reap them, i.e. upon JVM shutdown. */
   private void killAllProcesses() {
-    processes.forEach((id, process) -> process.destroyForcibly());
+    processes.forEach(
+        (id, process) -> {
+          process.destroyForcibly();
+          try {
+            process.waitFor();
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
+        });
   }
 }

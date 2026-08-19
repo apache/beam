@@ -39,6 +39,39 @@ import org.joda.time.ReadableInstant;
 public class ClickHouseWriter {
   private static final Instant EPOCH_INSTANT = new Instant(0L);
 
+  // 10^0 through 10^9 inclusive — precision is validated in [0, 9] by ColumnType.dateTime64.
+  private static final long[] POW10 = {
+    1L, 10L, 100L, 1_000L, 10_000L, 100_000L, 1_000_000L, 10_000_000L, 100_000_000L, 1_000_000_000L
+  };
+
+  /**
+   * Encodes a timestamp into ClickHouse's {@code DateTime64(precision)} representation: a signed
+   * 64-bit integer counting ticks of size 10<sup>-precision</sup> seconds since the Unix epoch.
+   *
+   * <p>Accepts either a Joda {@link ReadableInstant} (millisecond precision) or a {@link
+   * java.time.Instant} (nanosecond precision). Sub-tick fractions are truncated toward negative
+   * infinity, matching ClickHouse's own encoding for negative timestamps.
+   */
+  static long encodeDateTime64(Object value, int precision) {
+    long epochSecond;
+    int nanoOfSecond;
+    if (value instanceof java.time.Instant) {
+      java.time.Instant inst = (java.time.Instant) value;
+      epochSecond = inst.getEpochSecond();
+      nanoOfSecond = inst.getNano();
+    } else if (value instanceof ReadableInstant) {
+      long millis = ((ReadableInstant) value).getMillis();
+      epochSecond = Math.floorDiv(millis, 1000L);
+      nanoOfSecond = (int) Math.floorMod(millis, 1000L) * 1_000_000;
+    } else {
+      throw new IllegalArgumentException(
+          "DateTime64 requires a Joda ReadableInstant or java.time.Instant, got "
+              + (value == null ? "null" : value.getClass().getName()));
+    }
+    long subSecondTicks = nanoOfSecond / POW10[9 - precision];
+    return Math.addExact(Math.multiplyExact(epochSecond, POW10[precision]), subSecondTicks);
+  }
+
   @SuppressWarnings("unchecked")
   static void writeNullableValue(ClickHouseOutputStream stream, ColumnType columnType, Object value)
       throws IOException {
@@ -136,6 +169,13 @@ public class ClickHouseWriter {
       case DATETIME:
         long epochSeconds = ((ReadableInstant) value).getMillis() / 1000L;
         BinaryStreamUtils.writeUnsignedInt32(stream, epochSeconds);
+        break;
+
+      case DATETIME64:
+        int precision =
+            Preconditions.checkNotNull(
+                columnType.precision(), "DateTime64 column is missing precision");
+        BinaryStreamUtils.writeInt64(stream, encodeDateTime64(value, precision));
         break;
 
       case ARRAY:

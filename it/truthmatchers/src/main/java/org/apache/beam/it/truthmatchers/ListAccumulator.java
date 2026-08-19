@@ -54,7 +54,7 @@ public class ListAccumulator<T> {
     return this.backingList.size();
   }
 
-  /** @return the internal backing list being accumulated. */
+  /** Returns the internal backing list being accumulated. */
   public List<T> getBackingList() {
     return this.backingList;
   }

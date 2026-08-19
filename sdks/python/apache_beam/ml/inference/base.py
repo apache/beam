@@ -361,8 +361,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def with_no_batching(
       self
-  ) -> """ModelHandler[Union[
-    ExampleT, Iterable[ExampleT]], PostProcessT, ModelT, PostProcessT]""":
+  ) -> 'ModelHandler[Union[ExampleT, Iterable[ExampleT]], PredictionT, ModelT]':
     """Returns a new ModelHandler which does not require batching
     of inputs so that RunInference will skip this step.  RunInference will
     expect the input to be pre-batched and passed in as an Iterable of records.
@@ -574,7 +573,7 @@ class _ModelHandlerManager:
     # Map key for a model to a unique tag that will persist for the life of
     # that model in memory. A new tag will be generated if a model is swapped
     # out of memory and reloaded.
-    self._tag_map: dict[str, str] = OrderedDict()
+    self._tag_map: OrderedDict[str, str] = OrderedDict()
     # Map a tag to a multiprocessshared model object for that tag. Each entry
     # of this map should last as long as the corresponding entry in _tag_map.
     self._proxy_map: dict[str, multi_process_shared.MultiProcessShared] = {}
@@ -1443,6 +1442,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
+        'model_identifier': self._model_tag,
         **super().annotations()
     }
 
@@ -1997,6 +1997,11 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
     # Ensure the tag we're loading is valid, if not replace it with a valid tag
     self._cur_tag = self._model_metadata.get_valid_tag(model_tag)
     if self.use_model_manager:
+      # Force an import here to avoid missing ModelManager when needed.
+      # Throw an error if ModelManager is not available since it's required for this code path.
+      global ModelManager
+      if ModelManager is None:
+        from apache_beam.ml.inference.model_manager import ModelManager
       logging.info("Using Model Manager to manage models automatically.")
       model_manager = multi_process_shared.MultiProcessShared(
           lambda: ModelManager(**self._model_manager_args),

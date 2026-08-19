@@ -58,9 +58,9 @@ public class SelectTest {
   abstract static class Schema1 {
     abstract String getField1();
 
-    abstract Integer getField2();
+    abstract int getField2();
 
-    abstract Double getField3();
+    abstract double getField3();
 
     static Schema1 create() {
       return new AutoValue_SelectTest_Schema1("field1", 42, 3.14);
@@ -73,7 +73,7 @@ public class SelectTest {
   abstract static class Schema1Selected {
     abstract String getField1();
 
-    abstract Double getField3();
+    abstract double getField3();
 
     static Schema1Selected create() {
       return new AutoValue_SelectTest_Schema1Selected("field1", 3.14);
@@ -88,7 +88,7 @@ public class SelectTest {
   abstract static class Schema1SelectedRenamed {
     abstract String getFieldOne();
 
-    abstract Double getFieldThree();
+    abstract double getFieldThree();
 
     static Schema1SelectedRenamed create() {
       return new AutoValue_SelectTest_Schema1SelectedRenamed("field1", 3.14);

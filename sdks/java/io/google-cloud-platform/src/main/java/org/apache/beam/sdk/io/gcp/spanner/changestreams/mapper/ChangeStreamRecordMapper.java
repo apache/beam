@@ -218,7 +218,6 @@ public class ChangeStreamRecordMapper {
    * @param resultSet the change stream result set
    * @param resultSetMetadata the metadata generated when reading the change stream row
    * @return a {@link List} of {@link ChangeStreamRecord} subclasses
-   * @throws InvalidProtocolBufferException
    */
   public List<ChangeStreamRecord> toChangeStreamRecords(
       PartitionMetadata partition,

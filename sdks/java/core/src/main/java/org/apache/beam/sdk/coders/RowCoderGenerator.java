@@ -113,6 +113,7 @@ public abstract class RowCoderGenerator {
 
   private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
   private static final String POSITIONS_FIELD_NAME = "FIELD_ENCODING_POSITIONS";
+  private static final String SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding";
 
   static class WithStackTrace<T> {
     private final T value;
@@ -407,8 +408,13 @@ public abstract class RowCoderGenerator {
       checkState(value.getFieldCount() == value.getSchema().getFieldCount());
       checkState(encodingPosToIndex.length == value.getFieldCount());
 
+      boolean staticEncoding =
+          value.getSchema().getOptions().getValueOrDefault(SCHEMA_OPTION_STATIC_ENCODING, false);
+
       // Encode the field count. This allows us to handle compatible schema changes.
-      VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
+      if (!staticEncoding) {
+        VAR_INT_CODER.encode(value.getFieldCount(), outputStream);
+      }
 
       if (hasNullableFields) {
         // If the row has null fields, extract the values out once so that both scanNullFields and
@@ -420,7 +426,9 @@ public abstract class RowCoderGenerator {
         }
 
         // Encode a bitmap for the null fields to save having to encode a bunch of nulls.
-        NULL_LIST_CODER.encode(scanNullFields(fieldValues, encodingPosToIndex), outputStream);
+        if (!staticEncoding) {
+          NULL_LIST_CODER.encode(scanNullFields(fieldValues, encodingPosToIndex), outputStream);
+        }
         for (int encodingPos = 0; encodingPos < fieldValues.length; ++encodingPos) {
           @Nullable Object fieldValue = fieldValues[encodingPosToIndex[encodingPos]];
           if (fieldValue != null) {
@@ -430,7 +438,9 @@ public abstract class RowCoderGenerator {
       } else {
         // Otherwise, we know all fields are non-null, so the null list is always empty.
 
-        NULL_LIST_CODER.encode(EMPTY_BIT_SET, outputStream);
+        if (!staticEncoding) {
+          NULL_LIST_CODER.encode(EMPTY_BIT_SET, outputStream);
+        }
         for (int encodingPos = 0; encodingPos < value.getFieldCount(); ++encodingPos) {
           @Nullable Object fieldValue = value.getValue(encodingPosToIndex[encodingPos]);
           if (fieldValue != null) {
@@ -511,9 +521,15 @@ public abstract class RowCoderGenerator {
     static Row decodeDelegate(
         Schema schema, Coder[] coders, int[] encodingPosToIndex, InputStream inputStream)
         throws IOException {
-      int fieldCount = VAR_INT_CODER.decode(inputStream);
-
-      BitSet nullFields = NULL_LIST_CODER.decode(inputStream);
+      int fieldCount;
+      BitSet nullFields;
+      if (schema.getOptions().getValueOrDefault(SCHEMA_OPTION_STATIC_ENCODING, false)) {
+        fieldCount = schema.getFieldCount();
+        nullFields = new BitSet();
+      } else {
+        fieldCount = VAR_INT_CODER.decode(inputStream);
+        nullFields = NULL_LIST_CODER.decode(inputStream);
+      }
       Object[] fieldValues = new Object[coders.length];
       for (int encodingPos = 0; encodingPos < fieldCount; ++encodingPos) {
         // In the case of a schema change going backwards, fieldCount might be > coders.length,

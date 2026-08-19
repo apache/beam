@@ -19,6 +19,9 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
+import dataclasses
+import datetime
 import itertools
 import pickle
 import unittest
@@ -41,6 +44,7 @@ from apache_beam.internal.cloudpickle import cloudpickle
 from apache_beam.portability import common_urns
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import row_type
+from apache_beam.typehints import schemas
 from apache_beam.typehints import typehints
 from apache_beam.typehints.native_type_compatibility import match_is_named_tuple
 from apache_beam.typehints.schemas import SchemaTypeRegistry
@@ -104,6 +108,7 @@ class ComplexSchema(NamedTuple):
   optional_array: Optional[Sequence[np.float32]]
   array_optional: Sequence[Optional[bool]]
   timestamp: Timestamp
+  date: datetime.date
 
 
 def get_test_beam_fieldtype_protos():
@@ -252,6 +257,22 @@ def get_test_beam_fieldtype_protos():
                           value=schema_pb2.FieldValue(
                               atomic_value=schema_pb2.AtomicTypeValue(
                                   bytes=b'bytes!'))),
+                      schema_pb2.Option(
+                          name='a_string_array',
+                          type=schema_pb2.FieldType(
+                              array_type=schema_pb2.ArrayType(
+                                  element_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.STRING))),
+                          value=schema_pb2.FieldValue(
+                              array_value=schema_pb2.ArrayTypeValue(
+                                  element=[
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='a')),
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='b')),
+                                  ]))),
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -387,6 +408,24 @@ class SchemaTest(unittest.TestCase):
 
     self.assertIsInstance(roundtripped, row_type.RowTypeConstraint)
     self.assert_namedtuple_equivalent(roundtripped.user_type, user_type)
+
+  def test_dataclass_roundtrip(self):
+    @dataclasses.dataclass
+    class SimpleDataclass:
+      id: np.int64
+      name: str
+
+    roundtripped = typing_from_runner_api(
+        typing_to_runner_api(
+            SimpleDataclass, schema_registry=SchemaTypeRegistry()),
+        schema_registry=SchemaTypeRegistry())
+
+    self.assertIsInstance(roundtripped, row_type.RowTypeConstraint)
+    # The roundtripped user_type is generated as a NamedTuple, so we can't test
+    # equivalence directly with the dataclass.
+    # Instead, let's verify annotations.
+    self.assertEqual(
+        roundtripped.user_type.__annotations__, SimpleDataclass.__annotations__)
 
   def test_row_type_constraint_to_schema(self):
     result_type = typing_to_runner_api(
@@ -560,13 +599,26 @@ class SchemaTest(unittest.TestCase):
                 fieldtype_proto, schema_registry=SchemaTypeRegistry()),
             schema_registry=SchemaTypeRegistry()))
 
+  def test_any_maps_to_any(self):
+    # python_any for typing.Any logical type's representation is delibrately set
+    # absent to prevent the usage crossing language boundary, as its encoded
+    # form isn't predictable from foreign SDK.
+    self.assertEqual(
+        typing_to_runner_api(Any),
+        schemas._python_any_schema_pb2(has_repr=False))
+
   def test_unknown_primitive_maps_to_any(self):
     self.assertEqual(
         typing_to_runner_api(np.uint32),
-        schema_pb2.FieldType(
-            logical_type=schema_pb2.LogicalType(
-                urn="beam:logical:pythonsdk_any:v1"),
-            nullable=True))
+        schemas._python_any_schema_pb2(has_repr=True))
+
+  def test_unknown_user_type_maps_to_any(self):
+    class MyUnknownType:
+      pass
+
+    self.assertEqual(
+        typing_to_runner_api(MyUnknownType),
+        schemas._python_any_schema_pb2(has_repr=True))
 
   def test_unknown_atomic_raise_valueerror(self):
     self.assertRaises(
@@ -646,6 +698,48 @@ class SchemaTest(unittest.TestCase):
         expected.row_type.schema.fields,
         typing_to_runner_api(MyCuteClass).row_type.schema.fields)
 
+  def test_trivial_example_dataclass(self):
+    @dataclasses.dataclass
+    class MyCuteDataclass:
+      name: str
+      age: Optional[int]
+      interests: List[str]
+      height: float
+      blob: ByteString
+
+    expected = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[
+                    schema_pb2.Field(
+                        name='name',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.STRING),
+                    ),
+                    schema_pb2.Field(
+                        name='age',
+                        type=schema_pb2.FieldType(
+                            nullable=True, atomic_type=schema_pb2.INT64)),
+                    schema_pb2.Field(
+                        name='interests',
+                        type=schema_pb2.FieldType(
+                            array_type=schema_pb2.ArrayType(
+                                element_type=schema_pb2.FieldType(
+                                    atomic_type=schema_pb2.STRING)))),
+                    schema_pb2.Field(
+                        name='height',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.DOUBLE)),
+                    schema_pb2.Field(
+                        name='blob',
+                        type=schema_pb2.FieldType(
+                            atomic_type=schema_pb2.BYTES)),
+                ])))
+
+    self.assertEqual(
+        expected.row_type.schema.fields,
+        typing_to_runner_api(MyCuteDataclass).row_type.schema.fields)
+
   def test_user_type_annotated_with_id_after_conversion(self):
     MyCuteClass = NamedTuple('MyCuteClass', [
         ('name', str),
@@ -690,6 +784,110 @@ class SchemaTest(unittest.TestCase):
     self.assertEqual(
         named_fields_from_element_type(union_type), [('common', str),
                                                      ('unique', Any)])
+
+
+class ParameterizedTimestampTest(unittest.TestCase):
+  def test_urn(self):
+    self.assertEqual(
+        schemas.ParameterizedTimestamp.urn(), 'beam:logical_type:timestamp:v1')
+
+  def test_timestamp_typehint_still_maps_to_micros_instant(self):
+    # Existing pipelines rely on plain Timestamp fields being encoded as
+    # micros_instant; registering ParameterizedTimestamp must not change
+    # the default.
+    field_type = typing_to_runner_api(Timestamp)
+    self.assertEqual(
+        field_type.logical_type.urn, common_urns.micros_instant.urn)
+
+  def test_from_runner_api_reconstructs_precision(self):
+    logical_type_proto = schema_pb2.LogicalType(
+        urn=common_urns.timestamp.urn,
+        representation=typing_to_runner_api(
+            schemas.ParameterizedTimestampRepresentation),
+        argument_type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32),
+        argument=schema_pb2.FieldValue(
+            atomic_value=schema_pb2.AtomicTypeValue(int32=9)))
+    logical_type = schemas.LogicalType.from_runner_api(logical_type_proto)
+    self.assertIsInstance(logical_type, schemas.ParameterizedTimestamp)
+    self.assertEqual(logical_type.argument(), 9)
+    value = logical_type.to_language_type(
+        schemas.ParameterizedTimestampRepresentation(
+            seconds=np.int64(1234), subseconds=np.int32(123456789)))
+    self.assertEqual(
+        value, Timestamp(seconds=1234, subseconds=123456789, precision=9))
+    self.assertEqual(value.precision(), 9)
+
+  def test_representation_type_matches_java(self):
+    # The Java SDK uses an INT16 subseconds field for precision < 5 and
+    # INT32 otherwise; the wire formats differ, so we must match.
+    for precision in range(0, 5):
+      self.assertEqual(
+          schemas.ParameterizedTimestamp(precision).representation_type(),
+          schemas.ParameterizedTimestampShortRepresentation)
+    for precision in range(5, 10):
+      self.assertEqual(
+          schemas.ParameterizedTimestamp(precision).representation_type(),
+          schemas.ParameterizedTimestampRepresentation)
+
+  def test_precision_validation(self):
+    with self.assertRaises(ValueError):
+      schemas.ParameterizedTimestamp(10)
+    with self.assertRaises(ValueError):
+      schemas.ParameterizedTimestamp(-1)
+
+  def test_value_round_trip(self):
+    for precision, subseconds in [(3, 500), (6, 500000), (9, 123456789)]:
+      logical_type = schemas.ParameterizedTimestamp(precision)
+      value = Timestamp(
+          seconds=1234, subseconds=subseconds, precision=precision)
+      representation = logical_type.to_representation_type(value)
+      self.assertEqual(representation.seconds, 1234)
+      self.assertEqual(representation.subseconds, subseconds)
+      self.assertEqual(logical_type.to_language_type(representation), value)
+
+  def test_negative_timestamps_use_floored_seconds(self):
+    # -1.5s is represented as {seconds: -2, subseconds: 500000} at
+    # microsecond precision, matching the Java SDK and java.time.Instant.
+    logical_type = schemas.ParameterizedTimestamp(6)
+    representation = logical_type.to_representation_type(Timestamp(-1.5))
+    self.assertEqual(representation.seconds, -2)
+    self.assertEqual(representation.subseconds, 500000)
+    self.assertEqual(
+        logical_type.to_language_type(representation), Timestamp(-1.5))
+
+  def test_to_language_type_rejects_out_of_range_subseconds(self):
+    # Java's toInputType rejects these as likely data corruption.
+    logical_type = schemas.ParameterizedTimestamp(3)
+    with self.assertRaises(ValueError):
+      logical_type.to_language_type(
+          schemas.ParameterizedTimestampShortRepresentation(
+              np.int64(10), np.int16(5000)))
+    with self.assertRaises(ValueError):
+      logical_type.to_language_type(
+          schemas.ParameterizedTimestampShortRepresentation(
+              np.int64(10), np.int16(-1)))
+
+  def test_to_representation_type_guards_against_precision_loss(self):
+    # Mirrors the Java SDK's toBaseType check: a value that cannot be
+    # represented exactly at the logical type's precision is an error.
+    logical_type = schemas.ParameterizedTimestamp(6)
+    nanos_value = Timestamp(seconds=1, subseconds=123456789, precision=9)
+    with self.assertRaises(ValueError):
+      logical_type.to_representation_type(nanos_value)
+    # Lower-precision values are converted losslessly.
+    millis_value = Timestamp(seconds=1, subseconds=500, precision=3)
+    representation = logical_type.to_representation_type(millis_value)
+    self.assertEqual(representation.subseconds, 500000)
+
+  def test_from_runner_api_rejects_missing_argument(self):
+    # A proto without the precision argument must be rejected; guessing a
+    # default precision would silently misscale subseconds.
+    proto = schema_pb2.LogicalType(
+        urn=common_urns.timestamp.urn,
+        representation=typing_to_runner_api(
+            schemas.ParameterizedTimestampShortRepresentation))
+    with self.assertRaises(ValueError):
+      schemas.LogicalType.from_runner_api(proto)
 
 
 class HypothesisTest(unittest.TestCase):

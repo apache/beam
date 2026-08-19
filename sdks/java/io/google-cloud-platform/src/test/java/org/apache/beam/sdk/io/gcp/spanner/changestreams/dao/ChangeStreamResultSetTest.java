@@ -34,7 +34,6 @@ public class ChangeStreamResultSetTest {
   @Test
   public void testGetBytes() throws Exception {
     // 1. Create an expected ChangeStreamRecord proto
-    Timestamp now = Timestamp.now();
     final HeartbeatRecord heartbeatRecord =
         new HeartbeatRecord(Timestamp.ofTimeSecondsAndNanos(10L, 20), null);
     com.google.spanner.v1.ChangeStreamRecord expectedRecord = recordToProto(heartbeatRecord);

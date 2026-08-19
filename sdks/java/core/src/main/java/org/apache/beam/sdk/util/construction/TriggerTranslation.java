@@ -18,8 +18,6 @@
 package org.apache.beam.sdk.util.construction;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.transforms.windowing.AfterAll;
@@ -30,16 +28,15 @@ import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterSynchronizedProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark.AfterWatermarkEarlyAndLate;
-import org.apache.beam.sdk.transforms.windowing.AfterWatermark.FromEndOfWindow;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Never;
-import org.apache.beam.sdk.transforms.windowing.Never.NeverTrigger;
 import org.apache.beam.sdk.transforms.windowing.OrFinallyTrigger;
 import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.ReshuffleTrigger;
 import org.apache.beam.sdk.transforms.windowing.TimestampTransform;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.Trigger.OnceTrigger;
+import org.apache.beam.sdk.transforms.windowing.TriggerVisitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Duration;
@@ -52,165 +49,133 @@ import org.joda.time.Instant;
 })
 public class TriggerTranslation implements Serializable {
 
-  @VisibleForTesting static final ProtoConverter CONVERTER = new ProtoConverter();
+  @VisibleForTesting static final ConversionVisitor CONVERTER = new ConversionVisitor();
 
   public static RunnerApi.Trigger toProto(Trigger trigger) {
-    return CONVERTER.convertTrigger(trigger);
+    return trigger.accept(CONVERTER);
   }
 
-  @VisibleForTesting
-  static class ProtoConverter {
-
-    public RunnerApi.Trigger convertTrigger(Trigger trigger) {
-      Method evaluationMethod = getEvaluationMethod(trigger.getClass());
-      return tryConvert(evaluationMethod, trigger);
-    }
-
-    private RunnerApi.Trigger tryConvert(Method evaluationMethod, Trigger trigger) {
-      try {
-        return (RunnerApi.Trigger) evaluationMethod.invoke(this, trigger);
-      } catch (InvocationTargetException exc) {
-        if (exc.getCause() instanceof RuntimeException) {
-          throw (RuntimeException) exc.getCause();
-        } else {
-          throw new RuntimeException(exc.getCause());
-        }
-      } catch (IllegalAccessException exc) {
-        throw new IllegalStateException(
-            String.format("Internal error: could not invoke %s", evaluationMethod));
-      }
-    }
-
-    private Method getEvaluationMethod(Class<?> clazz) {
-      try {
-        return getClass().getDeclaredMethod("convertSpecific", clazz);
-      } catch (NoSuchMethodException exc) {
-        throw new IllegalArgumentException(
-            String.format(
-                "Cannot translate trigger class %s to a runner-API proto.",
-                clazz.getCanonicalName()),
-            exc);
-      }
-    }
-
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(DefaultTrigger v) {
+  private static class ConversionVisitor implements TriggerVisitor<RunnerApi.Trigger> {
+    @Override
+    public RunnerApi.Trigger visit(DefaultTrigger trigger) {
       return RunnerApi.Trigger.newBuilder()
           .setDefault(RunnerApi.Trigger.Default.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(FromEndOfWindow v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterWatermark.FromEndOfWindow trigger) {
       return RunnerApi.Trigger.newBuilder()
           .setAfterEndOfWindow(RunnerApi.Trigger.AfterEndOfWindow.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(NeverTrigger v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterWatermark.AfterWatermarkEarlyAndLate trigger) {
+      RunnerApi.Trigger.AfterEndOfWindow.Builder builder =
+          RunnerApi.Trigger.AfterEndOfWindow.newBuilder();
+
+      builder.setEarlyFirings(toProto(trigger.getEarlyTrigger()));
+      if (trigger.getLateTrigger() != null) {
+        builder.setLateFirings(toProto(trigger.getLateTrigger()));
+      }
+
+      return RunnerApi.Trigger.newBuilder().setAfterEndOfWindow(builder).build();
+    }
+
+    @Override
+    public RunnerApi.Trigger visit(Never.NeverTrigger trigger) {
       return RunnerApi.Trigger.newBuilder()
           .setNever(RunnerApi.Trigger.Never.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(ReshuffleTrigger v) {
+    @Override
+    public RunnerApi.Trigger visit(ReshuffleTrigger<?> trigger) {
       return RunnerApi.Trigger.newBuilder()
           .setAlways(RunnerApi.Trigger.Always.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterSynchronizedProcessingTime v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterProcessingTime trigger) {
+      RunnerApi.Trigger.AfterProcessingTime.Builder builder =
+          RunnerApi.Trigger.AfterProcessingTime.newBuilder();
+
+      for (TimestampTransform transform : trigger.getTimestampTransforms()) {
+        builder.addTimestampTransforms(convertTimestampTransform(transform));
+      }
+
+      return RunnerApi.Trigger.newBuilder().setAfterProcessingTime(builder).build();
+    }
+
+    @Override
+    public RunnerApi.Trigger visit(AfterSynchronizedProcessingTime trigger) {
       return RunnerApi.Trigger.newBuilder()
           .setAfterSynchronizedProcessingTime(
               RunnerApi.Trigger.AfterSynchronizedProcessingTime.getDefaultInstance())
           .build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterFirst v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterFirst trigger) {
       RunnerApi.Trigger.AfterAny.Builder builder = RunnerApi.Trigger.AfterAny.newBuilder();
 
-      for (Trigger subtrigger : v.subTriggers()) {
+      for (Trigger subtrigger : trigger.subTriggers()) {
         builder.addSubtriggers(toProto(subtrigger));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterAny(builder).build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterAll v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterAll trigger) {
       RunnerApi.Trigger.AfterAll.Builder builder = RunnerApi.Trigger.AfterAll.newBuilder();
 
-      for (Trigger subtrigger : v.subTriggers()) {
+      for (Trigger subtrigger : trigger.subTriggers()) {
         builder.addSubtriggers(toProto(subtrigger));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterAll(builder).build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterPane v) {
-      return RunnerApi.Trigger.newBuilder()
-          .setElementCount(
-              RunnerApi.Trigger.ElementCount.newBuilder().setElementCount(v.getElementCount()))
-          .build();
-    }
-
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterWatermarkEarlyAndLate v) {
-      RunnerApi.Trigger.AfterEndOfWindow.Builder builder =
-          RunnerApi.Trigger.AfterEndOfWindow.newBuilder();
-
-      builder.setEarlyFirings(toProto(v.getEarlyTrigger()));
-      if (v.getLateTrigger() != null) {
-        builder.setLateFirings(toProto(v.getLateTrigger()));
-      }
-
-      return RunnerApi.Trigger.newBuilder().setAfterEndOfWindow(builder).build();
-    }
-
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterEach v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterEach trigger) {
       RunnerApi.Trigger.AfterEach.Builder builder = RunnerApi.Trigger.AfterEach.newBuilder();
 
-      for (Trigger subtrigger : v.subTriggers()) {
+      for (Trigger subtrigger : trigger.subTriggers()) {
         builder.addSubtriggers(toProto(subtrigger));
       }
 
       return RunnerApi.Trigger.newBuilder().setAfterEach(builder).build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(Repeatedly v) {
+    @Override
+    public RunnerApi.Trigger visit(AfterPane trigger) {
       return RunnerApi.Trigger.newBuilder()
-          .setRepeat(
-              RunnerApi.Trigger.Repeat.newBuilder().setSubtrigger(toProto(v.getRepeatedTrigger())))
+          .setElementCount(
+              RunnerApi.Trigger.ElementCount.newBuilder()
+                  .setElementCount(trigger.getElementCount()))
           .build();
     }
 
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(OrFinallyTrigger v) {
+    @Override
+    public RunnerApi.Trigger visit(Repeatedly trigger) {
+      return RunnerApi.Trigger.newBuilder()
+          .setRepeat(
+              RunnerApi.Trigger.Repeat.newBuilder()
+                  .setSubtrigger(toProto(trigger.getRepeatedTrigger())))
+          .build();
+    }
+
+    @Override
+    public RunnerApi.Trigger visit(OrFinallyTrigger trigger) {
       return RunnerApi.Trigger.newBuilder()
           .setOrFinally(
               RunnerApi.Trigger.OrFinally.newBuilder()
-                  .setMain(toProto(v.getMainTrigger()))
-                  .setFinally(toProto(v.getUntilTrigger())))
+                  .setMain(toProto(trigger.getMainTrigger()))
+                  .setFinally(toProto(trigger.getUntilTrigger())))
           .build();
-    }
-
-    @SuppressWarnings("unused")
-    private RunnerApi.Trigger convertSpecific(AfterProcessingTime v) {
-      RunnerApi.Trigger.AfterProcessingTime.Builder builder =
-          RunnerApi.Trigger.AfterProcessingTime.newBuilder();
-
-      for (TimestampTransform transform : v.getTimestampTransforms()) {
-        builder.addTimestampTransforms(convertTimestampTransform(transform));
-      }
-
-      return RunnerApi.Trigger.newBuilder().setAfterProcessingTime(builder).build();
     }
 
     private RunnerApi.TimestampTransform convertTimestampTransform(TimestampTransform transform) {

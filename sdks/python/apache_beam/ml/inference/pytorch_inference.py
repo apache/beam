@@ -56,6 +56,20 @@ KeyedTensorInferenceFn = Callable[[
                                   Iterable[PredictionResult]]
 
 
+def _cuda_device_is_usable() -> bool:
+  """Returns True only when CUDA can actually allocate tensors."""
+  if not torch.cuda.is_available():
+    return False
+  try:
+    # Some environments report CUDA available but fail at first real use
+    # because a driver is missing or inaccessible.
+    torch.empty(1, device='cuda')
+    return True
+  except Exception:  # pylint: disable=broad-except
+    logging.warning("CUDA probe failed", exc_info=True)
+    return False
+
+
 def _validate_constructor_args(
     state_dict_path, model_class, torch_script_model_path):
   message = (
@@ -86,7 +100,7 @@ def _load_model(
     model_params: Optional[dict[str, Any]],
     torch_script_model_path: Optional[str],
     load_model_args: Optional[dict[str, Any]]):
-  if device == torch.device('cuda') and not torch.cuda.is_available():
+  if device == torch.device('cuda') and not _cuda_device_is_usable():
     logging.warning(
         "Model handler specified a 'GPU' device, but GPUs are not available. "
         "Switching to CPU.")
@@ -199,6 +213,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
       load_model_args: Optional[dict[str, Any]] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
@@ -244,6 +260,10 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         function to specify custom config for loading models.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -256,6 +276,8 @@ class PytorchModelHandlerTensor(ModelHandler[torch.Tensor,
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)
@@ -431,6 +453,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
       load_model_args: Optional[dict[str, Any]] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for PyTorch.
 
@@ -481,6 +505,10 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
         function to specify custom config for loading models.
       max_batch_weight: the maximum total weight of a batch.
       element_size_fn: a function that returns the size (weight) of an element.
+      batch_length_fn: a callable that returns the length of an element for
+        length-aware batching.
+      batch_bucket_boundaries: a sorted list of positive boundary values for
+        length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -493,6 +521,8 @@ class PytorchModelHandlerKeyedTensor(ModelHandler[dict[str, torch.Tensor],
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         large_model=large_model,
         model_copies=model_copies,
         **kwargs)

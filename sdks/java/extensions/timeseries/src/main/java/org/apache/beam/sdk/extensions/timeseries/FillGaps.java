@@ -83,7 +83,7 @@ import org.joda.time.Instant;
  *
  * <p>By default, the latest element from the previous bucket is propagated into missing buckets. The user can override
  * this using the {@link #withMergeFunction} method. Several built-in merge functions are provided for -
- * {@link #keepLatest()} (the default), {@link #keepEarliest()}, an {@link #keepNull()}.
+ * {@link #keepLatest()} (the default), {@link #keepEarliest()}, and {@code keepNull()}.
  *
  * <p>Sometimes elements need to be modified before being propagated into a missing bucket. For example, consider the
  * following element type containing a timestamp:
@@ -152,7 +152,7 @@ public abstract class FillGaps<ValueT>
 
   abstract Duration getTimeseriesBucketDuration();
 
-  abstract Long getMaxGapFillBuckets();
+  abstract long getMaxGapFillBuckets();
 
   abstract Instant getStopTime();
 
@@ -173,7 +173,7 @@ public abstract class FillGaps<ValueT>
   abstract static class Builder<ValueT> {
     abstract Builder<ValueT> setTimeseriesBucketDuration(Duration value);
 
-    abstract Builder<ValueT> setMaxGapFillBuckets(Long value);
+    abstract Builder<ValueT> setMaxGapFillBuckets(long value);
 
     abstract Builder<ValueT> setStopTime(Instant value);
 
@@ -211,7 +211,7 @@ public abstract class FillGaps<ValueT>
   }
 
   /* The max gap duration that will be filled. The transform will stop filling timeseries buckets after this duration. */
-  public FillGaps<ValueT> withMaxGapFillBuckets(Long value) {
+  public FillGaps<ValueT> withMaxGapFillBuckets(long value) {
     return toBuilder().setMaxGapFillBuckets(value).build();
   }
 

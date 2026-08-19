@@ -61,8 +61,9 @@ public interface PushbackSideInputDoFnRunner<InputT, OutputT> {
   void finishBundle();
 
   /**
+   * Returns the underlying fn instance.
+   *
    * @since 2.5.0
-   * @return the underlying fn instance.
    */
   DoFn<InputT, OutputT> getFn();
 }

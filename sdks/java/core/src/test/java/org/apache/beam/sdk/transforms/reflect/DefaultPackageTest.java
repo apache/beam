@@ -47,6 +47,6 @@ public final class DefaultPackageTest {
 
   private static class MyFn extends DoFn<String, String> {
     @ProcessElement
-    public void processElement(ProcessContext context) {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext context) {}
   }
 }

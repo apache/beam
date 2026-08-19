@@ -108,7 +108,7 @@ public class CatalogSchema implements Schema {
     if (alreadyExists) {
       String message = format("Database '%s' already exists.", name);
       if (ifNotExists || name.equals(DEFAULT)) {
-        LOG.info(message);
+        LOG.info("Database '{}' already exists.", name);
       } else {
         throw SqlUtil.newContextException(
             databaseIdentifier.getParserPosition(), RESOURCE.internal(message));

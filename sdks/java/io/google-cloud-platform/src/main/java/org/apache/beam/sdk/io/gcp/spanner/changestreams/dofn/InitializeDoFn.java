@@ -18,13 +18,18 @@
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
+import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataDao;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -36,11 +41,7 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
 
   private static final long serialVersionUID = -8921188388649003102L;
 
-  /** Heartbeat interval for all change stream queries will be of 2 seconds. */
-  // Be careful when changing this interval, as it needs to be less than the checkpointing interval
-  // in Dataflow. Otherwise, if there are no records within checkpoint intervals, the consuming of
-  // a change stream query might get stuck.
-  private static final long DEFAULT_HEARTBEAT_MILLIS = 2000;
+  private final long heartbeatMillis;
 
   private final DaoFactory daoFactory;
   private final MapperFactory mapperFactory;
@@ -53,11 +54,18 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
       DaoFactory daoFactory,
       MapperFactory mapperFactory,
       com.google.cloud.Timestamp startTimestamp,
-      com.google.cloud.Timestamp endTimestamp) {
+      com.google.cloud.Timestamp endTimestamp,
+      long heartbeatMillis) {
     this.daoFactory = daoFactory;
     this.mapperFactory = mapperFactory;
     this.startTimestamp = startTimestamp;
     this.endTimestamp = endTimestamp;
+    this.heartbeatMillis = heartbeatMillis;
+  }
+
+  @Setup
+  public void setup(PipelineOptions options) {
+    daoFactory.setOpenTelemetry(options.as(SdkHarnessOptions.class).getOpenTelemetry());
   }
 
   @ProcessElement
@@ -68,12 +76,38 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
       daoFactory.getPartitionMetadataAdminDao().createPartitionMetadataTable();
       createFakeParentPartition();
     }
-    final PartitionMetadata initialPartition =
-        Optional.ofNullable(partitionMetadataDao.getPartition(InitialPartition.PARTITION_TOKEN))
-            .map(mapperFactory.partitionMetadataMapper()::from)
-            .orElseThrow(
-                () -> new IllegalStateException("Initial partition not found in metadata table."));
-    receiver.output(initialPartition);
+    if (daoFactory.getTvfNameList().isEmpty()) {
+      // For IMMUTABLE_KEY_RANGE change stream or MUTABLE_KEY_RANGE change stream without the
+      // specified tvf name list.
+      final PartitionMetadata initialPartition =
+          Optional.ofNullable(
+                  partitionMetadataDao.getPartition(
+                      PartitionMetadataDao.composePartitionTokenWithTvfName(
+                          InitialPartition.PARTITION_TOKEN,
+                          ChangeStreamsConstants.DEFAULT_TVF_NAME)))
+              .map(mapperFactory.partitionMetadataMapper()::from)
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException("Initial partition not found in metadata table."));
+      receiver.output(initialPartition);
+    } else {
+      // For MUTABLE_KEY_RANGE change stream with the specified tvf name list.
+      // We only need to output ONE initial partition to the next stage because
+      // DetectNewPartitionsDoFn will discover all fake parent partitions created in the same
+      // Spanner
+      // transaction with the same CreatedAt timestamp and schedule them properly in on batch.
+      String firstTvfName = daoFactory.getTvfNameList().get(0);
+      final PartitionMetadata initialPartition =
+          Optional.ofNullable(
+                  partitionMetadataDao.getPartition(
+                      PartitionMetadataDao.composePartitionTokenWithTvfName(
+                          InitialPartition.PARTITION_TOKEN, firstTvfName)))
+              .map(mapperFactory.partitionMetadataMapper()::from)
+              .orElseThrow(
+                  () ->
+                      new IllegalStateException("Initial partition not found in metadata table."));
+      receiver.output(initialPartition);
+    }
   }
 
   /**
@@ -83,15 +117,37 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
    * specified in {@link InitializeDoFn#DEFAULT_HEARTBEAT_MILLIS}.
    */
   private void createFakeParentPartition() {
-    PartitionMetadata parentPartition =
-        PartitionMetadata.newBuilder()
-            .setPartitionToken(InitialPartition.PARTITION_TOKEN)
-            .setStartTimestamp(startTimestamp)
-            .setEndTimestamp(endTimestamp)
-            .setHeartbeatMillis(DEFAULT_HEARTBEAT_MILLIS)
-            .setState(State.CREATED)
-            .setWatermark(startTimestamp)
-            .build();
-    daoFactory.getPartitionMetadataDao().insert(parentPartition);
+    if (daoFactory.getTvfNameList().isEmpty()) {
+      // For IMMUTABLE_KEY_RANGE change stream or MUTABLE_KEY_RANGE
+      // change stream without the specified tvf name list.
+      PartitionMetadata parentPartition =
+          PartitionMetadata.newBuilder()
+              .setPartitionToken(InitialPartition.PARTITION_TOKEN)
+              .setTvfName(ChangeStreamsConstants.DEFAULT_TVF_NAME)
+              .setStartTimestamp(startTimestamp)
+              .setEndTimestamp(endTimestamp)
+              .setHeartbeatMillis(heartbeatMillis)
+              .setState(State.CREATED)
+              .setWatermark(startTimestamp)
+              .build();
+      daoFactory.getPartitionMetadataDao().insert(parentPartition);
+    } else {
+      // For MUTABLE_KEY_RANGE change stream with the specified tvf name list.
+      List<PartitionMetadata> parentPartitions = new ArrayList<>();
+      for (String tvfName : daoFactory.getTvfNameList()) {
+        PartitionMetadata parentPartition =
+            PartitionMetadata.newBuilder()
+                .setPartitionToken(InitialPartition.PARTITION_TOKEN)
+                .setTvfName(tvfName)
+                .setStartTimestamp(startTimestamp)
+                .setEndTimestamp(endTimestamp)
+                .setHeartbeatMillis(heartbeatMillis)
+                .setState(State.CREATED)
+                .setWatermark(startTimestamp)
+                .build();
+        parentPartitions.add(parentPartition);
+      }
+      daoFactory.getPartitionMetadataDao().insert(parentPartitions);
+    }
   }
 }

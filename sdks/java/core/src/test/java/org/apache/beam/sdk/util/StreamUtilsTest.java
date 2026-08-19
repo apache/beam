@@ -23,9 +23,11 @@ import static org.junit.Assert.assertSame;
 
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Arrays;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -67,5 +69,98 @@ public class StreamUtilsTest {
     byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
     assertArrayEquals(testData, bytes);
     assertEquals(0, stream.available());
+  }
+
+  @Test
+  public void testGetBytesFromUnownedInputStreamAroundExposed() throws IOException {
+    InputStream stream = new UnownedInputStream(new ExposedByteArrayInputStream(testData));
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertSame(testData, bytes);
+    assertEquals(0, stream.available());
+  }
+
+  @Test
+  public void testGetBytesFromUnownedInputStreamAroundArray() throws IOException {
+    InputStream stream = new UnownedInputStream(new ByteArrayInputStream(testData));
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertEquals(0, stream.available());
+  }
+
+  @Test
+  public void testGetBytesFromLimitedInputStream() throws IOException {
+    InputStream stream = ByteStreams.limit(new ByteArrayInputStream(testData), Integer.MAX_VALUE);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertEquals(0, stream.available());
+  }
+
+  @Test
+  public void testGetBytesFromEmptyLimitedInputStream() throws IOException {
+    InputStream stream = ByteStreams.limit(new ByteArrayInputStream(testData), 0);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(new byte[0], bytes);
+    assertEquals(0, stream.available());
+  }
+
+  @Test
+  public void testGetBytesFromRepeatedInputStream() throws IOException {
+    byte[] largeBytes = new byte[2 * 1024 * 1024];
+    Arrays.fill(largeBytes, (byte) 1);
+    InputStream stream = ByteStreams.limit(new ByteArrayInputStream(largeBytes), Integer.MAX_VALUE);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(largeBytes, bytes);
+    assertEquals(0, stream.available());
+  }
+
+  public static class LyingInputStream extends FilterInputStream {
+    private final int availableLie;
+
+    public LyingInputStream(InputStream in, int availableLie) {
+      super(in);
+      this.availableLie = availableLie;
+    }
+
+    @Override
+    public int available() throws IOException {
+      return availableLie;
+    }
+  }
+
+  @Test
+  public void testGetBytesFromHugeAvailable() throws IOException {
+    InputStream wrappedStream = new ByteArrayInputStream(testData);
+    InputStream stream = new LyingInputStream(wrappedStream, Integer.MAX_VALUE - 1);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertEquals(0, wrappedStream.available());
+  }
+
+  @Test
+  public void testGetBytesFromZeroAvailable() throws IOException {
+    InputStream wrappedStream = new ByteArrayInputStream(testData);
+    InputStream stream = new LyingInputStream(wrappedStream, 0);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertEquals(0, wrappedStream.available());
+  }
+
+  @Test
+  public void testGetBytesFromOneExtraAvailable() throws IOException {
+    InputStream wrappedStream = new ByteArrayInputStream(testData);
+    InputStream stream = new LyingInputStream(wrappedStream, wrappedStream.available() + 1);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertEquals(0, wrappedStream.available());
+  }
+
+  @Test
+  public void testGetBytesFromOneLessAvailable() throws IOException {
+    InputStream wrappedStream = new ByteArrayInputStream(testData);
+    InputStream stream = new LyingInputStream(wrappedStream, wrappedStream.available() - 1);
+    byte[] bytes = StreamUtils.getBytesWithoutClosing(stream);
+    assertArrayEquals(testData, bytes);
+    assertEquals(0, wrappedStream.available());
   }
 }

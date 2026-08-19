@@ -85,7 +85,7 @@ public class PeriodicSequence
         return true;
       }
 
-      if (obj == null || obj.getClass() != this.getClass()) {
+      if (!(obj instanceof SequenceDefinition)) {
         return false;
       }
 

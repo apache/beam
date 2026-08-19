@@ -73,7 +73,7 @@ public class InferredJavaBeanSqlTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof PersonBean)) {
         return false;
       }
       PersonBean that = (PersonBean) o;
@@ -120,7 +120,7 @@ public class InferredJavaBeanSqlTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof OrderBean)) {
         return false;
       }
       OrderBean orderBean = (OrderBean) o;

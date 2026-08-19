@@ -1699,7 +1699,10 @@ class WatermarkManager<ExecutableT, CollectionT> {
       }
       TimerUpdate that = (TimerUpdate) other;
       return Objects.equals(this.key, that.key)
-          && Objects.equals(this.completedTimers, that.completedTimers)
+          && (this.completedTimers == that.completedTimers
+              || (this.completedTimers != null
+                  && that.completedTimers != null
+                  && Iterables.elementsEqual(this.completedTimers, that.completedTimers)))
           && Objects.equals(this.setTimers, that.setTimers)
           && Objects.equals(this.deletedTimers, that.deletedTimers);
     }

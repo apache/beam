@@ -30,14 +30,19 @@ import com.google.cloud.spanner.BatchClient;
 import com.google.cloud.spanner.DatabaseAdminClient;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.v1.stub.SpannerStubSettings;
 import com.google.spanner.v1.CommitRequest;
 import com.google.spanner.v1.CommitResponse;
+import com.google.spanner.v1.DirectedReadOptions;
 import com.google.spanner.v1.ExecuteSqlRequest;
 import com.google.spanner.v1.PartialResultSet;
+import io.opentelemetry.api.GlobalOpenTelemetry;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -60,6 +65,9 @@ public class SpannerAccessor implements AutoCloseable {
    * workload is coming from Dataflow and to potentially apply performance optimizations
    */
   private static final String USER_AGENT_PREFIX = "Apache_Beam_Java";
+
+  // Default wait time for session creation
+  static final java.time.Duration DEFAULT_SESSION_WAIT_DURATION = java.time.Duration.ofMinutes(5);
 
   /** Instance ID to use when connecting to an experimental host. */
   public static final String EXPERIMENTAL_HOST_INSTANCE_ID = "default";
@@ -92,13 +100,17 @@ public class SpannerAccessor implements AutoCloseable {
   }
 
   public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig) {
+    return getOrCreate(spannerConfig, GlobalOpenTelemetry.get());
+  }
+
+  public static SpannerAccessor getOrCreate(SpannerConfig spannerConfig, OpenTelemetry otel) {
 
     synchronized (spannerAccessors) {
       SpannerAccessor self = spannerAccessors.get(spannerConfig);
       if (self == null) {
         // Connect to spanner for this SpannerConfig.
         LOG.info("Connecting to {}", spannerConfig);
-        self = SpannerAccessor.createAndConnect(spannerConfig);
+        self = SpannerAccessor.createAndConnect(spannerConfig, otel);
         LOG.info("Successfully connected to {}", spannerConfig);
         spannerAccessors.put(spannerConfig, self);
       }
@@ -111,7 +123,27 @@ public class SpannerAccessor implements AutoCloseable {
 
   @VisibleForTesting
   static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig) {
+    return buildSpannerOptions(spannerConfig, GlobalOpenTelemetry.get());
+  }
+
+  @VisibleForTesting
+  static SpannerOptions buildSpannerOptions(SpannerConfig spannerConfig, OpenTelemetry otel) {
     SpannerOptions.Builder builder = SpannerOptions.newBuilder();
+    if (otel != null) {
+      builder.setOpenTelemetry(otel);
+    }
+    ValueProvider<Boolean> enableOpenTelemetryTracing =
+        spannerConfig.getEnableOpenTelemetryTracing();
+    if (enableOpenTelemetryTracing != null
+        && enableOpenTelemetryTracing.isAccessible()
+        && enableOpenTelemetryTracing.get()) {
+      builder.setEnableExtendedTracing(true);
+      builder.setEnableEndToEndTracing(true);
+      builder.setEnableApiTracing(true);
+      SpannerOptions.disableOpenCensusMetrics();
+      SpannerOptions.enableOpenTelemetryMetrics();
+      SpannerOptions.enableOpenTelemetryTraces();
+    }
 
     // TODO(https://github.com/apache/beam/issues/37451) Disable gRPC gcp extension which was
     // causing the application thread to stall.
@@ -242,7 +274,16 @@ public class SpannerAccessor implements AutoCloseable {
       }
       if (plainText != null && Boolean.TRUE.equals(plainText.get())) {
         builder.setChannelConfigurator(b -> b.usePlaintext());
-        builder.setCredentials(NoCredentials.getInstance());
+      }
+      ValueProvider<String> clientCert = spannerConfig.getClientCertPath();
+      ValueProvider<String> clientKey = spannerConfig.getClientCertKeyPath();
+      if (clientCert != null
+          && clientKey != null
+          && clientCert.isAccessible()
+          && clientKey.isAccessible()
+          && !Strings.isNullOrEmpty(clientCert.get())
+          && !Strings.isNullOrEmpty(clientKey.get())) {
+        builder.useClientCert(clientCert.get(), clientKey.get());
       }
     }
 
@@ -265,16 +306,31 @@ public class SpannerAccessor implements AutoCloseable {
     if (databaseRole != null && databaseRole.get() != null && !databaseRole.get().isEmpty()) {
       builder.setDatabaseRole(databaseRole.get());
     }
+    ValueProvider<DirectedReadOptions> directedReadOptions = spannerConfig.getDirectedReadOptions();
+    if (directedReadOptions != null && directedReadOptions.get() != null) {
+      builder.setDirectedReadOptions(directedReadOptions.get());
+    }
     ValueProvider<Credentials> credentials = spannerConfig.getCredentials();
     if (credentials != null && credentials.get() != null) {
       builder.setCredentials(credentials.get());
+    } else if (experimentalHost != null && !Strings.isNullOrEmpty(experimentalHost.get())) {
+      builder.setCredentials(NoCredentials.getInstance());
     }
+
+    ValueProvider<java.time.Duration> waitForSessionCreationDuration =
+        spannerConfig.getWaitForSessionCreationDuration();
+    java.time.Duration waitDuration =
+        Optional.ofNullable(waitForSessionCreationDuration)
+            .map(ValueProvider::get)
+            .orElse(DEFAULT_SESSION_WAIT_DURATION);
+    builder.setSessionPoolOption(
+        SessionPoolOptions.newBuilder().setWaitForMinSessionsDuration(waitDuration).build());
 
     return builder.build();
   }
 
-  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig) {
-    SpannerOptions options = buildSpannerOptions(spannerConfig);
+  private static SpannerAccessor createAndConnect(SpannerConfig spannerConfig, OpenTelemetry otel) {
+    SpannerOptions options = buildSpannerOptions(spannerConfig, otel);
     Spanner spanner = options.getService();
     String instanceId = spannerConfig.getInstanceId().get();
     String databaseId = spannerConfig.getDatabaseId().get();

@@ -156,7 +156,7 @@ public class PrimitiveParDoSingleFactoryTest implements Serializable {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(getClass());
+      return other instanceof ToLongFn;
     }
 
     @Override

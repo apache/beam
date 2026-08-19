@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.schemas;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.containsString;
@@ -189,7 +190,7 @@ public class JsonSchemaConversionTest {
   public void testBasicJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/basic_json_schema.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
       assertThat(
@@ -209,7 +210,7 @@ public class JsonSchemaConversionTest {
   public void testNestedStructsJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/nested_arrays_objects_json_schema.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
       assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("fruits", "vegetables"));
@@ -230,7 +231,7 @@ public class JsonSchemaConversionTest {
   public void testArrayNestedArrayObjectJsonSchemaToBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/array_nested_array_json_schema.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
       assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("complexMatrix"));
@@ -252,7 +253,7 @@ public class JsonSchemaConversionTest {
     try (InputStream inputStream =
         getClass()
             .getResourceAsStream("/json-schema/object_nested_object_and_array_json_schema.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
       assertThat(parsedSchema.getFieldNames(), containsInAnyOrder("classroom"));
@@ -285,7 +286,7 @@ public class JsonSchemaConversionTest {
   public void testArrayWithNestedRefsBeamSchema() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/ref_with_ref_json_schema.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
       Schema parsedSchema = JsonUtils.beamSchemaFromJsonSchema(stringJsonSchema);
 
       assertEquals("vegetables", Iterables.getOnlyElement(parsedSchema.getFieldNames()));
@@ -327,7 +328,7 @@ public class JsonSchemaConversionTest {
   public void testUnsupportedTupleArrays() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/unsupported_tuple_arrays.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
 
       IllegalArgumentException thrownException =
           assertThrows(
@@ -347,7 +348,7 @@ public class JsonSchemaConversionTest {
   public void testUnsupportedNestedTupleArrays() throws IOException {
     try (InputStream inputStream =
         getClass().getResourceAsStream("/json-schema/unsupported_nested_tuple_array.json")) {
-      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), "UTF-8");
+      String stringJsonSchema = new String(ByteStreams.toByteArray(inputStream), UTF_8);
 
       IllegalArgumentException thrownException =
           assertThrows(

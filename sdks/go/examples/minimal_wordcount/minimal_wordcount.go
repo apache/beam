@@ -16,6 +16,10 @@
 // minimal_wordcount is an example that counts words in King Lear,
 // by William Shakespeare.
 //
+// minimal_wordcount demonstartes a basic Apache Beam pipeline in Go.
+// It reads a text file, splits it into words, counts occurences,
+// and writes the results to an output file.
+//
 // This example is the first in a series of four successively more detailed
 // 'word count' examples. Here, for simplicity, we don't show any
 // error-checking or argument processing, and focus on construction of the
@@ -71,14 +75,19 @@ import (
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/io/filesystem/local"
 )
 
+// wordRE defines a regualr expression to extract words from a line of text.
+// It matches alphabetic words and handles simple apstrophes (eg. don't).
+
 var wordRE = regexp.MustCompile(`[a-zA-Z]+('[a-z])?`)
 
+// splitWords takes a line of text and emits each word found in that line.
 func splitWords(line string, emit func(string)) {
 	for _, word := range wordRE.FindAllString(line, -1) {
 		emit(word)
 	}
 }
 
+// formatCounts formats the word and its count into  readable string
 func formatCounts(w string, c int) string {
 	return fmt.Sprintf("%s: %v", w, c)
 }
@@ -87,16 +96,24 @@ func formatCounts(w string, c int) string {
 // so they can be executed by portable runners. We use the register package
 // in an init block to inform Beam of the functions we will be using, so
 // it can access them on workers.
+
+// init registers the functions so they can be executed on distrubuted workers.
+// Beam requires functions to be registered before execution.
 func init() {
 	register.Function2x0(splitWords)
 	register.Function2x1(formatCounts)
 	register.Emitter1[string]()
 }
 
+// To run this example:
+// go run minimal_wordcount.go
+// output will be written to "wordcounts.txt"
 func main() {
+	// Step 1: Initialise Beam
 	// beam.Init() is an initialization hook that must be called on startup.
 	beam.Init()
 
+	// Step 2:
 	// Create the Pipeline object and root scope.
 	p := beam.NewPipeline()
 	s := p.Root()
@@ -108,10 +125,12 @@ func main() {
 	// PCollection where each element is one line from the input text
 	// (one of Shakespeare's texts).
 
+	// Step 3: Read input text file
 	// This example reads from a public dataset containing the text
 	// of King Lear.
 	lines := textio.Read(s, "gs://apache-beam-samples/shakespeare/kinglear.txt")
 
+	// Step 4: split lens into words 
 	// Concept #2: Invoke a ParDo transform on our PCollection of text lines.
 	// This ParDo invokes a DoFn (registered earlier) on each element that
 	// tokenizes the text line into individual words. The ParDo returns a
@@ -119,22 +138,26 @@ func main() {
 	// Shakespeare's collected texts.
 	words := beam.ParDo(s, splitWords, lines)
 
+	// Step 5: Count words occurences
 	// Concept #3: Invoke the stats.Count transform on our PCollection of
 	// individual words. The Count transform returns a new PCollection of
 	// key/value pairs, where each key represents a unique word in the text.
 	// The associated value is the occurrence count for that word.
 	counted := stats.Count(s, words)
 
+	// Step 6: Format results
 	// Use a ParDo to format our PCollection of word counts into a printable
 	// string, suitable for writing to an output file. When each element
 	// produces exactly one element, the DoFn can simply return it.
 	formatted := beam.ParDo(s, formatCounts, counted)
 
+	// Step 7: Write output to file
 	// Concept #4: Invoke textio.Write at the end of the pipeline to write
 	// the contents of a PCollection (in this case, our PCollection of
 	// formatted strings) to a text file.
 	textio.Write(s, "wordcounts.txt", formatted)
 
+	// Step 8: Execute pipeline
 	// Run the pipeline on the prism runner.
 	prism.Execute(context.Background(), p)
 }

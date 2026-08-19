@@ -24,23 +24,17 @@ import copy
 import itertools
 import logging
 import struct
-import typing
 import uuid
 import weakref
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Callable
-from typing import DefaultDict
-from typing import Dict
 from typing import Generic
 from typing import Iterable
 from typing import Iterator
-from typing import List
 from typing import MutableMapping
 from typing import Optional
 from typing import Sequence
-from typing import Set
-from typing import Tuple
 from typing import TypeVar
 from typing import Union
 
@@ -108,7 +102,7 @@ class PartitionableBuffer(Buffer, Protocol):
   def copy(self) -> 'PartitionableBuffer':
     pass
 
-  def partition(self, n: int) -> List[List[bytes]]:
+  def partition(self, n: int) -> list[list[bytes]]:
     pass
 
   @property
@@ -126,8 +120,8 @@ class ListBuffer:
   """Used to support parititioning of a list."""
   def __init__(self, coder_impl: Optional[CoderImpl]) -> None:
     self._coder_impl = coder_impl or CoderImpl()
-    self._inputs: List[bytes] = []
-    self._grouped_output: Optional[List[List[bytes]]] = None
+    self._inputs: list[bytes] = []
+    self._grouped_output: Optional[list[list[bytes]]] = None
     self.cleared = False
 
   def copy(self) -> 'ListBuffer':
@@ -150,7 +144,7 @@ class ListBuffer:
       raise RuntimeError('ListBuffer append after read.')
     self._inputs.append(element)
 
-  def partition(self, n: int) -> List[List[bytes]]:
+  def partition(self, n: int) -> list[list[bytes]]:
     if self.cleared:
       raise RuntimeError('Trying to partition a cleared ListBuffer.')
     if len(self._inputs) >= n or len(self._inputs) == 0:
@@ -198,9 +192,11 @@ class GroupingBuffer(object):
     self._key_coder = pre_grouped_coder.key_coder()
     self._pre_grouped_coder = pre_grouped_coder
     self._post_grouped_coder = post_grouped_coder
-    self._table: DefaultDict[bytes, List[Any]] = collections.defaultdict(list)
+    self._table: collections.defaultdict[bytes,
+                                         list[Any]] = collections.defaultdict(
+                                             list)
     self._windowing = windowing
-    self._grouped_output: Optional[List[List[bytes]]] = None
+    self._grouped_output: Optional[list[list[bytes]]] = None
 
   def copy(self) -> 'GroupingBuffer':
     # This is a silly temporary optimization. This class must be removed once
@@ -234,7 +230,7 @@ class GroupingBuffer(object):
     for key, values in input_buffer._table.items():
       self._table[key].extend(values)
 
-  def partition(self, n: int) -> List[List[bytes]]:
+  def partition(self, n: int) -> list[list[bytes]]:
     """ It is used to partition _GroupingBuffer to N parts. Once it is
     partitioned, it would not be re-partitioned with diff N. Re-partition
     is not supported now.
@@ -311,9 +307,8 @@ class WindowGroupingBuffer(object):
       raise ValueError("Unknown access pattern: '%s'" % access_pattern.urn)
     self._windowed_value_coder = coder
     self._window_coder = coder.window_coder
-    self._values_by_window: DefaultDict[Tuple[str, BoundedWindow],
-                                        List[Any]] = collections.defaultdict(
-                                            list)
+    self._values_by_window: collections.defaultdict[
+        tuple[str, BoundedWindow], list[Any]] = collections.defaultdict(list)
 
   def append(self, elements_data: bytes) -> None:
     input_stream = create_InputStream(elements_data)
@@ -326,7 +321,7 @@ class WindowGroupingBuffer(object):
       for window in windowed_value.windows:
         self._values_by_window[key, window].append(value)
 
-  def encoded_items(self) -> Iterator[Tuple[bytes, bytes, bytes, int]]:
+  def encoded_items(self) -> Iterator[tuple[bytes, bytes, bytes, int]]:
     value_coder_impl = self._value_coder.get_impl()
     key_coder_impl = self._key_coder.get_impl()
     for (key, window), values in self._values_by_window.items():
@@ -385,13 +380,13 @@ class _ProcessingQueueManager(object):
   """
   class KeyedQueue(Generic[QUEUE_KEY_TYPE]):
     def __init__(self) -> None:
-      self._q: typing.Deque[Tuple[QUEUE_KEY_TYPE,
-                                  DataInput]] = collections.deque()
+      self._q: collections.deque[tuple[QUEUE_KEY_TYPE,
+                                       DataInput]] = collections.deque()
       self._keyed_elements: MutableMapping[QUEUE_KEY_TYPE,
-                                           Tuple[QUEUE_KEY_TYPE,
+                                           tuple[QUEUE_KEY_TYPE,
                                                  DataInput]] = {}
 
-    def enque(self, elm: Tuple[QUEUE_KEY_TYPE, DataInput]) -> None:
+    def enque(self, elm: tuple[QUEUE_KEY_TYPE, DataInput]) -> None:
       key = elm[0]
       incoming_inputs: DataInput = elm[1]
       if not incoming_inputs:
@@ -415,7 +410,7 @@ class _ProcessingQueueManager(object):
         self._keyed_elements[key] = elm
         self._q.appendleft(elm)
 
-    def deque(self) -> Tuple[QUEUE_KEY_TYPE, DataInput]:
+    def deque(self) -> tuple[QUEUE_KEY_TYPE, DataInput]:
       elm = self._q.pop()
       key = elm[0]
       del self._keyed_elements[key]
@@ -434,9 +429,9 @@ class _ProcessingQueueManager(object):
   def __init__(self) -> None:
     # For time-pending and watermark-pending inputs, the key type is
     # STAGE+TIMESTAMP, while for the ready inputs, the key type is only STAGE.
-    self.time_pending_inputs = _ProcessingQueueManager.KeyedQueue[Tuple[
+    self.time_pending_inputs = _ProcessingQueueManager.KeyedQueue[tuple[
         str, Timestamp]]()
-    self.watermark_pending_inputs = _ProcessingQueueManager.KeyedQueue[Tuple[
+    self.watermark_pending_inputs = _ProcessingQueueManager.KeyedQueue[tuple[
         str, Timestamp]]()
     self.ready_inputs = _ProcessingQueueManager.KeyedQueue[str]()
 
@@ -451,7 +446,7 @@ class GenericMergingWindowFn(window.WindowFn):
   TO_SDK_TRANSFORM = 'read'
   FROM_SDK_TRANSFORM = 'write'
 
-  _HANDLES: Dict[str, 'GenericMergingWindowFn'] = {}
+  _HANDLES: dict[str, 'GenericMergingWindowFn'] = {}
 
   def __init__(
       self,
@@ -664,14 +659,14 @@ class FnApiRunnerExecutionContext(object):
  """
   def __init__(
       self,
-      stages: List[translations.Stage],
+      stages: list[translations.Stage],
       worker_handler_manager: 'worker_handlers.WorkerHandlerManager',
       pipeline_components: beam_runner_api_pb2.Components,
       safe_coders: translations.SafeCoderMapping,
-      data_channel_coders: Dict[str, str],
+      data_channel_coders: dict[str, str],
       num_workers: int,
       uses_teststream: bool = False,
-      split_managers: Sequence[Tuple[str, Callable[[int],
+      split_managers: Sequence[tuple[str, Callable[[int],
                                                    Iterable[float]]]] = ()
   ) -> None:
     """
@@ -705,7 +700,7 @@ class FnApiRunnerExecutionContext(object):
                                                            Optional[str]] = {}
     # Map of buffer_id to its consumers. A consumer is the pair of
     # Stage name + Ptransform name that consume that buffer.
-    self.buffer_id_to_consumer_pairs: Dict[bytes, Set[Tuple[str, str]]] = {}
+    self.buffer_id_to_consumer_pairs: dict[bytes, set[tuple[str, str]]] = {}
     self._compute_pipeline_dictionaries()
 
     self.watermark_manager = WatermarkManager(stages)
@@ -721,7 +716,7 @@ class FnApiRunnerExecutionContext(object):
         for id in self.pipeline_components.windowing_strategies.keys()
     }
 
-    self._stage_managers: Dict[str, BundleContextManager] = {}
+    self._stage_managers: dict[str, BundleContextManager] = {}
 
   def bundle_manager_for(
       self,
@@ -834,14 +829,14 @@ class FnApiRunnerExecutionContext(object):
     patterns for all of the outputs of a stage that will be consumed as a
     side input.
     """
-    transform_consumers: DefaultDict[
+    transform_consumers: collections.defaultdict[
         str,
-        List[beam_runner_api_pb2.PTransform]] = collections.defaultdict(list)
-    stage_consumers: DefaultDict[
-        str, List[translations.Stage]] = collections.defaultdict(list)
+        list[beam_runner_api_pb2.PTransform]] = collections.defaultdict(list)
+    stage_consumers: collections.defaultdict[
+        str, list[translations.Stage]] = collections.defaultdict(list)
 
-    def get_all_side_inputs() -> Set[str]:
-      all_side_inputs: Set[str] = set()
+    def get_all_side_inputs() -> set[str]:
+      all_side_inputs: set[str] = set()
       for stage in stages:
         for transform in stage.transforms:
           for input in transform.inputs.values():
@@ -852,7 +847,7 @@ class FnApiRunnerExecutionContext(object):
       return all_side_inputs
 
     all_side_inputs = frozenset(get_all_side_inputs())
-    data_side_inputs_by_producing_stage: Dict[str, DataSideInput] = {}
+    data_side_inputs_by_producing_stage: dict[str, DataSideInput] = {}
 
     producing_stages_by_pcoll = {}
 
@@ -996,7 +991,7 @@ class BundleContextManager(object):
       execution_context: FnApiRunnerExecutionContext,
       stage: translations.Stage,
       num_workers: int,
-      split_managers: Sequence[Tuple[str, Callable[[int], Iterable[float]]]],
+      split_managers: Sequence[tuple[str, Callable[[int], Iterable[float]]]],
   ) -> None:
     self.execution_context = execution_context
     self.stage = stage
@@ -1007,11 +1002,11 @@ class BundleContextManager(object):
     # Properties that are lazily initialized
     self._process_bundle_descriptor: Optional[
         beam_fn_api_pb2.ProcessBundleDescriptor] = None
-    self._worker_handlers: Optional[List[worker_handlers.WorkerHandler]] = None
+    self._worker_handlers: Optional[list[worker_handlers.WorkerHandler]] = None
     # a mapping of {(transform_id, timer_family_id): timer_coder_id}. The map
     # is built after self._process_bundle_descriptor is initialized.
     # This field can be used to tell whether current bundle has timers.
-    self._timer_coder_ids: Optional[Dict[Tuple[str, str], str]] = None
+    self._timer_coder_ids: Optional[dict[tuple[str, str], str]] = None
 
     # A mapping from transform_name to Buffer ID
     self.stage_data_outputs: DataOutput = {}
@@ -1033,7 +1028,7 @@ class BundleContextManager(object):
               create_buffer_id(timer_family_id, 'timers'), time_domain)
 
   @property
-  def worker_handlers(self) -> List['worker_handlers.WorkerHandler']:
+  def worker_handlers(self) -> list['worker_handlers.WorkerHandler']:
     if self._worker_handlers is None:
       self._worker_handlers = (
           self.execution_context.worker_handler_manager.get_worker_handlers(
@@ -1088,7 +1083,7 @@ class BundleContextManager(object):
     assert coder_id
     return self.get_coder_impl(coder_id)
 
-  def _build_timer_coders_id_map(self) -> Dict[Tuple[str, str], str]:
+  def _build_timer_coders_id_map(self) -> dict[tuple[str, str], str]:
     assert self._process_bundle_descriptor is not None
     timer_coder_ids = {}
     for transform_id, transform_proto in (self._process_bundle_descriptor

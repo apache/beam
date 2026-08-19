@@ -22,6 +22,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import java.util.Collection;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.spark.metrics.sink.Sink;
@@ -29,8 +30,10 @@ import org.apache.spark.metrics.sink.Sink;
 /** An in-memory {@link Sink} implementation for tests. */
 public class InMemoryMetrics implements Sink {
 
-  private static WithMetricsSupport extendedMetricsRegistry;
-  private static MetricRegistry internalMetricRegistry;
+  private static final AtomicReference<WithMetricsSupport> extendedMetricsRegistry =
+      new AtomicReference<>();
+  private static final AtomicReference<MetricRegistry> internalMetricRegistry =
+      new AtomicReference<>();
 
   // Constructor for Spark 3.1
   @SuppressWarnings("UnusedParameters")
@@ -38,24 +41,24 @@ public class InMemoryMetrics implements Sink {
       final Properties properties,
       final MetricRegistry metricRegistry,
       final org.apache.spark.SecurityManager securityMgr) {
-    extendedMetricsRegistry = WithMetricsSupport.forRegistry(metricRegistry);
-    internalMetricRegistry = metricRegistry;
+    extendedMetricsRegistry.set(WithMetricsSupport.forRegistry(metricRegistry));
+    internalMetricRegistry.set(metricRegistry);
   }
 
   // Constructor for Spark >= 3.2
   @SuppressWarnings("UnusedParameters")
   public InMemoryMetrics(final Properties properties, final MetricRegistry metricRegistry) {
-    extendedMetricsRegistry = WithMetricsSupport.forRegistry(metricRegistry);
-    internalMetricRegistry = metricRegistry;
+    extendedMetricsRegistry.set(WithMetricsSupport.forRegistry(metricRegistry));
+    internalMetricRegistry.set(metricRegistry);
   }
 
   @SuppressWarnings({"TypeParameterUnusedInFormals", "rawtypes"})
   public static <T> T valueOf(final String name) {
     // this might fail in case we have multiple aggregators with the same suffix after
     // the last dot, but it should be good enough for tests.
-    if (extendedMetricsRegistry != null) {
-      Collection<Gauge> matches =
-          extendedMetricsRegistry.getGauges((n, m) -> n.endsWith(name)).values();
+    WithMetricsSupport extended = extendedMetricsRegistry.get();
+    if (extended != null) {
+      Collection<Gauge> matches = extended.getGauges((n, m) -> n.endsWith(name)).values();
       return matches.isEmpty() ? null : (T) Iterables.getOnlyElement(matches).getValue();
     } else {
       return null;
@@ -64,8 +67,9 @@ public class InMemoryMetrics implements Sink {
 
   @SuppressWarnings("WeakerAccess")
   public static void clearAll() {
-    if (internalMetricRegistry != null) {
-      internalMetricRegistry.removeMatching(MetricFilter.ALL);
+    MetricRegistry internal = internalMetricRegistry.get();
+    if (internal != null) {
+      internal.removeMatching(MetricFilter.ALL);
     }
   }
 

@@ -183,7 +183,7 @@ public final class SnsIO {
         return true;
       } catch (NotFoundException | InvalidParameterException e) {
         LoggerFactory.getLogger(Write.class)
-            .warn("Configured topic ARN '" + getTopicArn() + "' does not exist.", e);
+            .warn("Configured topic ARN '{}' does not exist.", getTopicArn(), e);
         return false;
       }
     }

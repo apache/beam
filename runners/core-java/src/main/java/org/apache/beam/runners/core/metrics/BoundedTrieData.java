@@ -276,7 +276,7 @@ public class BoundedTrieData implements Serializable {
     }
   }
 
-  /** @return true if this {@link BoundedTrieData} is empty else false. */
+  /** Returns true if this {@link BoundedTrieData} is empty else false. */
   public boolean isEmpty() {
     return (root == null || root.children.isEmpty()) && (singleton == null || singleton.isEmpty());
   }
@@ -286,7 +286,7 @@ public class BoundedTrieData implements Serializable {
     if (this == other) {
       return true;
     }
-    if (other == null || this.getClass() != other.getClass()) {
+    if (!(other instanceof BoundedTrieData)) {
       return false;
     }
     BoundedTrieData that = (BoundedTrieData) other;
@@ -590,7 +590,7 @@ public class BoundedTrieData implements Serializable {
       if (this == other) {
         return true;
       }
-      if (other == null || getClass() != other.getClass()) {
+      if (!(other instanceof BoundedTrieNode)) {
         return false;
       }
       BoundedTrieNode that = (BoundedTrieNode) other;

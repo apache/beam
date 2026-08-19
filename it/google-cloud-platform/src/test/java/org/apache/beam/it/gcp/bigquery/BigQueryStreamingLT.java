@@ -41,7 +41,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
-import org.apache.beam.it.gcp.IOLoadTestBase;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
@@ -160,18 +160,18 @@ public class BigQueryStreamingLT extends IOLoadTestBase {
   @AutoValue
   abstract static class TestConfiguration {
     /** Rows will be generated for this many minutes. */
-    abstract Integer getMinutes();
+    abstract int getMinutes();
 
     /** Data shape: The byte-size for each field. */
-    abstract Integer getByteSizePerField();
+    abstract int getByteSizePerField();
 
     /** Data shape: The number of fields per row. */
-    abstract Integer getNumFields();
+    abstract int getNumFields();
 
     /**
      * Rate of generated elements sent to the sink. Will run with a minimum of 1k rows per second.
      */
-    abstract Integer getRowsPerSecond();
+    abstract int getRowsPerSecond();
 
     abstract String getRunner();
 

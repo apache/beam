@@ -131,6 +131,7 @@ public class BeamSqlEnvRunner {
    * @param numOfResults The number of results in the collection.
    * @throws Exception
    */
+  @SuppressWarnings("JavaUtilDate")
   private static void printExecutionSummary(
       CompletionService<TpcdsRunResult> completion, int numOfResults) throws Exception {
     List<List<String>> summaryRowsList = new ArrayList<>();

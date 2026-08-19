@@ -554,10 +554,9 @@ public class PTransformTranslation {
         // Optional toConfigRow() has not been implemented. We can just ignore.
       } catch (Exception e) {
         LOG.warn(
-            "Could not attach the config row for transform "
-                + appliedPTransform.getTransform().getName()
-                + ": "
-                + e);
+            "Could not attach the config row for transform {}: {}",
+            appliedPTransform.getTransform().getName(),
+            e.toString());
         // Ignoring the error and continuing with the translation since attaching config rows is
         // optional.
       }

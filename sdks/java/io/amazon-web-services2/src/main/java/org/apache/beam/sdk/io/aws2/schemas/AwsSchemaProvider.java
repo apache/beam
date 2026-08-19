@@ -31,6 +31,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.io.aws2.schemas.AwsSchemaUtils.SdkBuilderSetter;
 import org.apache.beam.sdk.io.aws2.schemas.AwsTypes.ConverterFactory;
 import org.apache.beam.sdk.schemas.CachingFactory;
@@ -134,7 +135,7 @@ public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof FromRowWithBuilder)) {
         return false;
       }
       FromRowWithBuilder<?> that = (FromRowWithBuilder<?>) o;
@@ -205,7 +206,11 @@ public class AwsSchemaProvider extends GetterBasedSchemaProviderV2 {
   @Override
   public List<FieldValueTypeInformation> fieldValueTypeInformations(
       TypeDescriptor<?> targetTypeDescriptor, Schema schema) {
-    throw new UnsupportedOperationException("FieldValueTypeInformation not available");
+    List<SdkField<?>> sdkFieldList = sdkFields((Class) targetTypeDescriptor.getRawType());
+
+    return sdkFieldList.stream()
+        .map(AwsTypes::fieldValueTypeInformationFor)
+        .collect(Collectors.toList());
   }
 
   @Override

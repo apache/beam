@@ -135,8 +135,7 @@ public class Select {
     @FieldAccess("selectFields")
     final FieldAccessDescriptor fieldAccess = FieldAccessDescriptor.withAllFields();
 
-    public SelectDoFn(
-        FieldAccessDescriptor fieldAccessDescriptor, Schema inputSchema, Schema outputSchema) {
+    public SelectDoFn(FieldAccessDescriptor fieldAccessDescriptor, Schema inputSchema) {
       this.rowSelector = new RowSelectorContainer(inputSchema, fieldAccessDescriptor, true);
     }
 
@@ -204,7 +203,7 @@ public class Select {
                 + input.getSchema());
       }
       return input
-          .apply(ParDo.of(new SelectDoFn<>(resolved, inputSchema, outputSchema)))
+          .apply(ParDo.of(new SelectDoFn<>(resolved, inputSchema)))
           .setRowSchema(outputSchema);
     }
   }
@@ -316,7 +315,7 @@ public class Select {
         outputSchema = inferredOutputSchema;
       }
       return input
-          .apply(ParDo.of(new SelectDoFn<>(fieldAccessDescriptor, inputSchema, outputSchema)))
+          .apply(ParDo.of(new SelectDoFn<>(fieldAccessDescriptor, inputSchema)))
           .setRowSchema(outputSchema);
     }
   }

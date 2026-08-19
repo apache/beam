@@ -2047,13 +2047,13 @@ public class BigtableIOTest {
   /** Error injection options for FakeBigtableService and FakeBigtableReader. */
   @AutoValue
   abstract static class FailureOptions implements Serializable {
-    abstract Boolean getFailAtStart();
+    abstract boolean getFailAtStart();
 
-    abstract Boolean getFailAtAdvance();
+    abstract boolean getFailAtAdvance();
 
-    abstract Boolean getFailAtSplit();
+    abstract boolean getFailAtSplit();
 
-    abstract Boolean getFailAtWriteRecord();
+    abstract boolean getFailAtWriteRecord();
 
     static Builder builder() {
       return new AutoValue_BigtableIOTest_FailureOptions.Builder()
@@ -2065,13 +2065,13 @@ public class BigtableIOTest {
 
     @AutoValue.Builder
     abstract static class Builder {
-      abstract Builder setFailAtStart(Boolean failAtStart);
+      abstract Builder setFailAtStart(boolean failAtStart);
 
-      abstract Builder setFailAtAdvance(Boolean failAtAdvance);
+      abstract Builder setFailAtAdvance(boolean failAtAdvance);
 
-      abstract Builder setFailAtSplit(Boolean failAtSplit);
+      abstract Builder setFailAtSplit(boolean failAtSplit);
 
-      abstract Builder setFailAtWriteRecord(Boolean failAtWriteRecord);
+      abstract Builder setFailAtWriteRecord(boolean failAtWriteRecord);
 
       abstract FailureOptions build();
     }

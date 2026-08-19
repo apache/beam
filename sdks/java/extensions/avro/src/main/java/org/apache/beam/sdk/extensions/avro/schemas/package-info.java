@@ -19,8 +19,4 @@
  * Defines {@link org.apache.beam.sdk.schemas.Schema} and other classes for representing schema'd
  * data in a {@link org.apache.beam.sdk.Pipeline} using Apache Avro.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.avro.schemas;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

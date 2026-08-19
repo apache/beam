@@ -188,7 +188,7 @@ public class PulsarIOIT {
         break;
       }
     }
-    assertEquals(inputsMock.size(), (int) recordsCount);
+    assertEquals(inputsMock.size(), recordsCount);
   }
 
   @Test

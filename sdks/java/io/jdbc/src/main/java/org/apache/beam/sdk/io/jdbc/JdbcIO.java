@@ -2615,7 +2615,7 @@ public class JdbcIO {
       return instances.computeIfAbsent(
           config.config,
           ignored -> {
-            DataSource basicSource = config.apply(input);
+            DataSource basicSource = config.apply(null);
             DataSourceConnectionFactory connectionFactory =
                 new DataSourceConnectionFactory(basicSource);
             @SuppressWarnings("nullness") // apache.commons.dbcp2 not annotated
@@ -2740,7 +2740,7 @@ public class JdbcIO {
       abstract @Nullable Long getMaxBatchBufferingDuration();
 
       @Pure
-      abstract Boolean getReturnResults();
+      abstract boolean getReturnResults();
 
       @Pure
       static Builder builder() {
@@ -2771,7 +2771,7 @@ public class JdbcIO {
         abstract Builder<T, V> setMaxBatchBufferingDuration(
             @Nullable Long maxBatchBufferingDuration);
 
-        abstract Builder<T, V> setReturnResults(Boolean returnResults);
+        abstract Builder<T, V> setReturnResults(boolean returnResults);
 
         abstract WriteFnSpec<T, V> build();
       }

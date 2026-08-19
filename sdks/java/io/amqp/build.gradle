@@ -30,7 +30,9 @@ dependencies {
   testImplementation library.java.slf4j_api
   testImplementation library.java.junit
   testImplementation library.java.activemq_broker
-  testImplementation library.java.activemq_amqp
+  testImplementation(library.java.activemq_amqp) {
+    exclude group: 'org.apache.qpid', module: 'proton-j'
+  }
   testImplementation library.java.activemq_junit
   testImplementation library.java.hamcrest
   testRuntimeOnly library.java.slf4j_jdk14

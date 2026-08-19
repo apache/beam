@@ -27,6 +27,6 @@ import org.apache.beam.sdk.annotations.Internal;
  */
 @Internal
 public interface MutationDetector extends AutoCloseable {
-  /** @throws IllegalMutationException if illegal mutations are detected. */
+  /** Throws {@link IllegalMutationException} if illegal mutations are detected. */
   void verifyUnmodified() throws IllegalMutationException;
 }

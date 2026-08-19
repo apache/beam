@@ -101,7 +101,7 @@ public class NameCityStateId implements KnownSize, Serializable {
     if (this == otherObject) {
       return true;
     }
-    if (otherObject == null || getClass() != otherObject.getClass()) {
+    if (!(otherObject instanceof NameCityStateId)) {
       return false;
     }
 

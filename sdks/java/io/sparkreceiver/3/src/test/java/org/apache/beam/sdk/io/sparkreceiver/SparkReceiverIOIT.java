@@ -77,8 +77,9 @@ import org.testcontainers.utility.DockerImageName;
 /**
  * IO Integration test for {@link org.apache.beam.sdk.io.sparkreceiver.SparkReceiverIO}.
  *
- * <p>{@see https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests} for
- * more details.
+ * <p>See <a
+ * href="https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests">https://beam.apache.org/documentation/io/testing/#i-o-transform-integration-tests</a>
+ * for more details.
  *
  * <p>NOTE: This test sets retention policy of the messages so that all messages are retained in the
  * topic so that we could read them back after writing.
@@ -318,7 +319,7 @@ public class SparkReceiverIOIT {
       LOG.error("Can not write to rabbit.", e);
       fail();
     }
-    LOG.info(sourceOptions.numRecords + " records were successfully written to RabbitMQ");
+    LOG.info("{} records were successfully written to RabbitMQ", sourceOptions.numRecords);
 
     // Use streaming pipeline to read RabbitMQ records.
     readPipeline.getOptions().as(Options.class).setStreaming(true);

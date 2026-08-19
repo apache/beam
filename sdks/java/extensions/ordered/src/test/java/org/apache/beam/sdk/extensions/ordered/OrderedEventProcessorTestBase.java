@@ -115,7 +115,7 @@ public class OrderedEventProcessorTestBase {
   /**
    * The majority of the tests use this method. Testing is done in the global window.
    *
-   * @throws @UnknownKeyFor @NonNull @Initialized CannotProvideCoderException
+   * @throws CannotProvideCoderException
    */
   protected void doTest(
       Event[] events,

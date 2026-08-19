@@ -75,7 +75,7 @@ class XmlRowAdapter implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof XmlRowAdapter)) {
       return false;
     }
     XmlRowAdapter that = (XmlRowAdapter) o;

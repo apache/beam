@@ -1114,6 +1114,7 @@ public class JdbcIOTest implements Serializable {
   }
 
   @Test
+  @SuppressWarnings("JavaUtilDate")
   public void testGetPreparedStatementSetCallerForLogicalTypes() throws Exception {
     FieldType fixedLengthStringType = LogicalTypes.fixedLengthString(JDBCType.VARCHAR, 4);
     Schema schema =
@@ -1171,7 +1172,7 @@ public class JdbcIOTest implements Serializable {
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     cal.setTimeInMillis(epochMilli);
 
-    verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTime().getTime()), cal);
+    verify(psMocked, times(1)).setTimestamp(3, new Timestamp(cal.getTimeInMillis()), cal);
     verify(psMocked, times(1)).setString(4, row.getString(3));
     verify(psMocked, times(1)).setString(5, row.getString(4));
     verify(psMocked, times(1)).setObject(6, row.getLogicalTypeValue(5, UUID.class));

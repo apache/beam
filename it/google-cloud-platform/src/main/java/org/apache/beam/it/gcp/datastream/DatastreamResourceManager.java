@@ -182,9 +182,10 @@ public final class DatastreamResourceManager implements ResourceManager {
   }
 
   /**
+   * Returns a SourceConfig object which is required to configure a Stream.
+   *
    * @param sourceConnectionProfileId The ID of the connection profile.
    * @param source An object representing the JDBC source.
-   * @return a SourceConfig object which is required to configure a Stream.
    */
   public synchronized SourceConfig buildSourceConfig(
       String sourceConnectionProfileId, JDBCSource source) {
@@ -214,11 +215,12 @@ public final class DatastreamResourceManager implements ResourceManager {
   }
 
   /**
+   * Returns a Datastream GCS destination connection profile.
+   *
    * @param connectionProfileId The ID of the GCS connection profile.
    * @param gcsBucketName The GCS Bucket to connect to.
    * @param gcsRootPath The Path prefix to specific gcs location. Can either be empty or must start
    *     with '/'.
-   * @return A Datastream GCS destination connection profile.
    */
   public synchronized ConnectionProfile createGCSDestinationConnectionProfile(
       String connectionProfileId, String gcsBucketName, String gcsRootPath) {
@@ -266,11 +268,12 @@ public final class DatastreamResourceManager implements ResourceManager {
   }
 
   /**
+   * Returns a DestinationConfig object representing a GCS destination configuration.
+   *
    * @param connectionProfileId The ID of the connection profile.
    * @param path The Path prefix to specific GCS location. Can either be empty or must start with
    *     '/'.
    * @param destinationOutputFormat The format of the files written to GCS.
-   * @return A DestinationConfig object representing a GCS destination configuration.
    */
   public synchronized DestinationConfig buildGCSDestinationConfig(
       String connectionProfileId, String path, DestinationOutputFormat destinationOutputFormat) {
@@ -294,8 +297,9 @@ public final class DatastreamResourceManager implements ResourceManager {
   }
 
   /**
+   * Returns a Datastream BigQuery destination connection profile.
+   *
    * @param connectionProfileId The ID of the connection profile.
-   * @return A Datastream BigQuery destination connection profile.
    */
   public synchronized ConnectionProfile createBQDestinationConnectionProfile(
       String connectionProfileId) {
@@ -334,10 +338,11 @@ public final class DatastreamResourceManager implements ResourceManager {
   }
 
   /**
+   * Returns a DestinationConfig object representing a BigQuery destination configuration.
+   *
    * @param connectionProfileId The ID of the connection profile.
    * @param stalenessLimitSeconds The desired data freshness in seconds.
    * @param datasetId The ID of the BigQuery dataset.
-   * @return A DestinationConfig object representing a BigQuery destination configuration.
    */
   public synchronized DestinationConfig buildBQDestinationConfig(
       String connectionProfileId, long stalenessLimitSeconds, String datasetId) {
@@ -358,10 +363,11 @@ public final class DatastreamResourceManager implements ResourceManager {
   }
 
   /**
+   * Returns a Datastream stream object.
+   *
    * @param streamId The ID of the stream.
    * @param sourceConfig A SourceConfig object representing the source configuration.
    * @param destinationConfig A DestinationConfig object representing the destination configuration.
-   * @return A Datastream stream object.
    */
   public synchronized Stream createStream(
       String streamId, SourceConfig sourceConfig, DestinationConfig destinationConfig) {

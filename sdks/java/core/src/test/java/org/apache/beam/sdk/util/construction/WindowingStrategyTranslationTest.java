@@ -210,7 +210,7 @@ public class WindowingStrategyTranslationTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof CustomWindow)) {
         return false;
       }
       CustomWindow that = (CustomWindow) o;
@@ -315,7 +315,7 @@ public class WindowingStrategyTranslationTest {
 
     @Override
     public boolean equals(@Nullable Object o) {
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof CustomWindowFn)) {
         return false;
       }
 

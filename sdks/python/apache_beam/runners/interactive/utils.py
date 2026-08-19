@@ -25,10 +25,7 @@ import json
 import logging
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Iterator
-from typing import List
-from typing import Tuple
 from typing import Union
 
 import pandas as pd
@@ -66,7 +63,7 @@ def to_element_list(
     include_window_info: bool,
     n: int = None,
     include_time_events: bool = False,
-) -> List[WindowedValue]:
+) -> list[WindowedValue]:
   """Returns an iterator that properly decodes the elements from the reader.
   """
 
@@ -107,7 +104,7 @@ def to_element_list(
 
 
 def elements_to_df(
-    elements: List[WindowedValue],
+    elements: list[WindowedValue],
     include_window_info: bool = False,
     element_type: Any = None) -> 'DataFrame':  # noqa: F821
   """Parses the given elements into a Dataframe.
@@ -313,7 +310,7 @@ def deferred_df_to_pcollection(df):
   return to_pcollection(df, yield_elements='pandas', label=str(df._expr)), proxy
 
 
-def pcoll_by_name() -> Dict[str, beam.PCollection]:
+def pcoll_by_name() -> dict[str, beam.PCollection]:
   """Finds all PCollections by their variable names defined in the notebook."""
   from apache_beam.runners.interactive import interactive_environment as ie
 
@@ -340,7 +337,7 @@ def find_pcoll_name(pcoll: beam.PCollection) -> str:
   return None
 
 
-def cacheables() -> Dict[CacheKey, Cacheable]:
+def cacheables() -> dict[CacheKey, Cacheable]:
   """Finds all Cacheables with their CacheKeys."""
   from apache_beam.runners.interactive import interactive_environment as ie
 
@@ -422,7 +419,7 @@ def unbounded_sources(pipeline):
 
 def create_var_in_main(name: str,
                        value: Any,
-                       watch: bool = True) -> Tuple[str, Any]:
+                       watch: bool = True) -> tuple[str, Any]:
   """Declares a variable in the main module.
 
   Args:

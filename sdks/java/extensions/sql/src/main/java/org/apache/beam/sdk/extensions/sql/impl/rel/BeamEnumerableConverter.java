@@ -203,7 +203,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
           break;
         }
       } catch (IOException e) {
-        LOG.warn(e.toString());
+        LOG.warn("{}", e.toString());
         break;
       }
     }
@@ -407,7 +407,7 @@ public class BeamEnumerableConverter extends ConverterImpl implements Enumerable
     final Counter rows = Metrics.counter(BeamEnumerableConverter.class, "rows");
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
+    public void processElement(@SuppressWarnings("unused") ProcessContext context) {
       rows.inc();
     }
   }

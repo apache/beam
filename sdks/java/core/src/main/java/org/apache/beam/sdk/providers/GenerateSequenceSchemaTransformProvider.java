@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.providers;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
@@ -90,7 +89,7 @@ public class GenerateSequenceSchemaTransformProvider
     @AutoValue
     public abstract static class Rate {
       @SchemaFieldDescription("Number of elements component of the rate.")
-      public abstract Long getElements();
+      public abstract long getElements();
 
       @SchemaFieldDescription("Number of seconds component of the rate.")
       @Nullable
@@ -103,7 +102,7 @@ public class GenerateSequenceSchemaTransformProvider
 
       @AutoValue.Builder
       public abstract static class Builder {
-        public abstract Builder setElements(Long elements);
+        public abstract Builder setElements(long elements);
 
         public abstract Builder setSeconds(Long seconds);
 
@@ -117,7 +116,7 @@ public class GenerateSequenceSchemaTransformProvider
     }
 
     @SchemaFieldDescription("The minimum number to generate (inclusive).")
-    public abstract Long getStart();
+    public abstract long getStart();
 
     @SchemaFieldDescription(
         "The maximum number to generate (exclusive). Will be an unbounded sequence if left unspecified.")
@@ -133,7 +132,7 @@ public class GenerateSequenceSchemaTransformProvider
     @AutoValue.Builder
     public abstract static class Builder {
 
-      public abstract Builder setStart(Long start);
+      public abstract Builder setStart(long start);
 
       public abstract Builder setEnd(Long end);
 
@@ -143,8 +142,7 @@ public class GenerateSequenceSchemaTransformProvider
     }
 
     public void validate() {
-      checkNotNull(this.getStart(), "Must specify a starting point \"start\".");
-      Long start = this.getStart();
+      long start = this.getStart();
       Long end = this.getEnd();
       if (end != null) {
         checkArgument(end == -1 || end >= start, "Invalid range [%s, %s)", start, end);

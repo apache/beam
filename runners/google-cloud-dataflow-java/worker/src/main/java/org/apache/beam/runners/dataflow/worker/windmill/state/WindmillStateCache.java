@@ -32,6 +32,7 @@ import org.apache.beam.runners.dataflow.worker.*;
 import org.apache.beam.runners.dataflow.worker.status.BaseStatusServlet;
 import org.apache.beam.runners.dataflow.worker.status.StatusDataProvider;
 import org.apache.beam.runners.dataflow.worker.streaming.ShardedKey;
+import org.apache.beam.runners.dataflow.worker.util.SimpleByteHistogram;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.InternedByteString;
 import org.apache.beam.sdk.state.State;
 import org.apache.beam.sdk.util.Weighted;
@@ -75,9 +76,18 @@ public class WindmillStateCache implements StatusDataProvider {
   private final ConcurrentMap<WindmillComputationKey, ForKey> keyIndex;
   private final long workerCacheBytes; // Copy workerCacheMb and convert to bytes.
   private final boolean supportMapViaMultimap;
+  private final long defaultMaxCachedEntryBytes;
+  private final boolean enableHistogram;
+  private volatile long maxCachedEntryBytesOverride = -1L;
 
-  WindmillStateCache(long sizeMb, boolean supportMapViaMultimap) {
+  WindmillStateCache(
+      long sizeMb,
+      boolean supportMapViaMultimap,
+      long maxCachedEntryBytes,
+      boolean enableHistogram) {
     this.workerCacheBytes = sizeMb * MEGABYTES;
+    this.defaultMaxCachedEntryBytes = maxCachedEntryBytes;
+    this.enableHistogram = enableHistogram;
     int stateCacheConcurrencyLevel =
         Math.max(STATE_CACHE_CONCURRENCY_LEVEL, Runtime.getRuntime().availableProcessors());
     this.stateCache =
@@ -99,11 +109,27 @@ public class WindmillStateCache implements StatusDataProvider {
 
     Builder setSupportMapViaMultimap(boolean supportMapViaMultimap);
 
+    Builder setMaxCachedEntryBytes(long maxCachedEntryBytes);
+
+    Builder setEnableHistogram(boolean enableHistogram);
+
     WindmillStateCache build();
   }
 
   public static Builder builder() {
-    return new AutoBuilder_WindmillStateCache_Builder().setSupportMapViaMultimap(false);
+    return new AutoBuilder_WindmillStateCache_Builder()
+        .setSupportMapViaMultimap(false)
+        .setMaxCachedEntryBytes(Long.MAX_VALUE)
+        .setEnableHistogram(true);
+  }
+
+  public void setMaxCachedEntryBytesOverride(long limit) {
+    this.maxCachedEntryBytesOverride = limit;
+  }
+
+  private long getMaxCachedEntryBytesLimit() {
+    long override = maxCachedEntryBytesOverride;
+    return override >= 0 ? override : defaultMaxCachedEntryBytes;
   }
 
   private EntryStats calculateEntryStats() {
@@ -111,10 +137,20 @@ public class WindmillStateCache implements StatusDataProvider {
     BiConsumer<StateId, StateCacheEntry> consumer =
         (stateId, stateCacheEntry) -> {
           stats.entries++;
-          stats.idWeight += stateId.getWeight();
-          stats.entryWeight += stateCacheEntry.getWeight();
+          long idWeight = stateId.getWeight();
+          stats.idWeight += idWeight;
+          long entryWeight = stateCacheEntry.getWeight();
+          stats.entryWeight += entryWeight;
           stats.entryValues += stateCacheEntry.values.size();
           stats.maxEntryValues = Math.max(stats.maxEntryValues, stateCacheEntry.values.size());
+          if (enableHistogram) {
+            stats.addKeyWeight(idWeight);
+            stats.addEntryWeight(entryWeight);
+            stateCacheEntry.values.forEach(
+                (encodedAddress, weightedValue) -> {
+                  stats.addValueWeight(weightedValue.weight);
+                });
+          }
         };
     stateCache.asMap().forEach(consumer);
     return stats;
@@ -142,23 +178,44 @@ public class WindmillStateCache implements StatusDataProvider {
   @Override
   public void appendSummaryHtml(PrintWriter response) {
     response.println("Cache Stats: <br><table>");
-    response.println(
-        "<tr><th>Hit Ratio</th><th>Evictions</th><th>Entries</th>"
-            + "<th>Entry Values</th><th>Max Entry Values</th>"
-            + "<th>Id Weight</th><th>Entry Weight</th><th>Max Weight</th><th>Keys</th>"
-            + "</tr><tr>");
     CacheStats cacheStats = stateCache.stats();
     EntryStats entryStats = calculateEntryStats();
-    response.println("<td>" + cacheStats.hitRate() + "</td>");
-    response.println("<td>" + cacheStats.evictionCount() + "</td>");
-    response.println("<td>" + entryStats.entries + "(" + stateCache.size() + " inc. weak) </td>");
-    response.println("<td>" + entryStats.entryValues + "</td>");
-    response.println("<td>" + entryStats.maxEntryValues + "</td>");
-    response.println("<td>" + entryStats.idWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + entryStats.entryWeight / MEGABYTES + "MB</td>");
-    response.println("<td>" + getMaxWeight() / MEGABYTES + "MB</td>");
-    response.println("<td>" + keyIndex.size() + "</td>");
-    response.println("</tr></table><br>");
+
+    response.println("<tr><th>Hit Ratio</th><td>" + cacheStats.hitRate() + "</td></tr>");
+    response.println("<tr><th>Evictions</th><td>" + cacheStats.evictionCount() + "</td></tr>");
+    response.println(
+        "<tr><th>Entries</th><td>"
+            + entryStats.entries
+            + " ("
+            + stateCache.size()
+            + " inc. weak)</td></tr>");
+    response.println("<tr><th>Entry Values</th><td>" + entryStats.entryValues + "</td></tr>");
+    response.println(
+        "<tr><th>Max Entry Values</th><td>" + entryStats.maxEntryValues + "</td></tr>");
+    response.println(
+        "<tr><th>Id Weight</th><td>" + entryStats.idWeight / MEGABYTES + "MB</td></tr>");
+    response.println(
+        "<tr><th>Entry Weight</th><td>" + entryStats.entryWeight / MEGABYTES + "MB</td></tr>");
+    response.println("<tr><th>Max Weight</th><td>" + getMaxWeight() / MEGABYTES + "MB</td></tr>");
+    response.println("<tr><th>Keys</th><td>" + keyIndex.size() + "</td></tr>");
+    response.println(
+        "<tr><th>Entry Size Limit</th><td>" + getMaxCachedEntryBytesLimit() + " bytes</td></tr>");
+    if (enableHistogram) {
+      response.println(
+          "<tr><th>Entry Weight Dist</th><td>"
+              + entryStats.entryWeightHistogram.format()
+              + "</td></tr>");
+      response.println(
+          "<tr><th>Value Weight Dist</th><td>"
+              + entryStats.valueWeightHistogram.format()
+              + "</td></tr>");
+      response.println(
+          "<tr><th>Key Weight Dist</th><td>"
+              + entryStats.keyWeightHistogram.format()
+              + "</td></tr>");
+    }
+
+    response.println("</table><br>");
   }
 
   public BaseStatusServlet statusServlet() {
@@ -180,6 +237,21 @@ public class WindmillStateCache implements StatusDataProvider {
     long entryWeight;
     long entryValues;
     long maxEntryValues;
+    SimpleByteHistogram entryWeightHistogram = new SimpleByteHistogram();
+    SimpleByteHistogram valueWeightHistogram = new SimpleByteHistogram();
+    SimpleByteHistogram keyWeightHistogram = new SimpleByteHistogram();
+
+    void addEntryWeight(long weight) {
+      entryWeightHistogram.add(weight);
+    }
+
+    void addValueWeight(long weight) {
+      valueWeightHistogram.add(weight);
+    }
+
+    void addKeyWeight(long weight) {
+      keyWeightHistogram.add(weight);
+    }
   }
 
   /**
@@ -413,7 +485,15 @@ public class WindmillStateCache implements StatusDataProvider {
     }
 
     public void persist() {
-      localCache.forEach(stateCache::put);
+      long limit = WindmillStateCache.this.getMaxCachedEntryBytesLimit();
+      localCache.forEach(
+          (id, entry) -> {
+            if (entry.getWeight() <= limit) {
+              stateCache.put(id, entry);
+            } else {
+              stateCache.invalidate(id);
+            }
+          });
     }
   }
 }

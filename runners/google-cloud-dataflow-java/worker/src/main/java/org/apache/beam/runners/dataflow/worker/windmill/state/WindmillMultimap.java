@@ -548,7 +548,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
       keyStateMap
           .entrySet()
           .removeIf(
-              (entry -> {
+              entry -> {
                 Object structuralKey = entry.getKey();
                 KeyState keyState = entry.getValue();
                 if (complete && keyState.existence == KeyExistence.KNOWN_EXIST) {
@@ -574,7 +574,7 @@ public class WindmillMultimap<K, V> extends SimpleWindmillState implements Multi
                 return (keyState.existence == KeyExistence.KNOWN_NONEXISTENT
                         && !keyState.removedLocally)
                     || keyState.existence == KeyExistence.UNKNOWN_EXISTENCE;
-              }));
+              });
       return cachedEntries;
     }
 

@@ -206,6 +206,7 @@ final class GrpcGetWorkStream
         assembledWorkItem.computationMetadata().drainMode(),
         assembledWorkItem.workItem(),
         assembledWorkItem.bufferedSize(),
+        assembledWorkItem.appliedFinalizeIds(),
         assembledWorkItem.latencyAttributions());
 
     // Record the fact that there are now fewer outstanding messages and bytes on the stream.

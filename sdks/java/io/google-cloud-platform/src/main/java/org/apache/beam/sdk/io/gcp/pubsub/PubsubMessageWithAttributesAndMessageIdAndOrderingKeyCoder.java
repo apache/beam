@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.protobuf.Timestamp;
 import java.io.IOException;
 import java.io.InputStream;
@@ -30,6 +32,7 @@ import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.extensions.protobuf.ProtoCoder;
 import org.apache.beam.sdk.values.TypeDescriptor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A coder for PubsubMessage including all fields of a PubSub message from server.
@@ -37,22 +40,20 @@ import org.apache.beam.sdk.values.TypeDescriptor;
  * <p>Maintainers should prefer {@link PubsubMessageSchemaCoder} over this coder when adding
  * features to {@link PubsubIO}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder
     extends CustomCoder<PubsubMessage> {
   // A message's payload cannot be null
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
   // A message's attributes can be null.
-  private static final Coder<Map<String, String>> ATTRIBUTES_CODER =
+  private static final Coder<@Nullable Map<String, String>> ATTRIBUTES_CODER =
       NullableCoder.of(MapCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()));
   // A message's messageId cannot be null
   private static final Coder<String> MESSAGE_ID_CODER = StringUtf8Coder.of();
   // A message's publish time, populated by server
   private static final Coder<Timestamp> PUBLISH_TIME_CODER = ProtoCoder.of(Timestamp.class);
   // A message's ordering key can be null
-  private static final Coder<String> ORDERING_KEY_CODER = NullableCoder.of(StringUtf8Coder.of());
+  private static final Coder<@Nullable String> ORDERING_KEY_CODER =
+      NullableCoder.of(StringUtf8Coder.of());
 
   public static Coder<PubsubMessage> of(TypeDescriptor<PubsubMessage> ignored) {
     return of();
@@ -66,7 +67,9 @@ public class PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder
   public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
     PAYLOAD_CODER.encode(value.getPayload(), outStream);
     ATTRIBUTES_CODER.encode(value.getAttributeMap(), outStream);
-    MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
+    MESSAGE_ID_CODER.encode(
+        checkArgumentNotNull(value.getMessageId(), "Cannot encode PubsubMessage without messageId"),
+        outStream);
     // TODO(discuss what to do with publish_time field)
     PUBLISH_TIME_CODER.encode(Timestamp.getDefaultInstance(), outStream);
     ORDERING_KEY_CODER.encode(value.getOrderingKey(), outStream);
@@ -75,10 +78,10 @@ public class PubsubMessageWithAttributesAndMessageIdAndOrderingKeyCoder
   @Override
   public PubsubMessage decode(InputStream inStream) throws IOException {
     byte[] payload = PAYLOAD_CODER.decode(inStream);
-    Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
+    @Nullable Map<String, String> attributes = ATTRIBUTES_CODER.decode(inStream);
     String messageId = MESSAGE_ID_CODER.decode(inStream);
     PUBLISH_TIME_CODER.decode(inStream);
-    String orderingKey = ORDERING_KEY_CODER.decode(inStream);
+    @Nullable String orderingKey = ORDERING_KEY_CODER.decode(inStream);
     return new PubsubMessage(payload, attributes, messageId, orderingKey);
   }
 }

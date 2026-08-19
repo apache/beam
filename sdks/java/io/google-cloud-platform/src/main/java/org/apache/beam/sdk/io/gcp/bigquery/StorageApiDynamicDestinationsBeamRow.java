@@ -22,7 +22,9 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -59,7 +61,11 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new BeamRowConverter();
   }
 
@@ -80,6 +86,9 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     }
 
     @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
+
+    @Override
     public TableSchema getTableSchema() {
       return tableSchema;
     }
@@ -92,7 +101,10 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     @Override
     @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       String changeType = null;
       String changeSequenceNum = null;
       Descriptor descriptorToUse = descriptor;

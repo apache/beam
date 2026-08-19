@@ -64,7 +64,7 @@ public class CallingSubProcessUtils {
 
   public static synchronized void initSemaphore(Integer permits, String binaryName) {
     if (!semaphores.containsKey(binaryName)) {
-      LOG.info(String.format(String.format("Initialized Semaphore for binary %s ", binaryName)));
+      LOG.info("Initialized Semaphore for binary {} ", binaryName);
       semaphores.put(binaryName, new Semaphore(permits));
     }
   }

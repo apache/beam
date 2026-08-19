@@ -30,7 +30,7 @@ public abstract class MongoDBDocumentsCheck extends ConditionCheck {
 
   abstract String collectionName();
 
-  abstract Integer minDocuments();
+  abstract int minDocuments();
 
   abstract @Nullable Integer maxDocuments();
 
@@ -88,7 +88,7 @@ public abstract class MongoDBDocumentsCheck extends ConditionCheck {
 
     public abstract Builder setCollectionName(String collectionName);
 
-    public abstract Builder setMinDocuments(Integer minDocuments);
+    public abstract Builder setMinDocuments(int minDocuments);
 
     public abstract Builder setMaxDocuments(Integer maxDocuments);
 

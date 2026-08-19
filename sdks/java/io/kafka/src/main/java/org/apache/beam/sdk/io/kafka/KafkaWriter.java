@@ -185,7 +185,7 @@ class KafkaWriter<K, V> extends DoFn<ProducerRecord<K, V>, Void> {
     sendException = null;
     numSendFailures = 0;
 
-    LOG.warn(msg);
+    LOG.warn("{}", msg);
     throw new IOException(msg, e);
   }
 

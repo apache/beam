@@ -19,8 +19,8 @@ package org.apache.beam.it.gcp.bigquery.conditions;
 
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.TableId;
+import org.apache.beam.it.common.bigquery.BigQueryResourceManager;
 import org.apache.beam.it.conditions.ConditionCheck;
-import org.apache.beam.it.gcp.bigquery.BigQueryResourceManager;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** ConditionCheck to validate if BigQuery has received a certain number of rows. */
@@ -31,7 +31,7 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
 
   abstract TableId tableId();
 
-  abstract Integer minRows();
+  abstract int minRows();
 
   abstract @Nullable Integer maxRows();
 
@@ -87,7 +87,7 @@ public abstract class BigQueryRowsCheck extends ConditionCheck {
 
     public abstract Builder setTableId(TableId tableId);
 
-    public abstract Builder setMinRows(Integer minRows);
+    public abstract Builder setMinRows(int minRows);
 
     public abstract Builder setMaxRows(Integer maxRows);
 

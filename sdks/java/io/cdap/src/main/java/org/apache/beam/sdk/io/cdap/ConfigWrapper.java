@@ -29,7 +29,7 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Class for building {@link PluginConfig} object of the specific class {@param <T>}. */
+/** Class for building {@link PluginConfig} object of the specific class {@code <T>}. */
 public class ConfigWrapper<T extends PluginConfig> {
 
   private static final Logger LOG = LoggerFactory.getLogger(ConfigWrapper.class);

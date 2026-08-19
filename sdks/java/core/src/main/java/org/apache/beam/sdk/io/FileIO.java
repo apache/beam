@@ -475,7 +475,7 @@ public class FileIO {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof ReadableFile)) {
         return false;
       }
       ReadableFile that = (ReadableFile) o;

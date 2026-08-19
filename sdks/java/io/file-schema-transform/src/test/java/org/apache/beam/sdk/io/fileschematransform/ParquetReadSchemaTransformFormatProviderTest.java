@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.fileschematransform;
 
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ALL_PRIMITIVE_DATA_TYPES_SCHEMA;
+import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
 import static org.apache.beam.sdk.io.fileschematransform.FileReadSchemaTransformProvider.FILEPATTERN_ROW_FIELD_NAME;
 import static org.apache.beam.sdk.io.fileschematransform.FileWriteSchemaTransformFormatProviderTestData.DATA;
 import static org.apache.beam.sdk.transforms.Contextful.fn;
@@ -217,5 +218,15 @@ public class ParquetReadSchemaTransformFormatProviderTest
     // Check output matches with expected rows
     PAssert.that(output.get(FileReadSchemaTransformProvider.OUTPUT_TAG)).containsInAnyOrder(rows);
     readPipeline.run();
+  }
+
+  // TODO(AVRO-4110): remove this override when Beam upgraded Avro past 1.12.0
+  @Override
+  public void testArrayPrimitiveDataTypes() {
+    Schema schema = ARRAY_PRIMITIVE_DATA_TYPES_SCHEMA;
+    List<Row> rows = DATA.arrayPrimitiveDataTypesRowsAvro1120;
+    String filePath = getFilePath();
+
+    runWriteAndReadTest(schema, rows, filePath, null);
   }
 }

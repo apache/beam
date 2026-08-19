@@ -27,7 +27,7 @@ import com.google.api.services.bigquery.model.TableSchema;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -41,8 +41,10 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
+import org.apache.beam.it.common.bigquery.BigQueryResourceManager;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
+import org.apache.beam.it.common.dataflow.IOStressTestBase;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
-import org.apache.beam.it.gcp.IOStressTestBase;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.gcp.bigquery.AvroWriteRequest;
@@ -112,7 +114,7 @@ public final class BigQueryIOST extends IOStressTestBase {
     tableName =
         "io-bq-source-table-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
     tableQualifier = String.format("%s:%s.%s", project, resourceManager.getDatasetId(), tableName);

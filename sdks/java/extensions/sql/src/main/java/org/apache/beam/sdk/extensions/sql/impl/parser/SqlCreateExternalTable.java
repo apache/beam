@@ -189,7 +189,7 @@ public class SqlCreateExternalTable extends SqlCreate implements BeamSqlParser.E
     writer.identifier(column.getName(), false);
     writer.identifier(CalciteUtils.toSqlTypeName(column.getType()).name(), false);
 
-    if (column.getType().getNullable() != null && !column.getType().getNullable()) {
+    if (!column.getType().getNullable()) {
       writer.keyword("NOT NULL");
     }
 

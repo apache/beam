@@ -240,7 +240,7 @@ public class ProjectionProducerVisitorTest {
 
   private static class NoOpDoFn<T> extends DoFn<T, Row> {
     @ProcessElement
-    public void processElement(ProcessContext c) {}
+    public void processElement(@SuppressWarnings("unused") ProcessContext c) {}
   }
 
   private static class MultipleOutputSourceWithPushdown extends PTransform<PBegin, PCollectionTuple>

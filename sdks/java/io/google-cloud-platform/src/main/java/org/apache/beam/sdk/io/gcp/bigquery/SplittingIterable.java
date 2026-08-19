@@ -17,16 +17,20 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.bigquery.UpgradeTableSchema.isPayloadSchemaOutOfDate;
+
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.bigquery.storage.v1.ProtoRows;
 import com.google.protobuf.ByteString;
+import com.google.protobuf.Descriptors;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
+import org.apache.beam.sdk.util.ThrowingSupplier;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -47,6 +51,8 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
     abstract List<Instant> getTimestamps();
 
     abstract List<@Nullable TableRow> getFailsafeTableRows();
+
+    abstract boolean getSchemaMismatchSeen();
   }
 
   interface ConcatFields {
@@ -60,6 +66,8 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
   private final ConcatFields concatProtoAndTableRow;
   private final Function<ByteString, TableRow> protoToTableRow;
   private final BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer;
+  private final ThrowingSupplier<byte[]> getCurrentTableSchemaHash;
+  private final ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor;
   private final boolean autoUpdateSchema;
   private final Instant elementsTimestamp;
 
@@ -69,6 +77,8 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
       ConcatFields concatProtoAndTableRow,
       Function<ByteString, TableRow> protoToTableRow,
       BiConsumer<TimestampedValue<TableRow>, String> failedRowsConsumer,
+      ThrowingSupplier<byte[]> getCurrentTableSchemaHash,
+      ThrowingSupplier<Descriptors.Descriptor> getCurrentTableSchemaDescriptor,
       boolean autoUpdateSchema,
       Instant elementsTimestamp) {
     this.underlying = underlying;
@@ -76,6 +86,8 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
     this.concatProtoAndTableRow = concatProtoAndTableRow;
     this.protoToTableRow = protoToTableRow;
     this.failedRowsConsumer = failedRowsConsumer;
+    this.getCurrentTableSchemaHash = getCurrentTableSchemaHash;
+    this.getCurrentTableSchemaDescriptor = getCurrentTableSchemaDescriptor;
     this.autoUpdateSchema = autoUpdateSchema;
     this.elementsTimestamp = elementsTimestamp;
   }
@@ -101,24 +113,31 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
         List<@Nullable TableRow> failsafeRows = Lists.newArrayList();
         ProtoRows.Builder inserts = ProtoRows.newBuilder();
         long bytesSize = 0;
-        while (underlyingIterator.hasNext()) {
-          // Make sure that we don't exceed the split-size length over multiple elements. A single
-          // element can exceed
-          // the split threshold, but in that case it should be the only element returned.
-          if ((bytesSize + underlyingIterator.peek().getPayload().length > splitSize)
-              && inserts.getSerializedRowsCount() > 0) {
-            break;
-          }
-          StorageApiWritePayload payload = underlyingIterator.next();
-          ByteString byteString = ByteString.copyFrom(payload.getPayload());
-          @Nullable TableRow failsafeTableRow = null;
-          try {
-            failsafeTableRow = payload.getFailsafeTableRow();
-          } catch (IOException e) {
-            // Do nothing, table row will be generated later from row bytes
-          }
-          if (autoUpdateSchema) {
+
+        boolean schemaMismatchSeen = false;
+        try {
+          while (underlyingIterator.hasNext()) {
+            // Make sure that we don't exceed the split-size length over multiple elements. A single
+            // element can exceed
+            // the split threshold, but in that case it should be the only element returned.
+            if ((bytesSize + underlyingIterator.peek().getPayload().length > splitSize)
+                && inserts.getSerializedRowsCount() > 0) {
+              break;
+            }
+            StorageApiWritePayload payload = underlyingIterator.next();
+            schemaMismatchSeen =
+                schemaMismatchSeen
+                    || isPayloadSchemaOutOfDate(
+                        payload, getCurrentTableSchemaHash, getCurrentTableSchemaDescriptor);
+
+            ByteString byteString = ByteString.copyFrom(payload.getPayload());
+            @Nullable TableRow failsafeTableRow = null;
             try {
+              failsafeTableRow = payload.getFailsafeTableRow();
+            } catch (IOException e) {
+              // Do nothing, table row will be generated later from row bytes
+            }
+            if (autoUpdateSchema) {
               @Nullable TableRow unknownFields = payload.getUnknownFields();
               if (unknownFields != null && !unknownFields.isEmpty()) {
                 // Protocol buffer serialization format supports concatenation. We serialize any new
@@ -150,20 +169,21 @@ class SplittingIterable implements Iterable<SplittingIterable.Value> {
                   continue;
                 }
               }
-            } catch (Exception e) {
-              throw new RuntimeException(e);
             }
+            inserts.addSerializedRows(byteString);
+            Instant timestamp = payload.getTimestamp();
+            if (timestamp == null) {
+              timestamp = elementsTimestamp;
+            }
+            timestamps.add(timestamp);
+            failsafeRows.add(failsafeTableRow);
+            bytesSize += byteString.size();
           }
-          inserts.addSerializedRows(byteString);
-          Instant timestamp = payload.getTimestamp();
-          if (timestamp == null) {
-            timestamp = elementsTimestamp;
-          }
-          timestamps.add(timestamp);
-          failsafeRows.add(failsafeTableRow);
-          bytesSize += byteString.size();
+        } catch (Exception e) {
+          throw new RuntimeException(e);
         }
-        return new AutoValue_SplittingIterable_Value(inserts.build(), timestamps, failsafeRows);
+        return new AutoValue_SplittingIterable_Value(
+            inserts.build(), timestamps, failsafeRows, schemaMismatchSeen);
       }
     };
   }

@@ -204,7 +204,7 @@ public class SchemaCoder<T> extends CustomCoder<T> {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof SchemaCoder)) {
       return false;
     }
     SchemaCoder<?> that = (SchemaCoder<?>) o;

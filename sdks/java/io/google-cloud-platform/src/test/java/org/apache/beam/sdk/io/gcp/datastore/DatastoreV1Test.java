@@ -1327,6 +1327,7 @@ public class DatastoreV1Test {
   }
 
   /** Builds a response of the given timestamp. */
+  @SuppressWarnings("JavaUtilDate")
   private static RunQueryResponse makeLatestTimestampResponse(long timestamp) {
     RunQueryResponse.Builder timestampResponse = RunQueryResponse.newBuilder();
     Entity.Builder entity = Entity.newBuilder();

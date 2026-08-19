@@ -201,7 +201,7 @@ public abstract class BeamKafkaTable extends SchemaBaseBeamTable {
             BeamTableStatistics.createUnboundedTableStatistics(
                 this.computeRate(numberOfRecordsForRate));
       } catch (Exception e) {
-        LOG.warn("Could not get the row count for the topics " + getTopics(), e);
+        LOG.warn("Could not get the row count for the topics {}", getTopics(), e);
         rowCountStatistics = BeamTableStatistics.UNBOUNDED_UNKNOWN;
       }
     }

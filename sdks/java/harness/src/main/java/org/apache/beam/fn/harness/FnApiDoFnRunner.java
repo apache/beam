@@ -108,6 +108,7 @@ import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
@@ -624,15 +625,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private void processElementForParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
+    causedByDrain = currentElement.causedByDrain();
     try {
       doFnInvoker.invokeProcessElement(processContext);
     } finally {
       currentElement = null;
+      causedByDrain = null;
     }
   }
 
   private void processElementForWindowObservingParDo(WindowedValue<InputT> elem) {
     currentElement = elem;
+    causedByDrain = currentElement.causedByDrain();
     try {
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) elem.getWindows().iterator();
@@ -643,12 +647,14 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     } finally {
       currentElement = null;
       currentWindow = null;
+      causedByDrain = null;
     }
   }
 
   private void processElementForWindowObservingSizedElementAndRestriction(
       WindowedValue<KV<KV<InputT, KV<RestrictionT, WatermarkEstimatorStateT>>, Double>> elem) {
     currentElement = elem.withValue(elem.getValue().getKey().getKey());
+    causedByDrain = elem.causedByDrain();
     windowCurrentIndex = -1;
     windowStopIndex = currentElement.getWindows().size();
     currentWindows = ImmutableList.copyOf(currentElement.getWindows());
@@ -660,6 +666,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           windowCurrentIndex = -1;
           windowStopIndex = 0;
           currentElement = null;
+          causedByDrain = null;
           currentWindows = null;
           currentRestriction = null;
           currentWatermarkEstimatorState = null;
@@ -1202,7 +1209,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     checkNotNull(timerBundleTracker);
     try {
       currentKey = timer.getUserKey();
-      causedByDrain = timer.causedByDrain();
+      causedByDrain = Preconditions.checkNotNull(timer.causedByDrain());
+
       // add drain
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
@@ -1286,6 +1294,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     try {
       currentKey = timer.getUserKey();
       currentTimer = timer;
+      causedByDrain = timer.causedByDrain();
       Iterator<BoundedWindow> windowIterator =
           (Iterator<BoundedWindow>) timer.getWindows().iterator();
       while (windowIterator.hasNext()) {
@@ -1296,6 +1305,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentKey = null;
       currentTimer = null;
       currentWindow = null;
+      causedByDrain = null;
     }
   }
 
@@ -1321,6 +1331,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
     try {
       consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
     }
@@ -1725,6 +1737,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputBuilder<OutputT> builder(OutputT value) {
       return WindowedValues.<OutputT>builder()
           .setValue(value)
+          .setTimestamp(currentElement.getTimestamp())
+          .setPaneInfo(currentElement.getPaneInfo())
+          .setWindows(currentElement.getWindows())
+          .setRecordOffset(currentElement.getRecordOffset())
+          .setRecordId(currentElement.getRecordId())
+          .setCausedByDrain(currentElement.causedByDrain())
+          .setValueKind(currentElement.getValueKind())
           .setReceiver(windowedValue -> outputTo(mainOutputConsumer, windowedValue));
     }
 
@@ -1786,6 +1805,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputTo(mainOutputConsumer, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+    }
+
+    @Override
     public <T> void outputWindowedValue(
         TupleTag<T> tag,
         T output,
@@ -1799,7 +1828,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       if (consumer == null) {
         throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
       }
-      outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      outputTo(
+          consumer,
+          WindowedValues.of(
+              output,
+              timestamp,
+              windows,
+              paneInfo,
+              null,
+              null,
+              CausedByDrain.NORMAL,
+              null,
+              ValueKind.INSERT));
     }
 
     @Override
@@ -1852,11 +1892,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           currentElement.getTimestamp(),
           currentElement.getTimestamp(),
           currentElement.getPaneInfo());
-    }
-
-    @Override
-    public CausedByDrain causedByDrain() {
-      return currentElement.causedByDrain();
     }
   }
 
@@ -1941,7 +1976,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+      outputTo(mainOutputConsumer, windowedValue);
+    }
+
+    @Override
+    public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+      outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+    }
+
+    @Override
     public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
       return currentElement.causedByDrain();
     }
   }
@@ -2040,6 +2090,22 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public @Nullable String currentRecordId(DoFn<InputT, OutputT> doFn) {
+      return currentRecordId();
+    }
+
+    @Override
+    public @Nullable Long currentRecordOffset(DoFn<InputT, OutputT> doFn) {
+      return currentRecordOffset();
+    }
+
+    @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access fire timestamp outside of @OnTimer method.");
+    }
+
+    @Override
     public String timerId(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access timerId as parameter outside of @OnTimer method.");
@@ -2076,10 +2142,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedRow ->
                             ProcessBundleContextBase.this.outputWindowedValue(
-                                fromRowFunction.apply(windowedRow.getValue()),
-                                windowedRow.getTimestamp(),
-                                windowedRow.getWindows(),
-                                windowedRow.getPaneInfo()));
+                                windowedRow.withValue(
+                                    fromRowFunction.apply(windowedRow.getValue()))));
               }
             };
 
@@ -2087,9 +2151,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2113,12 +2176,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .withValue(value)
                     .setReceiver(
                         windowedValue ->
-                            ProcessBundleContextBase.this.outputWindowedValue(
-                                tag,
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                            ProcessBundleContextBase.this.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -2130,9 +2188,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2140,7 +2197,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2153,10 +2211,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         windowedRow ->
                             ProcessBundleContextBase.this.outputWindowedValue(
                                 tag,
-                                fromRowFunction.apply(windowedRow.getValue()),
-                                windowedRow.getTimestamp(),
-                                windowedRow.getWindows(),
-                                windowedRow.getPaneInfo()));
+                                windowedRow.withValue(
+                                    fromRowFunction.apply(windowedRow.getValue()))));
               }
             };
           }
@@ -2192,6 +2248,13 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public DoFn<InputT, OutputT>.OnTimerContext onTimerContext(DoFn<InputT, OutputT> doFn) {
       throw new UnsupportedOperationException(
           "Cannot access OnTimerContext outside of @OnTimer methods.");
+    }
+
+    @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      throw new UnsupportedOperationException(
+          "Cannot access OnWindowExpirationContext outside of @OnWindowExpiration methods.");
     }
 
     @Override
@@ -2243,6 +2306,26 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public WatermarkEstimator<?> watermarkEstimator() {
       return currentWatermarkEstimator;
     }
+
+    @Override
+    public CausedByDrain causedByDrain() {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind() {
+      return currentElement.getValueKind();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentElement.causedByDrain();
+    }
+
+    @Override
+    public ValueKind valueKind(DoFn<InputT, OutputT> doFn) {
+      return currentElement.getValueKind();
+    }
   }
 
   /**
@@ -2287,13 +2370,18 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return stateAccessor.get(view, currentWindow);
+      }
+
+      @Override
       public OutputBuilder<OutputT> builder(OutputT value) {
         return WindowedValues.<OutputT>builder()
             .setValue(value)
             .setWindow(currentWindow)
             .setTimestamp(currentTimer.getHoldTimestamp())
             .setPaneInfo(currentTimer.getPaneInfo())
-            .setCausedByDrain(causedByDrain)
+            .setCausedByDrain(currentTimer.causedByDrain())
             .setReceiver(
                 windowedValue -> {
                   checkOnWindowExpirationTimestamp(windowedValue.getTimestamp());
@@ -2314,7 +2402,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 output,
                 currentTimer.getHoldTimestamp(),
                 currentWindow,
-                currentTimer.getPaneInfo()));
+                currentTimer.getPaneInfo(),
+                null,
+                null,
+                currentTimer.causedByDrain(),
+                null,
+                currentElement.getValueKind()));
       }
 
       @Override
@@ -2341,6 +2434,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
         outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      }
+
+      @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outputTo(mainOutputConsumer, windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
       }
 
       @SuppressWarnings(
@@ -2374,8 +2477,19 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         new OnWindowExpirationContext.Context();
 
     @Override
+    public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
+        DoFn<InputT, OutputT> doFn) {
+      return context;
+    }
+
+    @Override
     public BoundedWindow window() {
       return currentWindow;
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.causedByDrain();
     }
 
     @Override
@@ -2391,6 +2505,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public K key() {
       return (K) currentTimer.getUserKey();
+    }
+
+    @Override
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view = sideInputMapping.get(tagId);
+      if (view == null) {
+        throw new IllegalArgumentException("Unknown side input: " + tagId);
+      }
+      return stateAccessor.get(view, currentWindow);
     }
 
     @Override
@@ -2415,10 +2538,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
 
@@ -2426,9 +2547,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2450,14 +2570,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setCausedByDrain(causedByDrain)
-                    .setReceiver(
-                        windowedValue ->
-                            context.outputWindowedValue(
-                                tag,
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                    .setReceiver(windowedValue -> context.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -2466,9 +2579,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2476,7 +2588,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2492,10 +2605,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                         windowedValue ->
                             context.outputWindowedValue(
                                 tag,
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
           }
@@ -2563,6 +2674,11 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       @Override
       public BoundedWindow window() {
         return currentWindow;
+      }
+
+      @Override
+      public <T> T sideInput(PCollectionView<T> view) {
+        return stateAccessor.get(view, currentWindow);
       }
 
       @Override
@@ -2635,6 +2751,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
 
       @Override
+      public void outputWindowedValue(WindowedValue<OutputT> windowedValue) {
+        outputTo(mainOutputConsumer, windowedValue);
+      }
+
+      @Override
+      public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
+        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+      }
+
+      @Override
       public <T> void outputWindowedValue(
           TupleTag<T> tag,
           T output,
@@ -2702,6 +2828,20 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     }
 
     @Override
+    public Instant fireTimestamp(DoFn<InputT, OutputT> doFn) {
+      return currentTimer.getFireTimestamp();
+    }
+
+    @Override
+    public @Nullable Object sideInput(String tagId) {
+      PCollectionView<?> view = sideInputMapping.get(tagId);
+      if (view == null) {
+        throw new IllegalArgumentException("Unknown side input: " + tagId);
+      }
+      return stateAccessor.get(view, currentWindow);
+    }
+
+    @Override
     public K key() {
       return (K) currentTimer.getUserKey();
     }
@@ -2725,10 +2865,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
 
@@ -2736,9 +2874,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     public OutputReceiver<Row> outputRowReceiver(DoFn<InputT, OutputT> doFn) {
       checkState(
           mainOutputSchemaCoder != null,
-          "Output with tag "
-              + mainOutputTag
-              + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          mainOutputTag);
       return mainRowOutputReceiver;
     }
 
@@ -2759,15 +2896,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
-                    .setCausedByDrain(causedByDrain)
+                    .setCausedByDrain(currentTimer.causedByDrain())
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setReceiver(
-                        windowedValue ->
-                            context.outputWindowedValue(
-                                windowedValue.getValue(),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                    .setReceiver(windowedValue -> context.outputWindowedValue(windowedValue));
               }
             };
           }
@@ -2776,9 +2907,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             if (tag == null || mainOutputTag.equals(tag)) {
               checkState(
                   mainOutputSchemaCoder != null,
-                  "Output with tag "
-                      + mainOutputTag
-                      + " must have a schema in order to call getRowReceiver");
+                  "Output with tag %s must have a schema in order to call getRowReceiver",
+                  mainOutputTag);
               return mainRowOutputReceiver;
             }
 
@@ -2786,7 +2916,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
             checkState(outputCoder != null, "No output tag for %s", tag);
             checkState(
                 outputCoder instanceof SchemaCoder,
-                "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+                "Output with tag %s must have a schema in order to call getRowReceiver",
+                tag);
             return new OutputReceiver<Row>() {
               private SerializableFunction<Row, T> fromRowFunction =
                   ((SchemaCoder) outputCoder).getFromRowFunction();
@@ -2798,14 +2929,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setCausedByDrain(causedByDrain)
+                    .setCausedByDrain(currentTimer.causedByDrain())
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
-                                fromRowFunction.apply(windowedValue.getValue()),
-                                windowedValue.getTimestamp(),
-                                windowedValue.getWindows(),
-                                windowedValue.getPaneInfo()));
+                                windowedValue.withValue(
+                                    fromRowFunction.apply(windowedValue.getValue()))));
               }
             };
           }

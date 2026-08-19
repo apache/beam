@@ -43,8 +43,8 @@ import scala.Tuple2;
 public interface SparkInputDataProcessor<FnInputT, FnOutputT, OutputT> {
 
   /**
-   * @return {@link WindowedValueMultiReceiver} to be used by {@link
-   *     org.apache.beam.runners.core.DoFnRunner} for emitting processing results
+   * Returns {@link WindowedValueMultiReceiver} to be used by {@link
+   * org.apache.beam.runners.core.DoFnRunner} for emitting processing results.
    */
   WindowedValueMultiReceiver getOutputManager();
 

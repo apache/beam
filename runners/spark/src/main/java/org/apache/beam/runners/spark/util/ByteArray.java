@@ -37,7 +37,7 @@ public class ByteArray implements Serializable, Comparable<ByteArray> {
 
   @Override
   public boolean equals(@Nullable Object o) {
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof ByteArray)) {
       return false;
     }
     ByteArray byteArray = (ByteArray) o;

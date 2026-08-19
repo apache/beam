@@ -323,13 +323,11 @@ export function suite(runner: beam.Runner = directRunner()) {
         })
         .apply(beam.groupBy("lastName"));
 
-      assert.deepEqual(
-        p.context.getPCollectionCoder(res),
-        new KVCoder(
-          new GeneralObjectCoder(),
-          new IterableCoder(new GeneralObjectCoder())
-        )
-      );
+      const coder: any = p.context.getPCollectionCoder(res);
+      assert.equal(coder.constructor.name, "KVCoder");
+      assert.equal(coder.keyCoder.constructor.name, "GeneralObjectCoder");
+      assert.equal(coder.valueCoder.constructor.name, "IterableCoder");
+      assert.equal(coder.valueCoder.elementCoder.constructor.name, "GeneralObjectCoder");
     });
   });
 }

@@ -43,14 +43,14 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
 /**
  * A customized {@link DoFnRunner} that handles late data dropping and garbage collection for
  * stateful {@link DoFn DoFns}. It registers a GC timer in {@link #processElement(WindowedValue)}
- * and does cleanup in {@link #onTimer(String, String, BoundedWindow, Instant, Instant, TimeDomain,
- * boolean)}
+ * and does cleanup in {@link #onTimer}
  *
  * @param <InputT> the type of the {@link DoFn} (main) input elements
  * @param <OutputT> the type of the {@link DoFn} (main) output elements
@@ -130,6 +130,11 @@ public class StatefulDoFnRunner<InputT, OutputT, W extends BoundedWindow>
   @Override
   public void finishBundle() {
     doFnRunner.finishBundle();
+  }
+
+  @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {
+    doFnRunner.finishKey(key);
   }
 
   @Override

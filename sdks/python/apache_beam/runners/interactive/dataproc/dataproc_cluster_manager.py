@@ -20,8 +20,8 @@
 import logging
 import re
 import time
+from typing import Any
 from typing import Optional
-from typing import Tuple
 
 from apache_beam import version as beam_version
 from apache_beam.options.pipeline_options import PipelineOptions
@@ -171,7 +171,7 @@ class DataprocClusterManager:
     """Calls _create_cluster with a configuration that enables FlinkRunner."""
     init_action_path = self.stage_init_action()
     # https://cloud.google.com/php/docs/reference/cloud-dataproc/latest/V1.Cluster
-    cluster = {
+    cluster: dict[str, Any] = {
         'project_id': self.cluster_metadata.project_id,
         'cluster_name': self.cluster_metadata.cluster_name,
         'config': {
@@ -314,7 +314,7 @@ class DataprocClusterManager:
           self.cluster_metadata.cluster_name)
       raise e
 
-  def parse_master_url_and_dashboard(self, line: str) -> Tuple[str, str]:
+  def parse_master_url_and_dashboard(self, line: str) -> tuple[str, str]:
     """Parses the master_url and YARN application_id of the Flink process from
     an input line. The line containing both the master_url and application id
     is always formatted as such:
@@ -340,7 +340,7 @@ class DataprocClusterManager:
         yarn_endpoint)
     return master_url, dashboard
 
-  def get_master_url_and_dashboard(self) -> Tuple[Optional[str], Optional[str]]:
+  def get_master_url_and_dashboard(self) -> tuple[Optional[str], Optional[str]]:
     """Returns the master_url of the current cluster."""
     startup_logs = []
     for file in self._fs._list(self._staging_directory):

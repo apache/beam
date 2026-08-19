@@ -32,15 +32,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 // TODO(https://github.com/apache/beam/issues/31078) exceptions are currently suppressed
 @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @RunWith(JUnit4.class)
 public class PulsarIOTest implements Serializable {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
-  private static final Logger LOG = LoggerFactory.getLogger(PulsarIOTest.class);
 
   private static final String TEST_TOPIC = "TEST_TOPIC";
   // In order to pin fake readers having same set of messages
@@ -57,9 +54,7 @@ public class PulsarIOTest implements Serializable {
     PCollection<Integer> pcoll =
         pipeline
             .apply(
-                PulsarIO.read()
-                    .withTopic(TEST_TOPIC)
-                    .withPulsarClient((ignored -> newFakeClient())))
+                PulsarIO.read().withTopic(TEST_TOPIC).withPulsarClient(ignored -> newFakeClient()))
             .apply(
                 MapElements.into(TypeDescriptor.of(Integer.class))
                     .via(m -> (int) m.getMessageId()[1]));
@@ -78,7 +73,7 @@ public class PulsarIOTest implements Serializable {
   @Test
   public void testExpandReadFailUnserializableType() {
     pipeline.apply(
-        PulsarIO.read(t -> t).withTopic(TEST_TOPIC).withPulsarClient((ignored -> newFakeClient())));
+        PulsarIO.read(t -> t).withTopic(TEST_TOPIC).withPulsarClient(ignored -> newFakeClient()));
     IllegalStateException exception =
         Assert.assertThrows(IllegalStateException.class, pipeline::run);
     String errorMsg = exception.getMessage();

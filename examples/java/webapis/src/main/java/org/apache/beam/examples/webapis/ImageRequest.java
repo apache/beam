@@ -54,7 +54,7 @@ abstract class ImageRequest implements Serializable {
     return new AutoValue_ImageRequest.Builder();
   }
 
-  /** Build an {@link ImageRequest} from a {@param url}. */
+  /** Build an {@link ImageRequest} from a {@code url}. */
   static ImageRequest of(String url) {
     return builder().setImageUrl(url).setMimeType(mimeTypeOf(url)).build();
   }

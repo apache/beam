@@ -115,8 +115,8 @@ public class TestShuffleReaderTest {
       ShuffleEntry entry = iter.next();
       actual.add(
           KV.of(
-              (entry.getKey().toStringUtf8()),
-              KV.of((entry.getSecondaryKey().toStringUtf8()), (entry.getValue().toStringUtf8()))));
+              entry.getKey().toStringUtf8(),
+              KV.of(entry.getSecondaryKey().toStringUtf8(), entry.getValue().toStringUtf8())));
     }
     return actual;
   }

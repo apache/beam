@@ -23,6 +23,6 @@ package org.apache.beam.sdk.extensions.gcp.util;
  */
 interface HttpCallMatcher {
 
-  /** @return true iff the request and response represent a matching http c\all. */
+  /** Returns true iff the request and response represent a matching http call. */
   boolean matchResponse(HttpRequestWrapper req, HttpResponseWrapper response);
 }

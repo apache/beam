@@ -48,6 +48,7 @@ class BeamDockerPlugin implements Plugin<Project> {
     String dockerComposeFile = 'docker-compose.yml'
     Set<Task> dependencies = [] as Set
     Set<String> tags = [] as Set
+    String tagSuffix = null
     Map<String, String> namedTags = [:]
     Map<String, String> labels = [:]
     Map<String, String> buildArgs = [:]
@@ -60,6 +61,7 @@ class BeamDockerPlugin implements Plugin<Project> {
     boolean push = false
     String builder = null
     String target = null
+    String compression = 'zstd'
 
     File resolvedDockerfile = null
     File resolvedDockerComposeTemplate = null
@@ -71,6 +73,9 @@ class BeamDockerPlugin implements Plugin<Project> {
     DockerExtension(Project project) {
       this.project = project
       this.copySpec = project.copySpec()
+      if (project.hasProperty('docker-compression')) {
+        this.compression = project.property('docker-compression')
+      }
     }
 
     void resolvePathsAndValidate() {
@@ -100,7 +105,11 @@ class BeamDockerPlugin implements Plugin<Project> {
     }
 
     Set<String> getTags() {
-      return this.tags + project.getVersion().toString()
+      def allTags = this.tags + project.getVersion().toString()
+      if (tagSuffix) {
+        allTags = allTags.collect { it.endsWith(tagSuffix) ? it : it + tagSuffix }.toSet()
+      }
+      return allTags
     }
 
     Set<String> getPlatform() {
@@ -230,13 +239,23 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (!ext.platform.isEmpty()) {
         buildCommandLine.addAll('--platform', String.join(',', ext.platform))
       }
-      if (ext.load) {
-        buildCommandLine.add '--load'
+      if (ext.load && ext.push) {
+        throw new Exception("cannot combine 'push' and 'load' options")
       }
-      if (ext.push) {
-        buildCommandLine.add '--push'
+      if (ext.compression != null && !ext.compression.isEmpty()) {
+        if (ext.push) {
+          buildCommandLine.add "--output=type=registry,compression=${ext.compression},force-compression=true,oci-mediatypes=true"
+        } else if (ext.load) {
+          buildCommandLine.add '--load'
+        } else {
+          buildCommandLine.add "--output=type=image,compression=${ext.compression},force-compression=true,oci-mediatypes=true"
+        }
+      } else {
         if (ext.load) {
-          throw new Exception("cannot combine 'push' and 'load' options")
+          buildCommandLine.add '--load'
+        }
+        if (ext.push) {
+          buildCommandLine.add '--push'
         }
       }
       if (ext.builder != null) {

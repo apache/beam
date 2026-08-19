@@ -65,7 +65,7 @@ class DicomApiHttpClient:
     page_size = 500
 
     if params and 'limit' in params:
-      page_size = params['limit']
+      page_size = int(params['limit'])
     elif params:
       params['limit'] = page_size
     else:
@@ -93,7 +93,8 @@ class DicomApiHttpClient:
           return [], status
       results = response.json()
       output += results
-      if len(results) < page_size:
+      # params values may be str (dict[str,str]); always compare as int.
+      if len(results) < int(page_size):
         # got all the results, return
         break
       offset += len(results)

@@ -284,10 +284,7 @@ public class FlinkStreamingPortablePipelineTranslator
     return context;
   }
 
-  private void urnNotFound(
-      String id,
-      RunnerApi.Pipeline pipeline,
-      FlinkStreamingPortablePipelineTranslator.TranslationContext context) {
+  private void urnNotFound(String id, RunnerApi.Pipeline pipeline, TranslationContext context) {
     throw new IllegalArgumentException(
         String.format(
             "Unknown type of URN %s for PTransform with id %s.",
@@ -735,7 +732,6 @@ public class FlinkStreamingPortablePipelineTranslator
 
   private <InputT, OutputT> void translateExecutableStage(
       String id, RunnerApi.Pipeline pipeline, StreamingTranslationContext context) {
-    // TODO: Fail on splittable DoFns.
     // TODO: Special-case single outputs to avoid multiplexing PCollections.
     RunnerApi.Components components = pipeline.getComponents();
     RunnerApi.PTransform transform = components.getTransformsOrThrow(id);

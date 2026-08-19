@@ -143,6 +143,12 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
   }
 
   @Override
+  public void finishKey(Object key) throws Exception {
+    checkState(fnRunner != null);
+    fnRunner.finishKey(key);
+  }
+
+  @Override
   public void finishBundle() throws Exception {
     checkState(fnRunner != null);
     fnRunner.finishBundle();
@@ -172,6 +178,8 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
         output -> {
           try {
             receiver.process(output);
+          } catch (OutOfMemoryError oom) {
+            throw oom;
           } catch (Throwable t) {
             throw new RuntimeException(t);
           }
@@ -208,7 +216,7 @@ public class GroupAlsoByWindowsParDoFn<InputT, K, V, W extends BoundedWindow> im
       }
       return (DoFnRunner<InputT, KV<K, Iterable<V>>>)
           DoFnRunners.<K, V, Iterable<V>, W>lateDataDroppingRunner(
-              streamingGABWRunner, stepContext.timerInternals(), windowingStrategy);
+              streamingGABWRunner, stepContext, windowingStrategy);
     } else {
       if (hasStreamingSideInput) {
         return new StreamingSideInputDoFnRunner<>(

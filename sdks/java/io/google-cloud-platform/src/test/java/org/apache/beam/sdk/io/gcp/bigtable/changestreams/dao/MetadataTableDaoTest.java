@@ -181,7 +181,7 @@ public class MetadataTableDaoTest {
             locked = true;
           }
         } catch (InterruptedException e) {
-          LOG.error(e.toString());
+          LOG.error("Failed to wait for futures", e);
         }
       }
     }

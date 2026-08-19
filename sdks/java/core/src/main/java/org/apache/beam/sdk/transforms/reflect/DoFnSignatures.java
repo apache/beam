@@ -91,12 +91,14 @@ import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.TypeParameter;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -104,6 +106,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with {@link DoFnSignature}. See {@link #getSignature}. */
 @Internal
@@ -112,6 +116,8 @@ import org.joda.time.Instant;
   "rawtypes"
 })
 public class DoFnSignatures {
+
+  private static final Logger LOG = LoggerFactory.getLogger(DoFnSignatures.class);
 
   private DoFnSignatures() {}
 
@@ -139,6 +145,10 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.SideInputParameter.class,
               Parameter.TimerFamilyParameter.class,
+              Parameter.CurrentRecordIdParameter.class,
+              Parameter.CurrentRecordOffsetParameter.class,
+              Parameter.CausedByDrainParameter.class,
+              Parameter.ValueKindParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
@@ -155,6 +165,10 @@ public class DoFnSignatures {
               Parameter.RestrictionTrackerParameter.class,
               Parameter.WatermarkEstimatorParameter.class,
               Parameter.SideInputParameter.class,
+              Parameter.CurrentRecordIdParameter.class,
+              Parameter.CurrentRecordOffsetParameter.class,
+              Parameter.CausedByDrainParameter.class,
+              Parameter.ValueKindParameter.class,
               Parameter.BundleFinalizerParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>> ALLOWED_SETUP_PARAMETERS =
@@ -185,7 +199,10 @@ public class DoFnSignatures {
           Parameter.StateParameter.class,
           Parameter.TimerFamilyParameter.class,
           Parameter.TimerIdParameter.class,
-          Parameter.KeyParameter.class);
+          Parameter.FireTimestampParameter.class,
+          Parameter.CausedByDrainParameter.class,
+          Parameter.KeyParameter.class,
+          Parameter.SideInputParameter.class);
 
   private static final ImmutableList<Class<? extends Parameter>>
       ALLOWED_ON_TIMER_FAMILY_PARAMETERS =
@@ -201,7 +218,10 @@ public class DoFnSignatures {
               Parameter.StateParameter.class,
               Parameter.TimerFamilyParameter.class,
               Parameter.TimerIdParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.FireTimestampParameter.class,
+              Parameter.CausedByDrainParameter.class,
+              Parameter.KeyParameter.class,
+              Parameter.SideInputParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_ON_WINDOW_EXPIRATION_PARAMETERS =
@@ -212,7 +232,9 @@ public class DoFnSignatures {
               Parameter.TaggedOutputReceiverParameter.class,
               Parameter.StateParameter.class,
               Parameter.TimestampParameter.class,
-              Parameter.KeyParameter.class);
+              Parameter.KeyParameter.class,
+              Parameter.SideInputParameter.class,
+              Parameter.OnWindowExpirationContextParameter.class);
 
   private static final Collection<Class<? extends Parameter>>
       ALLOWED_GET_INITIAL_RESTRICTION_PARAMETERS =
@@ -291,12 +313,12 @@ public class DoFnSignatures {
               Parameter.PipelineOptionsParameter.class,
               Parameter.SideInputParameter.class);
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} instance. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} instance. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature signatureForDoFn(FnT fn) {
     return getSignature(fn.getClass());
   }
 
-  /** @return the {@link DoFnSignature} for the given {@link DoFn} subclass. */
+  /** Returns the {@link DoFnSignature} for the given {@link DoFn} subclass. */
   public static <FnT extends DoFn<?, ?>> DoFnSignature getSignature(Class<FnT> fn) {
     return signatureCache.computeIfAbsent(fn, DoFnSignatures::parseSignature);
   }
@@ -1343,6 +1365,19 @@ public class DoFnSignatures {
           rawType.equals(Instant.class),
           "@Timestamp argument must have type org.joda.time.Instant.");
       return Parameter.timestampParameter();
+    } else if (hasAnnotation(DoFn.CurrentRecordId.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(String.class), "@CurrentRecordId argument must have type String.");
+      return Parameter.currentRecordIdParameter();
+    } else if (hasAnnotation(DoFn.CurrentRecordOffset.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Long.class), "@CurrentRecordOffset argument must have type Long.");
+      return Parameter.currentRecordOffsetParameter();
+    } else if (hasAnnotation(DoFn.FireTimestamp.class, param.getAnnotations())) {
+      methodErrors.checkArgument(
+          rawType.equals(Instant.class),
+          "@FireTimestamp argument must have type org.joda.time.Instant.");
+      return Parameter.fireTimestampParameter();
     } else if (hasAnnotation(DoFn.Key.class, param.getAnnotations())) {
       methodErrors.checkArgument(
           KV.class.equals(inputT.getRawType()),
@@ -1357,6 +1392,16 @@ public class DoFnSignatures {
       return Parameter.keyT(paramT);
     } else if (rawType.equals(TimeDomain.class)) {
       return Parameter.timeDomainParameter();
+    } else if (CausedByDrain.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          rawType.equals(CausedByDrain.class),
+          "CausedByDrain argument must have type org.apache.beam.sdk.values.CausedByDrain.");
+      return Parameter.causedByDrainParameter();
+    } else if (ValueKind.class.isAssignableFrom(rawType)) {
+      methodErrors.checkArgument(
+          rawType.equals(ValueKind.class),
+          "ValueKind argument must have type org.apache.beam.sdk.values.ValueKind.");
+      return Parameter.valueKindParameter();
     } else if (hasAnnotation(DoFn.SideInput.class, param.getAnnotations())) {
       String sideInputId = getSideInputId(param.getAnnotations());
       paramErrors.checkArgument(
@@ -2327,10 +2372,55 @@ public class DoFnSignatures {
           (TypeDescriptor<? extends State>)
               TypeDescriptor.of(fnClazz).resolveType(unresolvedStateType);
 
+      // Warn if ValueState contains a collection type that could benefit from specialized state
+      warnIfValueStateContainsCollection(fnClazz, id, stateType);
+
       declarations.put(id, DoFnSignature.StateDeclaration.create(id, field, stateType));
     }
 
     return ImmutableMap.copyOf(declarations);
+  }
+
+  /**
+   * Warns if a ValueState is declared with a collection type (Map, List, Set) that could benefit
+   * from using specialized state types (MapState, BagState, SetState) for better performance.
+   */
+  private static void warnIfValueStateContainsCollection(
+      Class<?> fnClazz, String stateId, TypeDescriptor<? extends State> stateType) {
+    if (!stateType.isSubtypeOf(TypeDescriptor.of(ValueState.class))) {
+      return;
+    }
+
+    // Use TypeDescriptor.resolveType() to extract ValueState's type parameter
+    // This preserves generic type information better than raw Type manipulation
+    TypeDescriptor<?> valueTypeDescriptor =
+        stateType.resolveType(ValueState.class.getTypeParameters()[0]);
+
+    // Match on the collection's raw type. We intentionally do not skip types with unresolved
+    // parameters: for a parameterized collection such as ValueState<Set<T>> the collection's own
+    // raw type (Set) is known even though the element type T is a type variable, so we can still
+    // recommend SetState. A payload that is itself a bare type variable (e.g. ValueState<T>) simply
+    // matches none of the branches below and produces no recommendation.
+    String recommendation = null;
+    if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(Map.class))) {
+      recommendation = "MapState";
+    } else if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(List.class))) {
+      recommendation = "BagState or OrderedListState";
+    } else if (valueTypeDescriptor.isSubtypeOf(TypeDescriptor.of(java.util.Set.class))) {
+      recommendation = "SetState";
+    }
+
+    if (recommendation != null) {
+      LOG.warn(
+          "DoFn {} declares ValueState '{}' with collection type {}. "
+              + "ValueState reads/writes the entire collection on each access. "
+              + "For large or frequently-updated collections, consider using {} instead "
+              + "(if supported by your runner).",
+          fnClazz.getSimpleName(),
+          stateId,
+          valueTypeDescriptor.getRawType().getSimpleName(),
+          recommendation);
+    }
   }
 
   private static @Nullable Method findAnnotatedMethod(
@@ -2380,7 +2470,8 @@ public class DoFnSignatures {
   }
 
   private static String format(Class<?> kls) {
-    return kls.getSimpleName().isEmpty() ? kls.getName() : kls.getSimpleName();
+    String simpleName = ReflectHelpers.getSimpleName(kls);
+    return simpleName.isEmpty() ? kls.getName() : simpleName;
   }
 
   static class ErrorReporter {

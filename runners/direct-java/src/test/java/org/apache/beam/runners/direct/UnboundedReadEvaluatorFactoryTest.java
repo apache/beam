@@ -339,8 +339,8 @@ public class UnboundedReadEvaluatorFactoryTest {
     } while (!Iterables.isEmpty(residual.getElements()));
 
     verify(output, times(numElements)).add(any());
-    assertThat(TestUnboundedSource.readerCreatedCount, equalTo(1));
-    assertThat(TestUnboundedSource.readerClosedCount, equalTo(1));
+    assertThat(TestUnboundedSource.READER_CREATED_COUNT.get(), equalTo(1));
+    assertThat(TestUnboundedSource.READER_CLOSED_COUNT.get(), equalTo(1));
   }
 
   @Test
@@ -382,7 +382,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     secondEvaluator.processElement(Iterables.getOnlyElement(residual.getElements()));
     secondEvaluator.finishBundle();
 
-    assertThat(TestUnboundedSource.readerClosedCount, equalTo(2));
+    assertThat(TestUnboundedSource.READER_CLOSED_COUNT.get(), equalTo(2));
     assertThat(
         Iterables.getOnlyElement(residual.getElements()).getValue().getCheckpoint().isFinalized(),
         is(true));
@@ -421,12 +421,12 @@ public class UnboundedReadEvaluatorFactoryTest {
 
   @Test // before this was throwing a NPE
   public void emptySource() throws Exception {
-    TestUnboundedSource.readerClosedCount = 0;
+    TestUnboundedSource.READER_CLOSED_COUNT.set(0);
     final TestUnboundedSource<String> source = new TestUnboundedSource<>(StringUtf8Coder.of());
     source.advanceWatermarkToInfinity = true;
     processElement(source);
-    assertEquals(1, TestUnboundedSource.readerClosedCount);
-    TestUnboundedSource.readerClosedCount = 0; // reset
+    assertEquals(1, TestUnboundedSource.READER_CLOSED_COUNT.get());
+    TestUnboundedSource.READER_CLOSED_COUNT.set(0); // reset
   }
 
   @Test(expected = IOException.class)
@@ -472,7 +472,7 @@ public class UnboundedReadEvaluatorFactoryTest {
     final WindowedValue<UnboundedSourceShard<String, TestCheckpointMark>> value =
         WindowedValues.of(
             shard, BoundedWindow.TIMESTAMP_MAX_VALUE, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING);
-    TestUnboundedSource.readerClosedCount = 0;
+    TestUnboundedSource.READER_CLOSED_COUNT.set(0);
     evaluator.processElement(value);
   }
 
@@ -492,11 +492,15 @@ public class UnboundedReadEvaluatorFactoryTest {
   }
 
   private static class TestUnboundedSource<T> extends UnboundedSource<T, TestCheckpointMark> {
-    private static int getWatermarkCalls = 0;
+    private static final java.util.concurrent.atomic.AtomicInteger getWatermarkCalls =
+        new java.util.concurrent.atomic.AtomicInteger(0);
 
-    static int readerCreatedCount;
-    static int readerClosedCount;
-    static int readerAdvancedCount;
+    static final java.util.concurrent.atomic.AtomicInteger READER_CREATED_COUNT =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+    static final java.util.concurrent.atomic.AtomicInteger READER_CLOSED_COUNT =
+        new java.util.concurrent.atomic.AtomicInteger(0);
+    static final java.util.concurrent.atomic.AtomicInteger READER_ADVANCED_COUNT =
+        new java.util.concurrent.atomic.AtomicInteger(0);
     private final Coder<T> coder;
     private final List<T> elems;
     private boolean dedupes = false;
@@ -508,9 +512,9 @@ public class UnboundedReadEvaluatorFactoryTest {
     }
 
     private TestUnboundedSource(Coder<T> coder, boolean throwOnClose, List<T> elems) {
-      readerCreatedCount = 0;
-      readerClosedCount = 0;
-      readerAdvancedCount = 0;
+      READER_CREATED_COUNT.set(0);
+      READER_CLOSED_COUNT.set(0);
+      READER_ADVANCED_COUNT.set(0);
       this.coder = coder;
       this.elems = elems;
       this.throwOnClose = throwOnClose;
@@ -528,7 +532,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       checkState(
           checkpointMark == null || checkpointMark.decoded,
           "Cannot resume from a checkpoint that has not been decoded");
-      readerCreatedCount++;
+      READER_CREATED_COUNT.incrementAndGet();
       return new TestUnboundedReader(elems, checkpointMark == null ? -1 : checkpointMark.index);
     }
 
@@ -568,7 +572,7 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public boolean advance() throws IOException {
-        readerAdvancedCount++;
+        READER_ADVANCED_COUNT.incrementAndGet();
         if (index + 1 < elems.size()) {
           index++;
           return true;
@@ -578,11 +582,11 @@ public class UnboundedReadEvaluatorFactoryTest {
 
       @Override
       public Instant getWatermark() {
-        getWatermarkCalls++;
+        getWatermarkCalls.incrementAndGet();
         if (index + 1 == elems.size() && TestUnboundedSource.this.advanceWatermarkToInfinity) {
           return BoundedWindow.TIMESTAMP_MAX_VALUE;
         } else {
-          return new Instant(index + getWatermarkCalls);
+          return new Instant(index + getWatermarkCalls.get());
         }
       }
 
@@ -618,7 +622,7 @@ public class UnboundedReadEvaluatorFactoryTest {
       @Override
       public void close() throws IOException {
         try {
-          readerClosedCount++;
+          READER_CLOSED_COUNT.incrementAndGet();
           // Enforce the AutoCloseable contract. Close is not idempotent.
           assertThat(closed, is(false));
           if (throwOnClose) {

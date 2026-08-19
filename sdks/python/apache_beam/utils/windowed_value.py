@@ -24,6 +24,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections
 from typing import TYPE_CHECKING
 from typing import Any
@@ -380,7 +381,7 @@ class HomogeneousWindowedBatch(WindowedBatch):
 
 
 try:
-  WindowedValue.timestamp_object = None
+  setattr(WindowedValue, 'timestamp_object', None)
 except TypeError:
   # When we're compiled, we can't dynamically add attributes to
   # the cdef class, but in this case it's OK as it's already present

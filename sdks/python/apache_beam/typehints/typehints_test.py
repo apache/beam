@@ -19,6 +19,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections.abc
 import functools
 import re
@@ -712,7 +713,8 @@ class DictHintTestCase(TypeHintTestCase):
 
   def test_type_check_collection(self):
     hint = typehints.Dict[str, int]
-    l = collections.defaultdict(list[("blue", 2)])
+    element = ("blue", 2)
+    l = collections.defaultdict(list[element])
     self.assertIsNone(hint.type_check(l))
 
   def test_type_check_invalid_key_type(self):
@@ -1612,6 +1614,33 @@ class DecoratorHelpers(TypeHintTestCase):
     self.assertTrue(is_consistent_with(int, pipe_union_2))
     self.assertTrue(is_consistent_with(float, pipe_union_2))
 
+  def test_is_consistent_with_disable_beartype(self):
+    import unittest.mock
+
+    from apache_beam.options.pipeline_options import PipelineOptions
+    from apache_beam.options.pipeline_options_context import scoped_pipeline_options
+
+    with unittest.mock.patch(
+        'apache_beam.typehints.typehints.is_subhint') as mock_is_subhint:
+      mock_is_subhint.return_value = True
+
+      class A:
+        pass
+
+      class B(A):
+        pass
+
+      options = PipelineOptions([])
+      with scoped_pipeline_options(options):
+        typehints.is_consistent_with(B, A)
+        self.assertTrue(mock_is_subhint.called)
+        mock_is_subhint.reset_mock()
+
+      options = PipelineOptions(['--disable_beartype'])
+      with scoped_pipeline_options(options):
+        typehints.is_consistent_with(B, A)
+        self.assertFalse(mock_is_subhint.called)
+
   def test_positional_arg_hints(self):
     self.assertEqual(typehints.Any, _positional_arg_hints('x', {}))
     self.assertEqual(int, _positional_arg_hints('x', {'x': int}))
@@ -1674,6 +1703,22 @@ class TestGetYieldedType(unittest.TestCase):
         typehints.Union[int, str],
         typehints.get_yielded_type(
             typehints.Union[typehints.List[int], typehints.List[str]]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typehints.Union[typehints.Iterator[int], typehints.Iterator[str]]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typehints.Union[typehints.Tuple[int, int],
+                            typehints.Tuple[str, str]]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(typing.Iterable[int] | typing.Iterable[str]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typing.Union[typing.Iterator[int], typing.Iterator[str]]))
 
   def test_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
@@ -1682,6 +1727,8 @@ class TestGetYieldedType(unittest.TestCase):
   def test_union_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
       typehints.get_yielded_type(typehints.Union[int, typehints.List[int]])
+    with self.assertRaisesRegex(ValueError, r'not iterable'):
+      typehints.get_yielded_type(int | typing.List[str])
 
 
 class TestCoerceToKvType(TypeHintTestCase):

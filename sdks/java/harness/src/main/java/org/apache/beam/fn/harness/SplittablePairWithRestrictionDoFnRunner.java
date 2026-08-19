@@ -41,6 +41,7 @@ import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.ParDoTranslation;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
@@ -226,6 +227,8 @@ public class SplittablePairWithRestrictionDoFnRunner<
   private <T> void outputTo(FnDataReceiver<WindowedValue<T>> consumer, WindowedValue<T> output) {
     try {
       consumer.accept(output);
+    } catch (OutOfMemoryError oom) {
+      throw oom;
     } catch (Throwable t) {
       throw UserCodeException.wrap(t);
     }
@@ -274,6 +277,11 @@ public class SplittablePairWithRestrictionDoFnRunner<
     @Override
     public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
       return getCurrentElementOrFail().getPaneInfo();
+    }
+
+    @Override
+    public CausedByDrain causedByDrain(DoFn<InputT, OutputT> doFn) {
+      return getCurrentElementOrFail().causedByDrain();
     }
 
     @Override

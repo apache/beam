@@ -253,6 +253,7 @@ class CombineTest(unittest.TestCase):
 
     individual_test_per_key_dd(combine.Sample.FixedSizePerKey, 5)
     individual_test_per_key_dd(combine.Sample.FixedSizeGlobally, 5)
+    individual_test_per_key_dd(combine.Sample.Any, 5)
 
   def test_combine_globally_display_data(self):
     transform = beam.CombineGlobally(combine.Smallest(5))
@@ -358,6 +359,59 @@ class CombineTest(unittest.TestCase):
         return match
 
       assert_that(result, matcher())
+
+  def test_sample_any(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 2, 3, 4, 5])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(3)
+
+      def check(actual):
+        assert len(actual) == 3, actual
+        for element in actual:
+          assert element in [1, 2, 3, 4, 5], element
+
+      assert_that(result, check)
+
+  def test_sample_any_at_most_input_size(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 2])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(5)
+      assert_that(result, equal_to([1, 2]))
+
+  def test_sample_any_windowed(self):
+    with TestPipeline() as pipeline:
+      pcoll = (
+          pipeline
+          | 'start' >> Create([1, 2, 3, 4])
+          | 'timestamp' >> Map(lambda x: TimestampedValue(x, x * 10))
+          | 'window' >> WindowInto(FixedWindows(15)))
+      result = pcoll | 'sample-any' >> combine.Sample.Any(1)
+
+      def check(actual):
+        # Timestamps 10, 20, 30, 40 fall into fixed windows [0, 15), [15, 30)
+        # and [30, 45), holding {1}, {2} and {3, 4}. One element is sampled from
+        # each window that has elements.
+        assert len(actual) == 3, actual
+        for element in actual:
+          assert element in [1, 2, 3, 4], element
+
+      assert_that(result, check)
+
+  def test_sample_any_empty(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(3)
+      assert_that(result, equal_to([]))
+
+  def test_sample_any_zero(self):
+    with TestPipeline() as pipeline:
+      pcoll = pipeline | 'start' >> Create([1, 2, 3])
+      result = pcoll | 'sample-any' >> combine.Sample.Any(0)
+      assert_that(result, equal_to([]))
+
+  def test_sample_any_negative_n(self):
+    with self.assertRaises(ValueError):
+      combine.Sample.Any(-1)
 
   def test_tuple_combine_fn(self):
     with TestPipeline() as p:
@@ -584,26 +638,63 @@ class CombineTest(unittest.TestCase):
 
       assert_that(result, has_expected_values)
 
-  def test_combining_with_sliding_windows_and_fanout_raises_error(self):
+  def test_combining_with_sliding_windows_and_fanout(self):
     options = PipelineOptions()
     options.view_as(StandardOptions).streaming = True
-    with self.assertRaises(ValueError):
-      with TestPipeline(options=options) as p:
-        _ = (
-            p
-            | beam.Create([
-                window.TimestampedValue(0, Timestamp(seconds=1666707510)),
-                window.TimestampedValue(1, Timestamp(seconds=1666707511)),
-                window.TimestampedValue(2, Timestamp(seconds=1666707512)),
-                window.TimestampedValue(3, Timestamp(seconds=1666707513)),
-                window.TimestampedValue(5, Timestamp(seconds=1666707515)),
-                window.TimestampedValue(6, Timestamp(seconds=1666707516)),
-                window.TimestampedValue(7, Timestamp(seconds=1666707517)),
-                window.TimestampedValue(8, Timestamp(seconds=1666707518))
-            ])
-            | beam.WindowInto(window.SlidingWindows(10, 5))
-            | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
-            without_defaults().with_fanout(7))
+    with TestPipeline(options=options) as p:
+
+      def has_expected_values(actual):
+        from hamcrest.core import assert_that as hamcrest_assert
+        from hamcrest.library.collection import only_contains
+        ordered = sorted(actual)
+        hamcrest_assert(
+            ordered,
+            only_contains([0, 1, 2, 3], [0, 1, 2, 3, 5, 6, 7, 8], [5, 6, 7, 8]))
+
+      result = (
+          p
+          | beam.Create([
+              window.TimestampedValue(0, Timestamp(seconds=1666707510)),
+              window.TimestampedValue(1, Timestamp(seconds=1666707511)),
+              window.TimestampedValue(2, Timestamp(seconds=1666707512)),
+              window.TimestampedValue(3, Timestamp(seconds=1666707513)),
+              window.TimestampedValue(5, Timestamp(seconds=1666707515)),
+              window.TimestampedValue(6, Timestamp(seconds=1666707516)),
+              window.TimestampedValue(7, Timestamp(seconds=1666707517)),
+              window.TimestampedValue(8, Timestamp(seconds=1666707518))
+          ])
+          | beam.WindowInto(window.SlidingWindows(10, 5))
+          | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
+          without_defaults().with_fanout(7))
+      assert_that(result, has_expected_values)
+
+  def test_combining_with_session_windows_and_fanout(self):
+    options = PipelineOptions()
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+
+      def has_expected_values(actual):
+        from hamcrest.core import assert_that as hamcrest_assert
+        from hamcrest.library.collection import only_contains
+        ordered = sorted(actual)
+        hamcrest_assert(ordered, only_contains([0, 1, 2, 3], [5, 6, 7, 8]))
+
+      result = (
+          p
+          | beam.Create([
+              window.TimestampedValue(0, Timestamp(seconds=1666707510)),
+              window.TimestampedValue(1, Timestamp(seconds=1666707511)),
+              window.TimestampedValue(2, Timestamp(seconds=1666707512)),
+              window.TimestampedValue(3, Timestamp(seconds=1666707513)),
+              window.TimestampedValue(5, Timestamp(seconds=1666707515)),
+              window.TimestampedValue(6, Timestamp(seconds=1666707516)),
+              window.TimestampedValue(7, Timestamp(seconds=1666707517)),
+              window.TimestampedValue(8, Timestamp(seconds=1666707518))
+          ])
+          | beam.WindowInto(window.Sessions(2))
+          | beam.CombineGlobally(beam.combiners.ToListCombineFn()).
+          without_defaults().with_fanout(7))
+      assert_that(result, has_expected_values)
 
   def test_MeanCombineFn_combine(self):
     with TestPipeline() as p:

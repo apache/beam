@@ -151,7 +151,7 @@ public class Bid implements KnownSize, Serializable {
     if (this == otherObject) {
       return true;
     }
-    if (otherObject == null || getClass() != otherObject.getClass()) {
+    if (!(otherObject instanceof Bid)) {
       return false;
     }
 

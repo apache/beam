@@ -40,7 +40,7 @@ public abstract class StringSetResult {
     return new AutoValue_StringSetResult(ImmutableSet.copyOf(s));
   }
 
-  /** @return a {@link EmptyStringSetResult} */
+  /** Returns a {@link EmptyStringSetResult}. */
   public static StringSetResult empty() {
     return EmptyStringSetResult.INSTANCE;
   }

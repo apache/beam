@@ -58,7 +58,7 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   private final DelegateCoder<T, String> delegateCoder;
   private final Class<T> clazz;
 
-  protected StringDelegateCoder(final Class<T> clazz, TypeDescriptor<T> typeDescriptor) {
+  StringDelegateCoder(final Class<T> clazz, TypeDescriptor<T> typeDescriptor) {
     delegateCoder =
         DelegateCoder.of(
             StringUtf8Coder.of(),
@@ -70,6 +70,7 @@ public final class StringDelegateCoder<T> extends CustomCoder<T> {
   }
 
   @Override
+  @SuppressWarnings("EqualsGetClass")
   public boolean equals(@Nullable Object o) {
     if (o == null || this.getClass() != o.getClass()) {
       return false;

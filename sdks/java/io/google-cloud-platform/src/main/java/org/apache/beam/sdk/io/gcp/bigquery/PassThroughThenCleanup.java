@@ -94,8 +94,9 @@ class PassThroughThenCleanup<T> extends PTransform<PCollection<T>, PCollection<T
     }
 
     @Override
+    @SuppressWarnings("EqualsGetClass")
     public boolean equals(@Nullable Object obj) {
-      return obj != null && obj.getClass() == this.getClass();
+      return obj instanceof CleanupOperation && obj.getClass() == this.getClass();
     }
   }
 

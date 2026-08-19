@@ -114,7 +114,7 @@ public class WindowIntoTranslationTest {
 
     @Override
     public boolean equals(@Nullable Object other) {
-      return other != null && other.getClass().equals(this.getClass());
+      return other instanceof CustomWindows;
     }
 
     @Override

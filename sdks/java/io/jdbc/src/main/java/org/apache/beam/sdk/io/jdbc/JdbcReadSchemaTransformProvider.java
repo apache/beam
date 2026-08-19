@@ -186,8 +186,8 @@ public class JdbcReadSchemaTransformProvider
       if (Strings.isNullOrEmpty(driverClassName)) {
         driverClassName =
             JDBC_DRIVER_MAP.get(
-                (Objects.requireNonNull(
-                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType()))
+                Objects.requireNonNull(
+                        !Strings.isNullOrEmpty(jdbcType) ? jdbcType : config.getJdbcType())
                     .toLowerCase());
       }
 

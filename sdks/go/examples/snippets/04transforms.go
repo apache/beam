@@ -743,6 +743,38 @@ func combineState(s beam.Scope, input beam.PCollection) beam.PCollection {
 	return combined
 }
 
+// [START ordered_list_state]
+
+// orderedListStateFn tracks timestamped events per key and reads a sub-range.
+type orderedListStateFn struct {
+	Events state.OrderedList[string]
+}
+
+func (s *orderedListStateFn) ProcessElement(p state.Provider, key string, event string, emit func(string)) error {
+	// Add the event with the current timestamp as the sort key.
+	now := time.Now().UnixMilli()
+	s.Events.Add(p, now, event)
+
+	// Read a sub-range of events (e.g. the last hour).
+	oneHourAgo := now - 3600000
+	entries, ok, err := s.Events.ReadRange(p, oneHourAgo, now+1)
+	if err != nil {
+		return err
+	}
+	if ok {
+		for _, e := range entries {
+			emit(fmt.Sprintf("%s@%d", e.Value, e.SortKey))
+		}
+	}
+
+	// Clear events older than one hour.
+	s.Events.ClearRange(p, 0, oneHourAgo)
+
+	return nil
+}
+
+// [END ordered_list_state]
+
 // [START event_time_timer]
 
 type eventTimerDoFn struct {

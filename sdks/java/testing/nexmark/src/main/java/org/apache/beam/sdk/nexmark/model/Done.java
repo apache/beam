@@ -91,7 +91,7 @@ public class Done implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Done)) {
       return false;
     }
     Done done = (Done) o;

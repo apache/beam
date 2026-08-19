@@ -263,7 +263,11 @@ public class BatchModeExecutionContext
     this.key = key;
   }
 
-  /** @param newKey the key being switched to */
+  /**
+   * Switches the state key.
+   *
+   * @param newKey the key being switched to
+   */
   protected void switchStateKey(Object newKey) {
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.setKey(newKey);

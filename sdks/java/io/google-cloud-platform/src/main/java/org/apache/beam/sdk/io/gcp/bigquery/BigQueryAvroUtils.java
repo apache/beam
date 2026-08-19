@@ -43,7 +43,6 @@ import org.apache.avro.LogicalType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
-import org.apache.avro.Schema.Type;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
@@ -324,7 +323,7 @@ class BigQueryAvroUtils {
   }
 
   private static @Nullable Object getTypedCellValue(String name, Schema schema, Object v) {
-    Type type = schema.getType();
+    Schema.Type type = schema.getType();
     switch (type) {
       case ARRAY:
         return convertRepeatedField(name, schema.getElementType(), v);
@@ -376,7 +375,7 @@ class BigQueryAvroUtils {
     // REQUIRED fields are represented as the corresponding Avro types. For example, a BigQuery
     // INTEGER type maps to an Avro LONG type.
     checkNotNull(v, "REQUIRED field %s should not be null", name);
-    Type type = schema.getType();
+    Schema.Type type = schema.getType();
     LogicalType logicalType = schema.getLogicalType();
     switch (type) {
       case BOOLEAN:
@@ -472,7 +471,7 @@ class BigQueryAvroUtils {
   private static @Nullable Object convertNullableField(String name, Schema union, Object v) {
     // NULLABLE fields are represented as an Avro Union of the corresponding type and "null".
     verify(
-        union.getType() == Type.UNION,
+        union.getType() == Schema.Type.UNION,
         "Expected Avro schema type UNION, not %s, for BigQuery NULLABLE field %s",
         union.getType(),
         name);
@@ -484,7 +483,7 @@ class BigQueryAvroUtils {
         union);
 
     Schema type = union.getTypes().get(GenericData.get().resolveUnion(union, v));
-    if (type.getType() == Type.NULL) {
+    if (type.getType() == Schema.Type.NULL) {
       return null;
     } else {
       return convertRequiredField(name, type, v);
@@ -583,7 +582,7 @@ class BigQueryAvroUtils {
 
   static TableSchema fromGenericAvroSchema(Schema schema, Boolean useAvroLogicalTypes) {
     verify(
-        schema.getType() == Type.RECORD,
+        schema.getType() == Schema.Type.RECORD,
         "Expected Avro schema type RECORD, not %s",
         schema.getType());
 
@@ -602,7 +601,7 @@ class BigQueryAvroUtils {
       case UNION:
         List<Schema> types = fieldSchema.getTypes();
         verify(
-            types.size() == 2 && types.get(0).getType() == Type.NULL,
+            types.size() == 2 && types.get(0).getType() == Schema.Type.NULL,
             "Avro union field %s should be of null and another type, not %s",
             avrofield.name(),
             fieldSchema);
@@ -649,7 +648,7 @@ class BigQueryAvroUtils {
       case LONG:
         // TODO: Use LogicalTypes.TimestampNanos once avro version is updated.
         if (useAvroLogicalTypes
-            && (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getProp("logicalType")))) {
+            && TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.getProp("logicalType"))) {
           return fieldSchema.setType("TIMESTAMP").setTimestampPrecision(12L);
         }
         if (logicalType instanceof LogicalTypes.TimeMicros) {

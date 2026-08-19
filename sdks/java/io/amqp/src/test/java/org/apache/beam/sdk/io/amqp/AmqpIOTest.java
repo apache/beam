@@ -93,7 +93,7 @@ public class AmqpIOTest {
       messenger.recv();
       while (messenger.incoming() > 0) {
         Message message = messenger.get();
-        LOG.info("Received: " + message.getBody().toString());
+        LOG.info("Received: {}", message.getBody().toString());
         received.add(message.getBody().toString());
       }
     }

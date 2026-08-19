@@ -85,7 +85,7 @@ public class CoGroupTest {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof CgPojo)) {
         return false;
       }
       CgPojo cgPojo = (CgPojo) o;

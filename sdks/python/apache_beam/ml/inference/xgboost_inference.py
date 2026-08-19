@@ -80,6 +80,8 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       max_batch_duration_secs: Optional[int] = None,
       max_batch_weight: Optional[int] = None,
       element_size_fn: Optional[Callable[[Any], int]] = None,
+      batch_length_fn: Optional[Callable[[Any], int]] = None,
+      batch_bucket_boundaries: Optional[list[int]] = None,
       **kwargs):
     """Implementation of the ModelHandler interface for XGBoost.
 
@@ -109,6 +111,10 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
       max_batch_weight: optional. the maximum total weight of a batch.
       element_size_fn: optional. a function that returns the size (weight)
         of an element.
+      batch_length_fn: optional. a callable that returns the length of an
+        element for length-aware batching.
+      batch_bucket_boundaries: optional. a sorted list of positive boundary
+        values for length-aware batching buckets.
       kwargs: 'env_vars' can be used to set environment variables
         before loading the model.
 
@@ -131,6 +137,8 @@ class XGBoostModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
         max_batch_duration_secs=max_batch_duration_secs,
         max_batch_weight=max_batch_weight,
         element_size_fn=element_size_fn,
+        batch_length_fn=batch_length_fn,
+        batch_bucket_boundaries=batch_bucket_boundaries,
         **kwargs)
     self._model_class = model_class
     self._model_state = model_state

@@ -85,7 +85,7 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
     if (this == obj) {
       return true;
     }
-    if (obj == null || getClass() != obj.getClass()) {
+    if (!(obj instanceof BigQueryStorageStreamSource)) {
       return false;
     }
     BigQueryStorageStreamSource<?> other = (BigQueryStorageStreamSource<?>) obj;

@@ -27,8 +27,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
-import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -60,9 +58,9 @@ import org.joda.time.Instant;
  * // output --> "unified batch and streaming!"
  * }</pre>
  *
- * <p>Additionally, {@link #interpolate(Row, BoundedWindow, PaneInfo, Instant)} can be used in
- * streaming scenarios to substitute windowing metadata into the template String. To make use of
- * this, use the relevant placeholder:
+ * <p>Additionally, {@link #interpolate(ValueInSingleWindow)} can be used in streaming scenarios to
+ * substitute windowing metadata into the template String. To make use of this, use the relevant
+ * placeholder:
  *
  * <ul>
  *   <li>$WINDOW: the window's string representation

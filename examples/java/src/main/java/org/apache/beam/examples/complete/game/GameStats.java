@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.examples.common.ExampleUtils;
 import org.apache.beam.examples.complete.game.utils.GameConstants;
+import org.apache.beam.examples.complete.game.utils.WriteToBigQuery;
 import org.apache.beam.examples.complete.game.utils.WriteWindowedToBigQuery;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -33,6 +34,9 @@ import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
+import org.apache.beam.sdk.transforms.DoFn.SideInput;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.Mean;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -125,23 +129,23 @@ public class GameStats extends LeaderBoard {
                             Metrics.counter("main", "SpammerUsers");
 
                         @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          Integer score = c.element().getValue();
-                          Double gmc = c.sideInput(globalMeanScore);
+                        public void processElement(
+                            @SideInput("globalMeanScore") Double gmc,
+                            @Element KV<String, Integer> element,
+                            OutputReceiver<KV<String, Integer>> receiver) {
+                          Integer score = element.getValue();
                           if (score > (gmc * SCORE_WEIGHT)) {
                             LOG.info(
-                                "user "
-                                    + c.element().getKey()
-                                    + " spammer score "
-                                    + score
-                                    + " with mean "
-                                    + gmc);
+                                "user {} spammer score {} with mean {}",
+                                element.getKey(),
+                                score,
+                                gmc);
                             numSpammerUsers.inc();
-                            c.output(c.element());
+                            receiver.output(element);
                           }
                         }
                       })
-                  .withSideInputs(globalMeanScore));
+                  .withSideInput("globalMeanScore", globalMeanScore));
       return filtered;
     }
   }
@@ -150,10 +154,10 @@ public class GameStats extends LeaderBoard {
   /** Calculate and output an element's session duration. */
   private static class UserSessionInfoFn extends DoFn<KV<String, Integer>, Integer> {
     @ProcessElement
-    public void processElement(ProcessContext c, BoundedWindow window) {
+    public void processElement(BoundedWindow window, OutputReceiver<Integer> receiver) {
       IntervalWindow w = (IntervalWindow) window;
       int duration = new Duration(w.start(), w.end()).toPeriod().toStandardMinutes().getMinutes();
-      c.output(duration);
+      receiver.output(duration);
     }
   }
 
@@ -189,27 +193,25 @@ public class GameStats extends LeaderBoard {
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write information about team score sums.
    */
-  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>>
+  protected static Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>>
       configureWindowedWrite() {
-    Map<String, WriteWindowedToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure =
-        new HashMap<>();
+    Map<String, WriteToBigQuery.FieldInfo<KV<String, Integer>>> tableConfigure = new HashMap<>();
     tableConfigure.put(
-        "team", new WriteWindowedToBigQuery.FieldInfo<>("STRING", (c, w) -> c.element().getKey()));
+        "team", new WriteToBigQuery.FieldInfo<>("STRING", (e, w, t, p) -> e.getKey()));
     tableConfigure.put(
-        "total_score",
-        new WriteWindowedToBigQuery.FieldInfo<>("INTEGER", (c, w) -> c.element().getValue()));
+        "total_score", new WriteToBigQuery.FieldInfo<>("INTEGER", (e, w, t, p) -> e.getValue()));
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<>(
+        new WriteToBigQuery.FieldInfo<>(
             "STRING",
-            (c, w) -> {
+            (e, w, t, p) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
         "processing_time",
-        new WriteWindowedToBigQuery.FieldInfo<>(
-            "STRING", (c, w) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
+        new WriteToBigQuery.FieldInfo<>(
+            "STRING", (e, w, t, p) -> GameConstants.DATE_TIME_FORMATTER.print(Instant.now())));
     return tableConfigure;
   }
 
@@ -217,20 +219,19 @@ public class GameStats extends LeaderBoard {
    * Create a map of information that describes how to write pipeline output to BigQuery. This map
    * is used to write information about mean user session time.
    */
-  protected static Map<String, WriteWindowedToBigQuery.FieldInfo<Double>>
-      configureSessionWindowWrite() {
+  protected static Map<String, WriteToBigQuery.FieldInfo<Double>> configureSessionWindowWrite() {
 
-    Map<String, WriteWindowedToBigQuery.FieldInfo<Double>> tableConfigure = new HashMap<>();
+    Map<String, WriteToBigQuery.FieldInfo<Double>> tableConfigure = new HashMap<>();
     tableConfigure.put(
         "window_start",
-        new WriteWindowedToBigQuery.FieldInfo<>(
+        new WriteToBigQuery.FieldInfo<>(
             "STRING",
-            (c, w) -> {
+            (e, w, t, p) -> {
               IntervalWindow window = (IntervalWindow) w;
               return GameConstants.DATE_TIME_FORMATTER.print(window.start());
             }));
     tableConfigure.put(
-        "mean_duration", new WriteWindowedToBigQuery.FieldInfo<>("FLOAT", (c, w) -> c.element()));
+        "mean_duration", new WriteToBigQuery.FieldInfo<>("FLOAT", (e, w, t, p) -> e));
     return tableConfigure;
   }
 
@@ -291,14 +292,17 @@ public class GameStats extends LeaderBoard {
             ParDo.of(
                     new DoFn<GameActionInfo, GameActionInfo>() {
                       @ProcessElement
-                      public void processElement(ProcessContext c) {
+                      public void processElement(
+                          @SideInput("spammersView") Map<String, Integer> spammers,
+                          @Element GameActionInfo element,
+                          OutputReceiver<GameActionInfo> receiver) {
                         // If the user is not in the spammers Map, output the data element.
-                        if (c.sideInput(spammersView).get(c.element().getUser().trim()) == null) {
-                          c.output(c.element());
+                        if (spammers.get(element.getUser().trim()) == null) {
+                          receiver.output(element);
                         }
                       }
                     })
-                .withSideInputs(spammersView))
+                .withSideInput("spammersView", spammersView))
         // Extract and sum teamname/score pairs from the event data.
         .apply("ExtractTeamScore", new ExtractAndSumScore("team"))
         // [END DocInclude_FilterAndCalc]

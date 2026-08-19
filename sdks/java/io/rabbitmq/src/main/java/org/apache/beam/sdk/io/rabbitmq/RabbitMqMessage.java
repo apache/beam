@@ -132,6 +132,7 @@ public class RabbitMqMessage implements Serializable {
   private final @Nullable String appId;
   private final @Nullable String clusterId;
 
+  @SuppressWarnings("JavaUtilDate")
   public RabbitMqMessage(byte[] body) {
     this.body = body;
     routingKey = "";
@@ -151,6 +152,7 @@ public class RabbitMqMessage implements Serializable {
     clusterId = null;
   }
 
+  @SuppressWarnings("JavaUtilDate")
   public RabbitMqMessage(String routingKey, GetResponse delivery) {
     this.routingKey = routingKey;
     delivery = serializableDeliveryOf(delivery);
@@ -171,6 +173,7 @@ public class RabbitMqMessage implements Serializable {
     clusterId = delivery.getProps().getClusterId();
   }
 
+  @SuppressWarnings("JavaUtilDate")
   public RabbitMqMessage(
       String routingKey,
       byte[] body,
@@ -324,7 +327,9 @@ public class RabbitMqMessage implements Serializable {
           && Objects.equals(replyTo, other.replyTo)
           && Objects.equals(expiration, other.expiration)
           && Objects.equals(messageId, other.messageId)
-          && Objects.equals(timestamp, other.timestamp)
+          && Objects.equals(
+              timestamp == null ? null : timestamp.toInstant(),
+              other.timestamp == null ? null : other.timestamp.toInstant())
           && Objects.equals(type, other.type)
           && Objects.equals(userId, other.userId)
           && Objects.equals(appId, other.appId)

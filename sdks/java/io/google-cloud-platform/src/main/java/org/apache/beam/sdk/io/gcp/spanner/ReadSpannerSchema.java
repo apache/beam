@@ -22,8 +22,11 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -45,7 +48,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
   private transient SpannerAccessor spannerAccessor;
 
   /**
-   * Constructor for creating an instance of the ReadSpannerSchema class. If no {@param
+   * Constructor for creating an instance of the ReadSpannerSchema class. If no {@code
    * allowedTableNames} is passed, every single table is allowed.
    *
    * @param config The SpannerConfig object that contains the configuration for accessing the
@@ -75,8 +78,9 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
   }
 
   @Setup
-  public void setup() throws Exception {
-    spannerAccessor = SpannerAccessor.getOrCreate(config);
+  public void setup(PipelineOptions options) throws Exception {
+    OpenTelemetry otel = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+    spannerAccessor = SpannerAccessor.getOrCreate(config, otel);
   }
 
   @Teardown

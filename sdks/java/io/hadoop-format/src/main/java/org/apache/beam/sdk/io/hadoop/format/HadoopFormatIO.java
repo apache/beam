@@ -34,6 +34,7 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -54,6 +55,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.hadoop.WritableCoder;
+import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
@@ -97,6 +99,7 @@ import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
 import org.apache.hadoop.mapreduce.TaskID;
 import org.apache.hadoop.mapreduce.lib.db.DBConfiguration;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.task.JobContextImpl;
 import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
@@ -184,8 +187,8 @@ import org.slf4j.LoggerFactory;
  * available for value class hence value translation is required.).
  *
  * <pre>{@code
- * SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt; myOutputValueType =
- *      new SimpleFunction&lt;InputFormatValueClass, MyValueClass&gt;() {
+ * SimpleFunction<InputFormatValueClass, MyValueClass> myOutputValueType =
+ *      new SimpleFunction<InputFormatValueClass, MyValueClass>() {
  *          public MyValueClass apply(InputFormatValueClass input) {
  *            // ...logic to transform InputFormatValueClass to MyValueClass
  *          }
@@ -257,15 +260,15 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * Configuration myHadoopConfiguration = new Configuration(false);
  * // Set Hadoop OutputFormat, key and value class in configuration
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.outputformat.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.outputformat.class",
  *    MyDbOutputFormatClass, OutputFormat.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.key.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.output.key.class",
  *    MyDbOutputFormatKeyClass, Object.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.output.value.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.output.value.class",
  *    MyDbOutputFormatValueClass, Object.class);
- * myHadoopConfiguration.setClass(&quot;mapreduce.job.partitioner.class&quot;,
+ * myHadoopConfiguration.setClass("mapreduce.job.partitioner.class",
  *    MyPartitionerClass, Object.class);
- * myHadoopConfiguration.setInt(&quot;mapreduce.job.reduces&quot;, 2);
+ * myHadoopConfiguration.setInt("mapreduce.job.reduces", 2);
  * }</pre>
  *
  * <p>You will need to set OutputFormat key and value class (i.e. "mapreduce.job.output.key.class"
@@ -725,6 +728,7 @@ public class HadoopFormatIO {
         return ImmutableList.of(this);
       }
       computeSplitsIfNecessary();
+      reportSourceLineage(inputSplits);
       LOG.info(
           "Generated {} splits. Size of first split is {} ",
           inputSplits.size(),
@@ -742,6 +746,27 @@ public class HadoopFormatIO {
                       skipKeyClone,
                       skipValueClone))
           .collect(Collectors.toList());
+    }
+
+    private void reportSourceLineage(final List<SerializableSplit> inputSplits) {
+      for (SerializableSplit serializableSplit : inputSplits) {
+        InputSplit split = serializableSplit.getSplit();
+        if (split instanceof FileSplit) {
+          URI uri = ((FileSplit) split).getPath().toUri();
+          String scheme = uri.getScheme();
+          if (scheme == null) {
+            continue;
+          }
+          ImmutableList.Builder<String> segments = ImmutableList.builder();
+          if (uri.getAuthority() != null && !uri.getAuthority().isEmpty()) {
+            segments.add(uri.getAuthority());
+          }
+          if (uri.getPath() != null && !uri.getPath().isEmpty() && !uri.getPath().equals("/")) {
+            segments.add(uri.getPath());
+          }
+          Lineage.getSources().add(scheme, segments.build(), "/");
+        }
+      }
     }
 
     @Override

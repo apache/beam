@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueReceiver;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -92,17 +93,18 @@ public class GroupAlsoByWindowFnRunner<InputT, OutputT> implements DoFnRunner<In
     // This can contain user code. Wrap it in case it throws an exception.
     try {
       fn.processElement(elem.getValue(), options, stepContext, sideInputReader, outputManager);
+    } catch (RuntimeException ex) {
+      throw ex;
     } catch (Exception ex) {
-      if (ex instanceof RuntimeException) {
-        throw (RuntimeException) ex;
-      }
-
       throw new RuntimeException(ex);
     }
   }
 
   @Override
   public void finishBundle() {}
+
+  @Override
+  public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
   @Override
   public <KeyT> void onWindowExpiration(BoundedWindow window, Instant timestamp, KeyT key) {}

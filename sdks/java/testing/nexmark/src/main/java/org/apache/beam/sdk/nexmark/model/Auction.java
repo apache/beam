@@ -230,7 +230,7 @@ public class Auction implements KnownSize, Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof Auction)) {
       return false;
     }
     Auction auction = (Auction) o;

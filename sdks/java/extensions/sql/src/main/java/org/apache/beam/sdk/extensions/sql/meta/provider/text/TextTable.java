@@ -93,7 +93,7 @@ public class TextTable extends SchemaBaseBeamTable {
       Double rows = textRowCountEstimator.estimateRowCount(options);
       return BeamTableStatistics.createBoundedTableStatistics(rows);
     } catch (IOException | TextRowCountEstimator.NoEstimationException e) {
-      LOG.warn("Could not get the row count for the text table " + filePattern, e);
+      LOG.warn("Could not get the row count for the text table {}", filePattern, e);
     }
     return BeamTableStatistics.BOUNDED_UNKNOWN;
   }

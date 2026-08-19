@@ -89,11 +89,11 @@ public class TransformServiceLauncher {
     // Setting up the credentials directory.
     File credentialsDir = Paths.get(tmpDir, "credentials_dir").toFile();
     if (credentialsDir.exists()) {
-      LOG.info("Reusing the existing credentials directory " + credentialsDir.getAbsolutePath());
+      LOG.info("Reusing the existing credentials directory {}", credentialsDir.getAbsolutePath());
     } else {
       LOG.info(
-          "Creating a temporary directory for storing credentials: "
-              + credentialsDir.getAbsolutePath());
+          "Creating a temporary directory for storing credentials: {}",
+          credentialsDir.getAbsolutePath());
       if (!credentialsDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing credentials: "
@@ -131,11 +131,11 @@ public class TransformServiceLauncher {
     File dependenciesDir = Paths.get(tmpDir, "dependencies_dir").toFile();
     Path updatedRequirementsFilePath = Paths.get(dependenciesDir.toString(), "requirements.txt");
     if (dependenciesDir.exists()) {
-      LOG.info("Reusing the existing dependencies directory " + dependenciesDir.getAbsolutePath());
+      LOG.info("Reusing the existing dependencies directory {}", dependenciesDir.getAbsolutePath());
     } else {
       LOG.info(
-          "Creating a temporary directory for storing dependencies: "
-              + dependenciesDir.getAbsolutePath());
+          "Creating a temporary directory for storing dependencies: {}",
+          dependenciesDir.getAbsolutePath());
       if (!dependenciesDir.mkdir()) {
         throw new IOException(
             "Could not create a temporary directory for storing dependencies: "

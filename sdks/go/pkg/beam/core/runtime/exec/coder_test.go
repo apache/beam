@@ -158,6 +158,90 @@ func compareFV(t *testing.T, got *FullValue, want *FullValue) {
 	}
 }
 
+// TestShardedKeyCoder_WireFormat verifies the exact bytes produced by the
+// ShardedKey coder against the standard_coders.yaml fixtures (lines
+// 501-521, urn "beam:coder:sharded_key:v1" with a string_utf8 key
+// component). A single divergent byte would silently corrupt cross-SDK
+// pipelines on Dataflow / Flink.
+func TestShardedKeyCoder_WireFormat(t *testing.T) {
+	c := coder.NewSK(coder.NewString())
+	enc := MakeElementEncoder(c)
+	dec := MakeElementDecoder(c)
+
+	type fixture struct {
+		name    string
+		key     string
+		shardID []byte
+		wire    []byte
+	}
+	fixtures := []fixture{
+		{
+			name:    "empty_empty",
+			key:     "",
+			shardID: []byte{},
+			wire:    []byte{0x00, 0x00},
+		},
+		{
+			name:    "shardId_emptyKey",
+			key:     "",
+			shardID: []byte("shard_id"),
+			wire: append(
+				append([]byte{0x08}, []byte("shard_id")...),
+				0x00,
+			),
+		},
+		{
+			name:    "shardId_key",
+			key:     "key",
+			shardID: []byte("shard_id"),
+			wire: append(
+				append([]byte{0x08}, []byte("shard_id")...),
+				append([]byte{0x03}, []byte("key")...)...,
+			),
+		},
+		{
+			name:    "emptyShardId_key",
+			key:     "key",
+			shardID: []byte{},
+			wire:    append([]byte{0x00, 0x03}, []byte("key")...),
+		},
+	}
+
+	for _, f := range fixtures {
+		f := f
+		t.Run(f.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			// ShardedKey values are carried as FullValue{Elm: key, Elm2: shardID}.
+			if err := enc.Encode(&FullValue{Elm: f.key, Elm2: f.shardID}, &buf); err != nil {
+				t.Fatalf("Encode: %v", err)
+			}
+			if got := buf.Bytes(); !bytes.Equal(got, f.wire) {
+				t.Fatalf("Encode: got bytes %#v, want %#v", got, f.wire)
+			}
+
+			fv, err := dec.Decode(bytes.NewReader(f.wire))
+			if err != nil {
+				t.Fatalf("Decode: %v", err)
+			}
+			gotKey, ok := fv.Elm.(string)
+			if !ok {
+				t.Fatalf("Decode Elm: got %T, want string", fv.Elm)
+			}
+			if gotKey != f.key {
+				t.Errorf("Decode Elm: got %q, want %q", gotKey, f.key)
+			}
+			gotShard, ok := fv.Elm2.([]byte)
+			if !ok {
+				t.Fatalf("Decode Elm2: got %T, want []byte", fv.Elm2)
+			}
+			// Both sides "empty" — accept nil or zero-length slice equivalence.
+			if len(gotShard) != len(f.shardID) || (len(gotShard) > 0 && !bytes.Equal(gotShard, f.shardID)) {
+				t.Errorf("Decode Elm2: got %#v, want %#v", gotShard, f.shardID)
+			}
+		})
+	}
+}
+
 func TestIterableCoder(t *testing.T) {
 	cod := coder.NewI(coder.NewVarInt())
 	wantVals := []int64{8, 24, 72}

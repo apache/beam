@@ -213,7 +213,7 @@ public class CombineFns {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof CoCombineResult)) {
         return false;
       }
       CoCombineResult that = (CoCombineResult) o;

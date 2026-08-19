@@ -34,8 +34,9 @@ import java.util.Random;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
-import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -142,7 +143,7 @@ public class BigTableIOLT extends IOLoadTestBase {
             region,
             readInfo.jobId(),
             getBeamMetricsName(PipelineMetricsType.COUNTER, READ_ELEMENT_METRIC_NAME));
-    assertEquals(configuration.getNumRows(), numRecords, 0.5);
+    assertEquals((double) configuration.getNumRows(), numRecords, 0.5);
 
     // export metrics
     MetricsConfiguration metricsConfig =
@@ -214,13 +215,13 @@ public class BigTableIOLT extends IOLoadTestBase {
   /** Options for BigtableIO load test. */
   @AutoValue
   abstract static class Configuration {
-    abstract Long getNumRows();
+    abstract long getNumRows();
 
-    abstract Integer getPipelineTimeout();
+    abstract int getPipelineTimeout();
 
     abstract String getRunner();
 
-    abstract Integer getValueSizeBytes();
+    abstract int getValueSizeBytes();
 
     static Configuration of(long numRows, int pipelineTimeout, String runner, int valueSizeBytes) {
       return new AutoValue_BigTableIOLT_Configuration.Builder()

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_TVF_NAME;
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.PARTITION_TOKEN_TVF_NAME_DELIMITER;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_CREATED_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_END_TIMESTAMP;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.PartitionMetadataAdminDao.COLUMN_FINISHED_AT;
@@ -132,14 +134,37 @@ public class PartitionMetadataDao {
     return result;
   }
 
+  public static String composePartitionTokenWithTvfName(String partitionToken, String tvfName) {
+    if (tvfName == null || tvfName.isEmpty()) {
+      return partitionToken;
+    }
+    return partitionToken + PARTITION_TOKEN_TVF_NAME_DELIMITER + tvfName;
+  }
+
+  public static String extractPartitionToken(String composedPartitionToken) {
+    int index = composedPartitionToken.indexOf(PARTITION_TOKEN_TVF_NAME_DELIMITER);
+    if (index == -1) {
+      return composedPartitionToken;
+    }
+    return composedPartitionToken.substring(0, index);
+  }
+
+  public static String extractTvfName(String composedPartitionToken) {
+    int index = composedPartitionToken.indexOf(PARTITION_TOKEN_TVF_NAME_DELIMITER);
+    if (index == -1) {
+      return DEFAULT_TVF_NAME;
+    }
+    return composedPartitionToken.substring(index + PARTITION_TOKEN_TVF_NAME_DELIMITER.length());
+  }
+
   /**
-   * Fetches the partition metadata row data for the given partition token.
+   * Fetches the partition metadata row data for the given composedPartitionToken.
    *
-   * @param partitionToken the partition unique identifier
-   * @return the partition metadata for the given token if it exists as a struct. Otherwise, it
-   *     returns null.
+   * @param composedPartitionToken the partition unique identifier
+   * @return the partition metadata for the given composedPartitionToken if it exists as a struct.
+   *     Otherwise, it returns null.
    */
-  public @Nullable Struct getPartition(String partitionToken) {
+  public @Nullable Struct getPartition(String composedPartitionToken) {
     Statement statement;
     if (this.isPostgres()) {
       statement =
@@ -150,7 +175,7 @@ public class PartitionMetadataDao {
                       + COLUMN_PARTITION_TOKEN
                       + "\" = $1")
               .bind("p1")
-              .to(partitionToken)
+              .to(composedPartitionToken)
               .build();
     } else {
       statement =
@@ -161,7 +186,7 @@ public class PartitionMetadataDao {
                       + COLUMN_PARTITION_TOKEN
                       + " = @partition")
               .bind("partition")
-              .to(partitionToken)
+              .to(composedPartitionToken)
               .build();
     }
     try (ResultSet resultSet =
@@ -341,53 +366,68 @@ public class PartitionMetadataDao {
   }
 
   /**
-   * Updates multiple partition row to {@link State#SCHEDULED} state.
+   * Inserts the partition metadata in batch.
    *
-   * @param partitionTokens the partitions' unique identifiers
+   * @param rows the partition metadata objects to be inserted
    * @return the commit timestamp of the read / write transaction
    */
-  public Timestamp updateToScheduled(List<String> partitionTokens) {
+  public Timestamp insert(List<PartitionMetadata> rows) {
+    final TransactionResult<Void> transactionResult =
+        runInTransaction(transaction -> transaction.insert(rows), "InsertsPartitionMetadataBatch");
+    return transactionResult.getCommitTimestamp();
+  }
+
+  /**
+   * Updates multiple partition row to {@link State#SCHEDULED} state.
+   *
+   * @param composedPartitionTokens the partitions' unique identifiers
+   * @return the commit timestamp of the read / write transaction
+   */
+  public Timestamp updateToScheduled(List<String> composedPartitionTokens) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(
-            transaction -> transaction.updateToScheduled(partitionTokens), "updateToScheduled");
+            transaction -> transaction.updateToScheduled(composedPartitionTokens),
+            "updateToScheduled");
     return transactionResult.getCommitTimestamp();
   }
 
   /**
    * Updates a partition row to {@link State#RUNNING} state.
    *
-   * @param partitionToken the partition unique identifier
+   * @param composedPartitionToken the partition unique identifier
    * @return the commit timestamp of the read / write transaction
    */
-  public Timestamp updateToRunning(String partitionToken) {
+  public Timestamp updateToRunning(String composedPartitionToken) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(
-            transaction -> transaction.updateToRunning(partitionToken), "updateToRunning");
+            transaction -> transaction.updateToRunning(composedPartitionToken), "updateToRunning");
     return transactionResult.getCommitTimestamp();
   }
 
   /**
    * Updates a partition row to {@link State#FINISHED} state.
    *
-   * @param partitionToken the partition unique identifier
+   * @param composedPartitionToken the partition unique identifier
    * @return the commit timestamp of the read / write transaction
    */
-  public Timestamp updateToFinished(String partitionToken) {
+  public Timestamp updateToFinished(String composedPartitionToken) {
     final TransactionResult<Void> transactionResult =
         runInTransaction(
-            transaction -> transaction.updateToFinished(partitionToken), "updateToFinished");
+            transaction -> transaction.updateToFinished(composedPartitionToken),
+            "updateToFinished");
     return transactionResult.getCommitTimestamp();
   }
 
   /**
    * Update the partition watermark to the given timestamp.
    *
-   * @param partitionToken the partition unique identifier
+   * @param composedPartitionToken the partition unique identifier
    * @param watermark the new partition watermark
    */
-  public void updateWatermark(String partitionToken, Timestamp watermark) {
+  public void updateWatermark(String composedPartitionToken, Timestamp watermark) {
     runInTransaction(
-        transaction -> transaction.updateWatermark(partitionToken, watermark), "updateWatermark");
+        transaction -> transaction.updateWatermark(composedPartitionToken, watermark),
+        "updateWatermark");
   }
 
   /**
@@ -465,13 +505,27 @@ public class PartitionMetadataDao {
     }
 
     /**
+     * Inserts the partition metadata in batch.
+     *
+     * @param rows the partition metadata objects to be inserted
+     */
+    public Void insert(List<PartitionMetadata> rows) {
+      List<Mutation> mutations = new ArrayList<>();
+      for (PartitionMetadata row : rows) {
+        mutations.add(createInsertMetadataMutationFrom(row));
+      }
+      transaction.buffer(mutations);
+      return null;
+    }
+
+    /**
      * Updates multiple partition rows to {@link State#SCHEDULED} state.
      *
-     * @param partitionTokens the partitions' unique identifiers
+     * @param composedPartitionTokens the partitions' unique identifiers
      */
-    public Void updateToScheduled(List<String> partitionTokens) {
+    public Void updateToScheduled(List<String> composedPartitionTokens) {
       HashSet<String> tokens = new HashSet<>();
-      Statement statement = getPartitionsMatchingState(partitionTokens, State.CREATED);
+      Statement statement = getPartitionsMatchingState(composedPartitionTokens, State.CREATED);
       try (ResultSet resultSet =
           transaction.executeQuery(statement, Options.tag("getPartitionsMatchingState=CREATED"))) {
         while (resultSet.next()) {
@@ -479,16 +533,16 @@ public class PartitionMetadataDao {
         }
       }
 
-      for (String partitionToken : partitionTokens) {
-        if (!tokens.contains(partitionToken)) {
-          LOG.info("[{}] Did not update to be SCHEDULED", partitionToken);
+      for (String composedPartitionToken : composedPartitionTokens) {
+        if (!tokens.contains(composedPartitionToken)) {
+          LOG.info("[{}] Did not update to be SCHEDULED", composedPartitionToken);
           continue;
         }
 
-        LOG.info("[{}] Successfully updating to be SCHEDULED", partitionToken);
+        LOG.info("[{}] Successfully updating to be SCHEDULED", composedPartitionToken);
         transaction.buffer(
             ImmutableList.of(
-                createUpdateMetadataStateMutationFrom(partitionToken, State.SCHEDULED)));
+                createUpdateMetadataStateMutationFrom(composedPartitionToken, State.SCHEDULED)));
       }
       return null;
     }
@@ -496,35 +550,38 @@ public class PartitionMetadataDao {
     /**
      * Updates a partition row to {@link State#RUNNING} state.
      *
-     * @param partitionToken the partition unique identifier
+     * @param composedPartitionToken the partition unique identifier
      */
-    public Void updateToRunning(String partitionToken) {
+    public Void updateToRunning(String composedPartitionToken) {
       Statement statement =
-          getPartitionsMatchingState(Collections.singletonList(partitionToken), State.SCHEDULED);
+          getPartitionsMatchingState(
+              Collections.singletonList(composedPartitionToken), State.SCHEDULED);
 
       try (ResultSet resultSet =
           transaction.executeQuery(
               statement, Options.tag("getPartitionsMatchingState=SCHEDULED"))) {
         if (!resultSet.next()) {
-          LOG.info("[{}] Did not update to be RUNNING", partitionToken);
+          LOG.info("[{}] Did not update to be RUNNING", composedPartitionToken);
           return null;
         }
       }
-      LOG.info("[{}] Successfully updating to be RUNNING", partitionToken);
+      LOG.info("[{}] Successfully updating to be RUNNING", composedPartitionToken);
       transaction.buffer(
-          ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.RUNNING)));
+          ImmutableList.of(
+              createUpdateMetadataStateMutationFrom(composedPartitionToken, State.RUNNING)));
       return null;
     }
 
     /**
      * Updates a partition row to {@link State#FINISHED} state.
      *
-     * @param partitionToken the partition unique identifier
+     * @param composedPartitionToken the partition unique identifier
      */
-    public Void updateToFinished(String partitionToken) {
-      LOG.info("[{}] Successfully updating to be FINISHED", partitionToken);
+    public Void updateToFinished(String composedPartitionToken) {
+      LOG.info("[{}] Successfully updating to be FINISHED", composedPartitionToken);
       transaction.buffer(
-          ImmutableList.of(createUpdateMetadataStateMutationFrom(partitionToken, State.FINISHED)));
+          ImmutableList.of(
+              createUpdateMetadataStateMutationFrom(composedPartitionToken, State.FINISHED)));
       return null;
     }
 
@@ -532,33 +589,36 @@ public class PartitionMetadataDao {
      * Update the partition watermark to the given timestamp iff the partition watermark in metadata
      * table is smaller than the given watermark.
      *
-     * @param partitionToken the partition unique identifier
+     * @param composedPartitionToken the partition unique identifier
      * @param watermark the new partition watermark
      * @return the commit timestamp of the read / write transaction
      */
-    public Void updateWatermark(String partitionToken, Timestamp watermark) {
+    public Void updateWatermark(String composedPartitionToken, Timestamp watermark) {
       Struct row =
           transaction.readRow(
-              metadataTableName, Key.of(partitionToken), Collections.singleton(COLUMN_WATERMARK));
+              metadataTableName,
+              Key.of(composedPartitionToken),
+              Collections.singleton(COLUMN_WATERMARK));
       if (row == null) {
-        LOG.error("[{}] Failed to read Watermark column", partitionToken);
+        LOG.error("[{}] Failed to read Watermark column", composedPartitionToken);
         return null;
       }
       Timestamp partitionWatermark = row.getTimestamp(COLUMN_WATERMARK);
       if (partitionWatermark.compareTo(watermark) < 0) {
-        transaction.buffer(createUpdateMetadataWatermarkMutationFrom(partitionToken, watermark));
+        transaction.buffer(
+            createUpdateMetadataWatermarkMutationFrom(composedPartitionToken, watermark));
       }
       return null;
     }
 
     /**
-     * Fetches the partition metadata row data for the given partition token.
+     * Fetches the partition metadata row data for the given composedPartitionToken.
      *
-     * @param partitionToken the partition unique identifier
-     * @return the partition metadata for the given token if it exists as a struct. Otherwise, it
-     *     returns null.
+     * @param composedPartitionToken the partition unique identifier
+     * @return the partition metadata for the given composedPartitionToken if it exists as a struct.
+     *     Otherwise, it returns null.
      */
-    public @Nullable Struct getPartition(String partitionToken) {
+    public @Nullable Struct getPartition(String composedPartitionToken) {
       Statement statement;
       if (this.dialect == Dialect.POSTGRESQL) {
         statement =
@@ -569,7 +629,7 @@ public class PartitionMetadataDao {
                         + COLUMN_PARTITION_TOKEN
                         + "\" = $1")
                 .bind("p1")
-                .to(partitionToken)
+                .to(composedPartitionToken)
                 .build();
 
       } else {
@@ -581,7 +641,7 @@ public class PartitionMetadataDao {
                         + COLUMN_PARTITION_TOKEN
                         + " = @partition")
                 .bind("partition")
-                .to(partitionToken)
+                .to(composedPartitionToken)
                 .build();
       }
       try (ResultSet resultSet =
@@ -597,7 +657,9 @@ public class PartitionMetadataDao {
     private Mutation createInsertMetadataMutationFrom(PartitionMetadata partitionMetadata) {
       return Mutation.newInsertBuilder(metadataTableName)
           .set(COLUMN_PARTITION_TOKEN)
-          .to(partitionMetadata.getPartitionToken())
+          .to(
+              composePartitionTokenWithTvfName(
+                  partitionMetadata.getPartitionToken(), partitionMetadata.getTvfName()))
           .set(COLUMN_PARENT_TOKENS)
           .toStringArray(partitionMetadata.getParentTokens())
           .set(COLUMN_START_TIMESTAMP)
@@ -615,20 +677,23 @@ public class PartitionMetadataDao {
           .build();
     }
 
-    private Statement getPartitionsMatchingState(List<String> partitionTokens, State state) {
+    private Statement getPartitionsMatchingState(
+        List<String> composedPartitionTokens, State state) {
       Statement statement;
       if (this.dialect == Dialect.POSTGRESQL) {
         StringBuilder sqlStringBuilder =
             new StringBuilder("SELECT * FROM \"" + metadataTableName + "\"");
         sqlStringBuilder.append(" WHERE \"");
         sqlStringBuilder.append(COLUMN_STATE + "\" = " + "'" + state.toString() + "'");
-        if (!partitionTokens.isEmpty()) {
+        if (!composedPartitionTokens.isEmpty()) {
           sqlStringBuilder.append(" AND \"");
           sqlStringBuilder.append(COLUMN_PARTITION_TOKEN);
           sqlStringBuilder.append("\"");
           sqlStringBuilder.append(" = ANY (Array[");
           sqlStringBuilder.append(
-              partitionTokens.stream().map(s -> "'" + s + "'").collect(Collectors.joining(",")));
+              composedPartitionTokens.stream()
+                  .map(s -> "'" + s + "'")
+                  .collect(Collectors.joining(",")));
           sqlStringBuilder.append("])");
         }
         statement = Statement.newBuilder(sqlStringBuilder.toString()).build();
@@ -639,11 +704,11 @@ public class PartitionMetadataDao {
                         + metadataTableName
                         + " WHERE "
                         + COLUMN_PARTITION_TOKEN
-                        + " IN UNNEST(@partitionTokens) AND "
+                        + " IN UNNEST(@composedPartitionTokens) AND "
                         + COLUMN_STATE
                         + " = @state")
-                .bind("partitionTokens")
-                .to(Value.stringArray(new ArrayList<>(partitionTokens)))
+                .bind("composedPartitionTokens")
+                .to(Value.stringArray(new ArrayList<>(composedPartitionTokens)))
                 .bind("state")
                 .to(state.toString())
                 .build();
@@ -651,14 +716,15 @@ public class PartitionMetadataDao {
       return statement;
     }
 
-    private Mutation createUpdateMetadataStateMutationFrom(String partitionToken, State state) {
+    private Mutation createUpdateMetadataStateMutationFrom(
+        String composedPartitionToken, State state) {
       final String timestampColumn = stateToTimestampColumn.get(state);
       if (timestampColumn == null) {
         throw new IllegalArgumentException("No timestamp column name found for state " + state);
       }
       return Mutation.newUpdateBuilder(metadataTableName)
           .set(COLUMN_PARTITION_TOKEN)
-          .to(partitionToken)
+          .to(composedPartitionToken)
           .set(COLUMN_STATE)
           .to(state.toString())
           .set(timestampColumn)
@@ -667,10 +733,10 @@ public class PartitionMetadataDao {
     }
 
     private Mutation createUpdateMetadataWatermarkMutationFrom(
-        String partitionToken, Timestamp watermark) {
+        String composedPartitionToken, Timestamp watermark) {
       return Mutation.newUpdateBuilder(metadataTableName)
           .set(COLUMN_PARTITION_TOKEN)
-          .to(partitionToken)
+          .to(composedPartitionToken)
           .set(COLUMN_WATERMARK)
           .to(watermark)
           .build();

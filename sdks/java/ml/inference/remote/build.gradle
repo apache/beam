@@ -29,6 +29,7 @@ ext.summary = "Base framework for remote ml inference"
 dependencies {
   // Core Beam SDK
   implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(":sdks:java:io:components")
 
   compileOnly "com.google.auto.value:auto-value-annotations:1.11.0"
   annotationProcessor "com.google.auto.value:auto-value:1.11.0"

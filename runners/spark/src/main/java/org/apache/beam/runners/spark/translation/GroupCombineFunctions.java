@@ -88,7 +88,7 @@ public class GroupCombineFunctions {
   /**
    * Spark-level group by key operation that keeps original Beam {@link KV} pairs unchanged.
    *
-   * @returns {@link JavaPairRDD} where the first value in the pair is the serialized key, and the
+   * @return {@link JavaPairRDD} where the first value in the pair is the serialized key, and the
    *     second is an iterable of the {@link KV} pairs with that key.
    */
   static <K, V> JavaPairRDD<ByteArray, Iterable<WindowedValue<KV<K, V>>>> groupByKeyPair(

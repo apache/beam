@@ -39,7 +39,6 @@ from .groupby_simple_aggregate import simple_aggregate
 from .groupby_two_exprs import groupby_two_exprs
 
 
-
 class UnorderedList(object):
   def __init__(self, contents):
     self._contents = list(contents)

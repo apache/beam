@@ -138,7 +138,7 @@ public class BeamRowToStorageApiProto {
                   CivilTimeEncoder.encodePacked64DatetimeMicros((LocalDateTime) value))
           .put(
               SqlTypes.TIMESTAMP.getIdentifier(),
-              (logicalType, value) -> (ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value)))
+              (logicalType, value) -> ChronoUnit.MICROS.between(Instant.EPOCH, (Instant) value))
           .put(
               EnumerationType.IDENTIFIER,
               (logicalType, value) ->
@@ -146,7 +146,7 @@ public class BeamRowToStorageApiProto {
           .build();
 
   /**
-   * Forwards (@param changeSequenceNum) to {@link #messageFromBeamRow(Descriptor, Row, String,
+   * Forwards ({@code changeSequenceNum}) to {@link #messageFromBeamRow(Descriptor, Row, String,
    * String)} via {@link Long#toHexString}.
    */
   public static DynamicMessage messageFromBeamRow(
@@ -227,13 +227,13 @@ public class BeamRowToStorageApiProto {
         TypeName containedTypeName =
             Preconditions.checkNotNull(
                 elementType.getTypeName(),
-                "Null type name found in contained type at " + field.getName());
+                "Null type name found in contained type at %s",
+                field.getName());
         Preconditions.checkState(
             !(containedTypeName.isCollectionType() || containedTypeName.isMapType()),
-            "Nested container types are not supported by BigQuery. Field "
-                + field.getName()
-                + " contains a type "
-                + containedTypeName.name());
+            "Nested container types are not supported by BigQuery. Field %s contains a type %s",
+            field.getName(),
+            containedTypeName.name());
         TableFieldSchema elementFieldSchema =
             fieldDescriptorFromBeamField(Field.of(field.getName(), elementType));
         builder = builder.setType(elementFieldSchema.getType());

@@ -376,11 +376,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
      -Pdataflow-runner
 {{< /runner >}}
 
-{{< runner samza >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WordCount \
-     -Dexec.args="--inputFile=pom.xml --output=counts --runner=SamzaRunner" -Psamza-runner
-{{< /runner >}}
-
 {{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
@@ -428,10 +423,6 @@ python -m apache_beam.examples.wordcount --input gs://dataflow-samples/shakespea
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
 {{< /runner >}}
 
-{{< runner samza >}}
-This runner is not yet available for the Python SDK.
-{{< /runner >}}
-
 {{< runner nemo >}}
 This runner is not yet available for the Python SDK.
 {{< /runner >}}
@@ -474,10 +465,6 @@ $ wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache/beam_go_sdk:latest
-{{< /runner >}}
-
-{{< runner samza >}}
-This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner nemo >}}
@@ -716,11 +703,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordC
      -Pdataflow-runner
 {{< /runner >}}
 
-{{< runner samza >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.DebuggingWordCount \
-     -Dexec.args="--runner=SamzaRunner --output=counts" -Psamza-runner
-{{< /runner >}}
-
 {{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.DebuggingWordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
@@ -760,10 +742,6 @@ python -m apache_beam.examples.wordcount_debugging --input gs://dataflow-samples
                                          --runner DataflowRunner \
                                          --project YOUR_GCP_PROJECT \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
-{{< /runner >}}
-
-{{< runner samza >}}
-This runner is not yet available for the Python SDK.
 {{< /runner >}}
 
 {{< runner nemo >}}
@@ -808,10 +786,6 @@ $ debugging_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
                       --temp_location gs://<your-gcs-bucket>/tmp/ \
                       --staging_location gs://<your-gcs-bucket>/binaries/ \
                       --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
-{{< /runner >}}
-
-{{< runner samza >}}
-This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner nemo >}}
@@ -1048,11 +1022,6 @@ $ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCo
      -Pdataflow-runner
 {{< /runner >}}
 
-{{< runner samza >}}
-$ mvn compile exec:java -Dexec.mainClass=org.apache.beam.examples.WindowedWordCount \
-     -Dexec.args="--runner=SamzaRunner --inputFile=pom.xml --output=counts" -Psamza-runner
-{{< /runner >}}
-
 {{< runner nemo >}}
 $ mvn package -Pnemo-runner && java -cp target/word-count-beam-bundled-0.1.jar org.apache.beam.examples.WindowedWordCount \
      --runner=NemoRunner --inputFile=`pwd`/pom.xml --output=counts
@@ -1098,10 +1067,6 @@ python -m apache_beam.examples.windowed_wordcount --input YOUR_INPUT_FILE \
                                          --temp_location gs://YOUR_GCS_BUCKET/tmp/
 {{< /runner >}}
 
-{{< runner samza >}}
-This runner is not yet available for the Python SDK.
-{{< /runner >}}
-
 {{< runner nemo >}}
 This runner is not yet available for the Python SDK.
 {{< /runner >}}
@@ -1143,10 +1108,6 @@ $ windowed_wordcount --input gs://dataflow-samples/shakespeare/kinglear.txt \
             --temp_location gs://<your-gcs-bucket>/tmp/ \
             --staging_location gs://<your-gcs-bucket>/binaries/ \
             --worker_harness_container_image=apache-docker-beam-snapshots-docker.bintray.io/beam/go:20180515
-{{< /runner >}}
-
-{{< runner samza >}}
-This runner is not yet available for the Go SDK.
 {{< /runner >}}
 
 {{< runner nemo >}}
@@ -1408,10 +1369,6 @@ python -m apache_beam.examples.streaming_wordcount \
   --input_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_INPUT_TOPIC" \
   --output_topic "projects/YOUR_PUBSUB_PROJECT_NAME/topics/YOUR_OUTPUT_TOPIC" \
   --streaming
-{{< /runner >}}
-
-{{< runner samza >}}
-This runner is not yet available for the Python SDK.
 {{< /runner >}}
 
 {{< runner nemo >}}

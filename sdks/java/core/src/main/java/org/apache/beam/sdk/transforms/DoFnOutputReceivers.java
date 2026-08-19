@@ -70,10 +70,8 @@ public class DoFnOutputReceivers {
                 rowWithMetadata -> {
                   ((DoFn<?, T>.WindowedContext) context)
                       .outputWindowedValue(
-                          schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
-                          rowWithMetadata.getTimestamp(),
-                          rowWithMetadata.getWindows(),
-                          rowWithMetadata.getPaneInfo());
+                          rowWithMetadata.withValue(
+                              schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue())));
                 });
 
       } else {
@@ -84,10 +82,8 @@ public class DoFnOutputReceivers {
                 rowWithMetadata -> {
                   context.outputWindowedValue(
                       tag,
-                      schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue()),
-                      rowWithMetadata.getTimestamp(),
-                      rowWithMetadata.getWindows(),
-                      rowWithMetadata.getPaneInfo());
+                      rowWithMetadata.withValue(
+                          schemaCoder.getFromRowFunction().apply(rowWithMetadata.getValue())));
                 });
       }
     }
@@ -120,19 +116,9 @@ public class DoFnOutputReceivers {
     @Override
     public void output(WindowedValue<T> windowedValue) {
       if (outputTag != null) {
-        context.outputWindowedValue(
-            outputTag,
-            windowedValue.getValue(),
-            windowedValue.getTimestamp(),
-            windowedValue.getWindows(),
-            windowedValue.getPaneInfo());
+        context.outputWindowedValue(outputTag, windowedValue);
       } else {
-        ((DoFn<?, T>.WindowedContext) context)
-            .outputWindowedValue(
-                windowedValue.getValue(),
-                windowedValue.getTimestamp(),
-                windowedValue.getWindows(),
-                windowedValue.getPaneInfo());
+        ((DoFn<?, T>.WindowedContext) context).outputWindowedValue(windowedValue);
       }
     }
   }
@@ -169,7 +155,8 @@ public class DoFnOutputReceivers {
       checkStateNotNull(outputCoder, "No output tag for %s ", tag);
       checkState(
           outputCoder instanceof SchemaCoder,
-          "Output with tag " + tag + " must have a schema in order to call getRowReceiver");
+          "Output with tag %s must have a schema in order to call getRowReceiver",
+          tag);
       return DoFnOutputReceivers.rowReceiver(
           context, builderSupplier, tag, (SchemaCoder<T>) outputCoder);
     }

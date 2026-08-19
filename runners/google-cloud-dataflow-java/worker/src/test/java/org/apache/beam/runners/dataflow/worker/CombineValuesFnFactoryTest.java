@@ -222,7 +222,7 @@ public class CombineValuesFnFactoryTest {
   public void testCombineValuesFnAll() throws Exception {
     TestReceiver receiver = new TestReceiver();
 
-    Combine.CombineFn<Integer, CountSum, String> combiner = (new MeanInts());
+    Combine.CombineFn<Integer, CountSum, String> combiner = new MeanInts();
 
     ParDoFn combineParDoFn =
         createCombineValuesFn(

@@ -20,9 +20,10 @@ package org.apache.beam.examples;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.TreeMap;
@@ -128,7 +129,9 @@ public class WindowedWordCountIT {
             .resolve(
                 String.format(
                     "WindowedWordCountIT.%s-%tFT%<tH:%<tM:%<tS.%<tL+%s",
-                    testName.getMethodName(), new Date(), ThreadLocalRandom.current().nextInt()),
+                    testName.getMethodName(),
+                    LocalDateTime.now(ZoneId.of("UTC")),
+                    ThreadLocalRandom.current().nextInt()),
                 StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("output", StandardResolveOptions.RESOLVE_DIRECTORY)
             .resolve("results", StandardResolveOptions.RESOLVE_FILE)

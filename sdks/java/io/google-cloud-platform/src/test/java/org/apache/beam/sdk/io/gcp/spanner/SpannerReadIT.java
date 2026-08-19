@@ -26,6 +26,7 @@ import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.Mutation;
+import com.google.cloud.spanner.SessionPoolOptions;
 import com.google.cloud.spanner.Spanner;
 import com.google.cloud.spanner.SpannerOptions;
 import com.google.cloud.spanner.Struct;
@@ -34,7 +35,6 @@ import com.google.spanner.admin.database.v1.CreateDatabaseMetadata;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -109,17 +109,19 @@ public class SpannerReadIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.getInstanceProjectId();
-    if (project == null) {
-      project = options.as(GcpOptions.class).getProject();
-    }
+    project = SpannerTestHelper.getProject(options, options.getInstanceProjectId());
+    options.setInstanceId(SpannerTestHelper.getInstanceId(options.getInstanceId()));
 
-    spanner =
+    SpannerOptions.Builder spannerBuilder =
         SpannerOptions.newBuilder()
             .setProjectId(project)
             .disableGrpcGcpExtension()
-            .build()
-            .getService();
+            .setSessionPoolOption(
+                SessionPoolOptions.newBuilder()
+                    .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
+                    .build());
+    spannerBuilder = SpannerTestHelper.setUpSpannerOptions(spannerBuilder);
+    spanner = spannerBuilder.build().getService();
 
     databaseName = generateDatabaseName();
     pgDatabaseName = "pg-" + databaseName;
@@ -480,17 +482,19 @@ public class SpannerReadIT {
   }
 
   private SpannerConfig createSpannerConfig() {
-    return SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(databaseName);
+    return SpannerTestHelper.setUpSpannerConfig(
+        SpannerConfig.create()
+            .withProjectId(project)
+            .withInstanceId(options.getInstanceId())
+            .withDatabaseId(databaseName));
   }
 
   private SpannerConfig createPgSpannerConfig() {
-    return SpannerConfig.create()
-        .withProjectId(project)
-        .withInstanceId(options.getInstanceId())
-        .withDatabaseId(pgDatabaseName);
+    return SpannerTestHelper.setUpSpannerConfig(
+        SpannerConfig.create()
+            .withProjectId(project)
+            .withInstanceId(options.getInstanceId())
+            .withDatabaseId(pgDatabaseName));
   }
 
   private DatabaseClient getDatabaseClient() {

@@ -29,7 +29,6 @@ import javax.annotation.Nonnull;
 import org.apache.beam.model.jobmanagement.v1.JobApi;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobMessage;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobState;
-import org.apache.beam.model.jobmanagement.v1.JobApi.JobState.Enum;
 import org.apache.beam.model.jobmanagement.v1.JobApi.JobStateEvent;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Pipeline;
@@ -112,16 +111,22 @@ public class JobInvocation {
 
               switch (state) {
                 case DONE:
-                  setState(Enum.DONE);
+                  setState(JobState.Enum.DONE);
                   break;
                 case RUNNING:
-                  setState(Enum.RUNNING);
+                  setState(JobState.Enum.RUNNING);
+                  break;
+                case DRAINING:
+                  setState(JobState.Enum.DRAINING);
+                  break;
+                case DRAINED:
+                  setState(JobState.Enum.DRAINED);
                   break;
                 case CANCELLED:
-                  setState(Enum.CANCELLED);
+                  setState(JobState.Enum.CANCELLED);
                   break;
                 case FAILED:
-                  setState(Enum.FAILED);
+                  setState(JobState.Enum.FAILED);
                   break;
                 default:
                   setState(JobState.Enum.UNSPECIFIED);
@@ -138,8 +143,7 @@ public class JobInvocation {
               setState(JobState.Enum.CANCELLED);
               return;
             }
-            String message = String.format("Error during job invocation %s.", getId());
-            LOG.error(message, throwable);
+            LOG.error("Error during job invocation {}.", getId(), throwable);
             sendMessage(
                 JobMessage.newBuilder()
                     .setMessageText(getStackTraceAsString(throwable))
@@ -156,7 +160,7 @@ public class JobInvocation {
         executorService);
   }
 
-  /** @return Unique identifier for the job invocation. */
+  /** Returns unique identifier for the job invocation. */
   public String getId() {
     return jobInfo.jobId();
   }
@@ -171,9 +175,12 @@ public class JobInvocation {
           new FutureCallback<PortablePipelineResult>() {
             @Override
             public void onSuccess(PortablePipelineResult pipelineResult) {
-              // Do not cancel when we are already done.
-              if (pipelineResult != null
-                  && pipelineResult.getState() != PipelineResult.State.DONE) {
+              // Do not cancel when the runner has already successfully finished.
+              if (pipelineResult != null) {
+                PipelineResult.State state = pipelineResult.getState();
+                if (state == PipelineResult.State.DONE || state == PipelineResult.State.DRAINED) {
+                  return;
+                }
                 try {
                   pipelineResult.cancel();
                   setState(JobState.Enum.CANCELLED);
@@ -257,7 +264,7 @@ public class JobInvocation {
     }
   }
 
-  public static Boolean isTerminated(Enum state) {
+  public static Boolean isTerminated(JobState.Enum state) {
     switch (state) {
       case DONE:
       case FAILED:

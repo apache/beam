@@ -104,7 +104,7 @@ public class GeneratorConfig implements Serializable {
       // Scale maximum down to avoid overflow in getEstimatedSizeBytes.
       this.maxEvents =
           Long.MAX_VALUE
-              / (PROPORTION_DENOMINATOR
+              / ((long) PROPORTION_DENOMINATOR
                   * Math.max(
                       Math.max(configuration.avgPersonByteSize, configuration.avgAuctionByteSize),
                       configuration.avgBidByteSize));

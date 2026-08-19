@@ -486,7 +486,6 @@ public class ArtifactStagingService
       /**
        * Attempts to provide a reasonable filename for the artifact.
        *
-       * @param index a monotonically increasing index, which provides uniqueness
        * @param environment the environment id
        * @param artifact the artifact itself
        */
@@ -545,7 +544,6 @@ public class ArtifactStagingService
    * @param stagingService an ArtifactStagingService stub which will request artifacts
    * @param stagingToken the staging token of the job whose artifacts will be retrieved
    * @throws InterruptedException
-   * @throws IOException
    */
   public static void offer(
       ArtifactRetrievalService retrievalService,
@@ -583,6 +581,8 @@ public class ArtifactStagingService
       if (completionFuture.isCompletedExceptionally()) {
         try {
           completionFuture.get();
+        } catch (OutOfMemoryError oom) {
+          throw oom;
         } catch (Throwable th) {
           responseObserver.onError(th);
           return;

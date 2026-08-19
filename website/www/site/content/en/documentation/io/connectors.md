@@ -22,7 +22,7 @@ Apache Beam I/O connectors provide read and write transforms for the most popula
 
 I/O connectors denoted _via X-language_ have been made available using the Apache Beam [multi-language pipelines framework](/documentation/programming-guide/#multi-language-pipelines).
 
-I/O connectors denoted as _Supported via Managed API_ can be accessed using the simplified _managed I/O_ APIs for [Java](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html) and [Python](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.managed.html#module-apache_beam.transforms.managed).
+I/O connectors denoted as _Supported via Managed API_ can be accessed using the simplified [managed I/O_ APIs](https://beam.apache.org/documentation/io/managed-io/).
 
 ## Built-in I/O Connectors
 
@@ -445,7 +445,10 @@ This table provides a consolidated, at-a-glance overview of the available built-
       ✔
       <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/mqtt/MqttIO.html">native</a>
     </td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.xlang.io.html#apache_beam.transforms.xlang.io.ReadFromMqtt">via X-language</a>
+    </td>
     <td>Not available</td>
     <td>Not available</td>
     <td>Not available</td>
@@ -809,7 +812,11 @@ This table provides a consolidated, at-a-glance overview of the available built-
       <a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/mongodbio">native</a>
     </td>
     <td>Not available</td>
-    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfrommongodb">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetomongodb">write</a>
+    </td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
     <td class="absent">✘</td>
@@ -876,6 +883,22 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td>Not available</td>
     <td class="present">✔</td>
     <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>ArrowFlightIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/arrowflight/ArrowFlightIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
     <td class="absent">✘</td>
   </tr>
   <tr>
@@ -1020,7 +1043,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">
       ✔
-      native
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/neo4j/Neo4jIO.html">native</a>
     </td>
     <td>Not available</td>
     <td>Not available</td>
@@ -1127,7 +1150,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
   </tr>
   <tr>
     <td>
-      Iceberg (Managed I/O)
+      Iceberg (<a href="/documentation/io/built-in/iceberg/">guide</a>)
     </td>
     <td class="present">✔</td>
     <td class="present">✔</td>
@@ -1146,6 +1169,171 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
+  </tr>
+  <tr>
+    <td>CsvIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/csv/CsvIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromCsv">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromcsv">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetocsv">write</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>JsonIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/json/JsonIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.io.textio.html#apache_beam.io.textio.ReadFromJson">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#readfromjson">read</a> / <a href="https://beam.apache.org/releases/yamldoc/current/#writetojson">write</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>ContextualTextIO</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/contextualtextio/ContextualTextIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>PulsarIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/pulsar/PulsarIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>SolaceIO</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/solace/SolaceIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>DatadogIO</td>
+    <td class="absent">✘</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/datadog/DatadogIO.html">native</a>
+    </td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.xlang.io.html#apache_beam.transforms.xlang.io.DatadogWrite">via X-language</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">
+      ✔
+      <br>
+      <a href="https://beam.apache.org/releases/yamldoc/current/#writetodatadog">write</a>
+    </td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>CosmosIO (Azure Cosmos DB)</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/azure/cosmos/CosmosIO.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>AzureBlobStoreFileSystem</td>
+    <td class="present">✔</td>
+    <td class="present">✔</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/azure/blobstore/AzureBlobStoreFileSystemRegistrar.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✘</td>
+  </tr>
+  <tr>
+    <td>Delta Lake</td>
+    <td class="present">✔</td>
+    <td class="present">✘</td>
+    <td class="present">
+      ✔
+      <a href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/managed/Managed.html">native</a>
+    </td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td>Not available</td>
+    <td class="present">✔</td>
+    <td class="absent">✘</td>
+    <td class="absent">✔</td>
   </tr>
 </table>
 </div>
@@ -1166,23 +1354,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <th>Batch Supported</th>
     <th>Streaming Supported</th>
   </tr>
-  <tr>
-    <td>
-      <a href="https://github.com/SolaceProducts/solace-apache-beam">Solace</a>
-    </td>
-    <td class="present">✔</td>
-    <td class="absent">✘</td>
-    <td class="present">
-      ✔
-      native
-    </td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td>Not available</td>
-    <td class="present">✔</td>
-    <td class="present">✔</td>
-  </tr>
+
   <tr>
     <td>
       <a href="https://github.com/google/hana-bq-beam-connector">SAP Hana to Google BigQuery</a>

@@ -451,30 +451,27 @@ public class ExecutionStateSampler {
             Thread thread = trackedThread.get();
             if (thread == null) {
               LOG.warn(
-                  String.format(
-                      "Operation ongoing in bundle %s for at least %s without outputting "
-                          + "or completing (stack trace unable to be generated).",
-                      processBundleId.get(),
-                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod())));
+                  "Operation ongoing in bundle {} for at least {} without outputting "
+                      + "or completing (stack trace unable to be generated).",
+                  processBundleId.get(),
+                  DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()));
             } else if (currentExecutionState == null) {
               LOG.warn(
-                  String.format(
-                      "Operation ongoing in bundle %s for at least %s without outputting "
-                          + "or completing:%n  at %s",
-                      processBundleId.get(),
-                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
-                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+                  "Operation ongoing in bundle {} for at least {} without outputting "
+                      + "or completing:\n  at {}",
+                  processBundleId.get(),
+                  DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                  Joiner.on("\n  at ").join(thread.getStackTrace()));
             } else {
               LOG.warn(
-                  String.format(
-                      "Operation ongoing in bundle %s for PTransform{id=%s, name=%s, state=%s} "
-                          + "for at least %s without outputting or completing:%n  at %s",
-                      processBundleId.get(),
-                      currentExecutionState.ptransformId,
-                      currentExecutionState.ptransformUniqueName,
-                      currentExecutionState.stateName,
-                      DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
-                      Joiner.on("\n  at ").join(thread.getStackTrace())));
+                  "Operation ongoing in bundle {} for PTransform{{id={}, name={}, state={}}} "
+                      + "for at least {} without outputting or completing:\n  at {}",
+                  processBundleId.get(),
+                  currentExecutionState.ptransformId,
+                  currentExecutionState.ptransformUniqueName,
+                  currentExecutionState.stateName,
+                  DURATION_FORMATTER.print(Duration.millis(lullTimeMs).toPeriod()),
+                  Joiner.on("\n  at ").join(thread.getStackTrace()));
             }
           }
         }

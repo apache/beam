@@ -305,7 +305,7 @@ public class ElasticsearchIO {
     }
 
     if (numErrors > 0) {
-      LOG.error(errorMessages.toString());
+      LOG.error("{}", errorMessages.toString());
       if (throwWriteErrors) {
         throw new IOException(errorMessages.toString());
       }
@@ -533,7 +533,7 @@ public class ElasticsearchIO {
 
     /**
      * If Elasticsearch authentication is enabled, provide an API key. Be aware that you can only
-     * use one of {@Code withApiToken()}, {@code withBearerToken()} and {@code withDefaultHeaders}
+     * use one of {@code withApiToken()}, {@code withBearerToken()} and {@code withDefaultHeaders}
      * at the same time, as they (potentially) use the same header.
      *
      * @param apiKey the API key used to authenticate to Elasticsearch
@@ -549,7 +549,7 @@ public class ElasticsearchIO {
 
     /**
      * If Elasticsearch authentication is enabled, provide a bearer token. Be aware that you can
-     * only use one of {@Code withApiToken()}, {@code withBearerToken()} and {@code
+     * only use one of {@code withApiToken()}, {@code withBearerToken()} and {@code
      * withDefaultHeaders} at the same time, as they (potentially) use the same header.
      *
      * @param bearerToken the bearer token used to authenticate to Elasticsearch
@@ -1793,7 +1793,7 @@ public class ElasticsearchIO {
      * Providing this hint means there is no need for setting {@link
      * DocToBulk#withConnectionConfiguration}. This can also be very useful for testing purposes.
      *
-     * <p>Note: if the value of @param backendVersion differs from the version the destination
+     * <p>Note: if the value of {@code backendVersion} differs from the version the destination
      * cluster is running, behavior is undefined and likely to yield errors.
      *
      * @param backendVersion the major version number of the version of Elasticsearch being run in
@@ -2051,7 +2051,7 @@ public class ElasticsearchIO {
 
     public abstract @Nullable String getBulkDirective();
 
-    public abstract Boolean getHasError();
+    public abstract boolean getHasError();
 
     public abstract @Nullable String getResponseItemJson();
 
@@ -2486,7 +2486,7 @@ public class ElasticsearchIO {
 
     /**
      * Provide a set of textual error types which can be contained in Bulk API response
-     * items[].error.type field. Any element in @param allowableResponseErrorTypes will suppress
+     * items[].error.type field. Any element in {@code allowableResponseErrorTypes} will suppress
      * errors of the same type in Bulk responses.
      *
      * <p>See also
@@ -2543,7 +2543,7 @@ public class ElasticsearchIO {
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
      * maxParallelRequests, in particular if the input data has a finite number of windows, can
      * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
-     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * writing data to Elasticsearch, if {@code maxParallelRequests} is set to 1, there will only
      * ever be 1 request in flight. Having only a single request in flight can be beneficial for
      * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
      * for all use cases. If this number is less than the number of maximum workers in your
@@ -2566,7 +2566,7 @@ public class ElasticsearchIO {
      * batches are maintained per-key-per-window. BE AWARE that low values for @param
      * maxParallelRequests, in particular if the input data has a finite number of windows, can
      * reduce parallelism greatly. Because data will be temporarily globally windowed as part of
-     * writing data to Elasticsearch, if @param maxParallelRequests is set to 1, there will only
+     * writing data to Elasticsearch, if {@code maxParallelRequests} is set to 1, there will only
      * ever be 1 request in flight. Having only a single request in flight can be beneficial for
      * ensuring an Elasticsearch cluster is not overwhelmed by parallel requests, but may not work
      * for all use cases. If this number is less than the number of maximum workers in your
@@ -2746,7 +2746,7 @@ public class ElasticsearchIO {
       }
 
       @StartBundle
-      public void startBundle(StartBundleContext context) {
+      public void startBundle(@SuppressWarnings("unused") StartBundleContext context) {
         batch = new ArrayList<>();
         currentBatchSizeBytes = 0;
       }

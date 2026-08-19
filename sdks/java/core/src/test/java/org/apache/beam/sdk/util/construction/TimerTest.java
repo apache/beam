@@ -22,6 +22,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Collections;
+import java.util.Set;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.testing.CoderProperties;
@@ -46,7 +47,7 @@ public class TimerTest {
     assertTrue(clearedTimer.getClearBit());
     assertEquals("timer", clearedTimer.getUserKey());
     assertEquals("tag", clearedTimer.getDynamicTimerTag());
-    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), clearedTimer.getWindows());
+    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), (Set<?>) clearedTimer.getWindows());
   }
 
   @Test
@@ -64,7 +65,7 @@ public class TimerTest {
     assertEquals("tag", timer.getDynamicTimerTag());
     assertEquals(FIRE_TIME, timer.getFireTimestamp());
     assertEquals(HOLD_TIME, timer.getHoldTimestamp());
-    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), timer.getWindows());
+    assertEquals(Collections.singleton(GlobalWindow.INSTANCE), (Set<?>) timer.getWindows());
     assertEquals(PaneInfo.NO_FIRING, timer.getPaneInfo());
     assertFalse(timer.getClearBit());
   }

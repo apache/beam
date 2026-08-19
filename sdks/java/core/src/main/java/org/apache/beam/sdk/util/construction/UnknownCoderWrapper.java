@@ -24,7 +24,7 @@ import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CoderException;
 
 /**
- * Represents a {@coder Coder} that is not defined in Java SDK, for example, a coder that is
+ * Represents a {@code Coder} that is not defined in Java SDK, for example, a coder that is
  * available in an external SDK that cannot be fully interpretted in the Java SDK.
  */
 public class UnknownCoderWrapper extends AtomicCoder<Object> {

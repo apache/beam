@@ -15,6 +15,12 @@
 #    limitations under the License.
 #
 
-dill
-tfx_bsl
-tensorflow-transform
+dill==0.4.1
+tfx_bsl==1.21.0
+tensorflow-transform==1.21.0
+tensorflow-metadata==1.21.0
+tensorflow
+numpy
+pyarrow
+tensorflow-serving-api
+tf-keras

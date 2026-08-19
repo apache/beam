@@ -65,7 +65,7 @@ class StartingPoint implements Serializable {
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (!(o instanceof StartingPoint)) {
       return false;
     }
     StartingPoint that = (StartingPoint) o;

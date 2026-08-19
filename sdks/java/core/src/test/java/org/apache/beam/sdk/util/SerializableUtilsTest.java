@@ -146,7 +146,8 @@ public class SerializableUtilsTest {
   }
 
   /**
-   * a sample class to test framework serialization, {@see SerializableUtilsTest#customClassLoader}.
+   * a sample class to test framework serialization, {@link
+   * SerializableUtilsTest#customClassLoader}.
    */
   public static class Foo implements Serializable {}
 }

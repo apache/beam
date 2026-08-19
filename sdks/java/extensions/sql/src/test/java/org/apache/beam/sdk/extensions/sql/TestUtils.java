@@ -93,7 +93,7 @@ public class TestUtils {
      * )
      * }</pre>
      *
-     * @args pairs of column type and column names.
+     * @param args pairs of column type and column names.
      */
     public static RowsBuilder of(final Object... args) {
       Schema beamSQLSchema = TestTableUtils.buildBeamSqlSchema(args);

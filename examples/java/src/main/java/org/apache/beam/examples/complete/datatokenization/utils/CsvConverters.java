@@ -130,7 +130,7 @@ public class CsvConverters {
             break;
 
           default:
-            LOG.error("Invalid data type, got: " + type);
+            LOG.error("Invalid data type, got: {}", type);
             throw new RuntimeException("Invalid data type, got: " + type);
         }
       }
@@ -264,8 +264,6 @@ public class CsvConverters {
     @Override
     public PCollectionTuple expand(PCollectionTuple lines) {
 
-      PCollectionView<String> headersView = null;
-
       // Convert csv lines into Failsafe elements so that we can recover over multiple transforms.
       PCollection<FailsafeElement<String, String>> lineFailsafeElements =
           lines
@@ -285,16 +283,14 @@ public class CsvConverters {
 
         return lineFailsafeElements.apply(
             "LineToDocumentUsingSchema",
-            ParDo.of(
-                    new FailsafeElementToJsonFn(
-                        headersView, schema, delimiter(), udfDeadletterTag()))
+            ParDo.of(new FailsafeElementToJsonFn(schema, delimiter(), udfDeadletterTag()))
                 .withOutputTags(udfOutputTag(), TupleTagList.of(udfDeadletterTag())));
       }
 
       // Run if using headers
-      headersView = lines.get(headerTag()).apply(Sample.any(1)).apply(View.asSingleton());
+      PCollectionView<String> headersView =
+          lines.get(headerTag()).apply(Sample.any(1)).apply(View.asSingleton());
 
-      PCollectionView<String> finalHeadersView = headersView;
       lines
           .get(headerTag())
           .apply(
@@ -302,23 +298,24 @@ public class CsvConverters {
               ParDo.of(
                       new DoFn<String, String>() {
                         @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          String headers = c.sideInput(finalHeadersView);
-                          if (!c.element().equals(headers)) {
+                        public void processElement(
+                            @SideInput("finalHeadersView") String headers,
+                            @Element String element) {
+                          if (!element.equals(headers)) {
                             LOG.error("Headers do not match, consistency cannot be guaranteed");
                             throw new RuntimeException(
                                 "Headers do not match, consistency cannot be guaranteed");
                           }
                         }
                       })
-                  .withSideInputs(finalHeadersView));
+                  .withSideInput("finalHeadersView", headersView));
 
       return lineFailsafeElements.apply(
           "LineToDocumentWithHeaders",
           ParDo.of(
-                  new FailsafeElementToJsonFn(
-                      headersView, jsonSchemaPath(), delimiter(), udfDeadletterTag()))
-              .withSideInputs(headersView)
+                  new FailsafeElementToJsonWithHeadersFn(
+                      jsonSchemaPath(), delimiter(), udfDeadletterTag()))
+              .withSideInput("finalHeadersView", headersView)
               .withOutputTags(udfOutputTag(), TupleTagList.of(udfDeadletterTag())));
     }
 
@@ -357,45 +354,90 @@ public class CsvConverters {
     @Nullable public final String jsonSchema;
     public final String delimiter;
     public final TupleTag<FailsafeElement<String, String>> udfDeadletterTag;
-    @Nullable private final PCollectionView<String> headersView;
     private Counter successCounter =
         Metrics.counter(FailsafeElementToJsonFn.class, SUCCESSFUL_TO_JSON_COUNTER);
     private Counter failedCounter =
         Metrics.counter(FailsafeElementToJsonFn.class, FAILED_TO_JSON_COUNTER);
 
     FailsafeElementToJsonFn(
-        PCollectionView<String> headersView,
         String jsonSchema,
         String delimiter,
         TupleTag<FailsafeElement<String, String>> udfDeadletterTag) {
-      this.headersView = headersView;
       this.jsonSchema = jsonSchema;
       this.delimiter = delimiter;
       this.udfDeadletterTag = udfDeadletterTag;
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
-      FailsafeElement<String, String> element = context.element();
+    public void processElement(
+        @Element FailsafeElement<String, String> element,
+        OutputReceiver<FailsafeElement<String, String>> receiver,
+        MultiOutputReceiver multiReceiver) {
+      List<String> header = null;
+      List<String> record = Arrays.asList(element.getOriginalPayload().split(this.delimiter));
+
+      try {
+        String json = buildJsonString(header, record, this.jsonSchema);
+        receiver.output(FailsafeElement.of(element.getOriginalPayload(), json));
+        successCounter.inc();
+      } catch (Exception e) {
+        failedCounter.inc();
+        multiReceiver
+            .get(this.udfDeadletterTag)
+            .output(
+                FailsafeElement.of(element)
+                    .setErrorMessage(e.getMessage())
+                    .setStacktrace(Throwables.getStackTraceAsString(e)));
+      }
+    }
+  }
+
+  public static class FailsafeElementToJsonWithHeadersFn
+      extends DoFn<FailsafeElement<String, String>, FailsafeElement<String, String>> {
+
+    @Nullable public final String jsonSchema;
+    public final String delimiter;
+    public final TupleTag<FailsafeElement<String, String>> udfDeadletterTag;
+    private Counter successCounter =
+        Metrics.counter(FailsafeElementToJsonWithHeadersFn.class, SUCCESSFUL_TO_JSON_COUNTER);
+    private Counter failedCounter =
+        Metrics.counter(FailsafeElementToJsonWithHeadersFn.class, FAILED_TO_JSON_COUNTER);
+
+    FailsafeElementToJsonWithHeadersFn(
+        String jsonSchema,
+        String delimiter,
+        TupleTag<FailsafeElement<String, String>> udfDeadletterTag) {
+      this.jsonSchema = jsonSchema;
+      this.delimiter = delimiter;
+      this.udfDeadletterTag = udfDeadletterTag;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element FailsafeElement<String, String> element,
+        OutputReceiver<FailsafeElement<String, String>> receiver,
+        MultiOutputReceiver multiReceiver,
+        @SideInput("finalHeadersView") String headersStr) {
       List<String> header = null;
 
-      if (this.headersView != null) {
-        header = Arrays.asList(context.sideInput(this.headersView).split(this.delimiter));
+      if (headersStr != null) {
+        header = Arrays.asList(headersStr.split(this.delimiter));
       }
 
       List<String> record = Arrays.asList(element.getOriginalPayload().split(this.delimiter));
 
       try {
         String json = buildJsonString(header, record, this.jsonSchema);
-        context.output(FailsafeElement.of(element.getOriginalPayload(), json));
+        receiver.output(FailsafeElement.of(element.getOriginalPayload(), json));
         successCounter.inc();
       } catch (Exception e) {
         failedCounter.inc();
-        context.output(
-            this.udfDeadletterTag,
-            FailsafeElement.of(element)
-                .setErrorMessage(e.getMessage())
-                .setStacktrace(Throwables.getStackTraceAsString(e)));
+        multiReceiver
+            .get(this.udfDeadletterTag)
+            .output(
+                FailsafeElement.of(element)
+                    .setErrorMessage(e.getMessage())
+                    .setStacktrace(Throwables.getStackTraceAsString(e)));
       }
     }
   }
@@ -407,9 +449,9 @@ public class CsvConverters {
   static class LineToFailsafeElementFn extends DoFn<String, FailsafeElement<String, String>> {
 
     @ProcessElement
-    public void processElement(ProcessContext context) {
-      String message = context.element();
-      context.output(FailsafeElement.of(message, message));
+    public void processElement(
+        @Element String message, OutputReceiver<FailsafeElement<String, String>> receiver) {
+      receiver.output(FailsafeElement.of(message, message));
     }
   }
 
@@ -435,7 +477,7 @@ public class CsvConverters {
     @Nullable
     public abstract String delimiter();
 
-    public abstract Boolean hasHeaders();
+    public abstract boolean hasHeaders();
 
     public abstract String inputFileSpec();
 
@@ -468,7 +510,7 @@ public class CsvConverters {
 
       public abstract Builder setDelimiter(@Nullable String delimiter);
 
-      public abstract Builder setHasHeaders(Boolean hasHeaders);
+      public abstract Builder setHasHeaders(boolean hasHeaders);
 
       public abstract Builder setInputFileSpec(String inputFileSpec);
 
@@ -485,8 +527,6 @@ public class CsvConverters {
         checkArgument(readCsv.inputFileSpec() != null, "Input file spec must be provided.");
 
         checkArgument(readCsv.csvFormat() != null, "Csv format must not be null.");
-
-        checkArgument(readCsv.hasHeaders() != null, "Header information must be provided.");
 
         return readCsv;
       }
@@ -512,13 +552,12 @@ public class CsvConverters {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext context, MultiOutputReceiver outputReceiver) {
-      ReadableFile f = context.element();
+    public void processElement(@Element ReadableFile file, MultiOutputReceiver outputReceiver) {
       String headers;
       List<String> records = null;
       String delimiter = String.valueOf(this.csvFormat.getDelimiter());
       try {
-        String csvFileString = f.readFullyAsUTF8String();
+        String csvFileString = file.readFullyAsUTF8String();
         StringReader reader = new StringReader(csvFileString);
         CSVParser parser = CSVParser.parse(reader, this.csvFormat.withFirstRecordAsHeader());
         records =

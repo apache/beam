@@ -171,8 +171,8 @@ public class MetricsToPerStepNamespaceMetricsConverter {
 
   /**
    * @param metricName The {@link MetricName} that represents this Histogram.
-   * @param value The histogram value. Currently we only support converting histograms that use
-   *     {@code linear} or {@code exponential} buckets.
+   * @param inputHistogram The histogram value. Currently we only support converting histograms that
+   *     use {@code linear} or {@code exponential} buckets.
    * @return If this conversion succeeds, a {@code MetricValue} that represents this histogram.
    *     Otherwise returns an empty optional.
    */
@@ -238,14 +238,15 @@ public class MetricsToPerStepNamespaceMetricsConverter {
   }
 
   /**
+   * Returns collection of {@code PerStepNamespaceMetrics} that represent these metric updates. Each
+   * {@code PerStepNamespaceMetrics} contains a list of {@code MetricUpdates} for a {unfused stage,
+   * metrics namespace} pair.
+   *
    * @param stepName The unfused stage that these metrics are associated with.
    * @param counters Counter updates to convert.
    * @param histograms Histogram updates to convert.
    * @param parsedPerWorkerMetricsCache cache of previously converted {@code ParsedMetricName}. The
    *     cache will be updated to include all valid metric names in counters and histograms.
-   * @return Collection of {@code PerStepNamespaceMetrics} that represent these metric updates. Each
-   *     {@code PerStepNamespaceMetrics} contains a list of {@code MetricUpdates} for a {unfused
-   *     stage, metrics namespace} pair.
    */
   public static Collection<PerStepNamespaceMetrics> convert(
       String stepName,

@@ -77,6 +77,8 @@ type readFromDebeziumSchema struct {
 	MaxNumberOfRecords   *int64
 	MaxTimeToRun         *int64
 	ConnectionProperties []string
+	StartOffset          []string
+	OffsetStoragePath    *string
 }
 
 type debeziumConfig struct {
@@ -146,6 +148,44 @@ func MaxTimeToRun(r int64) readOption {
 func ConnectionProperties(cp []string) readOption {
 	return func(cfg *debeziumConfig) {
 		cfg.readSchema.ConnectionProperties = cp
+	}
+}
+
+// StartOffset specifies the offset from which the connector should resume consuming
+// changes. Each entry must be a "key=value" string, where numeric values are encoded
+// as their decimal string representation.
+//
+// Example for PostgreSQL:
+//
+//	debeziumio.StartOffset([]string{"lsn=28160840"})
+//
+// Example for MySQL:
+//
+//	debeziumio.StartOffset([]string{"file=binlog.000001", "pos=156"})
+//
+// Obtain the offset from the output of a previous pipeline run. Numeric values such
+// as LSN or binlog position are automatically parsed to Long on the Java side.
+func StartOffset(offset []string) readOption {
+	return func(cfg *debeziumConfig) {
+		cfg.readSchema.StartOffset = offset
+	}
+}
+
+// OffsetStoragePath sets a path where the connector offset is automatically saved after each
+// checkpoint and loaded on pipeline startup, allowing the pipeline to resume from where it
+// left off without any manual offset management.
+//
+// The path can be on any filesystem supported by the active Beam runner
+// (local disk, GCS, S3, etc.).
+//
+// Example:
+//
+//	debeziumio.OffsetStoragePath("gs://my-bucket/debezium/orders-offset.json")
+//
+// When set, takes precedence over StartOffset.
+func OffsetStoragePath(path string) readOption {
+	return func(cfg *debeziumConfig) {
+		cfg.readSchema.OffsetStoragePath = &path
 	}
 }
 

@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.util.construction.SplittableParDo.SPLITTABLE_P
 import com.google.auto.service.AutoService;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Consumer;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -281,6 +282,7 @@ public class SplittableParDoViaKeyedWorkItems {
         processElementInvoker;
 
     private transient @Nullable DoFnInvoker<InputT, OutputT> invoker;
+    private transient @Nullable Consumer<Double> backlogBytesCallback;
 
     public ProcessFn(
         DoFn<InputT, OutputT> fn,
@@ -321,6 +323,10 @@ public class SplittableParDoViaKeyedWorkItems {
                 InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
             invoker) {
       this.processElementInvoker = invoker;
+    }
+
+    public void setBacklogBytesCallback(Consumer<Double> backlogBytesCallback) {
+      this.backlogBytesCallback = backlogBytesCallback;
     }
 
     public DoFn<InputT, OutputT> getFn() {
@@ -462,7 +468,87 @@ public class SplittableParDoViaKeyedWorkItems {
         elementState.readLater();
         restrictionState.readLater();
         watermarkEstimatorState.readLater();
-        elementAndRestriction = KV.of(elementState.read(), restrictionState.read());
+        WindowedValue<InputT> read = elementState.read();
+        RestrictionT restriction = restrictionState.read();
+        if (timer.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN) {
+          WindowedValue<InputT> drainRead =
+              WindowedValues.of(
+                  read.getValue(),
+                  read.getTimestamp(),
+                  read.getWindows(),
+                  read.getPaneInfo(),
+                  read.getRecordId(),
+                  read.getRecordOffset(),
+                  CausedByDrain.CAUSED_BY_DRAIN,
+                  read.getOpenTelemetryContext(),
+                  read.getValueKind());
+          RestrictionTracker.TruncateResult<RestrictionT> truncateResult =
+              invoker.invokeTruncateRestriction(
+                  new BaseArgumentProvider<InputT, OutputT>() {
+                    @Override
+                    public InputT element(DoFn<InputT, OutputT> doFn) {
+                      return drainRead.getValue();
+                    }
+
+                    @Override
+                    public Object restriction() {
+                      return restriction;
+                    }
+
+                    @Override
+                    public RestrictionTracker<?, ?> restrictionTracker() {
+                      return invoker.invokeNewTracker(this);
+                    }
+
+                    @Override
+                    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                      return drainRead.getTimestamp();
+                    }
+
+                    @Override
+                    public PipelineOptions pipelineOptions() {
+                      return c.getPipelineOptions();
+                    }
+
+                    @Override
+                    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                      return drainRead.getPaneInfo();
+                    }
+
+                    @Override
+                    public BoundedWindow window() {
+                      return Iterables.getOnlyElement(drainRead.getWindows());
+                    }
+
+                    @Override
+                    public Object sideInput(String tagId) {
+                      PCollectionView<?> view = sideInputMapping.get(tagId);
+                      if (view == null) {
+                        throw new IllegalArgumentException(
+                            "calling getSideInput() with unknown view");
+                      }
+                      return sideInputReader.get(
+                          view, view.getWindowMappingFn().getSideInputWindow(window()));
+                    }
+
+                    @Override
+                    public String getErrorContext() {
+                      return ProcessFn.class.getSimpleName() + ".invokeTruncateRestriction";
+                    }
+                  });
+          if (truncateResult == null) {
+            elementState.clear();
+            restrictionState.clear();
+            watermarkEstimatorState.clear();
+            holdState.clear();
+            return;
+          }
+          RestrictionT truncatedRestriction = truncateResult.getTruncatedRestriction();
+          elementAndRestriction = KV.of(drainRead, truncatedRestriction);
+          restrictionState.write(truncatedRestriction);
+        } else {
+          elementAndRestriction = KV.of(read, restriction);
+        }
         watermarkEstimatorStateT = watermarkEstimatorState.read();
       }
 
@@ -574,7 +660,7 @@ public class SplittableParDoViaKeyedWorkItems {
           result =
               processElementInvoker.invokeProcessElement(
                   invoker,
-                  elementAndRestriction.getKey(),
+                  elementAndRestriction.getKey(), // windowed value
                   tracker,
                   watermarkEstimator,
                   sideInputMapping);
@@ -598,15 +684,21 @@ public class SplittableParDoViaKeyedWorkItems {
       Instant wakeupTime =
           timerInternals.currentProcessingTime().plus(result.getContinuation().resumeDelay());
       holdState.add(futureOutputWatermark);
-      // Set a timer to continue processing this element.
-      // todo radoslws@ decide if draining should be set on timer
-      timerInternals.setTimer(
-          TimerInternals.TimerData.of(
-              stateNamespace,
-              wakeupTime,
-              wakeupTime,
-              TimeDomain.PROCESSING_TIME,
-              timer == null ? CausedByDrain.NORMAL : timer.causedByDrain()));
+      // Set a timer to continue processing this element, but only when no drain
+      if (timer == null || timer.causedByDrain() == CausedByDrain.NORMAL) {
+        timerInternals.setTimer(
+            TimerInternals.TimerData.of(
+                stateNamespace,
+                wakeupTime,
+                wakeupTime,
+                TimeDomain.PROCESSING_TIME,
+                CausedByDrain.NORMAL));
+      } else {
+        holdState.clear();
+      }
+      if (backlogBytesCallback != null && result.getBacklogBytes() >= 0) {
+        backlogBytesCallback.accept(result.getBacklogBytes());
+      }
     }
 
     private DoFnInvoker.ArgumentProvider<InputT, OutputT> wrapOptionsAsSetup(

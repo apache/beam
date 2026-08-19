@@ -29,6 +29,8 @@ applyJavaNature(
   // javacc generated code produces lint warnings
   disableLintWarnings: ['dep-ann'],
 )
+provideIntegrationTestingDependencies()
+enableJavaPerformanceTesting()
 
 description = "Apache Beam :: SDKs :: Java :: IO :: ClickHouse"
 ext.summary = "IO to write to ClickHouse (https://clickhouse.com)."

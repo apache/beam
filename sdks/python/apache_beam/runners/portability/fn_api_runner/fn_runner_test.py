@@ -31,10 +31,7 @@ import typing
 import unittest
 import uuid
 from typing import Any
-from typing import Dict
 from typing import Iterator
-from typing import List
-from typing import Tuple
 from typing import no_type_check
 
 import hamcrest  # pylint: disable=ungrouped-imports
@@ -49,6 +46,7 @@ import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
+from apache_beam.io.unbounded_source import UnboundedCountingSource
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -836,7 +834,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
@@ -853,7 +850,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
 
@@ -869,7 +865,6 @@ class FnApiRunnerTest(unittest.TestCase):
                                'FnApiRunnerTestWithMultiWorkers',
                                'FnApiRunnerTestWithBundleRepeat',
                                'FnApiRunnerTestWithBundleRepeatAndMultiWorkers',
-                               'SamzaRunnerTest',
                                'SparkRunnerTest'}:
       raise unittest.SkipTest("https://github.com/apache/beam/issues/35168")
     # The timer will fire at T + 10. After the timer is set, it is never
@@ -948,7 +943,7 @@ class FnApiRunnerTest(unittest.TestCase):
           | beam.WindowInto(
               window.FixedWindows(1) if windowed else window.GlobalWindows())
           | beam.Map(lambda x: (key, x)).with_output_types(
-              Tuple[key_type if key_type else type(key), Any])
+              tuple[key_type if key_type else type(key), Any])
           | beam.ParDo(BufferDoFn()))
 
       assert_that(actual, is_buffered_correctly)
@@ -1175,6 +1170,25 @@ class FnApiRunnerTest(unittest.TestCase):
     with self.create_pipeline(is_drain=True) as p:
       actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to(range(5)))
+
+  def test_unbounded_source_read(self):
+    """Reads a self-terminating UnboundedSource end to end.
+
+    Exercises the runner-API round trip and the EOF ``MAX_TIMESTAMP`` watermark
+    propagation that lets the downstream window fire.
+    """
+    with self.create_pipeline() as p:
+      out = p | beam.io.Read(UnboundedCountingSource(5))
+      self.assertFalse(out.is_bounded)
+      assert_that(out, equal_to([0, 1, 2, 3, 4]), label='assert_elements')
+      windowed = (
+          out
+          | beam.WindowInto(window.FixedWindows(100))
+          | beam.Map(lambda v: ('all', v))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda _key, values: sorted(values)))
+      assert_that(
+          windowed, equal_to([[0, 1, 2, 3, 4]]), label='assert_windowed')
 
   def test_group_by_key(self):
     with self.create_pipeline() as p:
@@ -2044,6 +2058,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_unbounded_source_read(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
   def test_sdf_with_dofn_as_watermark_estimator(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
@@ -2075,6 +2092,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_unbounded_source_read(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
@@ -2119,6 +2139,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_unbounded_source_read(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
@@ -2443,7 +2466,7 @@ class ElementCounter(object):
     return _unpickle_element_counter, (name, )
 
 
-_pickled_element_counters: Dict[str, ElementCounter] = {}
+_pickled_element_counters: dict[str, ElementCounter] = {}
 
 
 def _unpickle_element_counter(name):
@@ -2682,8 +2705,8 @@ class ArrayMultiplyDoFn(beam.DoFn):
 
 
 class ListPlusOneDoFn(beam.DoFn):
-  def process_batch(self, batch: List[np.int64], *unused_args,
-                    **unused_kwargs) -> Iterator[List[np.int64]]:
+  def process_batch(self, batch: list[np.int64], *unused_args,
+                    **unused_kwargs) -> Iterator[list[np.int64]]:
     assert isinstance(batch, list)
     yield [element + 1 for element in batch]
 

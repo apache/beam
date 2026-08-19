@@ -38,6 +38,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -127,10 +128,10 @@ public class JdbcUtil {
                 ResourceId destResourceId =
                     FileSystems.matchNewResource(destFile.getAbsolutePath(), false);
                 copy(sourceResourceId, destResourceId);
-                LOG.info("Localized jar: " + sourceResourceId + " to: " + destResourceId);
+                LOG.info("Localized jar: {} to: {}", sourceResourceId, destResourceId);
                 driverJarUrls.add(destFile.toURI().toURL());
               } catch (IOException e) {
-                LOG.warn("Unable to copy " + jarPath, e);
+                LOG.warn("Unable to copy {}", jarPath, e);
               }
             });
     return driverJarUrls.stream().toArray(URL[]::new);
@@ -249,6 +250,7 @@ public class JdbcUtil {
               .build());
 
   /** PreparedStatementSetCaller for Schema Field Logical types. * */
+  @SuppressWarnings("JavaUtilDate")
   static JdbcIO.PreparedStatementSetCaller getPreparedStatementSetCaller(
       Schema.FieldType fieldType) {
     switch (fieldType.getTypeName()) {
@@ -292,6 +294,13 @@ public class JdbcUtil {
           } else if (logicalTypeName.equals(FixedPrecisionNumeric.IDENTIFIER)) {
             return (element, ps, i, fieldWithIndex) -> {
               ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex()));
+            };
+          } else if (logicalTypeName.equals(
+              org.apache.beam.sdk.schemas.logicaltypes.Date.IDENTIFIER)) {
+            return (element, ps, i, fieldWithIndex) -> {
+              LocalDate value =
+                  element.getLogicalTypeValue(fieldWithIndex.getIndex(), LocalDate.class);
+              ps.setDate(i + 1, value == null ? null : Date.valueOf(value));
             };
           } else if (logicalTypeName.equals("DATE")) {
             return (element, ps, i, fieldWithIndex) -> {
@@ -455,10 +464,10 @@ public class JdbcUtil {
     return calendar;
   }
 
-  /** @return a {@code JdbcReadPartitionsHelper} instance associated with the given {@param type} */
+  /** Returns a {@code JdbcReadPartitionsHelper} instance associated with the given {@code type}. */
   static <T> @Nullable JdbcReadWithPartitionsHelper<T> getPartitionsHelper(TypeDescriptor<T> type) {
     // This cast is unchecked, thus this is a small type-checking risk. We just need
-    // to make sure that all preset helpers in `JdbcUtil.PRESET_HELPERS` are matched
+    // to make sure that all preset helpers in {@code PRESET_HELPERS} are matched
     // in type from their Key and their Value.
     return (JdbcReadWithPartitionsHelper<T>) PRESET_HELPERS.get(type.getRawType());
   }

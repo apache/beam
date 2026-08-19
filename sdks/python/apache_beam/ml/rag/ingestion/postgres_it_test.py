@@ -21,7 +21,6 @@ import os
 import secrets
 import time
 import unittest
-from typing import List
 from typing import NamedTuple
 
 import psycopg2
@@ -50,7 +49,7 @@ CustomSpecsRow = NamedTuple(
     'CustomSpecsRow',
     [
         ('custom_id', str),  # For id_spec test
-        ('embedding_vec', List[float]),  # For embedding_spec test
+        ('embedding_vec', list[float]),  # For embedding_spec test
         ('content_col', str),  # For content_spec test
         ('metadata', str)
     ])
@@ -63,7 +62,7 @@ MetadataConflictRow = NamedTuple(
         ('source', str),  # For metadata_spec and composite key
         ('timestamp', str),  # For metadata_spec and composite key
         ('content', str),
-        ('embedding', List[float]),
+        ('embedding', list[float]),
         ('metadata', str)
     ])
 registry.register_coder(MetadataConflictRow, RowCoder)

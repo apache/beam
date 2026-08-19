@@ -157,7 +157,7 @@ public class BeamSqlUnparseContext extends SqlImplementor.SimpleContext {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof SqlDateTimeLiteral)) {
         return false;
       }
       if (!super.equals(o)) {

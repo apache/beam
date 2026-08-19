@@ -46,7 +46,6 @@ import org.apache.beam.sdk.values.POutput;
 import org.apache.beam.sdk.values.PValue;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -207,10 +206,8 @@ public class FhirIOPatientEverything
       } catch (IllegalArgumentException | NoSuchElementException e) {
         GET_PATIENT_EVERYTHING_ERROR_COUNT.inc();
         LOG.warn(
-            String.format(
-                "Error executing GetPatientEverything: FHIR resources writing to Dead Letter "
-                    + "Queue. Cause: %s Stack Trace: %s",
-                e.getMessage(), Throwables.getStackTraceAsString(e)));
+            "Error executing GetPatientEverything: FHIR resources writing to Dead Letter Queue.",
+            e);
         context.output(DEAD_LETTER, HealthcareIOError.of(patientEverythingParameter.toString(), e));
       }
     }

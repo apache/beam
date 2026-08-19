@@ -163,7 +163,7 @@ public class EnumerationType implements LogicalType<Value, Integer> {
       if (this == o) {
         return true;
       }
-      if (o == null || getClass() != o.getClass()) {
+      if (!(o instanceof Value)) {
         return false;
       }
       Value enumValue = (Value) o;

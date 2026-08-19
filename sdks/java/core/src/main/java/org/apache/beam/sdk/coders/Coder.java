@@ -52,6 +52,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p>All methods of a {@link Coder} are required to be thread safe.
  *
  * @param <T> the type of values being encoded and decoded
+ *     <p>The behavior of encoding and decoding depends on the {@link Context}.
+ *     <p>In {@link Context#OUTER}, the value consumes the remainder of the stream.
+ *     <p>In {@link Context#NESTED}, the value is part of a larger structure and must be
+ *     self-delimiting so that subsequent values can be correctly decoded.
+ *     <p>See {@link CoderProperties} for utilities to test coder correctness and consistency.
  */
 public abstract class Coder<T> implements Serializable {
   /**

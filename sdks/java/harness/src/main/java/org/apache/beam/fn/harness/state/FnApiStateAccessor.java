@@ -1231,7 +1231,7 @@ public class FnApiStateAccessor<K> implements SideInputReader, StateBinder {
       }
       UserStateCacheKeyBase other = (UserStateCacheKeyBase) o;
       return hash == other.hash
-          && this.getClass().equals(o.getClass())
+          && this.getClass().equals(other.getClass())
           && ptransformId.equals(other.ptransformId)
           && stateId.equals(other.stateId)
           && window.equals(other.window)

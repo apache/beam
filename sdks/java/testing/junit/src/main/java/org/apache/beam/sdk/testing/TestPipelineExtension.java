@@ -72,7 +72,6 @@ public class TestPipelineExtension
   private static final ExtensionContext.Namespace NAMESPACE =
       ExtensionContext.Namespace.create(TestPipelineExtension.class);
   private static final String PIPELINE_KEY = "testPipeline";
-  private static final String ENFORCEMENT_KEY = "enforcement";
 
   /** Creates a new TestPipelineExtension with default options. */
   public static TestPipelineExtension create() {
