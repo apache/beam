@@ -31,9 +31,6 @@ from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
 from apache_beam.testing.test_pipeline import TestPipeline
 
-# Disable mTLS fallback if pyOpenSSL is unavailable in local environment
-os.environ.setdefault("GOOGLE_API_USE_CLIENT_CERTIFICATE", "false")
-
 pytest.importorskip("vertexai", reason="Vertex AI dependencies not available")
 
 try:

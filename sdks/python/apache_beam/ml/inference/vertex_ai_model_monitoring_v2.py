@@ -325,8 +325,12 @@ class VertexModelMonitoringV2(
 
     if is_streaming:
       if not self.cron:
-        raise ValueError(
-            'A cron schedule is required for streaming model monitoring jobs.')
+        logging.warning(
+            'A cron schedule was not provided, so a monitoring job will not be'
+            ' created. Inferences will still be written to the BigQuery table'
+            ' %s',
+            self.bigquery_table)
+        return pcoll
       manager = _V2JobManagerStreaming(
           project_id=self.project_id,
           location=self.location,

@@ -353,31 +353,6 @@ class VertexModelMonitoringV2TransformTest(unittest.TestCase):
     self.unpack_fn = lambda pr: {"feat": pr.example, "pred": pr.inference}
     self.bq_table = "test-project:dataset.table"
 
-  def test_streaming_missing_cron_raises_value_error(self):
-    transform = VertexModelMonitoringV2(
-        project_id=self.project_id,
-        location=self.location,
-        display_name=self.display_name,
-        model_name=self.model_name,
-        model_version_id=self.model_version_id,
-        model_monitoring_schema=self.schema,
-        training_dataset=self.training_dataset,
-        tabular_objective_spec=self.tabular_objective,
-        target_dataset=self.target_dataset,
-        unpack_fn=self.unpack_fn,
-        bigquery_table=self.bq_table,
-        cron=None,  # Missing cron
-    )
-
-    options = PipelineOptions(flags=["--streaming"])
-    p = beam.Pipeline(options=options)
-    pcoll = p | beam.Create([PredictionResult(1, 2)])
-
-    with self.assertRaises(ValueError) as ctx:
-      _ = pcoll | transform
-
-    self.assertIn("cron", str(ctx.exception).lower())
-
   @mock.patch(
       "apache_beam.ml.inference.vertex_ai_model_monitoring_v2.WriteToBigQuery")
   @mock.patch(
