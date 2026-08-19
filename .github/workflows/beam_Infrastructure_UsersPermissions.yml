@@ -44,11 +44,24 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     steps:
-      - name: Checkout code
+      - name: Checkout secure master code
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.merged == true && github.base_ref || github.event.pull_request.head.sha }}
+          ref: ${{ github.base_ref || github.ref }}
           persist-credentials: false
+      - name : Checkout only users.yml from the Pull Request
+        uses: actions/checkout@v7
+        with:
+          sparse-checkout: 'infra/iam/users.yml'
+          sparse-checkout-cone-mode: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          path : './pr_users'
+          persist-credentials: false
+      - name: Overwrite users.yml with PR changes
+        run: |
+          echo "[DevSecOps] Safely overwriting users.yml with data from the Pull Request..."
+          cp ./pr_users/infra/iam/users.yml ./infra/iam/users.yml
+
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Install Terraform
