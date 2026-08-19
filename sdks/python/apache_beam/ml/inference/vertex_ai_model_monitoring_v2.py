@@ -106,7 +106,9 @@ class _V2JobManager(beam.DoFn):
           model_monitor_id=self.model_monitor_id,
           **self.kwargs,
       )
-    except (exceptions.AlreadyExists, exceptions.Conflict):
+    except (exceptions.AlreadyExists, exceptions.Conflict) as e:
+      if isinstance(e, exceptions.Conflict):
+        time.sleep(15)
       logging.info(
           "Model monitor '%s' already exists; retrieving existing instance.",
           self.model_monitor_id or self.display_name,

@@ -208,6 +208,39 @@ class VertexAIModelMonitoringV2JobManagerTest(unittest.TestCase):
         credentials=None,
     )
 
+  @mock.patch("time.sleep")
+  @mock.patch(
+      "vertexai.resources.preview.ml_monitoring.model_monitors.ModelMonitor.__init__",
+      return_value=None)
+  @mock.patch(
+      "vertexai.resources.preview.ml_monitoring.model_monitors.ModelMonitor.create"
+  )
+  def test_create_model_monitor_conflict_fallback(
+      self, mock_create, mock_init, mock_sleep):
+    mock_create.side_effect = exceptions.Conflict("Monitor conflict")
+
+    manager = _V2JobManager(
+        project_id=self.project_id,
+        location=self.location,
+        display_name=self.display_name,
+        model_name=self.model_name,
+        model_version_id=self.model_version_id,
+        model_monitoring_schema=self.schema,
+        training_dataset=self.training_dataset,
+        tabular_objective_spec=self.tabular_objective,
+        model_monitor_id="custom-monitor-id",
+    )
+
+    monitor = manager.create_model_monitor()
+    self.assertIsInstance(monitor, ml_monitoring.ModelMonitor)
+    mock_sleep.assert_called_once_with(15)
+    mock_init.assert_called_once_with(
+        model_monitor_name="custom-monitor-id",
+        project=self.project_id,
+        location=self.location,
+        credentials=None,
+    )
+
   @mock.patch(
       "vertexai.resources.preview.ml_monitoring.model_monitors.ModelMonitor.list"
   )
