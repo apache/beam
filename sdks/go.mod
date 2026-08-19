@@ -46,7 +46,7 @@ require (
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
-	github.com/nats-io/nats-server/v2 v2.14.4
+	github.com/nats-io/nats-server/v2 v2.14.5
 	github.com/nats-io/nats.go v1.53.1
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.10.2
@@ -178,7 +178,7 @@ require (
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.19.0 // indirect
+	github.com/klauspost/compress v1.19.2 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
