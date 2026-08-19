@@ -52,7 +52,6 @@ Without a standardized model representation, supporting $N$ SDK languages across
 * **URNs Are the API Contract**: Transforms, coders, windowing strategies, environments, and metrics are bound together by standardized string URNs (e.g., `beam:transform:pardo:v1`, `beam:coder:bytes:v1`). When inspecting or creating transforms across languages, always verify URN mappings and registry handlers in both the SDK and Runner runtimes.
 * **Strict Backward & Wire Compatibility**:
   * Never renumber, delete, or modify existing field IDs or URN strings in `.proto` files, as they are used across distributed RPC boundaries and persisted checkpoints.
-  * When extending Java/Python SDK classes to support new proto fields, use **Builder patterns** (e.g., `OutputBuilder`) rather than adding arguments to legacy static factory methods (`WindowedValue.of(...)`), which breaks API compatibility.
 * **Build System & Naming Collisions**:
   * Modifying files in `/model` requires re-generating language bindings (e.g., `./gradlew :model:pipeline:generateProto`).
   * Avoid protobuf field names that conflict with reserved keywords in target languages (e.g., `class` in Java or `output` in Python, as noted in `beam_fn_api.proto` comments).
