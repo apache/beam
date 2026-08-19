@@ -92,7 +92,8 @@ class _BaseJmsIOTest(unittest.TestCase):
     subscriber_result = {}
 
     def publish():
-      self.produce(source_queue, remaining_records)
+      time.sleep(5)  # debug only: delibrately delay element written
+      self.produce(source_queue, NUM_RECORDS)
 
     stop_event = threading.Event()
 
@@ -109,12 +110,6 @@ class _BaseJmsIOTest(unittest.TestCase):
           _LOGGER.warning('Error while browsing sink queue: %s', e)
           break
       _LOGGER.info('received %s messages', len(received_messages))
-
-    # TODO(https://github.com/apache/beam/issues/39446): Clean up
-    # pre-publishing Prism runner issue resolved
-    initial_records = 10
-    remaining_records = NUM_RECORDS - initial_records
-    self.produce(source_queue, initial_records)
 
     publisher = threading.Thread(target=publish, daemon=True)
     subscriber = threading.Thread(target=subscribe, daemon=True)
@@ -143,11 +138,11 @@ class _BaseJmsIOTest(unittest.TestCase):
                   connection_param),
               queue=sink_queue,
               expansion_service=self.expansion_service))
-      publisher.start()
       result = p.run()
+      publisher.start()
       subscriber.start()
       try:
-        subscriber.join(timeout=20)  # 1.5 min
+        subscriber.join(timeout=20)
       finally:
         stop_event.set()
         publisher.join()
@@ -160,8 +155,7 @@ class _BaseJmsIOTest(unittest.TestCase):
 
     received = subscriber_result.get('received', [])
     self.assertEqual(len(received), NUM_RECORDS)
-    # there are identical records
-    self.assertEqual(len(set(received)), NUM_RECORDS - initial_records)
+    self.assertEqual(len(set(received)), NUM_RECORDS)
 
 
 class ActiveMQJmsIOTest(_BaseJmsIOTest):
