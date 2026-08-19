@@ -236,11 +236,6 @@ public class SparkSessionFactory {
       tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroCoder");
       tryToRegister(kryo, "org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder");
 
-      // Spark internals only present when running streaming pipelines on Spark 4. These are
-      // registered by name because the shared runner base also compiles against Spark 3, where
-      // none of these classes exist. See registerSparkStreamingInternals for the details.
-      registerSparkStreamingInternals(kryo);
-
       // standard coders of org.apache.beam.sdk.coders
       kryo.register(BigDecimalCoder.class);
       kryo.register(BigEndianIntegerCoder.class);
@@ -294,6 +289,14 @@ public class SparkSessionFactory {
       kryo.register(CoGbkResultSchema.class);
       kryo.register(TupleTag.class);
       kryo.register(TupleTagList.class);
+
+      // Spark internals only present when running streaming pipelines on Spark 4. These are
+      // registered by name because the shared runner base also compiles against Spark 3, where
+      // none of these classes exist. This call must stay last: Kryo auto assigns registration ids
+      // sequentially, so registering these conditional, by-name classes after everything else
+      // keeps the auto assigned ids of all the registrations above identical on Spark 3 and
+      // Spark 4 classpaths. See registerSparkStreamingInternals for the details.
+      registerSparkStreamingInternals(kryo);
     }
 
     /**
