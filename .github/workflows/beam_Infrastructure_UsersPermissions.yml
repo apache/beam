@@ -49,23 +49,14 @@ jobs:
         with:
           ref: ${{ github.base_ref || github.ref }}
           persist-credentials: false
-      - name : Checkout only users.yml from the Pull Request
-        uses: actions/checkout@v7
-        with:
-          sparse-checkout: 'infra/iam/users.yml'
-          sparse-checkout-cone-mode: false
-          ref: ${{ github.event.pull_request.head.sha }}
-          path : './pr_users'
-          persist-credentials: false
-      - name: Overwrite users.yml with PR changes
-        run: |
-          echo "[DevSecOps] Safely overwriting users.yml with data from the Pull Request..."
-          cp ./pr_users/infra/iam/users.yml ./infra/iam/users.yml
       - name: Download users.yml directly from PR fork
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_BRANCH_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           echo "[DevSecOps] Descargando de forma segura users.yml desde el Pull Request..."
-          curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-            "https://api.github.com/repos/${{ github.repository }}/contents/infra/iam/users.yml?ref=${{ github.event.pull_request.head.ref }}" \
+          curl -s --retry 3 --retry-delay 5 -H "Authorization: token $GH_TOKEN" \
+            "https://api.github.com/repos/${{ github.repository }}/contents/infra/iam/users.yml?ref=$PR_BRANCH_REF" \
             | jq -r '.content' | base64 --decode > ./infra/iam/users.yml
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
