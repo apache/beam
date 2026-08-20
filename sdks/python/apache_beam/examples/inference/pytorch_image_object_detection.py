@@ -500,6 +500,7 @@ def run(
   finally:
     try:
       result.cancel()
+      result.wait_until_finish(duration=600000)  # up to 10 min to settle cancel
     except Exception:
       logging.debug("Failed to cancel pipeline result.", exc_info=True)
 
