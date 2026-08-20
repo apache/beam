@@ -1,0 +1,73 @@
+fixtures:
+  - name: SNOWFLAKE
+    type: apache_beam.yaml.integration_tests.snowflake_fixture
+
+pipelines:
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - number_column: 1
+                boolean_column: true
+                string_column: one
+              - number_column: 2
+                boolean_column: false
+                string_column: two
+
+        - type: WriteToSnowflake
+          config:
+            server_name: "{SNOWFLAKE[SERVER_NAME]}"
+            username: "{SNOWFLAKE[USERNAME]}"
+            password: "{SNOWFLAKE[PASSWORD]}"
+            database: "{SNOWFLAKE[DATABASE]}"
+            schema: "{SNOWFLAKE[SCHEMA]}"
+            table: "{SNOWFLAKE[TABLE]}"
+            staging_bucket_name: "{SNOWFLAKE[STAGING_BUCKET_NAME]}"
+            storage_integration_name: "{SNOWFLAKE[STORAGE_INTEGRATION_NAME]}"
+            create_disposition: CREATE_IF_NEEDED
+            write_disposition: TRUNCATE
+
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromSnowflake
+          config:
+            server_name: "{SNOWFLAKE[SERVER_NAME]}"
+            username: "{SNOWFLAKE[USERNAME]}"
+            password: "{SNOWFLAKE[PASSWORD]}"
+            database: "{SNOWFLAKE[DATABASE]}"
+            snowflake_schema: "{SNOWFLAKE[SCHEMA]}"
+            table: "{SNOWFLAKE[TABLE]}"
+            staging_bucket_name: "{SNOWFLAKE[STAGING_BUCKET_NAME]}"
+            storage_integration_name: "{SNOWFLAKE[STORAGE_INTEGRATION_NAME]}"
+            schema: |
+              {
+                "type": "object",
+                "properties": {
+                  "number_column": {
+                    "type": "integer"
+                  },
+                  "boolean_column": {
+                    "type": "boolean"
+                  },
+                  "string_column": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "number_column",
+                  "boolean_column",
+                  "string_column"
+                ]
+              }
+        - type: AssertEqual
+          config:
+            elements:
+              - number_column: 1
+                boolean_column: true
+                string_column: one
+              - number_column: 2
+                boolean_column: false
+                string_column: two
