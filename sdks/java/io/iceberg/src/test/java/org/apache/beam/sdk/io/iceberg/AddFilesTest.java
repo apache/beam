@@ -81,6 +81,7 @@ import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializableFunction;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -521,6 +522,76 @@ public class AddFilesTest {
     pipeline.run().waitUntilFinish();
   }
 
+  /** Infrastructure failures must fail the bundle, not become silently-dropped error rows. */
+  @Test
+  public void testCatalogOutageFailsBundleInsteadOfDlq() throws Exception {
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    IcebergCatalogConfig unreachable =
+        IcebergCatalogConfig.builder()
+            .setCatalogProperties(ImmutableMap.of("type", "rest", "uri", "http://localhost:1"))
+            .build();
+    pipeline
+        .apply("Create Input", Create.of(file1))
+        .apply(new AddFiles(unreachable, tableId.toString(), null, null, null, null, null, null));
+    assertThrows(Exception.class, () -> pipeline.run().waitUntilFinish());
+  }
+
+  /** A file deleted between listing and registration is one error row, never a stuck bundle. */
+  @Test
+  public void testMissingFileWithExistingTableRoutesToDlq() {
+    catalog.createTable(tableId, icebergSchema);
+    String missing = root + "missing.parquet";
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(missing))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(missing, row.getString("file"));
+              assertThat(row.getString("error"), containsString("No files found"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).snapshots()));
+  }
+
+  @Test
+  public void testGarbageParquetWithExistingTableRoutesToDlq() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    File garbage = temp.newFile("garbage.parquet");
+    java.nio.file.Files.write(
+        garbage.toPath(), "not parquet".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    String file = garbage.getAbsolutePath();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(file, row.getString("file"));
+              assertNotNull(row.getString("error"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).snapshots()));
+  }
+
   @Test
   public void testStaleNameMappingRegeneratedAtCommit() throws Exception {
     Table table = catalog.createTable(tableId, icebergSchema);
@@ -734,9 +805,10 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
+      ParquetMetadata footer = AddFiles.readParquetFooter(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema));
+              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
         Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
@@ -750,7 +822,7 @@ public class AddFilesTest {
         assertEquals(caze.expectedUpper.get(i), upper);
       }
 
-      String partitionPath = getPartitionFromMetrics(metrics, file, table);
+      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer);
       assertEquals(caze.expectedPartition, partitionPath);
     }
   }
@@ -799,9 +871,10 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
+      ParquetMetadata footer = AddFiles.readParquetFooter(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema));
+              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
       // check that lower/upper stats are still fetched correctly
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
@@ -818,7 +891,7 @@ public class AddFilesTest {
 
       assertThrows(
           AddFiles.UnknownPartitionException.class,
-          () -> getPartitionFromMetrics(metrics, file, table));
+          () -> getPartitionFromMetrics(metrics, file, table, footer));
     }
   }
 
