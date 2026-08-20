@@ -390,4 +390,5 @@ task postCommit {
   description = "Integration tests of GCP connectors using the DirectRunner."
   dependsOn integrationTest
   dependsOn integrationTestKms
+  dependsOn bigQueryManagedIcebergIntegrationTest
 }
