@@ -743,12 +743,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private static void ensureNameMappingPresent(Table table) {
-      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
-        // Forces Name based resolution instead of position based resolution
-        NameMapping mapping = MappingUtil.create(table.schema());
-        String mappingJson = NameMappingParser.toJson(mapping);
-        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
+      // Forces name-based resolution: zero-copy files carry no field ids, so any schema column
+      // missing from the mapping is unreadable in registered files.
+      @Nullable
+      NameMapping existing =
+          NameMappingUtils.parseOrNull(
+              table.properties().get(TableProperties.DEFAULT_NAME_MAPPING));
+      if (existing != null && NameMappingUtils.covers(existing, table.schema().asStruct())) {
+        return;
       }
+      if (existing != null) {
+        LOG.info(
+            "Name mapping of table {} does not cover its schema; regenerating it, preserving "
+                + "custom names where possible.",
+            table.name());
+      }
+      String mappingJson = NameMappingUtils.regenerate(table.schema(), existing);
+      table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
     }
 
     @ProcessElement

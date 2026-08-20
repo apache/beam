@@ -26,6 +26,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -61,6 +62,7 @@ import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
@@ -73,6 +75,7 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
@@ -99,8 +102,8 @@ public class AddFilesTest {
 
   private HadoopCatalog catalog;
   private TableIdentifier tableId;
-  private final org.apache.iceberg.Schema icebergSchema =
-      new org.apache.iceberg.Schema(
+  private final Schema icebergSchema =
+      new Schema(
           Types.NestedField.required(1, "id", Types.IntegerType.get()),
           Types.NestedField.required(2, "name", Types.StringType.get()),
           Types.NestedField.required(3, "age", Types.IntegerType.get()));
@@ -516,6 +519,165 @@ public class AddFilesTest {
               return null;
             });
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testStaleNameMappingRegeneratedAtCommit() throws Exception {
+    Table table = catalog.createTable(tableId, icebergSchema);
+    // A mapping generated against an older version of the schema (covers only "id"), carrying a
+    // user-added alias.
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            json("[ {'field-id': 1, 'names': ['id', 'ident']} ]"))
+        .commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    NameMapping mapping = currentMapping();
+    assertNotNull(mapping.find("name"));
+    assertNotNull(mapping.find("age"));
+    // The user's alias survived the regeneration.
+    assertNotNull(mapping.find("ident"));
+    assertEquals(1, mapping.find("ident").id().intValue());
+  }
+
+  /**
+   * The stale mapping resolves every top-level name but is missing a field nested inside a
+   * list&lt;struct&gt;; only the recursive coverage walk can detect it.
+   */
+  @Test
+  public void testStaleNestedNameMappingRegeneratedAtCommit() throws Exception {
+    Schema tableSchema =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.StringType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()),
+            Types.NestedField.optional(
+                4,
+                "events",
+                Types.ListType.ofOptional(
+                    5,
+                    Types.StructType.of(
+                        Types.NestedField.optional(6, "a", Types.IntegerType.get()),
+                        Types.NestedField.optional(7, "b", Types.StringType.get())))));
+    Table table = catalog.createTable(tableId, tableSchema);
+    Schema staleView =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.StringType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()),
+            Types.NestedField.optional(
+                4,
+                "events",
+                Types.ListType.ofOptional(
+                    5,
+                    Types.StructType.of(
+                        Types.NestedField.optional(6, "a", Types.IntegerType.get())))));
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            NameMappingParser.toJson(MappingUtil.create(staleView)))
+        .commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    assertNotNull(currentMapping().find("events", "element", "b"));
+  }
+
+  @Test
+  public void testMalformedNameMappingRegeneratedAtCommit() throws Exception {
+    Table table = catalog.createTable(tableId, icebergSchema);
+    // Duplicate names make NameMappingParser.fromJson throw eagerly.
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            json("[ {'field-id': 1, 'names': ['dup']}, {'field-id': 2, 'names': ['dup']} ]"))
+        .commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    NameMapping mapping = currentMapping();
+    assertNotNull(mapping.find("id"));
+    assertNotNull(mapping.find("age"));
+  }
+
+  /** A mapping that already covers the schema is never rewritten, whatever custom names it has. */
+  @Test
+  public void testHealthyCustomizedMappingLeftUntouched() throws Exception {
+    Table table = catalog.createTable(tableId, icebergSchema);
+    String custom =
+        json(
+            "[ {'field-id': 1, 'names': ['id', 'ident']},"
+                + "  {'field-id': 2, 'names': ['name']},"
+                + "  {'field-id': 3, 'names': ['age']} ]");
+    table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, custom).commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(
+        custom, catalog.loadTable(tableId).properties().get(TableProperties.DEFAULT_NAME_MAPPING));
+  }
+
+  /** Single-quoted JSON keeps test literals free of escape noise. */
+  private static String json(String singleQuoted) {
+    return singleQuoted.replace('\'', '"');
+  }
+
+  private NameMapping currentMapping() {
+    return NameMappingParser.fromJson(
+        catalog.loadTable(tableId).properties().get(TableProperties.DEFAULT_NAME_MAPPING));
   }
 
   @Test
