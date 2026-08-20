@@ -17,8 +17,6 @@
  */
 package org.apache.beam.runners.spark.stateful;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -82,14 +80,12 @@ public class SparkTimerInternals implements TimerInternals {
             slowestHighWatermark.isBefore(sparkWatermarks.getHighWatermark())
                 ? slowestHighWatermark
                 : sparkWatermarks.getHighWatermark();
-        if (synchronizedProcessingTime == null) {
-          // firstime set.
+        // an idle source keeps its last reported time, so sources can disagree here; the
+        // synchronized processing time is the one every source has reached.
+        if (synchronizedProcessingTime == null
+            || sparkWatermarks.getSynchronizedProcessingTime().isBefore(
+                synchronizedProcessingTime)) {
           synchronizedProcessingTime = sparkWatermarks.getSynchronizedProcessingTime();
-        } else {
-          // assert on following.
-          checkArgument(
-              sparkWatermarks.getSynchronizedProcessingTime().equals(synchronizedProcessingTime),
-              "Synchronized time is expected to keep synchronized across sources.");
         }
       }
     }

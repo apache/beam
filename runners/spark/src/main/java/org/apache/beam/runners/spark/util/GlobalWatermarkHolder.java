@@ -175,7 +175,9 @@ public class GlobalWatermarkHolder {
   /**
    * Computes the next watermark values per source id.
    *
-   * @return The new watermarks values or null if no source has reported its progress.
+   * <p>Sources with no queued update keep their last known watermarks.
+   *
+   * @return The new watermarks values, or an empty map if no source has reported its progress.
    */
   private static Map<Integer, SparkWatermarks> computeNewWatermarks(BlockManager blockManager) {
 
@@ -183,14 +185,26 @@ public class GlobalWatermarkHolder {
       return new HashMap<>();
     }
 
-    // update all sources' watermarks into the new broadcast.
+    final Map<Integer, SparkWatermarks> currentWatermarks = initWatermarks(blockManager);
+
+    // Update the sources that reported progress over a copy of the stored map, so a source
+    // with no update in this batch keeps its last known watermarks. A source whose high
+    // watermark already reached the end of time is done and holds nothing back, so it is
+    // not retained.
     final Map<Integer, SparkWatermarks> newValues = new HashMap<>();
+    for (Map.Entry<Integer, SparkWatermarks> current : currentWatermarks.entrySet()) {
+      if (current.getValue().getHighWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
+        newValues.put(current.getKey(), current.getValue());
+      }
+    }
+    boolean hasUpdates = false;
 
     for (final Map.Entry<Integer, Queue<SparkWatermarks>> watermarkInfo : sourceTimes.entrySet()) {
 
       if (watermarkInfo.getValue().isEmpty()) {
         continue;
       }
+      hasUpdates = true;
 
       final Integer sourceId = watermarkInfo.getKey();
 
@@ -198,8 +212,6 @@ public class GlobalWatermarkHolder {
       Instant currentLowWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
       Instant currentHighWatermark = BoundedWindow.TIMESTAMP_MIN_VALUE;
       Instant currentSynchronizedProcessingTime = BoundedWindow.TIMESTAMP_MIN_VALUE;
-
-      final Map<Integer, SparkWatermarks> currentWatermarks = initWatermarks(blockManager);
 
       if (currentWatermarks.containsKey(sourceId)) {
         final SparkWatermarks currentTimes = currentWatermarks.get(sourceId);
@@ -240,7 +252,7 @@ public class GlobalWatermarkHolder {
           new SparkWatermarks(nextLowWatermark, nextHighWatermark, nextSynchronizedProcessingTime));
     }
 
-    return newValues;
+    return hasUpdates ? newValues : new HashMap<>();
   }
 
   private static void writeRemoteWatermarkBlock(

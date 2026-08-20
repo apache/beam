@@ -17,12 +17,14 @@
  */
 package org.apache.beam.runners.spark;
 
+import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsEqual.equalTo;
 
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder;
 import org.apache.beam.runners.spark.util.GlobalWatermarkHolder.SparkWatermarks;
 import org.apache.beam.sdk.testing.RegexMatcher;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
@@ -133,5 +135,75 @@ public class GlobalWatermarkHolderTest {
     SparkWatermarks watermarksForSource2 = GlobalWatermarkHolder.get(0L).get(2);
     assertThat(watermarksForSource2.getLowWatermark(), equalTo(instant.plus(Duration.millis(3))));
     assertThat(watermarksForSource2.getHighWatermark(), equalTo(instant.plus(Duration.millis(6))));
+  }
+
+  @Test
+  public void testWatermarkRetainedForSourceWithoutUpdate() {
+    Instant instant = new Instant(0);
+
+    GlobalWatermarkHolder.add(
+        1,
+        new SparkWatermarks(
+            instant.plus(Duration.millis(5)), instant.plus(Duration.millis(10)), instant));
+    GlobalWatermarkHolder.add(
+        2,
+        new SparkWatermarks(
+            instant.plus(Duration.millis(3)), instant.plus(Duration.millis(6)), instant));
+
+    GlobalWatermarkHolder.advance();
+
+    // only source 1 reports progress in the next batch.
+    GlobalWatermarkHolder.add(
+        1,
+        new SparkWatermarks(
+            instant.plus(Duration.millis(8)),
+            instant.plus(Duration.millis(12)),
+            instant.plus(Duration.millis(100))));
+
+    GlobalWatermarkHolder.advance();
+
+    // source 1 advanced.
+    SparkWatermarks watermarksForSource1 = GlobalWatermarkHolder.get(0L).get(1);
+    assertThat(watermarksForSource1.getLowWatermark(), equalTo(instant.plus(Duration.millis(8))));
+    assertThat(watermarksForSource1.getHighWatermark(), equalTo(instant.plus(Duration.millis(12))));
+
+    // source 2 had no update; its last known watermarks must be retained.
+    SparkWatermarks watermarksForSource2 = GlobalWatermarkHolder.get(0L).get(2);
+    assertThat(watermarksForSource2, notNullValue());
+    assertThat(watermarksForSource2.getLowWatermark(), equalTo(instant.plus(Duration.millis(3))));
+    assertThat(watermarksForSource2.getHighWatermark(), equalTo(instant.plus(Duration.millis(6))));
+  }
+
+  @Test
+  public void testCompletedSourceAgesOut() {
+    Instant instant = new Instant(0);
+
+    // source 1 completes: its high watermark reaches the end of time.
+    GlobalWatermarkHolder.add(
+        1,
+        new SparkWatermarks(
+            instant.plus(Duration.millis(5)), BoundedWindow.TIMESTAMP_MAX_VALUE, instant));
+    GlobalWatermarkHolder.add(
+        2,
+        new SparkWatermarks(
+            instant.plus(Duration.millis(3)), instant.plus(Duration.millis(6)), instant));
+
+    GlobalWatermarkHolder.advance();
+
+    // the batch that completed the source still reports it.
+    assertThat(GlobalWatermarkHolder.get(0L).get(1), notNullValue());
+
+    GlobalWatermarkHolder.add(
+        2,
+        new SparkWatermarks(
+            instant.plus(Duration.millis(8)),
+            instant.plus(Duration.millis(12)),
+            instant.plus(Duration.millis(100))));
+
+    GlobalWatermarkHolder.advance();
+
+    // a completed source holds nothing back, so it is not retained.
+    assertThat(GlobalWatermarkHolder.get(0L).containsKey(1), equalTo(false));
+    assertThat(GlobalWatermarkHolder.get(0L).get(2), notNullValue());
   }
 }
