@@ -62,6 +62,10 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
   private final String cacheKey;
   private final CachedReader<T> cached;
   private final Coder<WindowedValue<T>> windowedValueCoder;
+  private final String checkpointLocation;
+  private final String sourceId;
+  private final int splitId;
+  private final long endEpoch;
   private final int maxRecordsPerMicroBatch;
   private final long maxBatchDurationMillis;
 
@@ -76,12 +80,20 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
         BeamStreamingSource.decode(partition.coderB64(), "WindowedValue coder");
     SerializablePipelineOptions options =
         BeamStreamingSource.decode(partition.pipelineOptionsB64(), "PipelineOptions");
+    this.checkpointLocation = partition.checkpointLocation();
+    this.sourceId = partition.sourceId();
+    this.splitId = partition.splitId();
+    this.endEpoch = partition.endEpoch();
     this.maxRecordsPerMicroBatch = partition.maxRecordsPerMicroBatch();
     this.maxBatchDurationMillis = partition.maxBatchDurationMillis();
-    this.cacheKey =
-        BeamReaderCache.key(
-            partition.checkpointLocation(), partition.sourceId(), partition.splitId());
-    this.cached = BeamReaderCache.getOrCreate(cacheKey, source, options.get());
+    this.cacheKey = BeamReaderCache.key(checkpointLocation, sourceId, splitId);
+    long startEpoch = partition.startEpoch();
+    this.cached =
+        BeamReaderCache.getOrCreate(
+            cacheKey,
+            source,
+            options.get(),
+            () -> BeamCheckpointFiles.readMark(checkpointLocation, sourceId, splitId, startEpoch));
   }
 
   @Override
@@ -119,7 +131,7 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
 
   /**
    * Ends the micro-batch. The Beam reader deliberately stays open in {@link BeamReaderCache}, only
-   * its checkpoint mark is remembered and finalized.
+   * its checkpoint mark is remembered, persisted for durable recovery, and finalized.
    */
   @Override
   public void close() {
@@ -127,11 +139,30 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
     try {
       UnboundedSource.CheckpointMark mark = cached.reader().getCheckpointMark();
       BeamReaderCache.rememberCheckpointMark(cacheKey, mark);
+      persistMark(mark);
       mark.finalizeCheckpoint();
     } catch (Exception e) {
       LOG.warn("Failed to finalize the checkpoint mark of Beam reader {}.", cacheKey, e);
     }
     LOG.debug("Beam reader {} emitted {} record(s) in this micro-batch.", cacheKey, recordsRead);
+  }
+
+  /**
+   * Best effort persistence of {@code mark} under the checkpoint location. An IO failure only
+   * degrades recovery after a restart, the in memory path in {@link BeamReaderCache} still works,
+   * so the batch is never failed here.
+   */
+  private void persistMark(UnboundedSource.CheckpointMark mark) {
+    try {
+      BeamCheckpointFiles.writeMark(checkpointLocation, sourceId, splitId, endEpoch, mark);
+    } catch (Exception e) {
+      LOG.warn(
+          "Failed to persist the checkpoint mark of Beam reader {} at epoch {}, recovery after a "
+              + "restart will fall back to an older mark or to a fresh start.",
+          cacheKey,
+          endEpoch,
+          e);
+    }
   }
 
   private InternalRow toRow() {

@@ -82,7 +82,12 @@ public class ReadUnboundedTranslator<T>
         cxt.getOptions().as(SparkStructuredStreamingPipelineOptions.class);
 
     Dataset<Row> rows =
-        UnboundedSourceDataset.of(cxt.getSparkSession(), source, payloadCoder, options);
+        UnboundedSourceDataset.of(
+            cxt.getSparkSession(),
+            source,
+            payloadCoder,
+            options,
+            cxt.getCurrentTransform().getFullName());
 
     Encoder<WindowedValue<T>> encoder =
         cxt.windowedEncoder(elementCoder, GlobalWindow.Coder.INSTANCE);

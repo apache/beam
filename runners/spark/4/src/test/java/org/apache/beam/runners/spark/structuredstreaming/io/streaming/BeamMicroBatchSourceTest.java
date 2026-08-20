@@ -229,7 +229,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
     options.setWatermarkDelayMillis(watermarkDelayMillis);
     options.setMaxRecordsPerMicroBatch(1000);
     options.setMaxBatchDurationMillis(200L);
-    return UnboundedSourceDataset.of(SESSION.getSession(), new ListSource(count), coder(), options);
+    return UnboundedSourceDataset.of(
+        SESSION.getSession(), new ListSource(count), coder(), options, "Read(ListSource)");
   }
 
   private static Coder<WindowedValue<String>> coder() {

@@ -80,7 +80,11 @@ public class BeamStreamingSource implements TableProvider, DataSourceRegister {
    */
   public static final String OPT_PIPELINE_OPTIONS = "beam.pipelineoptions";
 
-  /** Identifier making the reader cache key unique per source instance. */
+  /**
+   * Deterministic identifier of the source, derived from the full name of the read transform, see
+   * {@link UnboundedSourceDataset#sourceId}. It keys the reader cache and the durable checkpoint
+   * state, so it must stay stable across restarts against the same checkpoint location.
+   */
   public static final String OPT_SOURCE_ID = "beam.sourceid";
 
   /** Desired number of splits handed to {@code UnboundedSource.split}. */

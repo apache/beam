@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -42,8 +43,15 @@ import org.slf4j.LoggerFactory;
  * or an explicit {@code StreamingQuery.stop()}).
  *
  * <p>The wrapped source is split exactly once, on the driver, and the resulting sub sources are
- * cached so every micro-batch plans the same, stable set of partitions. Splits must be stable
- * across micro-batches because the executor side reader cache is keyed by split index.
+ * pinned to the checkpoint location so every micro-batch of every run plans the same, stable set of
+ * partitions. Splits must be stable across micro-batches and across restarts because the executor
+ * side reader cache and the durable checkpoint marks are keyed by split index, and Beam sources do
+ * not guarantee deterministic splitting. A restarted stream therefore loads the split list written
+ * by the first run instead of splitting again.
+ *
+ * <p>On a restart Spark replays offsets from its offset log through {@link #deserializeOffset} and
+ * {@link #planInputPartitions}. The epoch counter fast forwards past every epoch seen there, so
+ * {@link #latestOffset()} never emits an offset smaller than one already committed to the log.
  */
 public class BeamMicroBatchStream implements MicroBatchStream {
 
@@ -87,7 +95,9 @@ public class BeamMicroBatchStream implements MicroBatchStream {
 
   @Override
   public Offset deserializeOffset(String json) {
-    return BeamOffset.fromJson(json);
+    BeamOffset offset = BeamOffset.fromJson(json);
+    fastForwardEpoch(offset.epoch());
+    return offset;
   }
 
   @Override
@@ -102,6 +112,9 @@ public class BeamMicroBatchStream implements MicroBatchStream {
 
   @Override
   public InputPartition[] planInputPartitions(Offset start, Offset end) {
+    long startEpoch = ((BeamOffset) start).epoch();
+    long endEpoch = ((BeamOffset) end).epoch();
+    fastForwardEpoch(endEpoch);
     List<String> splits = splits();
     InputPartition[] partitions = new InputPartition[splits.size()];
     for (int i = 0; i < splits.size(); i++) {
@@ -113,10 +126,27 @@ public class BeamMicroBatchStream implements MicroBatchStream {
               sourceId,
               i,
               checkpointLocation,
+              startEpoch,
+              endEpoch,
               maxRecordsPerMicroBatch,
               maxBatchDurationMillis);
     }
     return partitions;
+  }
+
+  /**
+   * Raises the epoch counter to {@code seen} if it is behind, keeping {@link #latestOffset()} ahead
+   * of every offset Spark already logged before a restart.
+   */
+  private synchronized void fastForwardEpoch(long seen) {
+    if (seen > epoch) {
+      LOG.info(
+          "Fast forwarding the epoch of Beam source {} from {} to {} seen in Spark's offset log.",
+          sourceId,
+          epoch,
+          seen);
+      epoch = seen;
+    }
   }
 
   @Override
@@ -124,10 +154,29 @@ public class BeamMicroBatchStream implements MicroBatchStream {
     return new BeamPartitionReaderFactory();
   }
 
-  /** Splits the wrapped source once and memoizes the serialized sub sources. */
+  /**
+   * Returns the pinned split list of this source, loading it from the checkpoint location if a
+   * previous run pinned one, and splitting the source and pinning the result otherwise.
+   */
   private synchronized List<String> splits() {
     if (splitsB64 != null) {
       return splitsB64;
+    }
+    List<String> pinned;
+    try {
+      pinned = BeamCheckpointFiles.readSplits(checkpointLocation, sourceId);
+    } catch (IOException e) {
+      throw new IllegalStateException(
+          "Failed to read the pinned split list of Beam source " + sourceId, e);
+    }
+    if (pinned != null) {
+      LOG.info(
+          "Restored {} pinned split(s) of Beam source {} from {}.",
+          pinned.size(),
+          sourceId,
+          checkpointLocation);
+      splitsB64 = pinned;
+      return pinned;
     }
     UnboundedSource<?, ?> source = BeamStreamingSource.decode(sourceB64, "UnboundedSource");
     SerializablePipelineOptions serializableOptions =
@@ -152,6 +201,11 @@ public class BeamMicroBatchStream implements MicroBatchStream {
         sourceId,
         encoded.size(),
         desiredNumSplits);
+    try {
+      BeamCheckpointFiles.writeSplits(checkpointLocation, sourceId, encoded);
+    } catch (IOException e) {
+      throw new IllegalStateException("Failed to pin the split list of Beam source " + sourceId, e);
+    }
     splitsB64 = encoded;
     return encoded;
   }

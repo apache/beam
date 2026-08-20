@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
@@ -44,12 +45,15 @@ import org.slf4j.LoggerFactory;
  * stopped. This mirrors what the legacy Spark runner does in {@code
  * org.apache.beam.runners.spark.io.MicrobatchSource}.
  *
- * <p><b>POC scope, weak failure recovery.</b> The {@code CheckpointMark} of every split is cached
- * in executor memory only, it is never written to the Spark checkpoint location and never restored
- * from it. If an executor JVM dies, or the cache entry expires, the reader is recreated from the
- * last mark that happens to still be in memory, and from scratch if there is none. Data loss or
- * duplication across executor failures is therefore possible. Making recovery durable means
- * committing marks through the Spark offset log and is deliberately out of scope for the POC.
+ * <p><b>Durable recovery.</b> The {@code CheckpointMark} of every split is remembered in executor
+ * memory after each micro-batch, and {@link BeamPartitionReader} additionally persists it under the
+ * checkpoint location, see {@link BeamCheckpointFiles}. When a reader has to be created and no mark
+ * is in memory, for example after an executor or driver restart or after the cache entry expired,
+ * the caller supplied fallback restores the newest durable mark at or before the epoch the batch
+ * starts at. Two caveats remain. The source is consumed with at least once semantics, a mark is
+ * written when a batch finished reading rather than transactionally with Spark's commit, so a crash
+ * between the two replays the last micro-batch. And persisting a mark is best effort, an IO failure
+ * only degrades recovery to an older mark or to a fresh start, it never fails the batch.
  */
 public final class BeamReaderCache {
 
@@ -92,15 +96,32 @@ public final class BeamReaderCache {
    * Returns the cached reader for {@code key}, creating it from the last cached checkpoint mark if
    * there is none.
    */
-  @SuppressWarnings({"unchecked", "nullness"}) // the mark type always matches the source
   public static <T, CheckpointMarkT extends CheckpointMark> CachedReader<T> getOrCreate(
       String key, UnboundedSource<T, CheckpointMarkT> source, PipelineOptions options) {
+    return getOrCreate(key, source, options, () -> null);
+  }
+
+  /**
+   * Returns the cached reader for {@code key}, creating it from the last cached checkpoint mark if
+   * there is none. The {@code durableMarkFallback} is consulted only when no mark is in memory
+   * either, it typically restores a mark persisted by {@link BeamCheckpointFiles} and may return
+   * {@code null} for a fresh start.
+   */
+  @SuppressWarnings({"unchecked", "nullness"}) // the mark type always matches the source
+  public static <T, CheckpointMarkT extends CheckpointMark> CachedReader<T> getOrCreate(
+      String key,
+      UnboundedSource<T, CheckpointMarkT> source,
+      PipelineOptions options,
+      Supplier<@Nullable CheckpointMark> durableMarkFallback) {
     try {
       return (CachedReader<T>)
           READERS.get(
               key,
               () -> {
                 CheckpointMarkT mark = (CheckpointMarkT) MARKS.get(key);
+                if (mark == null) {
+                  mark = (CheckpointMarkT) durableMarkFallback.get();
+                }
                 LOG.info(
                     "No cached Beam reader for {}, creating one at checkpoint mark {}.", key, mark);
                 return new CachedReader<>(source.createReader(options, mark));

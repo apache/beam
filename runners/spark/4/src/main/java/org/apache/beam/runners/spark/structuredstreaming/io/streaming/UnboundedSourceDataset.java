@@ -17,14 +17,15 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
@@ -55,6 +56,9 @@ public final class UnboundedSourceDataset {
   /** Upper bound on the number of splits requested from a source, keeps the POC predictable. */
   private static final int MAX_DESIRED_SPLITS = 8;
 
+  /** Upper bound on the sanitized transform name inside a source id, see {@link #sourceId}. */
+  private static final int MAX_SANITIZED_NAME_LENGTH = 64;
+
   private UnboundedSourceDataset() {}
 
   /**
@@ -66,6 +70,8 @@ public final class UnboundedSourceDataset {
    * @param windowedValueCoder the coder used to encode the {@value #COL_PAYLOAD} column, normally a
    *     {@code WindowedValues.FullWindowedValueCoder}
    * @param options the pipeline options, supplying the watermark delay and the micro-batch limits
+   * @param transformName the full name of the read transform, turned into the deterministic source
+   *     id keying the durable checkpoint state, see {@link #sourceId}
    * @param <T> the element type of the source
    * @param <CheckpointMarkT> the checkpoint mark type of the source
    */
@@ -73,7 +79,8 @@ public final class UnboundedSourceDataset {
       SparkSession session,
       UnboundedSource<T, CheckpointMarkT> source,
       Coder<WindowedValue<T>> windowedValueCoder,
-      SparkStructuredStreamingPipelineOptions options) {
+      SparkStructuredStreamingPipelineOptions options,
+      String transformName) {
 
     Map<String, String> readerOptions = new HashMap<>();
     readerOptions.put(BeamStreamingSource.OPT_SOURCE, BeamStreamingSource.encode(source));
@@ -82,7 +89,7 @@ public final class UnboundedSourceDataset {
     readerOptions.put(
         BeamStreamingSource.OPT_PIPELINE_OPTIONS,
         BeamStreamingSource.encode(new SerializablePipelineOptions(options)));
-    readerOptions.put(BeamStreamingSource.OPT_SOURCE_ID, UUID.randomUUID().toString());
+    readerOptions.put(BeamStreamingSource.OPT_SOURCE_ID, sourceId(transformName));
     readerOptions.put(
         BeamStreamingSource.OPT_NUM_SPLITS, Integer.toString(desiredNumSplits(session)));
     readerOptions.put(
@@ -97,6 +104,27 @@ public final class UnboundedSourceDataset {
 
     // Exactly one watermark declaration per pipeline, see the class javadoc.
     return rows.withWatermark(COL_EVENT_TS, options.getWatermarkDelayMillis() + " milliseconds");
+  }
+
+  /**
+   * Derives the deterministic source id of a read transform from its full name.
+   *
+   * <p>The id keys the durable checkpoint state under the checkpoint location, so it must be
+   * filesystem safe and stable across JVMs. Characters outside {@code [A-Za-z0-9._-]} are replaced
+   * with {@code _}, the sanitized name is truncated to {@value #MAX_SANITIZED_NAME_LENGTH}
+   * characters, and an 8 hex character hash of the unsanitized name is appended to keep distinct
+   * transform names distinct. A pipeline restarted against the same checkpoint location must
+   * therefore keep the same transform names, the same requirement every Beam runner with durable
+   * state imposes.
+   */
+  public static String sourceId(String transformName) {
+    String sanitized = transformName.replaceAll("[^A-Za-z0-9._-]", "_");
+    if (sanitized.length() > MAX_SANITIZED_NAME_LENGTH) {
+      sanitized = sanitized.substring(0, MAX_SANITIZED_NAME_LENGTH);
+    }
+    String hash =
+        Hashing.murmur3_32_fixed().hashString(transformName, StandardCharsets.UTF_8).toString();
+    return sanitized + "-" + hash;
   }
 
   private static int desiredNumSplits(SparkSession session) {

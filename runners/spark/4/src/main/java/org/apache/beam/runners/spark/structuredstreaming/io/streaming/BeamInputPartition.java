@@ -35,6 +35,8 @@ public class BeamInputPartition implements InputPartition {
   private final String sourceId;
   private final int splitId;
   private final String checkpointLocation;
+  private final long startEpoch;
+  private final long endEpoch;
   private final int maxRecordsPerMicroBatch;
   private final long maxBatchDurationMillis;
 
@@ -45,6 +47,8 @@ public class BeamInputPartition implements InputPartition {
       String sourceId,
       int splitId,
       String checkpointLocation,
+      long startEpoch,
+      long endEpoch,
       int maxRecordsPerMicroBatch,
       long maxBatchDurationMillis) {
     this.sourceB64 = sourceB64;
@@ -53,6 +57,8 @@ public class BeamInputPartition implements InputPartition {
     this.sourceId = sourceId;
     this.splitId = splitId;
     this.checkpointLocation = checkpointLocation;
+    this.startEpoch = startEpoch;
+    this.endEpoch = endEpoch;
     this.maxRecordsPerMicroBatch = maxRecordsPerMicroBatch;
     this.maxBatchDurationMillis = maxBatchDurationMillis;
   }
@@ -79,6 +85,14 @@ public class BeamInputPartition implements InputPartition {
 
   String checkpointLocation() {
     return checkpointLocation;
+  }
+
+  long startEpoch() {
+    return startEpoch;
+  }
+
+  long endEpoch() {
+    return endEpoch;
   }
 
   int maxRecordsPerMicroBatch() {
