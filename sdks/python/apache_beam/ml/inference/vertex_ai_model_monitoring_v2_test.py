@@ -334,6 +334,7 @@ class VertexAIModelMonitoringV2JobManagerTest(unittest.TestCase):
   )
   def test_streaming_job_manager_setup_and_process(self, mock_create):
     mock_monitor = mock.MagicMock()
+    mock_monitor.list_schedules.return_value = []
     mock_create.return_value = mock_monitor
 
     streaming_manager = _V2JobManagerStreaming(
@@ -353,6 +354,7 @@ class VertexAIModelMonitoringV2JobManagerTest(unittest.TestCase):
 
     streaming_manager.setup()
     streaming_manager.process(None)
+    mock_monitor.list_schedules.assert_called_once()
     mock_monitor.create_schedule.assert_called_once_with(
         cron="@hourly",
         target_dataset=self.target_dataset,
@@ -366,6 +368,37 @@ class VertexAIModelMonitoringV2JobManagerTest(unittest.TestCase):
         notification_spec=None,
         explanation_spec=None,
     )
+
+  @mock.patch(
+      "vertexai.resources.preview.ml_monitoring.model_monitors.ModelMonitor.create"
+  )
+  def test_streaming_job_manager_skips_creation_when_identical_schedule_exists(
+      self, mock_create):
+    mock_monitor = mock.MagicMock()
+    mock_existing_schedule = mock.MagicMock(
+        display_name="test-schedule", cron="@hourly")
+    mock_monitor.list_schedules.return_value = [mock_existing_schedule]
+    mock_create.return_value = mock_monitor
+
+    streaming_manager = _V2JobManagerStreaming(
+        project_id=self.project_id,
+        location=self.location,
+        display_name=self.display_name,
+        model_name=self.model_name,
+        model_version_id=self.model_version_id,
+        model_monitoring_schema=self.schema,
+        training_dataset=self.training_dataset,
+        tabular_objective_spec=self.tabular_objective,
+        target_dataset=self.target_dataset,
+        cron="@hourly",
+        schedule_display_name="test-schedule",
+        monitoring_job_display_name="test-sched-job",
+    )
+
+    streaming_manager.setup()
+    streaming_manager.process(None)
+    mock_monitor.list_schedules.assert_called_once()
+    mock_monitor.create_schedule.assert_not_called()
 
 
 @pytest.mark.skipif(
@@ -481,6 +514,74 @@ class VertexModelMonitoringV2TransformTest(unittest.TestCase):
     self.assertTrue(len(outlet_transforms) > 0)
     for t in outlet_transforms:
       self.assertEqual(t.annotations.get("model_identifier"), b"")
+
+  @mock.patch(
+      "apache_beam.ml.inference.vertex_ai_model_monitoring_v2.WriteToBigQuery")
+  def test_streaming_pipeline_expansion_requires_cron(self, mock_write_to_bq):
+    class FakeWriteTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll
+
+    mock_write_to_bq.return_value = FakeWriteTransform()
+
+    transform = VertexModelMonitoringV2(
+        project_id=self.project_id,
+        location=self.location,
+        display_name=self.display_name,
+        model_name=self.model_name,
+        model_version_id=self.model_version_id,
+        model_monitoring_schema=self.schema,
+        training_dataset=self.training_dataset,
+        tabular_objective_spec=self.tabular_objective,
+        target_dataset=self.target_dataset,
+        unpack_fn=self.unpack_fn,
+        bigquery_table=self.bq_table,
+        cron=None,
+    )
+
+    with self.assertRaises(ValueError) as ctx:
+      p = beam.Pipeline(options=PipelineOptions(flags=["--streaming"]))
+      pcoll = p | beam.Create([PredictionResult(1, 2)])
+      _ = pcoll | transform
+
+    self.assertIn("A cron schedule must be provided", str(ctx.exception))
+
+  @mock.patch(
+      "apache_beam.ml.inference.vertex_ai_model_monitoring_v2.WriteToBigQuery")
+  @mock.patch(
+      "vertexai.resources.preview.ml_monitoring.model_monitors.ModelMonitor.create"
+  )
+  def test_streaming_pipeline_expansion_with_cron(
+      self, mock_create, mock_write_to_bq):
+    class FakeWriteTransform(beam.PTransform):
+      def expand(self, pcoll):
+        return pcoll
+
+    mock_write_to_bq.return_value = FakeWriteTransform()
+    mock_monitor = mock.MagicMock()
+    mock_monitor.list_schedules.return_value = []
+    mock_create.return_value = mock_monitor
+
+    transform = VertexModelMonitoringV2(
+        project_id=self.project_id,
+        location=self.location,
+        display_name=self.display_name,
+        model_name=self.model_name,
+        model_version_id=self.model_version_id,
+        model_monitoring_schema=self.schema,
+        training_dataset=self.training_dataset,
+        tabular_objective_spec=self.tabular_objective,
+        target_dataset=self.target_dataset,
+        unpack_fn=self.unpack_fn,
+        bigquery_table=self.bq_table,
+        cron="0 0 * * *",
+    )
+
+    with TestPipeline(additional_pipeline_args=["--streaming"]) as p:
+      pcoll = p | beam.Create([PredictionResult(1, 2), PredictionResult(2, 4)])
+      output = pcoll | transform
+      assert_that(
+          output, equal_to([PredictionResult(1, 2), PredictionResult(2, 4)]))
 
 
 if __name__ == "__main__":

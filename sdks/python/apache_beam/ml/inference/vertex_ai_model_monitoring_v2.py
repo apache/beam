@@ -193,7 +193,38 @@ class _V2JobManagerStreaming(_V2JobManager):
   def setup(self):
     self.manager = self.create_model_monitor()
 
+  def _schedule_already_exists(self) -> bool:
+    """Checks if an identical schedule already exists on the model monitor."""
+    try:
+      existing_schedules = self.manager.list_schedules()
+      if not existing_schedules:
+        return False
+      for schedule in existing_schedules:
+        sched_display_name = getattr(schedule, 'display_name', None)
+        sched_cron = getattr(schedule, 'cron', None)
+        if isinstance(schedule, dict):
+          sched_display_name = schedule.get('display_name', sched_display_name)
+          sched_cron = schedule.get('cron', sched_cron)
+        if (sched_display_name == self.schedule_display_name and
+            sched_cron == self.cron):
+          return True
+    except Exception as e:
+      logging.warning(
+          "Failed to list existing schedules: %s. Attempting creation.", e)
+    return False
+
   def process(self, element):
+    # Ignore schedule creation if a corresponding one already exists (e.g.
+    # multiple streaming pipelines utilize the same model and write to the
+    # same BigQuery table for monitoring.)
+    if self._schedule_already_exists():
+      logging.info(
+          "Schedule '%s' with cron '%s' already exists; skipping schedule creation.",
+          self.schedule_display_name,
+          self.cron,
+      )
+      return
+
     try:
       self.manager.create_schedule(
           cron=self.cron,
@@ -208,6 +239,7 @@ class _V2JobManagerStreaming(_V2JobManager):
           notification_spec=self.notification_spec,
           explanation_spec=self.explanation_spec,
       )
+    # Catch race condition between two workers trying to create the schedule.
     except (exceptions.AlreadyExists, exceptions.Conflict):
       logging.info(
           "Schedule '%s' already exists; skipping schedule creation.",
@@ -270,6 +302,7 @@ class VertexModelMonitoringV2(
       model_monitor_id: Optional deterministic resource ID for the model monitor.
         If omitted, Vertex AI generates an ID automatically.
       cron: Cron expression defining the recurring schedule for streaming pipelines (e.g. '@daily', '0 * * * *').
+        Required for streaming pipelines.
       schedule_display_name: Display name for the streaming monitoring schedule.
       monitoring_job_display_name: Display name for the monitoring job.
       explanation_spec: Optional feature attribution monitoring specification.
@@ -332,12 +365,9 @@ class VertexModelMonitoringV2(
 
     if is_streaming:
       if not self.cron:
-        logging.warning(
-            'A cron schedule was not provided, so a monitoring job will not be'
-            ' created. Inferences will still be written to the BigQuery table'
-            ' %s',
-            self.bigquery_table)
-        return pcoll
+        raise ValueError(
+            'A cron schedule must be provided for VertexModelMonitoringV2 in '
+            'streaming pipelines.')
       manager = _V2JobManagerStreaming(
           project_id=self.project_id,
           location=self.location,
