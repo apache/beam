@@ -437,9 +437,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
               } catch (FileNotFoundException e) {
                 return new ProcessResult(
                     null,
-                    Row.withSchema(ERROR_SCHEMA)
-                        .addValues(filePath, checkStateNotNull(e.getMessage()))
-                        .build(),
+                    Row.withSchema(ERROR_SCHEMA).addValues(filePath, errorMessage(e)).build(),
                     timestamp,
                     window,
                     paneInfo);
@@ -473,9 +471,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         } catch (Exception e) {
           return new ProcessResult(
               null,
-              Row.withSchema(ERROR_SCHEMA)
-                  .addValues(filePath, checkStateNotNull(e.getMessage()))
-                  .build(),
+              Row.withSchema(ERROR_SCHEMA).addValues(filePath, errorMessage(e)).build(),
               timestamp,
               window,
               paneInfo);
@@ -563,10 +559,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         throws IOException {
       Preconditions.checkArgument(
           format.equals(FileFormat.PARQUET), "Table creation is only supported for Parquet files.");
-      try (ParquetFileReader reader = ParquetFileReader.open(getParquetInputFile(filePath))) {
-        MessageType messageType = reader.getFooter().getFileMetaData().getSchema();
-        return ParquetSchemaUtil.convert(messageType);
-      }
+      MessageType messageType = readParquetFooter(filePath).getFileMetaData().getSchema();
+      return ParquetSchemaUtil.convert(messageType);
     }
 
     private String getPartitionFromFilePath(String filePath) {
@@ -860,6 +854,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       default:
         throw new UnsupportedOperationException("Unsupported format: " + format);
     }
+  }
+
+  static ParquetMetadata readParquetFooter(String filePath) throws IOException {
+    try (ParquetFileReader reader = ParquetFileReader.open(getParquetInputFile(filePath))) {
+      return reader.getFooter();
+    }
+  }
+
+  /**
+   * Some exceptions carry a null message (bare EOFException, NPE); the error-routing path must
+   * never throw on one.
+   */
+  static String errorMessage(Throwable e) {
+    return e.getMessage() != null ? e.getMessage() : e.toString();
   }
 
   /** Tries to infer other file formats. Defaults to Parquet. */
