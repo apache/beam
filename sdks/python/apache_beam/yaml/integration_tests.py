@@ -392,6 +392,41 @@ def temp_mysql_database():
 
 
 @contextlib.contextmanager
+def snowflake_fixture():
+  options = PipelineOptions().get_all_options()
+
+  required = [
+      'server_name',
+      'username',
+      'password',
+      'staging_bucket_name',
+      'storage_integration_name',
+      'database',
+      'schema',
+      'table',
+  ]
+
+  missing = [name for name in required if not options.get(name)]
+  if missing:
+    raise unittest.SkipTest(
+        'Snowflake YAML integration test requires external configuration: ' +
+        ', '.join(missing))
+
+  yield {
+      'SERVER_NAME': options['server_name'],
+      'USERNAME': options['username'],
+      'PASSWORD': options['password'],
+      'STAGING_BUCKET_NAME': options['staging_bucket_name'],
+      'STORAGE_INTEGRATION_NAME': options['storage_integration_name'],
+      'DATABASE': options['database'],
+      'SCHEMA': options['schema'],
+      'TABLE': options['table'],
+      'WAREHOUSE': options.get('warehouse'),
+      'ROLE': options.get('role'),
+  }
+
+
+@contextlib.contextmanager
 def temp_debezium_postgres_database():
   """Provides a temporary PostgreSQL database configured for Debezium CDC."""
 

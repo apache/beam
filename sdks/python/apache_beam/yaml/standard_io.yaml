@@ -206,6 +206,62 @@
       config:
         gradle_target: 'sdks:java:io:debezium:expansion-service:shadowJar'
 
+# Snowflake
+- type: renaming
+  transforms:
+    'ReadFromSnowflake': 'ReadFromSnowflake'
+    'WriteToSnowflake': 'WriteToSnowflake'
+  config:
+    mappings:
+      'ReadFromSnowflake':
+        server_name: 'server_name'
+        username: 'username'
+        password: 'password'
+        oauth_token: 'oauth_token'
+        private_key: 'private_key'
+        private_key_passphrase: 'private_key_passphrase'
+        database: 'database'
+        snowflake_schema: 'snowflake_schema'
+        warehouse: 'warehouse'
+        role: 'role'
+        table: 'table'
+        query: 'query'
+        staging_bucket_name: 'staging_bucket_name'
+        storage_integration_name: 'storage_integration_name'
+        schema: 'schema'
+        quotation_mark: 'quotation_mark'
+      'WriteToSnowflake':
+        server_name: 'server_name'
+        username: 'username'
+        password: 'password'
+        oauth_token: 'oauth_token'
+        private_key: 'private_key'
+        private_key_passphrase: 'private_key_passphrase'
+        database: 'database'
+        schema: 'schema'
+        warehouse: 'warehouse'
+        role: 'role'
+        table: 'table'
+        snow_pipe: 'snow_pipe'
+        staging_bucket_name: 'staging_bucket_name'
+        storage_integration_name: 'storage_integration_name'
+        create_disposition: 'create_disposition'
+        write_disposition: 'write_disposition'
+        quotation_mark: 'quotation_mark'
+        flush_row_limit: 'flush_row_limit'
+        flush_time_limit_millis: 'flush_time_limit_millis'
+        shards_number: 'shards_number'
+        debug_mode: 'debug_mode'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromSnowflake':
+          'beam:schematransform:org.apache.beam:snowflake_read:v1'
+        'WriteToSnowflake':
+          'beam:schematransform:org.apache.beam:snowflake_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:snowflake:expansion-service:shadowJar'
+
 # Databases
 - type: renaming
   transforms:

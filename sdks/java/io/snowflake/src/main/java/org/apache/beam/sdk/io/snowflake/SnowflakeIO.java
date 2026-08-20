@@ -231,6 +231,7 @@ public class SnowflakeIO {
    */
   @FunctionalInterface
   public interface UserDataMapper<T> extends Serializable {
+    @org.checkerframework.checker.nullness.qual.Nullable
     Object[] mapRow(T element);
   }
 
