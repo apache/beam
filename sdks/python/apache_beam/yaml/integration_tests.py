@@ -701,8 +701,8 @@ def temp_iceberg_table_with_pk(table_data):
 def temp_jms_activemq_server():
   """Context manager to provide a temporary ActiveMQ broker for JMS tests."""
 
-  broker = DockerContainer(
-    'apache/activemq-classic:5.18.3').with_exposed_ports(61616)
+  broker = DockerContainer('apache/activemq-classic:5.18.3').with_exposed_ports(
+      61616)
 
   try:
     broker.start()
@@ -712,12 +712,38 @@ def temp_jms_activemq_server():
     port = broker.get_exposed_port(61616)
 
     yield {
-      'SERVER_URI': f'tcp://{host}:{port}',
-      'CONNECTION_FACTORY_CLASS_NAME':
-        'org.apache.activemq.ActiveMQConnectionFactory',
+        'SERVER_URI': f'tcp://{host}:{port}',
+        'CONNECTION_FACTORY_CLASS_NAME': 'org.apache.activemq.ActiveMQConnectionFactory',
     }
   finally:
     broker.stop()
+
+
+@contextlib.contextmanager
+def temp_ibm_mq_server():
+  container = (
+      DockerContainer('icr.io/ibm-messaging/mq:9.3.0.25-r1').with_env(
+          'LICENSE', 'accept').with_env('MQ_QMGR_NAME', 'QM1').with_env(
+              'MQ_APP_PASSWORD', 'admin123').with_exposed_ports(1414))
+
+  try:
+    container.start()
+    wait_for_logs(container, '.*(MQQMNAME|Started queue manager).*', timeout=45)
+
+    host = container.get_container_host_ip()
+    port = container.get_exposed_port(1414)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'USERNAME': 'app',
+        'PASSWORD': 'admin123',
+        'SOURCE_QUEUE': 'DEV.QUEUE.1',
+        'SINK_QUEUE': 'DEV.QUEUE.2',
+    }
+
+  finally:
+    container.stop()
 
 
 @contextlib.contextmanager

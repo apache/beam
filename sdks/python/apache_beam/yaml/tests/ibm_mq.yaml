@@ -16,8 +16,8 @@
 #
 
 fixtures:
-  - name: JMS
-    type: "apache_beam.yaml.integration_tests.temp_jms_activemq_server"
+  - name: IBM_MQ
+    type: apache_beam.yaml.integration_tests.temp_ibm_mq_server
 
 pipelines:
   - pipeline:
@@ -30,22 +30,28 @@ pipelines:
               - payload: message-2
               - payload: message-3
 
-        - type: WriteToJms
+        - type: WriteToIbmMQ
           config:
             connection_configuration:
-              server_uri: "{JMS[SERVER_URI]}"
-              connection_factory_class_name: "{JMS[CONNECTION_FACTORY_CLASS_NAME]}"
-            queue: yaml-jms-test
+              server_uri: "{IBM_MQ[SERVER_URI]}"
+              connection_factory_class_name:
+                "{IBM_MQ[CONNECTION_FACTORY_CLASS_NAME]}"
+              username: "{IBM_MQ[USERNAME]}"
+              password: "{IBM_MQ[PASSWORD]}"
+            queue: "{IBM_MQ[SOURCE_QUEUE]}"
 
   - pipeline:
       type: chain
       transforms:
-        - type: ReadFromJms
+        - type: ReadFromIbmMQ
           config:
             connection_configuration:
-              server_uri: "{JMS[SERVER_URI]}"
-              connection_factory_class_name: "{JMS[CONNECTION_FACTORY_CLASS_NAME]}"
-            queue: yaml-jms-test
+              server_uri: "{IBM_MQ[SERVER_URI]}"
+              connection_factory_class_name:
+                "{IBM_MQ[CONNECTION_FACTORY_CLASS_NAME]}"
+              username: "{IBM_MQ[USERNAME]}"
+              password: "{IBM_MQ[PASSWORD]}"
+            queue: "{IBM_MQ[SOURCE_QUEUE]}"
             max_num_records: 3
 
         - type: AssertEqual
