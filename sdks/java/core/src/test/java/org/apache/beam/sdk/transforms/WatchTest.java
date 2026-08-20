@@ -31,6 +31,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
@@ -72,6 +73,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Funnel;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Funnels;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.BaseEncoding;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.ReadableDuration;
@@ -372,6 +374,29 @@ public class WatchTest implements Serializable {
     assertEquals(0, CoderUtils.encodeToByteArray(coder, withoutCursor)[0]);
   }
 
+  @Test
+  public void testCoderKeepsPreCursorEncodedForm() throws Exception {
+    // Encoded forms produced before the cursor existed; an update must keep them byte for byte.
+    Instant ts = new Instant(1234567890123L);
+    GrowthState polling =
+        PollingGrowthState.of(
+            ImmutableMap.of(HashCode.fromString("0123456789abcdef0123456789abcdef"), ts),
+            ts,
+            "STATE");
+    GrowthState nonPolling =
+        NonPollingGrowthState.of(Growth.PollResult.incomplete(ts, Arrays.asList("A", "B")));
+    Coder<GrowthState> coder =
+        Watch.GrowthStateCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+
+    assertEquals(
+        "00055354415445018000011F71FB04CB0000000101234567"
+            + "89ABCDEF0123456789ABCDEF8000011F71FB04CB",
+        BaseEncoding.base16().encode(CoderUtils.encodeToByteArray(coder, polling)));
+    assertEquals(
+        "01000000000201418000011F71FB04CB01428000011F71FB04CB",
+        BaseEncoding.base16().encode(CoderUtils.encodeToByteArray(coder, nonPolling)));
+  }
+
   /**
    * Gradually emits all items from the given list, pairing each one with a UUID that identifies the
    * round of polling, so a client can check how many rounds of polling there were.
@@ -636,6 +661,43 @@ public class WatchTest implements Serializable {
                     TimestampedValue.of("atCursor", now.plus(standardSeconds(3))),
                     TimestampedValue.of("fresh", now.plus(standardSeconds(5))))));
     assertEquals(now.plus(standardSeconds(3)), watermarkEstimator.currentWatermark());
+    assertTrue(processContinuation.shouldResume());
+  }
+
+  @Test
+  public void testPollingGrowthTrackerEmptyRoundAdvancesWatermarkToFloor() throws Exception {
+    Instant now = Instant.now();
+    Watch.Growth<String, String, String> growth =
+        Watch.growthOf(
+                new PollFn<String, String>() {
+                  @Override
+                  public PollResult<String> apply(String element, Context c) throws Exception {
+                    // A re-listed output below the floor, and no explicit watermark.
+                    return PollResult.incomplete(
+                        Arrays.asList(
+                            TimestampedValue.of("retired", now.minus(standardSeconds(1)))));
+                  }
+                })
+            .withPollInterval(standardSeconds(10))
+            .withTimestampCursor();
+    WatchGrowthFn<String, String, String, Integer> growthFn =
+        new WatchGrowthFn(
+            growth, StringUtf8Coder.of(), SerializableFunctions.identity(), StringUtf8Coder.of());
+    GrowthTracker<String, Integer> tracker =
+        newTracker(
+            PollingGrowthState.of(ImmutableMap.of(), null, never().forNewInput(now, null), now),
+            Duration.ZERO);
+    DoFn.ProcessContext context = mock(DoFn.ProcessContext.class);
+    ManualWatermarkEstimator<Instant> watermarkEstimator =
+        new WatermarkEstimators.Manual(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    ProcessContinuation processContinuation =
+        growthFn.process(context, tracker, watermarkEstimator);
+
+    // Nothing below the retention floor is ever emitted, so the floor is a sound watermark for a
+    // round that computed none.
+    verify(context, org.mockito.Mockito.never()).output(any());
+    assertEquals(now, watermarkEstimator.currentWatermark());
     assertTrue(processContinuation.shouldResume());
   }
 

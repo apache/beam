@@ -944,8 +944,8 @@ public class Watch {
       PollingGrowthState<TerminationStateT> pollingRestriction =
           (PollingGrowthState<TerminationStateT>) currentRestriction;
 
-      Duration allowedLateness = spec.getTimestampCursorAllowedLateness();
-      Instant cursor = pollingRestriction.getCursor();
+      @Nullable Duration allowedLateness = spec.getTimestampCursorAllowedLateness();
+      @Nullable Instant cursor = pollingRestriction.getCursor();
       if (retentionFloorAtMaxTimestamp(cursor, allowedLateness)) {
         // Nothing can be claimed above the floor, so claim an empty round and stop.
         LOG.info("{} - will not poll, retention floor is already at max timestamp.", c.element());
@@ -967,7 +967,8 @@ public class Watch {
           computeNeverSeenBeforeResults(pollingRestriction, res);
 
       // If we had zero new results, attempt to update the watermark if the poll result
-      // provided a watermark. Otherwise attempt to claim all pending outputs.
+      // provided a watermark or the retention floor bounds future outputs. Otherwise attempt
+      // to claim all pending outputs.
       LOG.info(
           "{} - current round of polling took {} ms and returned {} results, "
               + "of which {} were new.",
@@ -999,6 +1000,10 @@ public class Watch {
         // computeNeverSeenBeforeResults returns the elements in timestamp sorted order so
         // we can get the timestamp from the first element.
         computedWatermark = newResults.getOutputs().get(0).getTimestamp();
+      } else if (allowedLateness != null && cursor != null) {
+        // Nothing below the retention floor is ever emitted, so a round with no new results and
+        // no explicit watermark can still advance the watermark to the floor.
+        computedWatermark = retentionFloor(cursor, allowedLateness);
       }
 
       if (allowedLateness != null && !newResults.getOutputs().isEmpty()) {
