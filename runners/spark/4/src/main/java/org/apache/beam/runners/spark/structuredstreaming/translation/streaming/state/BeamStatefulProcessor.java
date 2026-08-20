@@ -40,10 +40,12 @@ import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.T
 import org.apache.beam.runners.spark.structuredstreaming.translation.utils.ScalaInterop;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvoker;
 import org.apache.beam.sdk.transforms.reflect.DoFnInvokers;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
@@ -102,6 +104,10 @@ import org.joda.time.Instant;
  * be considered late with respect to its own micro-batch, and an end-of-window timer fires in the
  * micro-batch after the one whose data crossed the end of the window. That is the same one batch
  * delay every micro-batch runner has.
+ *
+ * <p>Once the end-of-stream sentinel has pushed the watermark beyond the end of the global window,
+ * arrival side expiry decisions see a clamped watermark, see {@link
+ * ArrivalExpiryClampedTimerInternals}. The timer firing path always sees the real watermark.
  *
  * <h2>Timers</h2>
  *
@@ -245,6 +251,11 @@ public class BeamStatefulProcessor extends StatefulProcessor<byte[], byte[], byt
       return ScalaInterop.scalaIterator(Collections.<byte[]>emptyList());
     }
 
+    // The step context is what DoFnRunners consult for arrival side expiry decisions, the late
+    // data filter of the GROUP_ALSO_BY_WINDOW path and the expired window drop of the stateful
+    // ParDo path, so it hands out the clamped watermark view. The timer firing path keeps the
+    // real timerInternals, see ArrivalExpiryClampedTimerInternals.
+    TimerInternals arrivalTimerInternals = new ArrivalExpiryClampedTimerInternals(timerInternals);
     StepContext stepContext =
         new StepContext() {
           @Override
@@ -254,7 +265,7 @@ public class BeamStatefulProcessor extends StatefulProcessor<byte[], byte[], byt
 
           @Override
           public TimerInternals timerInternals() {
-            return timerInternals;
+            return arrivalTimerInternals;
           }
         };
 
@@ -393,6 +404,93 @@ public class BeamStatefulProcessor extends StatefulProcessor<byte[], byte[], byt
       return CoderUtils.decodeFromByteArray(coder, bytes);
     } catch (Exception e) {
       throw new IllegalStateException("Failed to decode a Beam " + what, e);
+    }
+  }
+
+  /**
+   * A view of {@link TwsTimerInternals} for arrival side expiry decisions whose input watermark is
+   * clamped to the end of the global window, every other method delegating unchanged.
+   *
+   * <p>The two sides of an expiry comparison live in different domains. {@code
+   * LateDataUtils.garbageCollectionTime} truncates every garbage collection time to {@code
+   * GlobalWindow.INSTANCE.maxTimestamp()}, so no window, not even the global one, ever expires
+   * later than that. The end-of-stream sentinel however pushes Spark's watermark all the way to
+   * {@link BoundedWindow#TIMESTAMP_MAX_VALUE}, one day further, so that end of global window timers
+   * can fire. Judged against that raw watermark the global window itself is expired, and every
+   * element that reaches a downstream stateful operator in the final micro-batch, such as the
+   * second GroupByKey inside a PAssert, is dropped as late data. A watermark beyond the end of the
+   * global window exists only to fire end of global window timers and must not be used to judge
+   * arrival side expiry, so this view reports at most {@code GlobalWindow.INSTANCE.maxTimestamp()}
+   * and is installed in the {@link StepContext} consulted by {@code LateDataDroppingDoFnRunner} and
+   * {@code StatefulDoFnRunner}.
+   *
+   * <p>It must never be used on the timer firing path. {@link
+   * TwsTimerInternals#removeTimersReadyToFire} releases a timer only once the watermark is strictly
+   * past it, so clamping there would withhold end of global window timers forever. Likewise the
+   * {@code ReduceFnRunner} behind the GROUP_ALSO_BY_WINDOW mode keeps the unclamped {@link
+   * TwsTimerInternals}, its triggers must see the watermark pass the end of the global window to
+   * emit the final pane.
+   */
+  private static final class ArrivalExpiryClampedTimerInternals implements TimerInternals {
+
+    private final TwsTimerInternals delegate;
+
+    private ArrivalExpiryClampedTimerInternals(TwsTimerInternals delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public Instant currentInputWatermarkTime() {
+      Instant watermark = delegate.currentInputWatermarkTime();
+      Instant endOfGlobalWindow = GlobalWindow.INSTANCE.maxTimestamp();
+      return watermark.isAfter(endOfGlobalWindow) ? endOfGlobalWindow : watermark;
+    }
+
+    @Override
+    public void setTimer(
+        StateNamespace namespace,
+        String timerId,
+        String timerFamilyId,
+        Instant target,
+        Instant outputTimestamp,
+        TimeDomain timeDomain) {
+      delegate.setTimer(namespace, timerId, timerFamilyId, target, outputTimestamp, timeDomain);
+    }
+
+    @Override
+    public void setTimer(TimerInternals.TimerData timerData) {
+      delegate.setTimer(timerData);
+    }
+
+    @Override
+    public void deleteTimer(
+        StateNamespace namespace, String timerId, String timerFamilyId, TimeDomain timeDomain) {
+      delegate.deleteTimer(namespace, timerId, timerFamilyId, timeDomain);
+    }
+
+    @Override
+    public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
+      delegate.deleteTimer(namespace, timerId, timerFamilyId);
+    }
+
+    @Override
+    public void deleteTimer(TimerInternals.TimerData timerKey) {
+      delegate.deleteTimer(timerKey);
+    }
+
+    @Override
+    public Instant currentProcessingTime() {
+      return delegate.currentProcessingTime();
+    }
+
+    @Override
+    public @Nullable Instant currentSynchronizedProcessingTime() {
+      return delegate.currentSynchronizedProcessingTime();
+    }
+
+    @Override
+    public @Nullable Instant currentOutputWatermarkTime() {
+      return delegate.currentOutputWatermarkTime();
     }
   }
 

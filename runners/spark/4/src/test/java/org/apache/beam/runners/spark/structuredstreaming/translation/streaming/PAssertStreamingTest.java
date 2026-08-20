@@ -31,6 +31,8 @@ import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -95,6 +97,37 @@ public class PAssertStreamingTest implements Serializable {
   }
 
   @Test(timeout = 300_000)
+  public void testPAssertInFixedWindows() throws Exception {
+    List<TimestampedValue<Integer>> elements = new ArrayList<>();
+    // Window 1: [0s, 5s) -> elements 0, 1, 2 (doubled: 0, 2, 4)
+    elements.add(TimestampedValue.of(0, BASE.plus(Duration.standardSeconds(1))));
+    elements.add(TimestampedValue.of(1, BASE.plus(Duration.standardSeconds(2))));
+    elements.add(TimestampedValue.of(2, BASE.plus(Duration.standardSeconds(4))));
+    // Window 2: [5s, 10s) -> elements 3, 4 (doubled: 6, 8)
+    elements.add(TimestampedValue.of(3, BASE.plus(Duration.standardSeconds(6))));
+    elements.add(TimestampedValue.of(4, BASE.plus(Duration.standardSeconds(8))));
+
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(checkpointDir);
+    SESSION.configure(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(
+                "ReadUnbounded",
+                Read.from(
+                    new StreamingTestUtils.ListBackedUnboundedSource<>(
+                        elements, VarIntCoder.of(), true)))
+            .apply("FixedWindows", Window.into(FixedWindows.of(Duration.standardSeconds(5))))
+            .apply("Double", ParDo.of(new DoubleFn()));
+
+    PAssert.that(output).containsInAnyOrder(0, 2, 4, 6, 8);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test(timeout = 300_000)
   public void testPAssertFailureThrows() throws Exception {
     List<TimestampedValue<Integer>> elements = new ArrayList<>();
     elements.add(TimestampedValue.of(1, BASE.plus(Duration.standardSeconds(1))));
@@ -114,6 +147,40 @@ public class PAssertStreamingTest implements Serializable {
             .apply("Double", ParDo.of(new DoubleFn()));
 
     // Deliberately incorrect expectation: output is [2], expected is [999].
+    PAssert.that(output).containsInAnyOrder(999);
+
+    Exception e = assertThrows(Exception.class, () -> pipeline.run().waitUntilFinish());
+    Throwable root = e;
+    while (root.getCause() != null && root.getCause() != root) {
+      root = root.getCause();
+    }
+    org.junit.Assert.assertTrue(
+        "Expected AssertionError at root of cause chain, got: " + root,
+        root instanceof AssertionError);
+  }
+
+  @Test(timeout = 300_000)
+  public void testPAssertFailureThrowsInFixedWindows() throws Exception {
+    List<TimestampedValue<Integer>> elements = new ArrayList<>();
+    elements.add(TimestampedValue.of(1, BASE.plus(Duration.standardSeconds(1))));
+
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(checkpointDir);
+    SESSION.configure(options);
+    Pipeline pipeline = Pipeline.create(options);
+
+    PCollection<Integer> output =
+        pipeline
+            .apply(
+                "ReadUnbounded",
+                Read.from(
+                    new StreamingTestUtils.ListBackedUnboundedSource<>(
+                        elements, VarIntCoder.of(), true)))
+            .apply("FixedWindows", Window.into(FixedWindows.of(Duration.standardSeconds(5))))
+            .apply("Double", ParDo.of(new DoubleFn()));
+
+    // Deliberately incorrect expectation: output is [2], expected is [999]. This proves the
+    // arrival side watermark clamp does not mask genuine failures in the rewindowed path.
     PAssert.that(output).containsInAnyOrder(999);
 
     Exception e = assertThrows(Exception.class, () -> pipeline.run().waitUntilFinish());
