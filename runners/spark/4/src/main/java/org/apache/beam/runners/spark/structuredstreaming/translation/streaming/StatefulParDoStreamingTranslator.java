@@ -69,8 +69,24 @@ public class StatefulParDoStreamingTranslator<K, V, OutputT>
     super(0.2f);
   }
 
+  /**
+   * Unlike the batch translators, this override never returns {@code false}: {@link
+   * #rejectUnsupported} throws with the offending feature named instead. Silently declining here
+   * would make {@code PipelineTranslator#getSupportedTranslator} fall back to the batch {@code
+   * ParDo} translator, which would run the stateful {@code DoFn} without the streaming state and
+   * timer semantics and produce quietly wrong results.
+   */
   @Override
   protected boolean canTranslate(ParDo.MultiOutput<KV<K, V>, OutputT> transform) {
+    rejectUnsupported(transform);
+    return true;
+  }
+
+  /**
+   * Throws when the stateful {@code ParDo} uses a feature this translator does not implement,
+   * naming that feature; returns normally otherwise.
+   */
+  private void rejectUnsupported(ParDo.MultiOutput<KV<K, V>, OutputT> transform) {
     DoFn<KV<K, V>, OutputT> doFn = transform.getFn();
     String stepName = doFn.getClass().getName();
     DoFnSignature signature = DoFnSignatures.signatureForDoFn(doFn);
@@ -94,7 +110,6 @@ public class StatefulParDoStreamingTranslator<K, V, OutputT>
           "side inputs on a stateful ParDo. Broadcasting a side input requires collecting its "
               + "PCollection, which is not possible while the pipeline is streaming");
     }
-    return true;
   }
 
   @Override
