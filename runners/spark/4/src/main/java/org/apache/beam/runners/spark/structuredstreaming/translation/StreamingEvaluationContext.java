@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -89,6 +90,11 @@ import org.slf4j.LoggerFactory;
 @Internal
 public class StreamingEvaluationContext extends EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(StreamingEvaluationContext.class);
+
+  // How long one awaitTermination poll blocks on a single query before moving on to the next one,
+  // see awaitTermination(List). Short enough to surface a failure promptly, long enough to not
+  // busy-spin while every query is healthy.
+  private static final long AWAIT_POLL_TIMEOUT_MILLIS = 100;
 
   private final SparkStructuredStreamingPipelineOptions options;
 
@@ -166,9 +172,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
       synchronized (lock) {
         toAwait = new ArrayList<>(queries);
       }
-      for (StreamingQuery query : toAwait) {
-        awaitTermination(query);
-      }
+      awaitTermination(toAwait);
     } finally {
       if (idleStopListener != null) {
         getSparkSession().streams().removeListener(idleStopListener);
@@ -220,14 +224,37 @@ public class StreamingEvaluationContext extends EvaluationContext {
     }
   }
 
-  private void awaitTermination(StreamingQuery query) {
-    try {
-      query.awaitTermination();
-    } catch (StreamingQueryException e) {
-      LOG.error("Streaming query {} terminated with an exception.", query.id(), e);
-      // Make sure sibling queries do not keep running once one of them has failed.
-      stop();
-      throw new RuntimeException(e);
+  /**
+   * Blocks until every query in {@code toAwait} has terminated, polling them round robin with a
+   * short timeout rather than awaiting them one after the other: a plain {@link
+   * StreamingQuery#awaitTermination()} on the first query would block for as long as that query
+   * keeps running and not surface a failure of a later query until then. Polling bounds the latency
+   * of surfacing any query's failure by roughly one round of poll timeouts, no matter which query
+   * fails.
+   *
+   * <p>On the first query that fails, {@link #stop()} makes sure sibling queries do not keep
+   * running, and the failure is rethrown. Deliberately not {@code
+   * StreamingQueryManager#awaitAnyTermination}: that relies on the session global {@code
+   * resetTerminated} bookkeeping and would interfere with concurrent tests sharing one session.
+   */
+  private void awaitTermination(List<StreamingQuery> toAwait) {
+    List<StreamingQuery> active = new ArrayList<>(toAwait);
+    while (!active.isEmpty()) {
+      Iterator<StreamingQuery> iterator = active.iterator();
+      while (iterator.hasNext()) {
+        StreamingQuery query = iterator.next();
+        try {
+          if (query.awaitTermination(AWAIT_POLL_TIMEOUT_MILLIS)) {
+            // Terminated without an exception, nothing left to await for this query.
+            iterator.remove();
+          }
+        } catch (StreamingQueryException e) {
+          LOG.error("Streaming query {} terminated with an exception.", query.id(), e);
+          // Make sure sibling queries do not keep running once one of them has failed.
+          stop();
+          throw new RuntimeException(e);
+        }
+      }
     }
   }
 

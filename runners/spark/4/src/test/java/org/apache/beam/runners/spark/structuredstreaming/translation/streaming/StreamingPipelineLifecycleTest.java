@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -35,6 +36,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.joda.time.Duration;
@@ -50,9 +52,10 @@ import org.junit.runners.JUnit4;
 /**
  * {@link PipelineResult.State} transitions for a streaming pipeline: {@code RUNNING} immediately
  * after {@code run()}, {@code DONE} once a naturally idle pipeline's idle-stop listener stops it,
- * and {@code CANCELLED} after an explicit {@code cancel()}.
+ * {@code CANCELLED} after an explicit {@code cancel()}, and {@code FAILED} once any leaf query
+ * fails.
  *
- * <p>Both tests here set {@code testMode(false)} on top of {@link
+ * <p>The tests here set {@code testMode(false)} on top of {@link
  * StreamingTestUtils#streamingOptions}, unlike every other test in this package: {@code
  * SparkStructuredStreamingRunner#run()} calls {@code result.waitUntilFinish()} itself before
  * returning when {@code testMode} is {@code true} (see its implementation), which would make {@code
@@ -192,6 +195,78 @@ public class StreamingPipelineLifecycleTest implements Serializable {
           "the streaming query was still active " + QUERY_START_TIMEOUT_MILLIS + "ms after cancel",
           System.currentTimeMillis() < deadline);
       Thread.sleep(50L);
+    }
+  }
+
+  /**
+   * A failure in any leaf query must surface through {@code waitUntilFinish()} even while another
+   * leaf query is still running. The healthy leaf has idle-stop disabled, so it never terminates on
+   * its own; only the round robin await in {@code StreamingEvaluationContext} surfaces the poisoned
+   * leaf's failure promptly and stops the healthy sibling. With a sequential await this test would
+   * sit on the healthy query until the JUnit timeout whenever that query happens to be awaited
+   * first.
+   */
+  @Test(timeout = 300_000)
+  public void failingLeafQueryFailsThePipelineAndStopsHealthySibling() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId("lifecycle-failed");
+    StreamingTestUtils.clear(collectorId);
+
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(checkpointDir);
+    SESSION.configure(options);
+    options.setTestMode(false);
+    // Disabled so the healthy query only ever stops because the failure of its sibling is
+    // surfaced and stop() is called, not because it happened to go idle first.
+    options.setStreamingStopAfterIdleBatches(-1);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply(
+            "ReadHealthy",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    tenElements(), VarIntCoder.of())))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+    pipeline
+        .apply(
+            "ReadPoisoned",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    tenElements(), VarIntCoder.of())))
+        .apply("Throw", ParDo.of(new ThrowOnElementDoFn(5)));
+
+    PipelineResult result = pipeline.run();
+
+    assertThrows(RuntimeException.class, result::waitUntilFinish);
+    assertEquals(PipelineResult.State.FAILED, result.getState());
+
+    // The failed pipeline has to have stopped the healthy sibling query too: with idle-stop
+    // disabled it would otherwise keep running until the JUnit timeout.
+    long deadline = System.currentTimeMillis() + QUERY_START_TIMEOUT_MILLIS;
+    while (SESSION.getSession().streams().active().length > 0) {
+      assertTrue(
+          "a sibling query was still active "
+              + QUERY_START_TIMEOUT_MILLIS
+              + "ms after the pipeline failed",
+          System.currentTimeMillis() < deadline);
+      Thread.sleep(50L);
+    }
+  }
+
+  /** Throws on one specific element, passes every other element through unchanged. */
+  private static final class ThrowOnElementDoFn extends DoFn<Integer, Integer> {
+    private final int poisonElement;
+
+    ThrowOnElementDoFn(int poisonElement) {
+      this.poisonElement = poisonElement;
+    }
+
+    @ProcessElement
+    public void processElement(@Element Integer element, OutputReceiver<Integer> out) {
+      if (element == poisonElement) {
+        throw new IllegalStateException("poison element " + poisonElement);
+      }
+      out.output(element);
     }
   }
 
