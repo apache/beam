@@ -99,6 +99,9 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
   @Nullable
   protected <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
       TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
+    // Resolved ahead of the class keyed registry: ParDo.MultiOutput maps to a different translator
+    // depending on the DoFn signature, which a lookup by transform class alone cannot express. This
+    // is the predicated dispatch of the TODO above, limited to the single transform needing it.
     if (transform instanceof ParDo.MultiOutput
         && StatefulParDoTranslatorBatch.appliesTo((ParDo.MultiOutput<?, ?>) transform)) {
       return STATEFUL_PARDO_TRANSLATOR;

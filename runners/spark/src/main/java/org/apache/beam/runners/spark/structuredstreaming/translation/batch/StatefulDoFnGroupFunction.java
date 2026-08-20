@@ -46,7 +46,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Abstra
 import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.FlatMapGroupsFunction;
 import org.apache.spark.util.TaskCompletionListener;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
@@ -71,7 +70,7 @@ import scala.Tuple2;
  * drains it, advancing the input only when the buffer runs dry, so neither a key with many elements
  * nor one with many timers is ever materialized.
  */
-abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT extends @NonNull Object>
+abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
     implements FlatMapGroupsFunction<K, WindowedValue<InT>, OutT> {
 
   private final Supplier<PipelineOptions> options;

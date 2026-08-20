@@ -24,7 +24,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.spark.sql.functions.col;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -247,20 +247,24 @@ class ParDoTranslatorBatch<InputT, OutputT>
     return index;
   }
 
-  /** List of encoders matching the order of tagIds. */
-  private List<Encoder<WindowedValue<Object>>> createEncoders(
-      Map<TupleTag<?>, PCollection<?>> outputs, Map<String, Integer> tagIdColIdx, Context ctx) {
-    ArrayList<Encoder<WindowedValue<Object>>> encoders = new ArrayList<>(outputs.size());
+  /** List of encoders indexed by column index, as assigned by {@code tagIdColIdx}. */
+  @SuppressWarnings("rawtypes") // generic array creation
+  static List<Encoder<WindowedValue<Object>>> createEncoders(
+      Map<TupleTag<?>, PCollection<?>> outputs,
+      Map<String, Integer> tagIdColIdx,
+      TransformTranslator<?, ?, ?>.Context ctx) {
+    // Indexed rather than appended, so the iteration order of outputs need not match the columns.
+    Encoder<WindowedValue<Object>>[] encoders = new Encoder[outputs.size()];
     for (Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
-      Encoder<WindowedValue<Object>> enc = ctx.windowedEncoder((Coder) e.getValue().getCoder());
       int colIdx = checkStateNotNull(tagIdColIdx.get(e.getKey().getId()));
-      encoders.add(colIdx, enc);
+      encoders[colIdx] = ctx.windowedEncoder((Coder) e.getValue().getCoder());
     }
-    return encoders;
+    return Arrays.asList(encoders);
   }
 
-  private <T> SideInputReader createSideInputReader(
-      Collection<PCollectionView<?>> views, Context cxt) {
+  /** Broadcasts {@code views}, if any, and exposes them as a {@link SideInputReader}. */
+  static <T> SideInputReader createSideInputReader(
+      Collection<PCollectionView<?>> views, TranslationState cxt) {
     if (views.isEmpty()) {
       return SparkSideInputReader.empty();
     }

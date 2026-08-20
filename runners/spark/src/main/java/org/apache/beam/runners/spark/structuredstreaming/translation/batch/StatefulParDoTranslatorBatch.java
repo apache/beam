@@ -23,15 +23,12 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.spark.sql.functions.col;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SparkSideInputReader;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -42,14 +39,11 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
-import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.spark.api.java.function.FlatMapGroupsFunction;
-import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Column;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -73,7 +67,6 @@ import scala.Tuple2;
  * <p>Additional (tagged) outputs are encoded as one column per tag, as in {@link
  * ParDoTranslatorBatch}.
  */
-@SuppressWarnings({"rawtypes", "unchecked"})
 class StatefulParDoTranslatorBatch<K, V, OutputT>
     extends TransformTranslator<
         PCollection<? extends KV<K, V>>, PCollectionTuple, ParDo.MultiOutput<KV<K, V>, OutputT>> {
@@ -148,7 +141,8 @@ class StatefulParDoTranslatorBatch<K, V, OutputT>
     KvCoder<K, V> inputCoder = (KvCoder<K, V>) input.getCoder();
     Encoder<K> keyEnc = cxt.keyEncoderOf(inputCoder);
     MetricsAccumulator metrics = MetricsAccumulator.getInstance(cxt.getSparkSession());
-    SideInputReader sideInputReader = createSideInputReader(transform, cxt);
+    SideInputReader sideInputReader =
+        ParDoTranslatorBatch.createSideInputReader(transform.getSideInputs().values(), cxt);
 
     // Group by key, then order each group by event time before handing it to the DoFn. The
     // timestamp is a top level LongType column of the WindowedValue encoder (epoch millis), so
@@ -163,7 +157,8 @@ class StatefulParDoTranslatorBatch<K, V, OutputT>
       // In case of multiple outputs / tags, map each tag to a column by index.
       // At the end split the result into multiple datasets selecting one column each.
       Map<String, Integer> tagColIdx = ParDoTranslatorBatch.tagsColumnIndex(outputs.keySet());
-      List<Encoder<WindowedValue<Object>>> encoders = createEncoders(outputs, tagColIdx, cxt);
+      List<Encoder<WindowedValue<Object>>> encoders =
+          ParDoTranslatorBatch.createEncoders(outputs, tagColIdx, cxt);
 
       DoFnRunnerFactory<KV<K, V>, OutputT> runnerFactory =
           DoFnRunnerFactory.simple(cxt.getCurrentTransform(), input, sideInputReader, false);
@@ -211,18 +206,6 @@ class StatefulParDoTranslatorBatch<K, V, OutputT>
     }
   }
 
-  /** List of encoders matching the order of tagIds. */
-  private List<Encoder<WindowedValue<Object>>> createEncoders(
-      Map<TupleTag<?>, PCollection<?>> outputs, Map<String, Integer> tagIdColIdx, Context ctx) {
-    ArrayList<Encoder<WindowedValue<Object>>> encoders = new ArrayList<>(outputs.size());
-    for (Map.Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
-      Encoder<WindowedValue<Object>> enc = ctx.windowedEncoder((Coder) e.getValue().getCoder());
-      int colIdx = checkStateNotNull(tagIdColIdx.get(e.getKey().getId()));
-      encoders.add(colIdx, enc);
-    }
-    return encoders;
-  }
-
   /** Field of the {@code WindowedValue} encoder holding the event time, as epoch millis. */
   private static final String TIMESTAMP_COLUMN = "timestamp";
 
@@ -244,23 +227,6 @@ class StatefulParDoTranslatorBatch<K, V, OutputT>
     } catch (NoSuchMethodException e) {
       return false;
     }
-  }
-
-  private SideInputReader createSideInputReader(
-      ParDo.MultiOutput<KV<K, V>, OutputT> transform, Context cxt) {
-    Collection<PCollectionView<?>> views = transform.getSideInputs().values();
-    if (views.isEmpty()) {
-      return SparkSideInputReader.empty();
-    }
-    Map<String, Broadcast<SideInputValues<?>>> broadcasts =
-        Maps.newHashMapWithExpectedSize(views.size());
-    for (PCollectionView<?> view : views) {
-      PCollection<?> pCol = checkStateNotNull(view.getPCollection());
-      Broadcast<SideInputValues<?>> broadcast =
-          (Broadcast) cxt.getSideInputBroadcast(pCol, SideInputValues.loader((PCollection) pCol));
-      broadcasts.put(view.getTagInternal().getId(), broadcast);
-    }
-    return SparkSideInputReader.create(broadcasts);
   }
 
   /**
