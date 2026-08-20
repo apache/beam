@@ -231,9 +231,18 @@ public final class StreamingTestUtils {
     private final List<byte[]> encodedElements;
     private final List<Long> timestampsMillis;
     private final Coder<T> coder;
+    private final boolean advanceWatermarkToInfinityOnExhaustion;
 
     public ListBackedUnboundedSource(List<TimestampedValue<T>> elements, Coder<T> coder) {
+      this(elements, coder, false);
+    }
+
+    public ListBackedUnboundedSource(
+        List<TimestampedValue<T>> elements,
+        Coder<T> coder,
+        boolean advanceWatermarkToInfinityOnExhaustion) {
       this.coder = Preconditions.checkNotNull(coder);
+      this.advanceWatermarkToInfinityOnExhaustion = advanceWatermarkToInfinityOnExhaustion;
       List<byte[]> encoded = new ArrayList<>(elements.size());
       List<Long> timestamps = new ArrayList<>(elements.size());
       for (TimestampedValue<T> element : elements) {
@@ -245,10 +254,14 @@ public final class StreamingTestUtils {
     }
 
     private ListBackedUnboundedSource(
-        List<byte[]> encodedElements, List<Long> timestampsMillis, Coder<T> coder) {
+        List<byte[]> encodedElements,
+        List<Long> timestampsMillis,
+        Coder<T> coder,
+        boolean advanceWatermarkToInfinityOnExhaustion) {
       this.encodedElements = encodedElements;
       this.timestampsMillis = timestampsMillis;
       this.coder = coder;
+      this.advanceWatermarkToInfinityOnExhaustion = advanceWatermarkToInfinityOnExhaustion;
     }
 
     @Override
@@ -274,7 +287,10 @@ public final class StreamingTestUtils {
       for (int i = 0; i < numSplits; i++) {
         splits.add(
             new ListBackedUnboundedSource<>(
-                bucketedElements.get(i), bucketedTimestamps.get(i), coder));
+                bucketedElements.get(i),
+                bucketedTimestamps.get(i),
+                coder,
+                advanceWatermarkToInfinityOnExhaustion));
       }
       return splits;
     }
@@ -368,6 +384,10 @@ public final class StreamingTestUtils {
 
       @Override
       public Instant getWatermark() {
+        if (source.advanceWatermarkToInfinityOnExhaustion
+            && index + 1 >= source.encodedElements.size()) {
+          return BoundedWindow.TIMESTAMP_MAX_VALUE;
+        }
         // No idle advance, deliberately: once the list is exhausted this simply stops moving,
         // rather than jumping to +infinity. See the StreamingTestUtils class javadoc.
         return maxTimestampSeen;

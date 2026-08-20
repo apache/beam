@@ -23,6 +23,8 @@ import org.apache.beam.runners.spark.structuredstreaming.io.streaming.BeamReader
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -116,6 +118,24 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
         current = toRow();
         return true;
       }
+      if (recordsRead > 0) {
+        // Cut off the micro-batch at the first empty poll: once we have ingested data in this
+        // batch,
+        // finish it immediately so the data batch is processed and its natural event watermark
+        // declared
+        // before any end-of-stream sentinel row is emitted in a subsequent empty batch.
+        current = null;
+        return false;
+      }
+      if (!cached.hasEmittedSentinel()) {
+        Instant watermark = cached.reader().getWatermark();
+        if (watermark != null && !watermark.isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
+          cached.markSentinelEmitted();
+          recordsRead++;
+          current = sentinelRow();
+          return true;
+        }
+      }
       Uninterruptibles.sleepUninterruptibly(
           Math.min(remaining, POLL_INTERVAL_MILLIS), java.util.concurrent.TimeUnit.MILLISECONDS);
     }
@@ -177,5 +197,13 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
     }
     // Spark stores TimestampType as microseconds since the epoch.
     return new GenericInternalRow(new Object[] {payload, timestamp.getMillis() * 1000L});
+  }
+
+  private InternalRow sentinelRow() {
+    // Spark stores TimestampType as microseconds since the epoch. The sentinel carries an empty
+    // payload that is filtered before reaching user transforms, and TIMESTAMP_MAX_VALUE
+    // which pushes Spark's data-driven watermark to infinity.
+    return new GenericInternalRow(
+        new Object[] {new byte[0], BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() * 1000L});
   }
 }

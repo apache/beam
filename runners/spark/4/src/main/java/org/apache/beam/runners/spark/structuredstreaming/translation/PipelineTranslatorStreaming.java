@@ -21,11 +21,13 @@ import java.util.Collection;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.GroupByKeyStreamingTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.ImpulseStreamingTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.ReadUnboundedTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.StatefulParDoStreamingTranslator;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Impulse;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
@@ -42,10 +44,10 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * <p>This extends {@link PipelineTranslatorBatch} purely for reuse: {@link
  * PipelineTranslatorBatch#getTransformTranslator} and its private registry are the only way to
- * reach the (package-private) batch translators for {@code Impulse}, {@code Window.Assign}, {@code
- * Flatten}, {@code Reshuffle}, the bounded read, and stateless {@code ParDo}, all of which are
- * reused completely unchanged for streaming. This class only intercepts the handful of transforms
- * that need genuinely different, streaming-aware handling before falling back to {@code super}.
+ * reach the (package-private) batch translators for {@code Window.Assign}, {@code Flatten}, {@code
+ * Reshuffle}, the bounded read, and stateless {@code ParDo}, all of which are reused completely
+ * unchanged for streaming. This class only intercepts the handful of transforms that need genuinely
+ * different, streaming-aware handling before falling back to {@code super}.
  */
 @Internal
 public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
@@ -59,6 +61,10 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
 
     if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
       return (TransformTranslator) new ReadUnboundedTranslator<>();
+    }
+
+    if (transform instanceof Impulse) {
+      return (TransformTranslator) new ImpulseStreamingTranslator();
     }
 
     if (transform instanceof GroupByKey) {
@@ -82,7 +88,7 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
       // Stateless ParDo falls through to super, reusing ParDoTranslatorBatch unchanged.
     }
 
-    // Impulse, Window.Assign, Flatten, Reshuffle, the bounded read, and stateless ParDo: reused
+    // Window.Assign, Flatten, Reshuffle, the bounded read, and stateless ParDo: reused
     // unchanged from the batch registry.
     return super.getTransformTranslator(transform);
   }

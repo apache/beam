@@ -150,6 +150,7 @@ public final class BeamReaderCache {
   public static final class CachedReader<T> implements Closeable {
     private final UnboundedReader<T> reader;
     private boolean started;
+    private boolean sentinelEmitted;
 
     CachedReader(UnboundedReader<T> reader) {
       this.reader = reader;
@@ -170,6 +171,16 @@ public final class BeamReaderCache {
         return reader.start();
       }
       return reader.advance();
+    }
+
+    /** Returns whether an end-of-stream sentinel row has already been emitted for this reader. */
+    public synchronized boolean hasEmittedSentinel() {
+      return sentinelEmitted;
+    }
+
+    /** Marks that an end-of-stream sentinel row has been emitted for this reader. */
+    public synchronized void markSentinelEmitted() {
+      this.sentinelEmitted = true;
     }
 
     @Override

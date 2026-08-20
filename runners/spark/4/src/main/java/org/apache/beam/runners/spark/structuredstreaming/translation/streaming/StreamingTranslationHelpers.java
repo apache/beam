@@ -29,6 +29,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.transforms.windowing.Never;
 import org.apache.beam.sdk.transforms.windowing.Trigger;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
@@ -87,9 +88,10 @@ final class StreamingTranslationHelpers {
   }
 
   /**
-   * The default trigger, as Beam models it, is either {@link DefaultTrigger} itself or the
-   * equivalent {@code AfterWatermark.pastEndOfWindow()} without early or late firings, which is
-   * what {@code WindowingStrategy} may normalise it to.
+   * The default trigger, as Beam models it, is either {@link DefaultTrigger} itself, the equivalent
+   * {@code AfterWatermark.pastEndOfWindow()} without early or late firings, or {@link
+   * Never.NeverTrigger} used by {@code PAssert} on unbounded streams to gather all window contents
+   * before the end-of-stream watermark triggers final pane evaluation.
    */
   private static boolean isDefaultTrigger(Trigger trigger) {
     if (trigger instanceof DefaultTrigger) {
@@ -98,6 +100,11 @@ final class StreamingTranslationHelpers {
     if (trigger instanceof AfterWatermark.FromEndOfWindow) {
       // FromEndOfWindow without early/late firings is exactly the default trigger; with firings
       // configured Beam represents it as one of the AfterWatermarkEarlyAndLate subclasses instead.
+      return true;
+    }
+    if (trigger instanceof Never.NeverTrigger) {
+      // NeverTrigger is used by PAssert on unbounded PCollections to prevent intermediate firings.
+      // In this runner, end-of-stream watermark advancement fires the final pane.
       return true;
     }
     return false;

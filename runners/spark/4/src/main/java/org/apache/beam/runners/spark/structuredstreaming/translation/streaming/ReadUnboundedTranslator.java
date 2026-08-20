@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.MapFunction;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoder;
@@ -95,9 +96,20 @@ public class ReadUnboundedTranslator<T>
     Dataset<WindowedValue<T>> dataset =
         rows.select(col(UnboundedSourceDataset.COL_PAYLOAD))
             .as(Encoders.BINARY())
+            .filter(new FilterNonEmptyPayload())
             .map(new DecodePayload<>(payloadCoder), encoder);
 
     cxt.putDataset(output, dataset);
+  }
+
+  /**
+   * Filters out empty sentinel payloads emitted to advance the watermark upon stream exhaustion.
+   */
+  private static final class FilterNonEmptyPayload implements FilterFunction<byte[]> {
+    @Override
+    public boolean call(byte[] payload) {
+      return payload != null && payload.length > 0;
+    }
   }
 
   /** Decodes the binary payload column back into a Beam {@code WindowedValue}. */
