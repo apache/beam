@@ -169,6 +169,10 @@ task integrationTest(type: Test) {
         "--project=${gcpProject}",
         "--tempLocation=${gcpTempLocation}",
     ])
+    // Overrides the BigLake warehouse for runs outside the CI project.
+    if (System.getProperty("biglakeWarehouse") != null) {
+        systemProperty "biglakeWarehouse", System.getProperty("biglakeWarehouse")
+    }
 
     // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
     outputs.upToDateWhen { false }

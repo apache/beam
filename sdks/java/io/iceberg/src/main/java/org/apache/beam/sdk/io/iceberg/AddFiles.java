@@ -420,27 +420,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         try {
           format = inferFormat(filePath);
         } catch (UnknownFormatException e) {
-          return new ProcessResult(
-              null,
-              Row.withSchema(ERROR_SCHEMA).addValues(filePath, UNKNOWN_FORMAT_ERROR).build(),
-              timestamp,
-              window,
-              paneInfo);
+          return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
         }
 
-        // Synchronize table initialization
+        // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
+        // per-file error rows here would silently drop in-flight files on a transient blip.
+        // Only conditions that are properties of the file go to the error output.
         if (table == null) {
           synchronized (this) {
             if (table == null) {
               try {
                 table = getOrCreateTable(filePath, format);
               } catch (FileNotFoundException e) {
-                return new ProcessResult(
-                    null,
-                    Row.withSchema(ERROR_SCHEMA).addValues(filePath, errorMessage(e)).build(),
-                    timestamp,
-                    window,
-                    paneInfo);
+                return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
               }
             }
           }
@@ -450,12 +442,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (table.spec().isPartitioned()
             && !Strings.isNullOrEmpty(prefix)
             && !filePath.startsWith(checkStateNotNull(prefix))) {
-          return new ProcessResult(
-              null,
-              Row.withSchema(ERROR_SCHEMA).addValues(filePath, PREFIX_ERROR).build(),
-              timestamp,
-              window,
-              paneInfo);
+          return errorResult(filePath, PREFIX_ERROR, timestamp, window, paneInfo);
+        }
+
+        // ---- Per-file phase: every failure below is one error row, never a failed bundle.
+
+        // One footer read per file, shared by stats collection and partition resolution.
+        @Nullable ParquetMetadata parquetFooter = null;
+        if (format.equals(FileFormat.PARQUET)) {
+          try {
+            parquetFooter = readParquetFooter(filePath);
+          } catch (Exception e) {
+            return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+          }
         }
 
         InputFile inputFile = table.io().newInputFile(filePath);
@@ -467,14 +466,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   inputFile,
                   format,
                   MetricsConfig.forTable(table),
-                  MappingUtil.create(table.schema()));
+                  MappingUtil.create(table.schema()),
+                  parquetFooter);
         } catch (Exception e) {
-          return new ProcessResult(
-              null,
-              Row.withSchema(ERROR_SCHEMA).addValues(filePath, errorMessage(e)).build(),
-              timestamp,
-              window,
-              paneInfo);
+          return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
         }
 
         // Figure out which partition this DataFile should go to
@@ -488,30 +483,39 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         } else {
           try {
             // option 2: examine DataFile min/max statistics to determine partition
-            partitionPath = getPartitionFromMetrics(metrics, inputFile, table);
+            partitionPath = getPartitionFromMetrics(metrics, inputFile, table, parquetFooter);
           } catch (UnknownPartitionException e) {
-            return new ProcessResult(
-                null,
-                Row.withSchema(ERROR_SCHEMA)
-                    .addValues(filePath, UNKNOWN_PARTITION_ERROR + e.getMessage())
-                    .build(),
-                timestamp,
-                window,
-                paneInfo);
+            return errorResult(
+                filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
           }
         }
 
-        DataFile df =
-            DataFiles.builder(table.spec())
-                .withPath(filePath)
-                .withFormat(format)
-                .withMetrics(metrics)
-                .withFileSizeInBytes(inputFile.getLength())
-                .withPartitionPath(partitionPath)
-                .build();
-        return new ProcessResult(
-            SerializableDataFile.from(df, table.spec()), null, timestamp, window, paneInfo);
+        try {
+          DataFile df =
+              DataFiles.builder(table.spec())
+                  .withPath(filePath)
+                  .withFormat(format)
+                  .withMetrics(metrics)
+                  .withFileSizeInBytes(inputFile.getLength())
+                  .withPartitionPath(partitionPath)
+                  .build();
+          return new ProcessResult(
+              SerializableDataFile.from(df, table.spec()), null, timestamp, window, paneInfo);
+        } catch (Exception e) {
+          // getLength is a per-file read (e.g. the file was deleted mid-flight).
+          return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+        }
       };
+    }
+
+    private static ProcessResult errorResult(
+        String filePath, String message, Instant timestamp, BoundedWindow window, PaneInfo pane) {
+      return new ProcessResult(
+          null,
+          Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build(),
+          timestamp,
+          window,
+          pane);
     }
 
     static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
@@ -583,7 +587,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
      * partition may lead to it being incorrectly ignored by downstream queries.
      */
-    static String getPartitionFromMetrics(Metrics metrics, InputFile inputFile, Table table)
+    static String getPartitionFromMetrics(
+        Metrics metrics, InputFile inputFile, Table table, @Nullable ParquetMetadata preReadFooter)
         throws UnknownPartitionException, IOException, InterruptedException {
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
@@ -611,7 +616,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 inputFile,
                 inferFormat(inputFile.location()),
                 configWithPartitionFields,
-                MappingUtil.create(table.schema()));
+                MappingUtil.create(table.schema()),
+                preReadFooter);
       }
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
@@ -842,22 +848,27 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
   }
 
+  /**
+   * {@code preReadFooter} reuses an already-read Parquet footer, avoiding a second remote read;
+   * null reads it here. Always null for ORC and Avro.
+   */
   @SuppressWarnings("argument")
   public static Metrics getFileMetrics(
-      InputFile file, FileFormat format, MetricsConfig config, NameMapping mapping)
+      InputFile file,
+      FileFormat format,
+      MetricsConfig config,
+      NameMapping mapping,
+      @Nullable ParquetMetadata preReadFooter)
       throws IOException {
     switch (format) {
       case PARQUET:
-        try (ParquetFileReader reader =
-            ParquetFileReader.open(getParquetInputFile(file.location()))) {
-          ParquetMetadata footer = reader.getFooter();
-          MessageType originalMessageType = footer.getFileMetaData().getSchema();
-          if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
-            footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
-          }
-
-          return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
+        ParquetMetadata footer =
+            preReadFooter != null ? preReadFooter : readParquetFooter(file.location());
+        MessageType originalMessageType = footer.getFileMetaData().getSchema();
+        if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
+          footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
         }
+        return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
       case ORC:
         return OrcMetrics.fromInputFile(file, config, mapping);
       case AVRO:
