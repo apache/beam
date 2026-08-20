@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -29,6 +30,7 @@ import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamin
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingRunner;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -209,9 +211,9 @@ public final class StreamingTestUtils {
    * terminate, see the {@link StreamingTestUtils} class javadoc). Supports explicit, possibly
    * out-of-order event timestamps so tests can inject late data.
    *
-   * <p>Uses {@link org.apache.beam.sdk.io.UnboundedSource.CheckpointMark#NOOP_CHECKPOINT_MARK}:
-   * this source never needs to resume a partially read split from a durable checkpoint, so there is
-   * no state worth persisting between micro-batches beyond the in-memory read position.
+   * <p>Checkpoint marks record the index of the next element to read, see {@link Mark}, so a reader
+   * created from a mark resumes right after the last element that mark's reader had emitted. A
+   * reader created with a {@code null} mark starts at the beginning of its split, as before.
    *
    * <p>Elements are stored pre-encoded (via {@code coder}) as {@code byte[]} plus a {@code long}
    * timestamp rather than kept as {@link TimestampedValue} objects, because this source (like any
@@ -224,7 +226,7 @@ public final class StreamingTestUtils {
    * for correctness, round robin merely spreads elements across splits close to evenly.
    */
   public static final class ListBackedUnboundedSource<T>
-      extends UnboundedSource<T, UnboundedSource.CheckpointMark.NoopCheckpointMark> {
+      extends UnboundedSource<T, ListBackedUnboundedSource.Mark> {
 
     private final List<byte[]> encodedElements;
     private final List<Long> timestampsMillis;
@@ -250,8 +252,8 @@ public final class StreamingTestUtils {
     }
 
     @Override
-    public List<? extends UnboundedSource<T, UnboundedSource.CheckpointMark.NoopCheckpointMark>>
-        split(int desiredNumSplits, PipelineOptions options) {
+    public List<? extends UnboundedSource<T, Mark>> split(
+        int desiredNumSplits, PipelineOptions options) {
       int numElements = encodedElements.size();
       if (numElements == 0 || desiredNumSplits <= 1) {
         return Collections.singletonList(this);
@@ -278,15 +280,14 @@ public final class StreamingTestUtils {
     }
 
     @Override
-    public UnboundedReader<T> createReader(
-        PipelineOptions options,
-        UnboundedSource.CheckpointMark.@Nullable NoopCheckpointMark checkpointMark) {
-      return new ListBackedUnboundedReader<>(this);
+    public UnboundedReader<T> createReader(PipelineOptions options, @Nullable Mark checkpointMark) {
+      return new ListBackedUnboundedReader<>(
+          this, checkpointMark == null ? 0 : checkpointMark.next);
     }
 
     @Override
-    public Coder<UnboundedSource.CheckpointMark.NoopCheckpointMark> getCheckpointMarkCoder() {
-      return new NoopCheckpointMarkCoder();
+    public Coder<Mark> getCheckpointMarkCoder() {
+      return SerializableCoder.of(Mark.class);
     }
 
     @Override
@@ -312,11 +313,16 @@ public final class StreamingTestUtils {
 
     private static final class ListBackedUnboundedReader<T> extends UnboundedReader<T> {
       private final ListBackedUnboundedSource<T> source;
-      private int index = -1;
+      private int index;
       private Instant maxTimestampSeen = BoundedWindow.TIMESTAMP_MIN_VALUE;
 
-      ListBackedUnboundedReader(ListBackedUnboundedSource<T> source) {
+      /**
+       * @param nextIndex the index of the first element this reader has not yet emitted, {@code 0}
+       *     for a fresh start or the value carried by a resumed {@link Mark}
+       */
+      ListBackedUnboundedReader(ListBackedUnboundedSource<T> source, int nextIndex) {
         this.source = source;
+        this.index = nextIndex - 1;
       }
 
       @Override
@@ -368,8 +374,10 @@ public final class StreamingTestUtils {
       }
 
       @Override
-      public UnboundedSource.CheckpointMark.NoopCheckpointMark getCheckpointMark() {
-        return UnboundedSource.CheckpointMark.NOOP_CHECKPOINT_MARK;
+      public Mark getCheckpointMark() {
+        // index + 1 is the index of the next element to read, i.e. the position a resumed reader
+        // must start at.
+        return new Mark(index + 1);
       }
 
       @Override
@@ -380,23 +388,27 @@ public final class StreamingTestUtils {
       @Override
       public void close() throws IOException {}
     }
-  }
 
-  /**
-   * A trivial coder for the stateless {@link UnboundedSource.CheckpointMark.NoopCheckpointMark}.
-   */
-  private static final class NoopCheckpointMarkCoder
-      extends org.apache.beam.sdk.coders.AtomicCoder<
-          UnboundedSource.CheckpointMark.NoopCheckpointMark> {
-    @Override
-    public void encode(
-        UnboundedSource.CheckpointMark.NoopCheckpointMark value, java.io.OutputStream outStream) {
-      // Nothing to persist.
-    }
+    /**
+     * The read position of one {@link ListBackedUnboundedSource} split: the index of the next
+     * element a resumed reader must emit. {@code 0} means nothing was read yet.
+     */
+    public static final class Mark implements UnboundedSource.CheckpointMark, Serializable {
+      private static final long serialVersionUID = 1L;
 
-    @Override
-    public UnboundedSource.CheckpointMark.NoopCheckpointMark decode(java.io.InputStream inStream) {
-      return UnboundedSource.CheckpointMark.NOOP_CHECKPOINT_MARK;
+      private final int next;
+
+      Mark(int next) {
+        this.next = next;
+      }
+
+      @Override
+      public void finalizeCheckpoint() {}
+
+      @Override
+      public String toString() {
+        return "Mark{next=" + next + '}';
+      }
     }
   }
 }
