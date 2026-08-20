@@ -175,8 +175,8 @@ class _V2JobManagerStreaming(_V2JobManager):
   def __init__(
       self,
       target_dataset: Any,
-      cron: str,
       schedule_display_name: str,
+      cron: Optional[str] = None,
       monitoring_job_display_name: Optional[str] = None,
       start_time: Optional[Any] = None,
       end_time: Optional[Any] = None,
@@ -206,7 +206,7 @@ class _V2JobManagerStreaming(_V2JobManager):
           sched_display_name = schedule.get('display_name', sched_display_name)
           sched_cron = schedule.get('cron', sched_cron)
         if (sched_display_name == self.schedule_display_name and
-            sched_cron == self.cron):
+            (self.cron is None or sched_cron == self.cron)):
           return True
     except Exception as e:
       logging.warning(
@@ -219,11 +219,19 @@ class _V2JobManagerStreaming(_V2JobManager):
     # same BigQuery table for monitoring.)
     if self._schedule_already_exists():
       logging.info(
-          "Schedule '%s' with cron '%s' already exists; skipping schedule creation.",
+          "Schedule '%s'%s already exists; skipping schedule creation.",
           self.schedule_display_name,
-          self.cron,
+          f" with cron '{self.cron}'" if self.cron else "",
       )
       return
+    # No cron provided, but no schedule exists either so no monitoring jobs
+    # will be executed.
+    elif not self.cron:
+      raise ValueError(
+          "No cron schedule provided for VertexModelMonitoringV2 in "
+          "streaming pipeline and no pre-existing schedule was found. "
+          "Provide a cron schedule or create a model monitor manually before "
+          "pipeline execution.")
 
     try:
       self.manager.create_schedule(
@@ -365,9 +373,11 @@ class VertexModelMonitoringV2(
 
     if is_streaming:
       if not self.cron:
-        raise ValueError(
-            'A cron schedule must be provided for VertexModelMonitoringV2 in '
-            'streaming pipelines.')
+        logging.warning(
+            'A cron schedule was not provided, so a new monitoring job will '
+            'not be created. Inferences will still be written to the BigQuery '
+            f'table {self.bigquery_table}. This configuration will fail if '
+            'a pre-existing model monitoring schedule does not already exist.')
       manager = _V2JobManagerStreaming(
           project_id=self.project_id,
           location=self.location,
