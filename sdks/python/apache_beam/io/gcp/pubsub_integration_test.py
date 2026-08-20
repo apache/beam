@@ -36,6 +36,7 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
+from apache_beam.testing.pubsub_test_context import TestPubsubContext
 
 INPUT_TOPIC = 'psit_topic_input'
 OUTPUT_TOPIC = 'psit_topic_output'
@@ -137,7 +138,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
     self.uuid = str(uuid.uuid4())
-
+    self.pubsub_monitor = TestPubsubContext(project_id=self.project)
     # Set up PubSub environment.
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
@@ -155,15 +156,19 @@ class PubSubIntegrationTest(unittest.TestCase):
         name=self.sub_client.subscription_path(
             self.project, OUTPUT_SUB + self.uuid),
         topic=self.output_topic.name)
+    # Register resources with the monitor immediately upon creation.
+    self.pubsub_monitor_register_topic(self.input_topic.name)
+    self.pubsub_monitor_register_topic(self.output_topic.name)
+    self.pubsub_monitor_register_subscription(self.input_sub.name)
+    self.pubsub_monitor_register_subscription(self.output_sub.name)
     # Add a 30 second sleep after resource creation to ensure subscriptions will
     # receive messages.
     time.sleep(30)
 
   def tearDown(self):
-    test_utils.cleanup_subscriptions(
-        self.sub_client, [self.input_sub, self.output_sub])
-    test_utils.cleanup_topics(
-        self.pub_client, [self.input_topic, self.output_topic])
+      # The TestPubsubContext will automatically delete the topics and subscriptions
+      with self.pubsub_monitor:
+          pass
 
   def _test_streaming(self, with_attributes):
     """Runs IT pipeline with message verifier.
@@ -329,6 +334,7 @@ class PubSubIntegrationTest(unittest.TestCase):
     ordering_topic = self.pub_client.create_topic(
         name=self.pub_client.topic_path(
             self.project, 'psit_topic_ordering' + self.uuid))
+    self.pubsub_monitor.register_topic(ordering_topic.name)
     ordering_sub = self.sub_client.create_subscription(
         request=Subscription(
             name=self.sub_client.subscription_path(
@@ -336,6 +342,7 @@ class PubSubIntegrationTest(unittest.TestCase):
             topic=ordering_topic.name,
             enable_message_ordering=True,
         ))
+    self.pubsub_monitor.register_subscription(ordering_sub.name)
     time.sleep(10)
 
     try:
