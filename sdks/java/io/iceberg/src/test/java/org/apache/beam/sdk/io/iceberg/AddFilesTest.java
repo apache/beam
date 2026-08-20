@@ -519,6 +519,12 @@ public class AddFilesTest {
   }
 
   @Test
+  public void testErrorMessageToleratesNullMessage() {
+    assertEquals("java.io.IOException", AddFiles.errorMessage(new IOException((String) null)));
+    assertEquals("boom", AddFiles.errorMessage(new IOException("boom")));
+  }
+
+  @Test
   public void testGetPartitionFromMetrics() throws IOException, InterruptedException {
     PartitionSpec partitionSpec =
         PartitionSpec.builderFor(icebergSchema)
