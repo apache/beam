@@ -361,11 +361,6 @@ class JoinUrlOrFilepathTest(unittest.TestCase):
         yaml_provider._join_url_or_filepath(None, 'a/b.yaml'), 'a/b.yaml')
 
 
-if __name__ == '__main__':
-  logging.getLogger().setLevel(logging.INFO)
-  unittest.main()
-
-
 class YamlProvidersCreateTest(unittest.TestCase):
   def test_create_mixed_types(self):
     with beam.Pipeline() as p:
@@ -377,3 +372,249 @@ class YamlProvidersCreateTest(unittest.TestCase):
               [('a', None), ('element', 1)],
               [('a', 2), ('element', None)],
           ]))
+
+
+class YamlProvidersFlattenTest(unittest.TestCase):
+  def test_flatten_schema_merging(self):
+    with beam.Pipeline() as p:
+      pcoll1 = p | 'C1' >> beam.Create([beam.Row(a=1)])
+      pcoll2 = p | 'C2' >> beam.Create([beam.Row(b=2)])
+      res = {
+          'first': pcoll1, 'second': pcoll2
+      } | yaml_provider.YamlProviders.Flatten()
+      assert_that(
+          res | beam.Map(lambda x: sorted(x._asdict().items())),
+          equal_to([
+              [('a', 1), ('b', None)],
+              [('a', None), ('b', 2)],
+          ]))
+
+  def test_flatten_single_pcoll(self):
+    with beam.Pipeline() as p:
+      pcoll = p | beam.Create([beam.Row(a=1)])
+      res = pcoll | yaml_provider.YamlProviders.Flatten()
+      assert_that(res, equal_to([beam.Row(a=1)]))
+
+  def test_flatten_empty(self):
+    with beam.Pipeline() as p:
+      res = p | yaml_provider.YamlProviders.Flatten()
+      assert_that(res, equal_to([]))
+
+
+class YamlProviderBaseAndHelpersTest(unittest.TestCase):
+  def test_not_available_with_reason(self):
+    n = yaml_provider.NotAvailableWithReason("reason")
+    self.assertEqual(n.reason, "reason")
+    self.assertFalse(bool(n))
+
+  def test_provider_defaults(self):
+    class MinimalProvider(yaml_provider.Provider):
+      def available(self):
+        return super().available()
+
+      def cache_artifacts(self):
+        return super().cache_artifacts()
+
+      def provided_transforms(self):
+        return super().provided_transforms()
+
+      def create_transform(self, typ, args, spec):
+        return super().create_transform(typ, args, spec)
+
+      def _with_extra_dependencies(self, deps):
+        return super()._with_extra_dependencies(deps)
+
+    p = MinimalProvider()
+    with self.assertRaises(NotImplementedError):
+      p.available()
+    with self.assertRaises(NotImplementedError):
+      p.cache_artifacts()
+    with self.assertRaises(NotImplementedError):
+      p.provided_transforms()
+    with self.assertRaises(NotImplementedError):
+      p.create_transform("typ", {}, {})
+    with self.assertRaises(ValueError):
+      p._with_extra_dependencies(["dep"])
+
+    self.assertIsNone(p.config_schema("typ"))
+    self.assertIsNone(p.description("typ"))
+    self.assertFalse(p.requires_inputs("ReadFromSource", {}))
+    self.assertTrue(p.requires_inputs("typ", {}))
+    self.assertIsNone(yaml_provider.InlineProvider({}).cache_artifacts())
+    self.assertIsNone(
+        yaml_provider.RemoteProvider({}, 'localhost:1234').cache_artifacts())
+
+  def test_as_provider_list(self):
+    p1 = yaml_provider.as_provider("t", lambda: None)
+    self.assertIsInstance(p1, yaml_provider.InlineProvider)
+    self.assertIs(yaml_provider.as_provider("t", p1), p1)
+
+    lst1 = yaml_provider.as_provider_list("t", lambda: None)
+    self.assertEqual(len(lst1), 1)
+    lst2 = yaml_provider.as_provider_list("t", [p1])
+    self.assertEqual(lst2, [p1])
+
+  def test_merge_providers(self):
+    p1 = yaml_provider.as_provider("t1", lambda: None)
+    p2 = yaml_provider.as_provider("t2", lambda: None)
+    res = yaml_provider.merge_providers(p1, [p2])
+    self.assertIn("t1", res)
+    self.assertIn("t2", res)
+
+  def test_inline_provider_namespace(self):
+    _ = yaml_provider.standard_inline_providers.Create
+    with self.assertRaises(ValueError):
+      _ = yaml_provider.standard_inline_providers.NonexistentTransform
+
+  def test_renaming_provider(self):
+    p = yaml_provider.InlineProvider({'T': lambda **kwargs: None})
+    rp = yaml_provider.RenamingProvider(
+        transforms={'MyT': 'T'},
+        provider_base_path=None,
+        mappings={'MyT': {
+            'new_arg': 'x'
+        }},
+        underlying_provider=p,
+        defaults={'MyT': {
+            'def': 1
+        }})
+    self.assertTrue(rp.available())
+    self.assertEqual(list(rp.provided_transforms()), ['MyT'])
+    self.assertEqual(rp.underlying_provider(), p)
+    self.assertIsNotNone(rp.config_schema('MyT'))
+    self.assertIsNone(rp.description('MyT'))
+    self.assertTrue(rp.requires_inputs('MyT', {}))
+    _ = rp.create_transform('MyT', {'new_arg': 123}, lambda t, pcoll: None)
+
+    # Verify that mappings must be a dictionary.
+    with self.assertRaises(ValueError):
+      yaml_provider.RenamingProvider({'MyT': 'T'}, None, 'not_dict', p)
+
+    # Verify that string-based delegation mappings must point to a defined key.
+    with self.assertRaises(ValueError):
+      yaml_provider.RenamingProvider({'MyT': 'T'}, None, {'MyT': 'UnknownT'}, p)
+
+    # Verify that every renamed transform must have an entry in the mappings dictionary.
+    with self.assertRaises(ValueError):
+      yaml_provider.RenamingProvider({'Missing': 'T'}, None, {}, p)
+
+
+class WindowIntoTransformTest(unittest.TestCase):
+  def test_window_into_types(self):
+    from apache_beam.transforms import window
+
+    p = yaml_provider.YamlProviders.WindowInto._parse_window_spec(
+        {'type': 'global'})
+    self.assertIsInstance(p.windowing.windowfn, window.GlobalWindows)
+
+    p = yaml_provider.YamlProviders.WindowInto._parse_window_spec({
+        'type': 'fixed', 'size': '10s'
+    })
+    self.assertIsInstance(p.windowing.windowfn, window.FixedWindows)
+
+    p = yaml_provider.YamlProviders.WindowInto._parse_window_spec({
+        'type': 'sliding', 'size': '10s', 'period': '5s'
+    })
+    self.assertIsInstance(p.windowing.windowfn, window.SlidingWindows)
+
+    p = yaml_provider.YamlProviders.WindowInto._parse_window_spec({
+        'type': 'sessions', 'gap': '10s'
+    })
+    self.assertIsInstance(p.windowing.windowfn, window.Sessions)
+
+    with self.assertRaises(ValueError):
+      yaml_provider.YamlProviders.WindowInto._parse_window_spec(
+          {'type': 'unknown'})
+
+    with self.assertRaises(ValueError):
+      yaml_provider.YamlProviders.WindowInto._parse_window_spec({
+          'type': 'global', 'extra': 123
+      })
+
+
+class LogForTestingTest(unittest.TestCase):
+  def test_log_for_testing(self):
+    with beam.Pipeline() as p:
+      pcoll = p | beam.Create([1])
+      output_pcoll = pcoll | yaml_provider.YamlProviders.log_for_testing(
+          level='INFO', prefix='test:')
+
+      # Extract the DoFn from the transform and run it directly in-process
+      transform = output_pcoll.producer.transform
+      dofn = transform.fn
+
+      with self.assertLogs(level='INFO') as log:
+        outputs = list(dofn.process(beam.Row(a=b'bytes_val', b=[1, 2])))
+
+      self.assertEqual(outputs, [beam.Row(a=b'bytes_val', b=[1, 2])])
+      self.assertIn(
+          'INFO:root:test:{"a": "b\'bytes_val\'", "b": [1, 2]}', log.output)
+
+  def test_log_for_testing_unknown_level(self):
+    with beam.Pipeline() as p:
+      pcoll = p | beam.Create([1])
+      with self.assertRaises(ValueError):
+        _ = pcoll | yaml_provider.YamlProviders.log_for_testing(level='UNKNOWN')
+
+
+class PypiExpansionServiceTest(unittest.TestCase):
+  @mock.patch('apache_beam.utils.subprocess_server.SubprocessServer')
+  @mock.patch('subprocess.run')
+  @mock.patch('os.path.exists')
+  def test_pypi_expansion_service_venv_creation(
+      self, mock_exists, mock_run, mock_server):
+    mock_exists.return_value = False
+
+    mock_clone = mock.MagicMock()
+    mock_clone_module = mock.MagicMock()
+    mock_clone_module.clone_virtualenv = mock_clone
+
+    with mock.patch.dict('sys.modules', {'clonevirtualenv': mock_clone_module}):
+      with mock.patch('builtins.open', mock.mock_open()):
+        with yaml_provider.PypiExpansionService(['pkg1', 'pkg2']) as service:
+          pass
+
+    self.assertTrue(mock_clone.called)
+    self.assertTrue(mock_run.called)
+
+  @mock.patch('apache_beam.utils.subprocess_server.SubprocessServer')
+  @mock.patch('os.environ.get')
+  @mock.patch('os.path.exists')
+  def test_pypi_expansion_service_dev_cloning(
+      self, mock_exists, mock_env_get, mock_server):
+    mock_exists.return_value = False
+    mock_env_get.return_value = 'false'
+
+    mock_clone = mock.MagicMock()
+    mock_clone_module = mock.MagicMock()
+    mock_clone_module.clone_virtualenv = mock_clone
+
+    with mock.patch.dict('sys.modules', {'clonevirtualenv': mock_clone_module}):
+      with mock.patch('builtins.open', mock.mock_open()):
+        with mock.patch('subprocess.run') as mock_run:
+          with mock.patch('apache_beam.yaml.yaml_provider.beam_version',
+                          '2.50.0.dev'):
+            with mock.patch('os.path.dirname') as mock_dirname:
+              mock_dirname.return_value = '/path/to'
+              with yaml_provider.PypiExpansionService(['pkg1']) as service:
+                pass
+
+    mock_clone.assert_called_once_with('/path/to', mock.ANY)
+
+
+class ReshuffleTest(unittest.TestCase):
+  def test_reshuffle(self):
+    with beam.Pipeline() as p:
+      res = p | beam.Create(
+          [1, 2, 3]) | yaml_provider.YamlProviders.Reshuffle(num_buckets=1)
+      assert_that(res, equal_to([1, 2, 3]))
+
+  def test_python_provider_with_packages(self):
+    p = yaml_provider.python(
+        urns={}, provider_base_path='/tmp', packages=['pkg'])
+    self.assertIsInstance(p, yaml_provider.ExternalPythonProvider)
+
+
+if __name__ == '__main__':
+  logging.getLogger().setLevel(logging.INFO)
+  unittest.main()

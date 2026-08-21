@@ -24,6 +24,7 @@ import apache_beam as beam
 from apache_beam import Row
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.yaml import yaml_enrichment
 from apache_beam.yaml import yaml_provider
 from apache_beam.yaml.yaml_transform import YamlTransform
 
@@ -71,6 +72,41 @@ class EnrichmentTransformTest(unittest.TestCase):
                         handler_config: {config}
                     ''')
         assert_that(result, equal_to(input_data))
+
+  def test_enrichment_transform_direct_calls(self):
+    pcoll = mock.MagicMock()
+    with mock.patch('apache_beam.yaml.options.YamlOptions.check_enabled'):
+      with mock.patch('apache_beam.yaml.yaml_enrichment.Enrichment', None):
+        with self.assertRaises(ValueError):
+          yaml_enrichment.enrichment_transform('BigQuery', {}).expand(pcoll)
+
+      with mock.patch('apache_beam.yaml.yaml_enrichment.Enrichment',
+                      mock.MagicMock()):
+        with mock.patch(
+            'apache_beam.yaml.yaml_enrichment.FeastFeatureStoreEnrichmentHandler',
+            None):
+          with self.assertRaises(ValueError):
+            yaml_enrichment.enrichment_transform('FeastFeatureStore',
+                                                 {}).expand(pcoll)
+
+        with self.assertRaises(ValueError):
+          yaml_enrichment.enrichment_transform('UnknownHandler',
+                                               {}).expand(pcoll)
+
+        mock_bq_handler = mock.MagicMock()
+        mock_enrichment = mock.MagicMock()
+        with mock.patch(
+            'apache_beam.yaml.yaml_enrichment.BigQueryEnrichmentHandler',
+            mock_bq_handler):
+          with mock.patch('apache_beam.yaml.yaml_enrichment.Enrichment',
+                          mock_enrichment):
+            yaml_enrichment.enrichment_transform(
+                'BigQuery', {
+                    'col': 'val'
+                }, timeout=10).expand(pcoll)
+            mock_bq_handler.assert_called_once_with(col='val')
+            mock_enrichment.assert_called_once_with(
+                source_handler=mock_bq_handler.return_value, timeout=10)
 
 
 if __name__ == '__main__':
