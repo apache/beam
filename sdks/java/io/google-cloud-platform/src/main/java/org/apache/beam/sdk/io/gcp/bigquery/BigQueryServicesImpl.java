@@ -61,6 +61,7 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
+import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
@@ -1738,6 +1739,27 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
+  /**
+   * Returns credentials with the quota project applied, if one is configured and the credentials
+   * support it. The quota project sets the {@code X-Goog-User-Project} header so that BigQuery API
+   * requests are billed against that project's quota.
+   */
+  @VisibleForTesting
+  static @Nullable Credentials maybeWithQuotaProjectId(
+      @Nullable Credentials credential, @Nullable String quotaProjectId) {
+    if (Strings.isNullOrEmpty(quotaProjectId) || credential == null) {
+      return credential;
+    }
+    if (credential instanceof GoogleCredentials) {
+      return ((GoogleCredentials) credential).createWithQuotaProject(quotaProjectId);
+    }
+    LOG.warn(
+        "Credentials of type {} do not support a quota project. "
+            + "The bigQueryQuotaProjectId option will be ignored.",
+        credential.getClass().getName());
+    return credential;
+  }
+
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
   private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
     // Do not log 404. It clutters the output and is possibly even required by the
@@ -1748,7 +1770,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
     httpRequestInitializer.setReadTimeout(options.getHTTPReadTimeout());
     httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
     ImmutableList.Builder<HttpRequestInitializer> initBuilder = ImmutableList.builder();
-    Credentials credential = options.getGcpCredential();
+    Credentials credential =
+        maybeWithQuotaProjectId(options.getGcpCredential(), options.getBigQueryQuotaProjectId());
     initBuilder.add(
         credential == null
             ? new NullCredentialInitializer()
@@ -1786,6 +1809,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         builder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        builder.setQuotaProjectId(quotaProjectId);
       }
       return BigQueryWriteClient.create(
           builder
@@ -1910,6 +1937,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         settingsBuilder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        settingsBuilder.setQuotaProjectId(quotaProjectId);
       }
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =

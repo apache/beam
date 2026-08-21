@@ -251,7 +251,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def start_bundle(self):
     self.bq = bigquery_tools.BigQueryWrapper(
         temp_dataset_id=self._get_temp_dataset_id(),
-        client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
+        pipeline_options=self.options)
 
   def process(self,
               element: 'ReadFromBigQueryRequest') -> Iterable[BoundedSource]:
