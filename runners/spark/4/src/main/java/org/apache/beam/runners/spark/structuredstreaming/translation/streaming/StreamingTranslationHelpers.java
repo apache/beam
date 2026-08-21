@@ -27,6 +27,7 @@ import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignature;
 import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
 import org.apache.beam.sdk.transforms.windowing.Never;
@@ -35,7 +36,6 @@ import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
-import org.apache.beam.sdk.values.WindowingStrategy.AccumulationMode;
 import org.apache.spark.api.java.function.FilterFunction;
 import org.apache.spark.api.java.function.MapFunction;
 
@@ -59,7 +59,7 @@ final class StreamingTranslationHelpers {
 
   /**
    * Rejects windowing strategies whose semantics the {@code transformWithState} bridge cannot
-   * reproduce: merging (session) windows, custom triggers and accumulating panes.
+   * reproduce: merging (session) windows and unsupported custom triggers.
    */
   static void checkSupportedWindowing(WindowingStrategy<?, ?> strategy, String stepName) {
     WindowFn<?, ?> windowFn = strategy.getWindowFn();
@@ -72,40 +72,51 @@ final class StreamingTranslationHelpers {
               + "Spark 4 streaming runner");
     }
     Trigger trigger = strategy.getTrigger();
-    if (!isDefaultTrigger(trigger)) {
+    if (!isSupportedTrigger(trigger)) {
       throw unsupported(
           stepName,
           "the custom trigger "
               + trigger
               + ". Only the default trigger (one on-time pane per window when the watermark passes "
-              + "its end) is implemented");
-    }
-    if (strategy.getMode() != AccumulationMode.DISCARDING_FIRED_PANES) {
-      throw unsupported(
-          stepName,
-          "accumulating panes (" + strategy.getMode() + "). Only discarding panes are implemented");
+              + "its end) and late firings with AfterPane are implemented");
     }
   }
 
   /**
-   * The default trigger, as Beam models it, is either {@link DefaultTrigger} itself, the equivalent
-   * {@code AfterWatermark.pastEndOfWindow()} without early or late firings, or {@link
-   * Never.NeverTrigger} used by {@code PAssert} on unbounded streams to gather all window contents
-   * before the end-of-stream watermark triggers final pane evaluation.
+   * Identifies triggers supported by the streaming translation.
+   *
+   * <ul>
+   *   <li>{@link DefaultTrigger}
+   *   <li>{@link AfterWatermark.FromEndOfWindow} without early or late firings
+   *   <li>{@link Never.NeverTrigger} used by {@code PAssert} on unbounded streams
+   *   <li>{@link AfterWatermark.AfterWatermarkEarlyAndLate} with no early firings and late firings
+   *       configured via {@link AfterPane}
+   * </ul>
    */
-  private static boolean isDefaultTrigger(Trigger trigger) {
+  private static boolean isSupportedTrigger(Trigger trigger) {
     if (trigger instanceof DefaultTrigger) {
       return true;
     }
     if (trigger instanceof AfterWatermark.FromEndOfWindow) {
-      // FromEndOfWindow without early/late firings is exactly the default trigger; with firings
-      // configured Beam represents it as one of the AfterWatermarkEarlyAndLate subclasses instead.
       return true;
     }
     if (trigger instanceof Never.NeverTrigger) {
-      // NeverTrigger is used by PAssert on unbounded PCollections to prevent intermediate firings.
-      // In this runner, end-of-stream watermark advancement fires the final pane.
       return true;
+    }
+    if (trigger instanceof AfterWatermark.AfterWatermarkEarlyAndLate) {
+      AfterWatermark.AfterWatermarkEarlyAndLate earlyAndLate =
+          (AfterWatermark.AfterWatermarkEarlyAndLate) trigger;
+      if (!(earlyAndLate.getEarlyTrigger() instanceof Never.NeverTrigger)) {
+        return false;
+      }
+      Trigger lateTrigger = earlyAndLate.getLateTrigger();
+      if (lateTrigger == null || lateTrigger instanceof Never.NeverTrigger) {
+        return true;
+      }
+      if (lateTrigger instanceof AfterPane) {
+        return true;
+      }
+      return false;
     }
     return false;
   }

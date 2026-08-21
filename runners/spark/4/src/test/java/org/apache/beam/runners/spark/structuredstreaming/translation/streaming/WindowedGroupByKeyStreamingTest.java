@@ -18,11 +18,14 @@
 package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
@@ -32,12 +35,19 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterWatermark;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
 import org.apache.beam.sdk.transforms.windowing.SlidingWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
@@ -229,5 +239,339 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
     // its [90s, 100s) window has nothing after it and never fires.
     assertEquals(
         "pipeline state=" + result.getState(), "[a=1, sentinel=1]", collectedCounts(collectorId));
+  }
+
+  /**
+   * Encapsulates the value and complete {@link PaneInfo} metadata of an emitted element for precise
+   * assertions in streaming tests.
+   */
+  public static final class PaneRecord implements Serializable {
+    private final String key;
+    private final long value;
+    private final PaneInfo.Timing timing;
+    private final long index;
+    private final long onTimeIndex;
+    private final boolean isFirst;
+    private final boolean isLast;
+
+    public PaneRecord(
+        String key,
+        long value,
+        PaneInfo.Timing timing,
+        long index,
+        long onTimeIndex,
+        boolean isFirst,
+        boolean isLast) {
+      this.key = key;
+      this.value = value;
+      this.timing = timing;
+      this.index = index;
+      this.onTimeIndex = onTimeIndex;
+      this.isFirst = isFirst;
+      this.isLast = isLast;
+    }
+
+    public String getKey() {
+      return key;
+    }
+
+    public long getValue() {
+      return value;
+    }
+
+    public PaneInfo.Timing getTiming() {
+      return timing;
+    }
+
+    public long getIndex() {
+      return index;
+    }
+
+    public long getOnTimeIndex() {
+      return onTimeIndex;
+    }
+
+    public boolean isFirst() {
+      return isFirst;
+    }
+
+    public boolean isLast() {
+      return isLast;
+    }
+
+    @Override
+    public String toString() {
+      return key
+          + "="
+          + value
+          + ":"
+          + timing
+          + ":index="
+          + index
+          + ":onTimeIndex="
+          + onTimeIndex
+          + ":isFirst="
+          + isFirst
+          + ":isLast="
+          + isLast;
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof PaneRecord)) {
+        return false;
+      }
+      PaneRecord that = (PaneRecord) o;
+      return value == that.value
+          && index == that.index
+          && onTimeIndex == that.onTimeIndex
+          && isFirst == that.isFirst
+          && isLast == that.isLast
+          && Objects.equals(key, that.key)
+          && timing == that.timing;
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(key, value, timing, index, onTimeIndex, isFirst, isLast);
+    }
+  }
+
+  /** Converts {@code KV<String, Long>} into {@link PaneRecord} carrying full {@link PaneInfo}. */
+  public static final class CollectPaneDoFn extends DoFn<KV<String, Long>, PaneRecord> {
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, Long> element, PaneInfo paneInfo, OutputReceiver<PaneRecord> out) {
+      PaneRecord record =
+          new PaneRecord(
+              element.getKey(),
+              element.getValue(),
+              paneInfo.getTiming(),
+              paneInfo.getIndex(),
+              paneInfo.getNonSpeculativeIndex(),
+              paneInfo.isFirst(),
+              paneInfo.isLast());
+      out.output(record);
+    }
+  }
+
+  private static List<PaneRecord> filterPanesForKey(String collectorId, String targetKey) {
+    List<PaneRecord> result = new ArrayList<>();
+    for (PaneRecord record : StreamingTestUtils.<PaneRecord>getCollected(collectorId)) {
+      if (targetKey.equals(record.getKey())) {
+        result.add(record);
+      }
+    }
+    return result;
+  }
+
+  private static List<TimestampedValue<KV<String, String>>> lateFiringsInputElements() {
+    List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+    // Split 0: [a@1s, dummy@22s, a@2s, a@3s, dummy@36s, a@4s, dummy@62s]
+    // Split 1: [sentinel@20s, sentinel@25s, sentinel@30s, sentinel@35s, sentinel@45s, sentinel@60s,
+    // sentinel@70s]
+
+    // Batch 1: a@1s (on-time in [0s, 10s)), sentinel@20s -> Watermark advances to 20s
+    elements.add(TimestampedValue.of(KV.of("a", "1"), BASE.plus(Duration.standardSeconds(1))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s1"), BASE.plus(Duration.standardSeconds(20))));
+
+    // Batch 2: dummy@22s, sentinel@25s -> Batch start watermark is 20s. On-time timer for 'a' fires
+    // here!
+    elements.add(
+        TimestampedValue.of(KV.of("dummy", "d1"), BASE.plus(Duration.standardSeconds(22))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s2"), BASE.plus(Duration.standardSeconds(25))));
+
+    // Batch 3: a@2s (late! watermark 25s < GC time 40s), sentinel@30s -> Late pane 1 fires
+    elements.add(TimestampedValue.of(KV.of("a", "2"), BASE.plus(Duration.standardSeconds(2))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s3"), BASE.plus(Duration.standardSeconds(30))));
+
+    // Batch 4: a@3s (late! watermark 30s < GC time 40s), sentinel@35s -> Late pane 2 fires
+    elements.add(TimestampedValue.of(KV.of("a", "3"), BASE.plus(Duration.standardSeconds(3))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s4"), BASE.plus(Duration.standardSeconds(35))));
+
+    // Batch 5: dummy@36s, sentinel@45s -> Watermark advances to 45s (past GC horizon 40s, window
+    // expires)
+    elements.add(
+        TimestampedValue.of(KV.of("dummy", "d2"), BASE.plus(Duration.standardSeconds(36))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s5"), BASE.plus(Duration.standardSeconds(45))));
+
+    // Batch 6: a@4s (late! arriving when start watermark is 45s > GC horizon 40s -> dropped),
+    // sentinel@60s
+    elements.add(TimestampedValue.of(KV.of("a", "4"), BASE.plus(Duration.standardSeconds(4))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s6"), BASE.plus(Duration.standardSeconds(60))));
+
+    // Batch 7: dummy@62s, sentinel@70s -> Trailing batch
+    elements.add(
+        TimestampedValue.of(KV.of("dummy", "d3"), BASE.plus(Duration.standardSeconds(62))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s7"), BASE.plus(Duration.standardSeconds(70))));
+
+    return elements;
+  }
+
+  @Test(timeout = 300_000)
+  public void fixedWindowsWithLateFiringsDiscarding() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId("late-firings-discarding");
+    StreamingTestUtils.clear(collectorId);
+
+    List<TimestampedValue<KV<String, String>>> elements = lateFiringsInputElements();
+
+    SparkStructuredStreamingPipelineOptions options = options();
+    options.setMaxRecordsPerMicroBatch(1);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withLateFirings(AfterPane.elementCountAtLeast(1)))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .discardingFiredPanes())
+        .apply("CountPerKey", Count.perKey())
+        .apply("CollectPane", ParDo.of(new CollectPaneDoFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    List<PaneRecord> aPanes = filterPanesForKey(collectorId, "a");
+    List<String> renderedPanes = new ArrayList<>();
+    for (PaneRecord r : aPanes) {
+      renderedPanes.add(r.toString());
+    }
+
+    assertEquals(
+        "expected on-time pane and two late delta panes in discarding mode, with expired element dropped",
+        List.of(
+            "a=1:ON_TIME:index=0:onTimeIndex=0:isFirst=true:isLast=false",
+            "a=1:LATE:index=1:onTimeIndex=1:isFirst=false:isLast=false",
+            "a=1:LATE:index=2:onTimeIndex=2:isFirst=false:isLast=false"),
+        renderedPanes);
+  }
+
+  @Test(timeout = 300_000)
+  public void fixedWindowsWithLateFiringsAccumulating() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId("late-firings-accumulating");
+    StreamingTestUtils.clear(collectorId);
+
+    List<TimestampedValue<KV<String, String>>> elements = lateFiringsInputElements();
+
+    SparkStructuredStreamingPipelineOptions options = options();
+    options.setMaxRecordsPerMicroBatch(1);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withLateFirings(AfterPane.elementCountAtLeast(1)))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .accumulatingFiredPanes())
+        .apply("CountPerKey", Count.perKey())
+        .apply("CollectPane", ParDo.of(new CollectPaneDoFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    List<PaneRecord> aPanes = filterPanesForKey(collectorId, "a");
+    List<String> renderedPanes = new ArrayList<>();
+    for (PaneRecord r : aPanes) {
+      renderedPanes.add(r.toString());
+    }
+
+    assertEquals(
+        "expected on-time pane and two accumulating panes carrying full window counts, with expired element dropped",
+        List.of(
+            "a=1:ON_TIME:index=0:onTimeIndex=0:isFirst=true:isLast=false",
+            "a=2:LATE:index=1:onTimeIndex=1:isFirst=false:isLast=false",
+            "a=3:LATE:index=2:onTimeIndex=2:isFirst=false:isLast=false"),
+        renderedPanes);
+  }
+
+  @Test(timeout = 300_000)
+  public void unsupportedEarlyFiringsTriggerThrows() throws Exception {
+    SparkStructuredStreamingPipelineOptions options = options();
+    Pipeline pipeline = Pipeline.create(options);
+
+    List<TimestampedValue<KV<String, String>>> elements =
+        List.of(TimestampedValue.of(KV.of("a", "1"), BASE));
+
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .triggering(
+                    Repeatedly.forever(
+                        AfterWatermark.pastEndOfWindow()
+                            .withEarlyFirings(AfterPane.elementCountAtLeast(1))))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .discardingFiredPanes())
+        .apply("CountPerKey", Count.perKey());
+
+    UnsupportedOperationException e =
+        assertThrows(UnsupportedOperationException.class, pipeline::run);
+    assertTrue(
+        "Expected unsupported trigger message, got: " + e.getMessage(),
+        e.getMessage().contains("the custom trigger")
+            && e.getMessage().contains("withEarlyFirings"));
+  }
+
+  @Test(timeout = 300_000)
+  public void unsupportedProcessingTimeTriggerThrows() throws Exception {
+    SparkStructuredStreamingPipelineOptions options = options();
+    Pipeline pipeline = Pipeline.create(options);
+
+    List<TimestampedValue<KV<String, String>>> elements =
+        List.of(TimestampedValue.of(KV.of("a", "1"), BASE));
+
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .discardingFiredPanes())
+        .apply("CountPerKey", Count.perKey());
+
+    UnsupportedOperationException e =
+        assertThrows(UnsupportedOperationException.class, pipeline::run);
+    assertTrue(
+        "Expected unsupported trigger message, got: " + e.getMessage(),
+        e.getMessage().contains("the custom trigger")
+            && e.getMessage().contains("AfterProcessingTime"));
   }
 }
