@@ -44,20 +44,16 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
     steps:
-      - name: Checkout secure master code
+      - name: Checkout trusted based repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.base_ref || github.ref }}
+          ref: ${{ github.base_ref}}
           persist-credentials: false
-      - name: Download users.yml directly from PR fork
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_BRANCH_REF: ${{ github.event.pull_request.head.ref }}
+      - name: Fetch untrusted users.yml from PR
+        if: github.event.pull_request.merged != true
         run: |
-          echo "[DevSecOps] Downloading users.yml directly from the Pull Request fork..."
-          curl -s --retry 3 --retry-delay 5 -H "Authorization: token $GH_TOKEN" \
-            "https://api.github.com/repos/${{ github.repository }}/contents/infra/iam/users.yml?ref=$PR_BRANCH_REF" \
-            | jq -r '.content' | base64 --decode > ./infra/iam/users.yml
+          git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
+          git checkout pr-branch -- infra/iam/users.yml
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Install Terraform
