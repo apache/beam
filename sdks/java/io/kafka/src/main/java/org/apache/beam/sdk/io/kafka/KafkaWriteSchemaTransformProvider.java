@@ -63,10 +63,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -87,14 +84,12 @@ public class KafkaWriteSchemaTransformProvider
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<KafkaWriteSchemaTransformConfiguration> configurationClass() {
     return KafkaWriteSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      KafkaWriteSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(KafkaWriteSchemaTransformConfiguration configuration) {
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
           "Format "
@@ -320,19 +315,17 @@ public class KafkaWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE);
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Collections.emptyList();
   }
 
