@@ -257,6 +257,22 @@ def get_test_beam_fieldtype_protos():
                           value=schema_pb2.FieldValue(
                               atomic_value=schema_pb2.AtomicTypeValue(
                                   bytes=b'bytes!'))),
+                      schema_pb2.Option(
+                          name='a_string_array',
+                          type=schema_pb2.FieldType(
+                              array_type=schema_pb2.ArrayType(
+                                  element_type=schema_pb2.FieldType(
+                                      atomic_type=schema_pb2.STRING))),
+                          value=schema_pb2.FieldValue(
+                              array_value=schema_pb2.ArrayTypeValue(
+                                  element=[
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='a')),
+                                      schema_pb2.FieldValue(
+                                          atomic_value=schema_pb2.
+                                          AtomicTypeValue(string='b')),
+                                  ]))),
                   ]))),
       schema_pb2.FieldType(
           row_type=schema_pb2.RowType(
@@ -862,6 +878,16 @@ class ParameterizedTimestampTest(unittest.TestCase):
     millis_value = Timestamp(seconds=1, subseconds=500, precision=3)
     representation = logical_type.to_representation_type(millis_value)
     self.assertEqual(representation.subseconds, 500000)
+
+  def test_from_runner_api_rejects_missing_argument(self):
+    # A proto without the precision argument must be rejected; guessing a
+    # default precision would silently misscale subseconds.
+    proto = schema_pb2.LogicalType(
+        urn=common_urns.timestamp.urn,
+        representation=typing_to_runner_api(
+            schemas.ParameterizedTimestampShortRepresentation))
+    with self.assertRaises(ValueError):
+      schemas.LogicalType.from_runner_api(proto)
 
 
 class HypothesisTest(unittest.TestCase):

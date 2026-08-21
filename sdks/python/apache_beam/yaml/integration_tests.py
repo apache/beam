@@ -697,6 +697,162 @@ def temp_iceberg_table_with_pk(table_data):
     shutil.rmtree(temp_dir, ignore_errors=True)
 
 
+_LOCALSTACK_KINESIS_IMAGE = 'localstack/localstack:3.8.1'
+_LOCALSTACK_KINESIS_ACCESS_KEY = 'accesskey'
+_LOCALSTACK_KINESIS_SECRET_KEY = 'secretkey'
+_LOCALSTACK_KINESIS_REGION = 'us-east-1'
+
+
+def _create_kinesis_stream(kinesis_client, stream_name):
+  """Creates a Kinesis stream and waits until it is active."""
+  retries = 10
+  for attempt in range(retries):
+    try:
+      kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+      time.sleep(2)
+      break
+    except Exception as exn:
+      if attempt == retries - 1:
+        _LOGGER.error('Could not create kinesis stream')
+        raise exn
+
+  for attempt in range(retries):
+    stream = kinesis_client.describe_stream(StreamName=stream_name)
+    if stream['StreamDescription']['StreamStatus'] == 'ACTIVE':
+      return
+    time.sleep(2)
+    if attempt == retries - 1:
+      raise RuntimeError(
+          'Unable to initialize Kinesis stream %s. Status: %s' % (
+              stream['StreamDescription']['StreamName'],
+              stream['StreamDescription']['StreamStatus']))
+
+
+@contextlib.contextmanager
+def temp_kinesis_localstack():
+  """Context manager to provide a temporary LocalStack Kinesis stream.
+
+  Starts a LocalStack container, creates a unique Kinesis stream, and yields
+  connection details for YAML Kinesis read/write transforms.
+
+  Yields:
+      dict: Keys include STREAM_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY, REGION,
+          SERVICE_ENDPOINT (https), and VERIFY_CERTIFICATE (False).
+  """
+  try:
+    import boto3
+  except ImportError as exn:
+    raise unittest.SkipTest('boto3 is not installed') from exn
+
+  _LOGGER.info('Setting up LocalStack Kinesis fixture...')
+  localstack = DockerContainer(_LOCALSTACK_KINESIS_IMAGE).with_bind_ports(
+      4566, 4566)
+  for port in range(4510, 4560):
+    localstack = localstack.with_bind_ports(port, port)
+
+  for attempt in range(4):
+    try:
+      localstack.start()
+      break
+    except Exception as exn:
+      if attempt == 3:
+        _LOGGER.error('Could not initialize localstack container')
+        raise exn
+
+  stream_name = f'yaml_kinesis_{uuid.uuid4().hex}'
+  kinesis_client = None
+  try:
+    host = localstack.get_container_host_ip()
+    port = localstack.get_exposed_port('4566')
+    service_endpoint = f'https://{host}:{port}'
+    http_endpoint = f'http://{host}:{port}'
+
+    kinesis_client = boto3.client(
+        service_name='kinesis',
+        region_name=_LOCALSTACK_KINESIS_REGION,
+        endpoint_url=http_endpoint,
+        aws_access_key_id=_LOCALSTACK_KINESIS_ACCESS_KEY,
+        aws_secret_access_key=_LOCALSTACK_KINESIS_SECRET_KEY,
+    )
+    _create_kinesis_stream(kinesis_client, stream_name)
+
+    _LOGGER.info(
+        'LocalStack Kinesis ready. Stream: [%s], endpoint: [%s]',
+        stream_name,
+        service_endpoint)
+
+    yield {
+        'STREAM_NAME': stream_name,
+        'AWS_ACCESS_KEY': _LOCALSTACK_KINESIS_ACCESS_KEY,
+        'AWS_SECRET_KEY': _LOCALSTACK_KINESIS_SECRET_KEY,
+        'REGION': _LOCALSTACK_KINESIS_REGION,
+        'SERVICE_ENDPOINT': service_endpoint,
+        'VERIFY_CERTIFICATE': False,
+    }
+  finally:
+    _LOGGER.info('Tearing down LocalStack Kinesis fixture...')
+    if kinesis_client is not None:
+      try:
+        kinesis_client.delete_stream(
+            StreamName=stream_name, EnforceConsumerDeletion=True)
+      except Exception:
+        _LOGGER.warning('Failed to delete kinesis stream [%s]', stream_name)
+    try:
+      localstack.stop()
+    except Exception:
+      _LOGGER.warning('Failed to stop localstack container')
+    _LOGGER.info('LocalStack Kinesis fixture stopped.')
+
+
+@contextlib.contextmanager
+def temp_jms_activemq_server():
+  """Context manager to provide a temporary ActiveMQ broker for JMS tests."""
+
+  broker = DockerContainer('apache/activemq-classic:5.18.3').with_exposed_ports(
+      61616)
+
+  try:
+    broker.start()
+    wait_for_logs(broker, '.*ActiveMQ .* started.*', timeout=30)
+
+    host = broker.get_container_host_ip()
+    port = broker.get_exposed_port(61616)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}',
+        'CONNECTION_FACTORY_CLASS_NAME': 'org.apache.activemq.ActiveMQConnectionFactory',
+    }
+  finally:
+    broker.stop()
+
+
+@contextlib.contextmanager
+def temp_ibm_mq_server():
+  container = (
+      DockerContainer('icr.io/ibm-messaging/mq:9.3.0.25-r1').with_env(
+          'LICENSE', 'accept').with_env('MQ_QMGR_NAME', 'QM1').with_env(
+              'MQ_APP_PASSWORD', 'admin123').with_exposed_ports(1414))
+
+  try:
+    container.start()
+    wait_for_logs(container, '.*(MQQMNAME|Started queue manager).*', timeout=45)
+
+    host = container.get_container_host_ip()
+    port = container.get_exposed_port(1414)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'USERNAME': 'app',
+        'PASSWORD': 'admin123',
+        'SOURCE_QUEUE': 'DEV.QUEUE.1',
+        'SINK_QUEUE': 'DEV.QUEUE.2',
+    }
+
+  finally:
+    container.stop()
+
+
 @contextlib.contextmanager
 def temp_kafka_server():
   """Context manager to provide a temporary Kafka server for testing.

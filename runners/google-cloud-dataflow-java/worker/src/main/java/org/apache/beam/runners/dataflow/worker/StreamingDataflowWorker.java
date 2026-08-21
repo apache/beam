@@ -34,7 +34,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -172,6 +174,8 @@ public final class StreamingDataflowWorker {
   private static final String CHANNELZ_PATH = "/channelz";
   private static final String BEAM_FN_API_EXPERIMENT = "beam_fn_api";
   private static final String ELEMENT_METADATA_SUPPORTED_EXPERIMENT = "element_metadata_supported";
+  private static final AtomicLong DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS =
+      new AtomicLong(TimeUnit.SECONDS.toMillis(15));
 
   @SuppressWarnings("unused")
   private static final String STREAMING_ENGINE_USE_JOB_SETTINGS_FOR_HEARTBEAT_POOL_EXPERIMENT =
@@ -311,9 +315,6 @@ public final class StreamingDataflowWorker {
         new ActiveWorkRefresher(
             clock,
             options.getActiveWorkRefreshPeriodMillis(),
-            options.isEnableStreamingEngine()
-                ? Math.max(options.getStuckCommitDurationMillis(), 0)
-                : 0,
             computationStateCache::getAllPresentComputations,
             sampler,
             activeWorkRefreshExecutorFn,
@@ -321,7 +322,10 @@ public final class StreamingDataflowWorker {
 
     this.statusPages.set(
         createStatusPageBuilder(
-                this.options, this.windmillStreamFactory, this.memoryMonitor.memoryMonitor())
+                this.options,
+                this.windmillStreamFactory,
+                this.memoryMonitor.memoryMonitor(),
+                this::isHealthy)
             .setClock(this.clock)
             .setClientId(this.clientId)
             .setIsRunning(this.running)
@@ -573,7 +577,10 @@ public final class StreamingDataflowWorker {
     }
     this.statusPages.set(
         createStatusPageBuilder(
-                this.options, this.windmillStreamFactory, this.memoryMonitor.memoryMonitor())
+                this.options,
+                this.windmillStreamFactory,
+                this.memoryMonitor.memoryMonitor(),
+                this::isHealthy)
             .setClock(this.clock)
             .setClientId(this.clientId)
             .setIsRunning(this.running)
@@ -590,12 +597,28 @@ public final class StreamingDataflowWorker {
     LOG.info("Started new StreamingWorkerStatusPages instance.");
   }
 
+  @VisibleForTesting
+  boolean isHealthy() {
+    int stuckCommitDurationMillis =
+        options.isEnableStreamingEngine() ? Math.max(options.getStuckCommitDurationMillis(), 0) : 0;
+    if (stuckCommitDurationMillis > 0) {
+      Instant stuckCommitDeadline = clock.get().minus(Duration.millis(stuckCommitDurationMillis));
+      for (ComputationState computationState : computationStateCache.getAllPresentComputations()) {
+        if (computationState.hasStuckCommits(stuckCommitDeadline)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
   private static StreamingWorkerStatusPages.Builder createStatusPageBuilder(
       DataflowWorkerHarnessOptions options,
       GrpcWindmillStreamFactory windmillStreamFactory,
-      MemoryMonitor memoryMonitor) {
+      MemoryMonitor memoryMonitor,
+      BooleanSupplier healthyIndicator) {
     WorkerStatusPages workerStatusPages =
-        WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor);
+        WorkerStatusPages.create(DEFAULT_STATUS_PORT, memoryMonitor, healthyIndicator);
 
     StreamingWorkerStatusPages.Builder streamingStatusPages =
         StreamingWorkerStatusPages.builder().setStatusPages(workerStatusPages);
@@ -847,16 +870,20 @@ public final class StreamingDataflowWorker {
                                   workerOptions.getWindmillServiceRpcChannelAliveTimeoutSec(),
                                   currentFlowControlSettings),
                           MoreCallCredentials.from(
-                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential()))),
+                              new VendoredCredentialsAdapter(workerOptions.getGcpCredential())),
+                          DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS::get),
                   currentFlowControlSettings.getOnReadyThresholdBytes());
             });
 
     configFetcher
         .getGlobalConfigHandle()
         .registerConfigObserver(
-            config ->
-                channelCache.consumeFlowControlSettings(
-                    config.userWorkerJobSettings().getFlowControlSettings()));
+            config -> {
+              DIRECTPATH_PRIMARY_NOT_READY_WAIT_MILLIS.set(
+                  config.userWorkerJobSettings().getDirectpathPrimaryNotReadyWaitMillis());
+              channelCache.consumeFlowControlSettings(
+                  config.userWorkerJobSettings().getFlowControlSettings());
+            });
     return channelCache;
   }
 

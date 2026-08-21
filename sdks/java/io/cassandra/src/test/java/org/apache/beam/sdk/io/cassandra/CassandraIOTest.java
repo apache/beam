@@ -19,6 +19,9 @@ package org.apache.beam.sdk.io.cassandra;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 
 import com.datastax.driver.core.Cluster;
@@ -1217,5 +1220,32 @@ public class CassandraIOTest implements Serializable {
     public int hashCode() {
       return Objects.hashCode(tableColumn, indexColumn, valueColumn, data);
     }
+  }
+
+  @Test
+  public void testSessionEvictionOnClosedCluster() {
+    CassandraIO.Read<String> readConfig =
+        CassandraIO.<String>read()
+            .withHosts(Collections.singletonList(CASSANDRA_HOST))
+            .withPort(cassandraPort)
+            .withKeyspace(CASSANDRA_KEYSPACE)
+            .withTable(CASSANDRA_TABLE);
+
+    Session initialSession = ConnectionManager.getSession(readConfig);
+    Cluster initialCluster = initialSession.getCluster();
+
+    initialCluster.close();
+    assertTrue("Cluster should be closed", initialCluster.isClosed());
+
+    Session newSession = ConnectionManager.getSession(readConfig);
+    Cluster newCluster = newSession.getCluster();
+
+    assertNotNull("New session should not be null", newSession);
+    assertFalse("New cluster should be open", newCluster.isClosed());
+
+    assertNotSame(
+        "ConnectionManager should create a new Session instance", initialSession, newSession);
+    assertNotSame(
+        "ConnectionManager should create a new Cluster instance", initialCluster, newCluster);
   }
 }

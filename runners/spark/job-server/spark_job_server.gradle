@@ -199,10 +199,11 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
-        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+        // TODO (https://github.com/apache/beam/issues/19468) unbounded SDF needs residuals to
+        // survive across micro-batches, which the streaming path cannot do yet.
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+        // TODO (https://github.com/apache/beam/issues/19517) bundle finalization
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       }
       testFilter = {

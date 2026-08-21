@@ -489,6 +489,27 @@ public class KeyGroupWorkQueueTest {
     assertTrue(queue.isEmpty());
   }
 
+  @Test
+  public void testOffer_multiKeyBatchingDisabled_notInsertedInKeyGroupQueue() {
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
+    QueuedWork workDisabled = createQueuedWork("compA", 100);
+    workDisabled.getWork().work().setMultiKeyBatchingDisabled(true);
+    QueuedWork workEnabled = createQueuedWork("compA", 200);
+
+    queue.offer(workDisabled);
+    queue.offer(workEnabled);
+    assertEquals(2, queue.size());
+
+    QueuedWork polledWork = queue.pollWork("compA", TEST_KEY_GROUP);
+    assertNotNull(polledWork);
+    assertEquals(workEnabled, polledWork);
+    assertEquals(1, queue.size());
+
+    assertNull(queue.pollWork("compA", TEST_KEY_GROUP));
+    assertEquals(workDisabled, queue.poll());
+    assertTrue(queue.isEmpty());
+  }
+
   private void waitForThreadState(Thread t, State state) throws InterruptedException {
     long timeoutMs = 30000;
     long start = System.currentTimeMillis();

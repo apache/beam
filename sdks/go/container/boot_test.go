@@ -21,11 +21,14 @@ import (
 	"path/filepath"
 	"testing"
 
+	"encoding/json"
+
 	"github.com/apache/beam/sdks/v2/go/container/tools"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/artifact"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestEnsureEndpointsSet_AllSet(t *testing.T) {
@@ -224,7 +227,7 @@ func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {
 			options: `{
 				"beam:option:go_options:v1": {
 					"options": {
-						"dataflow_service_options": "enable_google_cloud_profiler=custom_profiler"
+						"dataflow_service_options": "enable_google_cloud_profiler=custom_profiler,another_option"
 					}
 				}
 			}`,
@@ -287,7 +290,17 @@ func TestConfigureGoogleCloudProfilerEnvVars(t *testing.T) {
 			clearEnvVars()
 			ctx := context.Background()
 
-			err := configureGoogleCloudProfilerEnvVars(ctx, &tools.Logger{}, tt.metadata, tt.options)
+			var raw map[string]interface{}
+			if err := json.Unmarshal([]byte(tt.options), &raw); err != nil {
+				t.Fatalf("failed to unmarshal JSON for test: %v", err)
+			}
+			st, err := structpb.NewStruct(raw)
+			if err != nil {
+				t.Fatalf("failed to create structpb for test: %v", err)
+			}
+			po := tools.ParseOptionsFromProto(st, "go_options")
+
+			err = configureGoogleCloudProfilerEnvVars(ctx, &tools.Logger{}, tt.metadata, po)
 
 			if tt.expectingError {
 				if err == nil {

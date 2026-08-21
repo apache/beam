@@ -70,6 +70,8 @@ import org.slf4j.LoggerFactory;
  */
 public final class CdcReadUtils {
   private static final Logger LOG = LoggerFactory.getLogger(CdcReadUtils.class);
+  // Heuristic for estimating the decoded byte size of a compressed file
+  static final int COMPRESSED_TO_DECODED_BYTES_ESTIMATE = 4;
 
   /**
    * Maximum size of an equality delete set to push down as a Parquet residual {@code IN}
@@ -133,7 +135,7 @@ public final class CdcReadUtils {
         outputSchema,
         checkStateNotNull(table.specs().get(task.getSpecId())),
         task.getDataFile().createDataFile(table.specs()),
-        task.getDataFile().getFileSequenceNumber(),
+        task.getDataFile().getDataSequenceNumber(),
         start,
         length,
         combined);
