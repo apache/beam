@@ -38,6 +38,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.schemas.FieldAccessDescriptor;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.transforms.Select;
@@ -140,12 +141,18 @@ import org.slf4j.LoggerFactory;
  * <tr><td>{@link TableSchema.TypeName#DATE}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#DATETIME}</td> <td>{@link Schema.TypeName#DATETIME}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#DATETIME64}</td> <td>{@link Schema.TypeName#DATETIME} (precision &le; 3), {@link SqlTypes#TIMESTAMP} (4&ndash;6), or {@link NanosInstant} (&ge; 7)</td></tr>
+ * <tr><td>{@link TableSchema.TypeName#DECIMAL}</td> <td>{@link FixedPrecisionNumeric}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ARRAY}</td> <td>{@link Schema.TypeName#ARRAY}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM8}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#ENUM16}</td> <td>{@link Schema.TypeName#STRING}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#BOOL}</td> <td>{@link Schema.TypeName#BOOLEAN}</td></tr>
  * <tr><td>{@link TableSchema.TypeName#TUPLE}</td> <td>{@link Schema.TypeName#ROW}</td></tr>
  * </table>
+ *
+ * <p>{@code Decimal(P, S)} columns accept {@link java.math.BigDecimal} values. Fractional digits
+ * beyond the column scale are truncated toward zero, and values are range-checked against the
+ * storage width chosen from the declared precision (32/64/128/256 bits) rather than the precision
+ * itself.
  *
  * <p>Nullable row columns are supported through <a
  * href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in

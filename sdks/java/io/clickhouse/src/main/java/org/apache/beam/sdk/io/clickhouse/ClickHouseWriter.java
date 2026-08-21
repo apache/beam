@@ -21,6 +21,7 @@ import com.clickhouse.data.ClickHouseOutputStream;
 import com.clickhouse.data.ClickHousePipedOutputStream;
 import com.clickhouse.data.format.BinaryStreamUtils;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
@@ -176,6 +177,18 @@ public class ClickHouseWriter {
             Preconditions.checkNotNull(
                 columnType.precision(), "DateTime64 column is missing precision");
         BinaryStreamUtils.writeInt64(stream, encodeDateTime64(value, precision));
+        break;
+
+      case DECIMAL:
+        int decimalPrecision =
+            Preconditions.checkNotNull(columnType.precision(), "Decimal column missing precision");
+        int decimalScale =
+            Preconditions.checkNotNull(columnType.scale(), "Decimal column missing scale");
+        // Picks the 32/64/128/256-bit little-endian width from the declared precision and writes
+        // the value scaled to 10^-scale ticks. Fractional digits beyond the column scale are
+        // truncated toward zero; the range check is against the storage width, not the declared
+        // precision.
+        BinaryStreamUtils.writeDecimal(stream, (BigDecimal) value, decimalPrecision, decimalScale);
         break;
 
       case ARRAY:
