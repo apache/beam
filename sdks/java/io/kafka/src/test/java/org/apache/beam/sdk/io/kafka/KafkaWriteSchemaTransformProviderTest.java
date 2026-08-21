@@ -49,6 +49,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
@@ -269,6 +270,29 @@ public class KafkaWriteSchemaTransformProviderTest {
               Pipeline.create()
                   .apply(Create.empty(Schema.builder().addByteArrayField("bytes").build())));
     }
+  }
+
+  @Test
+  public void testErrorOutputCarriesTheSchemaErrorCounterFnEmits() {
+    // The output schema is fixed while the graph is built, so this needs no runner.
+    p.enableAbandonedNodeEnforcement(false);
+
+    Schema inputSchema = Schema.builder().addByteArrayField("bytes").build();
+    KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration configuration =
+        KafkaWriteSchemaTransformProvider.KafkaWriteSchemaTransformConfiguration.builder()
+            .setFormat("RAW")
+            .setTopic("test-topic")
+            .setBootstrapServers("host:9092")
+            .setErrorHandling(ErrorHandling.builder().setOutput("errors").build())
+            .build();
+
+    PCollectionRowTuple output =
+        PCollectionRowTuple.of("input", p.apply(Create.empty(inputSchema)))
+            .apply(new KafkaWriteSchemaTransformProvider().from(configuration));
+
+    // ErrorCounterFn emits ErrorHandling.errorRecord(errorSchema, ...), where errorSchema is
+    // already ErrorHandling.errorSchema(inputSchema).
+    assertEquals(ErrorHandling.errorSchema(inputSchema), output.get("errors").getSchema());
   }
 
   @Test
