@@ -206,6 +206,50 @@
       config:
         gradle_target: 'sdks:java:io:debezium:expansion-service:shadowJar'
 
+# Kinesis
+- type: renaming
+  transforms:
+    'ReadFromKinesis': 'ReadFromKinesis'
+    'WriteToKinesis': 'WriteToKinesis'
+  config:
+    mappings:
+      'ReadFromKinesis':
+        stream_name: 'stream_name'
+        aws_access_key: 'aws_access_key'
+        aws_secret_key: 'aws_secret_key'
+        region: 'region'
+        service_endpoint: 'service_endpoint'
+        verify_certificate: 'verify_certificate'
+        max_num_records: 'max_num_records'
+        max_read_time: 'max_read_time'
+        initial_position_in_stream: 'initial_position_in_stream'
+        initial_timestamp_in_stream: 'initial_timestamp_in_stream'
+        request_records_limit: 'request_records_limit'
+        up_to_date_threshold: 'up_to_date_threshold'
+        max_capacity_per_shard: 'max_capacity_per_shard'
+        watermark_policy: 'watermark_policy'
+        watermark_idle_duration_threshold: 'watermark_idle_duration_threshold'
+        rate_limit: 'rate_limit'
+      'WriteToKinesis':
+        stream_name: 'stream_name'
+        aws_access_key: 'aws_access_key'
+        aws_secret_key: 'aws_secret_key'
+        region: 'region'
+        partition_key: 'partition_key'
+        service_endpoint: 'service_endpoint'
+        verify_certificate: 'verify_certificate'
+        aggregation_enabled: 'aggregation_enabled'
+        aggregation_max_bytes: 'aggregation_max_bytes'
+        aggregation_max_buffered_time: 'aggregation_max_buffered_time'
+        aggregation_shard_refresh_interval: 'aggregation_shard_refresh_interval'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromKinesis': 'beam:schematransform:org.apache.beam:kinesis_read:v1'
+        'WriteToKinesis': 'beam:schematransform:org.apache.beam:kinesis_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:amazon-web-services2:expansion-service:shadowJar'
+
 # Databases
 - type: renaming
   transforms:

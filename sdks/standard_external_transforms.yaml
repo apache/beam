@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2026-07-22
+# Last updated on: 2026-08-15
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: ''
@@ -149,6 +149,138 @@
     type: str
   identifier: beam:schematransform:org.apache.beam:mongodb_write:v1
   name: MongodbWrite
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: Reads records from an Amazon Kinesis stream and outputs Beam Rows
+    with `data` (bytes) plus stream metadata fields.
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: AWS access key id.
+    name: aws_access_key
+    nullable: false
+    type: str
+  - description: AWS secret access key.
+    name: aws_secret_key
+    nullable: false
+    type: str
+  - description: 'Where to start reading in the stream: LATEST, TRIM_HORIZON, or AT_TIMESTAMP.'
+    name: initial_position_in_stream
+    nullable: true
+    type: str
+  - description: Epoch millis timestamp used when initial_position_in_stream is AT_TIMESTAMP.
+    name: initial_timestamp_in_stream
+    nullable: true
+    type: int64
+  - description: Maximum number of records to hold in memory per shard.
+    name: max_capacity_per_shard
+    nullable: true
+    type: int64
+  - description: Maximum number of records to read. When set, the resulting PCollection
+      is bounded.
+    name: max_num_records
+    nullable: true
+    type: int64
+  - description: Maximum read time in milliseconds. When set, the resulting PCollection
+      is bounded.
+    name: max_read_time
+    nullable: true
+    type: int64
+  - description: Fixed delay between GetRecords calls in milliseconds.
+    name: rate_limit
+    nullable: true
+    type: int64
+  - description: AWS region, for example us-east-1.
+    name: region
+    nullable: false
+    type: str
+  - description: Max records returned by a single GetRecords call (1-10000).
+    name: request_records_limit
+    nullable: true
+    type: int64
+  - description: Optional custom Kinesis service endpoint URI.
+    name: service_endpoint
+    nullable: true
+    type: str
+  - description: Kinesis stream name to read from.
+    name: stream_name
+    nullable: false
+    type: str
+  - description: Threshold duration in milliseconds after which a shard is considered
+      up to date.
+    name: up_to_date_threshold
+    nullable: true
+    type: int64
+  - description: Whether to verify TLS certificates. Defaults to true. Never disable
+      in production.
+    name: verify_certificate
+    nullable: true
+    type: boolean
+  - description: Idle duration threshold in milliseconds for ARRIVAL_TIME watermark
+      policy.
+    name: watermark_idle_duration_threshold
+    nullable: true
+    type: int64
+  - description: 'Watermark policy: ARRIVAL_TIME or PROCESSING_TIME.'
+    name: watermark_policy
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:kinesis_read:v1
+  name: KinesisRead
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: Writes Beam Rows to an Amazon Kinesis stream. Each input row must include
+    a `data` (bytes) field, or a `payload` string/bytes field. Optional per-row `partition_key`
+    overrides the configured default partition key.
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: Enable KPL-compatible record aggregation.
+    name: aggregation_enabled
+    nullable: true
+    type: boolean
+  - description: Max time in milliseconds to buffer records when aggregation is enabled.
+    name: aggregation_max_buffered_time
+    nullable: true
+    type: int64
+  - description: Max aggregated record size in bytes when aggregation is enabled.
+    name: aggregation_max_bytes
+    nullable: true
+    type: int64
+  - description: Shard map refresh interval in minutes when aggregation is enabled.
+    name: aggregation_shard_refresh_interval
+    nullable: true
+    type: int64
+  - description: AWS access key id.
+    name: aws_access_key
+    nullable: false
+    type: str
+  - description: AWS secret access key.
+    name: aws_secret_key
+    nullable: false
+    type: str
+  - description: Default partition key used when the input row does not contain a
+      partition_key field.
+    name: partition_key
+    nullable: false
+    type: str
+  - description: AWS region, for example us-east-1.
+    name: region
+    nullable: false
+    type: str
+  - description: Optional custom Kinesis service endpoint URI.
+    name: service_endpoint
+    nullable: true
+    type: str
+  - description: Kinesis stream name to write to.
+    name: stream_name
+    nullable: false
+    type: str
+  - description: Whether to verify TLS certificates. Defaults to true. Never disable
+      in production.
+    name: verify_certificate
+    nullable: true
+    type: boolean
+  identifier: beam:schematransform:org.apache.beam:kinesis_write:v1
+  name: KinesisWrite
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: ''
   destinations:
