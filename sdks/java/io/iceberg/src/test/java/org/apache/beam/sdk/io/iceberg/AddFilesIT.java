@@ -102,8 +102,7 @@ import org.slf4j.LoggerFactory;
 public class AddFilesIT {
   private static final Logger LOG = LoggerFactory.getLogger(AddFilesIT.class);
 
-  private static final String DEFAULT_WAREHOUSE = "gs://managed-iceberg-biglake-its";
-  private static final String WAREHOUSE = System.getProperty("biglakeWarehouse", DEFAULT_WAREHOUSE);
+  private static final String WAREHOUSE = "gs://managed-iceberg-biglake-its";
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   @Rule public TestName testName = new TestName();
@@ -120,24 +119,14 @@ public class AddFilesIT {
           .addStringField("name")
           .addStringField("kind")
           .build();
-  private static final Map<String, String> BIGLAKE_PROPS = biglakeProps();
-
-  private static Map<String, String> biglakeProps() {
-    Map<String, String> props = new HashMap<>();
-    props.put("type", "rest");
-    props.put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog");
-    props.put("warehouse", WAREHOUSE);
-    props.put("header.x-goog-user-project", PROJECT);
-    props.put("rest.auth.type", "google");
-    props.put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO");
-    if (!WAREHOUSE.equals(DEFAULT_WAREHOUSE)) {
-      // Vended-credentials catalogs reject createTable without this header; the CI catalog
-      // does not need it.
-      props.put("header.X-Iceberg-Access-Delegation", "vended-credentials");
-    }
-    return props;
-  }
-
+  private static final Map<String, String> BIGLAKE_PROPS =
+      Map.of(
+          "type", "rest",
+          "uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog",
+          "warehouse", WAREHOUSE,
+          "header.x-goog-user-project", PROJECT,
+          "rest.auth.type", "google",
+          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO");
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
