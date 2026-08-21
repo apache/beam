@@ -115,7 +115,24 @@ public class JdbcWriteSchemaTransformProvider
         + "      config:\n"
         + "        connectionProperties: \"characterEncoding=UTF-8;\"\n"
         + "        ...\n"
-        + "All properties should be semi-colon-delimited (e.g. \"key1=value1;key2=value2;\")\n";
+        + "All properties should be semi-colon-delimited (e.g. \"key1=value1;key2=value2;\")\n"
+        + "\n"
+        + "#### Using Secret Manager\n"
+        + "\n"
+        + "Secret Manager is supported to avoid storing sensitive credentials such as database passwords "
+        + "in plain text. You can configure `secret_manager` (e.g. `GoogleCloudSecretManager`) and provide the "
+        + "secret specification string in JSON format to `password`.\n"
+        + "\n"
+        + "For example, for Google Cloud Secret Manager: ::\n"
+        + "\n"
+        + "    - type: WriteToJdbc\n"
+        + "      config:\n"
+        + "        jdbc_type: mysql\n"
+        + "        url: \"jdbc:mysql://my-host:3306/database\"\n"
+        + "        username: \"my-username\"\n"
+        + "        password: \"{\\\"name\\\": \\\"my-db-secret\\\", \\\"project\\\": \\\"my-project\\\"}\"\n"
+        + "        secret_manager: \"GoogleCloudSecretManager\"\n"
+        + "        query: \"INSERT INTO table VALUES(?, ?)\"\n";
   }
 
   protected String inheritedDescription(
@@ -345,12 +362,13 @@ public class JdbcWriteSchemaTransformProvider
     @Nullable
     public abstract String getLocation();
 
-    @SchemaFieldDescription("Password for the JDBC source.")
+    @SchemaFieldDescription(
+        "Password for the JDBC source. Can be specified as a plain password, or as a secret specification in JSON format if used with a secret manager.")
     @Nullable
     public abstract String getPassword();
 
     @SchemaFieldDescription(
-        "Secret Manager to use for fetching secret values. For example, GoogleCloudSecretManager.")
+        "Secret Manager to use for fetching secret values. Available options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'. If not set, no secret manager is used and the password is treated as a plain password.")
     @Nullable
     public abstract String getSecretManager();
 
