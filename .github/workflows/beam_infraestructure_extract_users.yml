@@ -1,0 +1,47 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+# This workflow is used to extract the users.yml file from a pull request and upload it
+# as an artifact for further processing.
+# It is triggered when the users.yml file is modified in a pull request.
+
+
+name: Extract users.yml from PR
+
+on:
+  pull_request:
+    paths:
+      - 'infra/iam/users.yml'
+
+jobs:
+  extract_data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR code
+        uses: actions/checkout@v7
+
+      # Save the PR number to a file for later use
+      - name: Save PR number
+        run: echo ${{ github.event.pull_request.number }} > pr_number.txt
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: pr-data
+          path: |
+            infra/iam/users.yml
+            pr_number.txt
