@@ -612,6 +612,7 @@ class PipelineOptions(HasDisplayData):
   def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
+      # Update sdks/go/container/tools/pipeline_options.go if :v1 part changes.
       assert key.endswith(':v1')
       return key[12:-3]
 
@@ -1743,6 +1744,10 @@ class ProfilingOptions(PipelineOptions):
           _LOGGER.info(
               'Setting --profile_location to %s since profiling is enabled.',
               self.profile_location)
+
+      if self.profiler_agent == 'coredump':
+        debug_options = self.view_as(DebugOptions)
+        debug_options.add_experiment('core_pattern=/tmp/beam_coredump.%e.%p')
     return errors
 
 

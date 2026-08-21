@@ -85,8 +85,7 @@ public class JmsSchemaTransformProviderTest {
   public void testReadBuildTransformWithQueue() {
     ReadConfiguration readConfig =
         ReadConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setQueue("TEST_QUEUE")
             .setMaxNumRecords(100L)
             .setMaxReadTimeSeconds(5L)
@@ -108,8 +107,7 @@ public class JmsSchemaTransformProviderTest {
   public void testReadBuildTransformWithTopic() {
     ReadConfiguration readConfig =
         ReadConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setTopic("TEST_TOPIC")
             .build();
 
@@ -126,8 +124,7 @@ public class JmsSchemaTransformProviderTest {
   public void testReadInvalidConfigurations() {
     ReadConfiguration bothConfig =
         ReadConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setQueue("TEST_QUEUE")
             .setTopic("TEST_TOPIC")
             .build();
@@ -138,8 +135,7 @@ public class JmsSchemaTransformProviderTest {
 
     ReadConfiguration neitherConfig =
         ReadConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .build();
     SchemaTransform neitherTransform = new JmsReadSchemaTransformProvider().from(neitherConfig);
     assertThrows(
@@ -151,8 +147,7 @@ public class JmsSchemaTransformProviderTest {
   public void testReadWithNonEmptyInputThrows() {
     ReadConfiguration readConfig =
         ReadConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setQueue("TEST_QUEUE")
             .build();
     SchemaTransform transform = new JmsReadSchemaTransformProvider().from(readConfig);
@@ -191,8 +186,7 @@ public class JmsSchemaTransformProviderTest {
   public void testWriteBuildTransformWithQueueAndTopic() {
     WriteConfiguration queueConfig =
         WriteConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setQueue("TEST_QUEUE")
             .build();
     SchemaTransform queueTransform = new JmsWriteSchemaTransformProvider().from(queueConfig);
@@ -203,8 +197,7 @@ public class JmsSchemaTransformProviderTest {
 
     WriteConfiguration topicConfig =
         WriteConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setTopic("TEST_TOPIC")
             .build();
     SchemaTransform topicTransform = new JmsWriteSchemaTransformProvider().from(topicConfig);
@@ -219,8 +212,7 @@ public class JmsSchemaTransformProviderTest {
   public void testWriteInvalidConfigurations() {
     WriteConfiguration bothConfig =
         WriteConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setQueue("TEST_QUEUE")
             .setTopic("TEST_TOPIC")
             .build();
@@ -233,8 +225,7 @@ public class JmsSchemaTransformProviderTest {
 
     WriteConfiguration neitherConfig =
         WriteConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .build();
     SchemaTransform neitherTransform = new JmsWriteSchemaTransformProvider().from(neitherConfig);
     PCollection<Row> inputRows2 = pipeline.apply("CreateNeitherRows", Create.empty(schema));
@@ -247,8 +238,7 @@ public class JmsSchemaTransformProviderTest {
   public void testWriteInvalidInputSchema() {
     WriteConfiguration config =
         WriteConfiguration.builder()
-            .setConnectionConfiguration(
-                JmsIO.ConnectionConfiguration.create("tcp://localhost:61616"))
+            .setConnectionConfiguration(ConnectionConfiguration.create("tcp://localhost:61616"))
             .setQueue("TEST_QUEUE")
             .build();
     SchemaTransform transform = new JmsWriteSchemaTransformProvider().from(config);

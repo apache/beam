@@ -18,6 +18,7 @@ import logging
 import smtplib, ssl
 from typing import List, Optional
 from dataclasses import dataclass
+from datetime import datetime, timezone
 
 @dataclass
 class GitHubIssue:
@@ -229,7 +230,7 @@ class SendingClient:
 
         issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
         #markdown body
-        timestamp = __import__("datetime").datetime.now(__import__("datetime").timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         new_report = f"### Unmanaged Keys Audit Report ({timestamp})\n"
         new_report += f"The following unauthorized or unmanaged keys were detected in `{project_id}`:\n\n"
 
@@ -248,9 +249,12 @@ class SendingClient:
 
             if history_marker in old_body:
                 # If history already exists, append the new report to it
-                headed = old_body.split(history_marker)
+                headed = old_body.split(history_marker, 1)
                 last_report = headed[0].strip()
                 old_history = headed[1].replace("</details>", "").strip()
+
+                if old_history.endswith("</details>"):
+                    old_history = old_history[:-10].rstrip()
 
                 combined_history = f"{last_report}\n\n---\n\n{old_history}"
             else:
@@ -294,18 +298,40 @@ class SendingClient:
         """
         open_issues = self._get_open_issues(title)
         open_issues.sort(key=lambda x: x.updated_at, reverse=True)
-        if open_issues:
-            self.logger.info(f"Issue with title '{title}' already exists: #{open_issues[0].number}")
-            announcement += f"\n\nRelated GitHub Issue: {open_issues[0].html_url}"
 
-            if open_issues[0].body != body:
-                self.logger.info(f"Updating body of issue #{open_issues[0].number}")
-                self.update_issue_body(open_issues[0].number, body)
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+        new_report = f"### Compliance Audit Report ({timestamp})\n{body}"
+
+        if open_issues:
+            target_issue = open_issues[0]
+            self.logger.info(f"Issue with title '{title}' already exists: #{target_issue.number}")
+            announcement += f"\n\nRelated GitHub Issue: {target_issue.html_url}"
+
+            old_body = target_issue.body or ""
+            history_marker = "### History\n<details>\n<summary>Click to expand</summary>\n\n"
+
+            if history_marker in old_body:
+                # If history already exists, append the new report to it
+                headed = old_body.split(history_marker, 1)
+                last_report = headed[0].strip()
+                old_history = headed[1].rstrip()
+
+                if old_history.endswith("</details>"):
+                    old_history = old_history[:-10].rstrip()
+
+                combined_history = f"{last_report}\n\n---\n\n{old_history}"
             else:
-                self.logger.info(f"No changes detected for issue #{open_issues[0].number}")
+                # First time updating, turn the entire old body into history
+                combined_history = old_body.strip()
+
+            final_body = f"{new_report}\n\n{history_marker}{combined_history}\n</details>"
+
+            self.logger.info(f"Appending report and archiving history to existing issue #{target_issue.number}")
+            self.update_issue_body(target_issue.number, final_body)
             self._send_email(title, announcement, recipient)
         else:
-            new_issue = self.create_issue(title, body)
+            self.logger.info(f"Creating new compliance issue for: {title}")
+            new_issue = self.create_issue(title, new_report)
             announcement += f"\n\nRelated GitHub Issue: {new_issue.html_url}"
             self._send_email(title, announcement, recipient)
 
@@ -319,6 +345,13 @@ class SendingClient:
         print(f"Recipient: {recipient}")
         print(f"Announcement: {announcement}")
 
-        print("\nSimulating GitHub issue creation...")
-        print(f"Title: {title}")
-        print(f"Body: {body}")
+        timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
+
+        print("\n" + "="*60)
+        print("SIMULATING GITHUB GENERAL ISSUE CREATION/UPDATE")
+        print("="*60)
+        print(f"Title: {title}\n")
+        print(f"Body:\n### Compliance Audit Report ({timestamp})")
+        print(body)
+        print("### History\n<details>\n<summary>Click to expand</summary>\n\n[... Previous reports would be collapsed here ...]\n</details>")
+        print("="*60 + "\n")

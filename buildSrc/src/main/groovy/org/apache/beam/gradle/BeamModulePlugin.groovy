@@ -608,14 +608,14 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.19.2"
+    def activemq_version = "5.19.5"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.11.4"
     def checkerframework_version = "3.42.0"
-    def classgraph_version = "4.8.162"
+    def classgraph_version = "4.8.192"
     def delta_lake_version = "4.2.0"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
@@ -812,6 +812,7 @@ class BeamModulePlugin implements Plugin<Project> {
         guava                                       : "com.google.guava:guava:$guava_version",
         guava_testlib                               : "com.google.guava:guava-testlib:$guava_version",
         hadoop_auth                                 : "org.apache.hadoop:hadoop-auth:$hadoop_version",
+        hadoop_aws                                  : "org.apache.hadoop:hadoop-aws:$hadoop_version",
         hadoop_client                               : "org.apache.hadoop:hadoop-client:$hadoop_version",
         hadoop_common                               : "org.apache.hadoop:hadoop-common:$hadoop_version",
         hadoop_mapreduce_client_core                : "org.apache.hadoop:hadoop-mapreduce-client-core:$hadoop_version",
@@ -879,6 +880,7 @@ class BeamModulePlugin implements Plugin<Project> {
         opentelemetry_context                       : "io.opentelemetry:opentelemetry-context:$opentelemetry_version", // Set version explicitly as it's standalone runtime dep for Beam modules
         opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
         opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // opentelemetry-bom sets version
+        opentelemetry_sdk_testing                   : "io.opentelemetry:opentelemetry-sdk-testing", // opentelemetry-bom sets version
         opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // opentelemetry-bom sets version
         opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // opentelemetry-bom sets version
         opentelemetry_proto                         : "io.opentelemetry.proto:opentelemetry-proto:$opentelemetry_version-alpha",

@@ -34,6 +34,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Struct;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.Arrays;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -122,7 +123,8 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             false,
-            Duration.standardMinutes(2));
+            Duration.standardMinutes(2),
+            OpenTelemetry.noop());
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
@@ -1046,7 +1048,8 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             true,
-            Duration.standardMinutes(2));
+            Duration.standardMinutes(2),
+            OpenTelemetry.noop());
 
     // Set endTimestamp to 60 minutes in the future
     Timestamp now = Timestamp.now();
@@ -1098,7 +1101,8 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             true,
-            Duration.standardMinutes(2));
+            Duration.standardMinutes(2),
+            OpenTelemetry.noop());
 
     // Set endTimestamp to only 10 seconds in the future
     Timestamp now = Timestamp.now();

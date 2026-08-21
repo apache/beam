@@ -174,7 +174,7 @@ jobs:
       - name: Create GCS Bucket (if needed - reusing input bucket)
         run: |
           echo "Ensuring GCS Bucket exists: ${{ env.GCS_BUCKET }} in project ${{ env.GCP_PROJECT_ID }}"
-          gsutil mb -p ${{ env.GCP_PROJECT_ID }} ${{ env.GCS_BUCKET }} || echo "Bucket ${{ env.GCS_BUCKET }} likely already exists."
+          gcloud storage buckets create ${{ env.GCS_BUCKET }} --project=${{ env.GCP_PROJECT_ID }} || echo "Bucket ${{ env.GCS_BUCKET }} likely already exists."
         shell: bash
 
       - name: Create PubSub Topic
@@ -533,8 +533,8 @@ jobs:
         if: always()
         run: |
           echo "Deleting objects in GCS Bucket: ${{ env.GCS_BUCKET }}/temp/"
-          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/leaderboard/**" || echo "Failed to delete objects in GCS leaderboard temp folder."
-          gsutil -m rm -r "${{ env.GCS_BUCKET }}/temp/gamestats/**" || echo "Failed to delete objects in GCS gamestats temp folder."
+          gcloud storage rm -r "${{ env.GCS_BUCKET }}/temp/leaderboard/**" || echo "Failed to delete objects in GCS leaderboard temp folder."
+          gcloud storage rm -r "${{ env.GCS_BUCKET }}/temp/gamestats/**" || echo "Failed to delete objects in GCS gamestats temp folder."
           echo "Removing local log and jobid files..."
           rm -f leaderboard_dataflow_submit.log gamestats_dataflow_submit.log injector_run.log
           rm -f leaderboard_dataflow_jobid.txt # Remove Leaderboard jobid file here

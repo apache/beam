@@ -69,6 +69,10 @@ public class ComputationState {
     return computationId;
   }
 
+  public String getSystemName() {
+    return mapTask.getSystemName();
+  }
+
   public MapTask getMapTask() {
     return mapTask;
   }
@@ -138,9 +142,8 @@ public class ComputationState {
     }
   }
 
-  public void invalidateStuckCommits(Instant stuckCommitDeadline) {
-    activeWorkState.invalidateStuckCommits(
-        stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
+  public boolean hasStuckCommits(Instant stuckCommitDeadline) {
+    return activeWorkState.hasStuckCommits(stuckCommitDeadline);
   }
 
   private void execute(ExecutableWork executableWork) {

@@ -25,6 +25,37 @@ description: Explains core Apache Beam programming model concepts including PCol
 ## The Beam Model
 Evolved from Google's MapReduce, FlumeJava, and Millwheel projects. Originally called the "Dataflow Model."
 
+### Protos
+
+The `/model` directory defines the official, language-agnostic Protocol Buffer (`.proto`) and gRPC service specifications that establish the **Beam Model** and the **Beam Portability Framework**.
+
+#### Why `/model` Exists (Portability & Decoupling)
+
+Without a standardized model representation, supporting $N$ SDK languages across $M$ execution runners  would require $N \times M$ separate translation layers. By defining all core pipeline concepts, data encodings, metrics, and worker RPC protocols as Protobuf messages and gRPC services, `/model` acts as the universal lingua franca:
+
+* **SDKs** compile user pipelines into standardized Runner API protobuf graphs.
+
+* **Runners** inspect, optimize, and distribute these graphs without needing SDK-specific language runtimes.
+
+* **Workers (SDK Harnesses)** execute user code (`DoFn`s) and communicate with runners over standardized Fn API gRPC channels.
+
+#### Core Directories & What They Do
+
+1. **`/model/pipeline` (Runner API & Core Model)**: Defines the SDK- and runner-independent representation of pipelines (`Pipeline`, `Components`, `PTransform`, `PCollection`, `Coder`), timestamps/constants, Beam Schemas (`Row`, `Field`), and execution metrics (`MonitoringInfo`).
+2. **`/model/fn-execution` (Fn API & Provisioning)**: Defines bidirectional gRPC services between runners and worker SDK harnesses for bundle execution (`Control`), element streaming (`Data`), state/timer access (`State`), log forwarding (`Logging`), and container initialization (`Provisioning`).
+3. **`/model/job-management` (Job, Expansion, & Artifact APIs)**: Defines gRPC interfaces for submitting and monitoring jobs on remote servers (`JobService`), resolving cross-language transforms in remote SDKs (`ExpansionService`), and staging dependency artifacts or container images (`ArtifactService`).
+4. **`/model/interactive` (Interactive API)**: Defines metadata and stream headers for recording and replaying data in Interactive Beam notebooks.
+
+#### What Agents Need to Pay Special Attention To
+
+* **Conservative Proto Changes**: Proto changes are generally conservative and accepted only when there is a compelling reason and community consensus. Every addition introduces a new obligation that each SDK and runner must support; adding new Beam model elements (portable types, capabilities) increases the compatibility gap between SDK and runner capabilities.
+* **URNs Are the API Contract**: Transforms, coders, windowing strategies, environments, and metrics are bound together by standardized string URNs (e.g., `beam:transform:pardo:v1`, `beam:coder:bytes:v1`). When inspecting or creating transforms across languages, always verify URN mappings and registry handlers in both the SDK and Runner runtimes.
+* **Strict Backward & Wire Compatibility**:
+  * Never renumber, delete, or modify existing field IDs or URN strings in `.proto` files, as they are used across distributed RPC boundaries and persisted checkpoints.
+* **Build System & Naming Collisions**:
+  * Modifying files in `/model` requires re-generating language bindings (e.g., `./gradlew :model:pipeline:generateProto`).
+  * Avoid protobuf field names that conflict with reserved keywords in target languages (e.g., `class` in Java or `output` in Python, as noted in `beam_fn_api.proto` comments).
+
 ## Key Abstractions
 
 ### Pipeline
