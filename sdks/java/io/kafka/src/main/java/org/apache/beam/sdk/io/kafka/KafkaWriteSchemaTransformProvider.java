@@ -28,11 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -65,6 +65,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
 import org.checkerframework.checker.nullness.qual.NonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,10 +79,10 @@ public class KafkaWriteSchemaTransformProvider
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
-  public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
-      new TupleTag<KV<byte[], byte[]>>() {};
-  public static final TupleTag<KV<byte[], GenericRecord>> RECORD_OUTPUT_TAG =
-      new TupleTag<KV<byte[], GenericRecord>>() {};
+  public static final TupleTag<KV<byte @Nullable [], byte[]>> OUTPUT_TAG =
+      new TupleTag<KV<byte @Nullable [], byte[]>>() {};
+  public static final TupleTag<KV<byte @Nullable [], GenericRecord>> RECORD_OUTPUT_TAG =
+      new TupleTag<KV<byte @Nullable [], GenericRecord>>() {};
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
@@ -126,20 +127,20 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    public abstract static class BaseKafkaWriterFn<T> extends DoFn<Row, KV<byte[], T>> {
+    public abstract static class BaseKafkaWriterFn<T> extends DoFn<Row, KV<byte @Nullable [], T>> {
       private final SerializableFunction<Row, T> conversionFn;
       private final Counter errorCounter;
       private Long errorsInBundle = 0L;
       private final boolean handleErrors;
       private final Schema errorSchema;
-      private final TupleTag<KV<byte[], T>> successTag;
+      private final TupleTag<KV<byte @Nullable [], T>> successTag;
 
       public BaseKafkaWriterFn(
           String name,
           SerializableFunction<Row, T> conversionFn,
           Schema errorSchema,
           boolean handleErrors,
-          TupleTag<KV<byte[], T>> successTag) {
+          TupleTag<KV<byte @Nullable [], T>> successTag) {
         this.conversionFn = conversionFn;
         this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
         this.handleErrors = handleErrors;
@@ -149,9 +150,9 @@ public class KafkaWriteSchemaTransformProvider
 
       @ProcessElement
       public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-        KV<byte[], T> output = null;
+        KV<byte @Nullable [], T> output = null;
         try {
-          output = KV.of(new byte[1], conversionFn.apply(row));
+          output = KV.of(null, conversionFn.apply(row));
         } catch (Exception e) {
           if (!handleErrors) {
             throw new RuntimeException(e);
@@ -262,7 +263,7 @@ public class KafkaWriteSchemaTransformProvider
         HashMap<String, Object> producerConfig = new HashMap<>(configOverrides);
         outputTuple
             .get(RECORD_OUTPUT_TAG)
-            .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)))
+            .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), AvroCoder.of(avroSchema)))
             .apply(
                 "Map Rows to GenericRecords",
                 KafkaIO.<byte[], GenericRecord>write()
@@ -284,6 +285,7 @@ public class KafkaWriteSchemaTransformProvider
 
         outputTuple
             .get(OUTPUT_TAG)
+            .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()))
             .apply(
                 KafkaIO.<byte[], byte[]>write()
                     .withTopic(configuration.getTopic())
