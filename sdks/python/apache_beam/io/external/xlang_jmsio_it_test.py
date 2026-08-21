@@ -137,8 +137,8 @@ class _BaseJmsIOTest(unittest.TestCase):
                   connection_param),
               queue=sink_queue,
               expansion_service=self.expansion_service))
-      result = p.run()
       publisher.start()
+      result = p.run()
       subscriber.start()
       try:
         subscriber.join(timeout=20)
