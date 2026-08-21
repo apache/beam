@@ -1674,22 +1674,35 @@ to develop tests for your source.&lt;/p>
 for Beam&amp;rsquo;s transform style guidance.&lt;/p>
 &lt;h2 id="implementing-the-source-interface">Implementing the Source interface&lt;/h2>
 &lt;p>To create a new data source for your pipeline, you&amp;rsquo;ll need to provide the format-specific logic that tells the service how to read data from your input source, and how to split your data source into multiple parts so that multiple worker instances can read your data in parallel.&lt;/p>
+&lt;p>If you&amp;rsquo;re creating a data source that reads unbounded data, also provide the
+logic for managing your source&amp;rsquo;s watermark and checkpointing.&lt;/p>
 &lt;p>Supply the logic for your new source by creating the following classes:&lt;/p>
 &lt;ul>
-&lt;li>A subclass of &lt;code>BoundedSource&lt;/code>. &lt;code>BoundedSource&lt;/code> is a source that reads a
-finite amount of input records. The class describes the data you want to
-read, including the data&amp;rsquo;s location and parameters (such as how much data to
+&lt;li>A subclass of &lt;code>BoundedSource&lt;/code> if you want to read a finite (batch) data set,
+or a subclass of &lt;code>UnboundedSource&lt;/code> if you want to read an infinite
+(streaming) data set. The class describes the data you want to read,
+including the data&amp;rsquo;s location and parameters (such as how much data to
 read).&lt;/li>
-&lt;li>A subclass of &lt;code>RangeTracker&lt;/code>. &lt;code>RangeTracker&lt;/code> is a thread-safe object used to
-manage a range for a given position type.&lt;/li>
+&lt;li>For a &lt;code>BoundedSource&lt;/code>, a subclass of &lt;code>RangeTracker&lt;/code>. &lt;code>RangeTracker&lt;/code> is a
+thread-safe object used to manage a range for a given position type.&lt;/li>
+&lt;li>For an &lt;code>UnboundedSource&lt;/code>, a subclass of &lt;code>UnboundedReader&lt;/code>, which holds the
+state involved in reading the stream, and a subclass of &lt;code>CheckpointMark&lt;/code>,
+which records the position that a reader resumes from.&lt;/li>
 &lt;li>One or more user-facing wrapper composite transforms (&lt;code>PTransform&lt;/code>) that
 wrap read operations. &lt;a href="#ptransform-wrappers">PTransform wrappers&lt;/a> discusses
 why you should avoid exposing your sources, and walks through how to create
 a wrapper.&lt;/li>
 &lt;/ul>
-&lt;p>You can find these classes in the
-&lt;a href="https://beam.apache.org/releases/pydoc/2.75.0/apache_beam.io.iobase.html">apache_beam.io.iobase module&lt;/a>.&lt;/p>
-&lt;h3 id="implementing-the-boundedsource-subclass">Implementing the BoundedSource subclass&lt;/h3>
+&lt;p>You can find &lt;code>BoundedSource&lt;/code> and &lt;code>RangeTracker&lt;/code> in the
+&lt;a href="https://beam.apache.org/releases/pydoc/2.75.0/apache_beam.io.iobase.html">apache_beam.io.iobase module&lt;/a>,
+and the unbounded classes in the
+&lt;a href="https://beam.apache.org/releases/pydoc/2.75.0/apache_beam.io.unbounded_source.html">apache_beam.io.unbounded_source module&lt;/a>.&lt;/p>
+&lt;h3 id="implementing-the-source-subclass">Implementing the Source subclass&lt;/h3>
+&lt;p>Create a subclass of either &lt;code>BoundedSource&lt;/code> or &lt;code>UnboundedSource&lt;/code>, depending on
+whether your data is a finite batch or an infinite stream. In either case, the
+subclass overrides the methods that a runner uses to split the data and to
+create a reader for it.&lt;/p>
+&lt;h4 id="boundedsource">BoundedSource&lt;/h4>
 &lt;p>&lt;code>BoundedSource&lt;/code> represents a finite data set from which the service reads, possibly in parallel. &lt;code>BoundedSource&lt;/code> contains a set of methods that the service uses to split the data set for reading by multiple remote workers.&lt;/p>
 &lt;p>To implement a &lt;code>BoundedSource&lt;/code>, your subclass must override the following methods:&lt;/p>
 &lt;ul>
@@ -1706,7 +1719,51 @@ a wrapper.&lt;/li>
 &lt;p>&lt;code>read&lt;/code>: This method returns an iterator that reads data from the source, with respect to the boundaries defined by the given &lt;code>RangeTracker&lt;/code> object.&lt;/p>
 &lt;/li>
 &lt;/ul>
-&lt;h3 id="implementing-the-rangetracker-subclass">Implementing the RangeTracker subclass&lt;/h3>
+&lt;h4 id="unboundedsource">UnboundedSource&lt;/h4>
+&lt;p>&lt;code>UnboundedSource&lt;/code> represents an infinite data stream from which the runner may
+read, possibly in parallel. &lt;code>UnboundedSource&lt;/code> contains a set of methods that
+support streaming reads in parallel; these include &lt;em>checkpointing&lt;/em> for failure
+recovery and &lt;em>watermarking&lt;/em> for estimating data completeness in downstream parts
+of your pipeline.&lt;/p>
+&lt;p>&lt;code>UnboundedSource&lt;/code> is experimental, and its API may change in
+backwards-incompatible ways.&lt;/p>
+&lt;p>To implement an &lt;code>UnboundedSource&lt;/code>, your subclass must override the following
+methods:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>split&lt;/code>: The SDK uses this method to generate a list of &lt;code>UnboundedSource&lt;/code>
+objects that represent the sub-streams to read in parallel. Each sub-source must
+be independent and must not share mutable state with its siblings, because the
+runner may read them concurrently on different workers. Return &lt;code>[self]&lt;/code> if the
+source cannot be split. Splitting happens once, before any checkpoint exists.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>create_reader&lt;/code>: Creates the associated &lt;code>UnboundedReader&lt;/code> for this
+&lt;code>UnboundedSource&lt;/code>. When &lt;code>checkpoint_mark&lt;/code> is &lt;code>None&lt;/code>, the reader starts at the
+beginning of the stream. Otherwise it resumes strictly after the position that
+the mark encodes and does not re-deliver records that a previous bundle already
+read.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>get_checkpoint_mark_coder&lt;/code>: Returns the &lt;code>Coder&lt;/code> for this source&amp;rsquo;s
+&lt;code>CheckpointMark&lt;/code> instances. The SDK calls it while encoding and decoding a
+reader&amp;rsquo;s position, so it should be side-effect free and should not perform I/O.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Override &lt;code>default_output_coder&lt;/code> to return a coder for your record type. The
+default is a pickle coder, and a tighter coder also gives the output
+&lt;code>PCollection&lt;/code> an element type.&lt;/p>
+&lt;p>&lt;code>UnboundedSource&lt;/code> has no per-record deduplication hook. If your data source can
+deliver the same record more than once, drop the duplicates with the
+&lt;a href="https://beam.apache.org/releases/pydoc/2.75.0/apache_beam.transforms.deduplicate.html">Deduplicate or DeduplicatePerKey&lt;/a>
+transform after the read.&lt;/p>
+&lt;h3 id="implementing-the-rangetracker-and-unboundedreader-subclasses">Implementing the RangeTracker and UnboundedReader subclasses&lt;/h3>
+&lt;p>A runner uses these classes to do the actual reading of your data set and to
+track a reader&amp;rsquo;s progress. A &lt;code>BoundedSource&lt;/code> reads through its &lt;code>read&lt;/code> method,
+which claims positions from a &lt;code>RangeTracker&lt;/code>. An &lt;code>UnboundedSource&lt;/code> reads through
+an &lt;code>UnboundedReader&lt;/code>, which also reports a watermark and produces the checkpoint
+marks that a runner resumes from.&lt;/p>
+&lt;h4 id="rangetracker">RangeTracker&lt;/h4>
 &lt;p>A &lt;code>RangeTracker&lt;/code> is a thread-safe object used to manage the current range and current position of the reader of a &lt;code>BoundedSource&lt;/code> and protect concurrent access to them.&lt;/p>
 &lt;p>To implement a &lt;code>RangeTracker&lt;/code>, you should first familiarize yourself with the following definitions:&lt;/p>
 &lt;ul>
@@ -1771,6 +1828,58 @@ a wrapper.&lt;/li>
 &lt;li>&lt;code>fraction_consumed&lt;/code>: Returns the approximate fraction of consumed positions in the source.&lt;/li>
 &lt;/ul>
 &lt;p>&lt;strong>Note:&lt;/strong> Methods of class &lt;code>iobase.RangeTracker&lt;/code> may be invoked by multiple threads, hence this class must be made thread-safe, for example, by using a single lock object.&lt;/p>
+&lt;h4 id="unboundedreader">UnboundedReader&lt;/h4>
+&lt;p>An &lt;code>UnboundedReader&lt;/code> holds the state involved in reading one &lt;code>UnboundedSource&lt;/code>,
+such as connections and buffers. &lt;code>start&lt;/code> is called exactly once, then &lt;code>advance&lt;/code>
+is called repeatedly; whenever either returns &lt;code>True&lt;/code>, the current record is
+available through &lt;code>get_current&lt;/code> and &lt;code>get_current_timestamp&lt;/code>.&lt;/p>
+&lt;p>To implement an &lt;code>UnboundedReader&lt;/code>, your subclass must override the following
+methods:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>&lt;code>start&lt;/code>: Initializes the reader, positions it at the first record, and returns
+whether one is available. This is a good place for expensive initialization.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>advance&lt;/code>: Advances to the next record and returns whether one is available. A
+&lt;code>False&lt;/code> return means that no data is available right now, which differs from the
+end of the stream: a reader signals a permanent end by reporting a watermark of
+&lt;code>MAX_TIMESTAMP&lt;/code>. This method should not block; return &lt;code>False&lt;/code> when no data is
+currently available instead of waiting for more.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>get_current&lt;/code>: Returns the record at the current position, last read by &lt;code>start&lt;/code>
+or &lt;code>advance&lt;/code>.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>get_current_timestamp&lt;/code>: Returns the event-time timestamp of the current
+record, which becomes the timestamp of the output element.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>get_watermark&lt;/code>: Returns a watermark, the approximate lower bound on the
+timestamps of the records that this reader produces in the future. The runner
+uses the watermark as an estimate of data completeness in windowing and triggers.
+The watermark is treated as monotonic.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>get_checkpoint_mark&lt;/code>: Returns a &lt;code>CheckpointMark&lt;/code> that records how far the
+reader has read. It is called only at a bundle boundary, and the mark is passed
+back to &lt;code>create_reader&lt;/code> to resume.&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;code>close&lt;/code>: Releases the reader&amp;rsquo;s resources. The default is a no-op.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;h4 id="checkpoint-marks">Checkpoint marks&lt;/h4>
+&lt;p>A &lt;code>CheckpointMark&lt;/code> is a durable, serializable position in the stream. The runner
+persists it with the coder from &lt;code>get_checkpoint_mark_coder&lt;/code> and hands it to
+&lt;code>create_reader&lt;/code> when a bundle resumes or when a worker recovers from a failure.&lt;/p>
+&lt;p>Override &lt;code>finalize_checkpoint&lt;/code> to acknowledge or commit the consumed records
+upstream, for example to ack the messages on a queue. It is called after the
+runner has durably committed the work covered by that mark. Finalization is best
+effort: a mark may never be finalized, and a retried bundle may re-cut a mark
+over an overlapping span, so acknowledge by absolute position and keep the method
+idempotent.&lt;/p>
 &lt;h3 id="convenience-source-base-classes">Convenience Source base classes&lt;/h3>
 &lt;p>The Beam SDK for Python contains some convenient abstract base classes to help you easily create new sources.&lt;/p>
 &lt;h4 id="filebasedsource">FileBasedSource&lt;/h4>
@@ -1832,6 +1941,102 @@ numbers = pipeline | &amp;#39;ProduceNumbers&amp;#39; &amp;gt;&amp;gt; beam.io.R
 &lt;p>&lt;strong>Note:&lt;/strong> When you create a source that end-users are going to use, we
 recommended that you do not expose the code for the source itself as
 demonstrated in the example above. Use a wrapping &lt;code>PTransform&lt;/code> instead.
+&lt;a href="#ptransform-wrappers">PTransform wrappers&lt;/a> discusses why you should avoid
+exposing your sources, and walks through how to create a wrapper.&lt;/p>
+&lt;h3 id="reading-from-an-unboundedsource">Reading from an UnboundedSource&lt;/h3>
+&lt;p>The following example, &lt;code>QueueSource&lt;/code>, reads from a partitioned message queue.
+&lt;code>my_queue&lt;/code> stands in for the client library of the system you read from.&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>import apache_beam as beam
+from apache_beam.io.unbounded_source import CheckpointMark
+from apache_beam.io.unbounded_source import UnboundedReader
+from apache_beam.io.unbounded_source import UnboundedSource
+from apache_beam.utils.timestamp import Timestamp
+class QueueCheckpointMark(CheckpointMark):
+def __init__(self, offset):
+self.offset = offset
+def finalize_checkpoint(self):
+# Acknowledging an absolute offset is safe to repeat.
+my_queue.ack_through(self.offset)
+class QueueReader(UnboundedReader):
+def __init__(self, partition, offset):
+self._partition = partition
+self._offset = offset
+self._message = None
+def start(self):
+return self.advance()
+def advance(self):
+message = my_queue.poll(self._partition, self._offset)
+if message is None:
+return False
+self._offset = message.offset
+self._message = message
+return True
+def get_current(self):
+return self._message.body
+def get_current_timestamp(self):
+return Timestamp(micros=self._message.event_time_micros)
+def get_watermark(self):
+return Timestamp(micros=my_queue.oldest_pending_micros(self._partition))
+def get_checkpoint_mark(self):
+return QueueCheckpointMark(self._offset)
+def close(self):
+my_queue.disconnect(self._partition)
+class QueueSource(UnboundedSource):
+def __init__(self, topic, partition=None):
+self._topic = topic
+self._partition = partition
+def split(self, desired_num_splits, options=None):
+if self._partition is not None:
+return [self]
+return [
+QueueSource(self._topic, partition)
+for partition in my_queue.partitions(self._topic)
+]
+def create_reader(self, options, checkpoint_mark):
+offset = None if checkpoint_mark is None else checkpoint_mark.offset
+return QueueReader(self._partition, offset)
+def get_checkpoint_mark_coder(self):
+return beam.coders.PickleCoder()
+def default_output_coder(self):
+return beam.coders.BytesCoder()&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>To read data from the source in your pipeline, use the &lt;code>Read&lt;/code> transform, which
+dispatches an &lt;code>UnboundedSource&lt;/code> automatically:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>with beam.Pipeline(options=pipeline_options) as p:
+orders = p | beam.io.Read(QueueSource(&amp;#39;orders&amp;#39;))&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>A bundle ends when the reader runs out of data, and also once the reader has
+emitted &lt;code>max_records_per_bundle&lt;/code> records or spent &lt;code>max_read_time_seconds&lt;/code> in the
+bundle, so the runner commits the checkpoint and runs finalization before the
+read resumes. An idle reader is polled again after &lt;code>poll_interval&lt;/code> seconds.
+Apply &lt;code>ReadFromUnboundedSource&lt;/code> directly to change these defaults:&lt;/p>
+&lt;div class="snippet">
+&lt;div class="notebook-skip code-snippet without_switcher">
+&lt;a class="copy" type="button" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Copy to clipboard">
+&lt;img src="/images/copy-icon.svg"/>
+&lt;/a>
+&lt;pre tabindex="0">&lt;code>from apache_beam.io.unbounded_source import ReadFromUnboundedSource
+orders = p | ReadFromUnboundedSource(
+QueueSource(&amp;#39;orders&amp;#39;),
+poll_interval=5,
+max_records_per_bundle=1000,
+max_read_time_seconds=30)&lt;/code>&lt;/pre>
+&lt;/div>
+&lt;/div>
+&lt;p>&lt;strong>Note:&lt;/strong> As with a bounded source, we recommend that you do not expose the code
+for the source itself to end-users. Use a wrapping &lt;code>PTransform&lt;/code> instead.
 &lt;a href="#ptransform-wrappers">PTransform wrappers&lt;/a> discusses why you should avoid
 exposing your sources, and walks through how to create a wrapper.&lt;/p>
 &lt;h2 id="using-the-filebasedsink-abstraction">Using the FileBasedSink abstraction&lt;/h2>
