@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
@@ -114,19 +115,7 @@ public class DeltaIOIT {
     LOG.info("Generating Delta Lake repository at {}", repoPath);
 
     Configuration configuration = new Configuration();
-    configuration.set("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    configuration.set(
-        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    configuration.set("fs.gs.auth.type", "APPLICATION_DEFAULT");
-    String project =
-        readPipeline
-            .getOptions()
-            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-            .getProject();
-    if (project != null) {
-      configuration.set("fs.gs.project.id", project);
-    }
-
+    getHadoopConfig().forEach(configuration::set);
     Engine engine = DefaultEngine.create(configuration);
     Table table = Table.forPath(engine, repoPath);
 
@@ -278,18 +267,7 @@ public class DeltaIOIT {
     ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
     ExperimentalOptions.addExperiment(options, "use_runner_v2");
 
-    Map<String, String> hadoopConfig = new HashMap<>();
-    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    hadoopConfig.put(
-        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    String project =
-        readPipeline
-            .getOptions()
-            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-            .getProject();
-    if (project != null) {
-      hadoopConfig.put("fs.gs.project.id", project);
-    }
+    Map<String, String> hadoopConfig = getHadoopConfig();
 
     PCollection<Row> output =
         readPipeline
@@ -307,30 +285,14 @@ public class DeltaIOIT {
     ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
     ExperimentalOptions.addExperiment(options, "use_runner_v2");
 
-    Map<String, String> hadoopConfig = new HashMap<>();
-    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    hadoopConfig.put(
-        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
-    String project =
-        readPipeline
-            .getOptions()
-            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-            .getProject();
-    if (project != null) {
-      hadoopConfig.put("fs.gs.project.id", project);
-    }
-
-    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-    for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
+    Map<String, String> hadoopConfig = getHadoopConfig();
+    Configuration conf = new Configuration();
+    hadoopConfig.forEach(conf::set);
     Engine engine = DefaultEngine.create(conf);
 
-    // Wait briefly to ensure timestamp is after version 0 commit
-    Thread.sleep(1000);
-    String timestampV0 = java.time.Instant.ofEpochMilli(System.currentTimeMillis()).toString();
-    Thread.sleep(1000);
+    Table table = Table.forPath(engine, repoPath);
+    long commitTimestampV0 = table.getSnapshotAsOfVersion(engine, 0L).getTimestamp(engine);
+    String timestampV0 = java.time.Instant.ofEpochMilli(commitTimestampV0).toString();
 
     // Write version 1 with additional rows
     List<Row> additionalRows =
@@ -367,24 +329,9 @@ public class DeltaIOIT {
     ExperimentalOptions options = readPipeline.getOptions().as(ExperimentalOptions.class);
     ExperimentalOptions.addExperiment(options, "use_runner_v2");
 
-    Map<String, String> hadoopConfig = new HashMap<>();
-    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    hadoopConfig.put(
-        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
-    String project =
-        readPipeline
-            .getOptions()
-            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-            .getProject();
-    if (project != null) {
-      hadoopConfig.put("fs.gs.project.id", project);
-    }
-
-    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-    for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
+    Map<String, String> hadoopConfig = getHadoopConfig();
+    Configuration conf = new Configuration();
+    hadoopConfig.forEach(conf::set);
     Engine engine = DefaultEngine.create(conf);
 
     // Write version 1 with additional rows
@@ -424,24 +371,9 @@ public class DeltaIOIT {
       options.setExperiments(modifiableExperiments);
     }
 
-    Map<String, String> hadoopConfig = new HashMap<>();
-    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
-    hadoopConfig.put(
-        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
-    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
-    String project =
-        readPipeline
-            .getOptions()
-            .as(org.apache.beam.sdk.extensions.gcp.options.GcpOptions.class)
-            .getProject();
-    if (project != null) {
-      hadoopConfig.put("fs.gs.project.id", project);
-    }
-
-    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
-    for (Map.Entry<String, String> entry : hadoopConfig.entrySet()) {
-      conf.set(entry.getKey(), entry.getValue());
-    }
+    Map<String, String> hadoopConfig = getHadoopConfig();
+    Configuration conf = new Configuration();
+    hadoopConfig.forEach(conf::set);
     Engine engine = DefaultEngine.create(conf);
 
     StructType deltaSchema =
@@ -521,6 +453,19 @@ public class DeltaIOIT {
     PAssert.that(formattedOutput).containsInAnyOrder(expectedOutputs);
 
     readPipeline.run().waitUntilFinish();
+  }
+
+  private Map<String, String> getHadoopConfig() {
+    Map<String, String> hadoopConfig = new HashMap<>();
+    hadoopConfig.put("fs.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFileSystem");
+    hadoopConfig.put(
+        "fs.AbstractFileSystem.gs.impl", "com.google.cloud.hadoop.fs.gcs.GoogleHadoopFS");
+    hadoopConfig.put("fs.gs.auth.type", "APPLICATION_DEFAULT");
+    String project = readPipeline.getOptions().as(GcpOptions.class).getProject();
+    if (project != null) {
+      hadoopConfig.put("fs.gs.project.id", project);
+    }
+    return hadoopConfig;
   }
 
   private static final class FormatITRowWithMetadata extends DoFn<Row, String> {

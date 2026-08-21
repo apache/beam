@@ -22,11 +22,10 @@ import static org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.OUTP
 
 import io.delta.kernel.defaults.engine.DefaultEngine;
 import io.delta.kernel.engine.Engine;
-import io.delta.kernel.types.StringType;
-import io.delta.kernel.types.StructType;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
@@ -134,28 +133,9 @@ public class DeltaReadSchemaTransformProviderTest {
     File tableDir = tempFolder.newFolder("delta-table-provider-version");
     Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
 
-    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
-    Row row1 = Row.withSchema(schema).addValues("row-1").build();
-    Row row2 = Row.withSchema(schema).addValues("row-2").build();
-    StructType deltaSchema = new StructType().add("name", StringType.STRING);
-
-    // Commit version 0
-    DeltaWriteTestUtils.writeAppendCommit(
-        engine,
-        tableDir.getAbsolutePath(),
-        0L,
-        100000000000L,
-        deltaSchema,
-        java.util.Collections.singletonList(row1));
-
-    // Commit version 1
-    DeltaWriteTestUtils.writeAppendCommit(
-        engine,
-        tableDir.getAbsolutePath(),
-        1L,
-        200000000000L,
-        deltaSchema,
-        java.util.Collections.singletonList(row2));
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
 
     Configuration readConfig =
         Configuration.builder().setTable(tableDir.getAbsolutePath()).setVersion(0L).build();
@@ -165,7 +145,7 @@ public class DeltaReadSchemaTransformProviderTest {
             .apply(new DeltaReadSchemaTransformProvider().from(readConfig))
             .get(OUTPUT_TAG);
 
-    PAssert.that(output).containsInAnyOrder(row1);
+    PAssert.that(output).containsInAnyOrder(row1, row2);
 
     readPipeline.run().waitUntilFinish();
   }
@@ -175,28 +155,9 @@ public class DeltaReadSchemaTransformProviderTest {
     File tableDir = tempFolder.newFolder("delta-table-provider-timestamp");
     Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
 
-    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
-    Row row1 = Row.withSchema(schema).addValues("row-1").build();
-    Row row2 = Row.withSchema(schema).addValues("row-2").build();
-    StructType deltaSchema = new StructType().add("name", StringType.STRING);
-
-    // Commit version 0 at timestamp 100000000000L
-    DeltaWriteTestUtils.writeAppendCommit(
-        engine,
-        tableDir.getAbsolutePath(),
-        0L,
-        100000000000L,
-        deltaSchema,
-        java.util.Collections.singletonList(row1));
-
-    // Commit version 1 at timestamp 200000000000L
-    DeltaWriteTestUtils.writeAppendCommit(
-        engine,
-        tableDir.getAbsolutePath(),
-        1L,
-        200000000000L,
-        deltaSchema,
-        java.util.Collections.singletonList(row2));
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
 
     String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
     Configuration readConfig =
@@ -210,7 +171,7 @@ public class DeltaReadSchemaTransformProviderTest {
             .apply(new DeltaReadSchemaTransformProvider().from(readConfig))
             .get(OUTPUT_TAG);
 
-    PAssert.that(output).containsInAnyOrder(row1);
+    PAssert.that(output).containsInAnyOrder(row1, row2);
 
     readPipeline.run().waitUntilFinish();
   }

@@ -114,23 +114,10 @@ public class DeltaIO {
       return toBuilder().setTablePath(tablePath).build();
     }
 
-    /**
-     * Specifies the version of the Delta Lake table to read.
-     *
-     * <p>Only one of version or timestamp should be provided. If neither is provided, the latest
-     * version (HEAD) is read.
-     */
     public ReadRows withVersion(@Nullable Long version) {
       return toBuilder().setVersion(version).build();
     }
 
-    /**
-     * Specifies the timestamp of the Delta Lake table to read as an ISO 8601 string (e.g.
-     * "2026-05-20T15:43:26Z").
-     *
-     * <p>Only one of version or timestamp should be provided. If neither is provided, the latest
-     * version (HEAD) is read.
-     */
     public ReadRows withTimestamp(@Nullable String timestamp) {
       return toBuilder().setTimestamp(timestamp).build();
     }
