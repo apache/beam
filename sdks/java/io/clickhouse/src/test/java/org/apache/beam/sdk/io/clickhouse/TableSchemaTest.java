@@ -417,9 +417,9 @@ public class TableSchemaTest {
 
   @Test
   public void testMappedDecimalRejectsPrecisionOverflowAtRowConstruction() {
-    // The writer only range-checks against the storage width, so the mapped
-    // FixedPrecisionNumeric type is what guards the declared precision: building a Row with
-    // more digits than the column declares must fail loudly before anything hits the wire.
+    // The mapped FixedPrecisionNumeric type rejects most over-precision values at Row
+    // construction, well before the writer's own range check: building a Row with more digits
+    // than the column declares must fail loudly.
     Schema schema =
         TableSchema.getEquivalentSchema(
             TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(5, 0))));

@@ -150,9 +150,9 @@ import org.slf4j.LoggerFactory;
  * </table>
  *
  * <p>{@code Decimal(P, S)} columns accept {@link java.math.BigDecimal} values. Fractional digits
- * beyond the column scale are truncated toward zero, and values are range-checked against the
- * storage width chosen from the declared precision (32/64/128/256 bits) rather than the precision
- * itself.
+ * beyond the column scale are truncated toward zero, matching ClickHouse's own handling of excess
+ * fraction. A value whose truncated result still exceeds the column's declared range is rejected
+ * with an {@link IllegalArgumentException} rather than written.
  *
  * <p>Nullable row columns are supported through <a
  * href="https://clickhouse.com/docs/sql-reference/data-types/nullable">Nullable type</a> in

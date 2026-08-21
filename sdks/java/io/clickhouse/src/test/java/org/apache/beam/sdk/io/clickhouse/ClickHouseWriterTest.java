@@ -195,6 +195,44 @@ public class ClickHouseWriterTest {
   }
 
   @Test
+  public void writeDecimalRejectsValueBeyondDeclaredPrecision() throws IOException {
+    // Decimal(5, 0) tops out at 99999; 100000 fits the 32-bit storage width that
+    // BinaryStreamUtils checks, so the declared-precision check is the only thing rejecting it.
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> writtenBytes(ColumnType.decimal(5, 0), new BigDecimal("100000")));
+    assertEquals("value 100000 is out of range for Decimal(5, 0)", e.getMessage());
+
+    // The largest in-range value still writes: 99999 = 0x0001869F.
+    assertArrayEquals(
+        new byte[] {(byte) 0x9F, (byte) 0x86, 0x01, 0x00},
+        writtenBytes(ColumnType.decimal(5, 0), new BigDecimal("99999")));
+  }
+
+  @Test
+  public void writeDecimalBoundsScaledValueByDeclaredPrecision() throws IOException {
+    // The bound applies to the unscaled integer at the column scale, so Decimal(5, 2) tops out
+    // at 999.99 (unscaled 99999), not at 99999.
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> writtenBytes(ColumnType.decimal(5, 2), new BigDecimal("1000.00")));
+
+    assertArrayEquals(
+        new byte[] {(byte) 0x9F, (byte) 0x86, 0x01, 0x00},
+        writtenBytes(ColumnType.decimal(5, 2), new BigDecimal("999.99")));
+  }
+
+  @Test
+  public void writeDecimalChecksRangeAfterTruncatingToScale() throws IOException {
+    // 999.999 has six digits, but truncating to scale 2 brings it to 999.99 — within
+    // Decimal(5, 2). The check must run on the truncated value, not the input.
+    assertArrayEquals(
+        new byte[] {(byte) 0x9F, (byte) 0x86, 0x01, 0x00},
+        writtenBytes(ColumnType.decimal(5, 2), new BigDecimal("999.999")));
+  }
+
+  @Test
   public void writeDecimalRejectsValueBeyondStorageWidth() {
     // 10^7 at scale 2 is 10^9 ticks, outside Int32's Decimal range of ±(10^9 - 1).
     assertThrows(

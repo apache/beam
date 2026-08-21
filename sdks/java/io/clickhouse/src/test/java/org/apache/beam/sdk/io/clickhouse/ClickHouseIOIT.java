@@ -727,27 +727,6 @@ public class ClickHouseIOIT extends BaseClickHouseTest {
   }
 
   @Test
-  public void testDecimalBeyondDeclaredPrecisionWithinStorageWidth() throws Exception {
-    // ClickHouse checks the declared precision only on conversion from a string; a binary
-    // insert that fits the storage width is stored and read back verbatim. The mapped
-    // FixedPrecisionNumeric type rejects such values at Row construction, so reaching the
-    // wire requires a plain DECIMAL field. Pin the lenient server behavior so a future
-    // server or client change surfaces here instead of silently shifting semantics.
-    Schema schema = Schema.of(Schema.Field.of("d", FieldType.DECIMAL));
-    Row row = Row.withSchema(schema).addValue(new BigDecimal("999999")).build();
-
-    executeSql("CREATE TABLE test_decimal_beyond_precision (d Decimal(5, 0)) ENGINE=Log");
-
-    pipeline
-        .apply(Create.of(row).withRowSchema(schema))
-        .apply(write("test_decimal_beyond_precision"));
-    pipeline.run().waitUntilFinish();
-
-    assertEquals(
-        "999999", executeQueryAsString("SELECT toString(d) FROM test_decimal_beyond_precision"));
-  }
-
-  @Test
   public void testDecimalWithDefault() throws Exception {
     Schema schema =
         Schema.of(
