@@ -40,16 +40,19 @@ class WriteDirectRowsToFiles
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
   private final long maxBytesPerFile;
+  private final @Nullable Map<String, String> writeProperties;
 
   WriteDirectRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       String filePrefix,
-      long maxBytesPerFile) {
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
     this.maxBytesPerFile = maxBytesPerFile;
+    this.writeProperties = writeProperties;
   }
 
   @Override
@@ -57,7 +60,7 @@ class WriteDirectRowsToFiles
     return input.apply(
         ParDo.of(
             new WriteDirectRowsToFilesDoFn(
-                catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix)));
+                catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix, writeProperties)));
   }
 
   private static class WriteDirectRowsToFilesDoFn extends DoFn<KV<String, Row>, FileWriteResult> {
@@ -66,24 +69,28 @@ class WriteDirectRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final long maxFileSize;
+    private final @Nullable Map<String, String> writeProperties;
     private transient @Nullable RecordWriterManager recordWriterManager;
 
     WriteDirectRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         long maxFileSize,
-        String filePrefix) {
+        String filePrefix,
+        @Nullable Map<String, String> writeProperties) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.maxFileSize = maxFileSize;
+      this.writeProperties = writeProperties;
       this.recordWriterManager = null;
     }
 
     @StartBundle
     public void startBundle() {
       recordWriterManager =
-          new RecordWriterManager(catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE);
+          new RecordWriterManager(
+              catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE, writeProperties);
     }
 
     @ProcessElement

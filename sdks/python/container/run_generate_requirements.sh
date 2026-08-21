@@ -93,8 +93,8 @@ fi
 # Force torch dependencies to be pulled from the PyTorch CPU wheel
 # repository so that they don't include GPU dependencies with
 # non-compliant licenses
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" $INDEX_URL_OPTION
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
+pip install --prefer-binary ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" $INDEX_URL_OPTION
+pip install --prefer-binary ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam
 echo "Checking for broken dependencies:"

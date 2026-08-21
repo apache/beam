@@ -21,7 +21,6 @@ import contextlib
 import copy
 import glob
 import itertools
-import json
 import logging
 import os
 import random
@@ -39,16 +38,14 @@ from datetime import timezone
 
 import mock
 import requests
-from testcontainers.core.container import DockerContainer
 
 from apache_beam.coders import Coder
 from apache_beam.coders.coder_impl import CoderImpl
-from apache_beam.yaml.test_utils.datadog_test_utils import temp_fake_datadog_server
 
 
 class BigEndianIntegerCoderImpl(CoderImpl):
   """Coder implementation for big-endian integers used in cross-language tests.
-  
+
   This is needed because Java's BigEndianIntegerCoder falls back to the generic
   'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
   Python's FnApiRunner needs to know how to decode it.
@@ -395,6 +392,74 @@ def temp_mysql_database():
 
 
 @contextlib.contextmanager
+def temp_debezium_postgres_database():
+  """Provides a temporary PostgreSQL database configured for Debezium CDC."""
+
+  container = (
+      DockerContainer('quay.io/debezium/example-postgres:latest').with_env(
+          'POSTGRES_USER',
+          'debezium').with_env('POSTGRES_PASSWORD', 'dbz').with_env(
+              'POSTGRES_DB', 'inventory').with_exposed_ports(5432))
+
+  try:
+    container.start()
+    wait_for_logs(container, 'database system is ready to accept connections')
+
+    host = container.get_container_host_ip()
+    port = int(container.get_exposed_port(5432))
+
+    connection = None
+    for _ in range(30):
+      try:
+        connection = psycopg2.connect(
+            host=host,
+            port=port,
+            user='debezium',
+            password='dbz',
+            dbname='inventory')
+        break
+      except psycopg2.OperationalError:
+        time.sleep(1)
+
+    if connection is None:
+      raise RuntimeError(
+          'Debezium PostgreSQL container failed to become ready.')
+
+    try:
+      with connection.cursor() as cursor:
+        cursor.execute(
+            """
+          CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(255)
+          )
+          """)
+        cursor.execute(
+            """
+          INSERT INTO customers (id, name)
+          VALUES
+            (1, 'Alice'),
+            (2, 'Bob')
+          ON CONFLICT (id) DO NOTHING
+          """)
+      connection.commit()
+    finally:
+      connection.close()
+
+    yield {
+        'HOST': host,
+        'PORT': port,
+        'USERNAME': 'debezium',
+        'PASSWORD': 'dbz',
+        'DATABASE': 'inventory',
+        'TABLE': 'public.customers',
+    }
+
+  finally:
+    container.stop()
+
+
+@contextlib.contextmanager
 def temp_postgres_database():
   """Context manager to provide a temporary PostgreSQL database for testing.
 
@@ -630,6 +695,113 @@ def temp_iceberg_table_with_pk(table_data):
   finally:
     container.stop()
     shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+_LOCALSTACK_KINESIS_IMAGE = 'localstack/localstack:3.8.1'
+_LOCALSTACK_KINESIS_ACCESS_KEY = 'accesskey'
+_LOCALSTACK_KINESIS_SECRET_KEY = 'secretkey'
+_LOCALSTACK_KINESIS_REGION = 'us-east-1'
+
+
+def _create_kinesis_stream(kinesis_client, stream_name):
+  """Creates a Kinesis stream and waits until it is active."""
+  retries = 10
+  for attempt in range(retries):
+    try:
+      kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+      time.sleep(2)
+      break
+    except Exception as exn:
+      if attempt == retries - 1:
+        _LOGGER.error('Could not create kinesis stream')
+        raise exn
+
+  for attempt in range(retries):
+    stream = kinesis_client.describe_stream(StreamName=stream_name)
+    if stream['StreamDescription']['StreamStatus'] == 'ACTIVE':
+      return
+    time.sleep(2)
+    if attempt == retries - 1:
+      raise RuntimeError(
+          'Unable to initialize Kinesis stream %s. Status: %s' % (
+              stream['StreamDescription']['StreamName'],
+              stream['StreamDescription']['StreamStatus']))
+
+
+@contextlib.contextmanager
+def temp_kinesis_localstack():
+  """Context manager to provide a temporary LocalStack Kinesis stream.
+
+  Starts a LocalStack container, creates a unique Kinesis stream, and yields
+  connection details for YAML Kinesis read/write transforms.
+
+  Yields:
+      dict: Keys include STREAM_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY, REGION,
+          SERVICE_ENDPOINT (https), and VERIFY_CERTIFICATE (False).
+  """
+  try:
+    import boto3
+  except ImportError as exn:
+    raise unittest.SkipTest('boto3 is not installed') from exn
+
+  _LOGGER.info('Setting up LocalStack Kinesis fixture...')
+  localstack = DockerContainer(_LOCALSTACK_KINESIS_IMAGE).with_bind_ports(
+      4566, 4566)
+  for port in range(4510, 4560):
+    localstack = localstack.with_bind_ports(port, port)
+
+  for attempt in range(4):
+    try:
+      localstack.start()
+      break
+    except Exception as exn:
+      if attempt == 3:
+        _LOGGER.error('Could not initialize localstack container')
+        raise exn
+
+  stream_name = f'yaml_kinesis_{uuid.uuid4().hex}'
+  kinesis_client = None
+  try:
+    host = localstack.get_container_host_ip()
+    port = localstack.get_exposed_port('4566')
+    service_endpoint = f'https://{host}:{port}'
+    http_endpoint = f'http://{host}:{port}'
+
+    kinesis_client = boto3.client(
+        service_name='kinesis',
+        region_name=_LOCALSTACK_KINESIS_REGION,
+        endpoint_url=http_endpoint,
+        aws_access_key_id=_LOCALSTACK_KINESIS_ACCESS_KEY,
+        aws_secret_access_key=_LOCALSTACK_KINESIS_SECRET_KEY,
+    )
+    _create_kinesis_stream(kinesis_client, stream_name)
+
+    _LOGGER.info(
+        'LocalStack Kinesis ready. Stream: [%s], endpoint: [%s]',
+        stream_name,
+        service_endpoint)
+
+    yield {
+        'STREAM_NAME': stream_name,
+        'AWS_ACCESS_KEY': _LOCALSTACK_KINESIS_ACCESS_KEY,
+        'AWS_SECRET_KEY': _LOCALSTACK_KINESIS_SECRET_KEY,
+        'REGION': _LOCALSTACK_KINESIS_REGION,
+        'SERVICE_ENDPOINT': service_endpoint,
+        'VERIFY_CERTIFICATE': False,
+    }
+  finally:
+    _LOGGER.info('Tearing down LocalStack Kinesis fixture...')
+    if kinesis_client is not None:
+      try:
+        kinesis_client.delete_stream(
+            StreamName=stream_name, EnforceConsumerDeletion=True)
+      except Exception:
+        _LOGGER.warning('Failed to delete kinesis stream [%s]', stream_name)
+    try:
+      localstack.stop()
+    except Exception:
+      _LOGGER.warning('Failed to stop localstack container')
+    _LOGGER.info('LocalStack Kinesis fixture stopped.')
 
 
 @contextlib.contextmanager

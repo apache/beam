@@ -89,6 +89,8 @@ jobs:
       github.event.comment.body == 'Run Kotlin_Examples PreCommit'
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -103,3 +105,9 @@ jobs:
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :examples:kotlin:preCommit
+      - name: Archive JUnit Test Results
+        uses: actions/upload-artifact@v7
+        if: ${{ !success() }}
+        with:
+          name: JUnit Test Results
+          path: "**/build/reports/tests/"

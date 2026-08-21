@@ -137,15 +137,20 @@ public class ReflectHelpersTest {
     assertThat(
         ReflectHelpers.formatAnnotation(Options.class.getMethod("getString").getAnnotations()[0]),
         anyOf(
-            equalTo("Default.String(value=package.OuterClass$InnerClass#method())"),
-            equalTo("Default.String(value=\"package.OuterClass$InnerClass#method()\")")));
+            equalTo("Default.String(value=package.OuterClass$InnerClass#method())"), // Java8
+            equalTo("Default.String(value=\"package.OuterClass$InnerClass#method()\")"), // Java11
+            equalTo("Default.String(\"package.OuterClass$InnerClass#method()\")") // Javaa21
+            ));
   }
 
   @Test
   public void testFormatAnnotationJsonIgnore() throws Exception {
-    assertEquals(
-        "JsonIgnore(value=true)",
-        ReflectHelpers.formatAnnotation(Options.class.getMethod("getObject").getAnnotations()[0]));
+    assertThat(
+        ReflectHelpers.formatAnnotation(Options.class.getMethod("getObject").getAnnotations()[0]),
+        anyOf(
+            equalTo("JsonIgnore(value=true)"), // Java11
+            equalTo("JsonIgnore(true)") // Java21
+            ));
   }
 
   @Test

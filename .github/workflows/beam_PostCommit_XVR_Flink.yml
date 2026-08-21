@@ -66,6 +66,8 @@ jobs:
         python_version: ['3.10','3.14']
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -75,9 +77,7 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: |
-            17
-            11
+          java-version: default
           python-version: ${{ matrix.python_version }}
       - name: run PostCommit XVR Flink script
         env:
@@ -86,7 +86,6 @@ jobs:
         with:
           gradle-command: :runners:flink:${{ env.FlinkVersion }}:job-server:validatesCrossLanguageRunner
           arguments: |
-            -Pjava17Home=$JAVA_HOME_17_X64 \
             -PpythonVersion=${{ matrix.python_version }} \
             -PskipNonPythonTask=${{ (matrix.python_version == '3.10' && true) || false }} \
       - name: Archive JUnit Test Results

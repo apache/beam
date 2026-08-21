@@ -22,15 +22,16 @@ import static org.junit.Assert.assertThrows;
 import static org.mockito.Mockito.mock;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
-import org.apache.beam.runners.dataflow.worker.KeyTokenInvalidException;
-import org.apache.beam.runners.dataflow.worker.WorkItemCancelledException;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -39,6 +40,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.Windmill.WorkItem;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -50,6 +52,7 @@ import org.junit.runners.JUnit4;
 public class WorkFailureProcessorTest {
 
   private static final String DEFAULT_COMPUTATION_ID = "computationId";
+  private static final String DEFAULT_SYSTEM_NAME = "systemName";
 
   private static WorkFailureProcessor createWorkFailureProcessor(
       FailureTracker failureTracker, Supplier<Instant> clock) {
@@ -98,7 +101,8 @@ public class WorkFailureProcessorTest {
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             false,
-            clock),
+            clock,
+            ImmutableList.of()),
         (work, handle) -> {
           processWorkFn.accept(work);
         });
@@ -109,30 +113,18 @@ public class WorkFailureProcessorTest {
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryKeyTokenInvalidException() throws Throwable {
+  public void logAndProcessFailureBatch_doesNotRetryFailedWork() throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork work = createWork(executedWork::add);
+    work.work().setFailed();
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
-        DEFAULT_COMPUTATION_ID, work, new KeyTokenInvalidException("key"), invalidWork::add);
-
-    assertThat(executedWork).isEmpty();
-    assertThat(invalidWork).containsExactly(work.work());
-  }
-
-  @Test
-  public void logAndProcessFailure_doesNotRetryWhenWorkItemCancelled() throws Throwable {
-    Set<Work> executedWork = new HashSet<>();
-    ExecutableWork work = createWork(executedWork::add);
-    WorkFailureProcessor workFailureProcessor =
-        createWorkFailureProcessor(streamingEngineFailureReporter());
-    Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
+    workFailureProcessor.logAndProcessFailureBatch(
         DEFAULT_COMPUTATION_ID,
-        work,
-        new WorkItemCancelledException(work.getWorkItem().getShardingKey()),
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
         invalidWork::add);
 
     assertThat(executedWork).isEmpty();
@@ -140,7 +132,7 @@ public class WorkFailureProcessorTest {
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryOOM() {
+  public void logAndProcessFailureBatch_doesNotRetryOOM() {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
@@ -149,69 +141,158 @@ public class WorkFailureProcessorTest {
     assertThrows(
         OutOfMemoryError.class,
         () ->
-            workFailureProcessor.logAndProcessFailure(
-                DEFAULT_COMPUTATION_ID, work, new OutOfMemoryError(), invalidWork::add));
+            workFailureProcessor.logAndProcessFailureBatch(
+                DEFAULT_COMPUTATION_ID,
+                DEFAULT_SYSTEM_NAME,
+                List.of(work),
+                new OutOfMemoryError(),
+                invalidWork::add));
 
     assertThat(executedWork).isEmpty();
+    assertThat(invalidWork).isEmpty();
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryWhenFailureReporterMarksAsNonRetryable()
+  public void logAndProcessFailureBatch_doesNotRetryWhenFailureReporterMarksAsNonRetryable()
       throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork work = createWork(executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingApplianceFailureReporter(true));
     Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
-        DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
   }
 
   @Test
-  public void logAndProcessFailure_doesNotRetryAfterLocalRetryTimeout() throws Throwable {
+  public void logAndProcessFailureBatch_doesNotRetryAfterLocalRetryTimeout() throws Throwable {
     Set<Work> executedWork = new HashSet<>();
     ExecutableWork veryOldWork =
         createWork(() -> Instant.now().minus(Duration.standardDays(30)), executedWork::add);
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
-        DEFAULT_COMPUTATION_ID, veryOldWork, new RuntimeException(), invalidWork::add);
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(veryOldWork),
+        new RuntimeException(),
+        invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).contains(veryOldWork.work());
   }
 
   @Test
-  public void logAndProcessFailure_retriesOnUncaughtUnhandledException_streamingEngine()
+  public void logAndProcessFailureBatch_retriesOnUncaughtUnhandledException_streamingEngine()
       throws Throwable {
     CountDownLatch runWork = new CountDownLatch(1);
     ExecutableWork work = createWork(ignored -> runWork.countDown());
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
-        DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
   }
 
   @Test
-  public void logAndProcessFailure_retriesOnUncaughtUnhandledException_streamingAppliance()
+  public void logAndProcessFailureBatch_retriesOnUncaughtUnhandledException_streamingAppliance()
       throws Throwable {
     CountDownLatch runWork = new CountDownLatch(1);
     ExecutableWork work = createWork(ignored -> runWork.countDown());
     WorkFailureProcessor workFailureProcessor =
         createWorkFailureProcessor(streamingApplianceFailureReporter(false));
     Set<Work> invalidWork = new HashSet<>();
-    workFailureProcessor.logAndProcessFailure(
-        DEFAULT_COMPUTATION_ID, work, new RuntimeException(), invalidWork::add);
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_retryAll() throws Throwable {
+    CountDownLatch runWork1 = new CountDownLatch(1);
+    CountDownLatch runWork2 = new CountDownLatch(1);
+    ExecutableWork work1 = createWork(ignored -> runWork1.countDown());
+    ExecutableWork work2 = createWork(ignored -> runWork2.countDown());
+
+    WorkFailureProcessor workFailureProcessor =
+        createWorkFailureProcessor(streamingEngineFailureReporter());
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work1, work2),
+        new RuntimeException(),
+        invalidWork::add);
+
+    runWork1.await();
+    runWork2.await();
+    assertThat(invalidWork).isEmpty();
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_mixRetryAndAbort() throws Throwable {
+    CountDownLatch runWork1 = new CountDownLatch(1);
+    Set<Work> executedWork2 = new HashSet<>();
+    ExecutableWork work1 = createWork(ignored -> runWork1.countDown());
+    ExecutableWork work2 = createWork(executedWork2::add);
+    work2.work().setFailed();
+
+    WorkFailureProcessor workFailureProcessor =
+        createWorkFailureProcessor(streamingEngineFailureReporter());
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work1, work2),
+        new RuntimeException(),
+        invalidWork::add);
+
+    runWork1.await();
+    assertThat(executedWork2).isEmpty();
+    assertThat(invalidWork).containsExactly(work2.work());
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_retriesOnMultiKeyCommitValidationException()
+      throws Throwable {
+    CountDownLatch runWork = new CountDownLatch(1);
+    ExecutableWork work = createWork(ignored -> runWork.countDown());
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    WorkFailureProcessor workFailureProcessor = createWorkFailureProcessor(failureTracker);
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_COMPUTATION_ID,
+        List.of(work),
+        new MultiKeyCommitValidationException("test"),
+        (FailedWorkHandler) invalidWork::add);
+
+    runWork.await();
+    assertThat(invalidWork).isEmpty();
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
   }
 }
