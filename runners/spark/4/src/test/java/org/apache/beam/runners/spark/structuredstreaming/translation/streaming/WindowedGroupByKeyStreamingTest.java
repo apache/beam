@@ -513,6 +513,121 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
   }
 
   @Test(timeout = 300_000)
+  public void fixedWindowsDefaultTriggerAccumulating() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId("default-trigger-accumulating");
+    StreamingTestUtils.clear(collectorId);
+
+    List<TimestampedValue<KV<String, String>>> elements = lateFiringsInputElements();
+
+    SparkStructuredStreamingPipelineOptions options = options();
+    options.setMaxRecordsPerMicroBatch(1);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .accumulatingFiredPanes())
+        .apply("CountPerKey", Count.perKey())
+        .apply("CollectPane", ParDo.of(new CollectPaneDoFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    List<PaneRecord> aPanes = filterPanesForKey(collectorId, "a");
+    List<String> renderedPanes = new ArrayList<>();
+    for (PaneRecord r : aPanes) {
+      renderedPanes.add(r.toString());
+    }
+
+    assertEquals(
+        "expected on-time pane and two accumulating panes under default trigger",
+        List.of(
+            "a=1:ON_TIME:index=0:onTimeIndex=0:isFirst=true:isLast=false",
+            "a=2:LATE:index=1:onTimeIndex=1:isFirst=false:isLast=false",
+            "a=3:LATE:index=2:onTimeIndex=2:isFirst=false:isLast=false"),
+        renderedPanes);
+  }
+
+  /**
+   * Under Spark Structured Streaming's micro-batch execution model, {@code transformWithState}
+   * processes input rows against the batch start watermark (the watermark established by the
+   * previous micro-batch). When an element timestamped in {@code [0s, 10s)} arrives in the same
+   * micro-batch that carries a watermark-advancing sentinel, the batch start watermark has not yet
+   * passed the window end. In Beam semantics, the window is still open at the moment the element is
+   * processed, so it is buffered into the open window accumulator. When the on-time timer
+   * subsequently fires at the end of the window, it emits a single {@code ON_TIME} pane containing
+   * both elements.
+   */
+  @Test(timeout = 300_000)
+  public void fixedWindowsLateElementInSameBatchFoldedIntoOnTimePane() throws Exception {
+    String collectorId = StreamingTestUtils.newCollectorId("same-batch-merge");
+    StreamingTestUtils.clear(collectorId);
+
+    List<TimestampedValue<KV<String, String>>> elements = new ArrayList<>();
+    // Split 0: [a@1s, a@2s, dummy@52s]
+    // Split 1: [sentinel@5s, sentinel@20s, sentinel@60s]
+
+    // Batch 1: a@1s (in [0s, 10s)), sentinel@5s -> Watermark advances to 5s
+    elements.add(TimestampedValue.of(KV.of("a", "1"), BASE.plus(Duration.standardSeconds(1))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s1"), BASE.plus(Duration.standardSeconds(5))));
+
+    // Batch 2: a@2s (in [0s, 10s)), sentinel@20s -> Batch start watermark is 5s < 10s!
+    // Window [0s, 10s) is still open during input row processing in batch 2, so a@2s is folded in.
+    // Watermark advances to 20s at the end of batch 2.
+    elements.add(TimestampedValue.of(KV.of("a", "2"), BASE.plus(Duration.standardSeconds(2))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s2"), BASE.plus(Duration.standardSeconds(20))));
+
+    // Batch 3: dummy@52s, sentinel@60s -> Batch start watermark is 20s >= 10s.
+    // The on-time timer for [0s, 10s) fires here, emitting a single ON_TIME pane with count = 2.
+    elements.add(TimestampedValue.of(KV.of("dummy", "d"), BASE.plus(Duration.standardSeconds(52))));
+    elements.add(
+        TimestampedValue.of(KV.of("sentinel", "s3"), BASE.plus(Duration.standardSeconds(60))));
+
+    SparkStructuredStreamingPipelineOptions options = options();
+    options.setMaxRecordsPerMicroBatch(1);
+
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .discardingFiredPanes())
+        .apply("CountPerKey", Count.perKey())
+        .apply("CollectPane", ParDo.of(new CollectPaneDoFn()))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    List<PaneRecord> aPanes = filterPanesForKey(collectorId, "a");
+    List<String> renderedPanes = new ArrayList<>();
+    for (PaneRecord r : aPanes) {
+      renderedPanes.add(r.toString());
+    }
+
+    assertEquals(
+        "expected single merged ON_TIME pane containing both elements",
+        List.of("a=2:ON_TIME:index=0:onTimeIndex=0:isFirst=true:isLast=false"),
+        renderedPanes);
+  }
+
+  @Test(timeout = 300_000)
   public void unsupportedEarlyFiringsTriggerThrows() throws Exception {
     SparkStructuredStreamingPipelineOptions options = options();
     Pipeline pipeline = Pipeline.create(options);
@@ -530,9 +645,9 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
             "FixedWindows",
             Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
                 .triggering(
-                    Repeatedly.forever(
-                        AfterWatermark.pastEndOfWindow()
-                            .withEarlyFirings(AfterPane.elementCountAtLeast(1))))
+                    AfterWatermark.pastEndOfWindow()
+                        .withEarlyFirings(AfterPane.elementCountAtLeast(1))
+                        .withLateFirings(AfterPane.elementCountAtLeast(1)))
                 .withAllowedLateness(Duration.standardSeconds(30))
                 .discardingFiredPanes())
         .apply("CountPerKey", Count.perKey());
@@ -546,7 +661,7 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
   }
 
   @Test(timeout = 300_000)
-  public void unsupportedProcessingTimeTriggerThrows() throws Exception {
+  public void unsupportedRepeatedlyProcessingTimeTriggerThrows() throws Exception {
     SparkStructuredStreamingPipelineOptions options = options();
     Pipeline pipeline = Pipeline.create(options);
 
@@ -573,5 +688,37 @@ public class WindowedGroupByKeyStreamingTest implements Serializable {
         "Expected unsupported trigger message, got: " + e.getMessage(),
         e.getMessage().contains("the custom trigger")
             && e.getMessage().contains("AfterProcessingTime"));
+  }
+
+  @Test(timeout = 300_000)
+  public void unsupportedAfterPaneCountGreaterThanOneThrows() throws Exception {
+    SparkStructuredStreamingPipelineOptions options = options();
+    Pipeline pipeline = Pipeline.create(options);
+
+    List<TimestampedValue<KV<String, String>>> elements =
+        List.of(TimestampedValue.of(KV.of("a", "1"), BASE));
+
+    pipeline
+        .apply(
+            "ReadUnbounded",
+            Read.from(
+                new StreamingTestUtils.ListBackedUnboundedSource<>(
+                    elements, KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of()))))
+        .apply(
+            "FixedWindows",
+            Window.<KV<String, String>>into(FixedWindows.of(WINDOW_SIZE))
+                .triggering(
+                    AfterWatermark.pastEndOfWindow()
+                        .withLateFirings(AfterPane.elementCountAtLeast(2)))
+                .withAllowedLateness(Duration.standardSeconds(30))
+                .discardingFiredPanes())
+        .apply("CountPerKey", Count.perKey());
+
+    UnsupportedOperationException e =
+        assertThrows(UnsupportedOperationException.class, pipeline::run);
+    assertTrue(
+        "Expected unsupported trigger message, got: " + e.getMessage(),
+        e.getMessage().contains("the custom trigger")
+            && e.getMessage().contains("AfterPane.elementCountAtLeast(2)"));
   }
 }

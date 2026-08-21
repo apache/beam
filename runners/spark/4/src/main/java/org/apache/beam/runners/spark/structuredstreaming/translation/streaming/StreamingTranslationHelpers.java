@@ -78,7 +78,7 @@ final class StreamingTranslationHelpers {
           "the custom trigger "
               + trigger
               + ". Only the default trigger (one on-time pane per window when the watermark passes "
-              + "its end) and late firings with AfterPane are implemented");
+              + "its end) and late firings with AfterPane.elementCountAtLeast(1) are implemented");
     }
   }
 
@@ -90,7 +90,7 @@ final class StreamingTranslationHelpers {
    *   <li>{@link AfterWatermark.FromEndOfWindow} without early or late firings
    *   <li>{@link Never.NeverTrigger} used by {@code PAssert} on unbounded streams
    *   <li>{@link AfterWatermark.AfterWatermarkEarlyAndLate} with no early firings and late firings
-   *       configured via {@link AfterPane}
+   *       configured via {@link AfterPane#elementCountAtLeast(int)} with element count 1
    * </ul>
    */
   private static boolean isSupportedTrigger(Trigger trigger) {
@@ -114,7 +114,7 @@ final class StreamingTranslationHelpers {
         return true;
       }
       if (lateTrigger instanceof AfterPane) {
-        return true;
+        return ((AfterPane) lateTrigger).getElementCount() == 1;
       }
       return false;
     }
