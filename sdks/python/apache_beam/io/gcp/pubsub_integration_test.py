@@ -166,9 +166,9 @@ class PubSubIntegrationTest(unittest.TestCase):
     time.sleep(30)
 
   def tearDown(self):
-      # The TestPubsubContext will automatically delete the topics and subscriptions
-      with self.pubsub_monitor:
-          pass
+    # The TestPubsubContext will automatically delete the topics and subscriptions
+    with self.pubsub_monitor:
+      pass
 
   def _test_streaming(self, with_attributes):
     """Runs IT pipeline with message verifier.

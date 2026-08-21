@@ -80,8 +80,8 @@ class StreamingWordCountIT(unittest.TestCase):
       self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
 
   def tearDown(self):
-      with self.pubsub_monitor:
-          pass
+    with self.pubsub_monitor:
+      pass
 
   @pytest.mark.it_postcommit
   def test_streaming_wordcount_it(self):
