@@ -86,6 +86,7 @@ include(":release:go-licenses:py")
 
 include(":examples:java")
 include(":examples:java:twitter")
+include(":examples:java:adk")
 include(":examples:java:cdap")
 include(":examples:java:cdap:hubspot")
 include(":examples:java:cdap:salesforce")
