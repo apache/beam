@@ -279,7 +279,8 @@ public class StatefulStreamingParDoEvaluatorTest implements Serializable {
 
     sparseStream =
         sparseStream
-            .nextBatch(TimestampedValue.of(KV.of(sparseKey, 0), instant.plus(Duration.millis(1000L))))
+            .nextBatch(
+                TimestampedValue.of(KV.of(sparseKey, 0), instant.plus(Duration.millis(1000L))))
             .advanceNextBatchWatermarkToInfinity();
 
     final PCollection<KV<Integer, Integer>> sparsePCollection =

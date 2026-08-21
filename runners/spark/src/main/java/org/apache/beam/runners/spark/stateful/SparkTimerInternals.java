@@ -83,8 +83,9 @@ public class SparkTimerInternals implements TimerInternals {
         // an idle source keeps its last reported time, so sources can disagree here; the
         // synchronized processing time is the one every source has reached.
         if (synchronizedProcessingTime == null
-            || sparkWatermarks.getSynchronizedProcessingTime().isBefore(
-                synchronizedProcessingTime)) {
+            || sparkWatermarks
+                .getSynchronizedProcessingTime()
+                .isBefore(synchronizedProcessingTime)) {
           synchronizedProcessingTime = sparkWatermarks.getSynchronizedProcessingTime();
         }
       }
