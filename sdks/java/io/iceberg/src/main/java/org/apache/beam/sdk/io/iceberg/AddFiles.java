@@ -446,8 +446,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         }
 
         // ---- Per-file phase: every failure below is one error row, never a failed bundle.
-
-        // One footer read per file, shared by stats collection and partition resolution.
         @Nullable ParquetMetadata parquetFooter = null;
         if (format.equals(FileFormat.PARQUET)) {
           try {
@@ -589,7 +587,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      */
     static String getPartitionFromMetrics(
         Metrics metrics, InputFile inputFile, Table table, @Nullable ParquetMetadata preReadFooter)
-        throws UnknownPartitionException, IOException, InterruptedException {
+        throws UnknownPartitionException {
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
@@ -848,22 +846,17 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
   }
 
-  /**
-   * {@code preReadFooter} reuses an already-read Parquet footer, avoiding a second remote read;
-   * null reads it here. Always null for ORC and Avro.
-   */
   @SuppressWarnings("argument")
   public static Metrics getFileMetrics(
       InputFile file,
       FileFormat format,
       MetricsConfig config,
       NameMapping mapping,
-      @Nullable ParquetMetadata preReadFooter)
-      throws IOException {
+      @Nullable ParquetMetadata preReadFooter) {
     switch (format) {
       case PARQUET:
         ParquetMetadata footer =
-            preReadFooter != null ? preReadFooter : readParquetFooter(file.location());
+            checkStateNotNull(preReadFooter, "Parquet metrics require the pre-read footer");
         MessageType originalMessageType = footer.getFileMetaData().getSchema();
         if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
           footer = getFooterWithTypeIds(originalMessageType, footer, mapping);

@@ -86,6 +86,23 @@ public class NameMappingUtilsTest {
     assertTrue(NameMappingUtils.covers(MappingUtil.create(FULL_SCHEMA), FULL_SCHEMA.asStruct()));
   }
 
+  /** Pins the exact mapping shape MappingUtil.create generates, and that covers accepts it. */
+  @Test
+  public void testGeneratedMappingMatchesExpectedShape() {
+    NameMapping expected =
+        mapping(
+            "[ {'field-id': 1, 'names': ['id']},"
+                + "  {'field-id': 2, 'names': ['events'], 'fields': ["
+                + "    {'field-id': 3, 'names': ['element'], 'fields': ["
+                + "      {'field-id': 4, 'names': ['a']},"
+                + "      {'field-id': 5, 'names': ['b']} ]} ]},"
+                + "  {'field-id': 6, 'names': ['attrs'], 'fields': ["
+                + "    {'field-id': 7, 'names': ['key']},"
+                + "    {'field-id': 8, 'names': ['value']} ]} ]");
+    assertEquals(expected.asMappedFields(), MappingUtil.create(FULL_SCHEMA).asMappedFields());
+    assertTrue(NameMappingUtils.covers(expected, FULL_SCHEMA.asStruct()));
+  }
+
   @Test
   public void testCoversDetectsMissingTopLevelColumn() {
     Schema idOnly = new Schema(Types.NestedField.required(1, "id", Types.IntegerType.get()));
@@ -175,7 +192,12 @@ public class NameMappingUtilsTest {
                 1, "tags", Types.ListType.ofOptional(2, Types.IntegerType.get())));
     NameMapping withoutElement = mapping("[ {'field-id': 1, 'names': ['tags']} ]");
     assertFalse(NameMappingUtils.covers(withoutElement, listOfInts.asStruct()));
-    assertTrue(NameMappingUtils.covers(MappingUtil.create(listOfInts), listOfInts.asStruct()));
+
+    NameMapping withElement =
+        mapping(
+            "[ {'field-id': 1, 'names': ['tags'], 'fields': ["
+                + "  {'field-id': 2, 'names': ['element']} ]} ]");
+    assertTrue(NameMappingUtils.covers(withElement, listOfInts.asStruct()));
   }
 
   @Test
