@@ -627,8 +627,8 @@ public class AddFilesTest {
   }
 
   /**
-   * The stale mapping resolves every top-level name but is missing a field nested inside a
-   * list&lt;struct&gt;; only the recursive coverage walk can detect it.
+   * The stale mapping resolves every top-level name but is missing a field nested inside a {@code
+   * list<struct>}; only the recursive coverage walk can detect it.
    */
   @Test
   public void testStaleNestedNameMappingRegeneratedAtCommit() throws Exception {

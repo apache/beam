@@ -18,12 +18,14 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.mapping.MappedField;
@@ -87,7 +89,10 @@ class NameMappingUtils {
     path.add(name);
     try {
       @Nullable MappedField found = mapping.find(path);
-      @Nullable Integer foundId = found == null ? null : found.id();
+      if (found == null) {
+        return false;
+      }
+      @Nullable Integer foundId = found.id();
       if (foundId == null || foundId != expectedId) {
         return false;
       }
@@ -98,8 +103,10 @@ class NameMappingUtils {
         return coversField(mapping, "element", list.elementId(), list.elementType(), path);
       } else if (type.isMapType()) {
         Types.MapType map = type.asMapType();
-        return coversField(mapping, "key", map.keyId(), map.keyType(), path)
-            && coversField(mapping, "value", map.valueId(), map.valueType(), path);
+        if (!coversField(mapping, "key", map.keyId(), map.keyType(), path)) {
+          return false;
+        }
+        return coversField(mapping, "value", map.valueId(), map.valueType(), path);
       }
       return true;
     } finally {
@@ -123,8 +130,8 @@ class NameMappingUtils {
     try {
       Map<Integer, Set<String>> existingNamesById = new HashMap<>();
       indexNamesById(existing.asMappedFields(), existingNamesById);
-      return NameMappingParser.toJson(
-          NameMapping.of(mergeNames(generated.asMappedFields(), existingNamesById, "")));
+      MappedFields mergedFields = mergeNames(generated.asMappedFields(), existingNamesById, "");
+      return NameMappingParser.toJson(NameMapping.of(mergedFields));
     } catch (RuntimeException e) {
       LOG.warn(
           "Could not carry custom name-mapping entries over; regenerating from the schema: {}",
@@ -137,11 +144,18 @@ class NameMappingUtils {
   // defensive.
   private static void indexNamesById(MappedFields fields, Map<Integer, Set<String>> index) {
     for (MappedField field : fields.fields()) {
-      if (field.id() != null) {
-        index.computeIfAbsent(field.id(), unused -> new LinkedHashSet<>()).addAll(field.names());
+      @Nullable Integer id = field.id();
+      if (id != null) {
+        @Nullable Set<String> names = index.get(id);
+        if (names == null) {
+          names = new LinkedHashSet<>();
+          index.put(id, names);
+        }
+        names.addAll(field.names());
       }
-      if (field.nestedMapping() != null) {
-        indexNamesById(field.nestedMapping(), index);
+      @Nullable MappedFields nested = field.nestedMapping();
+      if (nested != null) {
+        indexNamesById(nested, index);
       }
     }
   }
@@ -156,39 +170,40 @@ class NameMappingUtils {
     List<MappedField> merged = new ArrayList<>();
     for (MappedField field : generated.fields()) {
       Set<String> names = new LinkedHashSet<>(field.names());
-      String fieldPath =
-          parentPath.isEmpty()
-              ? names.iterator().next()
-              : parentPath + "." + names.iterator().next();
-      @Nullable Set<String> extras = field.id() == null ? null : existingNamesById.get(field.id());
-      if (extras != null) {
-        for (String extra : extras) {
-          if (names.contains(extra)) {
-            continue;
-          }
-          if (claimed.contains(extra)) {
-            LOG.warn(
-                "Dropping custom name '{}' of '{}': {}.",
-                extra,
-                fieldPath,
-                schemaNames.contains(extra)
-                    ? "a schema column at the same level has this name"
-                    : "it was already carried over for another field at this level");
-          } else {
-            names.add(extra);
-            claimed.add(extra);
-          }
-        }
+      String fieldPath = Iterables.get(field.names(), 0);
+      if (!parentPath.isEmpty()) {
+        fieldPath = parentPath + "." + fieldPath;
       }
+
+      Set<String> extras = Collections.emptySet();
+      @Nullable Integer id = field.id();
+      if (id != null) {
+        extras = existingNamesById.getOrDefault(id, Collections.emptySet());
+      }
+      for (String extra : extras) {
+        if (names.contains(extra)) {
+          continue;
+        }
+        if (!claimed.contains(extra)) {
+          names.add(extra);
+          claimed.add(extra);
+          continue;
+        }
+        String reason;
+        if (schemaNames.contains(extra)) {
+          reason = "a schema column at the same level has this name";
+        } else {
+          reason = "it was already carried over for another field at this level";
+        }
+        LOG.warn("Dropping custom name '{}' of '{}': {}.", extra, fieldPath, reason);
+      }
+      List<String> mergedNames = new ArrayList<>(names);
       @Nullable MappedFields generatedNested = field.nestedMapping();
       if (generatedNested == null) {
-        merged.add(MappedField.of(field.id(), new ArrayList<>(names)));
+        merged.add(MappedField.of(field.id(), mergedNames));
       } else {
-        merged.add(
-            MappedField.of(
-                field.id(),
-                new ArrayList<>(names),
-                mergeNames(generatedNested, existingNamesById, fieldPath)));
+        MappedFields mergedNested = mergeNames(generatedNested, existingNamesById, fieldPath);
+        merged.add(MappedField.of(field.id(), mergedNames, mergedNested));
       }
     }
     return MappedFields.of(merged);
