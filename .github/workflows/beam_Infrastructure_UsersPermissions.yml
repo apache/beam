@@ -47,9 +47,8 @@ jobs:
       - name: Checkout trusted based repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.base_ref}}
           persist-credentials: false
-      - name: Fetch untrusted users.yml from PR
+      - name: Fetch updated users.yml from PR
         if: github.event.pull_request.merged != true
         run: |
           git fetch origin pull/${{ github.event.pull_request.number }}/head:pr-branch
