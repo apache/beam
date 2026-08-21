@@ -910,8 +910,11 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
         quota_project_id='my-billing-project')
     with self.assertRaises(RuntimeError):
       list(source.split(desired_bundle_size=0))
-    mock_bq_client.assert_called_once_with(
-        source.options, quota_project_id='my-billing-project')
+    mock_bq_client.assert_called_once()
+    self.assertIsInstance(mock_bq_client.call_args.args[0], PipelineOptions)
+    self.assertEqual(
+        mock_bq_client.call_args.kwargs['quota_project_id'],
+        'my-billing-project')
 
   @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
   def test_storage_source_split_passes_quota_to_client(self, mock_bq_client):
@@ -924,8 +927,59 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
         quota_project_id='my-billing-project')
     with self.assertRaises(RuntimeError):
       list(source.split(desired_bundle_size=0))
-    mock_bq_client.assert_called_once_with(
-        source.pipeline_options, quota_project_id='my-billing-project')
+    mock_bq_client.assert_called_once()
+    self.assertIsInstance(mock_bq_client.call_args.args[0], PipelineOptions)
+    self.assertEqual(
+        mock_bq_client.call_args.kwargs['quota_project_id'],
+        'my-billing-project')
+
+  @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
+  def test_export_source_estimate_size_passes_quota_to_client(
+      self, mock_bq_client):
+    """estimate_size() must attribute quota too, not just split()."""
+    mock_bq_client.side_effect = RuntimeError('stop')
+    source = beam_bq._CustomBigQuerySource(
+        method=ReadFromBigQuery.Method.EXPORT,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    with self.assertRaises(RuntimeError):
+      source.estimate_size()
+    self.assertEqual(
+        mock_bq_client.call_args.kwargs['quota_project_id'],
+        'my-billing-project')
+
+  @mock.patch.object(bigquery_tools.BigQueryWrapper, '_bigquery_client')
+  def test_storage_source_estimate_size_passes_quota_to_client(
+      self, mock_bq_client):
+    """estimate_size() must attribute quota too, not just split()."""
+    mock_bq_client.side_effect = RuntimeError('stop')
+    source = beam_bq._CustomBigQueryStorageSource(
+        method=ReadFromBigQuery.Method.DIRECT_READ,
+        table='project:dataset.table',
+        quota_project_id='my-billing-project')
+    with self.assertRaises(RuntimeError):
+      source.estimate_size()
+    self.assertEqual(
+        mock_bq_client.call_args.kwargs['quota_project_id'],
+        'my-billing-project')
+
+  @mock.patch(
+      'apache_beam.io.gcp.bigquery.bigquery_schema_tools'
+      '.convert_to_usertype')
+  @mock.patch.object(bigquery_tools, 'BigQueryWrapper')
+  def test_output_type_schema_fetch_passes_quota_to_client(
+      self, mock_wrapper, mock_convert):
+    """The BEAM_ROW schema lookup is a BigQuery API call of this transform, so
+    it must be attributed to the quota project as well."""
+    mock_convert.return_value = beam.Map(lambda x: x)
+    transform = ReadFromBigQuery(
+        table='project:dataset.table',
+        output_type='BEAM_ROW',
+        quota_project_id='my-billing-project')
+    transform._expand_output_type(mock.MagicMock())
+
+    self.assertEqual(
+        mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
 
   def test_quota_project_id_in_export_source_display_data(self):
     """Test that quota_project_id appears in display data for export source."""
@@ -1013,21 +1067,17 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
     mock_create_client.assert_called_once_with('my-billing-project')
 
   @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
-  @mock.patch('apache_beam.io.gcp.bigquery._LOGGER')
-  def test_create_bq_storage_client_logs_on_failure(
-      self, mock_logger, mock_bq_storage):
-    """Test that _create_bq_storage_client logs when quota project fails."""
-    # Make google.auth.default raise a DefaultCredentialsError
+  def test_create_bq_storage_client_raises_on_failure(self, mock_bq_storage):
+    """An explicit quota project must fail loudly rather than fall back to a
+    client that bills a different project."""
     from google.auth import exceptions as auth_exceptions
     with mock.patch(
         'google.auth.default',
         side_effect=auth_exceptions.DefaultCredentialsError('Auth error')):
-      beam_bq._create_bq_storage_client('my-billing-project')
+      with self.assertRaises(auth_exceptions.DefaultCredentialsError):
+        beam_bq._create_bq_storage_client('my-billing-project')
 
-    mock_logger.warning.assert_called_once()
-    warning_args = mock_logger.warning.call_args[0]
-    self.assertIn('Failed to apply quota project', warning_args[0])
-    self.assertIn('my-billing-project', warning_args[1])
+    mock_bq_storage.BigQueryReadClient.assert_not_called()
 
   @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
   def test_create_bq_storage_client_with_quota_project(self, mock_bq_storage):

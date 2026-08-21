@@ -135,10 +135,10 @@ class AuthTest(unittest.TestCase):
 @unittest.skipIf(gauth is None, 'Google Auth dependencies are not installed')
 class WithQuotaProjectTest(unittest.TestCase):
   """Tests for with_quota_project function."""
-  def test_with_quota_project_returns_credentials_unchanged_when_none(self):
-    """Test that None credentials are returned unchanged."""
-    result = auth.with_quota_project(None, 'my-project')
-    self.assertIsNone(result)
+  def test_with_quota_project_raises_when_no_credentials(self):
+    """Test that an explicit quota project is not silently dropped."""
+    with self.assertRaisesRegex(ValueError, 'no credentials'):
+      auth.with_quota_project(None, 'my-project')
 
   def test_with_quota_project_returns_credentials_unchanged_when_no_quota(self):
     """Test that credentials are returned unchanged when
@@ -181,15 +181,14 @@ class WithQuotaProjectTest(unittest.TestCase):
     mock_creds.with_quota_project.assert_called_once_with('my-billing-project')
     self.assertEqual(result, mock_new_creds)
 
-  def test_with_quota_project_returns_original_when_not_supported(self):
-    """Test that original credentials are returned when
-    with_quota_project is not supported."""
+  def test_with_quota_project_raises_when_not_supported(self):
+    """Test that we fail instead of silently billing the wrong project when
+    the credentials do not support a quota project."""
     # Create a mock without with_quota_project method
     mock_creds = mock.MagicMock(spec=[])
 
-    result = auth.with_quota_project(mock_creds, 'my-billing-project')
-
-    self.assertEqual(result, mock_creds)
+    with self.assertRaisesRegex(ValueError, 'do not support a quota project'):
+      auth.with_quota_project(mock_creds, 'my-billing-project')
 
 
 if __name__ == '__main__':

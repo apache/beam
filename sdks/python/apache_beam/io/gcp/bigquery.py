@@ -721,7 +721,7 @@ class _CustomBigQuerySource(BoundedSource):
     }
 
   def estimate_size(self):
-    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(self.options)
+    bq = self._create_bq_wrapper()
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
@@ -795,6 +795,17 @@ class _CustomBigQuerySource(BoundedSource):
       return self.options.view_as(GoogleCloudOptions).quota_project_id
     return None
 
+  def _create_bq_wrapper(self, **kwargs):
+    """Creates a BigQueryWrapper for the API calls made by this source.
+
+    Every BigQuery client this source uses is built here, so that quota
+    attribution cannot be forgotten at an individual call site.
+    """
+    return bigquery_tools.BigQueryWrapper(
+        pipeline_options=self.options,
+        quota_project_id=self.quota_project_id,
+        **kwargs)
+
   def _create_source(self, path, coder):
     if not self.use_json_exports:
       return create_avro_source(path, validate=self.validate)
@@ -809,12 +820,9 @@ class _CustomBigQuerySource(BoundedSource):
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:
-      bq = bigquery_tools.BigQueryWrapper(
+      bq = self._create_bq_wrapper(
           temp_dataset_id=(
-              self.temp_dataset.datasetId if self.temp_dataset else None),
-          client=bigquery_tools.BigQueryWrapper._bigquery_client(
-              self.options, quota_project_id=self._get_quota_project_id()),
-          quota_project_id=self._get_quota_project_id())
+              self.temp_dataset.datasetId if self.temp_dataset else None))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -955,20 +963,19 @@ def _create_bq_storage_client(quota_project_id=None):
 
   Returns:
     A BigQueryReadClient instance.
+
+  Raises:
+    Exception: If a quota project was requested but could not be applied.
+      Falling back to the default client would silently bill a different
+      project than the one the user asked for.
   """
-  if quota_project_id:
-    try:
-      import google.auth
-      credentials, _ = google.auth.default()
-      credentials = auth.with_quota_project(credentials, quota_project_id)
-      return bq_storage.BigQueryReadClient(credentials=credentials)
-    except Exception as e:
-      _LOGGER.warning(
-          'Failed to apply quota project %s to BigQuery Storage client: %s. '
-          'Falling back to default client.',
-          quota_project_id,
-          e)
-  return bq_storage.BigQueryReadClient()
+  if not quota_project_id:
+    return bq_storage.BigQueryReadClient()
+
+  import google.auth
+  credentials, _ = google.auth.default()
+  return bq_storage.BigQueryReadClient(
+      credentials=auth.with_quota_project(credentials, quota_project_id))
 
 
 class _CustomBigQueryStorageSource(BoundedSource):
@@ -1092,6 +1099,17 @@ class _CustomBigQueryStorageSource(BoundedSource):
       return self.pipeline_options.view_as(GoogleCloudOptions).quota_project_id
     return None
 
+  def _create_bq_wrapper(self, **kwargs):
+    """Creates a BigQueryWrapper for the API calls made by this source.
+
+    Every BigQuery client this source uses is built here, so that quota
+    attribution cannot be forgotten at an individual call site.
+    """
+    return bigquery_tools.BigQueryWrapper(
+        pipeline_options=self.pipeline_options,
+        quota_project_id=self.quota_project_id,
+        **kwargs)
+
   def _get_parent_project(self):
     """Returns the project that will be billed."""
     if self.temp_table:
@@ -1170,8 +1188,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def estimate_size(self):
     # Returns the pre-filtering size of the (temporary) table being read.
-    bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
-        self.pipeline_options)
+    bq = self._create_bq_wrapper()
     if self.table_reference is not None:
       table_ref = self.table_reference
       if (isinstance(self.table_reference, vp.ValueProvider) and
@@ -1218,12 +1235,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
 
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.split_result is None:
-      bq = bigquery_tools.BigQueryWrapper(
-          temp_table_ref=(self.temp_table if self.temp_table else None),
-          client=bigquery_tools.BigQueryWrapper._bigquery_client(
-              self.pipeline_options,
-              quota_project_id=self._get_quota_project_id()),
-          quota_project_id=self._get_quota_project_id())
+      bq = self._create_bq_wrapper(
+          temp_table_ref=(self.temp_table if self.temp_table else None))
 
       if self.query is not None:
         self._setup_temporary_dataset(bq)
@@ -3108,10 +3121,12 @@ class ReadFromBigQuery(PTransform):
             '%s: table must be of type string'
             '; got a callable instead' % self.__class__.__name__)
       return output_pcollection | bigquery_schema_tools.convert_to_usertype(
-          bigquery_tools.BigQueryWrapper().get_table(
-              project_id=table_details.projectId,
-              dataset_id=table_details.datasetId,
-              table_id=table_details.tableId).schema,
+          bigquery_tools.BigQueryWrapper(
+              pipeline_options=output_pcollection.pipeline.options,
+              quota_project_id=self._kwargs.get('quota_project_id')).get_table(
+                  project_id=table_details.projectId,
+                  dataset_id=table_details.datasetId,
+                  table_id=table_details.tableId).schema,
           self._kwargs.get('selected_fields', None))
     else:
       raise ValueError(

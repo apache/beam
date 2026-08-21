@@ -97,11 +97,24 @@ def with_quota_project(credentials, quota_project_id):
 
   Returns:
     Credentials with the quota project applied, or the original credentials
-    if quota project is not supported or credentials is None.
+    if no quota project was requested.
+
+  Raises:
+    ValueError: If a quota project was requested but cannot be applied.
+      Ignoring the request would silently bill a different project.
   """
-  if not _GOOGLE_AUTH_AVAILABLE or credentials is None or (quota_project_id
-                                                           is None):
+  if quota_project_id is None:
     return credentials
+
+  if not _GOOGLE_AUTH_AVAILABLE:
+    raise ValueError(
+        'quota_project_id was set to %r, but the google-auth library is not '
+        'installed, so it cannot be applied.' % quota_project_id)
+
+  if credentials is None:
+    raise ValueError(
+        'quota_project_id was set to %r, but no credentials were found to '
+        'apply it to.' % quota_project_id)
 
   # Get the underlying google-auth credentials if wrapped
   if hasattr(credentials, 'get_google_auth_credentials'):
@@ -109,19 +122,17 @@ def with_quota_project(credentials, quota_project_id):
   else:
     underlying_creds = credentials
 
-  # Apply quota project if supported
-  if hasattr(underlying_creds, 'with_quota_project'):
-    new_creds = underlying_creds.with_quota_project(quota_project_id)
-    # Re-wrap if the original was wrapped
-    if hasattr(credentials, 'get_google_auth_credentials'):
-      return _ApitoolsCredentialsAdapter(new_creds)
-    return new_creds
+  if not hasattr(underlying_creds, 'with_quota_project'):
+    raise ValueError(
+        'quota_project_id was set to %r, but credentials of type %s do not '
+        'support a quota project.' %
+        (quota_project_id, type(underlying_creds).__name__))
 
-  _LOGGER.warning(
-      'Credentials of type %s do not support quota project. '
-      'The quota_project_id parameter will be ignored.',
-      type(underlying_creds).__name__)
-  return credentials
+  new_creds = underlying_creds.with_quota_project(quota_project_id)
+  # Re-wrap if the original was wrapped
+  if hasattr(credentials, 'get_google_auth_credentials'):
+    return _ApitoolsCredentialsAdapter(new_creds)
+  return new_creds
 
 
 if _GOOGLE_AUTH_AVAILABLE:
