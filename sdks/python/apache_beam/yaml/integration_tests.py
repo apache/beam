@@ -560,8 +560,7 @@ def temp_postgres_database_with_secret_manager(
     project_path = f'projects/{project_id}'
     secret_path = f'{project_path}/secrets/{secret_id}'
 
-    _LOGGER.info(
-        "Creating GCP secret %s in project %s", secret_id, project_id)
+    _LOGGER.info("Creating GCP secret %s in project %s", secret_id, project_id)
     try:
       secret_client.get_secret(request={'name': secret_path})
     except Exception:

@@ -174,8 +174,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               })
         cls.secret_client.add_secret_version(
             request={
-                'parent': cls.secret_path,
-                'payload': {
+                'parent': cls.secret_path, 'payload': {
                     'data': b'test'
                 }
             })
@@ -208,7 +207,8 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
-    if getattr(cls, 'secret_manager_available', False) and secretmanager is not None:
+    if getattr(cls, 'secret_manager_available',
+               False) and secretmanager is not None:
       try:
         cls.secret_client.delete_secret(request={'name': cls.secret_path})
       except Exception:  # pylint: disable=broad-except
@@ -533,8 +533,7 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
     config = self.jdbc_configs[database]
     secret_password_spec = json.dumps({
-        'name': self.secret_id,
-        'project': self.project_id
+        'name': self.secret_id, 'project': self.project_id
     })
 
     with TestPipeline() as p:
