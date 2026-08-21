@@ -217,14 +217,14 @@ public class SparkTimerInternals implements TimerInternals {
   }
 
   /**
-   * Finds the earliest timer in {@link TimeDomain#PROCESSING_TIME} domain that has expired based
-   * on the current processing time.
+   * Finds the earliest timer in {@link TimeDomain#PROCESSING_TIME} domain that has expired based on
+   * the current processing time.
    *
    * <p>A timer is considered expired when its timestamp is less than the current processing time.
    * Expired timers fire in timestamp order.
    *
-   * @return The expired processing timer with the earliest timestamp if one exists, or {@code
-   *     null} if no processing timers are ready to fire.
+   * @return The expired processing timer with the earliest timestamp if one exists, or {@code null}
+   *     if no processing timers are ready to fire.
    */
   public @Nullable TimerData getNextProcessingTimer() {
     final Instant currentProcessingTime = this.currentProcessingTime();

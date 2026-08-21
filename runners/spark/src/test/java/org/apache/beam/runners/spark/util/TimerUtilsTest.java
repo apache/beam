@@ -121,8 +121,7 @@ public class TimerUtilsTest {
     when(olderExpiredTimer.getTimestamp())
         .thenReturn(NOW.minus(ALLOWED_LATENESS.plus(Duration.standardMinutes(2))));
     when(olderExpiredTimer.getDomain()).thenReturn(TimeDomain.EVENT_TIME);
-    when(mockTimerInternals.getTimers())
-        .thenReturn(Arrays.asList(expiredTimer, olderExpiredTimer));
+    when(mockTimerInternals.getTimers()).thenReturn(Arrays.asList(expiredTimer, olderExpiredTimer));
 
     TimerUtils.triggerExpiredTimers(mockTimerInternals, mockWindowingStrategy, mockIterator);
 

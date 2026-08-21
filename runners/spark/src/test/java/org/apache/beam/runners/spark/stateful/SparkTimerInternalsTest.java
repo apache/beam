@@ -34,12 +34,7 @@ public class SparkTimerInternalsTest {
 
   private static TimerData processingTimer(String timerId, Instant timestamp) {
     return TimerData.of(
-        timerId,
-        "",
-        StateNamespaces.global(),
-        timestamp,
-        timestamp,
-        TimeDomain.PROCESSING_TIME);
+        timerId, "", StateNamespaces.global(), timestamp, timestamp, TimeDomain.PROCESSING_TIME);
   }
 
   @Test
@@ -99,7 +94,11 @@ public class SparkTimerInternalsTest {
     SparkTimerInternals timerInternals = SparkTimerInternals.global(null);
     timerInternals.setTimer(
         TimerData.of(
-            "event", "", StateNamespaces.global(), new Instant(0), new Instant(0),
+            "event",
+            "",
+            StateNamespaces.global(),
+            new Instant(0),
+            new Instant(0),
             TimeDomain.EVENT_TIME));
 
     assertNull(timerInternals.getNextProcessingTimer());
