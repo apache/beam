@@ -42,8 +42,8 @@ func TestSpannerIO_QueryBatch(t *testing.T) {
 	db := "projects/test-project/instances/test-instance/databases/test-database"
 	ctx := context.Background()
 
-	// Setup a spanner emulator container.
-	endpoint := setUpTestContainer(ctx, t)
+	// Setup a spanner emulator process.
+	endpoint := setUpSpannerEmulator(ctx, t)
 
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 

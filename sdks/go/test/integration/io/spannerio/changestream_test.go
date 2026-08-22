@@ -60,7 +60,7 @@ func TestReadChangeStream_BoundedRead(t *testing.T) {
 	const db = "projects/test-project/instances/test-instance/databases/test-db-changestream"
 	ctx := context.Background()
 
-	endpoint := setUpTestContainer(ctx, t)
+	endpoint := setUpSpannerEmulator(ctx, t)
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 
 	client := NewClient(ctx, t, endpoint, db)
@@ -127,7 +127,7 @@ func TestReadChangeStream_FiltersByTable(t *testing.T) {
 	const db = "projects/test-project/instances/test-instance/databases/test-db-cs-filter"
 	ctx := context.Background()
 
-	endpoint := setUpTestContainer(ctx, t)
+	endpoint := setUpSpannerEmulator(ctx, t)
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 
 	client := NewClient(ctx, t, endpoint, db)
@@ -190,7 +190,7 @@ func TestReadChangeStream_Empty(t *testing.T) {
 	const db = "projects/test-project/instances/test-instance/databases/test-db-cs-empty"
 	ctx := context.Background()
 
-	endpoint := setUpTestContainer(ctx, t)
+	endpoint := setUpSpannerEmulator(ctx, t)
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 
 	instanceAdminClient := NewInstanceAdminClient(ctx, t, endpoint)
@@ -238,7 +238,7 @@ func TestReadChangeStream_UpdateRecord(t *testing.T) {
 	const db = "projects/test-project/instances/test-instance/databases/test-db-cs-update"
 	ctx := context.Background()
 
-	endpoint := setUpTestContainer(ctx, t)
+	endpoint := setUpSpannerEmulator(ctx, t)
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 
 	client := NewClient(ctx, t, endpoint, db)
@@ -305,7 +305,7 @@ func TestReadChangeStream_DeleteRecord(t *testing.T) {
 	const db = "projects/test-project/instances/test-instance/databases/test-db-cs-delete"
 	ctx := context.Background()
 
-	endpoint := setUpTestContainer(ctx, t)
+	endpoint := setUpSpannerEmulator(ctx, t)
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 
 	client := NewClient(ctx, t, endpoint, db)
@@ -370,7 +370,7 @@ func TestReadChangeStream_MultipleTableStream(t *testing.T) {
 	const db = "projects/test-project/instances/test-instance/databases/test-db-cs-multi"
 	ctx := context.Background()
 
-	endpoint := setUpTestContainer(ctx, t)
+	endpoint := setUpSpannerEmulator(ctx, t)
 	os.Setenv("SPANNER_EMULATOR_HOST", endpoint)
 
 	client := NewClient(ctx, t, endpoint, db)
