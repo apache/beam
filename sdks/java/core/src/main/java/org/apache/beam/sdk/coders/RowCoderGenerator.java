@@ -17,45 +17,22 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Modifier;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Map;
 import java.util.UUID;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
-import net.bytebuddy.ByteBuddy;
-import net.bytebuddy.description.modifier.FieldManifestation;
-import net.bytebuddy.description.modifier.Ownership;
-import net.bytebuddy.description.modifier.Visibility;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.description.type.TypeDescription.ForLoadedType;
-import net.bytebuddy.dynamic.DynamicType;
-import net.bytebuddy.dynamic.scaffold.InstrumentedType;
-import net.bytebuddy.implementation.FixedValue;
-import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender;
-import net.bytebuddy.implementation.bytecode.ByteCodeAppender.Size;
-import net.bytebuddy.implementation.bytecode.Duplication;
-import net.bytebuddy.implementation.bytecode.StackManipulation;
-import net.bytebuddy.implementation.bytecode.member.FieldAccess;
-import net.bytebuddy.implementation.bytecode.member.MethodInvocation;
-import net.bytebuddy.implementation.bytecode.member.MethodReturn;
-import net.bytebuddy.implementation.bytecode.member.MethodVariableAccess;
-import net.bytebuddy.matcher.ElementMatchers;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.Field;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.StringUtils;
-import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -63,56 +40,18 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A utility for automatically generating a {@link Coder} for {@link Row} objects corresponding to a
- * specific schema. The resulting coder is loaded into the default ClassLoader and returned.
- *
- * <p>When {@link RowCoderGenerator#generate(Schema)} is called, a new subclass of {@literal
- * Coder<Row>} is generated for the specified schema. This class is generated using low-level
- * bytecode generation, and hardcodes encodings for all fields of the Schema. Empirically, this is
- * 30-40% faster than a coder that introspects the schema.
- *
- * <p>The generated class corresponds to the following Java class:
- *
- * <pre><code>
- * class SchemaRowCoder extends{@literal Coder<Row>} {
- *   // Generated array containing a coder for each field in the Schema.
- *   private static final Coder[] FIELD_CODERS;
- *
- *   // Generated method to return the schema this class corresponds to. Used during code
- *   // generation.
- *   private static getSchema() {
- *     return schema;
- *   }
- *
- *  {@literal @}Override
- *   public void encode(T value, OutputStream outStream) {
- *     // Delegate to a method that evaluates each coder in the static array.
- *     encodeDelegate(FIELD_CODERS, value, outStream);
- *   }
- *
- *  {@literal @}Override
- *   public abstract T decode(InputStream inStream) {
- *     // Delegate to a method that evaluates each coder in the static array.
- *     return decodeDelegate(FIELD_CODERS, inStream);
- *   }
- * }
- * </code></pre>
- */
+/** Creates and caches a {@link Coder} for {@link Row} objects corresponding to a schema. */
 @SuppressWarnings({
   "nullness", // TODO(https://github.com/apache/beam/issues/20497)
   "rawtypes"
 })
 public abstract class RowCoderGenerator {
-  private static final ByteBuddy BYTE_BUDDY = new ByteBuddy();
   private static final BitSetCoder NULL_LIST_CODER = BitSetCoder.of();
   private static final VarIntCoder VAR_INT_CODER = VarIntCoder.of();
   // BitSet.get(n) will return false for any n >= nbits, so a BitSet with 0 bits will return false
   // for all calls to get.
   private static final BitSet EMPTY_BIT_SET = new BitSet(0);
 
-  private static final String CODERS_FIELD_NAME = "FIELD_CODERS";
-  private static final String POSITIONS_FIELD_NAME = "FIELD_ENCODING_POSITIONS";
   private static final String SCHEMA_OPTION_STATIC_ENCODING = "beam:option:row:static_encoding";
 
   static class WithStackTrace<T> {
@@ -133,7 +72,7 @@ public abstract class RowCoderGenerator {
     }
   }
 
-  // Cache for Coder class that are already generated.
+  // Cache for coders that are already created.
   @GuardedBy("cacheLock")
   private static final Map<UUID, WithStackTrace<Coder<Row>>> GENERATED_CODERS = Maps.newHashMap();
 
@@ -198,7 +137,6 @@ public abstract class RowCoderGenerator {
     }
   }
 
-  @SuppressWarnings("unchecked")
   public static Coder<Row> generate(Schema schema) {
     UUID uuid = Preconditions.checkNotNull(schema.getUUID());
     // Avoid using computeIfAbsent which may cause issues with nested schemas.
@@ -207,12 +145,6 @@ public abstract class RowCoderGenerator {
       if (existingRowCoder != null) {
         return existingRowCoder.getValue();
       }
-      TypeDescription.Generic coderType =
-          TypeDescription.Generic.Builder.parameterizedType(Coder.class, Row.class).build();
-      DynamicType.Builder<Coder> builder =
-          (DynamicType.Builder<Coder>) BYTE_BUDDY.subclass(coderType);
-      builder = implementMethods(schema, builder);
-
       int[] encodingPosToRowIndex = new int[schema.getFieldCount()];
       @Nullable
       WithStackTrace<Map<String, Integer>> existingEncodingPositions =
@@ -241,33 +173,12 @@ public abstract class RowCoderGenerator {
             SchemaCoder.coderForFieldType(schema.getField(rowIndex).getType().withNullable(false));
       }
 
-      builder =
-          builder
-              .defineField(
-                  CODERS_FIELD_NAME, Coder[].class, Visibility.PRIVATE, FieldManifestation.FINAL)
-              .defineField(
-                  POSITIONS_FIELD_NAME, int[].class, Visibility.PRIVATE, FieldManifestation.FINAL)
-              .defineConstructor(Modifier.PUBLIC)
-              .withParameters(Coder[].class, int[].class)
-              .intercept(new GeneratedCoderConstructor());
-
-      Coder<Row> rowCoder;
-      try {
-        rowCoder =
-            builder
-                .make()
-                .load(
-                    ReflectHelpers.findClassLoader(Coder.class.getClassLoader()),
-                    getClassLoadingStrategy(Coder.class))
-                .getLoaded()
-                .getDeclaredConstructor(Coder[].class, int[].class)
-                .newInstance((Object) componentCoders, (Object) encodingPosToRowIndex);
-      } catch (InstantiationException
-          | IllegalAccessException
-          | NoSuchMethodException
-          | InvocationTargetException e) {
-        throw new RuntimeException("Unable to generate coder for schema " + schema, e);
-      }
+      Coder<Row> rowCoder =
+          new RowCoderImpl(
+              schema,
+              componentCoders,
+              encodingPosToRowIndex,
+              schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable));
       String stackTrace = getStackTrace();
       GENERATED_CODERS.put(uuid, new WithStackTrace<>(rowCoder, stackTrace));
       LOG.debug(
@@ -279,126 +190,32 @@ public abstract class RowCoderGenerator {
     }
   }
 
-  private static class GeneratedCoderConstructor implements Implementation {
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
+  private static final class RowCoderImpl extends CustomCoder<Row> {
+    private final Schema schema;
+    private final Coder[] coders;
+    private final int[] encodingPosToIndex;
+    private final boolean hasNullableFields;
+
+    private RowCoderImpl(
+        Schema schema, Coder[] coders, int[] encodingPosToIndex, boolean hasNullableFields) {
+      this.schema = schema;
+      this.coders = coders;
+      this.encodingPosToIndex = encodingPosToIndex;
+      this.hasNullableFields = hasNullableFields;
     }
 
     @Override
-    public ByteCodeAppender appender(final Target implementationTarget) {
-      return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        int numLocals = 1 + instrumentedMethod.getParameters().size();
-        StackManipulation stackManipulation =
-            new StackManipulation.Compound(
-                // Call the base constructor.
-                MethodVariableAccess.loadThis(),
-                Duplication.SINGLE,
-                MethodInvocation.invoke(
-                    new ForLoadedType(Coder.class)
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isConstructor().and(ElementMatchers.takesArguments(0)))
-                        .getOnly()),
-                Duplication.SINGLE,
-                // Store the list of Coders as a member variable.
-                MethodVariableAccess.REFERENCE.loadFrom(1),
-                FieldAccess.forField(
-                        implementationTarget
-                            .getInstrumentedType()
-                            .getDeclaredFields()
-                            .filter(ElementMatchers.named(CODERS_FIELD_NAME))
-                            .getOnly())
-                    .write(),
-                // Store the list of encoding offsets as a member variable.
-                MethodVariableAccess.REFERENCE.loadFrom(2),
-                FieldAccess.forField(
-                        implementationTarget
-                            .getInstrumentedType()
-                            .getDeclaredFields()
-                            .filter(ElementMatchers.named(POSITIONS_FIELD_NAME))
-                            .getOnly())
-                    .write(),
-                MethodReturn.VOID);
-        StackManipulation.Size size = stackManipulation.apply(methodVisitor, implementationContext);
-        return new Size(size.getMaximalSize(), numLocals);
-      };
-    }
-  }
-
-  private static DynamicType.Builder<Coder> implementMethods(
-      Schema schema, DynamicType.Builder<Coder> builder) {
-    boolean hasNullableFields =
-        schema.getFields().stream().map(Field::getType).anyMatch(FieldType::getNullable);
-    return builder
-        .defineMethod("getSchema", Schema.class, Visibility.PRIVATE, Ownership.STATIC)
-        .intercept(FixedValue.reference(schema))
-        .defineMethod("hasNullableFields", boolean.class, Visibility.PRIVATE, Ownership.STATIC)
-        .intercept(FixedValue.reference(hasNullableFields))
-        .method(ElementMatchers.named("encode"))
-        .intercept(new EncodeInstruction())
-        .method(ElementMatchers.named("decode"))
-        .intercept(new DecodeInstruction());
-  }
-
-  private static class EncodeInstruction implements Implementation {
-    static final ForLoadedType LOADED_TYPE = new ForLoadedType(EncodeInstruction.class);
-
-    @Override
-    public ByteCodeAppender appender(Target implementationTarget) {
-      return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        StackManipulation manipulation =
-            new StackManipulation.Compound(
-                // Array of coders.
-                MethodVariableAccess.loadThis(),
-                FieldAccess.forField(
-                        implementationContext
-                            .getInstrumentedType()
-                            .getDeclaredFields()
-                            .filter(ElementMatchers.named(CODERS_FIELD_NAME))
-                            .getOnly())
-                    .read(),
-                MethodVariableAccess.loadThis(),
-                FieldAccess.forField(
-                        implementationContext
-                            .getInstrumentedType()
-                            .getDeclaredFields()
-                            .filter(ElementMatchers.named(POSITIONS_FIELD_NAME))
-                            .getOnly())
-                    .read(),
-                // Element to encode. (offset 1, as offset 0 is always "this").
-                MethodVariableAccess.REFERENCE.loadFrom(1),
-                // OutputStream.
-                MethodVariableAccess.REFERENCE.loadFrom(2),
-                // hasNullableFields
-                MethodInvocation.invoke(
-                    implementationContext
-                        .getInstrumentedType()
-                        .getDeclaredMethods()
-                        .filter(ElementMatchers.named("hasNullableFields"))
-                        .getOnly()),
-                // Call EncodeInstruction.encodeDelegate
-                MethodInvocation.invoke(
-                    LOADED_TYPE
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isStatic().and(ElementMatchers.named("encodeDelegate")))
-                        .getOnly()),
-                MethodReturn.VOID);
-        StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-        return new ByteCodeAppender.Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-      };
+    public void encode(Row value, OutputStream outputStream) throws IOException {
+      encodeDelegate(coders, encodingPosToIndex, value, outputStream, hasNullableFields);
     }
 
     @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
+    public Row decode(InputStream inputStream) throws IOException {
+      return decodeDelegate(schema, coders, encodingPosToIndex, inputStream);
     }
 
-    // The encode method of the generated Coder delegates to this method to evaluate all of the
-    // per-field Coders.
     @SuppressWarnings("unchecked")
-    static void encodeDelegate(
+    private static void encodeDelegate(
         Coder[] coders,
         int[] encodingPosToIndex,
         Row value,
@@ -463,62 +280,8 @@ public abstract class RowCoderGenerator {
       }
       return nullFields;
     }
-  }
 
-  private static class DecodeInstruction implements Implementation {
-    static final ForLoadedType LOADED_TYPE = new ForLoadedType(DecodeInstruction.class);
-
-    @Override
-    public ByteCodeAppender appender(Target implementationTarget) {
-      return (methodVisitor, implementationContext, instrumentedMethod) -> {
-        StackManipulation manipulation =
-            new StackManipulation.Compound(
-                // Schema. Used in generation of DecodeInstruction.
-                MethodInvocation.invoke(
-                    implementationContext
-                        .getInstrumentedType()
-                        .getDeclaredMethods()
-                        .filter(ElementMatchers.named("getSchema"))
-                        .getOnly()),
-                // Array of coders.
-                MethodVariableAccess.loadThis(),
-                FieldAccess.forField(
-                        implementationContext
-                            .getInstrumentedType()
-                            .getDeclaredFields()
-                            .filter(ElementMatchers.named(CODERS_FIELD_NAME))
-                            .getOnly())
-                    .read(),
-                MethodVariableAccess.loadThis(),
-                FieldAccess.forField(
-                        implementationContext
-                            .getInstrumentedType()
-                            .getDeclaredFields()
-                            .filter(ElementMatchers.named(POSITIONS_FIELD_NAME))
-                            .getOnly())
-                    .read(),
-                // read the InputStream. (offset 1, as offset 0 is always "this").
-                MethodVariableAccess.REFERENCE.loadFrom(1),
-                MethodInvocation.invoke(
-                    LOADED_TYPE
-                        .getDeclaredMethods()
-                        .filter(
-                            ElementMatchers.isStatic().and(ElementMatchers.named("decodeDelegate")))
-                        .getOnly()),
-                MethodReturn.REFERENCE);
-        StackManipulation.Size size = manipulation.apply(methodVisitor, implementationContext);
-        return new ByteCodeAppender.Size(size.getMaximalSize(), instrumentedMethod.getStackSize());
-      };
-    }
-
-    @Override
-    public InstrumentedType prepare(InstrumentedType instrumentedType) {
-      return instrumentedType;
-    }
-
-    // The decode method of the generated Coder delegates to this method to evaluate all of the
-    // per-field Coders.
-    static Row decodeDelegate(
+    private static Row decodeDelegate(
         Schema schema, Coder[] coders, int[] encodingPosToIndex, InputStream inputStream)
         throws IOException {
       int fieldCount;
