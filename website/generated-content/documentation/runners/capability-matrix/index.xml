@@ -29,6 +29,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -92,6 +93,12 @@ Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Checkpoint&lt;/th>
@@ -149,6 +156,12 @@ not implemented
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -211,6 +224,12 @@ Flink may perform different shuffling algorithms for batch and streaming. Flink 
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -246,6 +265,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -307,6 +327,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Side Inputs&lt;/th>
@@ -361,6 +387,12 @@ back to collapsed details
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -421,6 +453,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Dynamic Splitting&lt;/th>
@@ -475,6 +513,12 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : Only with Python SDK&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -535,6 +579,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -570,6 +620,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -605,6 +656,12 @@ Spark streaming natively discards elements after firing.
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -690,6 +747,12 @@ Requires that the accumulated pane fits in memory, after being passed through th
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -725,6 +788,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -787,6 +851,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Side Inputs&lt;/th>
@@ -841,6 +911,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p> : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -901,6 +977,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Dynamic Splitting&lt;/th>
@@ -955,6 +1037,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1015,6 +1103,12 @@ Support is either incomplete or broken on portable Flink Runner (#19637)
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1050,6 +1144,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -1116,6 +1211,13 @@ ParDo applies per-element transformations as Spark FlatMapFunction.
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Stateless ParDo runs in the SDK harness over the Fn API, including multiple outputs.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">GroupByKey&lt;/th>
@@ -1176,6 +1278,13 @@ Using Spark&amp;#39;s &amp;lt;tt&amp;gt;groupByKey&amp;lt;/tt&amp;gt;.
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Shuffles through a Kafka repartition topic keyed by the encoded Beam key.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Flatten&lt;/th>
@@ -1231,6 +1340,12 @@ Some corner cases like flatten on empty collections are not yet supported.
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1296,6 +1411,13 @@ Batch mode uses pre-aggregation
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Executed through the GroupByKey expansion; there is no lifted pre-combine yet.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Composite Transforms&lt;/th>
@@ -1351,6 +1473,12 @@ Currently composite transformations are inlined during execution. The structure 
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1416,6 +1544,13 @@ Supported only when the side input source is bounded and windowing uses global w
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Stages run without a side input handler.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Source API&lt;/th>
@@ -1474,6 +1609,13 @@ Using Spark&amp;#39;s DatasourceV2 API in microbatch mode (Continuous streaming 
 &lt;p>&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : bounded and unbounded, read by a single reader&lt;/p>
+&lt;/b>
+&lt;br>
+A source is split into exactly one part; reading several splits in parallel is not supported.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -1538,6 +1680,13 @@ Doesn&amp;#39;t differentiate between committed and attempted values.
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : attempted metrics only&lt;/p>
+&lt;/b>
+&lt;br>
+User metrics reported by the SDK harness surface as attempted values; committed values are not available.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Stateful Processing&lt;/th>
@@ -1597,6 +1746,13 @@ State is supported for non-merging windows. SetState and MapState are not yet su
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+User state is not wired to the harness.
+&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -1632,6 +1788,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -1694,6 +1851,12 @@ Fully supported in streaming mode. In batch mode, intermediate trigger firings a
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : default trigger only&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Event-time triggers&lt;/th>
@@ -1751,6 +1914,13 @@ Fully supported in streaming mode. In batch mode, currently watermark progress j
 &lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : the default trigger only&lt;/p>
+&lt;/b>
+&lt;br>
+Panes fire when the watermark passes the end of the window; other event-time triggers are untested.
 &lt;/td>
 &lt;/tr>
 &lt;tr>
@@ -1811,6 +1981,13 @@ Spark processes streams in micro-batches. The micro-batch size is actually a pre
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Processing-time timers are not wired up.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Count triggers&lt;/th>
@@ -1870,6 +2047,12 @@ Prism will double fire on count triggers
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Composite triggers&lt;/th>
@@ -1924,6 +2107,12 @@ Prism will double fire on count triggers
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1985,6 +2174,13 @@ Fully supported in streaming mode. In batch mode no data is ever late.
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Allowed lateness and late-data dropping are applied by ReduceFnRunner.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Timers&lt;/th>
@@ -2044,6 +2240,13 @@ The Flink Runner supports timers in non-merging windows.
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+User timers are not wired to the harness.
+&lt;/td>
 &lt;/tr>
 &lt;/tbody>
 &lt;/table>
@@ -2079,6 +2282,7 @@ back to collapsed details
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Apache Nemo&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
+&lt;th>Kafka Streams (experimental, not released)&lt;/th>
 &lt;th>Twister2&lt;/th>
 &lt;th>Python Direct FnRunner&lt;/th>
 &lt;/tr>
@@ -2140,6 +2344,12 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Fixed windows&lt;/th>
@@ -2197,6 +2407,13 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Windowing runs through Beam&amp;#39;s ReduceFnRunner over Kafka Streams state and timers.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Sliding windows&lt;/th>
@@ -2251,6 +2468,12 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2311,6 +2534,13 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Sessions are merging windows, which the windowing implementation does not handle yet.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Custom windows&lt;/th>
@@ -2368,6 +2598,13 @@ back to collapsed details
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Only the standard WindowFns, which travel as URNs the runner interprets directly.
+&lt;/td>
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Custom merging windows&lt;/th>
@@ -2422,6 +2659,12 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2481,6 +2724,13 @@ back to collapsed details
 &lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Timestamp combiners are applied by ReduceFnRunner.
 &lt;/td>
 &lt;/tr>
 &lt;/tbody>
