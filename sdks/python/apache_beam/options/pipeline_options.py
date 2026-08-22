@@ -2167,6 +2167,13 @@ class FlinkRunnerOptions(PipelineOptions):
 
 
 class KafkaStreamsRunnerOptions(PipelineOptions):
+  """Options for the Kafka Streams runner.
+
+  The runner is experimental and is not production ready. It is not part of
+  any Apache Beam release: its job server is built only when the Beam build is
+  run with -Pwith-kafka-streams-runner, so using it means building that job
+  server from a Beam source tree.
+  """
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument(

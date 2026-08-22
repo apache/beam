@@ -25,6 +25,7 @@ import mock
 
 from apache_beam.options import pipeline_options
 from apache_beam.runners.portability.kafka_streams_runner import KafkaStreamsJarJobServer
+from apache_beam.utils import subprocess_server
 from apache_beam.runners.portability.kafka_streams_runner import KafkaStreamsRunner
 
 
@@ -88,16 +89,32 @@ class KafkaStreamsJavaJobServerTest(unittest.TestCase):
                      job_server.java_arguments(
                          8099, 8098, 8097, '/tmp/artifacts'))
 
-  def test_path_to_jar_defaults_to_the_job_server_module(self):
+  def test_path_to_jar_uses_a_jar_built_from_this_source_tree(self):
     job_server = KafkaStreamsJarJobServer(pipeline_options.PipelineOptions([]))
-    # Without an explicit jar the runner resolves the one built by the job
-    # server module, which is what lets a user run a pipeline without having
-    # built or started anything first. Resolving it for real would either
-    # download or demand a built jar, so only the target is checked here.
-    with mock.patch.object(job_server, 'path_to_beam_jar') as path_to_beam_jar:
-      job_server.path_to_jar()
-    path_to_beam_jar.assert_called_once_with(
-        ':runners:kafka-streams:job-server:shadowJar')
+    # Without an explicit jar the runner uses the one the job server module
+    # builds, which is what lets someone working in a Beam checkout run a
+    # pipeline without passing anything.
+    with tempfile.NamedTemporaryFile(suffix='.jar') as jar:
+      with mock.patch.object(subprocess_server.JavaJarServer,
+                             'path_to_dev_beam_jar',
+                             return_value=jar.name) as path_to_dev_beam_jar:
+        self.assertEqual(jar.name, job_server.path_to_jar())
+      path_to_dev_beam_jar.assert_called_once_with(
+          ':runners:kafka-streams:job-server:shadowJar')
+
+  def test_path_to_jar_explains_itself_when_nothing_is_built(self):
+    job_server = KafkaStreamsJarJobServer(pipeline_options.PipelineOptions([]))
+    # The job server is not published with any Beam release, so falling back to
+    # a download would fetch an artifact that does not exist and fail with a
+    # 404. Say what is actually wrong instead, and how to build one.
+    with mock.patch.object(subprocess_server.JavaJarServer,
+                           'path_to_dev_beam_jar',
+                           return_value='/no/such/built.jar'):
+      with self.assertRaises(RuntimeError) as context:
+        job_server.path_to_jar()
+    message = str(context.exception)
+    self.assertIn('not part of any Apache Beam release', message)
+    self.assertIn('-Pwith-kafka-streams-runner', message)
 
   def test_path_to_jar_uses_an_explicit_jar(self):
     with tempfile.NamedTemporaryFile(suffix='.jar') as jar:
