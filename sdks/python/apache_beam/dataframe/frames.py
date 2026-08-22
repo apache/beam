@@ -1091,27 +1091,93 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       reindexed = self.reorder_levels(
           level + [i for i in range(self.index.nlevels) if i not in level])
 
-    def xs_partitioned(frame, key):
-      if not len(key):
-        # key is not in this partition, return empty dataframe
-        result = frame.iloc[:0]
-        if key_size < frame.index.nlevels:
+    if key_size < reindexed.index.nlevels:
+
+      def xs_partitioned(frame, key):
+        if not len(key):
+          # key is not in this partition, return empty dataframe/series
+          result = frame.iloc[:0]
           return result.droplevel(list(range(key_size)))
+        return frame.xs(key.item(), **kwargs)
+
+      return frame_base.DeferredFrame.wrap(
+          expressions.ComputedExpression(
+              'xs',
+              xs_partitioned, [reindexed._expr, key_expr],
+              requires_partition_by=partitionings.Index(list(range(key_size))),
+              preserves_partition_by=partitionings.Singleton()))
+    else:
+      # When all index levels are matched (key_size >= nlevels), pandas .xs()
+      # return type is data-dependent:
+      #   - Single match: reduces dimensionality (DataFrame -> Series, Series -> scalar)
+      #   - Duplicate matches: preserves container type (DataFrame -> DataFrame, Series -> Series)
+      # Because proxy schemas are 0-row templates evaluated at graph construction time
+      # without knowledge of dataset contents or key frequencies, the proxy always assumes
+      # a single match (dimensionality-reduced type). At runtime, the Singleton unwrap stage
+      # correctly produces whichever type pandas returns. Tests with multi-matching keys
+      # therefore specify check_proxy=False.
+      def xs_partitioned_wrapped(frame, key):
+        if not len(key):
+          return pd.Series([], dtype=object)
+        k = key.item()
+        try:
+          res = frame.xs(k, **kwargs)
+          return pd.Series([res], dtype=object)
+        except KeyError:
+          return pd.Series([], dtype=object)
+
+      intermediate = expressions.ComputedExpression(
+          'xs_partitioned_wrapped',
+          xs_partitioned_wrapped, [reindexed._expr, key_expr],
+          proxy=pd.Series([], dtype=object),
+          requires_partition_by=partitionings.Index(list(range(key_size))),
+          preserves_partition_by=partitionings.Singleton())
+
+      proxy_frame = reindexed._expr.proxy()
+      k_val = key_series.iloc[0]
+      if isinstance(proxy_frame, pd.DataFrame):
+        dummy_index = (
+            pd.MultiIndex.from_tuples([k_val], names=proxy_frame.index.names) if
+            isinstance(k_val, tuple) else pd.Index([k_val],
+                                                   name=proxy_frame.index.name))
+        dummy_data = {
+            col: [proxy_frame[col].dtype.type()]
+            for col in proxy_frame.columns
+        }
+        dummy_df = pd.DataFrame(dummy_data, index=dummy_index)
+        xs_proxy = dummy_df.xs(k_val, **kwargs)
+        if isinstance(xs_proxy, pd.DataFrame) or isinstance(xs_proxy,
+                                                            pd.Series):
+          xs_proxy = xs_proxy.iloc[:0]
+      else:
+        val = proxy_frame.dtype.type()
+        dummy_index = (
+            pd.MultiIndex.from_tuples([k_val], names=proxy_frame.index.names) if
+            isinstance(k_val, tuple) else pd.Index([k_val],
+                                                   name=proxy_frame.index.name))
+        dummy_ser = pd.Series([val],
+                              index=dummy_index,
+                              dtype=proxy_frame.dtype,
+                              name=proxy_frame.name)
+        xs_proxy = dummy_ser.xs(k_val, **kwargs)
+        if isinstance(xs_proxy, pd.Series):
+          xs_proxy = xs_proxy.iloc[:0]
         else:
-          return result
+          xs_proxy = proxy_frame.dtype.type()
 
-      # key should be in this partition, call xs. Will raise KeyError if not
-      # present.
-      return frame.xs(key.item())
+      def unwrap_xs(ser):
+        if ser.empty:
+          raise KeyError(k_val)
+        return ser.iloc[0]
 
-    return frame_base.DeferredFrame.wrap(
-        expressions.ComputedExpression(
-            'xs',
-            xs_partitioned,
-            [reindexed._expr, key_expr],
-            requires_partition_by=partitionings.Index(list(range(key_size))),
-            # Drops index levels, so partitioning is not preserved
-            preserves_partition_by=partitionings.Singleton()))
+      with expressions.allow_non_parallel_operations(True):
+        return frame_base.DeferredFrame.wrap(
+            expressions.ComputedExpression(
+                'xs',
+                unwrap_xs, [intermediate],
+                proxy=xs_proxy,
+                requires_partition_by=partitionings.Singleton(),
+                preserves_partition_by=partitionings.Singleton()))
 
   @property
   def dtype(self):
