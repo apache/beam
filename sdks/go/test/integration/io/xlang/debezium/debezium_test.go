@@ -25,7 +25,6 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/io/xlang/debeziumio"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
@@ -34,7 +33,7 @@ import (
 )
 
 const (
-	debeziumImage = "quay.io/debezium/example-postgres:3.1.3.Final"
+	debeziumImage = "quay.io/debezium/example-postgres:3.5.2.Final"
 	debeziumPort  = "5432/tcp"
 	maxRetries    = 5
 )

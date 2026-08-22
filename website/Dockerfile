@@ -18,7 +18,7 @@
 # This image contains Hugo and dependencies required to build and test the Beam
 # website. It is used by tasks in build.gradle.
 
-FROM debian:stable-slim
+FROM --platform=linux/amd64 debian:stable-slim
 
 SHELL ["/bin/bash", "-o", "pipefail", "-e", "-u", "-x", "-c"]
 
@@ -44,7 +44,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Cloud SDK (gsutil)
+# Install Google Cloud SDK (gcloud storage)
 RUN apt-get update \
     && apt-get install -y apt-transport-https \
     # Download the key and save it directly to the keyring file (skipping apt-key)

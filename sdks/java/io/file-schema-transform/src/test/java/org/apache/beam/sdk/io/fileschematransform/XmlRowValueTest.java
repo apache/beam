@@ -133,7 +133,7 @@ public class XmlRowValueTest {
       assertTrue(booleans, booleansValueList.isPresent());
       assertEquals(
           booleans,
-          row.getArray(booleans),
+          (List) row.getArray(booleans),
           booleansValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
@@ -145,7 +145,7 @@ public class XmlRowValueTest {
       assertTrue(doubles, doublesValueList.isPresent());
       assertEquals(
           doubles,
-          row.getArray(doubles),
+          (List) row.getArray(doubles),
           doublesValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
@@ -157,7 +157,7 @@ public class XmlRowValueTest {
       assertTrue(floats, floatsValueList.isPresent());
       assertEquals(
           floats,
-          row.getArray(floats),
+          (List) row.getArray(floats),
           floatsValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
@@ -169,7 +169,7 @@ public class XmlRowValueTest {
       assertTrue(integers, integersValueList.isPresent());
       assertEquals(
           integers,
-          row.getArray(integers),
+          (List) row.getArray(integers),
           integersValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
@@ -181,7 +181,7 @@ public class XmlRowValueTest {
       assertTrue(longs, longsValueList.isPresent());
       assertEquals(
           longs,
-          row.getArray(longs),
+          (List) row.getArray(longs),
           longsValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
@@ -193,7 +193,7 @@ public class XmlRowValueTest {
       assertTrue(strings, stringsValueList.isPresent());
       assertEquals(
           strings,
-          row.getArray(strings),
+          (List) row.getArray(strings),
           stringsValueList.get().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));
@@ -244,7 +244,7 @@ public class XmlRowValueTest {
       byteListValue.setValue(byteList, row);
       assertEquals(
           singleByte,
-          row.getArray(byteList),
+          (List) row.getArray(byteList),
           byteListValue.getValueList().stream()
               .map(XmlRowValue::getPrimitiveValue)
               .collect(Collectors.toList()));

@@ -34,6 +34,7 @@ import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.ErrorCode;
 import com.google.cloud.spanner.SpannerExceptionFactory;
 import com.google.cloud.spanner.Struct;
+import io.opentelemetry.api.OpenTelemetry;
 import java.util.Arrays;
 import java.util.Optional;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
@@ -66,6 +67,7 @@ import org.mockito.ArgumentCaptor;
 
 public class QueryChangeStreamActionTest {
   private static final String PARTITION_TOKEN = "partitionToken";
+  private static final String TVF_NAME = "";
   private static final Timestamp PARTITION_START_TIMESTAMP = Timestamp.ofTimeMicroseconds(10L);
   private static final Timestamp RECORD_TIMESTAMP = Timestamp.ofTimeMicroseconds(20L);
   private static final Timestamp PARTITION_END_TIMESTAMP = Timestamp.ofTimeMicroseconds(30L);
@@ -121,11 +123,13 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             false,
-            Duration.standardMinutes(2));
+            Duration.standardMinutes(2),
+            OpenTelemetry.noop());
     final Struct row = mock(Struct.class);
     partition =
         PartitionMetadata.newBuilder()
             .setPartitionToken(PARTITION_TOKEN)
+            .setTvfName(TVF_NAME)
             .setParentTokens(Sets.newHashSet("parentToken"))
             .setStartTimestamp(PARTITION_START_TIMESTAMP)
             .setEndTimestamp(PARTITION_END_TIMESTAMP)
@@ -143,7 +147,9 @@ public class QueryChangeStreamActionTest {
     when(restrictionTracker.currentRestriction()).thenReturn(restriction);
     when(restriction.getFrom()).thenReturn(PARTITION_START_TIMESTAMP);
     when(restriction.getTo()).thenReturn(PARTITION_END_TIMESTAMP);
-    when(partitionMetadataDao.getPartition(PARTITION_TOKEN)).thenReturn(row);
+    when(partitionMetadataDao.getPartition(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME)))
+        .thenReturn(row);
     when(partitionMetadataMapper.from(row)).thenReturn(partition);
   }
 
@@ -157,6 +163,7 @@ public class QueryChangeStreamActionTest {
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
             .setState(SCHEDULED)
             .setWatermark(WATERMARK_TIMESTAMP)
+            .setTvfName(TVF_NAME)
             .setScheduledAt(Timestamp.now())
             .build();
     when(partitionMetadataMapper.from(any())).thenReturn(partition);
@@ -175,6 +182,7 @@ public class QueryChangeStreamActionTest {
     when(record2.getRecordTimestamp()).thenReturn(RECORD_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -223,7 +231,10 @@ public class QueryChangeStreamActionTest {
             any(RestrictionInterrupter.class),
             eq(outputReceiver),
             eq(watermarkEstimator));
-    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao)
+        .updateWatermark(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME),
+            WATERMARK_TIMESTAMP);
 
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(childPartitionsRecordAction, never()).run(any(), any(), any(), any(), any());
@@ -245,6 +256,7 @@ public class QueryChangeStreamActionTest {
     when(record2.getRecordTimestamp()).thenReturn(RECORD_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -315,6 +327,7 @@ public class QueryChangeStreamActionTest {
     when(record2.getRecordTimestamp()).thenReturn(PARTITION_END_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -379,6 +392,7 @@ public class QueryChangeStreamActionTest {
     when(record2.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -423,7 +437,10 @@ public class QueryChangeStreamActionTest {
             eq(restrictionTracker),
             any(RestrictionInterrupter.class),
             eq(watermarkEstimator));
-    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao)
+        .updateWatermark(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME),
+            WATERMARK_TIMESTAMP);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
@@ -449,6 +466,7 @@ public class QueryChangeStreamActionTest {
     when(record2.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(25L));
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             Timestamp.ofTimeMicroseconds(15L),
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -486,7 +504,10 @@ public class QueryChangeStreamActionTest {
             eq(restrictionTracker),
             any(RestrictionInterrupter.class),
             eq(watermarkEstimator));
-    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao)
+        .updateWatermark(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME),
+            WATERMARK_TIMESTAMP);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
@@ -505,6 +526,7 @@ public class QueryChangeStreamActionTest {
     when(record1.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -534,7 +556,10 @@ public class QueryChangeStreamActionTest {
             eq(restrictionTracker),
             any(RestrictionInterrupter.class),
             eq(watermarkEstimator));
-    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao)
+        .updateWatermark(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME),
+            WATERMARK_TIMESTAMP);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
@@ -555,6 +580,7 @@ public class QueryChangeStreamActionTest {
     when(record1.getRecordTimestamp()).thenReturn(Timestamp.ofTimeMicroseconds(15L));
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             Timestamp.ofTimeMicroseconds(15L),
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -584,7 +610,10 @@ public class QueryChangeStreamActionTest {
             eq(restrictionTracker),
             any(RestrictionInterrupter.class),
             eq(watermarkEstimator));
-    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao)
+        .updateWatermark(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME),
+            WATERMARK_TIMESTAMP);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
@@ -601,6 +630,7 @@ public class QueryChangeStreamActionTest {
     when(record1.getRecordTimestamp()).thenReturn(RECORD_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -653,6 +683,7 @@ public class QueryChangeStreamActionTest {
     final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
     when(changeStreamDao.changeStreamQuery(
             eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
             eq(PARTITION_START_TIMESTAMP),
             timestampCaptor.capture(),
             eq(PARTITION_HEARTBEAT_MILLIS)))
@@ -703,6 +734,7 @@ public class QueryChangeStreamActionTest {
     when(record1.getRecordTimestamp()).thenReturn(PARTITION_START_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -732,7 +764,10 @@ public class QueryChangeStreamActionTest {
             eq(restrictionTracker),
             any(RestrictionInterrupter.class),
             eq(watermarkEstimator));
-    verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
+    verify(partitionMetadataDao)
+        .updateWatermark(
+            PartitionMetadataDao.composePartitionTokenWithTvfName(PARTITION_TOKEN, TVF_NAME),
+            WATERMARK_TIMESTAMP);
 
     verify(dataChangeRecordAction, never()).run(any(), any(), any(), any(), any(), any());
     verify(heartbeatRecordAction, never()).run(any(), any(), any(), any(), any(), any());
@@ -747,6 +782,7 @@ public class QueryChangeStreamActionTest {
     final ChangeStreamResultSet changeStreamResultSet = mock(ChangeStreamResultSet.class);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -782,6 +818,7 @@ public class QueryChangeStreamActionTest {
             .setHeartbeatMillis(PARTITION_HEARTBEAT_MILLIS)
             .setState(SCHEDULED)
             .setWatermark(WATERMARK_TIMESTAMP)
+            .setTvfName(TVF_NAME)
             .setScheduledAt(Timestamp.now())
             .build();
     when(partitionMetadataMapper.from(any())).thenReturn(partition);
@@ -790,6 +827,7 @@ public class QueryChangeStreamActionTest {
     final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
     when(changeStreamDao.changeStreamQuery(
             eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
             eq(PARTITION_START_TIMESTAMP),
             timestampCaptor.capture(),
             eq(PARTITION_HEARTBEAT_MILLIS)))
@@ -826,6 +864,7 @@ public class QueryChangeStreamActionTest {
     final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
     when(changeStreamDao.changeStreamQuery(
             eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
             eq(PARTITION_START_TIMESTAMP),
             timestampCaptor.capture(),
             eq(PARTITION_HEARTBEAT_MILLIS)))
@@ -860,6 +899,7 @@ public class QueryChangeStreamActionTest {
   public void testQueryChangeStreamWithOutOfRangeErrorOnBoundedPartition() {
     when(changeStreamDao.changeStreamQuery(
             eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
             eq(PARTITION_START_TIMESTAMP),
             eq(PARTITION_END_TIMESTAMP),
             eq(PARTITION_HEARTBEAT_MILLIS)))
@@ -896,6 +936,7 @@ public class QueryChangeStreamActionTest {
     when(record1.getRecordTimestamp()).thenReturn(RECORD_TIMESTAMP);
     when(changeStreamDao.changeStreamQuery(
             PARTITION_TOKEN,
+            TVF_NAME,
             PARTITION_START_TIMESTAMP,
             PARTITION_END_TIMESTAMP,
             PARTITION_HEARTBEAT_MILLIS))
@@ -948,6 +989,7 @@ public class QueryChangeStreamActionTest {
     final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
     when(changeStreamDao.changeStreamQuery(
             eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
             eq(PARTITION_START_TIMESTAMP),
             timestampCaptor.capture(),
             eq(PARTITION_HEARTBEAT_MILLIS)))
@@ -1006,7 +1048,8 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             true,
-            Duration.standardMinutes(2));
+            Duration.standardMinutes(2),
+            OpenTelemetry.noop());
 
     // Set endTimestamp to 60 minutes in the future
     Timestamp now = Timestamp.now();
@@ -1020,8 +1063,11 @@ public class QueryChangeStreamActionTest {
     final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
     when(changeStreamDao.changeStreamQuery(
-            eq(PARTITION_TOKEN), eq(PARTITION_START_TIMESTAMP),
-            timestampCaptor.capture(), eq(PARTITION_HEARTBEAT_MILLIS)))
+            eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
+            eq(PARTITION_START_TIMESTAMP),
+            timestampCaptor.capture(),
+            eq(PARTITION_HEARTBEAT_MILLIS)))
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(false); // Query finishes (reaches cap)
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
@@ -1055,7 +1101,8 @@ public class QueryChangeStreamActionTest {
             partitionEventRecordAction,
             metrics,
             true,
-            Duration.standardMinutes(2));
+            Duration.standardMinutes(2),
+            OpenTelemetry.noop());
 
     // Set endTimestamp to only 10 seconds in the future
     Timestamp now = Timestamp.now();
@@ -1068,8 +1115,11 @@ public class QueryChangeStreamActionTest {
     final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
     final ArgumentCaptor<Timestamp> timestampCaptor = ArgumentCaptor.forClass(Timestamp.class);
     when(changeStreamDao.changeStreamQuery(
-            eq(PARTITION_TOKEN), eq(PARTITION_START_TIMESTAMP),
-            timestampCaptor.capture(), eq(PARTITION_HEARTBEAT_MILLIS)))
+            eq(PARTITION_TOKEN),
+            eq(TVF_NAME),
+            eq(PARTITION_START_TIMESTAMP),
+            timestampCaptor.capture(),
+            eq(PARTITION_HEARTBEAT_MILLIS)))
         .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(false);
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
@@ -1092,7 +1142,8 @@ public class QueryChangeStreamActionTest {
     setupUnboundedPartition();
 
     final ChangeStreamResultSet resultSet = mock(ChangeStreamResultSet.class);
-    when(changeStreamDao.changeStreamQuery(any(), any(), any(), anyLong())).thenReturn(resultSet);
+    when(changeStreamDao.changeStreamQuery(any(), any(), any(), any(), anyLong()))
+        .thenReturn(resultSet);
     when(resultSet.next()).thenReturn(false);
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
     when(restrictionTracker.tryClaim(any(Timestamp.class))).thenReturn(true);

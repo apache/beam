@@ -339,6 +339,7 @@ public class GrpcWindmillServerTest {
                 boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
+                ImmutableList<Long> appliedFinalizeIds,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               latch.countDown();
               assertEquals(inputDataWatermark, new Instant(18));
@@ -474,6 +475,7 @@ public class GrpcWindmillServerTest {
                 boolean drainMode,
                 WorkItem workItem,
                 long serializedWorkItemSize,
+                ImmutableList<Long> appliedFinalizeIds,
                 ImmutableList<LatencyAttribution> getWorkStreamLatencies) -> {
               assertEquals(inputDataWatermark, new Instant(18));
               assertEquals(synchronizedProcessingTime, new Instant(17));

@@ -23,15 +23,16 @@ import static org.junit.Assert.assertNotEquals;
 import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.time.Duration;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.it.common.PipelineLauncher;
 import org.apache.beam.it.common.PipelineOperator;
 import org.apache.beam.it.common.TestProperties;
+import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
-import org.apache.beam.it.gcp.IOLoadTestBase;
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.io.kafka.KafkaIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticOptions;
@@ -78,7 +79,7 @@ public final class KafkaIOLT extends IOLoadTestBase {
     kafkaTopic =
         "io-kafka-"
             + DateTimeFormatter.ofPattern("MMddHHmmssSSS")
-                .withZone(ZoneId.of("UTC"))
+                .withZone(ZoneOffset.UTC)
                 .format(java.time.Instant.now())
             + UUID.randomUUID().toString().substring(0, 10);
 

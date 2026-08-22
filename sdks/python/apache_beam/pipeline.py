@@ -65,7 +65,6 @@ from collections.abc import Sequence
 from typing import TYPE_CHECKING
 from typing import Any
 from typing import Optional
-from typing import Type
 from typing import Union
 
 from google.protobuf import message
@@ -644,7 +643,7 @@ class Pipeline(HasDisplayData):
 
   def __exit__(
       self,
-      exc_type: Optional[Type[BaseException]],
+      exc_type: Optional[type[BaseException]],
       exc_val: Optional[BaseException],
       exc_tb: Optional['TracebackType']) -> None:
 
@@ -1021,7 +1020,7 @@ class Pipeline(HasDisplayData):
         if pcoll.element_type is None:
           pcoll.element_type = typehints.Any
 
-  def __reduce__(self) -> tuple[Type, tuple[str, ...]]:
+  def __reduce__(self) -> tuple[type, tuple[str, ...]]:
     # Some transforms contain a reference to their enclosing pipeline,
     # which in turn reference all other transforms (resulting in quadratic
     # time/space to pickle each transform individually).  As we don't

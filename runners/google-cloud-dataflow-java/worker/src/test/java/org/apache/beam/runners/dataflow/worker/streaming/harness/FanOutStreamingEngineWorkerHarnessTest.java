@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming.harness;
 
+import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
@@ -126,10 +127,11 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         watermarks,
         processingContext,
         drainMode,
+        appliedFinalizeIds,
         getWorkStreamLatencies) -> {};
   }
 
-  private static GetWorkRequest getWorkRequest(long items, long bytes) {
+  private static GetWorkRequest getWorkRequest(long items, long bytes, String backendWorkerToken) {
     return GetWorkRequest.newBuilder()
         .setJobId(JOB_ID)
         .setProjectId(PROJECT_ID)
@@ -137,6 +139,7 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .setClientId(JOB_HEADER.getClientId())
         .setMaxItems(items)
         .setMaxBytes(bytes)
+        .setBackendWorkerToken(backendWorkerToken)
         .build();
   }
 
@@ -236,9 +239,22 @@ public class FanOutStreamingEngineWorkerHarnessTest {
         .distributeBudget(
             any(), eq(GetWorkBudget.builder().setItems(items).setBytes(bytes).build()));
 
-    verify(streamFactory, times(2))
+    verify(streamFactory, times(1))
         .createDirectGetWorkStream(
-            any(), eq(getWorkRequest(0, 0)), any(), any(), any(), eq(noOpProcessWorkItemFn()));
+            any(),
+            eq(getWorkRequest(0, 0, workerToken)),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
+    verify(streamFactory, times(1))
+        .createDirectGetWorkStream(
+            any(),
+            eq(getWorkRequest(0, 0, workerToken2)),
+            any(),
+            any(),
+            any(),
+            eq(noOpProcessWorkItemFn()));
 
     verify(streamFactory, times(2)).createDirectGetDataStream(any());
     verify(streamFactory, times(2)).createDirectCommitWorkStream(any());
@@ -331,6 +347,143 @@ public class FanOutStreamingEngineWorkerHarnessTest {
     fakeGetWorkerMetadataStub.injectWorkerMetadata(secondWorkerMetadata);
     verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
     TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+  }
+
+  @Test
+  public void testOnNewWorkerMetadata_alternatesConnectivityTypesAndRemovesStaleEndpoints()
+      throws InterruptedException {
+    String workerToken = "workerToken1";
+
+    WorkerMetadataResponse cloudPathMetadata =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(1)
+            .setEndpointType(Windmill.WorkerMetadataResponse.EndpointType.CLOUDPATH)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken)
+                    .build())
+            .putAllGlobalDataEndpoints(DEFAULT)
+            .build();
+    WorkerMetadataResponse directPathMetadata =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(1)
+            .setEndpointType(Windmill.WorkerMetadataResponse.EndpointType.DIRECTPATH)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken + "1")
+                    .build())
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken + "2")
+                    .build())
+            .putAllGlobalDataEndpoints(DEFAULT)
+            .build();
+    WorkerMetadataResponse directPathMetadata2 =
+        WorkerMetadataResponse.newBuilder()
+            .setMetadataVersion(1)
+            .setEndpointType(Windmill.WorkerMetadataResponse.EndpointType.DIRECTPATH)
+            .addWorkEndpoints(
+                WorkerMetadataResponse.Endpoint.newBuilder()
+                    .setBackendWorkerToken(workerToken + "3")
+                    .build())
+            .putAllGlobalDataEndpoints(DEFAULT)
+            .build();
+
+    TestGetWorkBudgetDistributor getWorkBudgetDistributor = spy(new TestGetWorkBudgetDistributor());
+    fanOutStreamingEngineWorkProvider =
+        newFanOutStreamingEngineWorkerHarness(
+            GetWorkBudget.builder().setItems(1).setBytes(1).build(),
+            getWorkBudgetDistributor,
+            noOpProcessWorkItemFn());
+
+    // Sequence : CLOUDPATH -> DIRECTPATH -> CLOUDPATH -> DIRECTPATH
+    // Start with CLOUDPATH (version 1, 1 endpoint)
+    // Verifies: version > pendingMetadataVersion condition triggers consumption
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(cloudPathMetadata);
+    verify(getWorkBudgetDistributor, times(1)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    assertThat(fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams()).hasSize(1);
+    assertThat(
+            fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+                .map(endpoint -> endpoint.workerToken().orElse(""))
+                .collect(Collectors.toSet()))
+        .contains(workerToken);
+
+    // Switch to DIRECTPATH (same version 1, 2 endpoints, different type)
+    // Verifies: type change at same version triggers consumption (consumeWorkerMetadata lines
+    // 284-286)
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(directPathMetadata);
+    verify(getWorkBudgetDistributor, times(2)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    assertThat(fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().values())
+        .hasSize(2);
+    // Verifies: stale CLOUDPATH endpoint is not consumed
+    Set<String> directPathTokens =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElse(""))
+            .collect(Collectors.toSet());
+    assertThat(directPathTokens).contains(workerToken + "1");
+    assertThat(directPathTokens).contains(workerToken + "2");
+    assertThat(directPathTokens).containsNoneIn(java.util.Arrays.asList(workerToken));
+
+    // Switch back to CLOUDPATH (same version 1, 1 endpoint, different type)
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(cloudPathMetadata);
+    verify(getWorkBudgetDistributor, times(3)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    assertThat(fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().values())
+        .hasSize(1);
+    // Verifies: stale DIRECTPATH endpoints are not consumed
+    Set<String> cloudPathTokens =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElse(""))
+            .collect(Collectors.toSet());
+    assertThat(cloudPathTokens).contains(workerToken);
+    assertThat(cloudPathTokens)
+        .containsNoneIn(java.util.Arrays.asList(workerToken + "1", workerToken + "2"));
+
+    // Switch to DIRECTPATH (same version 1, 2 endpoints, different type)
+    // Verifies: type change works in both directions
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(directPathMetadata);
+    verify(getWorkBudgetDistributor, times(4)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    assertThat(fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams()).hasSize(2);
+    directPathTokens =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElse(""))
+            .collect(Collectors.toSet());
+    assertThat(directPathTokens).contains(workerToken + "1");
+    assertThat(directPathTokens).contains(workerToken + "2");
+    assertThat(directPathTokens).containsNoneIn(java.util.Arrays.asList(workerToken));
+
+    // Switch to DIRECTPATH (same version 1, 1 endpoint, same type)
+    // Verifies: same version same type does not trigger consumption, endpoints remain the same
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(directPathMetadata2);
+    verify(getWorkBudgetDistributor, times(4)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    assertThat(fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams()).hasSize(2);
+    directPathTokens =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElse(""))
+            .collect(Collectors.toSet());
+    assertThat(directPathTokens).contains(workerToken + "1");
+    assertThat(directPathTokens).contains(workerToken + "2");
+    assertThat(directPathTokens).containsNoneIn(java.util.Arrays.asList(workerToken + "3"));
+
+    directPathMetadata2 = directPathMetadata2.toBuilder().setMetadataVersion(2).build();
+
+    // Final switch back to DIRECTPATH (different version:2, 1 endpoint, same type)
+    // Verifies: version change triggers consumption even if type is the same.
+    fakeGetWorkerMetadataStub.injectWorkerMetadata(directPathMetadata2);
+    verify(getWorkBudgetDistributor, times(5)).distributeBudget(any(), any());
+    TimeUnit.SECONDS.sleep(WAIT_FOR_METADATA_INJECTIONS_SECONDS);
+    assertThat(fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams()).hasSize(1);
+    directPathTokens =
+        fanOutStreamingEngineWorkProvider.currentBackends().windmillStreams().keySet().stream()
+            .map(endpoint -> endpoint.workerToken().orElse(""))
+            .collect(Collectors.toSet());
+    assertThat(directPathTokens)
+        .containsNoneIn(java.util.Arrays.asList(workerToken + "1", workerToken + "2"));
+    assertThat(directPathTokens).contains(workerToken + "3");
   }
 
   private static class WindmillServiceFakeStub

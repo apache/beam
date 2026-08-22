@@ -32,9 +32,16 @@ def overrides(versions, type, base_path, group='java') {
   ["${base_path}/src/${type}/${group}"] + versions.collect { "${base_path}/${it}/src/${type}/${group}" } + ["./src/${type}/${group}"]
 }
 
-def all_versions = flink_versions.split(",")
-
-def previous_versions = all_versions.findAll { it < flink_major }
+def all_versions = flink_versions.split(",").collect { it.trim() }
+// Determine version order by list position rather than string comparison so two-digit
+// minors (e.g. "1.20") sort correctly relative to "1.18" / "1.19".
+def flink_major_index = all_versions.indexOf(flink_major?.toString()?.trim())
+if (flink_major_index < 0) {
+  throw new GradleException(
+      "flink_major='${flink_major}' is not listed in flink_versions='${flink_versions}' " +
+      "(see root gradle.properties).")
+}
+def previous_versions = all_versions.subList(0, flink_major_index)
 
 // Version specific code overrides.
 def main_source_overrides = overrides(previous_versions, "main", base_path)
@@ -106,7 +113,7 @@ def copyTestResourcesOverrides = tasks.register('copyTestResourcesOverrides', Co
   it.duplicatesStrategy DuplicatesStrategy.INCLUDE
 }
 
-def use_override = (flink_major != all_versions.first())
+def use_override = (flink_major_index > 0)
 def sourceBase = "${project.projectDir}/../src"
 
 if (use_override) {
@@ -173,6 +180,22 @@ if (use_override) {
   }
 }
 
+def flinkTestJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "-Djava.security.manager=allow",
+    ]
+  } else {
+    return []
+  }
+}
+
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   // Change log level to debug:
@@ -180,6 +203,7 @@ test {
   // Change log level to debug only for the package and nested packages:
   // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.flink.translation.wrappers.streaming", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
+  jvmArgs += flinkTestJvmArgs()
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
@@ -222,6 +246,13 @@ dependencies {
   // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
   // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
   permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
+
+  // align with Flink's kryo version (groupId changed)
+  if (flink_major.startsWith('2')) {
+    implementation "com.esotericsoftware:kryo:5.6.2"
+  } else {
+    implementation "com.esotericsoftware.kryo:kryo:2.24.0"
+  }
 
   implementation "org.apache.flink:flink-streaming-java:$flink_version"
   testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"

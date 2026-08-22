@@ -71,6 +71,7 @@ public class GrpcDirectGetWorkStreamTest {
           watermarks,
           processingContext,
           drainMode,
+          appliedFinalizeIds,
           getWorkStreamLatencies) -> {};
   private static final Windmill.JobHeader TEST_JOB_HEADER =
       Windmill.JobHeader.newBuilder()
@@ -285,6 +286,7 @@ public class GrpcDirectGetWorkStreamTest {
                 watermarks,
                 processingContext,
                 drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
@@ -334,6 +336,7 @@ public class GrpcDirectGetWorkStreamTest {
                 watermarks,
                 processingContext,
                 drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> scheduledWorkItems.add(work));
     Windmill.WorkItem workItem =
         Windmill.WorkItem.newBuilder()
@@ -372,6 +375,7 @@ public class GrpcDirectGetWorkStreamTest {
                 watermarks,
                 processingContext,
                 drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });
@@ -416,6 +420,7 @@ public class GrpcDirectGetWorkStreamTest {
                 watermarks,
                 processingContext,
                 drainMode,
+                appliedFinalizeIds,
                 getWorkStreamLatencies) -> {
               scheduledWorkItems.add(work);
             });

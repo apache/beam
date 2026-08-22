@@ -24,9 +24,11 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -57,7 +59,11 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new Converter(
         TableRowToStorageApiProto.schemaToProtoTableSchema(
             Preconditions.checkStateNotNull(getSchema(destination))));
@@ -77,6 +83,9 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
       return tableSchema;
     }
 
+    @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
+
     public TableRowToStorageApiProto.SchemaInformation getSchemaInformation() {
       if (this.schemaInformation == null) {
         this.schemaInformation =
@@ -95,7 +104,10 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
     @Override
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       // NB: What makes this path efficient is that the storage API directly understands protos, so
       // we can forward
       // the through directly. This means that we don't currently support ignoreUnknownValues or

@@ -290,7 +290,7 @@ public class BigQueryUtils {
             .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 9, true)
             .appendLiteral(" UTC")
             .toFormatter()
-            .withZone(java.time.ZoneId.of("UTC"));
+            .withZone(ZoneOffset.UTC);
   }
 
   private static final Map<TypeName, StandardSQLTypeName> BEAM_TO_BIGQUERY_TYPE_MAPPING =
@@ -932,6 +932,12 @@ public class BigQueryUtils {
           return java.time.Instant.parse(jsonBQString);
         }
       } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
+        if (!jsonBQString.contains("UTC")) {
+          BigDecimal bd = new BigDecimal(jsonBQString);
+          long seconds = bd.longValue();
+          long nanos = bd.subtract(BigDecimal.valueOf(seconds)).movePointRight(9).longValue();
+          return java.time.Instant.ofEpochSecond(seconds, nanos);
+        }
         return VAR_PRECISION_FORMATTER.parse(jsonBQString, java.time.Instant::from);
       }
     }

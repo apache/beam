@@ -1010,7 +1010,6 @@ public class ParquetIO {
         .setPageSize(ParquetWriter.DEFAULT_PAGE_SIZE)
         .setEnableDictionary(ParquetWriter.DEFAULT_IS_DICTIONARY_ENABLED)
         .setEnableBloomFilter(ParquetProperties.DEFAULT_BLOOM_FILTER_ENABLED)
-        .setMinRowCountForPageSizeCheck(ParquetProperties.DEFAULT_MINIMUM_RECORD_COUNT_FOR_CHECK)
         .build();
   }
 
@@ -1032,7 +1031,9 @@ public class ParquetIO {
 
     abstract boolean getEnableBloomFilter();
 
-    abstract int getMinRowCountForPageSizeCheck();
+    abstract @Nullable ValueProvider<Integer> getMinRowCountForPageSizeCheck();
+
+    abstract @Nullable ValueProvider<Integer> getMaxRowCountForPageSizeCheck();
 
     abstract @Nullable Class<? extends GenericData> getAvroDataModelClass();
 
@@ -1054,7 +1055,11 @@ public class ParquetIO {
 
       abstract Builder setEnableBloomFilter(boolean enableBloomFilter);
 
-      abstract Builder setMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck);
+      abstract Builder setMinRowCountForPageSizeCheck(
+          ValueProvider<Integer> minRowCountForPageSizeCheck);
+
+      abstract Builder setMaxRowCountForPageSizeCheck(
+          ValueProvider<Integer> maxRowCountForPageSizeCheck);
 
       abstract Builder setAvroDataModelClass(Class<? extends GenericData> modelClass);
 
@@ -1109,7 +1114,58 @@ public class ParquetIO {
     public Sink withMinRowCountForPageSizeCheck(int minRowCountForPageSizeCheck) {
       checkArgument(
           minRowCountForPageSizeCheck > 0, "minRowCountForPageSizeCheck must be positive");
+      return toBuilder()
+          .setMinRowCountForPageSizeCheck(
+              ValueProvider.StaticValueProvider.of(minRowCountForPageSizeCheck))
+          .build();
+    }
+
+    /**
+     * Like {@link #withMinRowCountForPageSizeCheck(int)}, but accepts a {@link ValueProvider} so
+     * the value can be supplied at runtime (required for classic Dataflow templates).
+     */
+    public Sink withMinRowCountForPageSizeCheck(
+        ValueProvider<Integer> minRowCountForPageSizeCheck) {
+      checkNotNull(minRowCountForPageSizeCheck, "minRowCountForPageSizeCheck can not be null");
+      if (minRowCountForPageSizeCheck.isAccessible()) {
+        Integer value = minRowCountForPageSizeCheck.get();
+        checkNotNull(value, "minRowCountForPageSizeCheck value cannot be null");
+        checkArgument(value > 0, "minRowCountForPageSizeCheck must be positive");
+      }
       return toBuilder().setMinRowCountForPageSizeCheck(minRowCountForPageSizeCheck).build();
+    }
+
+    /**
+     * Specify the maximum number of rows to buffer before a page size check is forced. By default
+     * Parquet estimates the next check from the average row size and may defer it (up to {@code
+     * 10000} rows); a run of small rows followed by large rows can then let the column page buffer
+     * overflow {@code Integer.MAX_VALUE} before the deferred check fires. Setting this (e.g. {@code
+     * 1}) caps the interval so a check -- and flush -- happens at least this often regardless of
+     * the estimate. Pair it with {@link #withMinRowCountForPageSizeCheck(int)} to bound the buffer
+     * for tables whose row sizes vary widely.
+     */
+    public Sink withMaxRowCountForPageSizeCheck(int maxRowCountForPageSizeCheck) {
+      checkArgument(
+          maxRowCountForPageSizeCheck > 0, "maxRowCountForPageSizeCheck must be positive");
+      return toBuilder()
+          .setMaxRowCountForPageSizeCheck(
+              ValueProvider.StaticValueProvider.of(maxRowCountForPageSizeCheck))
+          .build();
+    }
+
+    /**
+     * Like {@link #withMaxRowCountForPageSizeCheck(int)}, but accepts a {@link ValueProvider} so
+     * the value can be supplied at runtime (required for classic Dataflow templates).
+     */
+    public Sink withMaxRowCountForPageSizeCheck(
+        ValueProvider<Integer> maxRowCountForPageSizeCheck) {
+      checkNotNull(maxRowCountForPageSizeCheck, "maxRowCountForPageSizeCheck can not be null");
+      if (maxRowCountForPageSizeCheck.isAccessible()) {
+        Integer value = maxRowCountForPageSizeCheck.get();
+        checkNotNull(value, "maxRowCountForPageSizeCheck value cannot be null");
+        checkArgument(value > 0, "maxRowCountForPageSizeCheck must be positive");
+      }
+      return toBuilder().setMaxRowCountForPageSizeCheck(maxRowCountForPageSizeCheck).build();
     }
 
     /**
@@ -1141,8 +1197,25 @@ public class ParquetIO {
               .withRowGroupSize(getRowGroupSize())
               .withPageSize(getPageSize())
               .withDictionaryEncoding(getEnableDictionary())
-              .withBloomFilterEnabled(getEnableBloomFilter())
-              .withMinRowCountForPageSizeCheck(getMinRowCountForPageSizeCheck());
+              .withBloomFilterEnabled(getEnableBloomFilter());
+
+      ValueProvider<Integer> minRowCountProvider = getMinRowCountForPageSizeCheck();
+      if (minRowCountProvider != null) {
+        Integer minRowCount = minRowCountProvider.get();
+        if (minRowCount != null) {
+          checkArgument(minRowCount > 0, "minRowCountForPageSizeCheck must be positive");
+          builder = builder.withMinRowCountForPageSizeCheck(minRowCount);
+        }
+      }
+
+      ValueProvider<Integer> maxRowCountProvider = getMaxRowCountForPageSizeCheck();
+      if (maxRowCountProvider != null) {
+        Integer maxRowCount = maxRowCountProvider.get();
+        if (maxRowCount != null) {
+          checkArgument(maxRowCount > 0, "maxRowCountForPageSizeCheck must be positive");
+          builder = builder.withMaxRowCountForPageSizeCheck(maxRowCount);
+        }
+      }
 
       if (modelClass != null) {
         try {

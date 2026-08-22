@@ -18,7 +18,6 @@
 package org.apache.beam.sdk.extensions.sql.meta.catalog;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
 import java.util.Collections;
@@ -111,13 +110,20 @@ public class InMemoryCatalog implements Catalog {
 
   @Override
   public boolean dropDatabase(String database, boolean cascade) {
-    checkState(!cascade, "%s does not support CASCADE.", getClass().getSimpleName());
+    MetaStore metaStore = metaStores.get(database);
+    if (!cascade && metaStore != null && !metaStore.getTables().isEmpty()) {
+      throw new IllegalStateException("Database '" + database + "' is not empty.");
+    }
 
     boolean removed = databases.remove(database);
+    if (!removed) {
+      return false;
+    }
     if (database.equals(currentDatabase)) {
       currentDatabase = null;
     }
-    return removed;
+    metaStores.remove(database);
+    return true;
   }
 
   @Override

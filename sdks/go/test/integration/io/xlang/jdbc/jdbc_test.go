@@ -26,14 +26,13 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/dataflow"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/flink"
-	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/samza"
 	_ "github.com/apache/beam/sdks/v2/go/pkg/beam/runners/spark"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/testing/ptest"
 	"github.com/apache/beam/sdks/v2/go/test/integration"
 	"github.com/apache/beam/sdks/v2/go/test/integration/internal/containers"
-	"github.com/docker/go-connections/nat"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
@@ -61,8 +60,9 @@ func setupTestContainer(ctx context.Context, t *testing.T, dbname, username, pas
 	}
 	hostname := "localhost"
 
-	dbURL := func(host string, port nat.Port) string {
-		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, port.Port(), dbname)
+	dbURL := func(host string, port network.Port) string {
+		cleanPort := port.Port()
+		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", username, password, host, cleanPort, dbname)
 	}
 	waitStrategy := wait.ForSQL(postgresPort, "postgres", dbURL).WithStartupTimeout(time.Second * 5)
 

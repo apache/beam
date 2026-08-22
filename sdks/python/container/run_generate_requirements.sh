@@ -31,8 +31,8 @@
 # https://s.apache.org/beam-python-dev-wiki
 
 if [[ $# -lt 2 ]]; then
-  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.8 <sdk_tarball>"
-  printf "\n\where 3.8 is the Python major.minor version."
+  printf "Example usage: \n$> ./sdks/python/container/run_generate_requirements.sh 3.10 <sdk_tarball>"
+  printf "\n\where 3.10 is the Python major.minor version."
   exit 1
 fi
 
@@ -93,8 +93,8 @@ fi
 # Force torch dependencies to be pulled from the PyTorch CPU wheel
 # repository so that they don't include GPU dependencies with
 # non-compliant licenses
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" $INDEX_URL_OPTION
-pip install ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
+pip install --prefer-binary ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir "$SDK_TARBALL""$EXTRAS" $INDEX_URL_OPTION
+pip install --prefer-binary ${PIP_EXTRA_OPTIONS:+"$PIP_EXTRA_OPTIONS"}  --no-cache-dir -r "$PWD"/sdks/python/container/base_image_requirements_manual.txt
 
 pip uninstall -y apache-beam
 echo "Checking for broken dependencies:"

@@ -166,7 +166,8 @@ public final class KafkaResourceManagerTest {
     KafkaResourceManager tm = new KafkaResourceManager(kafkaClient, container, builder);
 
     tm.cleanupAll();
-    verify(kafkaClient).deleteTopics(argThat(list -> list.size() == numTopics));
+    verify(kafkaClient)
+        .deleteTopics(argThat((Collection<String> list) -> list.size() == numTopics));
   }
 
   @Test

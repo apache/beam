@@ -23,8 +23,6 @@ from dataclasses import dataclass
 from dataclasses import field
 from enum import Enum
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
 from typing import Union
 
@@ -59,7 +57,7 @@ class TableFieldsQueryConfig:
   """Configuration for using table name, where clause, and field names."""
   table_id: str
   where_clause_template: str
-  where_clause_fields: List[str]
+  where_clause_fields: list[str]
 
   def __post_init__(self):
     if not self.table_id or not self.where_clause_template:
@@ -144,8 +142,8 @@ class CloudSQLConnectionConfig(ConnectionConfig):
   password: str = field(default_factory=str)
   db_id: str = field(default_factory=str)
   refresh_strategy: RefreshStrategy = RefreshStrategy.LAZY
-  connector_kwargs: Dict[str, Any] = field(default_factory=dict)
-  connect_kwargs: Dict[str, Any] = field(default_factory=dict)
+  connector_kwargs: dict[str, Any] = field(default_factory=dict)
+  connect_kwargs: dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.instance_connection_uri:
@@ -191,7 +189,7 @@ class ExternalSQLDBConnectionConfig(ConnectionConfig):
   user: str = field(default_factory=str)
   password: str = field(default_factory=str)
   db_id: str = field(default_factory=str)
-  connect_kwargs: Dict[str, Any] = field(default_factory=dict)
+  connect_kwargs: dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.host:
@@ -243,8 +241,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   the desired column names.
 
   This handler queries the Cloud SQL database per element by default.
-  To enable batching, set the `min_batch_size` and `max_batch_size` parameters.
-  These values control the batching behavior in the
+  To enable batching, set the `min_batch_size`, `max_batch_size`, and
+  `max_batch_duration_secs` parameters. These values control batching behavior
+  in the
   :class:`apache_beam.transforms.utils.BatchElements` transform.
 
   NOTE: Batching is not supported when using the CustomQueryConfig.
@@ -257,6 +256,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       column_names: Optional[list[str]] = None,
       min_batch_size: int = 1,
       max_batch_size: int = 10000,
+      max_batch_duration_secs: Optional[float] = None,
       **kwargs,
   ):
     """
@@ -290,11 +290,15 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         querying the database. Defaults to 1 if `query_fn` is not used.
       max_batch_size (int): Maximum number of rows to batch together. Defaults
         to 10,000 if `query_fn` is not used.
+      max_batch_duration_secs (float): Maximum amount of time in seconds to
+        buffer a batch before emitting it. If not provided, batching duration
+        is determined by `BatchElements` defaults.
       **kwargs: Additional keyword arguments for database connection or query
         handling.
 
     Note:
-      * Cannot use `min_batch_size` or `max_batch_size` with `query_fn`.
+      * `min_batch_size`, `max_batch_size`, and `max_batch_duration_secs`
+        are not used with `query_fn`.
       * Either `where_clause_fields` or `where_clause_value_fn` must be provided
         for query construction if `query_fn` is not provided.
       * Ensure that the database user has the necessary permissions to query the
@@ -313,6 +317,9 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
           f"WHERE {query_config.where_clause_template}")
       self._batching_kwargs['min_batch_size'] = min_batch_size
       self._batching_kwargs['max_batch_size'] = max_batch_size
+      if max_batch_duration_secs is not None:
+        self._batching_kwargs[
+            'max_batch_duration_secs'] = max_batch_duration_secs
 
   def __enter__(self):
     connector = self._connection_config.get_connector_handler()
@@ -329,7 +336,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def _process_single_request(self, request: beam.Row):
     """Process a single request and return with its response."""
-    response: Union[List[Dict[str, Any]], Dict[str, Any]]
+    response: Union[list[dict[str, Any]], dict[str, Any]]
     if isinstance(self._query_config, CustomQueryConfig):
       query = self._query_config.query_fn(request)
       response = self._execute_query(query, is_batch=False)
@@ -360,7 +367,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     param_dict = self._build_parameters_dict(requests, batch_size)
 
     # Execute the parameterized query with validated parameters.
-    result: Union[List[Dict[str, Any]], Dict[str, Any]] = self._execute_query(
+    result: Union[list[dict[str, Any]], dict[str, Any]] = self._execute_query(
         raw_query, params=param_dict, is_batch=True)
     for response in result:
       response_row = beam.Row(**response)  # type: ignore[arg-type]
@@ -373,7 +380,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       self,
       query: str,
       params: Optional[dict] = None,
-      is_batch: bool = False) -> Union[List[Dict[str, Any]], Dict[str, Any]]:
+      is_batch: bool = False) -> Union[list[dict[str, Any]], dict[str, Any]]:
     connection = None
     try:
       connection = self._engine.connect()
@@ -384,7 +391,7 @@ class CloudSQLEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
         else:
           result = connection.execute(text(query))
         # Materialize results while transaction is active.
-        data: Union[List[Dict[str, Any]], Dict[str, Any]]
+        data: Union[list[dict[str, Any]], dict[str, Any]]
         if is_batch:
           data = [row._asdict() for row in result]
         else:

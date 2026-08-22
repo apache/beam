@@ -27,7 +27,6 @@ import os
 import subprocess
 from typing import TYPE_CHECKING
 from typing import Optional
-from typing import Type
 
 from apache_beam.utils.plugin import BeamPlugin
 
@@ -95,7 +94,7 @@ class PydotRenderer(PipelineGraphRenderer):
     return pipeline_graph._get_graph().create_svg().decode("utf-8")  # pylint: disable=protected-access
 
 
-def get_renderer(option: Optional[str] = None) -> Type[PipelineGraphRenderer]:
+def get_renderer(option: Optional[str] = None) -> type[PipelineGraphRenderer]:
   """Get an instance of PipelineGraphRenderer given rendering option.
 
   Args:

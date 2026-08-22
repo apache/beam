@@ -46,6 +46,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.Timing;
 import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -374,6 +375,48 @@ public class WindmillKeyedWorkItemTest {
     assertThat(
         keyedWorkItem.timersIterable(),
         Matchers.contains(makeDrainingTimer(STATE_NAMESPACE_2, 3, TimeDomain.EVENT_TIME)));
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
+  }
+
+  @Test
+  public void testValueKindPropagated() throws Exception {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    Windmill.WorkItem.Builder workItem =
+        Windmill.WorkItem.newBuilder().setKey(SERIALIZED_KEY).setWorkToken(17);
+    Windmill.InputMessageBundle.Builder chunk1 = workItem.addMessageBundlesBuilder();
+    chunk1.setSourceComputationId("computation");
+    addElementWithMetadata(
+        chunk1,
+        5,
+        "hello",
+        WINDOW_1,
+        paneInfo(0),
+        BeamFnApi.Elements.ElementMetadata.newBuilder()
+            .setValueKind(BeamFnApi.Elements.ValueKind.Enum.UPDATE_AFTER)
+            .build());
+    addElementWithMetadata(
+        chunk1,
+        7,
+        "world",
+        WINDOW_2,
+        paneInfo(2),
+        BeamFnApi.Elements.ElementMetadata.newBuilder()
+            .setValueKind(BeamFnApi.Elements.ValueKind.Enum.DELETE)
+            .build());
+    KeyedWorkItem<String, String> keyedWorkItem =
+        new WindmillKeyedWorkItem<>(
+            KEY,
+            workItem.build(),
+            WINDOW_CODER,
+            WINDOWS_CODER,
+            VALUE_CODER,
+            windmillTagEncoding,
+            true);
+
+    Iterator<WindowedValue<String>> iterator = keyedWorkItem.elementsIterable().iterator();
+    Assert.assertEquals(ValueKind.UPDATE_AFTER, iterator.next().getValueKind());
+    Assert.assertEquals(ValueKind.DELETE, iterator.next().getValueKind());
+    WindowedValues.WindowedValueCoder.setMetadataNotSupported();
   }
 
   private static TimeDomain timerTypeToTimeDomain(Windmill.Timer.Type type) {

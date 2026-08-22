@@ -110,7 +110,7 @@ public class BufferedExternalSorterTest {
     testSorter.add(kvs[1]);
     testSorter.add(kvs[2]);
 
-    assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), testSorter.sort());
+    assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), (java.util.List) testSorter.sort());
 
     // Verify external sorter was never called
     verify(mockExternalSorter, never()).add(any(KV.class));
@@ -142,7 +142,7 @@ public class BufferedExternalSorterTest {
     testSorter.add(kvs[1]);
     testSorter.add(kvs[2]);
 
-    assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), testSorter.sort());
+    assertEquals(Arrays.asList(kvs[0], kvs[1], kvs[2]), (java.util.List) testSorter.sort());
 
     verify(mockExternalSorter, times(1)).add(kvs[0]);
     verify(mockExternalSorter, times(1)).add(kvs[1]);

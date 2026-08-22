@@ -38,6 +38,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Time;
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -293,6 +294,13 @@ public class JdbcUtil {
           } else if (logicalTypeName.equals(FixedPrecisionNumeric.IDENTIFIER)) {
             return (element, ps, i, fieldWithIndex) -> {
               ps.setBigDecimal(i + 1, element.getDecimal(fieldWithIndex.getIndex()));
+            };
+          } else if (logicalTypeName.equals(
+              org.apache.beam.sdk.schemas.logicaltypes.Date.IDENTIFIER)) {
+            return (element, ps, i, fieldWithIndex) -> {
+              LocalDate value =
+                  element.getLogicalTypeValue(fieldWithIndex.getIndex(), LocalDate.class);
+              ps.setDate(i + 1, value == null ? null : Date.valueOf(value));
             };
           } else if (logicalTypeName.equals("DATE")) {
             return (element, ps, i, fieldWithIndex) -> {

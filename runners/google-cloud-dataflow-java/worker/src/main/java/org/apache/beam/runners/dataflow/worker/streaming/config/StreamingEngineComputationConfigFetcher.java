@@ -171,7 +171,7 @@ public final class StreamingEngineComputationConfigFetcher implements Computatio
       ImmutableSet<HostAndPort> endpoints =
           StreamSupport.stream(
                   Splitter.on(',').split(config.getWindmillServiceEndpoint()).spliterator(),
-                  /* isParallel= */ false)
+                  /* parallel= */ false)
               .map(endpoint -> HostAndPort.fromString(endpoint).withDefaultPort(windmillPort))
               .collect(toImmutableSet());
 

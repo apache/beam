@@ -82,6 +82,32 @@ _FILE_TRIGGERING_BATCHING_DURATION_SECS = 1
 _SLEEP_DURATION_BETWEEN_POLLS = 10
 
 
+def _has_partitioning_load_parameters(additional_parameters):
+  return (
+      'timePartitioning' in additional_parameters or
+      'rangePartitioning' in additional_parameters)
+
+
+def _add_destination_partitioning_load_parameters(
+    additional_parameters, destination_table):
+  if destination_table is None:
+    return additional_parameters
+
+  additional_parameters = dict(additional_parameters)
+  time_partitioning = getattr(destination_table, 'timePartitioning', None)
+  range_partitioning = getattr(destination_table, 'rangePartitioning', None)
+
+  if ('timePartitioning' not in additional_parameters and
+      isinstance(time_partitioning, bigquery_tools.bigquery.TimePartitioning)):
+    additional_parameters['timePartitioning'] = time_partitioning
+
+  if ('rangePartitioning' not in additional_parameters and isinstance(
+      range_partitioning, bigquery_tools.bigquery.RangePartitioning)):
+    additional_parameters['rangePartitioning'] = range_partitioning
+
+  return additional_parameters
+
+
 def _generate_job_name(job_name, job_type, step_name):
   return bigquery_tools.generate_bq_job_name(
       job_name=job_name,
@@ -134,7 +160,13 @@ def _make_new_file_writer(
   directory = fs.FileSystems.join(file_prefix, destination)
 
   if not fs.FileSystems.exists(directory):
-    fs.FileSystems.mkdirs(directory)
+    try:
+      fs.FileSystems.mkdirs(directory)
+    except IOError:
+      # Concurrent workers may race to create the same directory.
+      # Ignore the IOError if another worker successfully created it.
+      if not fs.FileSystems.exists(directory):
+        raise
 
   file_name = str(uuid.uuid4())
   file_path = fs.FileSystems.join(file_prefix, destination, file_name)
@@ -601,7 +633,7 @@ class TriggerCopyJobs(beam.DoFn):
         copy_to_reference.tableId)
     if full_table_ref not in self._observed_tables:
       write_disposition = self.write_disposition
-      wait_for_job = True
+      wait_for_job = write_disposition != 'WRITE_APPEND'
       self._observed_tables.add(full_table_ref)
       Lineage.sinks().add(
           'bigquery',
@@ -682,6 +714,7 @@ class TriggerLoadJobs(beam.DoFn):
       self.bq_io_metadata = create_bigquery_io_metadata(self._step_name)
     self.pending_jobs = []
     self.schema_cache = {}
+    self.destination_table_cache = {}
 
   def process(
       self,
@@ -710,6 +743,7 @@ class TriggerLoadJobs(beam.DoFn):
       additional_parameters = self.additional_bq_parameters.get()
     else:
       additional_parameters = self.additional_bq_parameters
+    additional_parameters = dict(additional_parameters or {})
 
     table_reference = bigquery_tools.parse_table_reference(destination)
     if table_reference.projectId is None:
@@ -729,21 +763,23 @@ class TriggerLoadJobs(beam.DoFn):
 
     create_disposition = self.create_disposition
     if self.temporary_tables:
-      # we need to create temp tables, so we need a schema.
-      # if there is no input schema, fetch the destination table's schema
-      if schema is None:
-        hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
-        if hashed_dest in self.schema_cache:
-          schema = self.schema_cache[hashed_dest]
-        else:
-          try:
-            schema = bigquery_tools.table_schema_to_dict(
-                bigquery_tools.BigQueryWrapper().get_table(
-                    project_id=table_reference.projectId,
-                    dataset_id=table_reference.datasetId,
-                    table_id=table_reference.tableId).schema)
-            self.schema_cache[hashed_dest] = schema
-          except Exception as e:
+      destination_table = None
+      hashed_dest = bigquery_tools.get_hashable_destination(table_reference)
+      need_schema = schema is None and hashed_dest not in self.schema_cache
+      need_partitioning = not _has_partitioning_load_parameters(
+          additional_parameters)
+      if need_schema or need_partitioning:
+        try:
+          if hashed_dest in self.destination_table_cache:
+            destination_table = self.destination_table_cache[hashed_dest]
+          else:
+            destination_table = self.bq_wrapper.get_table(
+                project_id=table_reference.projectId,
+                dataset_id=table_reference.datasetId,
+                table_id=table_reference.tableId)
+            self.destination_table_cache[hashed_dest] = destination_table
+        except Exception as e:
+          if need_schema:
             _LOGGER.warning(
                 "Input schema is absent and could not fetch the final "
                 "destination table's schema [%s]. Creating temp table [%s] "
@@ -751,6 +787,31 @@ class TriggerLoadJobs(beam.DoFn):
                 hashed_dest,
                 job_name,
                 e)
+          destination_table = None
+
+      # we need to create temp tables, so we need a schema.
+      # if there is no input schema, fetch the destination table's schema
+      if schema is None:
+        if hashed_dest in self.schema_cache:
+          schema = self.schema_cache[hashed_dest]
+        elif destination_table is not None:
+          destination_schema = getattr(destination_table, 'schema', None)
+          if isinstance(destination_schema,
+                        bigquery_tools.bigquery.TableSchema):
+            schema = bigquery_tools.table_schema_to_dict(destination_schema)
+            self.schema_cache[hashed_dest] = schema
+          else:
+            _LOGGER.warning(
+                "Input schema is absent and the final destination table [%s] "
+                "does not have a usable schema. Creating temp table [%s] will "
+                "likely fail.",
+                hashed_dest,
+                job_name)
+
+      if (destination_table is not None and
+          not _has_partitioning_load_parameters(additional_parameters)):
+        additional_parameters = _add_destination_partitioning_load_parameters(
+            additional_parameters, destination_table)
 
       # If we are using temporary tables, then we must always create the
       # temporary tables, so we replace the create_disposition.

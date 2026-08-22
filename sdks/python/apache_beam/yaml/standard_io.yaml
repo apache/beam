@@ -74,6 +74,7 @@
         'error_handling': 'error_handling'
         'file_descriptor_path': 'file_descriptor_path'
         'message_name': 'message_name'
+        'max_read_time_seconds': 'max_read_time_seconds'
       'WriteToKafka':
         'format': 'format'
         'topic': 'topic'
@@ -114,6 +115,10 @@
     'WriteToIceberg': 'apache_beam.yaml.yaml_io.write_to_iceberg'
     'ReadFromTFRecord': 'apache_beam.yaml.yaml_io.read_from_tfrecord'
     'WriteToTFRecord': 'apache_beam.yaml.yaml_io.write_to_tfrecord'
+    'ReadFromMongoDB': 'apache_beam.yaml.yaml_io.read_from_mongodb'
+    'WriteToMongoDB': 'apache_beam.yaml.yaml_io.write_to_mongodb'
+    'ReadFromDelta': 'apache_beam.yaml.yaml_io.read_from_delta'
+    'DicomSearch': 'apache_beam.yaml.yaml_io.dicom_search'
 
 # General File Formats
 # Declared as a renaming transform to avoid exposing all
@@ -178,6 +183,131 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# JMS
+- type: renaming
+  transforms:
+    'ReadFromJms': 'ReadFromJms'
+    'WriteToJms': 'WriteToJms'
+  config:
+    mappings:
+      'ReadFromJms':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+        max_num_records: 'max_num_records'
+        max_read_time_seconds: 'max_read_time_seconds'
+        close_timeout_seconds: 'close_timeout_seconds'
+        acknowledge_mode: 'acknowledge_mode'
+        individual_acknowledge_mode_code: 'individual_acknowledge_mode_code'
+      'WriteToJms':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromJms': 'beam:schematransform:org.apache.beam:jms_read:v1'
+        'WriteToJms': 'beam:schematransform:org.apache.beam:jms_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
+- type: renaming
+  transforms:
+    'ReadFromIbmMQ': 'ReadFromIbmMQ'
+    'WriteToIbmMQ': 'WriteToIbmMQ'
+  config:
+    mappings:
+      'ReadFromIbmMQ':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+        max_num_records: 'max_num_records'
+        max_read_time_seconds: 'max_read_time_seconds'
+        close_timeout_seconds: 'close_timeout_seconds'
+        acknowledge_mode: 'acknowledge_mode'
+        individual_acknowledge_mode_code: 'individual_acknowledge_mode_code'
+      'WriteToIbmMQ':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromIbmMQ': 'beam:schematransform:org.apache.beam:jms_read:v1'
+        'WriteToIbmMQ': 'beam:schematransform:org.apache.beam:jms_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
+        classpath:
+          - 'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25'
+          - 'org.json:json:20251224'
+
+
+# Debezium
+- type: renaming
+  transforms:
+    'ReadFromDebezium': 'ReadFromDebezium'
+  config:
+    mappings:
+      'ReadFromDebezium':
+        connector: 'database'
+        username: 'username'
+        password: 'password'
+        host: 'host'
+        port: 'port'
+        table: 'table'
+        connection_properties: 'debezium_connection_properties'
+        max_number_of_records: 'max_number_of_records'
+        max_time_to_run: 'max_time_to_run'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromDebezium': 'beam:schematransform:org.apache.beam:debezium_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:debezium:expansion-service:shadowJar'
+
+# Kinesis
+- type: renaming
+  transforms:
+    'ReadFromKinesis': 'ReadFromKinesis'
+    'WriteToKinesis': 'WriteToKinesis'
+  config:
+    mappings:
+      'ReadFromKinesis':
+        stream_name: 'stream_name'
+        aws_access_key: 'aws_access_key'
+        aws_secret_key: 'aws_secret_key'
+        region: 'region'
+        service_endpoint: 'service_endpoint'
+        verify_certificate: 'verify_certificate'
+        max_num_records: 'max_num_records'
+        max_read_time: 'max_read_time'
+        initial_position_in_stream: 'initial_position_in_stream'
+        initial_timestamp_in_stream: 'initial_timestamp_in_stream'
+        request_records_limit: 'request_records_limit'
+        up_to_date_threshold: 'up_to_date_threshold'
+        max_capacity_per_shard: 'max_capacity_per_shard'
+        watermark_policy: 'watermark_policy'
+        watermark_idle_duration_threshold: 'watermark_idle_duration_threshold'
+        rate_limit: 'rate_limit'
+      'WriteToKinesis':
+        stream_name: 'stream_name'
+        aws_access_key: 'aws_access_key'
+        aws_secret_key: 'aws_secret_key'
+        region: 'region'
+        partition_key: 'partition_key'
+        service_endpoint: 'service_endpoint'
+        verify_certificate: 'verify_certificate'
+        aggregation_enabled: 'aggregation_enabled'
+        aggregation_max_bytes: 'aggregation_max_bytes'
+        aggregation_max_buffered_time: 'aggregation_max_buffered_time'
+        aggregation_shard_refresh_interval: 'aggregation_shard_refresh_interval'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromKinesis': 'beam:schematransform:org.apache.beam:kinesis_read:v1'
+        'WriteToKinesis': 'beam:schematransform:org.apache.beam:kinesis_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:amazon-web-services2:expansion-service:shadowJar'
+
 # Databases
 - type: renaming
   transforms:
@@ -207,6 +337,7 @@
         table: 'location'
         partition_column : 'partition_column'
         num_partitions: 'num_partitions'
+        secret_manager: 'secret_manager'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
@@ -219,6 +350,7 @@
         password: 'password'
         table: 'location'
         batch_size: 'batch_size'
+        secret_manager: 'secret_manager'
         type: 'jdbc_type'
         username: 'username'
         query: 'write_statement'
@@ -415,15 +547,65 @@
         catalog_properties: 'catalog_properties'
         config_properties: 'config_properties'
         triggering_frequency_seconds: 'triggering_frequency_seconds'
-        append_batch_size: 'append_batch_size'
+        manifest_file_size: 'manifest_file_size'
         location_prefix: 'location_prefix'
         partition_fields: 'partition_fields'
         table_properties: 'table_properties'
+        sort_fields: 'sort_fields'
         error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
       transforms:
         'IcebergAddFiles': 'beam:schematransform:iceberg_add_files:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#Datadog
+- type: renaming
+  transforms:
+    'WriteToDatadog': 'WriteToDatadog'
+  config:
+    mappings:
+      'WriteToDatadog':
+        'url': 'url'
+        'api_key': 'api_key'
+        'min_batch_count': 'min_batch_count'
+        'batch_count': 'batch_count'
+        'max_buffer_size': 'max_buffer_size'
+        'parallelism': 'parallelism'
+        'error_handling': 'error_handling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'WriteToDatadog': 'beam:schematransform:org.apache.beam:datadog_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
+#MongoDB
+- type: renaming
+  transforms:
+    'ReadFromMongoDB': 'ReadFromMongoDB'
+    'WriteToMongoDB': 'WriteToMongoDB'
+  config:
+    mappings:
+      'ReadFromMongoDB':
+        uri: "uri"
+        database: "database"
+        collection: "collection"
+        schema: "schema"
+        filter: "filter"
+        error_handling: "error_handling"
+      'WriteToMongoDB':
+        uri: "uri"
+        database: "database"
+        collection: "collection"
+        batch_size: "batch_size"
+        error_handling: "error_handling"
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromMongoDB': 'beam:schematransform:org.apache.beam:mongodb_read:v1'
+        'WriteToMongoDB': 'beam:schematransform:org.apache.beam:mongodb_write:v1'
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 

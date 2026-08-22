@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.testing;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.http.HttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.util.BackOff;
@@ -451,6 +452,12 @@ public class BigqueryClient {
               new IOException(
                   "Expected valid response from insert dataset job, but received null.");
         }
+      } catch (GoogleJsonResponseException e) {
+        if (e.getStatusCode() == 409) {
+          LOG.info("Dataset {} already exists, treating as success.", datasetId);
+          return;
+        }
+        lastException = e;
       } catch (IOException e) {
         // ignore and retry
         lastException = e;
@@ -509,6 +516,16 @@ public class BigqueryClient {
           lastException =
               new IOException("Expected valid response from create table job, but received null.");
         }
+      } catch (GoogleJsonResponseException e) {
+        if (e.getStatusCode() == 409) {
+          LOG.info(
+              "Table {}:{}.{} already exists, treating as success.",
+              projectId,
+              datasetId,
+              newTable.getTableReference().getTableId());
+          return;
+        }
+        lastException = e;
       } catch (IOException e) {
         // ignore and retry
         lastException = e;

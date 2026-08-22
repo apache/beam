@@ -42,7 +42,6 @@ import os
 import time
 from random import Random
 from typing import Optional
-from typing import Tuple
 
 import apache_beam as beam
 from apache_beam import pvalue
@@ -911,7 +910,7 @@ class StatefulLoadGenerator(beam.PTransform):
     self.value_size = input_options['value_size']
     self.num_keys = num_keys
 
-  @typehints.with_output_types(Tuple[bytes, bytes])
+  @typehints.with_output_types(tuple[bytes, bytes])
   class GenerateKeys(beam.DoFn):
     def __init__(self, num_keys, key_size):
       self.num_keys = num_keys

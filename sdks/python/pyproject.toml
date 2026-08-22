@@ -25,14 +25,15 @@ requires = [
     # Currently Blocked on old dependencies of Beam tft extra:
     # https://github.com/apache/beam/issues/37854
     "grpcio-tools==1.62.1; python_version <= '3.12'",
-    "grpcio-tools==1.71.0; python_version >= '3.13'",
+    "grpcio-tools==1.71.0; python_version >= '3.13' and python_version < '3.14'",
+    "grpcio-tools==1.78.0; python_version >= '3.14'",
     "mypy-protobuf==3.5.0",
     # Avoid https://github.com/pypa/virtualenv/issues/2006
-    "distlib==0.3.9",
+    "distlib==0.4.3",
     # Numpy headers
     "numpy>=1.14.3,<2.5.0", # Update setup.py as well.
     # having cython here will create wheels that are platform dependent.
-    "cython>=3.0,<4",
+    "cython>=3.2.6,<4",
     ## deps for generating external transform wrappers:
     # also update PyYaml bounds in sdks:python:generateExternalTransformsConfig
     'pyyaml>=3.12,<7.0.0',
@@ -44,3 +45,172 @@ requires = [
 
 # legacy installation is needed to generate `apache_beam.portability.api` package.
 build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".ipynb_checkpoints",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pyenv",
+    ".pytest_cache",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    ".vscode",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "site-packages",
+    "venv",
+    "*.pxd",
+    "*.pyx",
+    "*pb2*.py",
+    "*.ipynb",
+    "**/*.ipynb",
+    "**/examples/**/*.py",
+    "**/examples/**/*.ipynb",
+    "**/portability/api/**/*.py",
+    "**/portability/api/__init__.py",
+]
+target-version = "py310"
+src = ["apache_beam"]
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E9", "PL", "F821", "F822", "F823", "UP006", "I"]
+ignore = [
+    # Ignored Pylint Checks
+    "PLC0415",  # import-outside-toplevel
+    "PLR2004",  # magic-value-comparison
+    "PLR0913",  # too-many-arguments
+    "PLR0912",  # too-many-branches
+    "PLW0108",  # unnecessary-lambda
+    "PLW2901",  # redefined-loop-name
+    "PLR0915",  # too-many-statements
+    "PLR1714",  # repeated-equality-comparison
+    "PLR0911",  # too-many-return-statements
+    "PLR5501",  # collapsible-else-if
+    "PLW0603",  # global-statement
+    "PLR1730",  # if-stmt-min-max
+    "PLW1641",  # eq-without-hash
+    "PLW0602",  # global-variable-not-assigned
+    "PLC1802",  # len-test
+    "PLC3002",  # unnecessary-direct-lambda-call
+    "PLW0642",  # self-or-cls-assignment
+    "PLR1733",  # unnecessary-dict-index-lookup
+    "PLR0402",  # manual-from-import
+    "PLC0132",  # type-param-name-mismatch
+    "PLC0206",  # dict-index-missing-items
+    "PLC0207",  # missing-maxsplit-arg
+    "PLR1704",  # redefined-argument-from-local
+    "PLR1711",  # useless-return
+    "PLW0406",  # import-self
+    "PLW3301",  # nested-min-max
+    "PLR2044",  # empty-comment
+]
+
+# Allow fix for all enabled rules (when --fix) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+[tool.ruff.lint.isort]
+force-single-line = true
+order-by-type = true
+extra-standard-library = ["dataclasses"]
+known-third-party = ["yaml"]
+known-first-party = ["apache_beam"]
+
+[tool.ruff.lint.per-file-ignores]
+"**/apiclient.py" = ["I"]
+"**/avroio_test.py" = ["I"]
+"**/cloudpickle.py" = ["I"]
+"**/datastore_wordcount.py" = ["I"]
+"**/datastoreio_test.py" = ["I"]
+"**/doctests_test.py" = ["I"]
+"**/fast_coders_test.py" = ["I"]
+"**/hadoopfilesystem.py" = ["I"]
+"**/iobase_test.py" = ["I"]
+"**/main_test.py" = ["I"]
+"**/model.py" = ["I"]
+"**/preprocess.py" = ["I"]
+"**/process_tfma.py" = ["I"]
+"**/render_test.py" = ["I"]
+"**/slow_coders_test.py" = ["I"]
+"**/taxi.py" = ["I"]
+"**/tfdv_analyze_and_validate.py" = ["I"]
+"**/yaml/main.py" = ["I"]
+"**/yaml_testing_test.py" = ["I"]
+"**/bigquery_v2_client.py" = ["I"]
+"**/bigquery_v2_messages.py" = ["I"]
+"**/proto2_coder_test_messages_pb2.py" = ["I"]
+"**/rate_limit_pb2.py" = ["I"]
+"**/boto3_client.py" = ["I"]
+"**/coders_property_based_test.py" = ["I"]
+"**/filebasedsource_test.py" = ["I"]
+"**/bigtableio_it_test.py" = ["I"]
+"**/bigtableio_test.py" = ["I"]
+"**/mongodbio.py" = ["I"]
+"**/textio_test.py" = ["I"]
+"**/streaming_cache.py" = ["I"]
+"**/pcoll_visualization.py" = ["I"]
+"**/interactive_environment.py" = ["I"]
+"**/pipeline_instrument_test.py" = ["I"]
+"**/worker_handlers.py" = ["I"]
+"**/feast_feature_store_it_test.py" = ["I"]
+"**/vertex_ai_feature_store_it_test.py" = ["I"]
+"**/vertex_ai_feature_store_test.py" = ["I"]
+"setup.py" = ["I"]
+"container/**" = ["I"]
+
+[tool.pyrefly]
+project-includes = ["apache_beam"]
+python-version = "3.10.0"
+ignore-missing-imports = ["*"]
+untyped-def-behavior = "skip-and-infer-return-any"
+
+[tool.pyrefly.errors]
+missing-attribute = "ignore"
+invalid-annotation = "ignore"
+redundant-condition = "ignore"
+untyped-import = "ignore"
+# Beam-specific supressions to keep pyrefly green
+# These are in descending order of instances.
+#
+# TODO(https://github.com/apache/beam/issues/37699): Reduce the number of
+# ignored checks.
+bad-param-name-override = "ignore"
+bad-override = "ignore"
+bad-argument-type = "ignore"
+unsupported-operation = "ignore"
+implicit-import = "ignore"
+bad-function-definition = "ignore"
+bad-return = "ignore"
+unbound-name = "ignore"
+no-matching-overload = "ignore"
+bad-assignment = "ignore"
+missing-argument = "ignore"
+bad-index = "ignore"
+invalid-type-var = "ignore"
+unknown-name = "ignore"
+not-a-type = "ignore"
+deprecated = "ignore"
+not-callable = "ignore"
+invalid-argument = "ignore"
+invalid-inheritance = "ignore"
+not-iterable = "ignore"
+bad-class-definition = "ignore"

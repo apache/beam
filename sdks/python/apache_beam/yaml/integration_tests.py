@@ -21,19 +21,58 @@ import contextlib
 import copy
 import glob
 import itertools
+import json
 import logging
 import os
 import random
 import secrets
+import shutil
 import sqlite3
 import string
+import struct
+import tempfile
+import time
 import unittest
 import uuid
 from datetime import datetime
 from datetime import timezone
 
 import mock
+import requests
+
+from apache_beam.coders import Coder
+from apache_beam.coders.coder_impl import CoderImpl
+
+
+class BigEndianIntegerCoderImpl(CoderImpl):
+  """Coder implementation for big-endian integers used in cross-language tests.
+
+  This is needed because Java's BigEndianIntegerCoder falls back to the generic
+  'beam:coders:javasdk:0.1' URN when used in cross-language pipelines, and
+  Python's FnApiRunner needs to know how to decode it.
+  """
+  def encode_to_stream(self, value, stream, nested):
+    stream.write(struct.pack('>i', value))
+
+  def decode_from_stream(self, stream, nested):
+    return struct.unpack('>i', stream.read(4))[0]
+
+
+class BigEndianIntegerCoder(Coder):
+  def get_impl(self):
+    return BigEndianIntegerCoderImpl()
+
+
+# Register the coder with the fallback URN used by the Java SDK for this coder.
+# This allows the Python FnApiRunner to handle data sharded by Java transforms
+# using BigEndianIntegerCoder in integration tests.
+Coder.register_urn(
+    'beam:coders:javasdk:0.1',
+    None, lambda payload, components, context: BigEndianIntegerCoder())
+
 import psycopg2
+import pyarrow as pa
+import pyarrow.parquet as pq
 import pytds
 import sqlalchemy
 import yaml
@@ -41,10 +80,16 @@ from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
+
+try:
+  from google.cloud import secretmanager
+except ImportError:
+  secretmanager = None
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
 from testcontainers.kafka import KafkaContainer
+from testcontainers.mongodb import MongoDbContainer
 from testcontainers.mssql import SqlServerContainer
 from testcontainers.mysql import MySqlContainer
 from testcontainers.postgres import PostgresContainer
@@ -61,6 +106,8 @@ from apache_beam.yaml import yaml_transform
 from apache_beam.yaml.conftest import yaml_test_files_dir
 
 _LOGGER = logging.getLogger(__name__)
+
+_MONGO_CONTAINER_IMAGE = 'mongo:7.0.7'
 
 
 @contextlib.contextmanager
@@ -201,6 +248,53 @@ def temp_bigtable_table(project, prefix='yaml_bt_it_'):
 
 
 @contextlib.contextmanager
+def temp_mongodb_table():
+  """
+  provides a temporary MongoDB instance.
+
+  starts a MongoDB container, creates a unique database
+  and collection name for test isolation, and yields them as a dictionary.
+
+  This allows YAML test files to get connection details without hardcoding them.
+  Example usage in a YAML test file's fixture section:
+
+  fixtures:
+    - name: mongo_vars
+      type: path.to.this.file.mongodb_fixture
+
+  Then, in the pipeline definition, you can use placeholders like:
+  - uri: ${mongo_vars.URI}
+  - database: ${mongo_vars.DATABASE}
+  - collection: ${mongo_vars.COLLECTION}
+  """
+  _LOGGER.info("Setting up MongoDB fixture...")
+  mongo_container = MongoDbContainer(_MONGO_CONTAINER_IMAGE)
+  try:
+    mongo_container.start()
+    mongo_uri = mongo_container.get_connection_url()
+
+    db_name = f'db_{uuid.uuid4().hex}'
+    collection_name = f'collection_{uuid.uuid4().hex}'
+
+    _LOGGER.info(
+        "MongoDB container started. URI: [%s], DB: [%s], Collection: [%s]",
+        mongo_uri,
+        db_name,
+        collection_name)
+
+    yield {
+        'URI': mongo_uri,
+        'DATABASE': db_name,
+        'COLLECTION': collection_name,
+    }
+
+  finally:
+    _LOGGER.info("Tearing down MongoDB fixture...")
+    mongo_container.stop()
+    _LOGGER.info("MongoDB container stopped.")
+
+
+@contextlib.contextmanager
 def temp_sqlite_database(prefix='yaml_jdbc_it_'):
   """Context manager to provide a temporary SQLite database via JDBC for
   testing.
@@ -304,6 +398,74 @@ def temp_mysql_database():
 
 
 @contextlib.contextmanager
+def temp_debezium_postgres_database():
+  """Provides a temporary PostgreSQL database configured for Debezium CDC."""
+
+  container = (
+      DockerContainer('quay.io/debezium/example-postgres:latest').with_env(
+          'POSTGRES_USER',
+          'debezium').with_env('POSTGRES_PASSWORD', 'dbz').with_env(
+              'POSTGRES_DB', 'inventory').with_exposed_ports(5432))
+
+  try:
+    container.start()
+    wait_for_logs(container, 'database system is ready to accept connections')
+
+    host = container.get_container_host_ip()
+    port = int(container.get_exposed_port(5432))
+
+    connection = None
+    for _ in range(30):
+      try:
+        connection = psycopg2.connect(
+            host=host,
+            port=port,
+            user='debezium',
+            password='dbz',
+            dbname='inventory')
+        break
+      except psycopg2.OperationalError:
+        time.sleep(1)
+
+    if connection is None:
+      raise RuntimeError(
+          'Debezium PostgreSQL container failed to become ready.')
+
+    try:
+      with connection.cursor() as cursor:
+        cursor.execute(
+            """
+          CREATE TABLE IF NOT EXISTS customers (
+            id INTEGER PRIMARY KEY,
+            name VARCHAR(255)
+          )
+          """)
+        cursor.execute(
+            """
+          INSERT INTO customers (id, name)
+          VALUES
+            (1, 'Alice'),
+            (2, 'Bob')
+          ON CONFLICT (id) DO NOTHING
+          """)
+      connection.commit()
+    finally:
+      connection.close()
+
+    yield {
+        'HOST': host,
+        'PORT': port,
+        'USERNAME': 'debezium',
+        'PASSWORD': 'dbz',
+        'DATABASE': 'inventory',
+        'TABLE': 'public.customers',
+    }
+
+  finally:
+    container.stop()
+
+
+@contextlib.contextmanager
 def temp_postgres_database():
   """Context manager to provide a temporary PostgreSQL database for testing.
 
@@ -350,6 +512,113 @@ def temp_postgres_database():
     except (psycopg2.Error, Exception) as err:
       logging.error("Error interacting with temporary Postgres DB: %s", err)
       raise err
+
+
+@contextlib.contextmanager
+def temp_postgres_database_with_secret_manager(
+    project=None, prefix='yaml_jdbc_sm_it_'):
+  """Context manager to provide a temporary PostgreSQL database authenticated
+  via GCP Secret Manager for testing.
+
+  This function utilizes the 'testcontainers' library to spin up a
+  PostgreSQL instance within a Docker container, creates a predefined 'tmp_table',
+  registers the database container password in GCP Secret Manager, and yields
+  a dictionary containing the JDBC connection URL, username, secret specification,
+  and secret manager identifier.
+
+  The Docker container, database instance, and GCP secret are automatically
+  managed and torn down when the context manager exits.
+
+  Args:
+      project (str): Google Cloud Project ID. If not provided, reads from
+        the GOOGLE_CLOUD_PROJECT environment variable or defaults to
+        'apache-beam-testing'.
+      prefix (str): Prefix to use for the temporary GCP secret name.
+
+  Yields:
+      dict: A dictionary containing connection and secret details:
+            {
+                'URL': 'jdbc:postgresql://<host>:<port>/<dbname>',
+                'USERNAME': '<username>',
+                'PASSWORD_SPEC': '{"name": "<secret_id>", "project": "<project_id>"}',
+                'SECRET_MANAGER': 'googlecloudsecretmanager',
+            }
+  """
+  if secretmanager is None:
+    raise RuntimeError("google-cloud-secret-manager is not installed.")
+
+  project_id = project or os.environ.get(
+      'GOOGLE_CLOUD_PROJECT', 'apache-beam-testing')
+  secret_client = secretmanager.SecretManagerServiceClient()
+
+  default_port = 5432
+  with PostgresContainer(port=default_port) as postgres_container:
+    secret_postfix = (
+        datetime.now(timezone.utc).strftime('%m%d_%H%M%S') + '_' +
+        uuid.uuid4().hex[:6])
+    secret_id = f'{prefix}{secret_postfix}'
+    project_path = f'projects/{project_id}'
+    secret_path = f'{project_path}/secrets/{secret_id}'
+
+    _LOGGER.info("Creating GCP secret %s in project %s", secret_id, project_id)
+    try:
+      secret_client.get_secret(request={'name': secret_path})
+    except Exception:
+      secret_client.create_secret(
+          request={
+              'parent': project_path,
+              'secret_id': secret_id,
+              'secret': {
+                  'replication': {
+                      'automatic': {}
+                  }
+              }
+          })
+
+    secret_client.add_secret_version(
+        request={
+            'parent': secret_path,
+            'payload': {
+                'data': postgres_container.password.encode('utf-8')
+            }
+        })
+
+    try:
+      # Make connection to temp database and create tmp table
+      engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (value INTEGER, rank INTEGER);"))
+
+      # Construct the JDBC url for connections
+      jdbc_url = (
+          f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
+          f"{postgres_container.get_exposed_port(default_port)}/"
+          f"{postgres_container.dbname}")
+
+      secret_password_spec = json.dumps({
+          'name': secret_id,
+          'project': project_id,
+      })
+
+      yield {
+          'URL': jdbc_url,
+          'USERNAME': postgres_container.username,
+          'PASSWORD_SPEC': secret_password_spec,
+          'SECRET_MANAGER': 'googlecloudsecretmanager',
+      }
+    except (psycopg2.Error, Exception) as err:
+      logging.error(
+          "Error interacting with temporary Postgres DB with secret manager: %s",
+          err)
+      raise err
+    finally:
+      try:
+        _LOGGER.info("Deleting GCP secret: %s", secret_path)
+        secret_client.delete_secret(request={'name': secret_path})
+      except Exception as err:
+        _LOGGER.warning("Could not delete GCP secret %s: %s", secret_path, err)
 
 
 @contextlib.contextmanager
@@ -473,6 +742,231 @@ def temp_oracle_database():
 
 
 @contextlib.contextmanager
+def temp_iceberg_table_with_pk(table_data):
+
+  # Create a temp dir that will be shared between host and container.
+  # We use the exact same path on both to avoid path mapping issues.
+  # We create it in the current working directory (workspace) because
+  # Docker in GitHub Actions often cannot mount directories from /tmp.
+  temp_dir = tempfile.mkdtemp(dir=os.getcwd())
+  os.chmod(temp_dir, 0o777)
+
+  # Start the Iceberg REST catalog container
+  container = DockerContainer("tabulario/iceberg-rest:0.6.0")
+  container.with_exposed_ports(8181)
+  container.with_volume_mapping(temp_dir, temp_dir, mode='rw')
+  container.with_env("HADOOP_USER_NAME", "iceberg")
+  container.with_env("CATALOG_WAREHOUSE", temp_dir)
+  container.with_env(
+      "CATALOG_IO__IMPL", "org.apache.iceberg.hadoop.HadoopFileIO")
+
+  try:
+    container.start()
+
+    ip = container.get_container_host_ip()
+    port = container.get_exposed_port(8181)
+    api_url = f"http://{ip}:{port}"
+
+    # Poll the REST API until it is ready
+    for _ in range(30):
+      try:
+        response = requests.get(f"{api_url}/v1/config", timeout=5)
+        if response.status_code == 200:
+          break
+      except (requests.exceptions.ConnectionError, requests.exceptions.Timeout):
+        pass
+      time.sleep(1)
+    else:
+      raise RuntimeError("Iceberg REST catalog failed to start in time.")
+
+    # Create namespace 'db'
+    requests.post(
+        f"{api_url}/v1/namespaces",
+        json={"namespace": ["db"]},
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+
+    # Create table with primary key
+    response = requests.post(
+        f"{api_url}/v1/namespaces/db/tables",
+        json=table_data,
+        headers={"Content-Type": "application/json"},
+        timeout=10)
+    if response.status_code != 200:
+      raise RuntimeError(f"Failed to create Iceberg table: {response.text}")
+
+    # Change permissions of the created directories inside the container
+    # so the host user can write to them.
+    container.get_wrapped_container().exec_run(f"chmod -R 777 {temp_dir}")
+
+    yield {
+        "api_url": api_url,
+        "temp_dir": temp_dir,
+        "table": f"db.{table_data['name']}"
+    }
+
+  finally:
+    container.stop()
+    shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+_LOCALSTACK_KINESIS_IMAGE = 'localstack/localstack:3.8.1'
+_LOCALSTACK_KINESIS_ACCESS_KEY = 'accesskey'
+_LOCALSTACK_KINESIS_SECRET_KEY = 'secretkey'
+_LOCALSTACK_KINESIS_REGION = 'us-east-1'
+
+
+def _create_kinesis_stream(kinesis_client, stream_name):
+  """Creates a Kinesis stream and waits until it is active."""
+  retries = 10
+  for attempt in range(retries):
+    try:
+      kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+      time.sleep(2)
+      break
+    except Exception as exn:
+      if attempt == retries - 1:
+        _LOGGER.error('Could not create kinesis stream')
+        raise exn
+
+  for attempt in range(retries):
+    stream = kinesis_client.describe_stream(StreamName=stream_name)
+    if stream['StreamDescription']['StreamStatus'] == 'ACTIVE':
+      return
+    time.sleep(2)
+    if attempt == retries - 1:
+      raise RuntimeError(
+          'Unable to initialize Kinesis stream %s. Status: %s' % (
+              stream['StreamDescription']['StreamName'],
+              stream['StreamDescription']['StreamStatus']))
+
+
+@contextlib.contextmanager
+def temp_kinesis_localstack():
+  """Context manager to provide a temporary LocalStack Kinesis stream.
+
+  Starts a LocalStack container, creates a unique Kinesis stream, and yields
+  connection details for YAML Kinesis read/write transforms.
+
+  Yields:
+      dict: Keys include STREAM_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY, REGION,
+          SERVICE_ENDPOINT (https), and VERIFY_CERTIFICATE (False).
+  """
+  try:
+    import boto3
+  except ImportError as exn:
+    raise unittest.SkipTest('boto3 is not installed') from exn
+
+  _LOGGER.info('Setting up LocalStack Kinesis fixture...')
+  localstack = DockerContainer(_LOCALSTACK_KINESIS_IMAGE).with_bind_ports(
+      4566, 4566)
+  for port in range(4510, 4560):
+    localstack = localstack.with_bind_ports(port, port)
+
+  for attempt in range(4):
+    try:
+      localstack.start()
+      break
+    except Exception as exn:
+      if attempt == 3:
+        _LOGGER.error('Could not initialize localstack container')
+        raise exn
+
+  stream_name = f'yaml_kinesis_{uuid.uuid4().hex}'
+  kinesis_client = None
+  try:
+    host = localstack.get_container_host_ip()
+    port = localstack.get_exposed_port('4566')
+    service_endpoint = f'https://{host}:{port}'
+    http_endpoint = f'http://{host}:{port}'
+
+    kinesis_client = boto3.client(
+        service_name='kinesis',
+        region_name=_LOCALSTACK_KINESIS_REGION,
+        endpoint_url=http_endpoint,
+        aws_access_key_id=_LOCALSTACK_KINESIS_ACCESS_KEY,
+        aws_secret_access_key=_LOCALSTACK_KINESIS_SECRET_KEY,
+    )
+    _create_kinesis_stream(kinesis_client, stream_name)
+
+    _LOGGER.info(
+        'LocalStack Kinesis ready. Stream: [%s], endpoint: [%s]',
+        stream_name,
+        service_endpoint)
+
+    yield {
+        'STREAM_NAME': stream_name,
+        'AWS_ACCESS_KEY': _LOCALSTACK_KINESIS_ACCESS_KEY,
+        'AWS_SECRET_KEY': _LOCALSTACK_KINESIS_SECRET_KEY,
+        'REGION': _LOCALSTACK_KINESIS_REGION,
+        'SERVICE_ENDPOINT': service_endpoint,
+        'VERIFY_CERTIFICATE': False,
+    }
+  finally:
+    _LOGGER.info('Tearing down LocalStack Kinesis fixture...')
+    if kinesis_client is not None:
+      try:
+        kinesis_client.delete_stream(
+            StreamName=stream_name, EnforceConsumerDeletion=True)
+      except Exception:
+        _LOGGER.warning('Failed to delete kinesis stream [%s]', stream_name)
+    try:
+      localstack.stop()
+    except Exception:
+      _LOGGER.warning('Failed to stop localstack container')
+    _LOGGER.info('LocalStack Kinesis fixture stopped.')
+
+
+@contextlib.contextmanager
+def temp_jms_activemq_server():
+  """Context manager to provide a temporary ActiveMQ broker for JMS tests."""
+
+  broker = DockerContainer('apache/activemq-classic:5.18.3').with_exposed_ports(
+      61616)
+
+  try:
+    broker.start()
+    wait_for_logs(broker, '.*ActiveMQ .* started.*', timeout=30)
+
+    host = broker.get_container_host_ip()
+    port = broker.get_exposed_port(61616)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}',
+        'CONNECTION_FACTORY_CLASS_NAME': 'org.apache.activemq.ActiveMQConnectionFactory',
+    }
+  finally:
+    broker.stop()
+
+
+@contextlib.contextmanager
+def temp_ibm_mq_server():
+  container = (
+      DockerContainer('icr.io/ibm-messaging/mq:9.3.0.25-r1').with_env(
+          'LICENSE', 'accept').with_env('MQ_QMGR_NAME', 'QM1').with_env(
+              'MQ_APP_PASSWORD', 'admin123').with_exposed_ports(1414))
+
+  try:
+    container.start()
+    wait_for_logs(container, '.*(MQQMNAME|Started queue manager).*', timeout=45)
+
+    host = container.get_container_host_ip()
+    port = container.get_exposed_port(1414)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'USERNAME': 'app',
+        'PASSWORD': 'admin123',
+        'SOURCE_QUEUE': 'DEV.QUEUE.1',
+        'SINK_QUEUE': 'DEV.QUEUE.2',
+    }
+
+  finally:
+    container.stop()
+
+
+@contextlib.contextmanager
 def temp_kafka_server():
   """Context manager to provide a temporary Kafka server for testing.
 
@@ -532,6 +1026,26 @@ def temp_pubsub_emulator(project_id="apache-beam-testing"):
       f"projects/{pubsub_container.project}/topics/{topic_id}"
     created_topic_object = publisher.create_topic(name=topic_name_to_create)
     yield created_topic_object.name
+
+
+@contextlib.contextmanager
+def temp_delta_table():
+  with tempfile.TemporaryDirectory() as temp_dir:
+    log_dir = os.path.join(temp_dir, "_delta_log")
+    os.makedirs(log_dir, exist_ok=True)
+    table_data = pa.table({"name": ["a", "b", "c"]})
+    parquet_path = os.path.join(temp_dir, "part-00000.parquet")
+    pq.write_table(table_data, parquet_path)
+    file_size = os.path.getsize(parquet_path)
+    commit_content = (
+        '{"protocol":{"minReaderVersion":1,"minWriterVersion":2}}\n'
+        '{"metaData":{"id":"test-id","format":{"provider":"parquet","options":{}},"schemaString":"{\\"type\\":\\"struct\\",\\"fields\\":[{\\"name\\":\\"name\\",\\"type\\":\\"string\\",\\"nullable\\":true,\\"metadata\\":{}}]}","partitionColumns":[],"configuration":{},"createdAt":123456789}}\n'
+        f'{{"add":{{"path":"part-00000.parquet","partitionValues":{{}},"size":{file_size},"modificationTime":123456789,"dataChange":true}}}}\n'
+    )
+    commit_file = os.path.join(log_dir, "00000000000000000000.json")
+    with open(commit_file, "w") as f:
+      f.write(commit_content)
+    yield temp_dir
 
 
 def replace_recursive(spec, vars):
@@ -719,15 +1233,30 @@ def create_test_methods(spec):
                   **yaml_transform.SafeLineLoader.strip_metadata(
                       fixture.get('config', {}))))
         for pipeline_spec in spec['pipelines']:
-          with beam.Pipeline(options=PipelineOptions(
-              pickle_library='cloudpickle',
-              **replace_recursive(yaml_transform.SafeLineLoader.strip_metadata(
-                  pipeline_spec.get('options', {})),
-                                  vars))) as p:
-            yaml_transform.expand_pipeline(
-                p, replace_recursive(pipeline_spec, vars))
+          try:
+            with beam.Pipeline(options=PipelineOptions(
+                pickle_library='cloudpickle',
+                **replace_recursive(
+                    yaml_transform.SafeLineLoader.strip_metadata(
+                        pipeline_spec.get('options', {})),
+                    vars))) as p:
+              yaml_transform.expand_pipeline(
+                  p, replace_recursive(pipeline_spec, vars))
+          except ValueError as exn:
+            # FnApiRunner currently does not support this requirement in
+            # some xlang scenarios (e.g. Iceberg YAML pipelines).
+            if 'beam:requirement:pardo:on_window_expiration:v1' in str(exn):
+              self.skipTest(
+                  'Runner does not support '
+                  'beam:requirement:pardo:on_window_expiration:v1')
+            raise
 
     yield f'test_{suffix}', test
+
+
+_SICKBAY_TESTS = {
+    'ml_transform.yaml': 'Requires broken TFT dependency types (e.g. ScaleTo01)',
+}
 
 
 def parse_test_files(filepattern):
@@ -750,13 +1279,18 @@ def parse_test_files(filepattern):
   """
   for path in glob.glob(filepattern):
     with open(path) as fin:
-      suite_name = os.path.splitext(os.path.basename(path))[0].title().replace(
+      filename = os.path.basename(path)
+      suite_name = os.path.splitext(filename)[0].title().replace(
           '-', '') + 'Test'
       print(path, suite_name)
       methods = dict(
           create_test_methods(
               yaml.load(fin, Loader=yaml_transform.SafeLineLoader)))
-      globals()[suite_name] = type(suite_name, (unittest.TestCase, ), methods)
+      suite_class = type(suite_name, (unittest.TestCase, ), methods)
+      if filename in _SICKBAY_TESTS:
+        suite_class = unittest.skip(f"Sickbayed: {_SICKBAY_TESTS[filename]}")(
+            suite_class)
+      globals()[suite_name] = suite_class
 
 
 # Logging setups

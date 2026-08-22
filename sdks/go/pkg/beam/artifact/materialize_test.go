@@ -82,6 +82,52 @@ func TestMultiRetrieve(t *testing.T) {
 	}
 }
 
+func TestRetrieveWithBadShaFails(t *testing.T) {
+	cc := startServer(t)
+	defer cc.Close()
+
+	ctx := grpcx.WriteWorkerID(context.Background(), "idA")
+	keys := []string{"foo"}
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
+
+	dst := makeTempDir(t)
+	defer os.RemoveAll(dst)
+
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
+	for _, a := range artifacts {
+		a.Sha256 = "badhash" // mutate hash
+		if err := Retrieve(ctx, client, a, rt, dst); err == nil {
+			t.Errorf("expected materialization to fail due to bad sha256 mismatch")
+		}
+	}
+}
+
+func TestRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
+	cc := startServer(t)
+	defer cc.Close()
+
+	ctx := WithArtifactValidation(grpcx.WriteWorkerID(context.Background(), "idA"), false)
+	keys := []string{"foo"}
+	st := "whatever"
+	rt, artifacts := populate(ctx, cc, t, keys, 300, st)
+
+	dst := makeTempDir(t)
+	defer os.RemoveAll(dst)
+
+	client := jobpb.NewLegacyArtifactRetrievalServiceClient(cc)
+	for _, a := range artifacts {
+		originalHash := a.Sha256
+		a.Sha256 = "badhash" // mutate hash
+		filename := makeFilename(dst, a.Name)
+		if err := Retrieve(ctx, client, a, rt, dst); err != nil {
+			t.Errorf("materialize failed but should have succeeded because validation was disabled via experiment: %v", err)
+			continue
+		}
+		verifySHA256(t, filename, originalHash)
+	}
+}
+
 // populate stages a set of artifacts with the given keys, each with
 // slightly different sizes and chucksizes.
 func populate(ctx context.Context, cc *grpc.ClientConn, t *testing.T, keys []string, size int, st string) (string, []*jobpb.ArtifactMetadata) {
@@ -266,6 +312,55 @@ func TestNewRetrieveWithResolution(t *testing.T) {
 	checkStagedFiles(mds, dest, expected, t)
 }
 
+func TestIsArtifactValidationEnabled(t *testing.T) {
+	ctx := context.Background()
+	if !isArtifactValidationEnabled(ctx) {
+		t.Errorf("empty context should have validation enabled")
+	}
+
+	ctx2 := WithArtifactValidation(ctx, false)
+	if isArtifactValidationEnabled(ctx2) {
+		t.Errorf("context with validation disabled should have validation disabled")
+	}
+}
+
+func TestNewRetrieveWithBadShaFails(t *testing.T) {
+	expected := map[string]string{"a.txt": "a"}
+	client := &fakeRetrievalService{artifacts: expected}
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+	ctx := grpcx.WriteWorkerID(context.Background(), "worker")
+
+	_, err := newMaterializeWithClient(ctx, client, client.fileArtifactsWithBadSha(), dest)
+	if err == nil {
+		t.Fatalf("expected materialization to fail due to bad sha256 mismatch")
+	}
+}
+
+func TestNewRetrieveWithBadShaAndExperimentSucceeds(t *testing.T) {
+	expected := map[string]string{"a.txt": "a"}
+	client := &fakeRetrievalService{artifacts: expected}
+	dest := makeTempDir(t)
+	defer os.RemoveAll(dest)
+
+	ctx := WithArtifactValidation(grpcx.WriteWorkerID(context.Background(), "worker"), false)
+
+	mds, err := newMaterializeWithClient(ctx, client, client.fileArtifactsWithBadSha(), dest)
+	if err != nil {
+		t.Fatalf("materialize failed but should have succeeded because validation was disabled via experiment: %v", err)
+	}
+
+	generated := make(map[string]string)
+	for _, md := range mds {
+		name, _ := MustExtractFilePayload(md)
+		payload, _ := proto.Marshal(&pipepb.ArtifactStagingToRolePayload{
+			StagedName: name})
+		generated[name] = string(payload)
+	}
+
+	checkStagedFiles(mds, dest, generated, t)
+}
+
 func checkStagedFiles(mds []*pipepb.ArtifactInformation, dest string, expected map[string]string, t *testing.T) {
 	if len(mds) != len(expected) {
 		t.Errorf("wrong number of artifacts staged %v vs %v", len(mds), len(expected))
@@ -315,6 +410,21 @@ func (fake *fakeRetrievalService) fileArtifactsWithoutStagingTo() []*pipepb.Arti
 	for name := range fake.artifacts {
 		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
 			Path: filepath.Join("/tmp", name)})
+		artifacts = append(artifacts, &pipepb.ArtifactInformation{
+			TypeUrn:     URNFileArtifact,
+			TypePayload: payload,
+		})
+	}
+	return artifacts
+}
+
+func (fake *fakeRetrievalService) fileArtifactsWithBadSha() []*pipepb.ArtifactInformation {
+	var artifacts []*pipepb.ArtifactInformation
+	for name := range fake.artifacts {
+		payload, _ := proto.Marshal(&pipepb.ArtifactFilePayload{
+			Path:   filepath.Join("/tmp", name),
+			Sha256: "badhash",
+		})
 		artifacts = append(artifacts, &pipepb.ArtifactInformation{
 			TypeUrn:     URNFileArtifact,
 			TypePayload: payload,

@@ -66,6 +66,9 @@ description: Guides the contribution workflow for Apache Beam, including creatin
 - Every source file needs Apache license header
 - New dependencies must have Apache-compatible open source licenses
 - Add unit tests for your changes
+- Document public-facing APIs in a standard way (Javadoc, docstrings/pydoc).
+  - Documentation should be user-friendly, informative.
+  - Implementation details belong in inline code comments.
 - Use descriptive commit messages
 
 ### 5. Create Pull Request

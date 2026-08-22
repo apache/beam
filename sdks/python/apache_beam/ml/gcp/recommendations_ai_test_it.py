@@ -77,11 +77,14 @@ class RecommendationAIIT(unittest.TestCase):
 
     with TestPipeline(is_integration_test=True) as p:
       RecommendationAIIT.test_ran = True
-      output = (
+      create_outputs = (
           p | 'Create data' >> beam.Create([CATALOG_ITEM])
           | 'Create CatalogItem' >>
-          recommendations_ai.CreateCatalogItem(project=GCP_TEST_PROJECT)
+          recommendations_ai.CreateCatalogItem(project=GCP_TEST_PROJECT))
+      output = (
+          create_outputs.created_catalog_items
           | beam.ParDo(extract_id) | beam.combiners.ToList())
+      _ = create_outputs.failed_catalog_items | beam.combiners.Count.Globally()
 
       assert_that(output, equal_to([[CATALOG_ITEM["id"]]]))
 

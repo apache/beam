@@ -65,10 +65,16 @@ class RecommendationsAICatalogItemTest(unittest.TestCase):
                            return_value=self._mock_client):
       p = beam.Pipeline()
 
-      _ = (
+      create_outputs = (
           p | "Create data" >> beam.Create([self._catalog_item])
           | "Create CatalogItem" >>
           recommendations_ai.CreateCatalogItem(project="test"))
+      _ = (
+          create_outputs.created_catalog_items
+          | 'CountCreated' >> beam.combiners.Count.Globally())
+      _ = (
+          create_outputs.failed_catalog_items
+          | 'CountFailed' >> beam.combiners.Count.Globally())
 
       result = p.run()
       result.wait_until_finish()

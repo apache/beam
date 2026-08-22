@@ -232,9 +232,10 @@ public class FileIOTest implements Serializable {
   /** DoFn that copy test files from source to watch path. */
   private static class CopyFilesFn
       extends DoFn<KV<String, MatchResult.Metadata>, MatchResult.Metadata> {
-    public CopyFilesFn(Path sourcePath, Path watchPath) {
+    public CopyFilesFn(Path sourcePath, Path watchPath, long baseTimestampMillis) {
       this.sourcePathStr = sourcePath.toString();
       this.watchPathStr = watchPath.toString();
+      this.baseTimestampMillis = baseTimestampMillis;
     }
 
     @StateId("count")
@@ -249,16 +250,24 @@ public class FileIOTest implements Serializable {
       context.output(Objects.requireNonNull(context.element()).getValue());
 
       CopyOption[] cpOptions = {StandardCopyOption.COPY_ATTRIBUTES};
-      CopyOption[] updOptions = {StandardCopyOption.REPLACE_EXISTING};
+      CopyOption[] updOptions = {
+        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES
+      };
       final Path sourcePath = Paths.get(sourcePathStr);
       final Path watchPath = Paths.get(watchPathStr);
 
       if (0 == current) {
         Thread.sleep(100);
+        // Ensure overwrite updates get a distinct mtime even when COPY_ATTRIBUTES is enabled.
+        Files.setLastModifiedTime(
+            sourcePath.resolve("first"), FileTime.fromMillis(baseTimestampMillis + 2000));
         Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
         Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), cpOptions);
       } else if (1 == current) {
         Thread.sleep(100);
+        FileTime updateTime = FileTime.fromMillis(baseTimestampMillis + 4000);
+        Files.setLastModifiedTime(sourcePath.resolve("first"), updateTime);
+        Files.setLastModifiedTime(sourcePath.resolve("second"), updateTime);
         Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
         Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), updOptions);
         Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), cpOptions);
@@ -269,17 +278,62 @@ public class FileIOTest implements Serializable {
     // Member variables need to be serializable.
     private final String sourcePathStr;
     private final String watchPathStr;
+    private final long baseTimestampMillis;
+  }
+
+  private static class AfterNumberOfNewOutputs
+      implements Watch.Growth.TerminationCondition<String, Integer> {
+    private final int numOutputs;
+
+    public AfterNumberOfNewOutputs(int numOutputs) {
+      this.numOutputs = numOutputs;
+    }
+
+    @Override
+    public org.apache.beam.sdk.coders.Coder<Integer> getStateCoder() {
+      return VarIntCoder.of();
+    }
+
+    @Override
+    public Integer forNewInput(org.joda.time.Instant now, String input) {
+      return 0;
+    }
+
+    @Override
+    public Integer onSeenNewOutput(org.joda.time.Instant now, Integer state) {
+      return (state == null ? 0 : state) + 1;
+    }
+
+    @Override
+    public boolean canStopPolling(org.joda.time.Instant now, Integer state) {
+      return (state == null ? 0 : state) >= numOutputs;
+    }
+
+    @Override
+    public String toString(Integer state) {
+      return "AfterNumberOfNewOutputs(" + state + "/" + numOutputs + ")";
+    }
   }
 
   @Test
   @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
   public void testMatchWatchForNewFiles() throws IOException, InterruptedException {
+    final int numFiles = 3;
+    final int numFirstFiles = 3;
+    final int numUpdatedFiles = 6; // first x3, second x2, third x1
+
     // Write some files to a "source" directory.
     final Path sourcePath = tmpFolder.getRoot().toPath().resolve("source");
     sourcePath.toFile().mkdir();
     Files.write(sourcePath.resolve("first"), new byte[42]);
     Files.write(sourcePath.resolve("second"), new byte[37]);
     Files.write(sourcePath.resolve("third"), new byte[99]);
+    // Keep controlled mtimes in the past so updates are distinct without future timestamps.
+    long baseTimestampMillis = System.currentTimeMillis() - Duration.standardMinutes(1).getMillis();
+    FileTime baseTimestamp = FileTime.fromMillis(baseTimestampMillis);
+    Files.setLastModifiedTime(sourcePath.resolve("first"), baseTimestamp);
+    Files.setLastModifiedTime(sourcePath.resolve("second"), baseTimestamp);
+    Files.setLastModifiedTime(sourcePath.resolve("third"), baseTimestamp);
 
     // Create a "watch" directory that the pipeline will copy files into.
     final Path watchPath = tmpFolder.getRoot().toPath().resolve("watch");
@@ -291,7 +345,9 @@ public class FileIOTest implements Serializable {
                 .filepattern(watchPath.resolve("*").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+                    Watch.Growth.eitherOf(
+                        new AfterNumberOfNewOutputs(numFiles),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10)))));
     PCollection<MatchResult.Metadata> matchAllMetadata =
         p.apply("create for matchAll new files", Create.of(watchPath.resolve("*").toString()))
             .apply(
@@ -299,7 +355,9 @@ public class FileIOTest implements Serializable {
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1))));
+                        Watch.Growth.eitherOf(
+                            new AfterNumberOfNewOutputs(numFiles),
+                            Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10)))));
     PCollection<MatchResult.Metadata> matchUpdatedMetadata =
         p.apply(
             "match updated",
@@ -307,7 +365,9 @@ public class FileIOTest implements Serializable {
                 .filepattern(watchPath.resolve("first").toString())
                 .continuously(
                     Duration.millis(100),
-                    Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                    Watch.Growth.eitherOf(
+                        new AfterNumberOfNewOutputs(numFirstFiles),
+                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10))),
                     true));
     PCollection<MatchResult.Metadata> matchAllUpdatedMetadata =
         p.apply("create for matchAll updated files", Create.of(watchPath.resolve("*").toString()))
@@ -316,7 +376,9 @@ public class FileIOTest implements Serializable {
                 FileIO.matchAll()
                     .continuously(
                         Duration.millis(100),
-                        Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(1)),
+                        Watch.Growth.eitherOf(
+                            new AfterNumberOfNewOutputs(numUpdatedFiles),
+                            Watch.Growth.afterTimeSinceNewOutput(Duration.standardSeconds(10))),
                         true));
 
     // write one file at the beginning. This will trigger the first output for matchAll
@@ -334,7 +396,7 @@ public class FileIOTest implements Serializable {
                             TypeDescriptors.strings(),
                             TypeDescriptor.of(MatchResult.Metadata.class)))
                     .via((metadata) -> KV.of("dumb key", metadata)))
-            .apply(ParDo.of(new CopyFilesFn(sourcePath, watchPath)));
+            .apply(ParDo.of(new CopyFilesFn(sourcePath, watchPath, baseTimestampMillis)));
 
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchMetadata.isBounded());
     assertEquals(PCollection.IsBounded.UNBOUNDED, matchAllMetadata.isBounded());

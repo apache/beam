@@ -29,6 +29,8 @@ import com.google.common.collect.ImmutableMap;
 import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -45,6 +47,7 @@ public class StreamingCommitFinalizerTest {
 
   private StreamingCommitFinalizer finalizer;
   private BoundedQueueExecutor executor;
+  private ScheduledExecutorService cleanupExecutor;
 
   @Before
   public void setUp() {
@@ -59,13 +62,22 @@ public class StreamingCommitFinalizerTest {
                 .setNameFormat("FinalizationCallback-%d")
                 .setDaemon(true)
                 .build(),
-            /*useFairMonitor=*/ false);
-    finalizer = StreamingCommitFinalizer.create(executor);
+            /*useFairMonitor=*/ false,
+            /*useKeyGroupWorkQueue=*/ false);
+
+    cleanupExecutor =
+        Executors.newScheduledThreadPool(
+            1,
+            new ThreadFactoryBuilder()
+                .setNameFormat("FinalizationCallbackCleanup-%d")
+                .setDaemon(true)
+                .build());
+    finalizer = StreamingCommitFinalizer.create(executor, cleanupExecutor);
   }
 
   @Test
   public void testCreateAndInit() {
-    assertEquals(0, finalizer.cleanupQueueSize());
+    assertEquals(0, finalizer.pendingCallbacksSize());
   }
 
   @Test
@@ -73,7 +85,7 @@ public class StreamingCommitFinalizerTest {
     Runnable callback = mock(Runnable.class);
     finalizer.cacheCommitFinalizers(
         ImmutableMap.of(1L, Pair.of(Instant.now().plus(Duration.standardHours(1)), callback)));
-    assertEquals(1, finalizer.cleanupQueueSize());
+    assertEquals(1, finalizer.pendingCallbacksSize());
     verify(callback, never()).run();
   }
 
@@ -101,7 +113,7 @@ public class StreamingCommitFinalizerTest {
                 () -> callbackExecuted.countDown())));
     finalizer.finalizeCommits(Collections.singletonList(1L));
     assertTrue(callbackExecuted.await(30, TimeUnit.SECONDS));
-    assertEquals(0, finalizer.cleanupQueueSize());
+    assertEquals(0, finalizer.pendingCallbacksSize());
   }
 
   @Test
@@ -127,7 +139,7 @@ public class StreamingCommitFinalizerTest {
     finalizer.finalizeCommits(Collections.singletonList(1L));
     assertTrue(callback1Executed.await(30, TimeUnit.SECONDS));
 
-    assertEquals(0, finalizer.cleanupQueueSize());
+    assertEquals(0, finalizer.pendingCallbacksSize());
   }
 
   @Test
@@ -135,10 +147,10 @@ public class StreamingCommitFinalizerTest {
     Runnable callback = mock(Runnable.class);
     finalizer.cacheCommitFinalizers(
         ImmutableMap.of(1L, Pair.of(Instant.now().plus(Duration.standardHours(1)), callback)));
+    assertEquals(1, finalizer.pendingCallbacksSize());
     finalizer.finalizeCommits(Collections.singletonList(2L));
-    assertEquals(1, executor.elementsOutstanding());
     verify(callback, never()).run();
-    assertEquals(1, finalizer.cleanupQueueSize());
+    assertEquals(1, finalizer.pendingCallbacksSize());
   }
 
   @Test
@@ -150,7 +162,7 @@ public class StreamingCommitFinalizerTest {
             Pair.of(
                 Instant.now().plus(Duration.standardHours(1)),
                 () -> callback1Executed.countDown())));
-    assertEquals(1, finalizer.cleanupQueueSize());
+    assertEquals(1, finalizer.pendingCallbacksSize());
 
     Runnable callback2 = mock(Runnable.class);
     Runnable callback3 = mock(Runnable.class);
@@ -161,17 +173,17 @@ public class StreamingCommitFinalizerTest {
             .put(3L, Pair.of(shortTimeout, callback3))
             .build());
 
-    while (finalizer.cleanupQueueSize() > 1) {
+    while (finalizer.pendingCallbacksSize() > 1) {
       // Wait until the two 100ms timeouts expire.
       Thread.sleep(200);
     }
-    assertEquals(1, executor.elementsOutstanding());
+    assertEquals(1, finalizer.pendingCallbacksSize());
     finalizer.finalizeCommits(ImmutableList.of(2L, 3L));
     verify(callback2, never()).run();
     verify(callback3, never()).run();
 
     finalizer.finalizeCommits(Collections.singletonList(1L));
     assertTrue(callback1Executed.await(30, TimeUnit.SECONDS));
-    assertEquals(0, finalizer.cleanupQueueSize());
+    assertEquals(0, finalizer.pendingCallbacksSize());
   }
 }

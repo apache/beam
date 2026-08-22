@@ -114,6 +114,13 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
 
   void setLogMdc(boolean value);
 
+  @Description(
+      "This option controls if OpenTelemetry trace, spanId and sampled will be appended to log entries. This will allow to stitch traces to logs.")
+  @Default.Boolean(false)
+  boolean getLogOpenTelemetryTraceAndSpanId();
+
+  void setLogOpenTelemetryTraceAndSpanId(boolean value);
+
   /** This option controls whether logging will be redirected through the FnApi. */
   @Description(
       "Controls whether logging will be redirected through the FnApi. In normal usage, setting "
@@ -481,4 +488,10 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
       return GlobalOpenTelemetry.get();
     }
   }
+
+  /** The hex-encoded SHA256 hash of the staged portable pipeline proto. */
+  @Description("The hex-encoded SHA256 hash of the staged portable pipeline proto")
+  String getPipelineProtoHash();
+
+  void setPipelineProtoHash(String hash);
 }

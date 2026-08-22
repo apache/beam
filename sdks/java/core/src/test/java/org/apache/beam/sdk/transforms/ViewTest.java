@@ -285,6 +285,7 @@ public class ViewTest implements Serializable {
                 Window.<Long>into(FixedWindows.of(Duration.standardSeconds(1)))
                     .triggering(Repeatedly.forever(AfterProcessingTime.pastFirstElementInPane()))
                     .withAllowedLateness(Duration.ZERO)
+                    .withOnTimeBehavior(Window.OnTimeBehavior.FIRE_IF_NON_EMPTY)
                     .discardingFiredPanes())
             .apply(Reify.timestamps())
             .apply(Combine.globally(Latest.<Long>combineFn()).withoutDefaults().asSingletonView());

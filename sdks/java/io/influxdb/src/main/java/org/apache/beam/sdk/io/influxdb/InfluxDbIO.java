@@ -45,6 +45,7 @@ import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.influxdb.InfluxDB;
 import org.influxdb.InfluxDB.ConsistencyLevel;
@@ -565,11 +566,19 @@ public class InfluxDbIO {
   @AutoValue
   public abstract static class DataSourceConfiguration implements Serializable {
 
+    @VisibleForTesting
+    @FunctionalInterface
+    public interface ConnectionFactory extends Serializable {
+      InfluxDB create(DataSourceConfiguration configuration, boolean disableCertificateValidation);
+    }
+
     abstract ValueProvider<String> url();
 
     abstract ValueProvider<String> userName();
 
     abstract ValueProvider<String> password();
+
+    abstract @Nullable ConnectionFactory connectionFactory();
 
     abstract Builder builder();
 
@@ -582,6 +591,8 @@ public class InfluxDbIO {
 
       abstract Builder setPassword(ValueProvider<String> password);
 
+      abstract Builder setConnectionFactory(@Nullable ConnectionFactory connectionFactory);
+
       abstract DataSourceConfiguration build();
     }
 
@@ -592,6 +603,14 @@ public class InfluxDbIO {
           .setUserName(userName)
           .setPassword(password)
           .build();
+    }
+
+    /**
+     * For testing only. Note that userName and password are ignored when connectionFactory is set.
+     */
+    @VisibleForTesting
+    DataSourceConfiguration withConnectionFactory(ConnectionFactory connectionFactory) {
+      return builder().setConnectionFactory(connectionFactory).build();
     }
 
     void populateDisplayData(DisplayData.Builder builder) {
@@ -642,6 +661,9 @@ public class InfluxDbIO {
 
   public static InfluxDB getConnection(
       DataSourceConfiguration configuration, boolean disableCertificateValidation) {
+    if (configuration.connectionFactory() != null) {
+      return configuration.connectionFactory().create(configuration, disableCertificateValidation);
+    }
     if (!disableCertificateValidation) {
       return InfluxDBFactory.connect(
           configuration.url().get(),

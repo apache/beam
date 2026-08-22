@@ -22,6 +22,7 @@ import static org.apache.avro.file.DataFileConstants.DEFLATE_CODEC;
 import static org.apache.avro.file.DataFileConstants.NULL_CODEC;
 import static org.apache.avro.file.DataFileConstants.SNAPPY_CODEC;
 import static org.apache.avro.file.DataFileConstants.XZ_CODEC;
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
 import static org.junit.Assert.assertEquals;
 
 import java.io.ByteArrayInputStream;
@@ -40,9 +41,6 @@ import org.junit.runners.JUnit4;
 /** Tests of SerializableAvroCodecFactory. */
 @RunWith(JUnit4.class)
 public class SerializableAvroCodecFactoryTest {
-  private static final String VERSION_AVRO =
-      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
-
   private static final List<String> avroCodecs = new ArrayList<>();
 
   static {

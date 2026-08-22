@@ -45,6 +45,7 @@ public class WindmillServerBase extends WindmillServerStub {
   }
 
   @Override
+  @SuppressWarnings("Finalize")
   protected void finalize() {
     destroy(nativePointer);
   }

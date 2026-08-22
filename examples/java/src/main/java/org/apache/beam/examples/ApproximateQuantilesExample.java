@@ -24,6 +24,8 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.ApproximateQuantiles;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.Element;
+import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.slf4j.Logger;
@@ -34,7 +36,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of ApproximateQuantiles transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 46
+//   context_line: 48
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC
@@ -70,9 +72,9 @@ public class ApproximateQuantilesExample {
     }
 
     @ProcessElement
-    public void processElement(ProcessContext c) throws Exception {
-      LOG.info("{}{}", prefix, c.element());
-      c.output(c.element());
+    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
+      LOG.info("{}{}", prefix, element);
+      receiver.output(element);
     }
   }
 }

@@ -154,6 +154,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SerializableFunctions;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
@@ -171,11 +172,17 @@ import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayl
 import org.apache.beam.sdk.util.construction.PipelineTranslation;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PValues;
 import org.apache.beam.sdk.values.TimestampedValue;
+import org.apache.beam.sdk.values.TupleTag;
+import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.TypeDescriptors;
+import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -191,6 +198,7 @@ import org.hamcrest.TypeSafeMatcher;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -277,6 +285,11 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs) throws IOException {
+    return buildMockDataflow(mockJobs, "JOB_STATE_RUNNING");
+  }
+
+  static Dataflow buildMockDataflow(Dataflow.Projects.Locations.Jobs mockJobs, String currentState)
+      throws IOException {
     Dataflow mockDataflowClient = mock(Dataflow.class);
     Dataflow.Projects mockProjects = mock(Dataflow.Projects.class);
     Dataflow.Projects.Locations mockLocations = mock(Dataflow.Projects.Locations.class);
@@ -300,7 +313,7 @@ public class DataflowRunnerTest implements Serializable {
                         new Job()
                             .setName("oldjobname")
                             .setId("oldJobId")
-                            .setCurrentState("JOB_STATE_RUNNING"))));
+                            .setCurrentState(currentState))));
 
     Job resultJob = new Job();
     resultJob.setId("newid");
@@ -367,6 +380,10 @@ public class DataflowRunnerTest implements Serializable {
   }
 
   private DataflowPipelineOptions buildPipelineOptions() throws IOException {
+    return buildPipelineOptions("JOB_STATE_RUNNING");
+  }
+
+  private DataflowPipelineOptions buildPipelineOptions(String currentState) throws IOException {
     DataflowPipelineOptions options = PipelineOptionsFactory.as(DataflowPipelineOptions.class);
     options.setRunner(DataflowRunner.class);
     options.setProject(PROJECT_ID);
@@ -374,7 +391,7 @@ public class DataflowRunnerTest implements Serializable {
     options.setRegion(REGION_ID);
     // Set FILES_PROPERTY to empty to prevent a default value calculated from classpath.
     options.setFilesToStage(new ArrayList<>());
-    options.setDataflowClient(buildMockDataflow(mockJobs));
+    options.setDataflowClient(buildMockDataflow(mockJobs, currentState));
     options.setGcsUtil(mockGcsUtil);
     options.setGcpCredential(new TestCredential());
 
@@ -783,6 +800,19 @@ public class DataflowRunnerTest implements Serializable {
     ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
     Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
     assertValidJob(jobCaptor.getValue());
+  }
+
+  @Test
+  public void testUpdateDrainingJob() throws IOException {
+    DataflowPipelineOptions options = buildPipelineOptions("JOB_STATE_DRAINING");
+    options.setUpdate(true);
+    options.setJobName("oldJobName");
+    Pipeline p = buildDataflowPipeline(options);
+    p.run();
+
+    ArgumentCaptor<Job> jobCaptor = ArgumentCaptor.forClass(Job.class);
+    Mockito.verify(mockJobs).create(eq(PROJECT_ID), eq(REGION_ID), jobCaptor.capture());
+    assertEquals("oldJobId", jobCaptor.getValue().getReplaceJobId());
   }
 
   @Test
@@ -1783,7 +1813,11 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingAnyFnApiExperimentEnablesUnifiedWorker() throws Exception {
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       DataflowPipelineOptions options = buildPipelineOptions();
       ExperimentalOptions.addExperiment(options, experiment);
       Pipeline p = Pipeline.create(options);
@@ -1798,7 +1832,11 @@ public class DataflowRunnerTest implements Serializable {
 
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       DataflowPipelineOptions options = buildPipelineOptions();
       options.setStreaming(true);
       ExperimentalOptions.addExperiment(options, experiment);
@@ -1822,16 +1860,27 @@ public class DataflowRunnerTest implements Serializable {
   public void testSettingConflictingEnableAndDisableExperimentsThrowsException() throws Exception {
     for (String experiment :
         ImmutableList.of(
-            "beam_fn_api", "use_runner_v2", "use_unified_worker", "use_portable_job_submission")) {
+            "beam_fn_api",
+            "use_runner_v2",
+            "use_unified_worker",
+            "use_portable_job_submission",
+            "enable_portable_runner")) {
       for (String disabledExperiment :
           ImmutableList.of(
-              "disable_runner_v2", "disable_runner_v2_until_2023", "disable_prime_runner_v2")) {
+              "disable_runner_v2",
+              "disable_runner_v2_until_2023",
+              "disable_prime_runner_v2",
+              "enable_streaming_java_runner",
+              "disable_portable_runner")) {
         DataflowPipelineOptions options = buildPipelineOptions();
         ExperimentalOptions.addExperiment(options, experiment);
         ExperimentalOptions.addExperiment(options, disabledExperiment);
         Pipeline p = Pipeline.create(options);
         p.apply(Create.of("A"));
-        assertThrows("Runner V2 both disabled and enabled", IllegalArgumentException.class, p::run);
+        assertThrows(
+            "Dataflow Portable Runner both disabled and enabled",
+            IllegalArgumentException.class,
+            p::run);
       }
     }
   }
@@ -2760,5 +2809,184 @@ public class DataflowRunnerTest implements Serializable {
                   public void process() {}
                 }));
     p.run();
+  }
+
+  @Test
+  @Category({ValidatesRunner.class})
+  public void testValueKindParameterAndOutputWithKind() {
+    boolean isRunnerV2 = false;
+    @Nullable
+    List<String> experiments =
+        pipeline.getOptions().as(DataflowPipelineOptions.class).getExperiments();
+    if (experiments != null
+        && (experiments.contains("use_unified_worker") || experiments.contains("use_runner_v2"))) {
+      isRunnerV2 = true;
+    }
+    // Skipp runner v2 because its Create uses a splittable DoFn, which contains a shuffle.
+    // ValueKind is not supported in Dataflow shuffle yet
+    assumeFalse(isRunnerV2);
+
+    PCollection<String> input = pipeline.apply(Create.of("a", "b", "c", "d"));
+    TupleTag<String> mainTag = new TupleTag<String>() {};
+    TupleTag<String> sideTag = new TupleTag<String>() {};
+
+    PCollectionTuple tuple =
+        input.apply(
+            "SetKind",
+            ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element,
+                          @Timestamp org.joda.time.Instant timestamp,
+                          BoundedWindow window,
+                          PaneInfo paneInfo,
+                          ProcessContext c,
+                          MultiOutputReceiver outputReceiver) {
+                        switch (element) {
+                          case "a":
+                            c.output(element); // default: INSERT
+                            return;
+                          case "b":
+                            c.outputWindowedValue(
+                                WindowedValues.of(
+                                    element,
+                                    timestamp,
+                                    Collections.singleton(window),
+                                    paneInfo,
+                                    null,
+                                    null,
+                                    CausedByDrain.NORMAL,
+                                    null,
+                                    ValueKind.UPDATE_BEFORE));
+                            return;
+                          case "c":
+                            outputReceiver
+                                .get(mainTag)
+                                .builder(element)
+                                .setValueKind(ValueKind.UPDATE_AFTER)
+                                .output();
+                            return;
+                          case "d":
+                            outputReceiver
+                                .get(sideTag)
+                                .builder(element)
+                                .setValueKind(ValueKind.DELETE)
+                                .output();
+                        }
+                      }
+                    })
+                .withOutputTags(mainTag, TupleTagList.of(sideTag)));
+
+    PCollection<String> main =
+        tuple
+            .get(mainTag)
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
+
+    PCollection<String> side =
+        tuple
+            .get(sideTag)
+            .apply(
+                "ReadKind-SideTag",
+                ParDo.of(
+                    new DoFn<String, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element String element, ProcessContext c, ValueKind kind) {
+                        c.output(element + ":" + kind);
+                      }
+                    }));
+
+    PAssert.that(main).containsInAnyOrder("a:INSERT", "b:UPDATE_BEFORE", "c:UPDATE_AFTER");
+    PAssert.that(side).containsInAnyOrder("d:DELETE");
+    pipeline.run();
+  }
+
+  @Test
+  @Ignore("enable once when element metadata is supported in shuffle")
+  @Category({ValidatesRunner.class})
+  public void testValueKindPreservedAcrossShuffle() {
+    PCollection<KV<String, String>> input = pipeline.apply(Create.of(KV.of("key", "value")));
+
+    PCollection<String> output =
+        input
+            .apply(
+                "SetKind",
+                ParDo.of(
+                    new DoFn<KV<String, String>, KV<String, String>>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element,
+                          OutputReceiver<KV<String, String>> out) {
+                        out.builder(element).setValueKind(ValueKind.UPDATE_BEFORE).output();
+                      }
+                    }))
+            .apply(Reshuffle.of())
+            .apply(
+                "ReadKind",
+                ParDo.of(
+                    new DoFn<KV<String, String>, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element KV<String, String> element, ProcessContext c, ValueKind kind) {
+                        c.output(element.getValue() + ":" + kind);
+                      }
+                    }));
+
+    PAssert.that(output).containsInAnyOrder("value:UPDATE_BEFORE");
+    pipeline.run();
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PreCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.74.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertFalse(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2PostCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
+  }
+
+  @Test
+  public void testStreamingStateTagEncodingV2NoCompatibility() throws Exception {
+    DataflowPipelineOptions options = buildPipelineOptions();
+    options.as(StreamingOptions.class).setStreaming(true);
+    Pipeline p = Pipeline.create(options);
+
+    p.run();
+
+    List<String> experiments = options.getExperiments();
+    assertNotNull(experiments);
+    assertTrue(experiments.contains("streaming_engine_state_tag_encoding_v2_supported"));
+    assertTrue(experiments.contains("enable_streaming_engine_state_tag_encoding_v2"));
   }
 }

@@ -117,6 +117,10 @@ cdef class BigEndianShortCoderImpl(StreamCoderImpl):
   pass
 
 
+cdef class ByteCoderImpl(StreamCoderImpl):
+  pass
+
+
 cdef class SinglePrecisionFloatCoderImpl(StreamCoderImpl):
   pass
 

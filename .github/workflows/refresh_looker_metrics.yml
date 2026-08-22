@@ -29,10 +29,12 @@ env:
 
 jobs:
   refresh_looker_metrics:
-    runs-on: [self-hosted, ubuntu-20.04, main]
+    runs-on: [self-hosted, ubuntu-24.04, main]
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
         with:
           python-version: 3.11
       - run: pip install requests google-cloud-storage looker-sdk

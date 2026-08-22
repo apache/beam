@@ -21,6 +21,7 @@ import static org.apache.beam.runners.dataflow.util.Structs.getString;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.service.AutoService;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -39,6 +40,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.ValueWithRecordId;
 import org.apache.beam.sdk.values.ValueWithRecordId.ValueWithRecordIdCoder;
@@ -196,7 +198,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
     }
 
     private <EncodeT> ByteString encode(Coder<EncodeT> coder, EncodeT object) throws IOException {
-      if (stream.size() != 0) {
+      if (!stream.isEmpty()) {
         throw new IllegalStateException(
             "Expected output stream to be empty but had " + stream.toByteString());
       }
@@ -219,11 +221,27 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       ByteString key, value;
       ByteString id = ByteString.EMPTY;
       // todo #33176 specify additional metadata in the future
-      BeamFnApi.Elements.ElementMetadata additionalMetadata =
-          BeamFnApi.Elements.ElementMetadata.newBuilder().build();
+      BeamFnApi.Elements.ElementMetadata.Builder additionalMetadataBuilder =
+          BeamFnApi.Elements.ElementMetadata.newBuilder();
+      additionalMetadataBuilder
+          .setDrain(
+              data.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN
+                  ? BeamFnApi.Elements.DrainMode.Enum.DRAINING
+                  : BeamFnApi.Elements.DrainMode.Enum.NOT_DRAINING)
+          .setValueKind(WindmillValueKindHelper.toProto(data.getValueKind()));
+      Context openTelemetryContext = data.getOpenTelemetryContext();
+      if (openTelemetryContext != null) {
+        // TODO replace with OpenTelemetryContextPropagator
+        WindmillOpenTelemetryContextPropagator.set(openTelemetryContext, additionalMetadataBuilder);
+      }
+
       ByteString metadata =
           encodeMetadata(
-              stream, windowsCoder, data.getWindows(), data.getPaneInfo(), additionalMetadata);
+              stream,
+              windowsCoder,
+              data.getWindows(),
+              data.getPaneInfo(),
+              additionalMetadataBuilder.build());
       if (valueCoder instanceof KvCoder) {
         KvCoder kvCoder = (KvCoder) valueCoder;
         KV kv = checkNotNull((KV) data.getValue());
@@ -247,20 +265,26 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       }
       if (key.size() > context.getMaxOutputKeyBytes()) {
         if (context.throwExceptionsForLargeOutput()) {
-          throw new OutputTooLargeException("Key too large: " + key.size());
+          throw new OutputTooLargeException(
+              String.format(
+                  "Key for fused stage %s too large: %s", context.getSystemName(), key.size()));
         } else {
           LOG.error(
-              "Trying to output too large key with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              "Trying to output too large key for fused stage {} with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              context.getSystemName(),
               key.size(),
               context.getMaxOutputKeyBytes());
         }
       }
       if (value.size() > context.getMaxOutputValueBytes()) {
         if (context.throwExceptionsForLargeOutput()) {
-          throw new OutputTooLargeException("Value too large: " + value.size());
+          throw new OutputTooLargeException(
+              String.format(
+                  "Value for fused stage %s too large: %s", context.getSystemName(), value.size()));
         } else {
           LOG.error(
-              "Trying to output too large value with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              "Trying to output too large value for fused stage {} with size {}. Limit is {}. See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception. Running with --experiments=throw_exceptions_on_large_output will instead throw an OutputTooLargeException which may be caught in user code.",
+              context.getSystemName(),
               value.size(),
               context.getMaxOutputValueBytes());
         }

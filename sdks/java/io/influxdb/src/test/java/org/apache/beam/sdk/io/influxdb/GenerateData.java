@@ -20,7 +20,7 @@ package org.apache.beam.sdk.io.influxdb;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -40,13 +40,13 @@ class GenerateData {
       m.addField("field2", random.nextInt(100));
       LocalDateTime time =
           LocalDateTime.of(
-              LocalDate.now(),
+              LocalDate.now(ZoneOffset.UTC),
               LocalTime.of(
                   random.nextInt(24),
                   random.nextInt(60),
                   random.nextInt(60),
                   random.nextInt(999999999 + 1)));
-      ZonedDateTime zdt = time.atZone(ZoneId.of("America/Los_Angeles"));
+      ZonedDateTime zdt = time.atZone(ZoneOffset.UTC);
       m.setTime(zdt.toInstant().toEpochMilli());
       m.setTimeUnit(TimeUnit.MILLISECONDS);
       element.add(m.getLineProtocol());
@@ -64,13 +64,13 @@ class GenerateData {
         m.addField("field2", random.nextInt(100));
         LocalDateTime time =
             LocalDateTime.of(
-                LocalDate.now(),
+                LocalDate.now(ZoneOffset.UTC),
                 LocalTime.of(
                     random.nextInt(24),
                     random.nextInt(60),
                     random.nextInt(60),
                     random.nextInt(999999999 + 1)));
-        ZonedDateTime zdt = time.atZone(ZoneId.of("America/Los_Angeles"));
+        ZonedDateTime zdt = time.atZone(ZoneOffset.UTC);
         m.setTime(zdt.toInstant().toEpochMilli());
         m.setTimeUnit(TimeUnit.MILLISECONDS);
         element.add(m.getLineProtocol());

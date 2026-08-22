@@ -27,15 +27,6 @@ import com.mongodb.client.gridfs.GridFSBucket;
 import com.mongodb.client.gridfs.GridFSBuckets;
 import com.mongodb.client.gridfs.GridFSUploadStream;
 import com.mongodb.client.gridfs.model.GridFSFile;
-import de.flapdoodle.embed.mongo.MongodExecutable;
-import de.flapdoodle.embed.mongo.MongodProcess;
-import de.flapdoodle.embed.mongo.MongodStarter;
-import de.flapdoodle.embed.mongo.config.MongoCmdOptions;
-import de.flapdoodle.embed.mongo.config.MongodConfig;
-import de.flapdoodle.embed.mongo.config.Net;
-import de.flapdoodle.embed.mongo.config.Storage;
-import de.flapdoodle.embed.mongo.distribution.Version;
-import de.flapdoodle.embed.process.runtime.Network;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.DataInputStream;
@@ -51,7 +42,6 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.BoundedSource;
-import org.apache.beam.sdk.io.common.NetworkTestHelper;
 import org.apache.beam.sdk.io.mongodb.MongoDbGridFSIO.Read.BoundedGridFSSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -66,58 +56,37 @@ import org.apache.beam.sdk.values.PCollection;
 import org.bson.types.ObjectId;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testcontainers.containers.MongoDBContainer;
+import org.testcontainers.utility.DockerImageName;
 
 /** Test on the MongoDbGridFSIO. */
 @RunWith(JUnit4.class)
 public class MongoDBGridFSIOTest {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDBGridFSIOTest.class);
 
-  @ClassRule public static final TemporaryFolder MONGODB_LOCATION = new TemporaryFolder();
   private static final String DATABASE = "gridfs";
+  private static final DockerImageName MONGO_IMAGE = DockerImageName.parse("mongo:4.4.17");
 
-  private static final MongodStarter mongodStarter = MongodStarter.getDefaultInstance();
-  private static MongodExecutable mongodExecutable;
-  private static MongodProcess mongodProcess;
-
-  private static int port;
+  @ClassRule
+  public static final MongoDBContainer MONGO_CONTAINER = new MongoDBContainer(MONGO_IMAGE);
 
   @Rule public final TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
   public static void start() throws Exception {
-    port = NetworkTestHelper.getAvailableLocalPort();
-    LOG.info("Starting MongoDB embedded instance on {}", port);
-    MongodConfig mongodConfig =
-        MongodConfig.builder()
-            .version(Version.Main.PRODUCTION)
-            .isConfigServer(false)
-            .replication(new Storage(MONGODB_LOCATION.getRoot().getPath(), null, 0))
-            .net(new Net("localhost", port, Network.localhostIsIPv6()))
-            .cmdOptions(
-                MongoCmdOptions.builder()
-                    .syncDelay(10)
-                    .useNoPrealloc(true)
-                    .useSmallFiles(true)
-                    .useNoJournal(true)
-                    .isVerbose(false)
-                    .build())
-            .build();
-    mongodExecutable = mongodStarter.prepare(mongodConfig);
-    mongodProcess = mongodExecutable.start();
+    LOG.info("Starting MongoDB container");
 
     LOG.info("Insert test data");
 
-    MongoClient client = MongoClients.create("mongodb://localhost:" + port);
+    MongoClient client = MongoClients.create(MONGO_CONTAINER.getReplicaSetUrl());
     MongoDatabase database = client.getDatabase(DATABASE);
     GridFSBucket gridfs = GridFSBuckets.create(database);
 
@@ -173,18 +142,13 @@ public class MongoDBGridFSIOTest {
     client.close();
   }
 
-  @AfterClass
-  public static void stop() {
-    LOG.info("Stopping MongoDB instance");
-    mongodProcess.stop();
-    mongodExecutable.stop();
-  }
-
   @Test
   public void testFullRead() {
     PCollection<String> output =
         pipeline.apply(
-            MongoDbGridFSIO.read().withUri("mongodb://localhost:" + port).withDatabase(DATABASE));
+            MongoDbGridFSIO.read()
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
+                .withDatabase(DATABASE));
 
     PAssert.thatSingleton(output.apply("Count All", Count.globally())).isEqualTo(5000L);
 
@@ -205,7 +169,7 @@ public class MongoDBGridFSIOTest {
     PCollection<KV<String, Integer>> output =
         pipeline.apply(
             MongoDbGridFSIO.read()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE)
                 .withBucket("mapBucket")
                 .<KV<String, Integer>>withParser(
@@ -247,7 +211,7 @@ public class MongoDBGridFSIOTest {
   public void testSplit() throws Exception {
     PipelineOptions options = PipelineOptionsFactory.create();
     MongoDbGridFSIO.Read<String> read =
-        MongoDbGridFSIO.read().withUri("mongodb://localhost:" + port).withDatabase(DATABASE);
+        MongoDbGridFSIO.read().withUri(MONGO_CONTAINER.getReplicaSetUrl()).withDatabase(DATABASE);
 
     BoundedGridFSSource src = new BoundedGridFSSource(read, null);
 
@@ -286,7 +250,7 @@ public class MongoDBGridFSIOTest {
         .apply(
             "StringInternal",
             MongoDbGridFSIO.write()
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE)
                 .withChunkSize(100L)
                 .withBucket("WriteTest")
@@ -301,7 +265,7 @@ public class MongoDBGridFSIOTest {
                       // one byte per output
                       outStream.write(output.byteValue());
                     })
-                .withUri("mongodb://localhost:" + port)
+                .withUri(MONGO_CONTAINER.getReplicaSetUrl())
                 .withDatabase(DATABASE)
                 .withBucket("WriteTest")
                 .withFilename("WriteTestIntData"));
@@ -311,7 +275,7 @@ public class MongoDBGridFSIOTest {
     MongoClient client = null;
     try {
       StringBuilder results = new StringBuilder();
-      client = MongoClients.create("mongodb://localhost:" + port);
+      client = MongoClients.create(MONGO_CONTAINER.getReplicaSetUrl());
       MongoDatabase database = client.getDatabase(DATABASE);
       GridFSBucket gridfs = GridFSBuckets.create(database, "WriteTest");
 

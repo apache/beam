@@ -105,7 +105,7 @@ func (es *ExpansionServices) GetAddr(label string) (string, error) {
 	}
 	
 	addr := "localhost:" + portStr
-	
+
 	// Use different wait strategies for test mode vs production
 	if es.testMode {
 		// In test mode, use simple wait time for compatibility with mock processes

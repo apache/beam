@@ -118,6 +118,21 @@ Full pipeline implementation is available [here](https://github.com/apache/beam/
 
 Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/vllm_gemma_batch.py).
 
+## Table Row Inference (Sklearn)
+
+The Table Row Inference benchmark runs batch and streaming pipelines using a Sklearn
+table classifier. Required GCS artifacts (shared bucket):
+
+- **Staging/temp**: `gs://temp-storage-for-perf-tests/loadtests`
+- **Batch input**: `gs://apache-beam-ml/testing/inputs/table_rows_100k_benchmark.jsonl`
+- **Model**: `gs://apache-beam-ml/models/sklearn_table_classifier.pkl`
+
+Streaming uses a Pub/Sub subscription (e.g. `projects/apache-beam-testing/subscriptions/table_row_inference_benchmark`).
+Pipeline options files: `beam_Inference_Python_Benchmarks_Dataflow_Table_Row_Inference_Batch.txt` and
+`beam_Inference_Python_Benchmarks_Dataflow_Table_Row_Inference_Stream.txt`.
+
+Full pipeline implementation is available [here](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/examples/inference/table_row_inference.py).
+
 ## How to add a new ML benchmark pipeline
 
 1. Create the pipeline implementation

@@ -251,7 +251,9 @@ public class SparkStreamingPortablePipelineTranslator
             SparkExecutableStageContextFactory.getInstance(),
             broadcastVariables,
             MetricsAccumulator.getInstance(),
-            windowCoder);
+            windowCoder,
+            getWindowedValueCoder(inputPCollectionId, components),
+            false);
     JavaDStream<RawUnionValue> staged = inputDStream.mapPartitions(function);
 
     String intermediateId = getExecutableStageIntermediateId(transformNode);
@@ -330,7 +332,8 @@ public class SparkStreamingPortablePipelineTranslator
         }
       }
       // Unify streams into a single stream.
-      unifiedStreams = context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams));
+      unifiedStreams =
+          context.getStreamingContext().union(JavaConverters.asScalaBuffer(dStreams).toList());
     }
 
     context.pushDataset(

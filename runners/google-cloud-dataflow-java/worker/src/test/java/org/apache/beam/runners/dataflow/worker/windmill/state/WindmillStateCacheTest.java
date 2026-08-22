@@ -270,6 +270,68 @@ public class WindmillStateCacheTest {
     assertEquals(400 * MEGABYTES, cache.getMaxWeight());
   }
 
+  @Test
+  public void testMaxCachedEntryBytes() throws Exception {
+    cache.setMaxCachedEntryBytesOverride(
+        100); // Set limit to 100 bytes, per cache entry overhead is 136.
+
+    WindmillStateCache.ForKeyAndFamily keyCache =
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 1L).forFamily(STATE_FAMILY);
+
+    TestStateTag tag1 = new TestStateTag("tag1");
+    TestStateTag tag2 = new TestStateTag("tag2");
+
+    putInCache(keyCache, StateNamespaces.global(), tag1, new TestState("g1"), 10);
+    keyCache.persist();
+
+    // It should not be in global cache because it's too large.
+    keyCache =
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 2L).forFamily(STATE_FAMILY);
+    assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), tag1));
+
+    // Now set limit larger.
+    cache.setMaxCachedEntryBytesOverride(1000);
+
+    putInCache(keyCache, StateNamespaces.global(), tag2, new TestState("g2"), 10);
+    keyCache.persist();
+
+    // It should be in global cache.
+    keyCache =
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 3L).forFamily(STATE_FAMILY);
+    assertEquals(
+        Optional.of(new TestState("g2")), getFromCache(keyCache, StateNamespaces.global(), tag2));
+
+    // Now update it to be larger than limit.
+    putInCache(keyCache, StateNamespaces.global(), tag2, new TestState("g2_large"), 2000);
+    keyCache.persist();
+
+    // It should be removed from global cache.
+    keyCache =
+        cache.forComputation(COMPUTATION).forKey(COMPUTATION_KEY, 0L, 4L).forFamily(STATE_FAMILY);
+    assertEquals(Optional.empty(), getFromCache(keyCache, StateNamespaces.global(), tag2));
+  }
+
+  @Test
+  public void testDisableHistogram() throws Exception {
+    WindmillStateCache noHistogramCache =
+        WindmillStateCache.builder().setSizeMb(400).setEnableHistogram(false).build();
+    WindmillStateCache.ForKeyAndFamily keyCache =
+        noHistogramCache
+            .forComputation(COMPUTATION)
+            .forKey(COMPUTATION_KEY, 0L, 1L)
+            .forFamily(STATE_FAMILY);
+
+    putInCache(
+        keyCache, StateNamespaces.global(), new TestStateTag("tag1"), new TestState("g1"), 2);
+    keyCache.persist();
+
+    java.io.StringWriter writer = new java.io.StringWriter();
+    noHistogramCache.appendSummaryHtml(new java.io.PrintWriter(writer));
+    String summary = writer.toString();
+
+    org.junit.Assert.assertFalse(summary.contains("Entry Weight Dist"));
+  }
+
   /** Verifies that values are cached in the appropriate namespaces. */
   @Test
   public void testInvalidation() throws Exception {

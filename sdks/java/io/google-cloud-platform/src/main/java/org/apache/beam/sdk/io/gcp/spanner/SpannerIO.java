@@ -37,6 +37,7 @@ import com.google.api.gax.retrying.RetrySettings;
 import com.google.api.gax.rpc.StatusCode.Code;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
@@ -60,6 +61,8 @@ import com.google.cloud.spanner.Struct;
 import com.google.cloud.spanner.TimestampBound;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.spanner.v1.DirectedReadOptions;
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -103,6 +106,7 @@ import org.apache.beam.sdk.metrics.Distribution;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.schemas.Schema;
@@ -146,6 +150,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Stopwatch;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheLoader;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.LoadingCache;
@@ -311,10 +316,10 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Note that the <a
  * href="https://cloud.google.com/spanner/quotas#limits_for_creating_reading_updating_and_deleting_data">maximum
- * size of a single transaction</a> is 20,000 mutated cells - including cells in indexes. If you
- * have a large number of indexes and are getting exceptions with message: <tt>INVALID_ARGUMENT: The
- * transaction contains too many mutations</tt> you will need to specify a smaller number of {@code
- * MaxNumMutations}.
+ * number of mutations in a single transaction</a> is 80,000 mutations - including mutations in
+ * indexes. If you have a large number of indexes and are getting exceptions with message:
+ * <tt>INVALID_ARGUMENT: The transaction contains too many mutations</tt> you will need to specify a
+ * smaller number of {@code MaxNumMutations}.
  *
  * <p>The batches written are obtained from by grouping enough {@link Mutation Mutations} from the
  * Bundle provided by Beam to form several batches. This group of {@link Mutation Mutations} is then
@@ -636,6 +641,24 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies the directed read options for Cloud Spanner. */
+    public ReadAll withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner. */
+    public ReadAll withDirectedReadOptions(ValueProvider<DirectedReadOptions> directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner from a string representation. */
+    public ReadAll withDirectedReadOptions(String directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
     /**
      * Specifies whether to use plaintext channel.
      *
@@ -655,6 +678,35 @@ public class SpannerIO {
      */
     public ReadAll withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadAll withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadAll withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /** Specifies the Cloud Spanner database. */
@@ -896,6 +948,24 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies the directed read options for Cloud Spanner. */
+    public Read withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner. */
+    public Read withDirectedReadOptions(ValueProvider<DirectedReadOptions> directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for Cloud Spanner from a string representation. */
+    public Read withDirectedReadOptions(String directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
     /**
      * Specifies whether to use plaintext channel.
      *
@@ -915,6 +985,35 @@ public class SpannerIO {
      */
     public Read withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Read withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Read withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /** If true the uses Cloud Spanner batch API. */
@@ -1244,6 +1343,36 @@ public class SpannerIO {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
     }
 
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public CreateTransaction withClientCert(
+        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public CreateTransaction withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
+    }
+
     @VisibleForTesting
     CreateTransaction withServiceFactory(ServiceFactory<Spanner, SpannerOptions> serviceFactory) {
       SpannerConfig config = getSpannerConfig();
@@ -1371,6 +1500,18 @@ public class SpannerIO {
       return withHost(ValueProvider.StaticValueProvider.of(host));
     }
 
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public Write withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
+      return withEnableOpenTelemetryTracing(
+          ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
+    }
+
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public Write withEnableOpenTelemetryTracing(ValueProvider<Boolean> enableOpenTelemetryTracing) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEnableOpenTelemetryTracing(enableOpenTelemetryTracing));
+    }
+
     /** Specifies the Cloud Spanner emulator host. */
     public Write withEmulatorHost(ValueProvider<String> emulatorHost) {
       SpannerConfig config = getSpannerConfig();
@@ -1410,6 +1551,35 @@ public class SpannerIO {
      */
     public Write withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Write withClientCert(ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public Write withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     public Write withDialectView(PCollectionView<Dialect> dialect) {
@@ -1746,6 +1916,8 @@ public class SpannerIO {
 
     abstract String getChangeStreamName();
 
+    abstract @Nullable List<String> getTvfNameList();
+
     abstract @Nullable String getMetadataInstance();
 
     abstract @Nullable String getMetadataDatabase();
@@ -1768,6 +1940,10 @@ public class SpannerIO {
 
     abstract @Nullable ValueProvider<Boolean> getPlainText();
 
+    abstract @Nullable ValueProvider<String> getClientCertPath();
+
+    abstract @Nullable ValueProvider<String> getClientCertKeyPath();
+
     abstract Duration getRealTimeCheckpointInterval();
 
     abstract int getHeartbeatMillis();
@@ -1782,6 +1958,8 @@ public class SpannerIO {
       abstract Builder setSpannerConfig(SpannerConfig spannerConfig);
 
       abstract Builder setChangeStreamName(String changeStreamName);
+
+      abstract Builder setTvfNameList(List<String> tvfNameList);
 
       abstract Builder setMetadataInstance(String metadataInstance);
 
@@ -1802,6 +1980,10 @@ public class SpannerIO {
       abstract Builder setExperimentalHost(ValueProvider<String> experimentalHost);
 
       abstract Builder setPlainText(ValueProvider<Boolean> plainText);
+
+      abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
+
+      abstract Builder setClientCertKeyPath(ValueProvider<String> clientCertKeyPath);
 
       /**
        * When caught up to real-time, checkpoint processing of change stream this often. This sets a
@@ -1856,9 +2038,27 @@ public class SpannerIO {
       return withSpannerConfig(config.withDatabaseId(databaseId));
     }
 
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public ReadChangeStream withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
+      return withEnableOpenTelemetryTracing(
+          ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
+    }
+
+    /** Specifies whether OpenTelemetry tracing is enabled. */
+    public ReadChangeStream withEnableOpenTelemetryTracing(
+        ValueProvider<Boolean> enableOpenTelemetryTracing) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withEnableOpenTelemetryTracing(enableOpenTelemetryTracing));
+    }
+
     /** Specifies the change stream name. */
     public ReadChangeStream withChangeStreamName(String changeStreamName) {
       return toBuilder().setChangeStreamName(changeStreamName).build();
+    }
+
+    /** Specifies the list of TVF names to query and union. */
+    public ReadChangeStream withTvfNameList(List<String> tvfNameList) {
+      return toBuilder().setTvfNameList(tvfNameList).build();
     }
 
     /** Specifies the metadata database. */
@@ -1916,6 +2116,28 @@ public class SpannerIO {
       return withExperimentalHost(ValueProvider.StaticValueProvider.of(experimentalHost));
     }
 
+    /** Specifies the directed read options for change stream queries. */
+    public ReadChangeStream withDirectedReadOptions(DirectedReadOptions directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /** Specifies the directed read options for change stream queries. */
+    public ReadChangeStream withDirectedReadOptions(
+        ValueProvider<DirectedReadOptions> directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
+    /**
+     * Specifies the directed read options for change stream queries from a string representation
+     * (e.g., JSON string or "us-central1:READ_ONLY").
+     */
+    public ReadChangeStream withDirectedReadOptions(String directedReadOptions) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withDirectedReadOptions(directedReadOptions));
+    }
+
     /**
      * Specifies whether to use plaintext channel.
      *
@@ -1935,6 +2157,36 @@ public class SpannerIO {
      */
     public ReadChangeStream withUsingPlainTextChannel(boolean plainText) {
       return withUsingPlainTextChannel(ValueProvider.StaticValueProvider.of(plainText));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadChangeStream withClientCert(
+        ValueProvider<String> certPath, ValueProvider<String> keyPath) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withClientCert(certPath, keyPath));
+    }
+
+    /**
+     * Specifies certificate paths to use for mTLS channel.
+     *
+     * <p>Note: These parameters are only valid when using Spanner Omni (set via {@code
+     * withExperimentalHost}).
+     *
+     * @param certPath Path to the client certificate file.
+     * @param keyPath Path to the client certificate key file.
+     */
+    public ReadChangeStream withClientCert(String certPath, String keyPath) {
+      return withClientCert(
+          ValueProvider.StaticValueProvider.of(certPath),
+          ValueProvider.StaticValueProvider.of(keyPath));
     }
 
     /**
@@ -2042,19 +2294,36 @@ public class SpannerIO {
           getInclusiveEndAt().compareTo(MAX_INCLUSIVE_END_AT) > 0
               ? MAX_INCLUSIVE_END_AT
               : getInclusiveEndAt();
+      final List<String> tvfNameList = getTvfNameList();
       final MapperFactory mapperFactory = new MapperFactory(changeStreamDatabaseDialect);
       final ChangeStreamMetrics metrics = new ChangeStreamMetrics();
       final RpcPriority rpcPriority = MoreObjects.firstNonNull(getRpcPriority(), RpcPriority.HIGH);
       final SpannerAccessor spannerAccessor =
-          SpannerAccessor.getOrCreate(changeStreamSpannerConfig);
+          SpannerAccessor.getOrCreate(
+              changeStreamSpannerConfig,
+              input.getPipeline().getOptions().as(SdkHarnessOptions.class).getOpenTelemetry());
       final boolean isMutableChangeStream =
           isMutableChangeStream(
               spannerAccessor.getDatabaseClient(), changeStreamDatabaseDialect, changeStreamName);
       LOG.info("The change stream {} is mutable: {}", changeStreamName, isMutableChangeStream);
+      List<String> quoteEscapedTvfNameList = null;
+      if (tvfNameList != null && !tvfNameList.isEmpty()) {
+        if (!isMutableChangeStream) {
+          throw new IllegalArgumentException(
+              "tvfNameList is only supported for change streams with MUTABLE_KEY_RANGE mode");
+        }
+        // TODO: if !per_placement_tvf=true, throw exception.
+        quoteEscapedTvfNameList = new ArrayList<>();
+        for (String tvfName : tvfNameList) {
+          quoteEscapedTvfNameList.add(escapeQuotes(tvfName));
+        }
+        checkTvfExistence(spannerAccessor.getDatabaseClient(), quoteEscapedTvfNameList);
+      }
       final DaoFactory daoFactory =
           new DaoFactory(
               changeStreamSpannerConfig,
               changeStreamName,
+              quoteEscapedTvfNameList,
               partitionMetadataSpannerConfig,
               partitionMetadataTableNames,
               rpcPriority,
@@ -2153,9 +2422,17 @@ public class SpannerIO {
   static SpannerConfig buildSpannerConfigWithCredential(
       SpannerConfig spannerConfig, PipelineOptions pipelineOptions) {
     if (spannerConfig.getCredentials() == null && pipelineOptions != null) {
-      final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
-      if (credentials != null) {
-        spannerConfig = spannerConfig.withCredentials(credentials);
+      boolean isExperimentalHostEmpty =
+          spannerConfig.getExperimentalHost() == null
+              || (spannerConfig.getExperimentalHost().isAccessible()
+                  && Strings.isNullOrEmpty(spannerConfig.getExperimentalHost().get()));
+      if (isExperimentalHostEmpty) {
+        final Credentials credentials = pipelineOptions.as(GcpOptions.class).getGcpCredential();
+        if (credentials != null) {
+          spannerConfig = spannerConfig.withCredentials(credentials);
+        }
+      } else {
+        spannerConfig = spannerConfig.withCredentials(NoCredentials.getInstance());
       }
     }
     return spannerConfig;
@@ -2165,7 +2442,11 @@ public class SpannerIO {
     // Allow passing the credential from pipeline options to the getDialect() call.
     SpannerConfig spannerConfigWithCredential =
         buildSpannerConfigWithCredential(spannerConfig, pipelineOptions);
-    try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential)) {
+    OpenTelemetry otel = null;
+    if (pipelineOptions != null) {
+      otel = pipelineOptions.as(SdkHarnessOptions.class).getOpenTelemetry();
+    }
+    try (SpannerAccessor sa = SpannerAccessor.getOrCreate(spannerConfigWithCredential, otel)) {
       DatabaseClient databaseClient = sa.getDatabaseClient();
       return databaseClient.getDialect();
     }
@@ -2530,8 +2811,9 @@ public class SpannerIO {
     }
 
     @Setup
-    public void setup() {
-      spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig);
+    public void setup(PipelineOptions options) {
+      OpenTelemetry otel = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      spannerAccessor = SpannerAccessor.getOrCreate(spannerConfig, otel);
       bundleWriteBackoff =
           FluentBackoff.DEFAULT
               .withMaxCumulativeBackoff(spannerConfig.getMaxCumulativeBackoff().get())
@@ -2752,6 +3034,56 @@ public class SpannerIO {
             || config.getProjectId().get().isEmpty()
         ? SpannerOptions.getDefaultProjectId()
         : config.getProjectId().get();
+  }
+
+  @VisibleForTesting
+  static String escapeQuotes(String str) {
+    return str.replace("'", "").replace("\"", "").replace("`", "");
+  }
+
+  @VisibleForTesting
+  static void checkTvfExistence(
+      DatabaseClient databaseClient, List<String> quoteEscapedTvfNameList) {
+    if (quoteEscapedTvfNameList == null || quoteEscapedTvfNameList.isEmpty()) {
+      return;
+    }
+    Dialect dialect = databaseClient.getDialect();
+    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
+      StringBuilder sql =
+          new StringBuilder(
+              "SELECT routine_name FROM information_schema.routines WHERE routine_type LIKE '%FUNCTION' AND routine_name IN (");
+      for (int i = 0; i < quoteEscapedTvfNameList.size(); i++) {
+        if (dialect == Dialect.POSTGRESQL) {
+          sql.append("$").append(i + 1);
+        } else {
+          sql.append("@p").append(i);
+        }
+        if (i < quoteEscapedTvfNameList.size() - 1) {
+          sql.append(", ");
+        }
+      }
+      sql.append(")");
+      Statement.Builder builder = Statement.newBuilder(sql.toString());
+      for (int i = 0; i < quoteEscapedTvfNameList.size(); i++) {
+        if (dialect == Dialect.POSTGRESQL) {
+          builder.bind("p" + (i + 1)).to(quoteEscapedTvfNameList.get(i));
+        } else {
+          builder.bind("p" + i).to(quoteEscapedTvfNameList.get(i));
+        }
+      }
+      Statement statement = builder.build();
+      ResultSet resultSet = tx.executeQuery(statement);
+      java.util.Set<String> foundNames = new java.util.HashSet<>();
+      while (resultSet.next()) {
+        foundNames.add(resultSet.getString(0));
+      }
+      for (String tvfName : quoteEscapedTvfNameList) {
+        if (!foundNames.contains(tvfName)) {
+          throw new IllegalArgumentException(
+              "TVF specified: " + tvfName + " is not found in the existing TVF's: " + foundNames);
+        }
+      }
+    }
   }
 
   @VisibleForTesting

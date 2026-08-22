@@ -20,4 +20,5 @@
 # However, newer sklearn is needed for testing on newer Python version
 scikit-learn==1.0.2; python_version < '3.11'
 # bump sklearn version when new Python version is supported
-scikit-learn==1.7.1; python_version >= '3.11'
+scikit-learn==1.7.1; python_version >= '3.11' and python_version < '3.14'
+scikit-learn==1.7.2; python_version >= '3.14'
