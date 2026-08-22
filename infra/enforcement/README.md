@@ -134,16 +134,18 @@ The enforcement tools are integrated with GitHub Actions to provide automated co
 
 ### Workflow Configuration
 
-The repository includes workflows for different security domains:
-- **IAM Policy Enforcer** (`.github/workflows/beam_Infrastructure_PolicyEnforcer.yml`): Runs weekly on Mondays at 9:00 AM UTC.
-- **Unmanaged Keys Audit** (`.github/workflows/beam_Infrastructure_AuditUnmanagedKeys.yml`): Runs daily at 00:00 UTC. It manages the continuous execution of the `account_keys.py` script to swiftly detect rogue service account keys generated outside the official rotation system.
-- **Manual trigger**: Can be triggered manually via `workflow_dispatch`
-- **Actions**: Runs both IAM and Account Keys enforcement with the `announce` action
+The enforcement tools are consolidated into a single daily workflow (`.github/workflows/beam_Infrastructure_PolicyEnforcer.yml`) that runs automatically at 00:00 UTC.
+
+This unified workflow executes both security domains sequentially:
+- **IAM Policy Enforcement:** Validates user bindings against the defined policies.
+- **Unmanaged Keys Audit:** Detects rogue service account keys generated outside the official rotation system.
 
 **Note**:
-- The email service is configured to use gmail
-- The recipient email is set to `dev@beam.apache.org` for Apache Beam project notifications
-- The `GITHUB_TOKEN` is automatically provided by GitHub Actions and doesn't need to be configured manually
+- **Manual trigger**: The workflow can also be triggered manually via `workflow_dispatch`.
+- **Actions**: It executes the respective Python scripts using the `announce` action.
+- The email service is configured to use gmail.
+- The recipient email is set to `dev@beam.apache.org` for Apache Beam project notifications.
+- The `GITHUB_TOKEN` is automatically provided by GitHub Actions and doesn't need to be configured manually.
 
 ## Account Keys
 

@@ -85,6 +85,7 @@ import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PBegin;
@@ -320,6 +321,27 @@ import org.slf4j.LoggerFactory;
  * since that risks duplicating records in the database, or failing due to primary key conflicts.
  * Consider using <a href="https://en.wikipedia.org/wiki/Merge_(SQL)">MERGE ("upsert")
  * statements</a> supported by your database instead.
+ *
+ * <h3>Using Secret Manager</h3>
+ *
+ * <p>Secret Manager is supported in both read and write operations to avoid storing sensitive
+ * credentials such as database passwords in plain text. You can configure Secret Manager on {@link
+ * DataSourceConfiguration} by specifying the secret manager provider using {@link
+ * DataSourceConfiguration#withSecretManager(String)} (e.g. {@code "GoogleCloudSecretManager"}) and
+ * providing the secret specification string in JSON format to {@link
+ * DataSourceConfiguration#withPassword(String)}.
+ *
+ * <p>For example for Google Cloud Secret Manager:
+ *
+ * <pre>{@code
+ * pipeline.apply(JdbcIO.<...>read()
+ *   .withDataSourceConfiguration(JdbcIO.DataSourceConfiguration.create(...)
+ *       ...
+ *       .withPassword("{\"name\": \"my-db-secret\", \"project\": \"my-project\"}")
+ *       .withSecretManager("GoogleCloudSecretManager"))
+ *   ...
+ * );
+ * }</pre>
  */
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
@@ -504,6 +526,9 @@ public class JdbcIO {
     abstract @Nullable ValueProvider<String> getDriverJars();
 
     @Pure
+    abstract @Nullable ValueProvider<@Nullable String> getSecretManager();
+
+    @Pure
     abstract @Nullable DataSource getDataSource();
 
     abstract Builder builder();
@@ -531,6 +556,8 @@ public class JdbcIO {
       abstract Builder setDriverClassLoader(ClassLoader driverClassLoader);
 
       abstract Builder setDriverJars(ValueProvider<String> driverJars);
+
+      abstract Builder setSecretManager(ValueProvider<@Nullable String> secretManager);
 
       abstract Builder setDataSource(@Nullable DataSource dataSource);
 
@@ -571,10 +598,19 @@ public class JdbcIO {
       return builder().setUsername(username).build();
     }
 
+    /**
+     * Sets the database password.
+     *
+     * <p>You can specify a plain password string. Alternatively, if a secret manager is configured
+     * via {@link #withSecretManager(String)}, you can set this to a secret specification in JSON
+     * format (e.g. {@code "{\"name\": \"my-db-secret\", \"project\": \"my-project\"}"} for Google
+     * Cloud Secret Manager) that the secret manager uses to retrieve the password.
+     */
     public DataSourceConfiguration withPassword(@Nullable String password) {
       return withPassword(ValueProvider.StaticValueProvider.of(password));
     }
 
+    /** Same as {@link #withPassword(String)} but accepting a ValueProvider. */
     public DataSourceConfiguration withPassword(ValueProvider<@Nullable String> password) {
       return builder().setPassword(password).build();
     }
@@ -668,6 +704,28 @@ public class JdbcIO {
       return builder().setDriverJars(driverJars).build();
     }
 
+    /**
+     * Sets the secret manager provider.
+     *
+     * <p>Currently supported options are:
+     *
+     * <ul>
+     *   <li>{@code "GoogleCloudSecretManager"}
+     *   <li>{@code "GoogleCloudHsmGeneratedSecretManager"}
+     * </ul>
+     *
+     * <p>If not set, no secret manager is used and the password is treated as a plain password.
+     */
+    public DataSourceConfiguration withSecretManager(@Nullable String secretManager) {
+      return withSecretManager(ValueProvider.StaticValueProvider.of(secretManager));
+    }
+
+    /** Same as {@link #withSecretManager(String)} but accepting a ValueProvider. */
+    public DataSourceConfiguration withSecretManager(
+        ValueProvider<@Nullable String> secretManager) {
+      return builder().setSecretManager(secretManager).build();
+    }
+
     void populateDisplayData(DisplayData.Builder builder) {
       if (getDataSource() != null) {
         builder.addIfNotNull(DisplayData.item("dataSource", getDataSource().getClass().getName()));
@@ -677,6 +735,7 @@ public class JdbcIO {
         builder.addIfNotNull(DisplayData.item("username", getUsername()));
         builder.addIfNotNull(DisplayData.item("driverJars", getDriverJars()));
         builder.addIfNotNull(DisplayData.item("queryTimeout", getQueryTimeout()));
+        builder.addIfNotNull(DisplayData.item("secretManager", getSecretManager()));
       }
     }
 
@@ -689,6 +748,7 @@ public class JdbcIO {
         if (getUrl() != null) {
           basicDataSource.setUrl(getUrl().get());
         }
+        ValueProvider<@Nullable String> secretManagerProvider = getSecretManager();
         if (getUsername() != null) {
           @SuppressWarnings(
               "nullness") // this is actually nullable, but apache commons dbcp2 not annotated
@@ -701,6 +761,16 @@ public class JdbcIO {
               "nullness") // this is actually nullable, but apache commons dbcp2 not annotated
           @NonNull
           String password = getPassword().get();
+          if (password != null) {
+            String secretManager = null;
+            if (secretManagerProvider != null) {
+              secretManager = secretManagerProvider.get();
+            }
+            String fetched = Secret.fromJson(password, secretManager).getString(false);
+            if (fetched != null) {
+              password = fetched;
+            }
+          }
           basicDataSource.setPassword(password);
         }
         if (getConnectionProperties() != null) {

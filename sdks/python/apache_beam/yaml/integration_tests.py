@@ -21,6 +21,7 @@ import contextlib
 import copy
 import glob
 import itertools
+import json
 import logging
 import os
 import random
@@ -79,6 +80,11 @@ from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
+
+try:
+  from google.cloud import secretmanager
+except ImportError:
+  secretmanager = None
 from testcontainers.core.container import DockerContainer
 from testcontainers.core.waiting_utils import wait_for_logs
 from testcontainers.google import PubSubContainer
@@ -509,6 +515,113 @@ def temp_postgres_database():
 
 
 @contextlib.contextmanager
+def temp_postgres_database_with_secret_manager(
+    project=None, prefix='yaml_jdbc_sm_it_'):
+  """Context manager to provide a temporary PostgreSQL database authenticated
+  via GCP Secret Manager for testing.
+
+  This function utilizes the 'testcontainers' library to spin up a
+  PostgreSQL instance within a Docker container, creates a predefined 'tmp_table',
+  registers the database container password in GCP Secret Manager, and yields
+  a dictionary containing the JDBC connection URL, username, secret specification,
+  and secret manager identifier.
+
+  The Docker container, database instance, and GCP secret are automatically
+  managed and torn down when the context manager exits.
+
+  Args:
+      project (str): Google Cloud Project ID. If not provided, reads from
+        the GOOGLE_CLOUD_PROJECT environment variable or defaults to
+        'apache-beam-testing'.
+      prefix (str): Prefix to use for the temporary GCP secret name.
+
+  Yields:
+      dict: A dictionary containing connection and secret details:
+            {
+                'URL': 'jdbc:postgresql://<host>:<port>/<dbname>',
+                'USERNAME': '<username>',
+                'PASSWORD_SPEC': '{"name": "<secret_id>", "project": "<project_id>"}',
+                'SECRET_MANAGER': 'googlecloudsecretmanager',
+            }
+  """
+  if secretmanager is None:
+    raise RuntimeError("google-cloud-secret-manager is not installed.")
+
+  project_id = project or os.environ.get(
+      'GOOGLE_CLOUD_PROJECT', 'apache-beam-testing')
+  secret_client = secretmanager.SecretManagerServiceClient()
+
+  default_port = 5432
+  with PostgresContainer(port=default_port) as postgres_container:
+    secret_postfix = (
+        datetime.now(timezone.utc).strftime('%m%d_%H%M%S') + '_' +
+        uuid.uuid4().hex[:6])
+    secret_id = f'{prefix}{secret_postfix}'
+    project_path = f'projects/{project_id}'
+    secret_path = f'{project_path}/secrets/{secret_id}'
+
+    _LOGGER.info("Creating GCP secret %s in project %s", secret_id, project_id)
+    try:
+      secret_client.get_secret(request={'name': secret_path})
+    except Exception:
+      secret_client.create_secret(
+          request={
+              'parent': project_path,
+              'secret_id': secret_id,
+              'secret': {
+                  'replication': {
+                      'automatic': {}
+                  }
+              }
+          })
+
+    secret_client.add_secret_version(
+        request={
+            'parent': secret_path,
+            'payload': {
+                'data': postgres_container.password.encode('utf-8')
+            }
+        })
+
+    try:
+      # Make connection to temp database and create tmp table
+      engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (value INTEGER, rank INTEGER);"))
+
+      # Construct the JDBC url for connections
+      jdbc_url = (
+          f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
+          f"{postgres_container.get_exposed_port(default_port)}/"
+          f"{postgres_container.dbname}")
+
+      secret_password_spec = json.dumps({
+          'name': secret_id,
+          'project': project_id,
+      })
+
+      yield {
+          'URL': jdbc_url,
+          'USERNAME': postgres_container.username,
+          'PASSWORD_SPEC': secret_password_spec,
+          'SECRET_MANAGER': 'googlecloudsecretmanager',
+      }
+    except (psycopg2.Error, Exception) as err:
+      logging.error(
+          "Error interacting with temporary Postgres DB with secret manager: %s",
+          err)
+      raise err
+    finally:
+      try:
+        _LOGGER.info("Deleting GCP secret: %s", secret_path)
+        secret_client.delete_secret(request={'name': secret_path})
+      except Exception as err:
+        _LOGGER.warning("Could not delete GCP secret %s: %s", secret_path, err)
+
+
+@contextlib.contextmanager
 def temp_sqlserver_database():
   """Context manager to provide a temporary SQL Server database for testing.
 
@@ -695,6 +808,162 @@ def temp_iceberg_table_with_pk(table_data):
   finally:
     container.stop()
     shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+_LOCALSTACK_KINESIS_IMAGE = 'localstack/localstack:3.8.1'
+_LOCALSTACK_KINESIS_ACCESS_KEY = 'accesskey'
+_LOCALSTACK_KINESIS_SECRET_KEY = 'secretkey'
+_LOCALSTACK_KINESIS_REGION = 'us-east-1'
+
+
+def _create_kinesis_stream(kinesis_client, stream_name):
+  """Creates a Kinesis stream and waits until it is active."""
+  retries = 10
+  for attempt in range(retries):
+    try:
+      kinesis_client.create_stream(StreamName=stream_name, ShardCount=1)
+      time.sleep(2)
+      break
+    except Exception as exn:
+      if attempt == retries - 1:
+        _LOGGER.error('Could not create kinesis stream')
+        raise exn
+
+  for attempt in range(retries):
+    stream = kinesis_client.describe_stream(StreamName=stream_name)
+    if stream['StreamDescription']['StreamStatus'] == 'ACTIVE':
+      return
+    time.sleep(2)
+    if attempt == retries - 1:
+      raise RuntimeError(
+          'Unable to initialize Kinesis stream %s. Status: %s' % (
+              stream['StreamDescription']['StreamName'],
+              stream['StreamDescription']['StreamStatus']))
+
+
+@contextlib.contextmanager
+def temp_kinesis_localstack():
+  """Context manager to provide a temporary LocalStack Kinesis stream.
+
+  Starts a LocalStack container, creates a unique Kinesis stream, and yields
+  connection details for YAML Kinesis read/write transforms.
+
+  Yields:
+      dict: Keys include STREAM_NAME, AWS_ACCESS_KEY, AWS_SECRET_KEY, REGION,
+          SERVICE_ENDPOINT (https), and VERIFY_CERTIFICATE (False).
+  """
+  try:
+    import boto3
+  except ImportError as exn:
+    raise unittest.SkipTest('boto3 is not installed') from exn
+
+  _LOGGER.info('Setting up LocalStack Kinesis fixture...')
+  localstack = DockerContainer(_LOCALSTACK_KINESIS_IMAGE).with_bind_ports(
+      4566, 4566)
+  for port in range(4510, 4560):
+    localstack = localstack.with_bind_ports(port, port)
+
+  for attempt in range(4):
+    try:
+      localstack.start()
+      break
+    except Exception as exn:
+      if attempt == 3:
+        _LOGGER.error('Could not initialize localstack container')
+        raise exn
+
+  stream_name = f'yaml_kinesis_{uuid.uuid4().hex}'
+  kinesis_client = None
+  try:
+    host = localstack.get_container_host_ip()
+    port = localstack.get_exposed_port('4566')
+    service_endpoint = f'https://{host}:{port}'
+    http_endpoint = f'http://{host}:{port}'
+
+    kinesis_client = boto3.client(
+        service_name='kinesis',
+        region_name=_LOCALSTACK_KINESIS_REGION,
+        endpoint_url=http_endpoint,
+        aws_access_key_id=_LOCALSTACK_KINESIS_ACCESS_KEY,
+        aws_secret_access_key=_LOCALSTACK_KINESIS_SECRET_KEY,
+    )
+    _create_kinesis_stream(kinesis_client, stream_name)
+
+    _LOGGER.info(
+        'LocalStack Kinesis ready. Stream: [%s], endpoint: [%s]',
+        stream_name,
+        service_endpoint)
+
+    yield {
+        'STREAM_NAME': stream_name,
+        'AWS_ACCESS_KEY': _LOCALSTACK_KINESIS_ACCESS_KEY,
+        'AWS_SECRET_KEY': _LOCALSTACK_KINESIS_SECRET_KEY,
+        'REGION': _LOCALSTACK_KINESIS_REGION,
+        'SERVICE_ENDPOINT': service_endpoint,
+        'VERIFY_CERTIFICATE': False,
+    }
+  finally:
+    _LOGGER.info('Tearing down LocalStack Kinesis fixture...')
+    if kinesis_client is not None:
+      try:
+        kinesis_client.delete_stream(
+            StreamName=stream_name, EnforceConsumerDeletion=True)
+      except Exception:
+        _LOGGER.warning('Failed to delete kinesis stream [%s]', stream_name)
+    try:
+      localstack.stop()
+    except Exception:
+      _LOGGER.warning('Failed to stop localstack container')
+    _LOGGER.info('LocalStack Kinesis fixture stopped.')
+
+
+@contextlib.contextmanager
+def temp_jms_activemq_server():
+  """Context manager to provide a temporary ActiveMQ broker for JMS tests."""
+
+  broker = DockerContainer('apache/activemq-classic:5.18.3').with_exposed_ports(
+      61616)
+
+  try:
+    broker.start()
+    wait_for_logs(broker, '.*ActiveMQ .* started.*', timeout=30)
+
+    host = broker.get_container_host_ip()
+    port = broker.get_exposed_port(61616)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}',
+        'CONNECTION_FACTORY_CLASS_NAME': 'org.apache.activemq.ActiveMQConnectionFactory',
+    }
+  finally:
+    broker.stop()
+
+
+@contextlib.contextmanager
+def temp_ibm_mq_server():
+  container = (
+      DockerContainer('icr.io/ibm-messaging/mq:9.3.0.25-r1').with_env(
+          'LICENSE', 'accept').with_env('MQ_QMGR_NAME', 'QM1').with_env(
+              'MQ_APP_PASSWORD', 'admin123').with_exposed_ports(1414))
+
+  try:
+    container.start()
+    wait_for_logs(container, '.*(MQQMNAME|Started queue manager).*', timeout=45)
+
+    host = container.get_container_host_ip()
+    port = container.get_exposed_port(1414)
+
+    yield {
+        'SERVER_URI': f'tcp://{host}:{port}?channel=DEV.APP.SVRCONN&queueManager=QM1',
+        'CONNECTION_FACTORY_CLASS_NAME': 'com.ibm.mq.jms.MQConnectionFactory',
+        'USERNAME': 'app',
+        'PASSWORD': 'admin123',
+        'SOURCE_QUEUE': 'DEV.QUEUE.1',
+        'SINK_QUEUE': 'DEV.QUEUE.2',
+    }
+
+  finally:
+    container.stop()
 
 
 @contextlib.contextmanager

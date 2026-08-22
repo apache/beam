@@ -66,10 +66,12 @@
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added `schema_update_options` to `WriteToBigQuery` file loads, allowing BigQuery load jobs to add nullable fields or relax required fields when appending data (Python) ([#21141](https://github.com/apache/beam/issues/21141)).
+* BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part `project.catalog.namespace.table` identifiers (or a `TableReference` with a composite `catalog.namespace` dataset id). Previously such references were silently mis-parsed (Java) ([#39597](https://github.com/apache/beam/issues/39597)) .
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Spark Structured Streaming runner: stateful ParDo with state, timers, `@RequiresTimeSortedInput` and tagged outputs is now supported in batch mode ([#39779](https://github.com/apache/beam/issues/39779)).
 
 ## Breaking Changes
 
@@ -212,6 +214,7 @@
 
 ## New Features / Improvements
 
+* (Java) Added an experimental Kafka Streams runner, which executes a Beam pipeline as an ordinary Kafka Streams application with no cluster to operate. It supports a subset of the model and is not built by default; pass `-Pwith-kafka-streams-runner` to include it ([#18479](https://github.com/apache/beam/issues/18479)).
 * Capability introduces an indicator for aggregations and timers firing during a pipeline drain, allowing users and sinks to recognize and appropriately handle potentially incomplete or partial data ([#36884](https://github.com/apache/beam/issues/36884)).
 * Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go/Python) ([#38349](https://github.com/apache/beam/issues/38349)).
 * TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to

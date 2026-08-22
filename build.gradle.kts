@@ -278,6 +278,10 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")
+  // Only when the opt-in flag put it in the build; see settings.gradle.kts.
+  if (findProject(":runners:kafka-streams") != null) {
+    dependsOn(":runners:kafka-streams:build")
+  }
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")

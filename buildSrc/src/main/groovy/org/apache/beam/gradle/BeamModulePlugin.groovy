@@ -615,7 +615,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.11.4"
     def checkerframework_version = "3.42.0"
-    def classgraph_version = "4.8.162"
+    def classgraph_version = "4.8.192"
     def delta_lake_version = "4.2.0"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"

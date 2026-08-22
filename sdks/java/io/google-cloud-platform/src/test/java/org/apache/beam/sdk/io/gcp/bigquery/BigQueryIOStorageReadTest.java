@@ -402,6 +402,25 @@ public class BigQueryIOStorageReadTest {
   }
 
   @Test
+  public void testTableSourceEstimatedSize_WhenNumBytesNull() throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+    Table table = new Table().setTableReference(tableRef).setNumBytes(null);
+    fakeDatasetService.createTable(table);
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices().withDatasetService(fakeDatasetService));
+
+    assertEquals(0L, tableSource.getEstimatedSizeBytes(options));
+  }
+
+  @Test
   public void testTableSourceInitialSplit() throws Exception {
     doTableSourceInitialSplitTest(1024L, 1024);
   }
@@ -414,6 +433,50 @@ public class BigQueryIOStorageReadTest {
   @Test
   public void testTableSourceInitialSplit_MaxSplitCount() throws Exception {
     doTableSourceInitialSplitTest(10L, 10_000);
+  }
+
+  @Test
+  public void testTableSourceInitialSplit_WhenNumBytesNull() throws Exception {
+    fakeDatasetService.createDataset("foo.com:project", "dataset", "", "", null);
+    TableReference tableRef = BigQueryHelpers.parseTableSpec("foo.com:project:dataset.table");
+
+    Table table = new Table().setTableReference(tableRef).setNumBytes(null).setSchema(TABLE_SCHEMA);
+    fakeDatasetService.createTable(table);
+
+    CreateReadSessionRequest expectedRequest =
+        CreateReadSessionRequest.newBuilder()
+            .setParent("projects/project-id")
+            .setReadSession(
+                ReadSession.newBuilder()
+                    .setTable("projects/foo.com:project/datasets/dataset/tables/table")
+                    .setReadOptions(ReadSession.TableReadOptions.newBuilder()))
+            .setMaxStreamCount(0)
+            .build();
+
+    ReadSession.Builder builder =
+        ReadSession.newBuilder()
+            .setAvroSchema(AvroSchema.newBuilder().setSchema(AVRO_SCHEMA_STRING))
+            .setDataFormat(DataFormat.AVRO);
+    for (int i = 0; i < 5; i++) {
+      builder.addStreams(ReadStream.newBuilder().setName("stream-" + i));
+    }
+
+    StorageClient fakeStorageClient = mock(StorageClient.class);
+    when(fakeStorageClient.createReadSession(expectedRequest)).thenReturn(builder.build());
+
+    BigQueryStorageTableSource<TableRow> tableSource =
+        BigQueryStorageTableSource.create(
+            ValueProvider.StaticValueProvider.of(tableRef),
+            null,
+            null,
+            new TableRowParser(),
+            TableRowJsonCoder.of(),
+            new FakeBigQueryServices()
+                .withDatasetService(fakeDatasetService)
+                .withStorageClient(fakeStorageClient));
+
+    List<? extends BoundedSource<TableRow>> sources = tableSource.split(1024L, options);
+    assertEquals(5, sources.size());
   }
 
   private static final String AVRO_SCHEMA_STRING =
