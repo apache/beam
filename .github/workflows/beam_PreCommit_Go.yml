@@ -85,6 +85,8 @@ jobs:
         with:
           java-version: default
           go-version: default
+      - name: Install Cloud Spanner emulator
+        run: gcloud components install cloud-spanner-emulator --quiet
       - name: run goPreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
