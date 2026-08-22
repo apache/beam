@@ -98,4 +98,13 @@ public interface Catalog {
    * Returns all the {@link TableProvider}s available to this {@link Catalog}, organized by type.
    */
   Map<String, TableProvider> tableProviders();
+
+  /**
+   * Returns the {@link Procedure} registered under this name, or null if this catalog does not
+   * provide it. Procedure resolution is case-insensitive: implementations always receive a
+   * lowercase name.
+   */
+  default @Nullable Procedure loadProcedure(String name) {
+    return null;
+  }
 }
