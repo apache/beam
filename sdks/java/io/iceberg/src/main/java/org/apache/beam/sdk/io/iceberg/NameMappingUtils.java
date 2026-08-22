@@ -25,6 +25,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ascii;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.TableProperties;
@@ -45,6 +46,7 @@ import org.slf4j.LoggerFactory;
  */
 class NameMappingUtils {
   private static final Logger LOG = LoggerFactory.getLogger(NameMappingUtils.class);
+  private static final int MAX_LOGGED_MAPPING_CHARS = 4000;
 
   private NameMappingUtils() {}
 
@@ -56,10 +58,12 @@ class NameMappingUtils {
     try {
       return NameMappingParser.fromJson(mappingJson);
     } catch (RuntimeException e) {
+      // Regeneration overwrites the property, so this is the only record of the bad value.
       LOG.warn(
-          "Malformed {} property; it will be regenerated from the schema: {}",
+          "Malformed {} property; it will be regenerated from the schema. Error: {}. Value: {}",
           TableProperties.DEFAULT_NAME_MAPPING,
-          AddFiles.errorMessage(e));
+          AddFiles.errorMessage(e),
+          Ascii.truncate(mappingJson, MAX_LOGGED_MAPPING_CHARS, "..."));
       return null;
     }
   }

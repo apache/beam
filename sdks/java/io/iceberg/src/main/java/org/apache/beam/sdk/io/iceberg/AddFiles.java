@@ -747,8 +747,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private static void ensureNameMappingPresent(Table table) {
-      // Forces name-based resolution: zero-copy files carry no field ids, so any schema column
-      // missing from the mapping is unreadable in registered files.
+      // Forces name-based resolution: zero-copy files typically don't carry
+      // field ids, so any schema column missing from the mapping is unreadable
+      // in registered files.
       @Nullable
       NameMapping existing =
           NameMappingUtils.parseOrNull(

@@ -618,12 +618,14 @@ public class AddFilesTest {
     PAssert.that(output.get("errors")).empty();
     pipeline.run().waitUntilFinish();
 
-    NameMapping mapping = currentMapping();
-    assertNotNull(mapping.find("name"));
-    assertNotNull(mapping.find("age"));
-    // The user's alias survived the regeneration.
-    assertNotNull(mapping.find("ident"));
-    assertEquals(1, mapping.find("ident").id().intValue());
+    // Regenerated from the schema, with the user's alias carried over.
+    NameMapping expected =
+        NameMappingParser.fromJson(
+            json(
+                "[ {'field-id': 1, 'names': ['id', 'ident']},"
+                    + "  {'field-id': 2, 'names': ['name']},"
+                    + "  {'field-id': 3, 'names': ['age']} ]"));
+    assertEquals(expected.asMappedFields(), currentMapping().asMappedFields());
   }
 
   /**
@@ -679,7 +681,8 @@ public class AddFilesTest {
     PAssert.that(output.get("errors")).empty();
     pipeline.run().waitUntilFinish();
 
-    assertNotNull(currentMapping().find("events", "element", "b"));
+    assertEquals(
+        MappingUtil.create(tableSchema).asMappedFields(), currentMapping().asMappedFields());
   }
 
   @Test
@@ -707,9 +710,8 @@ public class AddFilesTest {
     PAssert.that(output.get("errors")).empty();
     pipeline.run().waitUntilFinish();
 
-    NameMapping mapping = currentMapping();
-    assertNotNull(mapping.find("id"));
-    assertNotNull(mapping.find("age"));
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(), currentMapping().asMappedFields());
   }
 
   /** A mapping that already covers the schema is never rewritten, whatever custom names it has. */
