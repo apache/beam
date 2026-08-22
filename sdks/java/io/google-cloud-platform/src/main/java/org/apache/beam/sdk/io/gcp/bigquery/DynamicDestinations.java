@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.extractFromTypeParamete
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.bigquery.model.TableConstraints;
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import java.io.Serializable;
 import java.util.List;
@@ -158,6 +159,11 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
 
   /** Returns the table schema for the destination. */
   public abstract @Nullable TableSchema getSchema(DestinationT destination);
+
+  /** Returns the base table to clone when creating the destination table. */
+  public @Nullable TableReference getCloneSource(DestinationT destination) {
+    return null;
+  }
 
   /**
    * Returns TableConstraints (including primary and foreign key) to be used when creating the

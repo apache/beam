@@ -23,6 +23,7 @@ import com.google.api.services.bigquery.model.EncryptionConfiguration;
 import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.Table;
+import com.google.api.services.bigquery.model.TableConstraints;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableSchema;
 import com.google.api.services.bigquery.model.TimePartitioning;
@@ -31,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider;
@@ -40,8 +40,10 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +73,7 @@ public class UpdateSchemaDestination<DestinationT>
   private transient @Nullable DatasetService datasetService;
   private final int maxRetryJobs;
   private final @Nullable String kmsKey;
-  private @Nullable BigQueryServices.JobService jobService;
+  private BigQueryServices.@Nullable JobService jobService;
   private final Set<BigQueryIO.Write.SchemaUpdateOption> schemaUpdateOptions;
   private final BigQueryIO.Write.WriteDisposition writeDisposition;
   private final BigQueryIO.Write.CreateDisposition createDisposition;
@@ -148,6 +150,27 @@ public class UpdateSchemaDestination<DestinationT>
       DestinationT destination = entry.getKey();
       TableDestination tableDestination = getTableWithDefaultProject(destination);
       outputs.add(KV.of(tableDestination, entry.getValue()));
+      @Nullable TableReference cloneSource = dynamicDestinations.getCloneSource(destination);
+      if (cloneSource != null
+          && createDisposition != BigQueryIO.Write.CreateDisposition.CREATE_NEVER) {
+        Supplier<@Nullable TableSchema> schemaSupplier =
+            () -> dynamicDestinations.getSchema(destination);
+        Supplier<@Nullable TableConstraints> tableConstraintsSupplier =
+            () -> dynamicDestinations.getTableConstraints(destination);
+        Supplier<@Nullable TableReference> cloneSourceSupplier = () -> cloneSource;
+
+        CreateTableHelpers.possiblyCreateTable(
+            context.getPipelineOptions().as(BigQueryOptions.class),
+            tableDestination,
+            schemaSupplier,
+            tableConstraintsSupplier,
+            cloneSourceSupplier,
+            createDisposition,
+            dynamicDestinations.getDestinationCoder(),
+            kmsKey,
+            bqServices,
+            null);
+      }
       if (pendingJobs.containsKey(destination)) {
         // zero load job for this destination is already set
         continue;
