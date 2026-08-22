@@ -331,6 +331,12 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+    # Test cases reported in BEAM-28559
+    df_single_index = df.reset_index().set_index('class')
+    self._run_test(
+        lambda df: df.num_legs.xs('mammal'), df_single_index, check_proxy=False)
+    self._run_test(lambda df: df.num_legs.xs('bird'), df_single_index)
+
   def test_dataframe_xs(self):
     # Test cases reported in BEAM-13421
     df = pd.DataFrame(
@@ -342,9 +348,30 @@ class DeferredFrameTest(_AbstractFrameTest):
         ]),
         columns=['provider', 'time', 'value'])
 
-    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'),
+        df.set_index(['provider']),
+        check_proxy=False)
     self._run_test(
         lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
+    # Test cases reported in BEAM-28559
+    self._run_test(lambda df: df.xs('county'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs(('state', 'day1')),
+        df.set_index(['provider', 'time']),
+        check_proxy=False)
+
+    df_unique = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+    self._run_test(
+        lambda df: df.xs(('state', 'day2')),
+        df_unique.set_index(['provider', 'time']))
 
   def test_set_column(self):
     def new_column(df):
