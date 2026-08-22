@@ -33,10 +33,11 @@ introducing a second distributed system to operate.
 
 ## The runner is experimental, and is not built by default
 
-**The Kafka Streams Runner is experimental.** It executes a meaningful subset of the Beam model
-correctly, and the parts it does support are covered by Beam's own `@ValidatesRunner` suite, but
-several capabilities that are core to the model are not implemented yet. Read [what is not
-supported](#what-is-not-supported-yet) before choosing it for anything real.
+**The Kafka Streams Runner is experimental and is not production ready.** It executes a meaningful
+subset of the Beam model correctly, and the parts it does support are covered by Beam's own
+`@ValidatesRunner` suite, but several capabilities that are core to the model are not implemented
+yet, and it has known bugs rather than only missing features. Do not run it on anything that
+matters. Read [what is not supported](#what-is-not-supported-yet) first.
 
 It is also aimed squarely at streaming. A pipeline over bounded data will run, but there are more
 efficient choices for batch work; this runner exists for pipelines that do not end.
@@ -55,6 +56,22 @@ it reaches nobody who has not asked for it. The intent is to give the runner som
 developed and maintained by whoever is interested in it. If it becomes stable enough the flag will
 be dropped and the runner built like any other; if it does not, it can be removed again without
 affecting anyone, since no release ever contained it.
+
+### If you installed Beam from a release
+
+The Python SDK ships `KafkaStreamsRunner` as a module, because the SDK is published as one package
+and individual modules cannot be held back from it. **The runner still does not work from a
+release**, because the job server it needs is not published with one. Selecting it will tell you so
+and point you here.
+
+To use the runner you need a Beam source tree, and you build the job server yourself:
+
+```
+./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:job-server:shadowJar
+```
+
+then pass the resulting jar as `--kafka_streams_job_server_jar`, or let the runner find it when you
+run from that same source tree.
 
 ## Building it
 
@@ -92,8 +109,9 @@ server you are already running.
 
 ### From Python
 
-Select `KafkaStreamsRunner` there too. The Python runner builds the job server jar if it has to,
-starts it, and stops it when the pipeline finishes:
+Select `KafkaStreamsRunner` there too. The Python runner finds the job server jar, starts it, and
+stops it when the pipeline finishes. Run this from a Beam source tree where you have already built
+the jar, or pass one with `--kafka_streams_job_server_jar`:
 
 ```
 python my_pipeline.py \
@@ -102,9 +120,9 @@ python my_pipeline.py \
     --application_id=my-beam-pipeline
 ```
 
-The SDK harness runs in `LOOPBACK` mode by default, so a local run needs no Docker. Building the jar
-takes a while the first time; `--kafka_streams_job_server_jar` points at a prebuilt one, which
-`./gradlew -Pwith-kafka-streams-runner :runners:kafka-streams:job-server:shadowJar` produces.
+The SDK harness runs in `LOOPBACK` mode by default, so a local run needs no Docker. If no jar is
+found the runner says so rather than trying to download one, because none is published; see [if you
+installed Beam from a release](#if-you-installed-beam-from-a-release).
 
 ### Against a job server you are already running
 

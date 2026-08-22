@@ -27,7 +27,7 @@ capability-matrix:
     - class: jet
       name: Hazelcast Jet
     - class: kafka-streams
-      name: Kafka Streams
+      name: Kafka Streams (experimental, not released)
     - class: twister2
       name: Twister2
     - class: python direct
