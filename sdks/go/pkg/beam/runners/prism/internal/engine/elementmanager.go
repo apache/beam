@@ -458,6 +458,9 @@ func (em *ElementManager) Bundles(ctx context.Context, upstreamCancelFn context.
 			// Check each advanced stage, to see if it's able to execute based on the watermark.
 			for stageID := range advanced {
 				ss := em.stages[stageID]
+				if adj := ss.releaseDelayedResiduals(em, emNow); adj != 0 {
+					em.addPending(adj)
+				}
 				watermark, ready, ptimeEventsReady, injectedReady := ss.bundleReady(em, emNow)
 				if injectedReady {
 					ss.mu.Lock()
@@ -549,7 +552,7 @@ func (em *ElementManager) DumpStages() string {
 		if upS == "" {
 			upS = "IMPULSE  " // (extra spaces to allow print to align better.)
 		}
-		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject))
+		stageState = append(stageState, fmt.Sprintln(id, "watermark in", inW, "out", outW, "upstream", upW, "from", upS, "pending", ss.pending, "byKey", ss.pendingByKeys, "inprogressKeys", ss.inprogressKeys, "byBundle", ss.inprogressKeysByBundle, "holds", ss.watermarkHolds.heap, "holdCounts", ss.watermarkHolds.counts, "holdsInBundle", ss.inprogressHoldsByBundle, "pttEvents", ss.processingTimeTimers.toFire, "bundlesToInject", ss.bundlesToInject, "delayedResiduals", ss.delayedResiduals))
 
 		var outputConsumers, sideConsumers []string
 		for _, col := range ss.outputIDs {
@@ -794,6 +797,24 @@ type Residuals struct {
 
 // reElementResiduals extracts the windowed value header from residual bytes, and explodes them
 // back out to their windows.
+// partitionResiduals splits residuals into those that return to pending at
+// once and those to park, grouped by the processing time they become
+// schedulable per their SDK requested resume delay.
+func partitionResiduals(emNow mtime.Time, data []Residual) (immediate []Residual, delayed map[mtime.Time][]Residual) {
+	for _, r := range data {
+		if r.Delay <= 0 {
+			immediate = append(immediate, r)
+			continue
+		}
+		if delayed == nil {
+			delayed = map[mtime.Time][]Residual{}
+		}
+		fireAt := emNow.Add(r.Delay)
+		delayed[fireAt] = append(delayed[fireAt], r)
+	}
+	return immediate, delayed
+}
+
 func reElementResiduals(residuals []Residual, inputInfo PColInfo, rb RunBundle) []element {
 	var unprocessedElements []element
 	for _, residual := range residuals {
@@ -935,21 +956,34 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 		}
 	}
 
+	// Single processing time sample for this persist, for timer rebasing and
+	// residual delays alike. processTimeEvents requires the refresh lock.
+	em.refreshCond.L.Lock()
+	emNow := em.processingTimeNow()
+	em.refreshCond.L.Unlock()
+
 	// Triage timers into their time domains for scheduling.
 	// EventTime timers are handled with normal elements,
 	// ProcessingTime timers need to be scheduled into the processing time based queue.
-	newHolds, ptRefreshes := em.triageTimers(d, inputInfo, stage)
+	newHolds, ptRefreshes := em.triageTimers(d, inputInfo, stage, emNow)
 
-	// TODO(https://github.com/apache/beam/issues/39446)
-	// Return unprocessed to this stage's pending
-	// TODO sort out pending element watermark holds for process continuation residuals.
-	unprocessedElements := reElementResiduals(residuals.Data, inputInfo, rb)
-
-	// Add unprocessed back to the pending stack.
+	// A residual with an SDK requested resume delay is parked until that
+	// processing time arrives; the rest return to pending immediately.
+	immediate, delayed := partitionResiduals(emNow, residuals.Data)
+	unprocessedElements := reElementResiduals(immediate, inputInfo, rb)
 	if len(unprocessedElements) > 0 {
-		// TODO actually reschedule based on the residuals delay...
 		count := stage.AddPending(em, unprocessedElements)
 		em.addPending(count)
+	}
+	for fireAt, rs := range delayed {
+		elems := reElementResiduals(rs, inputInfo, rb)
+		if len(elems) == 0 {
+			continue
+		}
+		stage.parkResiduals(fireAt, elems)
+		em.addPending(len(elems))
+		// Schedules the release and, under a real-time clock, the wake-up.
+		ptRefreshes.insert(fireAt)
 	}
 	// Clear out the inprogress elements associated with the completed bundle.
 	// Must be done after adding the new pending elements to avoid an incorrect
@@ -1035,7 +1069,7 @@ func (em *ElementManager) PersistBundle(rb RunBundle, col2Coders map[string]PCol
 }
 
 // triageTimers prepares received timers for eventual firing, as well as rebasing processing time timers as needed.
-func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState) (map[mtime.Time]int, set[mtime.Time]) {
+func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stage *stageState, emNow mtime.Time) (map[mtime.Time]int, set[mtime.Time]) {
 	// Process each timer family in the order we received them, so we can filter to the last one.
 	// Since we're process each timer family individually, use a unique key for each userkey, tag, window.
 	// The last timer set for each combination is the next one we're keeping.
@@ -1044,10 +1078,6 @@ func (em *ElementManager) triageTimers(d TentativeData, inputInfo PColInfo, stag
 		tag string
 		win typex.Window
 	}
-	em.refreshCond.L.Lock()
-	emNow := em.processingTimeNow()
-	em.refreshCond.L.Unlock()
-
 	var pendingEventTimers []element
 	var pendingProcessingTimers []fireElement
 	stageRefreshTimes := set[mtime.Time]{}
@@ -1245,6 +1275,11 @@ type stageState struct {
 	inprogress map[string]elements                  // inprogress elements by active bundles, keyed by bundle
 	sideInputs map[LinkID]map[typex.Window][][]byte // side input data for this stage, from {tid, inputID} -> window
 
+	// Residual elements parked until the processing time they become schedulable,
+	// per the SDK's requested resume delay. Parked elements pin the input
+	// watermark like pending elements until they are released.
+	delayedResiduals map[mtime.Time][]element
+
 	// Fields for stateful stages which need to be per key.
 	pendingByKeys          map[string]*dataAndTimers                             // pending input elements by Key, if stateful.
 	inprogressKeys         set[string]                                           // all keys that are assigned to bundles.
@@ -1371,6 +1406,38 @@ func (ss *stageState) AddPending(em *ElementManager, newPending []element) int {
 	ss.mu.Lock()
 	defer ss.mu.Unlock()
 	return ss.kind.addPending(ss, em, newPending)
+}
+
+// parkResiduals defers residual elements until fireAt in processing time.
+// Parked elements pin the input watermark via minPendingTimestampLocked.
+// Callers must schedule a processing time refresh for the stage at fireAt.
+func (ss *stageState) parkResiduals(fireAt mtime.Time, elems []element) {
+	ss.mu.Lock()
+	defer ss.mu.Unlock()
+	if ss.delayedResiduals == nil {
+		ss.delayedResiduals = map[mtime.Time][]element{}
+	}
+	ss.delayedResiduals[fireAt] = append(ss.delayedResiduals[fireAt], elems...)
+}
+
+// releaseDelayedResiduals moves parked residuals that are schedulable at
+// emNow to pending, and returns the resulting pending count adjustment.
+// Callers must hold em.refreshCond.L.
+func (ss *stageState) releaseDelayedResiduals(em *ElementManager, emNow mtime.Time) int {
+	ss.mu.Lock()
+	var due []element
+	for t, elems := range ss.delayedResiduals {
+		if t <= emNow {
+			due = append(due, elems...)
+			delete(ss.delayedResiduals, t)
+		}
+	}
+	ss.mu.Unlock()
+	if len(due) == 0 {
+		return 0
+	}
+	// The parked elements were counted when parked; report only the delta.
+	return ss.AddPending(em, due) - len(due)
 }
 
 func (ss *stageState) injectTriggeredBundlesIfReady(em *ElementManager, window typex.Window, key string) int {
@@ -2290,6 +2357,13 @@ func (ss *stageState) minPendingTimestampLocked() mtime.Time {
 	}
 	for _, es := range ss.inprogress {
 		minPending = mtime.Min(minPending, es.minTimestamp)
+	}
+	// Parked residuals are pending work that is not yet schedulable, and
+	// must pin the input watermark like any other pending element.
+	for _, elems := range ss.delayedResiduals {
+		for _, e := range elems {
+			minPending = mtime.Min(minPending, e.timestamp)
+		}
 	}
 	return minPending
 }
