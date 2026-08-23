@@ -32,7 +32,6 @@ from apache_beam.runners.runner import PipelineState
 from apache_beam.testing import test_utils
 from apache_beam.testing.pipeline_verifiers import PipelineStateMatcher
 from apache_beam.testing.test_pipeline import TestPipeline
-from apache_beam.testing.pubsub_test_context import TestPubsubContext
 
 INPUT_TOPIC = 'wc_topic_input'
 OUTPUT_TOPIC = 'wc_topic_output'
@@ -61,7 +60,6 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.project = self.test_pipeline.get_option('project')
-    self.pubsub_monitor = TestPubsubContext(project_id=self.project)
     self.setup_pubsub()
 
   def setup_pubsub(self):
@@ -85,10 +83,6 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
             self.project, OUTPUT_SUB + self.uuid),
         topic=self.output_topic.name,
         ack_deadline_seconds=60)
-    self.pubsub_monitor.register_topic(self.input_topic.name)
-    self.pubsub_monitor.register_topic(self.output_topic.name)
-    self.pubsub_monitor.register_subscription(self.input_sub.name)
-    self.pubsub_monitor.register_subscription(self.output_sub.name)
 
   def _inject_data(self, topic, data):
     """Inject numbers as test data to PubSub."""
@@ -97,8 +91,10 @@ class StreamingWordcountDebuggingIT(unittest.TestCase):
       self.pub_client.publish(self.input_topic.name, str(n).encode('utf-8'))
 
   def tearDown(self):
-    with self.pubsub_monitor:
-      pass
+    test_utils.cleanup_subscriptions(
+        self.sub_client, [self.input_sub, self.output_sub])
+    test_utils.cleanup_topics(
+        self.pub_client, [self.input_topic, self.output_topic])
 
   @pytest.mark.it_postcommit
   @unittest.skip(
