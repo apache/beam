@@ -21,9 +21,11 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
@@ -35,27 +37,17 @@ import org.apache.flink.api.connector.source.SplitsAssignment;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * A Flink {@link org.apache.flink.api.connector.source.SplitEnumerator SplitEnumerator}
- * implementation that holds a Beam {@link Source} and does the following:
- *
- * <ul>
- *   <li>Split the Beam {@link Source} to desired number of splits.
- *   <li>Assign the splits to the Flink Source Reader.
- * </ul>
- *
- * <p>Note that at this point, this class has a static round-robin split assignment strategy.
- *
- * @param <T> The output type of the encapsulated Beam {@link Source}.
- */
+/** Splits a Beam source and assigns its splits to Flink source readers round-robin. */
 public class FlinkSourceSplitEnumerator<T>
-    implements SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> {
+    implements SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(FlinkSourceSplitEnumerator.class);
+
   private final SplitEnumeratorContext<FlinkSourceSplit<T>> context;
   private final Source<T> beamSource;
   private final PipelineOptions pipelineOptions;
   private final int numSplits;
   private final Map<Integer, List<FlinkSourceSplit<T>>> pendingSplits;
+
   private boolean splitsInitialized;
 
   public FlinkSourceSplitEnumerator(
@@ -63,8 +55,7 @@ public class FlinkSourceSplitEnumerator<T>
       Source<T> beamSource,
       PipelineOptions pipelineOptions,
       int numSplits) {
-
-    this(context, beamSource, pipelineOptions, numSplits, false);
+    this(context, beamSource, pipelineOptions, numSplits, null);
   }
 
   public FlinkSourceSplitEnumerator(
@@ -72,17 +63,31 @@ public class FlinkSourceSplitEnumerator<T>
       Source<T> beamSource,
       PipelineOptions pipelineOptions,
       int numSplits,
-      boolean splitsInitialized) {
-
+      @Nullable FlinkSourceEnumeratorState<T> restoredState) {
     this.context = context;
     this.beamSource = beamSource;
     this.pipelineOptions = pipelineOptions;
     this.numSplits = numSplits;
     this.pendingSplits = new HashMap<>(numSplits);
-    this.splitsInitialized = splitsInitialized;
+    this.splitsInitialized = restoredState != null;
+
+    if (restoredState != null) {
+      if (restoredState.getAssignmentMode() != FlinkSourceSplitAssignmentMode.STATIC) {
+        throw new IllegalArgumentException(
+            "Cannot restore the static source enumerator from "
+                + restoredState.getAssignmentMode()
+                + " state.");
+      }
+      int parallelism = context.currentParallelism();
+      for (FlinkSourceSplit<T> split : restoredState.getPendingSplits()) {
+        int targetSubtask = split.splitIndex() % parallelism;
+        pendingSplits.computeIfAbsent(targetSubtask, ignored -> new ArrayList<>()).add(split);
+      }
+    }
 
     LOG.info(
-        "Created new enumerator with parallelism {}, source {}, numSplits {}, initialized {}",
+        "Created static source enumerator with parallelism {}, source {}, numSplits {}, "
+            + "initialized {}",
         context.currentParallelism(),
         beamSource,
         numSplits,
@@ -93,52 +98,33 @@ public class FlinkSourceSplitEnumerator<T>
   public void start() {
     if (!splitsInitialized) {
       initializeSplits();
+    } else {
+      sendPendingSplitsToSourceReaders();
     }
   }
 
   private void initializeSplits() {
     context.callAsync(
-        () -> {
-          try {
-            LOG.info("Starting source {}", beamSource);
-            List<? extends Source<T>> beamSplitSourceList = splitBeamSource();
-            Map<Integer, List<FlinkSourceSplit<T>>> flinkSourceSplitsList = new HashMap<>();
-            int i = 0;
-            for (Source<T> beamSplitSource : beamSplitSourceList) {
-              int targetSubtask = i % context.currentParallelism();
-              List<FlinkSourceSplit<T>> splitsForTask =
-                  flinkSourceSplitsList.computeIfAbsent(
-                      targetSubtask, ignored -> new ArrayList<>());
-              splitsForTask.add(new FlinkSourceSplit<>(i, beamSplitSource));
-              i++;
-            }
-            return flinkSourceSplitsList;
-          } catch (Exception e) {
-            throw new RuntimeException(e);
-          }
-        },
+        this::splitBeamSource,
         (sourceSplits, error) -> {
           if (error != null) {
             throw new RuntimeException("Failed to start source enumerator.", error);
-          } else {
-            pendingSplits.putAll(sourceSplits);
-            splitsInitialized = true;
-            sendPendingSplitsToSourceReaders();
           }
+          prepareAssignments(sourceSplits);
+          splitsInitialized = true;
+          sendPendingSplitsToSourceReaders();
         });
   }
 
   @Override
   public void handleSplitRequest(int subtaskId, @Nullable String requesterHostname) {
-    // Not used.
+    // Static assignment happens when readers register.
   }
 
   @Override
   public void addSplitsBack(List<FlinkSourceSplit<T>> splits, int subtaskId) {
     LOG.info("Adding splits {} back from subtask {}", splits, subtaskId);
-    List<FlinkSourceSplit<T>> splitsForSubtask =
-        pendingSplits.computeIfAbsent(subtaskId, ignored -> new ArrayList<>());
-    splitsForSubtask.addAll(splits);
+    pendingSplits.computeIfAbsent(subtaskId, ignored -> new ArrayList<>()).addAll(splits);
   }
 
   @Override
@@ -146,18 +132,22 @@ public class FlinkSourceSplitEnumerator<T>
     List<FlinkSourceSplit<T>> splitsForSubtask = pendingSplits.remove(subtaskId);
     if (splitsForSubtask != null) {
       assignSplitsAndLog(splitsForSubtask, subtaskId);
-    } else {
-      if (splitsInitialized) {
-        LOG.info("There is no split for subtask {}. Signaling no more splits.", subtaskId);
-        context.signalNoMoreSplits(subtaskId);
-      }
+    } else if (splitsInitialized) {
+      LOG.info("There is no split for subtask {}. Signaling no more splits.", subtaskId);
+      context.signalNoMoreSplits(subtaskId);
     }
   }
 
   @Override
-  public Map<Integer, List<FlinkSourceSplit<T>>> snapshotState(long checkpointId) throws Exception {
+  public FlinkSourceEnumeratorState<T> snapshotState(long checkpointId) {
     LOG.info("Taking snapshot for checkpoint {}", checkpointId);
-    return pendingSplits;
+    ArrayList<FlinkSourceSplit<T>> checkpointSplits = new ArrayList<>();
+    pendingSplits.values().forEach(checkpointSplits::addAll);
+    FlinkSourceSplitAssignmentMode mode =
+        splitsInitialized
+            ? FlinkSourceSplitAssignmentMode.STATIC
+            : FlinkSourceSplitAssignmentMode.UNDECIDED;
+    return new FlinkSourceEnumeratorState<>(mode, checkpointSplits);
   }
 
   @Override
@@ -165,32 +155,47 @@ public class FlinkSourceSplitEnumerator<T>
     // NoOp
   }
 
-  // -------------- Private helper methods ----------------------
-  private List<? extends Source<T>> splitBeamSource() throws Exception {
+  private ArrayList<FlinkSourceSplit<T>> splitBeamSource() throws Exception {
+    LOG.info("Starting source {}", beamSource);
     if (beamSource instanceof BoundedSource) {
       BoundedSource<T> boundedSource = (BoundedSource<T>) beamSource;
-      long desiredSizeBytes = boundedSource.getEstimatedSizeBytes(pipelineOptions) / numSplits;
-      return boundedSource.split(desiredSizeBytes, pipelineOptions);
-    } else if (beamSource instanceof UnboundedSource) {
-      List<? extends UnboundedSource<T, ?>> splits =
-          ((UnboundedSource<T, ?>) beamSource).split(numSplits, pipelineOptions);
-      LOG.info("Split source {} to {} splits", beamSource, splits);
-      return splits;
-    } else {
-      throw new IllegalStateException("Unknown source type " + beamSource.getClass());
+      long estimatedSizeBytes =
+          FlinkSourceSplitUtils.estimateBoundedSourceSize(boundedSource, pipelineOptions);
+      return FlinkSourceSplitUtils.splitBoundedSource(
+          boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
+    }
+    if (beamSource instanceof UnboundedSource) {
+      return FlinkSourceSplitUtils.splitUnboundedSource(
+          (UnboundedSource<T, ?>) beamSource, pipelineOptions, numSplits);
+    }
+    throw new IllegalStateException("Unknown source type " + beamSource.getClass());
+  }
+
+  private void prepareAssignments(List<FlinkSourceSplit<T>> sourceSplits) {
+    int parallelism = context.currentParallelism();
+    for (FlinkSourceSplit<T> split : sourceSplits) {
+      int targetSubtask = split.splitIndex() % parallelism;
+      pendingSplits.computeIfAbsent(targetSubtask, ignored -> new ArrayList<>()).add(split);
     }
   }
 
   private void sendPendingSplitsToSourceReaders() {
+    Set<Integer> assignedReaders = new HashSet<>();
     Iterator<Map.Entry<Integer, List<FlinkSourceSplit<T>>>> splitIter =
         pendingSplits.entrySet().iterator();
     while (splitIter.hasNext()) {
       Map.Entry<Integer, List<FlinkSourceSplit<T>>> entry = splitIter.next();
-      int readerIndex = entry.getKey();
-      int targetSubtask = readerIndex % context.currentParallelism();
-      if (context.registeredReaders().containsKey(targetSubtask)) {
-        assignSplitsAndLog(entry.getValue(), targetSubtask);
+      int subtaskId = entry.getKey();
+      if (context.registeredReaders().containsKey(subtaskId)) {
+        assignSplitsAndLog(entry.getValue(), subtaskId);
+        assignedReaders.add(subtaskId);
         splitIter.remove();
+      }
+    }
+
+    for (int subtaskId : context.registeredReaders().keySet()) {
+      if (!assignedReaders.contains(subtaskId) && !pendingSplits.containsKey(subtaskId)) {
+        context.signalNoMoreSplits(subtaskId);
       }
     }
   }

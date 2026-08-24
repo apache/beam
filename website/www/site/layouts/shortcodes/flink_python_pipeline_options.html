@@ -123,6 +123,11 @@ Should be called before running the tests.
   <td>Default: <code>0</code></td>
 </tr>
 <tr>
+  <td><code>lazy_source_split_assignment_min_size_mb_per_reader</code></td>
+  <td>Minimum estimated input size in MiB per source reader for lazy split assignment of bounded sources. The default of 0 always uses lazy assignment. A positive value selects static round-robin assignment for sources estimated below the threshold and lazy assignment for sources at or above it. Any negative value always uses static assignment.</td>
+  <td>Default: <code>0</code></td>
+</tr>
+<tr>
   <td><code>max_bundle_size</code></td>
   <td>The maximum number of elements in a bundle. Default values are 1000 for a streaming job and 1,000,000 for batch</td>
   <td>Default: <code>MaxBundleSizeFactory</code></td>

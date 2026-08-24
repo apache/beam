@@ -381,6 +381,17 @@ public interface FlinkPipelineOptions
   void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
 
   @Description(
+      "Minimum estimated input size in MiB per source reader for lazy split assignment of "
+          + "bounded sources. The default of 0 always uses lazy assignment. A positive value "
+          + "selects static round-robin assignment for sources estimated below the threshold "
+          + "and lazy assignment for sources at or above it. Any negative value always uses "
+          + "static assignment.")
+  @Default.Long(0)
+  Long getLazySourceSplitAssignmentMinSizeMbPerReader();
+
+  void setLazySourceSplitAssignmentMinSizeMbPerReader(Long thresholdMb);
+
+  @Description(
       "Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,"
           + "the RequiresStableInput contract might be violated if there any processing related failures in the DoFn operator.")
   @Default.Boolean(false)
