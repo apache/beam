@@ -42,16 +42,7 @@ public class MessageProducerUtils {
    */
   public static BytesXMLMessage createBytesXMLMessage(
       Solace.Record record, boolean useCorrelationKeyLatency, DeliveryMode deliveryMode) {
-    JCSMPFactory jcsmpFactory = JCSMPFactory.onlyInstance();
-    BytesXMLMessage msg = jcsmpFactory.createBytesXMLMessage();
-    byte[] payload = record.getPayload();
-    msg.writeBytes(payload);
-
-    Long senderTimestamp = record.getSenderTimestamp();
-    if (senderTimestamp == null) {
-      senderTimestamp = System.currentTimeMillis();
-    }
-    msg.setSenderTimestamp(senderTimestamp);
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
     msg.setDeliveryMode(deliveryMode);
     if (useCorrelationKeyLatency) {
       Solace.CorrelationKey key =
@@ -64,7 +55,6 @@ public class MessageProducerUtils {
       // Use only a string as correlation key
       msg.setCorrelationKey(record.getMessageId());
     }
-    msg.setApplicationMessageId(record.getMessageId());
     return msg;
   }
 

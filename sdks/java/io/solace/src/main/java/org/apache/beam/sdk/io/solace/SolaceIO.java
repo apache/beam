@@ -84,7 +84,7 @@ import org.slf4j.LoggerFactory;
  * <h3>No-argument {@link SolaceIO#read()} top-level method</h3>
  *
  * <p>This method returns a PCollection of {@link Solace.Record} objects. It uses a default mapper
- * ({@link SolaceRecordMapper#map(BytesXMLMessage)}) to map from the received {@link
+ * ({@link SolaceRecordMapper#toRecord(BytesXMLMessage)}) to map from the received {@link
  * BytesXMLMessage} from Solace, to the {@link Solace.Record} objects.
  *
  * <p>By default, it also uses a {@link BytesXMLMessage#getSenderTimestamp()} for watermark
@@ -220,6 +220,13 @@ import org.slf4j.LoggerFactory;
  * <p>To write to Solace, use {@link #write()} with a {@link PCollection<Solace.Record>}. You can
  * also use {@link #write(SerializableFunction)} to specify a format function to convert the input
  * type to {@link Solace.Record}.
+ *
+ * <p>Each record can select its JCSMP payload representation through {@link
+ * Solace.Record.PayloadType}. The default is {@link Solace.Record.PayloadType#BYTES_XML}, which
+ * preserves the historical behavior of writing the byte array with {@code
+ * BytesXMLMessage.writeBytes}. Use {@code setText(String)} to create a UTF-8 {@link
+ * com.solacesystems.jcsmp.TextMessage}, or select {@link Solace.Record.PayloadType#BYTES} to
+ * publish the byte array with a JCSMP {@link com.solacesystems.jcsmp.BytesMessage}.
  *
  * <h3>Writing to a static topic or queue</h3>
  *
@@ -458,7 +465,7 @@ public class SolaceIO {
     return new Read<Solace.Record>(
         Read.Configuration.<Solace.Record>builder()
             .setTypeDescriptor(TypeDescriptor.of(Solace.Record.class))
-            .setParseFn(SolaceRecordMapper::map)
+            .setParseFn(SolaceRecordMapper::toRecord)
             .setTimestampFn(SENDER_TIMESTAMP_FUNCTION)
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD));
