@@ -877,7 +877,7 @@ def temp_kinesis_localstack():
   try:
     host = localstack.get_container_host_ip()
     port = localstack.get_exposed_port('4566')
-    service_endpoint = f'https://{host}:{port}'
+    service_endpoint = f'https://localhost.localstack.cloud:{port}'
     http_endpoint = f'http://{host}:{port}'
 
     kinesis_client = boto3.client(
