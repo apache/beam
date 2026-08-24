@@ -85,8 +85,8 @@ cloud.google.com/go/pubsub v1.1.0/go.mod h1:EwwdRX2sKPjnvnqCa270oGRyludottCI76h+
 cloud.google.com/go/pubsub v1.2.0/go.mod h1:jhfEVHT8odbXTkndysNHCcx0awwzvfOlguIAii9o8iA=
 cloud.google.com/go/pubsub v1.3.1/go.mod h1:i+ucay31+CNRpDW4Lu78I4xXG+O1r/MAHgjpRVR+TSU=
 cloud.google.com/go/pubsub v1.19.0/go.mod h1:/O9kmSe9bb9KRnIAWkzmqhPjHo6LtzGOBYd/kr06XSs=
-cloud.google.com/go/pubsub v1.51.0 h1:XOaCejsqX7EEtUdQz+WPag66wWsUUGliyCOfGPKfo90=
-cloud.google.com/go/pubsub v1.51.0/go.mod h1:NERXf11sd82UV3VnflcUj8POIyQUXT/QwrKlxD8di/I=
+cloud.google.com/go/pubsub v1.51.1 h1:R3G1wCOxBO7jRpL8x2pdZMv1GAJDF6ax/m2zPOtvTNE=
+cloud.google.com/go/pubsub v1.51.1/go.mod h1:y2T0IKtW1iWwVvazYaRpqOAFO4gy2+O7dTDt9TWY/5U=
 cloud.google.com/go/pubsub/v2 v2.6.1 h1:jX6gnC4n8BgYx6MOYICgbbaXZpr1vKeNOE3Bn17P5zg=
 cloud.google.com/go/pubsub/v2 v2.6.1/go.mod h1:1y2lZnKfUFPZz0PU4YmXyk4lA11+xmYA42zbC32RkxQ=
 cloud.google.com/go/secretmanager v1.3.0/go.mod h1:+oLTkouyiYiabAQNugCeTS3PAArGiMJuBqvJnJsyH+U=
