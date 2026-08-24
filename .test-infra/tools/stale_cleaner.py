@@ -350,8 +350,7 @@ class PubSubSubscriptionCleaner(StaleCleaner):
         self.client = pubsub_v1.SubscriberClient()
         print(f"{self.clock()} - Deleting PubSub subscription {resource_name}")
         with self.client:
-            subscription_path = self.client.subscription_path(self.project_id, resource_name)
-            self.client.delete_subscription(request={"subscription": subscription_path})
+            self.client.delete_subscription(request={"subscription": resource_name})
 
 def clean_pubsub_topics():
     """ Clean up stale PubSub topics in the specified GCP project.
@@ -432,7 +431,7 @@ def clean_pubsub_subscriptions():
     cleaner.refresh()
 
     # Delete stale resources
-    cleaner.delete_stale(dry_run=True) # Keep dry_run=True to avoid accidental deletions during testing
+    cleaner.delete_stale(dry_run=False)
 
 if __name__ == "__main__":
     # Clean up stale PubSub topics

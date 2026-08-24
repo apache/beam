@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
@@ -50,6 +52,7 @@ import org.junit.runners.JUnit4;
 public class WorkFailureProcessorTest {
 
   private static final String DEFAULT_COMPUTATION_ID = "computationId";
+  private static final String DEFAULT_SYSTEM_NAME = "systemName";
 
   private static WorkFailureProcessor createWorkFailureProcessor(
       FailureTracker failureTracker, Supplier<Instant> clock) {
@@ -118,7 +121,11 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
@@ -135,7 +142,11 @@ public class WorkFailureProcessorTest {
         OutOfMemoryError.class,
         () ->
             workFailureProcessor.logAndProcessFailureBatch(
-                DEFAULT_COMPUTATION_ID, List.of(work), new OutOfMemoryError(), invalidWork::add));
+                DEFAULT_COMPUTATION_ID,
+                DEFAULT_SYSTEM_NAME,
+                List.of(work),
+                new OutOfMemoryError(),
+                invalidWork::add));
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).isEmpty();
@@ -150,7 +161,11 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingApplianceFailureReporter(true));
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).containsExactly(work.work());
@@ -165,7 +180,11 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(veryOldWork), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(veryOldWork),
+        new RuntimeException(),
+        invalidWork::add);
 
     assertThat(executedWork).isEmpty();
     assertThat(invalidWork).contains(veryOldWork.work());
@@ -180,7 +199,11 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingEngineFailureReporter());
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
@@ -195,7 +218,11 @@ public class WorkFailureProcessorTest {
         createWorkFailureProcessor(streamingApplianceFailureReporter(false));
     Set<Work> invalidWork = new HashSet<>();
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(work), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work),
+        new RuntimeException(),
+        invalidWork::add);
 
     runWork.await();
     assertThat(invalidWork).isEmpty();
@@ -213,7 +240,11 @@ public class WorkFailureProcessorTest {
     Set<Work> invalidWork = new HashSet<>();
 
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(work1, work2), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work1, work2),
+        new RuntimeException(),
+        invalidWork::add);
 
     runWork1.await();
     runWork2.await();
@@ -233,10 +264,35 @@ public class WorkFailureProcessorTest {
     Set<Work> invalidWork = new HashSet<>();
 
     workFailureProcessor.logAndProcessFailureBatch(
-        DEFAULT_COMPUTATION_ID, List.of(work1, work2), new RuntimeException(), invalidWork::add);
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_SYSTEM_NAME,
+        List.of(work1, work2),
+        new RuntimeException(),
+        invalidWork::add);
 
     runWork1.await();
     assertThat(executedWork2).isEmpty();
     assertThat(invalidWork).containsExactly(work2.work());
+  }
+
+  @Test
+  public void logAndProcessFailureBatch_retriesOnMultiKeyCommitValidationException()
+      throws Throwable {
+    CountDownLatch runWork = new CountDownLatch(1);
+    ExecutableWork work = createWork(ignored -> runWork.countDown());
+    FailureTracker failureTracker = streamingEngineFailureReporter();
+    WorkFailureProcessor workFailureProcessor = createWorkFailureProcessor(failureTracker);
+    Set<Work> invalidWork = new HashSet<>();
+
+    workFailureProcessor.logAndProcessFailureBatch(
+        DEFAULT_COMPUTATION_ID,
+        DEFAULT_COMPUTATION_ID,
+        List.of(work),
+        new MultiKeyCommitValidationException("test"),
+        (FailedWorkHandler) invalidWork::add);
+
+    runWork.await();
+    assertThat(invalidWork).isEmpty();
+    assertThat(failureTracker.drainPendingFailuresToReport()).isEmpty();
   }
 }
