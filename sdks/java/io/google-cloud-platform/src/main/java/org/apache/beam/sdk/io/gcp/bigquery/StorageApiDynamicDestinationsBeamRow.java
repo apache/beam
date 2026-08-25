@@ -86,28 +86,30 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       @Nullable WriteStreamService writeStreamService)
       throws Exception {
     TableSchema destinationProtoSchema = null;
+    com.google.api.services.bigquery.model.TableSchema destSchema = getSchema(destination);
+    com.google.api.services.bigquery.model.TableSchema schemaToUse = destSchema;
+
     TableDestination tableDestination = getTable(destination);
     TableReference tableReference =
         tableDestination != null ? tableDestination.getTableReference() : null;
 
     if (tableReference != null && datasetService != null) {
       try {
-        com.google.api.services.bigquery.model.TableSchema fetchedSchema =
+        com.google.api.services.bigquery.model.TableSchema bqSchema =
             SCHEMA_CACHE.getSchema(tableReference, datasetService);
-        if (fetchedSchema != null) {
-          destinationProtoSchema =
-              TableRowToStorageApiProto.schemaToProtoTableSchema(fetchedSchema);
+        if (bqSchema != null) {
+          if (schemaToUse == null
+              || TableRowToStorageApiProto.hasExtraFields(schemaToUse, bqSchema)) {
+            schemaToUse = bqSchema;
+          }
         }
       } catch (Exception e) {
         LOG.warn("Could not fetch schema from BigQuery for table {}", tableReference, e);
       }
     }
 
-    if (destinationProtoSchema == null) {
-      com.google.api.services.bigquery.model.TableSchema destSchema = getSchema(destination);
-      if (destSchema != null) {
-        destinationProtoSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(destSchema);
-      }
+    if (schemaToUse != null) {
+      destinationProtoSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(schemaToUse);
     }
 
     if (destinationProtoSchema == null) {
