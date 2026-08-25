@@ -39,7 +39,7 @@ Should be called before running the tests.
 </tr>
 <tr>
   <td><code>cache_side_input_materialization</code></td>
-  <td>Batch/DataStream mode only (Flink 2.x): cache materialized side-input views per (view, window) in a process-wide cache, instead of re-applying the ViewFn against operator state on every access. Restores the per-TaskManager broadcast-variable caching of the legacy DataSet runner. No effect in streaming mode.</td>
+  <td>Classic Java batch runner only (Flink 2.x): cache materialized side-input views per (view, window) in a process-wide cache, instead of re-applying the ViewFn against operator state on every access. Restores the per-TaskManager broadcast-variable caching of the legacy DataSet runner. No effect in portable or streaming mode.</td>
   <td>Default: <code>false</code></td>
 </tr>
 <tr>

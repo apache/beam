@@ -351,10 +351,10 @@ public interface FlinkPipelineOptions
   void setFasterCopy(Boolean fasterCopy);
 
   @Description(
-      "Batch/DataStream mode only (Flink 2.x): cache materialized side-input views per "
+      "Classic Java batch runner only (Flink 2.x): cache materialized side-input views per "
           + "(view, window) in a process-wide cache, instead of re-applying the ViewFn against "
           + "operator state on every access. Restores the per-TaskManager broadcast-variable "
-          + "caching of the legacy DataSet runner. No effect in streaming mode.")
+          + "caching of the legacy DataSet runner. No effect in portable or streaming mode.")
   @Default.Boolean(false)
   Boolean getCacheSideInputMaterialization();
 
