@@ -51,12 +51,8 @@ from apache_beam.transforms import PTransform
 if TYPE_CHECKING:
   from apache_beam.io.gcp.bigquery import ReadFromBigQueryRequest
 
-try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
-except ImportError:
-  DatasetReference = None
-  TableReference = None
+from apache_beam.io.gcp.bigquery_tools import DatasetReference
+from apache_beam.io.gcp.bigquery_tools import TableReference
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -230,8 +226,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def _get_temp_dataset_id(self):
     if self.temp_dataset is None:
       return None
-    elif isinstance(self.temp_dataset, DatasetReference):
+    elif hasattr(self.temp_dataset, 'datasetId'):
       return self.temp_dataset.datasetId
+    elif hasattr(self.temp_dataset, 'dataset_id'):
+      return self.temp_dataset.dataset_id
     elif isinstance(self.temp_dataset, str):
       return self.temp_dataset
     else:
@@ -239,12 +237,14 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
 
   def _get_temp_dataset_project(self):
     """Returns the project ID for temporary dataset operations.
-    
+
     If temp_dataset is a DatasetReference, returns its projectId.
     Otherwise, returns the pipeline project for billing.
     """
-    if isinstance(self.temp_dataset, DatasetReference):
+    if hasattr(self.temp_dataset, 'projectId') and self.temp_dataset.projectId:
       return self.temp_dataset.projectId
+    elif hasattr(self.temp_dataset, 'project') and self.temp_dataset.project:
+      return self.temp_dataset.project
     else:
       return self._get_project()
 

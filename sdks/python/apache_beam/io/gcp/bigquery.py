@@ -389,8 +389,14 @@ from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanup
 from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanupTempDatasets
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
+from apache_beam.io.gcp.bigquery_tools import DatasetReference
+from apache_beam.io.gcp.bigquery_tools import JobReference
 from apache_beam.io.gcp.bigquery_tools import RetryStrategy
-from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.bigquery_tools import TableCell
+from apache_beam.io.gcp.bigquery_tools import TableFieldSchema
+from apache_beam.io.gcp.bigquery_tools import TableReference
+from apache_beam.io.gcp.bigquery_tools import TableRow
+from apache_beam.io.gcp.bigquery_tools import TableSchema
 from apache_beam.io.iobase import BoundedSource
 from apache_beam.io.iobase import RangeTracker
 from apache_beam.io.iobase import SDFBoundedSourceReader
@@ -421,13 +427,12 @@ from apache_beam.utils import retry
 from apache_beam.utils.annotations import deprecated
 
 try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import JobReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+  from apache_beam.io.gcp.internal.clients import bigquery
 except ImportError:
-  DatasetReference = None
-  TableReference = None
-  JobReference = None
+  bigquery = None
+
+if bigquery is None or not hasattr(bigquery, 'TableReference'):
+  import apache_beam.io.gcp.bigquery_tools as bigquery
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -767,14 +772,38 @@ class _CustomBigQuerySource(BoundedSource):
       # no access to the query that we're running.
       return None
 
+  def _get_temp_dataset_id(self):
+    if self.temp_dataset is None:
+      return None
+    elif hasattr(self.temp_dataset, 'datasetId'):
+      return self.temp_dataset.datasetId
+    elif hasattr(self.temp_dataset, 'dataset_id'):
+      return self.temp_dataset.dataset_id
+    elif isinstance(self.temp_dataset, str):
+      if ':' in self.temp_dataset or '.' in self.temp_dataset:
+        return bigquery_tools.parse_table_reference(self.temp_dataset).datasetId
+      return self.temp_dataset
+    return None
+
+  def _get_temp_dataset_project(self):
+    if hasattr(self.temp_dataset, 'projectId') and self.temp_dataset.projectId:
+      return self.temp_dataset.projectId
+    elif hasattr(self.temp_dataset, 'project') and self.temp_dataset.project:
+      return self.temp_dataset.project
+    elif isinstance(self.temp_dataset, str) and (':' in self.temp_dataset or
+                                                 '.' in self.temp_dataset):
+      return bigquery_tools.parse_table_reference(self.temp_dataset).projectId
+    return None
+
   def _get_project(self):
     """Returns the project that queries and exports will be billed to."""
+    temp_project = self._get_temp_dataset_project()
+    if temp_project:
+      return temp_project
 
     project = self.options.view_as(GoogleCloudOptions).project
     if isinstance(project, vp.ValueProvider):
       project = project.get()
-    if self.temp_dataset:
-      return self.temp_dataset.projectId
     if not project:
       project = self.project
     return project
@@ -794,8 +823,7 @@ class _CustomBigQuerySource(BoundedSource):
   def split(self, desired_bundle_size, start_position=None, stop_position=None):
     if self.export_result is None:
       bq = bigquery_tools.BigQueryWrapper(
-          temp_dataset_id=(
-              self.temp_dataset.datasetId if self.temp_dataset else None),
+          temp_dataset_id=self._get_temp_dataset_id(),
           client=bigquery_tools.BigQueryWrapper._bigquery_client(self.options))
 
       if self.query is not None:
@@ -3088,10 +3116,20 @@ class ReadFromBigQuery(PTransform):
   def _expand_direct_read(self, pcoll):
     project_id = None
     temp_table_ref = None
-    if 'temp_dataset' in self._kwargs:
-      temp_table_ref = bigquery.TableReference(
-          projectId=self._kwargs['temp_dataset'].projectId,
-          datasetId=self._kwargs['temp_dataset'].datasetId,
+    temp_dataset = self._kwargs.get('temp_dataset')
+    if temp_dataset is not None:
+      if isinstance(temp_dataset, str):
+        ds_ref = bigquery_tools.parse_table_reference(temp_dataset)
+        project_id = ds_ref.projectId
+        dataset_id = ds_ref.datasetId
+      else:
+        project_id = getattr(temp_dataset, 'projectId', None) or getattr(
+            temp_dataset, 'project', None)
+        dataset_id = getattr(temp_dataset, 'datasetId', None) or getattr(
+            temp_dataset, 'dataset_id', None)
+      temp_table_ref = TableReference(
+          projectId=project_id,
+          datasetId=dataset_id,
           tableId='beam_temp_table_' + uuid.uuid4().hex)
     else:
       project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project

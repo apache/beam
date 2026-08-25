@@ -150,10 +150,10 @@ if sys.platform == 'win32' and sys.maxsize <= 2**32:
   pyarrow_dependency = ['']
 else:
   pyarrow_dependency = [
-    # Generally try to cover versions released in the last two years.
-    # Update python/sdks/tox.ini to cover the same pyarrow versions
-    # when updating the bounds here.
-    'pyarrow>=14.0.1,<26.0.0',
+      # Generally try to cover versions released in the last two years.
+      # Update python/sdks/tox.ini to cover the same pyarrow versions
+      # when updating the bounds here.
+      'pyarrow>=14.0.1,<26.0.0',
   ]
 
 # Exclude pandas<=1.4.2 since it doesn't work with numpy 1.24.x.
@@ -199,8 +199,7 @@ ml_base_core = [
     # `cls_token=` or tokenizers reinstates `cls=` as a deprecation alias.
     'tokenizers<0.23',
     # Avoid torch 2.12.0+ which fails to run unit tests with segfault.
-    'torch<2.12.0',
-    # Match tested transformers range.
+    'torch<2.12.0',  # Match tested transformers range.
     'transformers>=4.28.0,<4.56.0',
     # Keep tokenizers compatible with this transformers range.
     'tokenizers>=0.13.3,<0.22.0',
@@ -460,9 +459,9 @@ if __name__ == '__main__':
       # BEAM-8840: Do NOT use tests_require or setup_requires.
       extras_require={
           'dev': [
-            'pyrefly==1.1.1',
-            'ruff==0.15.22',
-            'yapf==0.43.0',
+              'pyrefly==1.1.1',
+              'ruff==0.15.22',
+              'yapf==0.43.0',
           ],
           'dill': [
               # Dill doesn't have forwards-compatibility guarantees within minor
@@ -528,7 +527,7 @@ if __name__ == '__main__':
               'google-cloud-resource-manager>=1.12.0,<2',
               'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
-              'google-cloud-bigquery>=2.0.0,<4',
+              'google-cloud-bigquery>=3.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
               # 2.42.0 improves MutationsBatcher error handling: it surfaces
@@ -600,7 +599,7 @@ if __name__ == '__main__':
               'tf2onnx>=1.17.0,<1.18',
           ] + ml_base_core,
           'p310_ml_test': [
-            'datatable',
+              'datatable',
           ] + ml_base + qdrant_dependency,
           'p312_ml_test': [
               'datatable',

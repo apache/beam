@@ -22,6 +22,7 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 import datetime
+import decimal
 from typing import Optional
 from typing import Sequence
 
@@ -32,9 +33,17 @@ import apache_beam.io.gcp.bigquery_tools
 import apache_beam.typehints.schemas
 import apache_beam.utils.proto_utils
 import apache_beam.utils.timestamp
-from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.bigquery_tools import TableSchema
 from apache_beam.portability.api import schema_pb2
 from apache_beam.transforms import DoFn
+
+try:
+  from apache_beam.io.gcp.internal.clients import bigquery
+except ImportError:
+  bigquery = None
+
+if bigquery is None or not hasattr(bigquery, 'TableReference'):
+  import apache_beam.io.gcp.bigquery_tools as bigquery
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
@@ -43,11 +52,15 @@ from apache_beam.transforms import DoFn
 BIG_QUERY_TO_PYTHON_TYPES = {
     "STRING": str,
     "INTEGER": np.int64,
+    "INT64": np.int64,
     "FLOAT64": np.float64,
     "FLOAT": np.float64,
     "BOOLEAN": bool,
+    "BOOL": bool,
     "BYTES": bytes,
     "TIMESTAMP": apache_beam.utils.timestamp.Timestamp,
+    "NUMERIC": decimal.Decimal,
+    "BIGNUMERIC": decimal.Decimal,
     "GEOGRAPHY": str,
     #TODO(https://github.com/apache/beam/issues/20810):
     # Finish mappings for all BQ types
@@ -71,21 +84,36 @@ def generate_user_type_from_bq_schema(
   Returns:
     type: type that can be used to work with pCollections.
   """
-  effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **(type_overrides or {})}
+  normalized_overrides = {
+      k.upper(): v
+      for k, v in (type_overrides or {}).items()
+  }
+  effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **normalized_overrides}
   the_schema = beam.io.gcp.bigquery_tools.get_dict_table_schema(
       the_table_schema)
-  if the_schema == {}:
+  if the_schema is None:
     raise ValueError("Encountered an empty schema")
   field_names_and_types = []
-  for field in the_schema['fields']:
+  for field in the_schema.get('fields', []):
     if selected_fields is not None and field['name'] not in selected_fields:
       continue
-    if field['type'] in effective_types:
-      typ = bq_field_to_type(field['type'], field['mode'], type_overrides)
+    field_type = field['type'].upper()
+    field_mode = (field.get('mode') or 'NULLABLE').upper()
+    if field_type in ('RECORD', 'STRUCT') and 'fields' in field:
+      nested_type = generate_user_type_from_bq_schema(
+          {'fields': field['fields']}, type_overrides=normalized_overrides)
+      if field_mode in ('NULLABLE', ''):
+        typ = Optional[nested_type]
+      elif field_mode == 'REPEATED':
+        typ = Sequence[nested_type]
+      elif field_mode == 'REQUIRED':
+        typ = nested_type
+      else:
+        raise ValueError(f"Encountered an unsupported mode: {field_mode!r}")
+    elif field_type in effective_types:
+      typ = bq_field_to_type(field_type, field_mode, normalized_overrides)
     else:
-      raise ValueError(
-          f"Encountered "
-          f"an unsupported type: {field['type']!r}")
+      raise ValueError(f"Encountered an unsupported type: {field['type']!r}")
     field_names_and_types.append((field['name'], typ))
   sample_schema = beam.typehints.schemas.named_fields_to_schema(
       field_names_and_types)
@@ -105,13 +133,19 @@ def bq_field_to_type(field, mode, type_overrides=None):
   Returns:
     The corresponding Python type hint.
   """
-  effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **(type_overrides or {})}
-  if mode == 'NULLABLE' or mode is None or mode == '':
-    return Optional[effective_types[field]]
-  elif mode == 'REPEATED':
-    return Sequence[effective_types[field]]
-  elif mode == 'REQUIRED':
-    return effective_types[field]
+  normalized_overrides = {
+      k.upper(): v
+      for k, v in (type_overrides or {}).items()
+  }
+  effective_types = {**BIG_QUERY_TO_PYTHON_TYPES, **normalized_overrides}
+  field_type = field.upper()
+  field_mode = (mode or 'NULLABLE').upper()
+  if field_mode in ('NULLABLE', ''):
+    return Optional[effective_types[field_type]]
+  elif field_mode == 'REPEATED':
+    return Sequence[effective_types[field_type]]
+  elif field_mode == 'REQUIRED':
+    return effective_types[field_type]
   else:
     raise ValueError(f"Encountered an unsupported mode: {mode!r}")
 
@@ -139,10 +173,13 @@ class BeamSchemaConversionDoFn(DoFn):
     self._pcoll_val_ctor = pcoll_val_ctor
 
   def process(self, dict_of_tuples):
+    converted = {}
     for k, v in dict_of_tuples.items():
       if isinstance(v, datetime.datetime):
-        dict_of_tuples[k] = beam.utils.timestamp.Timestamp.from_utc_datetime(v)
-    yield self._pcoll_val_ctor(**dict_of_tuples)
+        converted[k] = beam.utils.timestamp.Timestamp.from_utc_datetime(v)
+      else:
+        converted[k] = v
+    yield self._pcoll_val_ctor(**converted)
 
   def infer_output_type(self, input_type):
     return self._pcoll_val_ctor

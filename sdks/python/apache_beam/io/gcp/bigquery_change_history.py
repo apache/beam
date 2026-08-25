@@ -55,7 +55,16 @@ from typing import Optional
 
 import apache_beam as beam
 from apache_beam.io.gcp import bigquery_tools
-from apache_beam.io.gcp.internal.clients import bigquery
+from apache_beam.io.gcp.bigquery_tools import JobReference
+from apache_beam.io.gcp.bigquery_tools import TableReference
+
+try:
+  from apache_beam.io.gcp.internal.clients import bigquery
+except ImportError:
+  bigquery = None
+
+if bigquery is None or not hasattr(bigquery, 'TableReference'):
+  import apache_beam.io.gcp.bigquery_tools as bigquery
 from apache_beam.io.iobase import WatermarkEstimator
 from apache_beam.io.restriction_trackers import OffsetRange
 from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
@@ -448,14 +457,35 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
     Uses BQ's CURRENT_TIMESTAMP instead of the local clock to avoid
     data loss from clock skew between the worker VM and BigQuery.
     """
-    request = bigquery.BigqueryJobsQueryRequest(
-        projectId=self._project,
-        queryRequest=bigquery.QueryRequest(
-            query='SELECT UNIX_MICROS(CURRENT_TIMESTAMP()) AS ts',
-            useLegacySql=False,
-            location=self._location))
-    response = self._bq_wrapper.client.jobs.Query(request)
-    return Timestamp(micros=int(response.rows[0].f[0].v.string_value))
+    if self._bq_wrapper._is_modern_client:
+      query = 'SELECT UNIX_MICROS(CURRENT_TIMESTAMP()) AS ts'
+      for rows, _ in self._bq_wrapper.run_query(
+          self._project,
+          query,
+          use_legacy_sql=False,
+          flatten_results=False,
+          priority='INTERACTIVE'):
+        for row in rows:
+          if isinstance(row, dict):
+            return Timestamp(micros=int(row['ts']))
+          elif hasattr(row, 'get'):
+            return Timestamp(micros=int(row.get('ts')))
+          elif hasattr(row, 'values'):
+            return Timestamp(micros=int(list(row.values())[0]))
+          elif hasattr(row, 'f'):
+            return Timestamp(micros=int(row.f[0].v.string_value))
+          else:
+            return Timestamp(micros=int(row[0]))
+      raise RuntimeError('Failed to get BQ timestamp')
+    else:
+      request = bigquery.BigqueryJobsQueryRequest(
+          projectId=self._project,
+          queryRequest=bigquery.QueryRequest(
+              query='SELECT UNIX_MICROS(CURRENT_TIMESTAMP()) AS ts',
+              useLegacySql=False,
+              location=self._location))
+      response = self._bq_wrapper.client.jobs.Query(request)
+      return Timestamp(micros=int(response.rows[0].f[0].v.string_value))
 
   def initial_restriction(self, element: _PollConfig) -> OffsetRange:
     return OffsetRange(0, sys.maxsize)
@@ -627,27 +657,40 @@ class _ExecuteQueryFn(beam.DoFn):
         datasetId=self._temp_dataset,
         tableId=temp_table_id)
 
-    reference = bigquery.JobReference(
-        jobId=job_id, projectId=self._project, location=self._location)
+    if self._bq_wrapper._is_modern_client:
+      _LOGGER.info('[Query] Submitting BQ job %s...', job_id)
+      job = self._bq_wrapper._start_query_job(
+          self._project,
+          sql,
+          use_legacy_sql=False,
+          flatten_results=False,
+          job_id=job_id,
+          priority='INTERACTIVE',
+          destination_table=temp_table_ref)
+      _LOGGER.info('[Query] BQ job %s submitted, waiting...', job_id)
+      self._bq_wrapper.wait_for_bq_job(job.jobReference, sleep_duration_sec=2)
+    else:
+      reference = bigquery.JobReference(
+          jobId=job_id, projectId=self._project, location=self._location)
 
-    request = bigquery.BigqueryJobsInsertRequest(
-        projectId=self._project,
-        job=bigquery.Job(
-            configuration=bigquery.JobConfiguration(
-                query=bigquery.JobConfigurationQuery(
-                    query=sql,
-                    useLegacySql=False,
-                    destinationTable=temp_table_ref,
-                    writeDisposition='WRITE_TRUNCATE',
-                ),
-            ),
-            jobReference=reference))
+      request = bigquery.BigqueryJobsInsertRequest(
+          projectId=self._project,
+          job=bigquery.Job(
+              configuration=bigquery.JobConfiguration(
+                  query=bigquery.JobConfigurationQuery(
+                      query=sql,
+                      useLegacySql=False,
+                      destinationTable=temp_table_ref,
+                      writeDisposition='WRITE_TRUNCATE',
+                  ),
+              ),
+              jobReference=reference))
 
-    _LOGGER.info('[Query] Submitting BQ job %s...', job_id)
-    response = self._bq_wrapper._start_job(request)
-    _LOGGER.info('[Query] BQ job %s submitted, waiting...', job_id)
-    self._bq_wrapper.wait_for_bq_job(
-        response.jobReference, sleep_duration_sec=2)
+      _LOGGER.info('[Query] Submitting BQ job %s...', job_id)
+      response = self._bq_wrapper._start_job(request)
+      _LOGGER.info('[Query] BQ job %s submitted, waiting...', job_id)
+      self._bq_wrapper.wait_for_bq_job(
+          response.jobReference, sleep_duration_sec=2)
     _LOGGER.info(
         '[Query] BQ job %s DONE. Results in %s.%s',
         job_id,

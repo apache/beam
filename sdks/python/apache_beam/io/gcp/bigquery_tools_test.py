@@ -566,6 +566,8 @@ class TestBigQueryWrapper(unittest.TestCase):
         ])
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
+    wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
+    wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
 
     # Expect two failing calls, then a success (i.e. two retries).
     self.verify_write_call_metric(
