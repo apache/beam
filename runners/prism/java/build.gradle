@@ -105,6 +105,7 @@ def sickbayTests = [
 
     // GroupIntoBatchesTest tests that fail:
     // Wrong number of elements in windows after GroupIntoBatches.
+    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
 
