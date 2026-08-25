@@ -32,19 +32,14 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
-  private static final Logger LOG =
-      LoggerFactory.getLogger(StorageApiDynamicDestinationsTableRow.class);
   private final BigQueryIO.TableRowFormatFunction<T> formatFunction;
   private final BigQueryIO.@Nullable TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
@@ -98,19 +93,25 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
           }
         };
 
-    TableSchema schemaToUse = null;
+    TableSchema destSchema = getSchema(destination);
+    TableSchema schemaToUse = destSchema;
+
     TableDestination tableDestination = getTable(destination);
     TableReference tableReference =
         tableDestination != null ? tableDestination.getTableReference() : null;
+
     if (tableReference != null && datasetService != null) {
       try {
-        schemaToUse = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+        TableSchema bqSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+        if (bqSchema != null) {
+          if (schemaToUse == null
+              || TableRowToStorageApiProto.hasExtraFields(schemaToUse, bqSchema)) {
+            schemaToUse = bqSchema;
+          }
+        }
       } catch (Exception e) {
-        LOG.debug("Could not fetch schema from BigQuery for destination {}", destination, e);
+        // Schema cache lookup is best-effort fallback for dynamic destinations.
       }
-    }
-    if (schemaToUse == null) {
-      schemaToUse = getSchema(destination);
     }
 
     return schemaUpdateOptions.isEmpty()
@@ -219,9 +220,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       } else {
         // Make sure we register this schema with the cache, unless there's already a more
         // up-to-date schema.
-        localTableSchema =
-            MoreObjects.firstNonNull(
-                SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema), localTableSchema);
+        SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema);
       }
       this.tableSchema = localTableSchema;
       this.protoTableSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(tableSchema);
