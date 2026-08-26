@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -719,6 +723,20 @@ public class CommitSchemaUnionTest {
     assertTrue(NameMappingUtils.covers(mapping, table.schema().asStruct()));
   }
 
+  @Test
+  public void testPlanReportsTheNameMappingRepair() {
+    assertFalse(load().properties().containsKey(TableProperties.DEFAULT_NAME_MAPPING));
+    List<CollectDistinctSchemas.SchemaGroup> covered = Arrays.asList(files(TABLE, 1));
+    CommitSchemaUnion.Plan plan =
+        CommitSchemaUnion.plan(catalog, tableId, covered, ALL, NO_CREATION);
+    assertNull(plan.merged);
+    assertTrue(plan.repairsNameMapping);
+
+    commit(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, files(TABLE, 1));
+    plan = CommitSchemaUnion.plan(catalog, tableId, covered, ALL, NO_CREATION);
+    assertFalse(plan.repairsNameMapping);
+  }
+
   // ---- retry
 
   @Test
@@ -1095,6 +1113,79 @@ public class CommitSchemaUnionTest {
                 NO_CREATION,
                 files(asLong, 3),
                 files(asString, 1)));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  /** The fallback creation at registration throws the same error, so no handling can route it. */
+  @Test
+  public void testPartitionFieldAbsentFromUnionFailsCreationUnderEitherHandling() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
+    CommitSchemaUnion.TableCreation creation =
+        new CommitSchemaUnion.TableCreation(Arrays.asList("missing"), null, null);
+    for (IncompatibleSchemaHandling handling : IncompatibleSchemaHandling.values()) {
+      IllegalStateException e =
+          assertThrows(
+              IllegalStateException.class,
+              () -> commitTo(id, ALL, handling, creation, files(seed, 2)));
+      assertEquals(IllegalStateException.class, e.getClass());
+      assertThat(
+          e.getMessage(), containsString("cannot be created with partition fields [missing]"));
+    }
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testPartitionFieldOnlyInASkippedSchemaFailsCreation() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.StringType.get()));
+    Schema loser =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(2, "code", Types.LongType.get()),
+            optional(3, "region", Types.StringType.get()));
+    CommitSchemaUnion.TableCreation creation =
+        new CommitSchemaUnion.TableCreation(Arrays.asList("region"), null, null);
+    IllegalStateException e =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                commitTo(
+                    id,
+                    ALL,
+                    IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+                    creation,
+                    files(seed, 3),
+                    files(loser, 1)));
+    assertThat(e.getMessage(), containsString("region"));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testPlanForCreationListsAcceptedSchemasAndCreationSettings() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
+    Schema other =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
+    CommitSchemaUnion.TableCreation creation =
+        new CommitSchemaUnion.TableCreation(Arrays.asList("region"), Arrays.asList("id"), null);
+    CommitSchemaUnion.Plan plan =
+        CommitSchemaUnion.plan(
+            catalog, id, Arrays.asList(files(seed, 5), files(other, 1)), ALL, creation);
+    assertTrue(plan.creates());
+    assertTrue(plan.wouldCreate());
+    assertEquals(2, plan.accepted.size());
+    assertEquals(5, checkStateNotNull(plan.accepted(json(seed))).files);
+    assertEquals(1, checkStateNotNull(plan.accepted(json(other))).files);
+    assertEquals("region", checkStateNotNull(plan.spec).fields().get(0).name());
+    assertEquals(1, checkStateNotNull(plan.sortOrder).fields().size());
     assertFalse(catalog.tableExists(id));
   }
 

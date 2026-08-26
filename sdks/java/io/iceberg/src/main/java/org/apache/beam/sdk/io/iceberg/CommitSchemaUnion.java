@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.Serializable;
@@ -26,13 +27,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.Transaction;
@@ -107,7 +111,7 @@ final class CommitSchemaUnion {
     }
   }
 
-  private static final class Accepted {
+  static final class Accepted {
     final Schema schema;
     final String json;
     final long files;
@@ -123,7 +127,7 @@ final class CommitSchemaUnion {
     }
   }
 
-  private static final class Incompatible {
+  static final class Incompatible {
     final String schemaJson;
     final long files;
     final String reason;
@@ -169,6 +173,16 @@ final class CommitSchemaUnion {
       IncompatibleSchemaHandling handling,
       TableCreation creation,
       Committer committer) {
+    return withRetry(
+        tableId,
+        () -> commitOnce(catalog, tableId, schemas, config, handling, creation, committer));
+  }
+
+  /**
+   * Runs one attempt of a plan or a commit again when a concurrent commit or a create race
+   * invalidates the table state it started from; every attempt reloads the table.
+   */
+  private static <T> T withRetry(TableIdentifier tableId, Supplier<T> once) {
     // The catalog is already under contention when a retry fires; back off (jittered by
     // FluentBackoff) instead of piling on. Iceberg's own metadata retries (commit.retry.*)
     // sit below this loop.
@@ -180,7 +194,7 @@ final class CommitSchemaUnion {
             .backoff();
     for (int attempt = 1; ; attempt++) {
       try {
-        return commitOnce(catalog, tableId, schemas, config, handling, creation, committer);
+        return once.get();
       } catch (CommitFailedException | AlreadyExistsException e) {
         // a concurrent commit, or a create race: the next attempt loads the fresh state
         try {
@@ -192,12 +206,221 @@ final class CommitSchemaUnion {
           throw e;
         }
         LOG.info(
-            "Schema commit attempt {}/{} for {} failed; reloading and rebuilding",
+            "Schema pre-pass attempt {}/{} for {} failed; reloading and rebuilding",
             attempt,
             MAX_ATTEMPTS,
             tableId,
             e);
       }
+    }
+  }
+
+  /**
+   * Everything a schema commit decides before writing anything, computed on scratch transactions.
+   * The commit replays it onto the table; the dry run reports it. Adding a check here is the only
+   * way to add one, so the two cannot drift.
+   */
+  static final class Plan {
+    /** Null when the table does not exist: the plan is then a creation. */
+    final @Nullable Table table;
+
+    /** The table schema every decision was made against; set whenever {@link #table} is. */
+    final @Nullable Schema base;
+
+    final List<Accepted> accepted;
+    final List<Incompatible> incompatible;
+
+    /** The union to replay, or the schema to create the table with; null when nothing changes. */
+    final @Nullable Schema merged;
+
+    /** On a creation, what the table would be created with; null when it cannot be. */
+    final @Nullable PartitionSpec spec;
+
+    final @Nullable SortOrder sortOrder;
+
+    /** Why the table cannot be created as configured; fails a real run under either handling. */
+    final @Nullable String creationProblem;
+
+    /** Whether the commit regenerates the name mapping property, schema change or not. */
+    final boolean repairsNameMapping;
+
+    /** Problems the configuration raises against the planned schema, as messages. */
+    final List<String> configProblems;
+
+    static Plan evolution(
+        Table table,
+        Schema base,
+        List<Accepted> accepted,
+        List<Incompatible> incompatible,
+        @Nullable Schema merged,
+        boolean repairsNameMapping,
+        List<String> configProblems) {
+      return new Plan(
+          table,
+          base,
+          accepted,
+          incompatible,
+          merged,
+          null,
+          null,
+          null,
+          repairsNameMapping,
+          configProblems);
+    }
+
+    static Plan creation(
+        List<Accepted> accepted,
+        List<Incompatible> incompatible,
+        @Nullable Schema created,
+        @Nullable PartitionSpec spec,
+        @Nullable SortOrder sortOrder,
+        @Nullable String problem,
+        List<String> configProblems) {
+      return new Plan(
+          null,
+          null,
+          accepted,
+          incompatible,
+          created,
+          spec,
+          sortOrder,
+          problem,
+          false,
+          configProblems);
+    }
+
+    private Plan(
+        @Nullable Table table,
+        @Nullable Schema base,
+        List<Accepted> accepted,
+        List<Incompatible> incompatible,
+        @Nullable Schema merged,
+        @Nullable PartitionSpec spec,
+        @Nullable SortOrder sortOrder,
+        @Nullable String creationProblem,
+        boolean repairsNameMapping,
+        List<String> configProblems) {
+      this.table = table;
+      this.base = base;
+      this.accepted = accepted;
+      this.incompatible = incompatible;
+      this.merged = merged;
+      this.spec = spec;
+      this.sortOrder = sortOrder;
+      this.creationProblem = creationProblem;
+      this.repairsNameMapping = repairsNameMapping;
+      this.configProblems = configProblems;
+    }
+
+    boolean creates() {
+      return table == null;
+    }
+
+    /**
+     * A creation with a schema to create from that the configured partition and sort fields fit.
+     */
+    boolean wouldCreate() {
+      return table == null && merged != null && creationProblem == null;
+    }
+
+    @Nullable Accepted accepted(String schemaJson) {
+      for (Accepted item : accepted) {
+        if (item.json.equals(schemaJson)) {
+          return item;
+        }
+      }
+      return null;
+    }
+
+    @Nullable String reason(String schemaJson) {
+      for (Incompatible item : incompatible) {
+        if (item.schemaJson.equals(schemaJson)) {
+          return item.reason;
+        }
+      }
+      return null;
+    }
+  }
+
+  /** The plan for the window's schemas, reloading the table when a concurrent change moves it. */
+  static Plan plan(
+      Catalog catalog,
+      TableIdentifier tableId,
+      List<CollectDistinctSchemas.SchemaGroup> schemas,
+      SchemaEvolutionConfig config,
+      TableCreation creation) {
+    return withRetry(tableId, () -> planOnce(catalog, tableId, schemas, config, creation));
+  }
+
+  private static Plan planOnce(
+      Catalog catalog,
+      TableIdentifier tableId,
+      List<CollectDistinctSchemas.SchemaGroup> schemas,
+      SchemaEvolutionConfig config,
+      TableCreation creation) {
+    Table table;
+    try {
+      table = catalog.loadTable(tableId);
+    } catch (NoSuchTableException e) {
+      return planCreation(catalog, tableId, schemas, config, creation);
+    }
+    return planEvolution(table, tableId, schemas, config);
+  }
+
+  private static Plan planEvolution(
+      Table table,
+      TableIdentifier tableId,
+      List<CollectDistinctSchemas.SchemaGroup> schemas,
+      SchemaEvolutionConfig config) {
+    Schema base = table.schema();
+    List<Incompatible> incompatible = new ArrayList<>();
+    List<Accepted> accepted = classify(table, base, schemas, config, incompatible);
+    @Nullable Schema merged = fold(table, base, tableId, accepted, incompatible);
+    Schema afterwards = merged != null ? merged : base;
+    boolean repairsNameMapping = needsNameMapping(nameMappingOf(table.properties()), afterwards);
+    return Plan.evolution(
+        table, base, accepted, incompatible, merged, repairsNameMapping, new ArrayList<>());
+  }
+
+  private static Plan planCreation(
+      Catalog catalog,
+      TableIdentifier tableId,
+      List<CollectDistinctSchemas.SchemaGroup> schemas,
+      SchemaEvolutionConfig config,
+      TableCreation creation) {
+    List<Incompatible> incompatible = new ArrayList<>();
+    List<Accepted> accepted = classifyForCreate(schemas, incompatible);
+    @Nullable Schema union = foldForCreate(catalog, tableId, accepted, incompatible);
+    if (union == null) {
+      return Plan.creation(accepted, incompatible, null, null, null, null, new ArrayList<>());
+    }
+    Schema created = createdSchema(union, config);
+    List<String> configProblems = new ArrayList<>();
+    List<String> unenforceable = unenforceablePins(created, config);
+    if (!unenforceable.isEmpty()) {
+      configProblems.add(
+          "Pinned column(s) "
+              + unenforceable
+              + " appear in none of the file schemas creating "
+              + tableId
+              + ", or their spelling does not match the column path; the created table cannot"
+              + " make them required");
+    }
+    try {
+      PartitionSpec spec = PartitionUtils.toPartitionSpec(creation.partitionFields, created);
+      SortOrder sortOrder = SortOrderUtils.toSortOrder(creation.sortFields, created);
+      return Plan.creation(accepted, incompatible, created, spec, sortOrder, null, configProblems);
+    } catch (IllegalArgumentException | ValidationException e) {
+      String problem =
+          "Table "
+              + tableId
+              + " cannot be created with partition fields "
+              + creation.partitionFields
+              + " and sort fields "
+              + creation.sortFields
+              + " on the union of the file schemas: "
+              + AddFiles.errorMessage(e);
+      return Plan.creation(accepted, incompatible, created, null, null, problem, configProblems);
     }
   }
 
@@ -209,29 +432,23 @@ final class CommitSchemaUnion {
       IncompatibleSchemaHandling handling,
       TableCreation creation,
       Committer committer) {
-    Table table;
-    try {
-      table = catalog.loadTable(tableId);
-    } catch (NoSuchTableException e) {
-      return create(catalog, tableId, schemas, config, handling, creation, committer);
+    Plan plan = planOnce(catalog, tableId, schemas, config, creation);
+    if (plan.table == null) {
+      return create(plan, catalog, tableId, handling, creation, committer);
     }
-    // Every transaction below must share this snapshot: classification, the fold and the replay
-    // all reason about the same table state (newTransactionOn enforces it).
-    Schema base = table.schema();
+    reportIncompatible(tableId, plan.incompatible, handling, "no schema change was committed");
+    reportConfigProblems(tableId, plan.configProblems, handling);
 
-    List<Incompatible> incompatible = new ArrayList<>();
-    List<Accepted> accepted = classify(table, schemas, config, incompatible);
-    Schema merged = fold(table, base, tableId, accepted, incompatible);
-
+    Table table = plan.table;
+    Schema base = checkStateNotNull(plan.base);
     Transaction txn = newTransactionOn(table, base, tableId);
-    if (merged != null) {
-      replay(txn, merged, tableId);
+    if (plan.merged != null) {
+      replay(txn, plan.merged, tableId);
     }
-    boolean staged = merged != null;
-    staged |= stageNameMapping(txn);
-
-    if (!incompatible.isEmpty()) {
-      reportIncompatible(tableId, incompatible, handling, "no schema change was committed");
+    boolean staged = plan.merged != null;
+    if (plan.repairsNameMapping) {
+      stageNameMapping(txn);
+      staged = true;
     }
 
     if (!staged) {
@@ -239,18 +456,18 @@ final class CommitSchemaUnion {
           "Table {} already covers all {} file schema(s); nothing to commit",
           tableId,
           schemas.size());
-      return table.schema().schemaId();
+      return base.schemaId();
     }
     committer.commit(txn);
     long schemaId = txn.table().schema().schemaId();
     long acceptedFiles = 0;
-    for (Accepted item : accepted) {
+    for (Accepted item : plan.accepted) {
       acceptedFiles += item.files;
     }
     LOG.info(
         "Committed schema union for {}: {} schema(s) covering {} file(s), now at schema id {}",
         tableId,
-        accepted.size(),
+        plan.accepted.size(),
         acceptedFiles,
         schemaId);
     return schemaId;
@@ -262,6 +479,7 @@ final class CommitSchemaUnion {
    */
   private static List<Accepted> classify(
       Table table,
+      Schema base,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       SchemaEvolutionConfig config,
       List<Incompatible> incompatible) {
@@ -270,7 +488,7 @@ final class CommitSchemaUnion {
       Schema fileSchema =
           FileSchemas.markRequired(
               SchemaParser.fromJson(group.getSchemaJson()), group.getNullFreeColumns());
-      SchemaDelta delta = SchemaDelta.classify(table, fileSchema);
+      SchemaDelta delta = SchemaDelta.classify(table, base, fileSchema);
       if (delta.isEmpty()) {
         continue;
       }
@@ -298,14 +516,14 @@ final class CommitSchemaUnion {
       List<Accepted> accepted,
       List<Incompatible> incompatible) {
     while (true) {
+      if (accepted.isEmpty()) {
+        return null;
+      }
       Transaction scratch = newTransactionOn(table, base, tableId);
       Accepted failed = stageAll(scratch, accepted, incompatible);
       if (failed != null) {
         accepted.remove(failed);
         continue;
-      }
-      if (accepted.isEmpty()) {
-        return null;
       }
       relaxNewRequiredFields(scratch, base);
       return scratch.table().schema();
@@ -338,62 +556,54 @@ final class CommitSchemaUnion {
    * append after them.
    */
   private static long create(
+      Plan plan,
       Catalog catalog,
       TableIdentifier tableId,
-      List<CollectDistinctSchemas.SchemaGroup> schemas,
-      SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
       TableCreation creation,
       Committer committer) {
-    if (schemas.isEmpty()) {
+    if (plan.accepted.isEmpty() && plan.incompatible.isEmpty()) {
       LOG.info("Table {} does not exist and no file schema was read; not creating it", tableId);
       return NO_TABLE;
     }
-    List<Incompatible> incompatible = new ArrayList<>();
-    @Nullable Schema merged = foldForCreate(catalog, tableId, schemas, incompatible);
-    if (!incompatible.isEmpty()) {
-      reportIncompatible(tableId, incompatible, handling, "no table was created");
-    }
-    if (merged == null) {
+    reportIncompatible(tableId, plan.incompatible, handling, "no table was created");
+    if (plan.merged == null) {
       LOG.info("Table {} does not exist and no file schema can seed it; not creating it", tableId);
       return NO_TABLE;
     }
-    // The real table is built from the folded result directly.
-    Schema created = createdSchema(merged, config);
-    reportUnenforceablePins(tableId, created, config, handling);
+    if (plan.creationProblem != null) {
+      throw new IllegalStateException(plan.creationProblem);
+    }
+    reportConfigProblems(tableId, plan.configProblems, handling);
     Map<String, String> properties =
         creation.properties == null ? new HashMap<>() : new HashMap<>(creation.properties);
     Transaction txn =
         catalog
-            .buildTable(tableId, created)
-            .withPartitionSpec(PartitionUtils.toPartitionSpec(creation.partitionFields, created))
-            .withSortOrder(SortOrderUtils.toSortOrder(creation.sortFields, created))
+            .buildTable(tableId, plan.merged)
+            .withPartitionSpec(checkStateNotNull(plan.spec))
+            .withSortOrder(checkStateNotNull(plan.sortOrder))
             .withProperties(properties)
             .createTransaction();
-    stageNameMapping(txn);
+    if (needsNameMapping(nameMappingOf(txn.table().properties()), txn.table().schema())) {
+      stageNameMapping(txn);
+    }
     committer.commit(txn);
     long schemaId = txn.table().schema().schemaId();
     LOG.info(
         "Created table {} from {} file schema(s), schema id {}",
         tableId,
-        schemas.size() - incompatible.size(),
+        plan.accepted.size(),
         schemaId);
     return schemaId;
   }
 
   /**
-   * Unions the window's schemas into one on scratch create transactions that are never committed,
-   * seeded by the most common schema; conflicts move to {@code incompatible} and the fold restarts
-   * without the offender.
+   * The evolve path refuses names no table can absorb (dotted, empty, differing only in case within
+   * one file) as conflicts in classify; a table must not be born with them either.
    */
-  private static @Nullable Schema foldForCreate(
-      Catalog catalog,
-      TableIdentifier tableId,
-      List<CollectDistinctSchemas.SchemaGroup> schemas,
-      List<Incompatible> incompatible) {
-    // The evolve path refuses names no table can absorb (dotted, empty, differing only in case
-    // within one file) as conflicts in classify; a table must not be born with them either.
-    List<Accepted> valid = new ArrayList<>();
+  private static List<Accepted> classifyForCreate(
+      List<CollectDistinctSchemas.SchemaGroup> schemas, List<Incompatible> incompatible) {
+    List<Accepted> accepted = new ArrayList<>();
     for (CollectDistinctSchemas.SchemaGroup group : schemas) {
       Schema fileSchema = SchemaParser.fromJson(group.getSchemaJson());
       List<SchemaChange> invalidNames = new ArrayList<>();
@@ -406,35 +616,45 @@ final class CommitSchemaUnion {
                 "file schema has column names no table can hold: " + describe(invalidNames)));
         continue;
       }
-      valid.add(new Accepted(fileSchema, group.getSchemaJson(), group.getFiles(), null));
+      accepted.add(new Accepted(fileSchema, group.getSchemaJson(), group.getFiles(), null));
     }
-    if (valid.isEmpty()) {
+    return accepted;
+  }
+
+  /**
+   * Unions the accepted schemas into one on scratch create transactions that are never committed,
+   * seeded by the most common schema; a schema that conflicts with the others moves to {@code
+   * incompatible}, leaves {@code accepted}, and the fold restarts without it. Returns the union, or
+   * null when no schema is left to create from. A REST catalog serves each create transaction as a
+   * stage-create request, so the caller needs table-create permission even in a dry run.
+   */
+  private static @Nullable Schema foldForCreate(
+      Catalog catalog,
+      TableIdentifier tableId,
+      List<Accepted> accepted,
+      List<Incompatible> incompatible) {
+    if (accepted.isEmpty()) {
       return null;
     }
-    Schema seed = valid.get(0).schema;
-    List<Accepted> rest = new ArrayList<>(valid.subList(1, valid.size()));
+    Schema seed = accepted.get(0).schema;
     while (true) {
       Transaction scratch = catalog.buildTable(tableId, seed).createTransaction();
-      Accepted failed = stageAll(scratch, rest, incompatible);
+      Accepted failed = stageAll(scratch, accepted.subList(1, accepted.size()), incompatible);
       if (failed == null) {
         return scratch.table().schema();
       }
-      rest.remove(failed);
+      accepted.remove(failed);
     }
   }
 
   /**
-   * A pin the created schema did not end up enforcing - the column appears in no file schema, or
-   * the configured spelling resolves to a field the pin walk did not reach (a short container
-   * spelling like a.b for a.element.b, or a path inside a map key) - would stay inert forever,
-   * since later windows only add columns optional: a config error under FAIL_PIPELINE, a warning
-   * under ROUTE_TO_ERRORS (streaming may see the column later).
+   * Pins the created schema did not end up enforcing: the column appears in no file schema, or the
+   * configured spelling resolves to a field the pin walk did not reach (a short container spelling
+   * like a.b for a.element.b, or a path inside a map key). Such a pin would stay inert forever,
+   * since later windows only add columns optional, so the plan reports it as a configuration
+   * problem.
    */
-  private static void reportUnenforceablePins(
-      TableIdentifier tableId,
-      Schema created,
-      SchemaEvolutionConfig config,
-      IncompatibleSchemaHandling handling) {
+  static List<String> unenforceablePins(Schema created, SchemaEvolutionConfig config) {
     List<String> unenforceable = new ArrayList<>();
     for (String pin : config.getRequiredColumns()) {
       Types.NestedField field = created.findField(pin);
@@ -442,24 +662,8 @@ final class CommitSchemaUnion {
         unenforceable.add(pin);
       }
     }
-    if (unenforceable.isEmpty()) {
-      return;
-    }
     Collections.sort(unenforceable);
-    if (handling == IncompatibleSchemaHandling.FAIL_PIPELINE) {
-      throw new IncompatibleSchemaException(
-          "Pinned column(s) "
-              + unenforceable
-              + " appear in none of the file schemas creating "
-              + tableId
-              + ", or their spelling does not match the column path; the created table cannot"
-              + " make them required");
-    }
-    LOG.warn(
-        "Pinned column(s) {} appear in none of the file schemas creating {}, or their spelling"
-            + " does not match the column path; the created table cannot make them required",
-        unenforceable,
-        tableId);
+    return unenforceable;
   }
 
   /**
@@ -522,6 +726,9 @@ final class CommitSchemaUnion {
       List<Incompatible> incompatible,
       IncompatibleSchemaHandling handling,
       String consequence) {
+    if (incompatible.isEmpty()) {
+      return;
+    }
     long files = 0;
     for (Incompatible item : incompatible) {
       files += item.files;
@@ -546,6 +753,20 @@ final class CommitSchemaUnion {
         files,
         tableId,
         joinLines(incompatible));
+  }
+
+  /** A configuration problem fails the run under FAIL_PIPELINE and warns under ROUTE_TO_ERRORS. */
+  private static void reportConfigProblems(
+      TableIdentifier tableId, List<String> problems, IncompatibleSchemaHandling handling) {
+    if (problems.isEmpty()) {
+      return;
+    }
+    if (handling == IncompatibleSchemaHandling.FAIL_PIPELINE) {
+      throw new IncompatibleSchemaException(String.join("; ", problems));
+    }
+    for (String problem : problems) {
+      LOG.warn("Configuration problem on {}: {}", tableId, problem);
+    }
   }
 
   /**
@@ -669,18 +890,21 @@ final class CommitSchemaUnion {
     }
   }
 
-  /** Regenerates the name mapping when absent, malformed or not covering the staged schema. */
-  private static boolean stageNameMapping(Transaction txn) {
+  private static @Nullable NameMapping nameMappingOf(Map<String, String> properties) {
+    return NameMappingUtils.parseOrNull(properties.get(TableProperties.DEFAULT_NAME_MAPPING));
+  }
+
+  /** The mapping is absent, malformed or does not cover {@code schema}. */
+  private static boolean needsNameMapping(@Nullable NameMapping existing, Schema schema) {
+    return existing == null || !NameMappingUtils.covers(existing, schema.asStruct());
+  }
+
+  /** Regenerates the name mapping property for the transaction's schema. */
+  private static void stageNameMapping(Transaction txn) {
     Schema schema = txn.table().schema();
-    @Nullable NameMapping existing =
-        NameMappingUtils.parseOrNull(
-            txn.table().properties().get(TableProperties.DEFAULT_NAME_MAPPING));
-    if (existing != null && NameMappingUtils.covers(existing, schema.asStruct())) {
-      return false;
-    }
+    @Nullable NameMapping existing = nameMappingOf(txn.table().properties());
     String regenerated = NameMappingUtils.regenerate(schema, existing);
     txn.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, regenerated).commit();
-    return true;
   }
 
   private static String joinLines(List<Incompatible> items) {
