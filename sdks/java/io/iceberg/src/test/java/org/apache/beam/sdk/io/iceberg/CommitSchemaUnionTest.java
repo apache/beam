@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.iceberg.CommitSchemaUnion.Committer;
@@ -44,6 +45,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.mapping.NameMapping;
+import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.junit.Before;
 import org.junit.ClassRule;
@@ -74,6 +76,9 @@ public class CommitSchemaUnionTest {
       SchemaEvolutionConfig.of(SchemaEvolutionOption.values());
   private static final SchemaEvolutionConfig ADDITION_ONLY =
       SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION);
+
+  private static final CommitSchemaUnion.TableCreation NO_CREATION =
+      new CommitSchemaUnion.TableCreation(null, null, null);
 
   private HadoopCatalog catalog;
   private TableIdentifier tableId;
@@ -108,11 +113,19 @@ public class CommitSchemaUnionTest {
         Arrays.asList(schemas),
         config,
         handling,
+        NO_CREATION,
         CommitSchemaUnion.DEFAULT_COMMITTER);
   }
 
   private Table load() {
     return catalog.loadTable(tableId);
+  }
+
+  /** Full-schema comparison, field ids normalized; string form so a failure shows the diff. */
+  private static void assertSameSchema(Schema expected, Schema actual) {
+    assertEquals(
+        TypeUtil.assignIncreasingFreshIds(expected).asStruct().toString(),
+        TypeUtil.assignIncreasingFreshIds(actual).asStruct().toString());
   }
 
   private static String metadataLocation(Table table) {
@@ -539,6 +552,7 @@ public class CommitSchemaUnionTest {
         Arrays.asList(files(b, 2), files(a, 1)),
         ALL,
         IncompatibleSchemaHandling.FAIL_PIPELINE,
+        NO_CREATION,
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertTrue(first.sameSchema(catalog.loadTable(other).schema()));
   }
@@ -730,6 +744,7 @@ public class CommitSchemaUnionTest {
         Arrays.asList(files(file, 1)),
         ALL,
         IncompatibleSchemaHandling.FAIL_PIPELINE,
+        NO_CREATION,
         flakyThenExternalChange);
     Table table = load();
     assertEquals(2, attempts.get());
@@ -759,8 +774,384 @@ public class CommitSchemaUnionTest {
                 Arrays.asList(files(file, 1)),
                 ALL,
                 IncompatibleSchemaHandling.FAIL_PIPELINE,
+                NO_CREATION,
                 alwaysFails));
     assertEquals(CommitSchemaUnion.MAX_ATTEMPTS, attempts.get());
+  }
+
+  // ---- create path
+
+  private TableIdentifier missing() {
+    return TableIdentifier.of("default", testName.getMethodName() + "_new");
+  }
+
+  private long commitTo(
+      TableIdentifier id,
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CommitSchemaUnion.TableCreation creation,
+      CollectDistinctSchemas.SchemaGroup... schemas) {
+    return CommitSchemaUnion.commit(
+        catalog,
+        id,
+        Arrays.asList(schemas),
+        config,
+        handling,
+        creation,
+        CommitSchemaUnion.DEFAULT_COMMITTER);
+  }
+
+  @Test
+  public void testMissingTableIsCreatedFromTheUnion() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            required(2, "region", Types.StringType.get()),
+            optional(3, "email", Types.StringType.get()));
+    Schema other =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
+    CommitSchemaUnion.TableCreation creation =
+        new CommitSchemaUnion.TableCreation(
+            Arrays.asList("region"), null, java.util.Collections.singletonMap("k", "v"));
+    long schemaId =
+        commitTo(
+            id,
+            ALL,
+            IncompatibleSchemaHandling.FAIL_PIPELINE,
+            creation,
+            files(seed, 5),
+            files(other, 1));
+    Table table = catalog.loadTable(id);
+    assertEquals(table.schema().schemaId(), schemaId);
+    // canonical (sorted) seed columns first, the union's addition last
+    assertSameSchema(
+        new Schema(
+            optional(1, "email", Types.StringType.get()),
+            optional(2, "id", Types.LongType.get()),
+            optional(3, "region", Types.StringType.get()),
+            optional(4, "extra", Types.LongType.get())),
+        table.schema());
+    assertEquals("region", table.spec().fields().get(0).name());
+    assertEquals("v", table.properties().get("k"));
+    assertNotNull(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING));
+    assertEquals("born with one schema version", 1, table.schemas().size());
+  }
+
+  @Test
+  public void testPartitionFieldFromNonSeedSchemaResolves() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), required(2, "region", Types.StringType.get()));
+    Schema other =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "extra", Types.StringType.get()));
+    CommitSchemaUnion.TableCreation creation =
+        new CommitSchemaUnion.TableCreation(Arrays.asList("extra"), null, null);
+    commitTo(
+        id,
+        ALL,
+        IncompatibleSchemaHandling.FAIL_PIPELINE,
+        creation,
+        files(seed, 5),
+        files(other, 1));
+    Table table = catalog.loadTable(id);
+    assertEquals("extra", table.spec().fields().get(0).name());
+  }
+
+  @Test
+  public void testPinnedColumnsAndAncestorsAreRequiredOnCreate() {
+    TableIdentifier id = missing();
+    SchemaEvolutionConfig pinned =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
+            .setRequiredColumns(new HashSet<>(Arrays.asList("id", "address.city")))
+            .build();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            required(2, "region", Types.StringType.get()),
+            optional(
+                3,
+                "address",
+                Types.StructType.of(
+                    optional(4, "city", Types.StringType.get()),
+                    optional(5, "zip", Types.IntegerType.get()))));
+    commitTo(id, pinned, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION, files(seed, 1));
+    assertSameSchema(
+        new Schema(
+            required(
+                1,
+                "address",
+                Types.StructType.of(
+                    required(2, "city", Types.StringType.get()),
+                    optional(3, "zip", Types.IntegerType.get()))),
+            required(4, "id", Types.LongType.get()),
+            optional(5, "region", Types.StringType.get())),
+        catalog.loadTable(id).schema());
+  }
+
+  /** A pin no file schema carries cannot shape the table: fail loudly under FAIL_PIPELINE. */
+  @Test
+  public void testUnmatchedPinFailsCreationUnderFailPipeline() {
+    TableIdentifier id = missing();
+    SchemaEvolutionConfig pinned =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
+            .setRequiredColumns(Collections.singleton("email"))
+            .build();
+    Schema seed = new Schema(required(1, "id", Types.LongType.get()));
+    IncompatibleSchemaException e =
+        assertThrows(
+            IncompatibleSchemaException.class,
+            () ->
+                commitTo(
+                    id,
+                    pinned,
+                    IncompatibleSchemaHandling.FAIL_PIPELINE,
+                    NO_CREATION,
+                    files(seed, 1)));
+    assertTrue(e.getMessage(), e.getMessage().contains("email"));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  /**
+   * Iceberg resolves the short container spelling a.b for a.element.b, but the pin walk matches
+   * segments, so such a pin would silently shape only the ancestors; it is rejected instead.
+   */
+  @Test
+  public void testShortSpellingPinFailsCreationUnderFailPipeline() {
+    TableIdentifier id = missing();
+    SchemaEvolutionConfig pinned =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
+            .setRequiredColumns(Collections.singleton("l.q"))
+            .build();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(
+                2,
+                "l",
+                Types.ListType.ofOptional(
+                    3, Types.StructType.of(optional(4, "q", Types.IntegerType.get())))));
+    IncompatibleSchemaException e =
+        assertThrows(
+            IncompatibleSchemaException.class,
+            () ->
+                commitTo(
+                    id,
+                    pinned,
+                    IncompatibleSchemaHandling.FAIL_PIPELINE,
+                    NO_CREATION,
+                    files(seed, 1)));
+    assertTrue(e.getMessage(), e.getMessage().contains("l.q"));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testUnmatchedPinWarnsAndCreatesUnderRouteToErrors() {
+    TableIdentifier id = missing();
+    SchemaEvolutionConfig pinned =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
+            .setRequiredColumns(Collections.singleton("email"))
+            .build();
+    Schema seed = new Schema(required(1, "id", Types.LongType.get()));
+    commitTo(id, pinned, IncompatibleSchemaHandling.ROUTE_TO_ERRORS, NO_CREATION, files(seed, 1));
+    assertSameSchema(
+        new Schema(optional(1, "id", Types.LongType.get())), catalog.loadTable(id).schema());
+  }
+
+  // ---- createdSchema (direct)
+
+  @Test
+  public void testCreatedSchemaPinsHoldAtEveryLevel() {
+    Schema merged =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(
+                2,
+                "l",
+                Types.ListType.ofOptional(
+                    3, Types.StructType.of(optional(4, "q", Types.IntegerType.get())))));
+    SchemaEvolutionConfig pinned =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
+            .setRequiredColumns(Collections.singleton("l.element.q"))
+            .build();
+    Schema created = CommitSchemaUnion.createdSchema(merged, pinned);
+    assertSameSchema(
+        new Schema(
+            optional(1, "id", Types.LongType.get()),
+            required(
+                2,
+                "l",
+                Types.ListType.ofRequired(
+                    3, Types.StructType.of(required(4, "q", Types.IntegerType.get()))))),
+        created);
+  }
+
+  @Test
+  public void testCreatedSchemaEveryLevelOptionalExceptMapKeys() {
+    Schema schema =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            required(
+                2,
+                "s",
+                Types.StructType.of(
+                    required(3, "a", Types.IntegerType.get()),
+                    required(
+                        4,
+                        "items",
+                        Types.ListType.ofRequired(
+                            5, Types.StructType.of(required(6, "qty", Types.IntegerType.get())))))),
+            required(
+                7,
+                "attrs",
+                Types.MapType.ofRequired(
+                    8,
+                    9,
+                    Types.StructType.of(required(10, "k", Types.StringType.get())),
+                    Types.StructType.of(required(11, "v", Types.IntegerType.get())))));
+    assertSameSchema(
+        new Schema(
+            optional(1, "id", Types.LongType.get()),
+            optional(
+                2,
+                "s",
+                Types.StructType.of(
+                    optional(3, "a", Types.IntegerType.get()),
+                    optional(
+                        4,
+                        "items",
+                        Types.ListType.ofOptional(
+                            5, Types.StructType.of(optional(6, "qty", Types.IntegerType.get())))))),
+            optional(
+                7,
+                "attrs",
+                Types.MapType.ofOptional(
+                    8,
+                    9,
+                    Types.StructType.of(required(10, "k", Types.StringType.get())),
+                    Types.StructType.of(optional(11, "v", Types.IntegerType.get()))))),
+        CommitSchemaUnion.createdSchema(schema, ALL));
+  }
+
+  /** Options guard an existing table's schema; with no table there is nothing to guard. */
+  @Test
+  public void testCreationIsNotGatedOnAnyParticularOption() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), required(2, "region", Types.StringType.get()));
+    commitTo(
+        id,
+        SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_TYPE_PROMOTION),
+        IncompatibleSchemaHandling.FAIL_PIPELINE,
+        NO_CREATION,
+        files(seed, 1));
+    assertSameSchema(
+        new Schema(
+            optional(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get())),
+        catalog.loadTable(id).schema());
+  }
+
+  @Test
+  public void testMissingTableWithoutSchemasIsNotCreated() {
+    TableIdentifier id = missing();
+    long result =
+        CommitSchemaUnion.commit(
+            catalog,
+            id,
+            new ArrayList<>(),
+            ALL,
+            IncompatibleSchemaHandling.FAIL_PIPELINE,
+            NO_CREATION,
+            CommitSchemaUnion.DEFAULT_COMMITTER);
+    assertEquals(CommitSchemaUnion.NO_TABLE, result);
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testConflictOnCreateFailsWithoutCreating() {
+    TableIdentifier id = missing();
+    Schema asString =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.StringType.get()));
+    Schema asLong =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.LongType.get()));
+    assertThrows(
+        IncompatibleSchemaException.class,
+        () ->
+            commitTo(
+                id,
+                ALL,
+                IncompatibleSchemaHandling.FAIL_PIPELINE,
+                NO_CREATION,
+                files(asLong, 3),
+                files(asString, 1)));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testConflictOnCreateRoutesLoserAndCreates() {
+    TableIdentifier id = missing();
+    Schema asString =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.StringType.get()));
+    Schema asLong =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.LongType.get()));
+    commitTo(
+        id,
+        ALL,
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        NO_CREATION,
+        files(asLong, 3),
+        files(asString, 1));
+    assertSameSchema(
+        new Schema(
+            optional(1, "code", Types.LongType.get()), optional(2, "id", Types.LongType.get())),
+        catalog.loadTable(id).schema());
+  }
+
+  @Test
+  public void testCreateRaceFallsBackToEvolvingTheExistingTable() {
+    TableIdentifier id = missing();
+    AtomicInteger attempts = new AtomicInteger();
+    Committer raced =
+        txn -> {
+          if (attempts.incrementAndGet() == 1) {
+            // someone else creates the table first
+            warehouse.createTable(id, TABLE);
+            throw new org.apache.iceberg.exceptions.AlreadyExistsException("raced");
+          }
+          txn.commitTransaction();
+        };
+    Schema file =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            required(2, "region", Types.StringType.get()),
+            optional(3, "email", Types.StringType.get()));
+    CommitSchemaUnion.commit(
+        catalog,
+        id,
+        Arrays.asList(files(file, 1)),
+        ALL,
+        IncompatibleSchemaHandling.FAIL_PIPELINE,
+        NO_CREATION,
+        raced);
+    Table table = catalog.loadTable(id);
+    assertEquals(2, attempts.get());
+    assertNotNull(table.schema().findField("email"));
+    assertTrue(
+        "evolved, not recreated: name from TABLE is still there",
+        table.schema().findField("name") != null);
   }
 
   @Test
@@ -774,6 +1165,7 @@ public class CommitSchemaUnionTest {
         none,
         ALL,
         IncompatibleSchemaHandling.FAIL_PIPELINE,
+        NO_CREATION,
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertEquals(before, metadataLocation(load()));
   }
