@@ -73,12 +73,16 @@ class DynamicDestinationsHelpers {
     }
 
     static <T> ConstantTableDestinations<T> fromTableSpec(
-        ValueProvider<String> tableSpec, String tableDescription, boolean clusteringEnabled) {
+        ValueProvider<String> tableSpec,
+        @Nullable String tableDescription,
+        boolean clusteringEnabled) {
       return new ConstantTableDestinations<>(tableSpec, tableDescription, clusteringEnabled);
     }
 
     static <T> ConstantTableDestinations<T> fromJsonTableRef(
-        ValueProvider<String> jsonTableRef, String tableDescription, boolean clusteringEnabled) {
+        ValueProvider<String> jsonTableRef,
+        @Nullable String tableDescription,
+        boolean clusteringEnabled) {
       return new ConstantTableDestinations<>(
           NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableSpec()),
           tableDescription,
@@ -286,8 +290,8 @@ class DynamicDestinationsHelpers {
 
     ConstantTimePartitioningClusteringDestinations(
         DynamicDestinations<T, TableDestination> inner,
-        ValueProvider<String> jsonTimePartitioning,
-        ValueProvider<String> jsonClustering) {
+        @Nullable ValueProvider<String> jsonTimePartitioning,
+        @Nullable ValueProvider<String> jsonClustering) {
       super(inner);
 
       checkArgument(

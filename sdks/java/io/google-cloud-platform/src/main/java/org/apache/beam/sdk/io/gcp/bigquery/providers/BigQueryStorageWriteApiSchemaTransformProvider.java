@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery.providers;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.BigQueryWriteConfiguration.DYNAMIC_DESTINATIONS;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.DESTINATION;
 import static org.apache.beam.sdk.io.gcp.bigquery.providers.PortableBigQueryDestinations.RECORD;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
@@ -52,7 +53,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -63,9 +64,6 @@ import org.joda.time.Duration;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryStorageWriteApiSchemaTransformProvider
     extends TypedSchemaTransformProvider<BigQueryWriteConfiguration> {
@@ -123,7 +121,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
    */
   public static class BigQueryStorageWriteApiSchemaTransform extends SchemaTransform {
 
-    private BigQueryServices testBigQueryServices = null;
+    private @Nullable BigQueryServices testBigQueryServices = null;
     private final BigQueryWriteConfiguration configuration;
 
     BigQueryStorageWriteApiSchemaTransform(BigQueryWriteConfiguration configuration) {
@@ -183,13 +181,9 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
 
       if (inputRows.isBounded() == IsBounded.UNBOUNDED) {
         Long triggeringFrequency = configuration.getTriggeringFrequencySeconds();
-        Boolean autoSharding = configuration.getAutoSharding();
 
-        boolean useAtLeastOnceSemantics =
-            configuration.getUseAtLeastOnceSemantics() != null
-                && configuration.getUseAtLeastOnceSemantics();
         // Triggering frequency is only applicable for exactly-once
-        if (!useAtLeastOnceSemantics) {
+        if (!Boolean.TRUE.equals(configuration.getUseAtLeastOnceSemantics())) {
           write =
               write.withTriggeringFrequency(
                   (triggeringFrequency == null || triggeringFrequency <= 0)
@@ -197,7 +191,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                       : Duration.standardSeconds(triggeringFrequency));
         }
         // set num streams if specified, otherwise default to autoSharding
-        if (numStreams == 0 && (autoSharding == null || autoSharding)) {
+        if (numStreams == 0 && !Boolean.FALSE.equals(configuration.getAutoSharding())) {
           write = write.withAutoSharding();
         }
       }
@@ -222,7 +216,8 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .apply("post-write", ParDo.of(new NoOutputDoFn<BigQueryStorageApiInsertError>()))
               .setRowSchema(Schema.of());
 
-      if (configuration.getErrorHandling() == null) {
+      BigQueryWriteConfiguration.ErrorHandling errorHandling = configuration.getErrorHandling();
+      if (errorHandling == null) {
         result
             .getFailedStorageApiInserts()
             .apply("Error on failed inserts", ParDo.of(new FailOnError()));
@@ -250,21 +245,26 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                         .via(
                             (storageError) ->
                                 Row.withSchema(errorSchema)
-                                    .withFieldValue("error_message", storageError.getErrorMessage())
+                                    // "error_message" is a non-nullable field of errorSchema, so a
+                                    // null error message would fail Row validation anyway.
+                                    .withFieldValue(
+                                        "error_message",
+                                        checkStateNotNull(
+                                            storageError.getErrorMessage(),
+                                            "Failed BigQuery insert has no error message."))
                                     .withFieldValue(
                                         "failed_row",
                                         BigQueryUtils.toBeamRow(inputSchema, storageError.getRow()))
                                     .build()))
                 .setRowSchema(errorSchema);
         return PCollectionRowTuple.of("post_write", postWrite)
-            .and(configuration.getErrorHandling().getOutput(), failedRowsWithErrors);
+            .and(errorHandling.getOutput(), failedRowsWithErrors);
       }
     }
 
     BigQueryIO.Write<Row> createStorageWriteApiTransform(Schema schema) {
       Method writeMethod =
-          configuration.getUseAtLeastOnceSemantics() != null
-                  && configuration.getUseAtLeastOnceSemantics()
+          Boolean.TRUE.equals(configuration.getUseAtLeastOnceSemantics())
               ? Method.STORAGE_API_AT_LEAST_ONCE
               : Method.STORAGE_WRITE_API;
 
@@ -277,24 +277,37 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
       boolean fetchNestedRecord = false;
       if (configuration.getTable().equals(DYNAMIC_DESTINATIONS)) {
         validateDynamicDestinationsSchema(schema);
-        rowSchema = schema.getField(RECORD).getType().getRowSchema();
+        rowSchema = getRecordSchema(schema);
         fetchNestedRecord = true;
       }
       if (Boolean.TRUE.equals(configuration.getUseCdcWrites())) {
         validateCdcSchema(schema);
-        rowSchema = schema.getField(RECORD).getType().getRowSchema();
+        rowSchema = getRecordSchema(schema);
         fetchNestedRecord = true;
+        // BigQueryIO stores a null primary key as "unset", so only call the setter when one is
+        // configured. BigQueryIO itself validates that a primary key is present when required.
+        if (configuration.getPrimaryKey() != null) {
+          write = write.withPrimaryKey(configuration.getPrimaryKey());
+        }
         write =
-            write
-                .withPrimaryKey(configuration.getPrimaryKey())
-                .withRowMutationInformationFn(
-                    row ->
-                        RowMutationInformation.of(
-                            RowMutationInformation.MutationType.valueOf(
-                                row.getRow(ROW_PROPERTY_MUTATION_INFO)
-                                    .getString(ROW_PROPERTY_MUTATION_TYPE)),
-                            row.getRow(ROW_PROPERTY_MUTATION_INFO)
-                                .getString(ROW_PROPERTY_MUTATION_SQN)));
+            write.withRowMutationInformationFn(
+                row -> {
+                  Row mutationInfo =
+                      checkStateNotNull(
+                          row.getRow(ROW_PROPERTY_MUTATION_INFO),
+                          "Encountered a row with an unset \"%s\" field.",
+                          ROW_PROPERTY_MUTATION_INFO);
+                  return RowMutationInformation.of(
+                      RowMutationInformation.MutationType.valueOf(
+                          checkStateNotNull(
+                              mutationInfo.getString(ROW_PROPERTY_MUTATION_TYPE),
+                              "Encountered a row with an unset \"%s\" field.",
+                              ROW_PROPERTY_MUTATION_TYPE)),
+                      checkStateNotNull(
+                          mutationInfo.getString(ROW_PROPERTY_MUTATION_SQN),
+                          "Encountered a row with an unset \"%s\" field.",
+                          ROW_PROPERTY_MUTATION_SQN));
+                });
       }
       PortableBigQueryDestinations dynamicDestinations =
           new PortableBigQueryDestinations(rowSchema, configuration);
@@ -303,27 +316,40 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
               .to(dynamicDestinations)
               .withFormatFunction(dynamicDestinations.getFilterFormatFunction(fetchNestedRecord));
 
-      if (!Strings.isNullOrEmpty(configuration.getCreateDisposition())) {
-        CreateDisposition createDisposition =
-            CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase());
-        write = write.withCreateDisposition(createDisposition);
+      if (configuration.getCreateDisposition() != null
+          && !configuration.getCreateDisposition().isEmpty()) {
+        write =
+            write.withCreateDisposition(
+                CreateDisposition.valueOf(configuration.getCreateDisposition().toUpperCase()));
       }
-      if (!Strings.isNullOrEmpty(configuration.getWriteDisposition())) {
-        WriteDisposition writeDisposition =
-            WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase());
-        write = write.withWriteDisposition(writeDisposition);
+      if (configuration.getWriteDisposition() != null
+          && !configuration.getWriteDisposition().isEmpty()) {
+        write =
+            write.withWriteDisposition(
+                WriteDisposition.valueOf(configuration.getWriteDisposition().toUpperCase()));
       }
-      if (!Strings.isNullOrEmpty(configuration.getKmsKey())) {
+      if (configuration.getKmsKey() != null && !configuration.getKmsKey().isEmpty()) {
         write = write.withKmsKey(configuration.getKmsKey());
       }
       if (configuration.getBigLakeConfiguration() != null) {
         write = write.withBigLakeConfiguration(configuration.getBigLakeConfiguration());
       }
       if (this.testBigQueryServices != null) {
-        write = write.withTestServices(testBigQueryServices);
+        write = write.withTestServices(this.testBigQueryServices);
       }
 
       return write;
+    }
+
+    /**
+     * Returns the schema of the nested {@link PortableBigQueryDestinations#RECORD} field, which the
+     * schema validation methods of this class have already established is a row field.
+     */
+    private static Schema getRecordSchema(Schema schema) {
+      return checkStateNotNull(
+          schema.getField(RECORD).getType().getRowSchema(),
+          "Expected \"%s\" to be a Row field.",
+          RECORD);
     }
 
     void validateDynamicDestinationsSchema(Schema schema) {

@@ -123,7 +123,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final CreateDisposition createDisposition;
-  private final String kmsKey;
+  private final @Nullable String kmsKey;
   private final BigQueryServices bqServices;
   private final Coder<DestinationT> destinationCoder;
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
@@ -151,7 +151,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   public StorageApiWritesShardedRecords(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       CreateDisposition createDisposition,
-      String kmsKey,
+      @Nullable String kmsKey,
       BigQueryServices bqServices,
       Coder<DestinationT> destinationCoder,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
