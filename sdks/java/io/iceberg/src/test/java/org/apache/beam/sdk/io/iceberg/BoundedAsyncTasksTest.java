@@ -17,15 +17,20 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -41,7 +46,13 @@ public class BoundedAsyncTasksTest {
   }
 
   @Test
-  public void testResultsAreDeliveredInSubmissionOrder() throws Exception {
+  public void testConstructorValidatesArguments() {
+    assertThrows(IllegalArgumentException.class, () -> new BoundedAsyncTasks<>(0, 4));
+    assertThrows(IllegalArgumentException.class, () -> new BoundedAsyncTasks<>(2, 0));
+  }
+
+  @Test
+  public void testAllResultsAreDelivered() throws Exception {
     List<String> delivered = new ArrayList<>();
     for (int i = 0; i < 10; i++) {
       String value = "t" + i;
@@ -52,13 +63,53 @@ public class BoundedAsyncTasksTest {
     for (int i = 0; i < 10; i++) {
       expected.add("t" + i);
     }
-    assertEquals(expected, delivered);
+    assertThat(delivered, containsInAnyOrder(expected.toArray(new String[0])));
+  }
+
+  @Test
+  public void testOutOfOrderCompletionDrainsFinishedTasks() throws Exception {
+    CountDownLatch slowTaskHold = new CountDownLatch(1);
+    CountDownLatch fastTaskDone = new CountDownLatch(1);
+    List<String> delivered = new ArrayList<>();
+
+    // Task 0: slow, waiting on latch
+    tasks.submit(
+        () -> {
+          slowTaskHold.await();
+          return "slow";
+        },
+        delivered::add);
+
+    // Task 1: fast, signals when completed
+    tasks.submit(
+        () -> {
+          fastTaskDone.countDown();
+          return "fast";
+        },
+        delivered::add);
+
+    // Wait until fast task has finished running in the background
+    fastTaskDone.await();
+
+    // Trigger a drain by submitting another task
+    tasks.submit(() -> "noop", delivered::add);
+
+    // "fast" should have been drained while "slow" is still blocked
+    assertTrue(delivered.contains("fast"));
+    assertFalse(delivered.contains("slow"));
+
+    slowTaskHold.countDown();
+    tasks.awaitAll(delivered::add);
+    assertTrue(delivered.contains("slow"));
   }
 
   @Test
   public void testSubmitBlocksAtMaxInFlight() throws Exception {
     CountDownLatch release = new CountDownLatch(1);
-    List<String> delivered = new ArrayList<>();
+    CountDownLatch fifthExecuted = new CountDownLatch(1);
+    CountDownLatch fifthReturned = new CountDownLatch(1);
+    List<String> delivered = Collections.synchronizedList(new ArrayList<>());
+
     for (int i = 0; i < 4; i++) {
       tasks.submit(
           () -> {
@@ -67,30 +118,45 @@ public class BoundedAsyncTasksTest {
           },
           delivered::add);
     }
-    // The fifth submit must wait for the oldest task; release it from another thread.
-    Thread releaser =
+
+    // The fifth submit must block because 4 tasks are already outstanding.
+    Thread fifthSubmitter =
         new Thread(
             () -> {
               try {
-                Thread.sleep(200);
-              } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
+                tasks.submit(
+                    () -> {
+                      fifthExecuted.countDown();
+                      return "fifth";
+                    },
+                    delivered::add);
+                fifthReturned.countDown();
+              } catch (Exception e) {
+                throw new RuntimeException(e);
               }
-              release.countDown();
             });
-    releaser.start();
-    tasks.submit(() -> "fifth", delivered::add);
-    releaser.join();
+    fifthSubmitter.start();
+
+    // Verify submit() is blocked and has not completed while 4 tasks are in flight
+    assertFalse(
+        "submit() must block while maxInFlight tasks are outstanding",
+        fifthReturned.await(50, TimeUnit.MILLISECONDS));
+    assertEquals(
+        "fifth task must not execute before oldest task completes", 1, fifthExecuted.getCount());
+
+    // Release the blocked tasks; fifth submit should unblock and complete
+    release.countDown();
+    fifthReturned.await();
+    fifthExecuted.await();
+    fifthSubmitter.join();
+
     tasks.awaitAll(delivered::add);
-    assertEquals(Arrays.asList("blocked", "blocked", "blocked", "blocked", "fifth"), delivered);
+    assertEquals(5, delivered.size());
+    assertTrue(delivered.contains("fifth"));
   }
 
-  /**
-   * A runner may reuse a DoFn instance after a bundle fails. The failing bundle's outstanding tasks
-   * must not surface in the next bundle, or their files would be registered twice.
-   */
   @Test
-  public void testFailedBundleLeavesNothingForTheNextBundle() throws Exception {
+  public void testAwaitAllFailureCancelsRemainingTasks() throws Exception {
     CountDownLatch release = new CountDownLatch(1);
     List<String> delivered = new ArrayList<>();
     tasks.submit(
@@ -101,9 +167,14 @@ public class BoundedAsyncTasksTest {
         delivered::add);
     tasks.submit(
         () -> {
+          release.await();
           throw new IllegalStateException("boom");
         },
         delivered::add);
+    // Submit a trailing task that would remain in the queue if awaitAll does not clean up on
+    // failure
+    tasks.submit(() -> "trailing", delivered::add);
+
     // awaitAll delivers in order: the slow task first, then the failure propagates.
     release.countDown();
     ExecutionException failure =
@@ -111,11 +182,11 @@ public class BoundedAsyncTasksTest {
     assertTrue(failure.getCause() instanceof IllegalStateException);
     assertEquals(Arrays.asList("slow"), delivered);
 
-    // next bundle: only its own results
-    List<String> nextBundle = new ArrayList<>();
-    tasks.submit(() -> "fresh", nextBundle::add);
-    tasks.awaitAll(nextBundle::add);
-    assertEquals(Arrays.asList("fresh"), nextBundle);
+    // Subsequent submissions on this instance should only see their own results, not "trailing"
+    List<String> freshBatch = new ArrayList<>();
+    tasks.submit(() -> "fresh", freshBatch::add);
+    tasks.awaitAll(freshBatch::add);
+    assertEquals(Arrays.asList("fresh"), freshBatch);
   }
 
   @Test

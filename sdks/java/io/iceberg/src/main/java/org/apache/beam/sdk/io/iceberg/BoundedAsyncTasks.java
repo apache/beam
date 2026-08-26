@@ -25,6 +25,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 /**
  * Runs tasks on a fixed thread pool while bounding how many are in flight. Results are handed to
@@ -37,7 +39,16 @@ class BoundedAsyncTasks<T> {
   private final Deque<Future<T>> active = new ArrayDeque<>();
 
   BoundedAsyncTasks(int threads, int maxInFlight) {
-    this.executor = Executors.newFixedThreadPool(threads);
+    Preconditions.checkArgument(threads > 0, "threads must be positive, got: %s", threads);
+    Preconditions.checkArgument(
+        maxInFlight > 0, "maxInFlight must be positive, got: %s", maxInFlight);
+    this.executor =
+        Executors.newFixedThreadPool(
+            threads,
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("iceberg-async-task-%d")
+                .build());
     this.maxInFlight = maxInFlight;
   }
 
@@ -53,14 +64,18 @@ class BoundedAsyncTasks<T> {
         Future<T> oldest = active.removeFirst();
         onDone.accept(oldest.get()); // blocks until the oldest task completes
       }
+      active.add(executor.submit(task));
     } catch (Exception e) {
       cancelAll();
       throw e;
     }
-    active.add(executor.submit(task));
   }
 
-  /** Delivers every outstanding result in submission order. The queue is empty afterwards. */
+  /**
+   * Delivers every outstanding result. Finished tasks drained during execution may have been
+   * delivered out of submission order; remaining tasks are delivered in queue order. The queue is
+   * empty afterwards.
+   */
   void awaitAll(Consumer<T> onDone) throws Exception {
     try {
       while (!active.isEmpty()) {

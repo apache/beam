@@ -40,7 +40,7 @@ final class ParquetFooters {
     }
   }
 
-  static InputFile inputFile(String filePath) throws IOException {
+  private static InputFile inputFile(String filePath) throws IOException {
     ResourceId resourceId =
         Iterables.getOnlyElement(FileSystems.match(filePath).metadata()).resourceId();
     Compression compression = Compression.detect(checkStateNotNull(resourceId.getFilename()));
