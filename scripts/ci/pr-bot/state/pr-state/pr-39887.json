@@ -1,7 +1,11 @@
 {
   "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "java": "chamikaramj",
+    "build": "liferoad",
+    "bigtable": "igorbernstein2"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false
