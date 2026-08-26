@@ -519,6 +519,180 @@ def _to_gcp_schema(schema):
   return schema
 
 
+if gcp_bigquery:
+
+  class _ClientTablesCompat:
+    def __init__(self, client):
+      self._client = client
+
+    def Get(self, request):
+      proj = getattr(request, 'projectId', None)
+      ds_id = getattr(request, 'datasetId', None)
+      tbl_id = getattr(request, 'tableId', None)
+      if ds_id and tbl_id:
+        table_ref = gcp_bigquery.TableReference(
+            gcp_bigquery.DatasetReference(
+                proj or getattr(self._client, 'project', None) or 'default',
+                ds_id),
+            tbl_id)
+      else:
+        t_ref = getattr(request, 'tableReference', None) or getattr(
+            request, 'tableId', None) or request
+        table_ref = _to_gcp_table_ref(
+            t_ref,
+            default_project=proj or getattr(self._client, 'project', None))
+      return self._client.get_table(table_ref)
+
+    def Insert(self, request):
+      table = getattr(request, 'table', None)
+      if table is not None:
+        t_ref = getattr(table, 'tableReference', None)
+        proj = getattr(t_ref, 'projectId', None) or getattr(
+            request, 'projectId', None)
+        ds_id = getattr(t_ref, 'datasetId', None) or getattr(
+            request, 'datasetId', None)
+        tbl_id = getattr(t_ref, 'tableId', None)
+        schema = getattr(table, 'schema', None)
+      else:
+        proj = getattr(request, 'projectId', None)
+        ds_id = getattr(request, 'datasetId', None)
+        tbl_id = getattr(request, 'tableId', None)
+        schema = getattr(request, 'schema', None)
+      gcp_tbl_ref = gcp_bigquery.TableReference(
+          gcp_bigquery.DatasetReference(
+              proj or getattr(self._client, 'project', None) or 'default',
+              ds_id),
+          tbl_id)
+      gcp_table = gcp_bigquery.Table(gcp_tbl_ref, schema=_to_gcp_schema(schema))
+      return self._client.create_table(gcp_table, exists_ok=True)
+
+    def Delete(self, request):
+      t_ref = getattr(request, 'tableReference', None)
+      proj = getattr(t_ref, 'projectId', None) or getattr(
+          request, 'projectId', None)
+      ds_id = getattr(t_ref, 'datasetId', None) or getattr(
+          request, 'datasetId', None)
+      tbl_id = getattr(t_ref, 'tableId', None) or getattr(
+          request, 'tableId', None)
+      gcp_tbl_ref = gcp_bigquery.TableReference(
+          gcp_bigquery.DatasetReference(
+              proj or getattr(self._client, 'project', None) or 'default',
+              ds_id),
+          tbl_id)
+      return self._client.delete_table(gcp_tbl_ref, not_found_ok=True)
+
+    def List(self, request):
+      proj = getattr(request, 'projectId', None)
+      ds_id = getattr(request, 'datasetId', None)
+      ds_ref = gcp_bigquery.DatasetReference(
+          proj or getattr(self._client, 'project', None) or 'default', ds_id)
+      return self._client.list_tables(ds_ref)
+
+    def Patch(self, request):
+      table = getattr(request, 'table', None)
+      proj = getattr(request, 'projectId', None)
+      ds_id = getattr(request, 'datasetId', None)
+      tbl_id = getattr(request, 'tableId', None)
+      gcp_tbl_ref = gcp_bigquery.TableReference(
+          gcp_bigquery.DatasetReference(
+              proj or getattr(self._client, 'project', None) or 'default',
+              ds_id),
+          tbl_id)
+      gcp_table = gcp_bigquery.Table(gcp_tbl_ref)
+      if table and getattr(table, 'schema', None):
+        gcp_table.schema = _to_gcp_schema(table.schema)
+      return self._client.update_table(gcp_table, ['schema'])
+
+    def Update(self, request):
+      return self.Patch(request)
+
+  class _ClientDatasetsCompat:
+    def __init__(self, client):
+      self._client = client
+
+    def Get(self, request):
+      proj = getattr(request, 'projectId', None)
+      ds_id = getattr(request, 'datasetId', None)
+      ds_ref = gcp_bigquery.DatasetReference(
+          proj or getattr(self._client, 'project', None) or 'default', ds_id)
+      return self._client.get_dataset(ds_ref)
+
+    def Insert(self, request):
+      dataset = getattr(request, 'dataset', None)
+      ds_ref_raw = getattr(
+          dataset, 'datasetReference', None) if dataset else None
+      proj = getattr(ds_ref_raw, 'projectId', None) or getattr(
+          request, 'projectId', None)
+      ds_id = getattr(ds_ref_raw, 'datasetId', None) or getattr(
+          request, 'datasetId', None)
+      ds_ref = gcp_bigquery.DatasetReference(
+          proj or getattr(self._client, 'project', None) or 'default', ds_id)
+      gcp_ds = gcp_bigquery.Dataset(ds_ref)
+      if dataset:
+        if getattr(dataset, 'location', None):
+          gcp_ds.location = dataset.location
+        if getattr(dataset, 'defaultTableExpirationMs', None):
+          gcp_ds.default_table_expiration_ms = dataset.defaultTableExpirationMs
+      return self._client.create_dataset(gcp_ds, exists_ok=True)
+
+    def Delete(self, request):
+      proj = getattr(request, 'projectId', None)
+      ds_id = getattr(request, 'datasetId', None)
+      delete_contents = getattr(request, 'deleteContents', True)
+      ds_ref = gcp_bigquery.DatasetReference(
+          proj or getattr(self._client, 'project', None) or 'default', ds_id)
+      return self._client.delete_dataset(
+          ds_ref, delete_contents=delete_contents, not_found_ok=True)
+
+    def List(self, request):
+      proj = getattr(request, 'projectId', None) or getattr(
+          self._client, 'project', None)
+      return self._client.list_datasets(project=proj)
+
+    def Patch(self, request):
+      dataset = getattr(request, 'dataset', None)
+      proj = getattr(request, 'projectId', None)
+      ds_id = getattr(request, 'datasetId', None)
+      ds_ref = gcp_bigquery.DatasetReference(
+          proj or getattr(self._client, 'project', None) or 'default', ds_id)
+      gcp_ds = gcp_bigquery.Dataset(ds_ref)
+      fields_to_update = []
+      if dataset:
+        if getattr(dataset, 'defaultTableExpirationMs', None):
+          gcp_ds.default_table_expiration_ms = dataset.defaultTableExpirationMs
+          fields_to_update.append('default_table_expiration_ms')
+      return self._client.update_dataset(gcp_ds, fields_to_update)
+
+    def Update(self, request):
+      return self.Patch(request)
+
+  class _ClientJobsCompat:
+    def __init__(self, client):
+      self._client = client
+
+    def Get(self, request):
+      proj = getattr(request, 'projectId', None)
+      job_id = getattr(request, 'jobId', None)
+      loc = getattr(request, 'location', None)
+      return self._client.get_job(job_id, project=proj, location=loc)
+
+    def GetQueryResults(self, request):
+      proj = getattr(request, 'projectId', None)
+      job_id = getattr(request, 'jobId', None)
+      loc = getattr(request, 'location', None)
+      page_token = getattr(request, 'pageToken', None)
+      job = self._client.get_job(job_id, project=proj, location=loc)
+      return job.result(page_token=page_token)
+
+  if not hasattr(gcp_bigquery.Client, 'tables'):
+    gcp_bigquery.Client.tables = property(
+        lambda self: _ClientTablesCompat(self))
+  if not hasattr(gcp_bigquery.Client, 'datasets'):
+    gcp_bigquery.Client.datasets = property(
+        lambda self: _ClientDatasetsCompat(self))
+  if not hasattr(gcp_bigquery.Client, 'jobs'):
+    gcp_bigquery.Client.jobs = property(lambda self: _ClientJobsCompat(self))
+
 _LOGGER = logging.getLogger(__name__)
 
 JSON_COMPLIANCE_ERROR = 'NAN, INF and -INF values are not JSON compliant.'
@@ -797,12 +971,18 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
+  def __init__(
+      self,
+      client=None,
+      temp_dataset_id=None,
+      temp_table_ref=None,
+      use_legacy_client=False):
     if client is not None:
       self.client = client
       self.gcp_bq_client = client
     else:
-      self.client = BigQueryWrapper._bigquery_client(PipelineOptions())
+      self.client = BigQueryWrapper._bigquery_client(
+          PipelineOptions(), use_legacy_client=use_legacy_client)
       self.gcp_bq_client = self.client
 
     self._unique_row_id = 0
@@ -1530,8 +1710,10 @@ class BigQueryWrapper(object):
       NotFound or HttpError: if lookup failed.
     """
     if self._is_modern_client:
-      table_ref = TableReference(
-          projectId=project_id, datasetId=dataset_id, tableId=table_id)
+      table_ref = _to_gcp_table_ref(
+          TableReference(
+              projectId=project_id, datasetId=dataset_id, tableId=table_id),
+          default_project=project_id)
       return self.client.get_table(table_ref)
 
     # Fallback for legacy client
@@ -1556,8 +1738,10 @@ class BigQueryWrapper(object):
           table_id)
 
     if self._is_modern_client:
-      table_ref = TableReference(
-          projectId=project_id, datasetId=dataset_id, tableId=table_id)
+      table_ref = _to_gcp_table_ref(
+          TableReference(
+              projectId=project_id, datasetId=dataset_id, tableId=table_id),
+          default_project=project_id)
       gcp_schema = _to_gcp_schema(schema)
       table = gcp_bigquery.Table(table_ref, schema=gcp_schema)
       if additional_parameters:
@@ -1595,7 +1779,9 @@ class BigQueryWrapper(object):
       default_table_expiration_ms=None):
     # Check if dataset already exists otherwise create it
     if self._is_modern_client:
-      dataset_ref = DatasetReference(projectId=project_id, datasetId=dataset_id)
+      dataset_ref = _to_gcp_dataset_ref(
+          DatasetReference(projectId=project_id, datasetId=dataset_id),
+          project=project_id)
       try:
         dataset = self.client.get_dataset(dataset_ref)
         self.created_temp_dataset = False
@@ -1666,8 +1852,10 @@ class BigQueryWrapper(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _is_table_empty(self, project_id, dataset_id, table_id):
     if self._is_modern_client:
-      table_ref = TableReference(
-          projectId=project_id, datasetId=dataset_id, tableId=table_id)
+      table_ref = _to_gcp_table_ref(
+          TableReference(
+              projectId=project_id, datasetId=dataset_id, tableId=table_id),
+          default_project=project_id)
       rows = self.client.list_rows(table_ref, max_results=1)
       if hasattr(rows, 'total_rows') and rows.total_rows is not None:
         return rows.total_rows == 0
@@ -1688,8 +1876,10 @@ class BigQueryWrapper(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_table(self, project_id, dataset_id, table_id):
     if self._is_modern_client:
-      table_ref = TableReference(
-          projectId=project_id, datasetId=dataset_id, tableId=table_id)
+      table_ref = _to_gcp_table_ref(
+          TableReference(
+              projectId=project_id, datasetId=dataset_id, tableId=table_id),
+          default_project=project_id)
       try:
         self.client.delete_table(table_ref, not_found_ok=True)
       except (NotFound, HttpError, ClientError) as exn:
@@ -1719,7 +1909,9 @@ class BigQueryWrapper(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
     if self._is_modern_client:
-      dataset_ref = DatasetReference(projectId=project_id, datasetId=dataset_id)
+      dataset_ref = _to_gcp_dataset_ref(
+          DatasetReference(projectId=project_id, datasetId=dataset_id),
+          project=project_id)
       try:
         self.client.delete_dataset(
             dataset_ref, delete_contents=delete_contents, not_found_ok=True)
@@ -1786,8 +1978,10 @@ class BigQueryWrapper(object):
   def clean_up_temporary_dataset(self, project_id):
     temp_table = self._get_temp_table(project_id)
     if self._is_modern_client:
-      dataset_ref = DatasetReference(
-          projectId=project_id, datasetId=temp_table.datasetId)
+      dataset_ref = _to_gcp_dataset_ref(
+          DatasetReference(
+              projectId=project_id, datasetId=temp_table.datasetId),
+          project=project_id)
       try:
         self.client.get_dataset(dataset_ref)
       except (NotFound, HttpError, ClientError) as exn:
@@ -2347,13 +2541,15 @@ class BigQueryWrapper(object):
         client=BigQueryWrapper._bigquery_client(pipeline_options))
 
   @staticmethod
-  def _bigquery_client(pipeline_options: PipelineOptions):
+  def _bigquery_client(
+      pipeline_options: PipelineOptions, use_legacy_client: bool = False):
     raw_credentials = auth.get_service_credentials(pipeline_options)
     google_credentials = (
         raw_credentials.get_google_auth_credentials() if hasattr(
             raw_credentials, 'get_google_auth_credentials') else
         raw_credentials)
     project = None
+    experiments = []
     if pipeline_options:
       try:
         from apache_beam.options.pipeline_options import GoogleCloudOptions
@@ -2362,19 +2558,29 @@ class BigQueryWrapper(object):
           project = project.get()
       except Exception:
         project = None
-
-    client_cls = getattr(gcp_bigquery, 'Client', None)
-    if isinstance(client_cls, type):
       try:
-        client_info = ClientInfo(
-            user_agent="apache-beam-%s" %
-            apache_beam.__version__) if ClientInfo else None
-        return gcp_bigquery.Client(
-            project=project,
-            credentials=google_credentials,
-            client_info=client_info)
+        from apache_beam.options.pipeline_options import DebugOptions
+        experiments = pipeline_options.view_as(DebugOptions).experiments or []
       except Exception:
-        pass
+        experiments = []
+
+    use_legacy = (
+        use_legacy_client or 'use_legacy_bigquery_client' in experiments or
+        'use_legacy_bq_client' in experiments)
+
+    if not use_legacy:
+      client_cls = getattr(gcp_bigquery, 'Client', None)
+      if isinstance(client_cls, type):
+        try:
+          client_info = ClientInfo(
+              user_agent="apache-beam-%s" %
+              apache_beam.__version__) if ClientInfo else None
+          return gcp_bigquery.Client(
+              project=project,
+              credentials=google_credentials,
+              client_info=client_info)
+        except Exception:
+          pass
 
     return apitools_bigquery.BigqueryV2(
         http=get_new_http(),

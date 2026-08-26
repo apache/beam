@@ -39,6 +39,7 @@ from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
@@ -50,6 +51,7 @@ from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
@@ -1409,6 +1411,26 @@ class TestTypeOverrides(unittest.TestCase):
     # Or map to dict
     typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
+
+
+class TestBigQueryClientExperimentFallback(unittest.TestCase):
+  def test_default_client_is_modern(self):
+    wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
+    self.assertTrue(wrapper._is_modern_client)
+
+  def test_experiment_flag_use_legacy_bigquery_client(self):
+    options = PipelineOptions(['--experiments=use_legacy_bigquery_client'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+    self.assertFalse(wrapper._is_modern_client)
+
+  def test_experiment_flag_use_legacy_bq_client(self):
+    options = PipelineOptions(['--experiments=use_legacy_bq_client'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+    self.assertFalse(wrapper._is_modern_client)
+
+  def test_kwarg_use_legacy_client(self):
+    wrapper = BigQueryWrapper(use_legacy_client=True)
+    self.assertFalse(wrapper._is_modern_client)
 
 
 if __name__ == '__main__':
