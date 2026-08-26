@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"testing"
+	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/mtime"
@@ -296,4 +297,121 @@ func TestStatefulBuildEventTimeBundle_OneKeyPerBundle(t *testing.T) {
 			t.Fatalf("iteration %d: minTs = %v, want %v", i, minTs, want)
 		}
 	}
+}
+
+// delaySetup builds an impulse -> src pipeline and returns it with the first
+// source bundle already received, ready for the test to persist a residual.
+func delaySetup(t *testing.T, cfg Config) (*ElementManager, <-chan RunBundle, *stageState, RunBundle, context.CancelCauseFunc) {
+	t.Helper()
+	ctx, cancelFn := context.WithCancelCause(context.Background())
+	em := NewElementManager(cfg)
+	em.AddStage("impulse", nil, []string{"src_in"}, nil)
+	em.AddStage("src", []string{"src_in"}, nil, nil)
+	em.Impulse("impulse")
+	var i int
+	ch := em.Bundles(ctx, cancelFn, func() string {
+		defer func() { i++ }()
+		return fmt.Sprintf("%v", i)
+	})
+	rb, ok := <-ch
+	if !ok {
+		t.Fatal("bundles channel closed before the first source bundle")
+	}
+	if rb.StageID != "src" {
+		t.Fatalf("first bundle stage = %v, want src", rb.StageID)
+	}
+	return em, ch, em.stages["src"], rb, cancelFn
+}
+
+// TestPersistBundle_ResidualResumeDelay covers the SDK requested resume delay:
+// a delayed residual is parked with a watermark hold and released through the
+// processing time queue instead of returning to pending immediately.
+func TestPersistBundle_ResidualResumeDelay(t *testing.T) {
+	info := continuationInfo(t, false)
+	residual := func(delay time.Duration) Residuals {
+		return Residuals{
+			TransformID: "src",
+			InputID:     "i0",
+			Data:        []Residual{{Element: encodeElement(t, info, mtime.MinTimestamp), Delay: delay}},
+		}
+	}
+
+	t.Run("parks with hold and schedules", func(t *testing.T) {
+		em, _, src, rb, cancelFn := delaySetup(t, Config{EnableRTC: true})
+		defer cancelFn(nil)
+		const delay = 5 * time.Second
+		before := time.Now()
+		em.PersistBundle(rb, nil, TentativeData{}, info, residual(delay))
+
+		src.mu.Lock()
+		pendingLen := len(src.pending)
+		parked := 0
+		for _, elems := range src.delayedResiduals {
+			parked += len(elems)
+		}
+		minPending := src.minPendingTimestampLocked()
+		src.mu.Unlock()
+		if pendingLen != 0 {
+			t.Errorf("delayed residual returned to pending immediately: len(pending) = %v, want 0", pendingLen)
+		}
+		if parked != 1 {
+			t.Errorf("parked residuals = %v, want 1", parked)
+		}
+		if minPending != mtime.MinTimestamp {
+			t.Errorf("parked residual does not pin the input watermark: minPending = %v, want %v", minPending, mtime.MinTimestamp)
+		}
+		em.refreshCond.L.Lock()
+		fireAt, ok := em.processTimeEvents.Peek()
+		em.refreshCond.L.Unlock()
+		if !ok {
+			t.Fatal("no processing time event scheduled for the delayed residual")
+		}
+		if until := fireAt.ToTime().Sub(before); until <= 0 || until > delay {
+			t.Errorf("residual release scheduled %v after persisting, want within (0, %v]", until, delay)
+		}
+	})
+
+	t.Run("releases only after the delay", func(t *testing.T) {
+		em, ch, _, rb, cancelFn := delaySetup(t, Config{EnableRTC: true})
+		defer cancelFn(nil)
+		_ = em
+		const delay = 300 * time.Millisecond
+		start := time.Now()
+		em.PersistBundle(rb, nil, TentativeData{}, info, residual(delay))
+		select {
+		case rb2, ok := <-ch:
+			if !ok {
+				t.Fatal("bundles channel closed before the delayed residual fired")
+			}
+			if rb2.StageID != "src" {
+				t.Fatalf("resumed bundle stage = %v, want src", rb2.StageID)
+			}
+			if elapsed := time.Since(start); elapsed < 250*time.Millisecond {
+				t.Errorf("delayed residual fired after %v, want at least ~%v", elapsed, delay)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("delayed residual never fired; the real-time wake-up is missing")
+		}
+	})
+
+	t.Run("fast forwards without a real-time clock", func(t *testing.T) {
+		em, ch, _, rb, cancelFn := delaySetup(t, Config{})
+		defer cancelFn(nil)
+		start := time.Now()
+		em.PersistBundle(rb, nil, TentativeData{}, info, residual(5*time.Second))
+		select {
+		case rb2, ok := <-ch:
+			if !ok {
+				t.Fatal("bundles channel closed before the delayed residual fired")
+			}
+			if rb2.StageID != "src" {
+				t.Fatalf("resumed bundle stage = %v, want src", rb2.StageID)
+			}
+			if elapsed := time.Since(start); elapsed >= 4*time.Second {
+				t.Errorf("fast forward mode waited %v in real time for a synthetic delay", elapsed)
+			}
+		case <-time.After(10 * time.Second):
+			t.Fatal("delayed residual never fired in fast forward mode")
+		}
+	})
 }
