@@ -22,15 +22,17 @@ import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.io.iceberg.CollectDistinctSchemas.Group;
+import org.apache.beam.sdk.io.iceberg.CollectDistinctSchemas.SchemaGroup;
 import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Create;
-import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
@@ -60,38 +62,72 @@ public class CollectDistinctSchemasTest {
               required(1, "id", Types.LongType.get()),
               optional(2, "name", Types.StringType.get())));
 
+  private static final List<String> NONE = Collections.emptyList();
+
   private final CollectDistinctSchemas fn = new CollectDistinctSchemas();
 
   @Test
   public void testDedupsIdenticalSchemas() {
-    assertEquals(Arrays.asList(KV.of(ID_NAME, 3L)), combine(ID_NAME, ID_NAME, ID_NAME));
+    assertEquals(
+        Arrays.asList(group(ID_NAME, 3, NONE)),
+        combine(group(ID_NAME, 1, NONE), group(ID_NAME, 1, NONE), group(ID_NAME, 1, NONE)));
   }
 
-  /** Inputs are compared as strings; canonicalization is ReadFooterSchema's job. */
+  /** Schemas are compared as strings; canonicalization is ReadFooterSchema's job. */
   @Test
   public void testDifferentStringsAreDistinct() {
-    List<KV<String, Long>> out = combine(ID_NAME, NAME_ID, ID_LONG_NAME);
+    List<SchemaGroup> out =
+        combine(group(ID_NAME, 1, NONE), group(NAME_ID, 1, NONE), group(ID_LONG_NAME, 1, NONE));
     assertEquals(3, out.size());
-    for (KV<String, Long> entry : out) {
-      assertEquals(Long.valueOf(1L), entry.getValue());
+    for (SchemaGroup entry : out) {
+      assertEquals(1L, entry.files);
     }
   }
 
   @Test
   public void testMostCommonFirstThenJson() {
-    List<KV<String, Long>> out = combine(NAME_ID, ID_LONG_NAME, ID_NAME, ID_LONG_NAME, NAME_ID);
+    List<SchemaGroup> out =
+        combine(
+            group(NAME_ID, 1, NONE),
+            group(ID_LONG_NAME, 1, NONE),
+            group(ID_NAME, 1, NONE),
+            group(ID_LONG_NAME, 1, NONE),
+            group(NAME_ID, 1, NONE));
     assertEquals(
-        Arrays.asList(KV.of(ID_LONG_NAME, 2L), KV.of(NAME_ID, 2L), KV.of(ID_NAME, 1L)), out);
+        Arrays.asList(
+            group(ID_LONG_NAME, 2, NONE), group(NAME_ID, 2, NONE), group(ID_NAME, 1, NONE)),
+        out);
+  }
+
+  /**
+   * A column counts as proven for the group only if every file proved it: one file with nulls in a
+   * column is enough to make the table relax that column.
+   */
+  @Test
+  public void testNullFreeColumnsIntersect() {
+    List<SchemaGroup> out =
+        combine(
+            group(ID_NAME, 1, Arrays.asList("id", "name")),
+            group(ID_NAME, 1, Arrays.asList("id")),
+            group(NAME_ID, 1, Arrays.asList("name")));
+    assertEquals(
+        Arrays.asList(
+            group(ID_NAME, 2, Arrays.asList("id")), group(NAME_ID, 1, Arrays.asList("name"))),
+        out);
   }
 
   @Test
-  public void testMergeSumsCounts() {
-    Map<String, Long> first = fn.addInput(fn.createAccumulator(), ID_NAME);
-    Map<String, Long> second = fn.addInput(fn.createAccumulator(), ID_NAME);
-    second = fn.addInput(second, NAME_ID);
-    List<KV<String, Long>> out =
-        fn.extractOutput(fn.mergeAccumulators(Arrays.asList(first, second)));
-    assertEquals(Arrays.asList(KV.of(ID_NAME, 2L), KV.of(NAME_ID, 1L)), out);
+  public void testNullFreeColumnsIntersectAcrossMergedAccumulators() {
+    Map<String, Group> first =
+        fn.addInput(fn.createAccumulator(), group(ID_NAME, 1, Arrays.asList("id", "name")));
+    Map<String, Group> second =
+        fn.addInput(fn.createAccumulator(), group(ID_NAME, 1, Arrays.asList("name")));
+    second = fn.addInput(second, group(NAME_ID, 1, Arrays.asList("id")));
+    List<SchemaGroup> out = fn.extractOutput(fn.mergeAccumulators(Arrays.asList(first, second)));
+    assertEquals(
+        Arrays.asList(
+            group(ID_NAME, 2, Arrays.asList("name")), group(NAME_ID, 1, Arrays.asList("id"))),
+        out);
   }
 
   @Test
@@ -101,28 +137,49 @@ public class CollectDistinctSchemasTest {
 
   @Test
   public void testAccumulatorCoderRoundTrip() throws Exception {
-    Coder<Map<String, Long>> coder = fn.getAccumulatorCoder(null, null);
-    Map<String, Long> accumulator = fn.addInput(fn.createAccumulator(), ID_NAME);
-    accumulator = fn.addInput(accumulator, NAME_ID);
+    Coder<Map<String, Group>> coder = fn.getAccumulatorCoder(null, null);
+    Map<String, Group> accumulator =
+        fn.addInput(fn.createAccumulator(), group(ID_NAME, 1, Arrays.asList("id")));
+    accumulator = fn.addInput(accumulator, group(NAME_ID, 1, NONE));
     CoderProperties.coderDecodeEncodeEqual(coder, accumulator);
+  }
+
+  /** Coders from separate calls must compare equal, or coder inference treats them as different. */
+  @Test
+  public void testCodersFromSeparateCallsAreEqual() throws Exception {
+    assertEquals(CollectDistinctSchemas.outputCoder(), CollectDistinctSchemas.outputCoder());
+    assertEquals(fn.getAccumulatorCoder(null, null), fn.getAccumulatorCoder(null, null));
+    // The output coder is deterministic; the accumulator coder is not required to be (MapCoder).
+    CollectDistinctSchemas.outputCoder().verifyDeterministic();
   }
 
   @Test
   public void testPipeline() {
-    PCollection<List<KV<String, Long>>> out =
+    PCollection<List<SchemaGroup>> out =
         pipeline
-            .apply(Create.of(ID_NAME, NAME_ID, ID_NAME))
+            .apply(
+                Create.of(
+                        group(ID_NAME, 1, Arrays.asList("id", "name")),
+                        group(NAME_ID, 1, NONE),
+                        group(ID_NAME, 1, Arrays.asList("id")))
+                    .withCoder(CollectDistinctSchemas.groupCoder()))
             .apply(Combine.globally(new CollectDistinctSchemas()));
-    PAssert.that(out).containsInAnyOrder(Arrays.asList(KV.of(ID_NAME, 2L), KV.of(NAME_ID, 1L)));
+    PAssert.that(out)
+        .containsInAnyOrder(
+            Arrays.asList(group(ID_NAME, 2, Arrays.asList("id")), group(NAME_ID, 1, NONE)));
     pipeline.run();
   }
 
-  private List<KV<String, Long>> combine(String... schemaJsons) {
-    Map<String, Long> accumulator = fn.createAccumulator();
-    for (String schemaJson : schemaJsons) {
-      accumulator = fn.addInput(accumulator, schemaJson);
+  private List<SchemaGroup> combine(SchemaGroup... files) {
+    Map<String, Group> accumulator = fn.createAccumulator();
+    for (SchemaGroup file : files) {
+      accumulator = fn.addInput(accumulator, file);
     }
     return fn.extractOutput(accumulator);
+  }
+
+  private static SchemaGroup group(String json, long files, List<String> proven) {
+    return new SchemaGroup(json, files, proven);
   }
 
   private static String json(Schema schema) {

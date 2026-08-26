@@ -164,6 +164,38 @@ public class ReadFooterSchemaTest {
     pipeline.run();
   }
 
+  /**
+   * The schema is emitted exactly as declared; which columns proved null-free travels beside it.
+   */
+  @Test
+  public void testNullFreeColumnsAreReported() throws IOException {
+    Record full = GenericRecord.create(FLAT_SCHEMA).copy("id", 1, "name", "a");
+    String clean = writeParquet("clean.parquet", FLAT_SCHEMA, full);
+    PCollection<CollectDistinctSchemas.SchemaGroup> out = run(clean);
+    assertSchemas(out, FLAT_SCHEMA);
+    assertNullFreeColumns(out, Arrays.asList("name"));
+    pipeline.run();
+  }
+
+  @Test
+  public void testColumnWithNullsIsNotReportedNullFree() throws IOException {
+    String withNull = writeParquet("null.parquet", FLAT_SCHEMA, record(FLAT_SCHEMA, "id", 1));
+    PCollection<CollectDistinctSchemas.SchemaGroup> out = run(withNull);
+    assertSchemas(out, FLAT_SCHEMA);
+    assertNullFreeColumns(out, Arrays.asList());
+    pipeline.run();
+  }
+
+  private static void assertNullFreeColumns(
+      PCollection<CollectDistinctSchemas.SchemaGroup> out, List<String> expected) {
+    PAssert.thatSingleton(out)
+        .satisfies(
+            group -> {
+              assertEquals(expected, group.nullFreeColumns);
+              return null;
+            });
+  }
+
   @Test
   public void testPermutedColumnsProduceIdenticalSchema() throws IOException {
     Schema permuted =
@@ -177,7 +209,7 @@ public class ReadFooterSchemaTest {
         .satisfies(
             actual -> {
               List<String> jsons = new ArrayList<>();
-              actual.forEach(jsons::add);
+              actual.forEach(group -> jsons.add(group.schemaJson));
               assertEquals(2, jsons.size());
               assertEquals(jsons.get(0), jsons.get(1));
               return null;
@@ -218,12 +250,16 @@ public class ReadFooterSchemaTest {
     return total;
   }
 
-  private PCollection<String> run(String... paths) {
-    return pipeline.apply(Create.of(Arrays.asList(paths))).apply(ParDo.of(new ReadFooterSchema()));
+  private PCollection<CollectDistinctSchemas.SchemaGroup> run(String... paths) {
+    return pipeline
+        .apply(Create.of(Arrays.asList(paths)))
+        .apply(ParDo.of(new ReadFooterSchema()))
+        .setCoder(CollectDistinctSchemas.groupCoder());
   }
 
-  /** Asserts the emitted schemas equal the canonical forms of {@code expected}, in any order. */
-  private static void assertSchemas(PCollection<String> out, Schema... expected) {
+  /** Asserts the emitted declared schemas equal the canonical forms of {@code expected}. */
+  private static void assertSchemas(
+      PCollection<CollectDistinctSchemas.SchemaGroup> out, Schema... expected) {
     List<String> expectedJson = new ArrayList<>();
     for (Schema schema : expected) {
       expectedJson.add(SchemaParser.toJson(FileSchemas.canonical(schema)));
@@ -232,7 +268,8 @@ public class ReadFooterSchemaTest {
         .satisfies(
             actual -> {
               List<String> remaining = new ArrayList<>(expectedJson);
-              for (String json : actual) {
+              for (CollectDistinctSchemas.SchemaGroup group : actual) {
+                String json = group.schemaJson;
                 Schema schema = SchemaParser.fromJson(json);
                 boolean matched = false;
                 for (int i = 0; i < remaining.size(); i++) {

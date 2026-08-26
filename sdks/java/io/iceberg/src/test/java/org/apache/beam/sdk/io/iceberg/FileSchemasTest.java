@@ -20,17 +20,273 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.io.File;
+import java.io.IOException;
+import java.util.function.IntPredicate;
+import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
+import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.parquet.example.data.Group;
+import org.apache.parquet.example.data.simple.SimpleGroupFactory;
+import org.apache.parquet.hadoop.ParquetWriter;
+import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.apache.parquet.schema.LogicalTypeAnnotation;
+import org.apache.parquet.schema.MessageType;
+import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
+import org.apache.parquet.schema.Type.Repetition;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 @RunWith(JUnit4.class)
 public class FileSchemasTest {
+  @Rule public final TemporaryFolder tmp = new TemporaryFolder();
+
+  // ---- tightening
+
+  // root: required id, optional name, optional struct address {city, zip}, optional list tags
+  private static final MessageType MIXED =
+      org.apache.parquet.schema.Types.buildMessage()
+          .required(PrimitiveTypeName.INT64)
+          .named("id")
+          .optional(PrimitiveTypeName.BINARY)
+          .as(LogicalTypeAnnotation.stringType())
+          .named("name")
+          .addField(
+              org.apache.parquet.schema.Types.buildGroup(Repetition.OPTIONAL)
+                  .optional(PrimitiveTypeName.BINARY)
+                  .as(LogicalTypeAnnotation.stringType())
+                  .named("city")
+                  .optional(PrimitiveTypeName.INT32)
+                  .named("zip")
+                  .named("address"))
+          .addField(
+              org.apache.parquet.schema.Types.buildGroup(Repetition.OPTIONAL)
+                  .as(LogicalTypeAnnotation.listType())
+                  .addField(
+                      org.apache.parquet.schema.Types.repeatedGroup()
+                          .optional(PrimitiveTypeName.BINARY)
+                          .as(LogicalTypeAnnotation.stringType())
+                          .named("element")
+                          .named("list"))
+                  .named("tags"))
+          .named("root");
+
+  private static final class Nulls {
+    final IntPredicate name;
+    final IntPredicate address;
+    final IntPredicate city;
+    final IntPredicate zip;
+
+    Nulls(IntPredicate name, IntPredicate address, IntPredicate city, IntPredicate zip) {
+      this.name = name;
+      this.address = address;
+      this.city = city;
+      this.zip = zip;
+    }
+
+    static final Nulls NONE = new Nulls(r -> false, r -> false, r -> false, r -> false);
+  }
+
+  private ParquetMetadata write(int rows, int rowGroups, boolean stats, Nulls nulls)
+      throws IOException {
+    File file = new File(tmp.getRoot(), "t" + System.nanoTime() + ".parquet");
+    ExampleParquetWriter.Builder builder =
+        ExampleParquetWriter.builder(new Path(file.getAbsolutePath()))
+            .withType(MIXED)
+            .withStatisticsEnabled(stats);
+    if (rowGroups > 1) {
+      int rowsPerGroup = rows / rowGroups;
+      builder =
+          builder
+              .withRowGroupSize(1L)
+              .withMinRowCountForPageSizeCheck(rowsPerGroup)
+              .withMaxRowCountForPageSizeCheck(rowsPerGroup);
+    }
+    SimpleGroupFactory factory = new SimpleGroupFactory(MIXED);
+    try (ParquetWriter<Group> writer = builder.build()) {
+      for (int row = 0; row < rows; row++) {
+        Group group = factory.newGroup();
+        group.add("id", (long) row);
+        if (!nulls.name.test(row)) {
+          group.add("name", "n" + row);
+        }
+        if (!nulls.address.test(row)) {
+          Group address = group.addGroup("address");
+          if (!nulls.city.test(row)) {
+            address.add("city", "c" + row);
+          }
+          if (!nulls.zip.test(row)) {
+            address.add("zip", row);
+          }
+        }
+        Group tags = group.addGroup("tags");
+        tags.addGroup("list").add("element", "t" + row);
+        writer.write(group);
+      }
+    }
+    return ParquetFooters.read(file.getAbsolutePath());
+  }
+
+  private static Schema tightened(ParquetMetadata footer) {
+    return FileSchemas.tighten(
+        ParquetSchemaUtil.convert(footer.getFileMetaData().getSchema()), footer);
+  }
+
+  private static boolean isRequired(Schema schema, String path) {
+    return schema.findField(path).isRequired();
+  }
+
+  @Test
+  public void testProvenNullFreeColumnsBecomeRequired() throws IOException {
+    Schema schema = tightened(write(10, 1, true, Nulls.NONE));
+    assertTrue(isRequired(schema, "id"));
+    assertTrue(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address"));
+    assertTrue(isRequired(schema, "address.city"));
+    assertTrue(isRequired(schema, "address.zip"));
+  }
+
+  @Test
+  public void testListAndElementStayAsDeclared() throws IOException {
+    Schema schema = tightened(write(10, 1, true, Nulls.NONE));
+    assertFalse(isRequired(schema, "tags"));
+    assertFalse(schema.findField("tags").type().asListType().isElementRequired());
+  }
+
+  @Test
+  public void testSomeNullsStayOptional() throws IOException {
+    Schema schema =
+        tightened(write(10, 1, true, new Nulls(r -> r == 3, r -> false, r -> false, r -> false)));
+    assertFalse(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address.city"));
+  }
+
+  @Test
+  public void testAllNullsStayOptional() throws IOException {
+    Schema schema =
+        tightened(write(10, 1, true, new Nulls(r -> true, r -> false, r -> false, r -> false)));
+    assertFalse(isRequired(schema, "name"));
+  }
+
+  @Test
+  public void testStatsDisabledStaysOptional() throws IOException {
+    Schema schema = tightened(write(10, 1, false, Nulls.NONE));
+    assertTrue(isRequired(schema, "id"));
+    assertFalse(isRequired(schema, "name"));
+    assertFalse(isRequired(schema, "address"));
+    assertFalse(isRequired(schema, "address.city"));
+  }
+
+  @Test
+  public void testOneRowGroupWithNullsSpoilsTheProof() throws IOException {
+    Schema schema =
+        tightened(write(100, 4, true, new Nulls(r -> r == 60, r -> false, r -> false, r -> false)));
+    assertFalse(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address.zip"));
+  }
+
+  /** With no rows nothing can violate a required column, so every column counts as proven. */
+  @Test
+  public void testZeroRowsProveEverything() throws IOException {
+    Schema schema = tightened(write(0, 1, true, Nulls.NONE));
+    assertTrue(isRequired(schema, "id"));
+    assertTrue(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address"));
+    assertTrue(isRequired(schema, "address.city"));
+    assertFalse(isRequired(schema, "tags"));
+  }
+
+  @Test
+  public void testCanonicalWithNullFreeColumnsReportsChangedOnly() throws IOException {
+    ParquetMetadata footer =
+        write(10, 1, true, new Nulls(r -> false, r -> false, r -> false, r -> r == 4));
+    CollectDistinctSchemas.SchemaGroup group = FileSchemas.schemaGroup(footer);
+    // id is declared required already; zip has a null; the rest flipped
+    assertEquals(java.util.Arrays.asList("address", "address.city", "name"), group.nullFreeColumns);
+    Schema declared = SchemaParser.fromJson(group.schemaJson);
+    assertFalse(isRequired(declared, "name"));
+  }
+
+  @Test
+  public void testMarkRequiredFlipsOnlyNamedColumns() {
+    Schema declared =
+        new Schema(
+            optional(1, "name", Types.StringType.get()),
+            optional(
+                2,
+                "address",
+                Types.StructType.of(
+                    optional(3, "city", Types.StringType.get()),
+                    optional(4, "zip", Types.IntegerType.get()))));
+    Schema required =
+        FileSchemas.markRequired(
+            declared, java.util.Arrays.asList("address", "address.city", "not_a_column"));
+    assertFalse(isRequired(required, "name"));
+    assertTrue(isRequired(required, "address"));
+    assertTrue(isRequired(required, "address.city"));
+    assertFalse(isRequired(required, "address.zip"));
+    assertEquals(
+        declared.asStruct(),
+        FileSchemas.markRequired(declared, java.util.Arrays.asList()).asStruct());
+  }
+
+  @Test
+  public void testNullStructKeepsStructAndLeavesOptional() throws IOException {
+    Schema schema =
+        tightened(write(10, 1, true, new Nulls(r -> false, r -> r == 5, r -> false, r -> false)));
+    assertFalse(isRequired(schema, "address"));
+    assertFalse(isRequired(schema, "address.city"));
+    assertFalse(isRequired(schema, "address.zip"));
+  }
+
+  @Test
+  public void testOneProvenLeafProvesTheStruct() throws IOException {
+    Schema schema =
+        tightened(write(10, 1, true, new Nulls(r -> false, r -> false, r -> r == 2, r -> false)));
+    assertTrue(isRequired(schema, "address"));
+    assertFalse(isRequired(schema, "address.city"));
+    assertTrue(isRequired(schema, "address.zip"));
+  }
+
+  @Test
+  public void testTightenPreservesIdsNamesAndTypes() throws IOException {
+    ParquetMetadata footer = write(10, 1, true, Nulls.NONE);
+    Schema converted = ParquetSchemaUtil.convert(footer.getFileMetaData().getSchema());
+    Schema schema = FileSchemas.tighten(converted, footer);
+    assertEquals(converted.columns().size(), schema.columns().size());
+    for (Types.NestedField field : converted.columns()) {
+      Types.NestedField after = schema.findField(field.fieldId());
+      assertEquals(field.name(), after.name());
+      assertEquals(field.type().typeId(), after.type().typeId());
+    }
+  }
+
+  @Test
+  public void testTightenAndCanonicalPreserveDocAndDefaults() {
+    Types.NestedField withAttributes =
+        Types.NestedField.optional("b")
+            .withId(2)
+            .ofType(Types.LongType.get())
+            .withDoc("the b")
+            .withWriteDefault(org.apache.iceberg.expressions.Literal.of(7L))
+            .build();
+    Schema schema = new Schema(withAttributes, required(1, "a", Types.StringType.get()));
+    Schema canonical = FileSchemas.canonical(schema);
+    Types.NestedField b = canonical.findField("b");
+    assertEquals("the b", b.doc());
+    assertEquals(7L, b.writeDefault());
+  }
+
+  // ---- canonicalization
 
   @Test
   public void testSortsTopLevelFieldsAndRenumbers() {
