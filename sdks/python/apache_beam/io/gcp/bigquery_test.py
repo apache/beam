@@ -230,6 +230,26 @@ class TestTableRowJsonCoder(unittest.TestCase):
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
 
+  def test_schema_as_list(self):
+    if gcp_bigquery is not None:
+      schema_fields = [
+          gcp_bigquery.SchemaField('s', 'STRING'),
+          gcp_bigquery.SchemaField('i', 'INTEGER'),
+      ]
+    else:
+      schema_fields = [
+          bigquery_tools._TableFieldSchemaCompat('s', 'STRING'),
+          bigquery_tools._TableFieldSchemaCompat('i', 'INTEGER'),
+      ]
+    coder = TableRowJsonCoder(table_schema=schema_fields)
+    test_row = bigquery.TableRow(
+        f=[
+            bigquery.TableCell(v=to_json_value('abc')),
+            bigquery.TableCell(v=to_json_value(123))
+        ])
+    encoded = coder.encode(test_row)
+    self.assertEqual('{"s": "abc", "i": 123}', encoded)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonToDictCoder(unittest.TestCase):
@@ -328,6 +348,24 @@ class TestJsonToDictCoder(unittest.TestCase):
     ])
     coder = _JsonToDictCoder(schema)
 
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_schema_as_list_of_schema_fields(self):
+    if gcp_bigquery is not None:
+      schema_fields = [
+          gcp_bigquery.SchemaField('float', 'FLOAT', mode='NULLABLE'),
+          gcp_bigquery.SchemaField('string', 'STRING', mode='NULLABLE'),
+      ]
+    else:
+      schema_fields = [
+          bigquery_tools._TableFieldSchemaCompat('float', 'FLOAT', 'NULLABLE'),
+          bigquery_tools._TableFieldSchemaCompat(
+              'string', 'STRING', 'NULLABLE'),
+      ]
+    coder = _JsonToDictCoder(schema_fields)
+    input_row = b'{"float": "10.5", "string": "abc"}'
+    expected_row = {'float': 10.5, 'string': 'abc'}
     actual = coder.decode(input_row)
     self.assertEqual(expected_row, actual)
 

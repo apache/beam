@@ -423,7 +423,13 @@ FieldSchema = collections.namedtuple('FieldSchema', 'fields mode name type')
 class _JsonToDictCoder(coders.Coder):
   """A coder for a JSON string to a Python dict."""
   def __init__(self, table_schema):
-    self.fields = self._convert_to_tuple(table_schema.fields)
+    if table_schema is not None:
+      fields = (
+          table_schema.fields
+          if hasattr(table_schema, 'fields') else table_schema)
+      self.fields = self._convert_to_tuple(fields)
+    else:
+      self.fields = []
     self._converters = {
         'INTEGER': int,
         'INT64': int,
@@ -452,7 +458,11 @@ class _JsonToDictCoder(coders.Coder):
       return []
 
     return [
-        FieldSchema(cls._convert_to_tuple(x.fields), x.mode, x.name, x.type)
+        FieldSchema(
+            cls._convert_to_tuple(getattr(x, 'fields', ())),
+            getattr(x, 'mode', 'NULLABLE'),
+            getattr(x, 'name', ''),
+            getattr(x, 'field_type', getattr(x, 'type', 'STRING')))
         for x in table_field_schemas
     ]
 

@@ -529,8 +529,12 @@ class TableRowJsonCoder(coders.Coder):
     self.table_schema = table_schema
     # Precompute field names since we need them for row encoding.
     if self.table_schema:
-      self.field_names = tuple(fs.name for fs in self.table_schema.fields)
-      self.field_types = tuple(fs.type for fs in self.table_schema.fields)
+      fields = (
+          self.table_schema.fields
+          if hasattr(self.table_schema, 'fields') else self.table_schema)
+      self.field_names = tuple(fs.name for fs in fields)
+      self.field_types = tuple(
+          getattr(fs, 'type', getattr(fs, 'field_type', None)) for fs in fields)
 
   def encode(self, table_row):
     if self.table_schema is None:

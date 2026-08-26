@@ -3177,7 +3177,10 @@ def get_bq_tableschema(schema):
   if (isinstance(schema, (TableSchema, value_provider.ValueProvider)) or
       callable(schema) or schema is None):
     return schema
-  elif isinstance(schema, list):
+  elif isinstance(schema, (list, tuple)):
+    dict_schema = get_dict_table_schema(schema)
+    if isinstance(dict_schema, dict):
+      return parse_table_schema_from_json(json.dumps(dict_schema))
     return TableSchema(fields=schema)
   elif isinstance(schema, str):
     return get_table_schema_from_string(schema)
@@ -3185,6 +3188,9 @@ def get_bq_tableschema(schema):
     schema_string = json.dumps(schema)
     return parse_table_schema_from_json(schema_string)
   elif hasattr(schema, 'fields'):
+    dict_schema = get_dict_table_schema(schema)
+    if isinstance(dict_schema, dict):
+      return parse_table_schema_from_json(json.dumps(dict_schema))
     return TableSchema(fields=list(schema.fields))
   else:
     raise TypeError('Unexpected schema argument: %s.' % schema)
