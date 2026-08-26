@@ -17,13 +17,22 @@ limitations under the License.
 
 Roadmap for connectors developed using Python SDK.
 
-# Kafka
+_Last updated on Aug 2026._
 
-An Apache Kafka connectors for Python SDK that is fully developed using
-Splittable DoFn API is planned. This is partially blocked till
-Splittable DoFn work related to portability framework is finalized.
-See [BEAM-3788](https://issues.apache.org/jira/browse/BEAM-3788) for more details.
+# Cross-Language Connectors and Auto-Generated Wrappers
 
-# Parquet
-A Python connector for Parquet file format is currently in development.
-See [BEAM-4444](https://issues.apache.org/jira/browse/BEAM-4444) for more details.
+Rather than reimplementing storage connectors natively from scratch in Python, the preferred approach for Beam data connectors is leveraging mature Java I/O connectors via Beam's cross-language (xlang) framework:
+
+* **Preferred Cross-Language Path**: Core I/O connectors (such as Kafka, Apache Iceberg, Delta Lake, Snowflake, and JDBC) are authored as [SchemaTransforms](/documentation/sdks/python-custom-multi-language-pipelines-guide) in Java and exposed to Python pipelines. Python users can invoke them seamlessly or configure them via the simplified [Managed I/O](/documentation/io/managed-io) API.
+* **Auto-Generated Transform Wrappers**: The Python SDK natively supports generating wrappers for external transforms ([design doc](https://s.apache.org/autogen-wrappers)). By discovering SchemaTransforms registered in expansion services, the Python SDK automatically provides idiomatic, typed Python wrappers and documentation without requiring developers to manually write and maintain boilerplate code.
+
+# AI and Machine Learning (Beam ML)
+
+Machine learning and artificial intelligence represent the primary focus area for native Python transform and connector development:
+
+* **[RunInference](/documentation/ml/overview/)**: High-throughput, production-grade model inference supporting leading ML frameworks (including PyTorch, TensorFlow, TensorRT, ONNX, and Hugging Face) in both batch and streaming pipelines.
+* **Vector Database Connectors**: Native integrations and configurations for vector databases (such as Qdrant, Pinecone, and Vertex AI Vector Search), supporting large-scale embedding generation and Retrieval-Augmented Generation (RAG) workflows.
+* **LLM & Multi-Model Workflows**: Native patterns for model evaluation, multi-model ensemble pipelines, and orchestration with modern AI systems.
+
+Learn more about Beam's machine learning capabilities in the [Beam ML Documentation](/documentation/ml/overview/).
+

@@ -17,6 +17,8 @@ limitations under the License.
 
 # Go SDK Roadmap
 
+_Last updated on Nov 2021._
+
 The Go SDK is [fully released as of v2.33.0](/blog/go-sdk-release/).
 
 The Go SDK the first SDK purely on the [Beam Portability Framework](/roadmap/portability/)

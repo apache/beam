@@ -17,11 +17,8 @@ limitations under the License.
 
 Roadmap for connectors developed using Go SDK.
 
-* Go SDK plans to utilize currently available Java and Python connectors
+_Last updated on Aug 2026._
+
+Go SDK plans to utilize currently available Java and Python connectors
 through cross-language transforms feature.
-  * KafkaIO via Java - DONE
-  * BigQuery via Java - In Progress
-  * Beam SQL via Java
-* The Go SDK supports SplittableDoFns for bounded pipelines, so scalable bounded pipelines are possible.
-    * The textio package supports [ReadSdf](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadSdf) and [ReadAllSdf](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadAllSdf) for efficient batch text reads.
-    * A general FileIO will be produced to simplify adding new file based connectors.
+* Support auto cross-language transform wrappers ([doc](https://s.apache.org/autogen-wrappers)), currently supported by Python.

@@ -17,6 +17,8 @@ limitations under the License.
 
 Connector-related efforts that will benefit multiple SDKs.
 
+_This roadmap is stale. Last updated on May 2020._
+
 # Splittable DoFn
 Splittable DoFn is the next generation sources framework for Beam that will
 replace current frameworks for developing bounded and unbounded sources.
@@ -24,8 +26,6 @@ Splittable DoFn is being developed along side current Beam portability
 efforts. See [Beam portability framework roadmap](/roadmap/portability/) for more details.
 
 # Cross-language transforms
-
-_Last updated on May 2020._
 
 As an added benefit of Beam portability effort, we are able to utilize Beam transforms across SDKs. This has many benefits.
 

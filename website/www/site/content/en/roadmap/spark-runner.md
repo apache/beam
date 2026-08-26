@@ -17,10 +17,18 @@ limitations under the License.
 
 # Apache Spark Runner Roadmap
 
-## Spark 3
+_Last updated on Aug 2026._
 
-Support for Spark 3 in Beam's Spark runner is ongoing. For info on the various
-tasks please refer to the JIRA ticket.
+## Spark 4
 
-- JIRA: [BEAM-7093](https://issues.apache.org/jira/browse/BEAM-7093)
-- Contact: [Ismaël Mejía](mailto:iemejia@apache.org)
+Support for Spark 4 in Beam's Spark runner is ongoing.
+
+As of Beam 2.74.0, Spark 4 is supported by Classic Spark runner in batch mode.
+
+As od Spark 4, DStream API is deprecated and community interest is around Structured Streaming. We are working on improving the Structured Streaming support in Beam's Spark runner, this includes
+- Complete streaming support for Spark 4 based on Structured Streaming
+- Build Spark 4 portable runner based on Structured Streaming
+
+For info on the various tasks please refer to the GitHub Issue.
+
+- Issues: [runner-spark](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aspark)

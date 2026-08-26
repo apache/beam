@@ -17,9 +17,10 @@ limitations under the License.
 
 # Java SDK Roadmap
 
-## Next Java LTS version support (Java 25)
+_Last updated on Aug 2026._
 
-Work to support the next LTS release of Java is in progress. For more details
-about the scope and info on the various tasks please see the GitHub Issue.
+## Next Java LTS version support
 
-- GitHub: [#35627](https://github.com/apache/beam/issues/35627)
+Beam aims to support new Java LTS versions in a timely manner.
+
+Work to support the next LTS release of Java is done as of Beam 2.69.0. For more details, see [Java Version Compatibility matrix](/documentation/sdks/java/#java-version-compatibility).
