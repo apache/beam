@@ -36,10 +36,10 @@ import logging
 import re
 import sys
 import time
+import typing
 import uuid
 from collections.abc import Sequence
 from json.decoder import JSONDecodeError
-from typing import Any
 from typing import Optional
 from typing import TypeVar
 from typing import Union
@@ -2517,8 +2517,8 @@ def generate_bq_job_name(job_name, step_id, job_type, random=None):
 
 
 def check_schema_equal(
-    left: Union['TableSchema', 'TableFieldSchema', Any],
-    right: Union['TableSchema', 'TableFieldSchema', Any],
+    left: Union['TableSchema', 'TableFieldSchema', typing.Any],
+    right: Union['TableSchema', 'TableFieldSchema', typing.Any],
     *,
     ignore_descriptions: bool = False,
     ignore_field_order: bool = False) -> bool:
