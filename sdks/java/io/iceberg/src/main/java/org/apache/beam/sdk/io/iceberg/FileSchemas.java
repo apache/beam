@@ -21,8 +21,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
@@ -34,6 +36,7 @@ import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.hadoop.metadata.BlockMetaData;
 import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * What a file contributes to schema inference: the canonical form of the schema it declares, and
@@ -64,6 +67,47 @@ final class FileSchemas {
     Schema tightened = tighten(converted, footer);
     return CollectDistinctSchemas.SchemaGroup.of(
         SchemaParser.toJson(canonical(converted)), 1, changedToRequired(converted, tightened));
+  }
+
+  /**
+   * This one file's schema in table terms: convert, then tighten using its own footer. Uses the
+   * file's own null evidence, not its group's: a file that proves a column null-free registers even
+   * when other files sharing its schema could not prove it.
+   */
+  static Schema effective(ParquetMetadata footer) {
+    Schema converted = ParquetSchemaUtil.convert(footer.getFileMetaData().getSchema());
+    return tighten(converted, footer);
+  }
+
+  /**
+   * The footer's own null count for one dotted column of the file's schema, or null when the footer
+   * cannot prove it. Pin evidence must come from the file itself, not from the Metrics built for
+   * the DataFile: the table's write.metadata.metrics configuration shapes those and must not be
+   * able to turn pin enforcement off. Reads the same evidence as {@link #tighten}, by the same
+   * rules: a leaf's count is summed over row groups and unknown when any non-empty row group lacks
+   * it; a struct counts 0 when a leaf beneath it (struct nesting only) has none, since a null
+   * struct nulls every leaf, and is unknown otherwise, since a leaf's nulls include its ancestors'
+   * and cannot be attributed; a column under a list or map is unknown; a file with no rows proves
+   * every column.
+   */
+  static @Nullable Long nullCount(ParquetMetadata footer, Schema fileSchema, String column) {
+    if (rowCount(footer) == 0) {
+      return 0L;
+    }
+    Types.NestedField field = fileSchema.findField(column);
+    if (field == null) {
+      return null;
+    }
+    List<String> path = new ArrayList<>(Arrays.asList(column.split("\\.", -1)));
+    Map<List<String>, @Nullable Long> counts = nullCountsByLeaf(footer);
+    if (field.type().isPrimitiveType()) {
+      return counts.get(path);
+    }
+    if (field.type().isStructType()) {
+      Tightened struct = tightenStruct(field.type().asStructType(), path, zeroNullLeaves(counts));
+      return struct.hasNullFreeLeaf ? Long.valueOf(0) : null;
+    }
+    return null;
   }
 
   /**
@@ -164,33 +208,53 @@ final class FileSchemas {
     return rows;
   }
 
-  /**
-   * Leaf paths proven null-free in every row group that has rows (intersection over blocks). An
-   * empty row group holds no nulls whatever its statistics say, so it constrains nothing.
-   */
+  /** Leaf paths proven null-free: the one source of null evidence for tighten and for pins. */
   private static Set<List<String>> leafPathsWithZeroNullCounts(ParquetMetadata footer) {
-    Set<List<String>> proven = null;
+    return zeroNullLeaves(nullCountsByLeaf(footer));
+  }
+
+  private static Set<List<String>> zeroNullLeaves(Map<List<String>, @Nullable Long> counts) {
+    Set<List<String>> proven = new HashSet<>();
+    for (Map.Entry<List<String>, @Nullable Long> entry : counts.entrySet()) {
+      Long count = entry.getValue();
+      if (count != null && count == 0) {
+        proven.add(entry.getKey());
+      }
+    }
+    return proven;
+  }
+
+  /**
+   * Null count per leaf chunk path, summed over the row groups that have rows; null where any such
+   * row group lacks the statistic (an absent count proves nothing). An empty row group holds no
+   * nulls whatever its statistics say, so it constrains nothing.
+   */
+  private static Map<List<String>, @Nullable Long> nullCountsByLeaf(ParquetMetadata footer) {
+    Map<List<String>, @Nullable Long> counts = new HashMap<>();
     for (BlockMetaData block : footer.getBlocks()) {
       if (block.getRowCount() == 0) {
         continue;
       }
-      Set<List<String>> provenHere = new HashSet<>();
       for (ColumnChunkMetaData chunk : block.getColumns()) {
+        List<String> path = Arrays.asList(chunk.getPath().toArray());
         Statistics<?> stats = chunk.getStatistics();
-        if (stats != null && stats.isNumNullsSet() && stats.getNumNulls() == 0) {
-          provenHere.add(Arrays.asList(chunk.getPath().toArray()));
+        Long inChunk = null;
+        if (stats != null && stats.isNumNullsSet()) {
+          inChunk = stats.getNumNulls();
+        }
+        if (!counts.containsKey(path)) {
+          counts.put(path, inChunk);
+          continue;
+        }
+        Long soFar = counts.get(path);
+        if (soFar == null || inChunk == null) {
+          counts.put(path, null);
+        } else {
+          counts.put(path, soFar + inChunk);
         }
       }
-      if (proven == null) {
-        proven = provenHere;
-      } else {
-        proven.retainAll(provenHere);
-      }
     }
-    if (proven == null) {
-      return new HashSet<>();
-    }
-    return proven;
+    return counts;
   }
 
   private static final class Tightened {
