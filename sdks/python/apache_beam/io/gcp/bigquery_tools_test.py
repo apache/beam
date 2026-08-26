@@ -1413,6 +1413,7 @@ class TestTypeOverrides(unittest.TestCase):
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
 
 
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryClientExperimentFallback(unittest.TestCase):
   def test_default_client_is_modern(self):
     wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
