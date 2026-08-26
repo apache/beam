@@ -51,13 +51,17 @@ import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Wait;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
@@ -112,8 +116,38 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A transform that takes in a stream of file paths, converts them to Iceberg {@link DataFile}s with
- * partition metadata and metrics, then commits them to an Iceberg {@link Table}.
+ * Registers existing Parquet, ORC or Avro files in an Iceberg table without rewriting them: each
+ * path becomes a {@link DataFile} with partition metadata and column stats, batched into manifests
+ * and committed as snapshots.
+ *
+ * <p>Outputs: {@code snapshots} (one row per commit), {@code errors} (one row per file that could
+ * not be registered: {@code file}, {@code error}).
+ *
+ * <p><b>Schema evolution.</b> With a {@link SchemaEvolutionConfig} whose options are set, a
+ * pre-pass reads every Parquet footer, classifies the change each distinct file schema needs on the
+ * table (add a column, relax a required column, promote a type), commits the allowed changes in one
+ * transaction, and only then registers the files. Manifest entries are immutable, so this ordering
+ * is what guarantees that every registered file carries stats for every column it has. Files whose
+ * schema needs a change that is not allowed, or that conflicts with the table or with another file,
+ * are incompatible: by default the pipeline fails before committing anything, or routes them to
+ * {@code errors} (see {@link SchemaEvolutionConfig.IncompatibleSchemaHandling}). The per-file
+ * checks read Parquet footers: an ORC or Avro file, or a pinned column the footer has no null count
+ * for, cannot be verified and goes to {@code errors} unless {@link
+ * SchemaEvolutionConfig.UnverifiableFileHandling#ACCEPT} registers it on trust. Schema evolution
+ * currently requires bounded input; unbounded input with options set is rejected at construction.
+ *
+ * <pre>{@code
+ * SchemaEvolutionConfig evolution =
+ *     SchemaEvolutionConfig.builder()
+ *         .setOptions(List.of(ALLOW_FIELD_ADDITION, ALLOW_TYPE_PROMOTION))
+ *         .setRequiredColumns(List.of("id"))
+ *         .build();
+ * paths.apply(new AddFiles(catalog, "db.sales", null, null, null, null, null, null, evolution));
+ * }</pre>
+ *
+ * <p>Without options the table schema is never changed and files register as-is; columns the table
+ * does not have get no stats and are not readable, and a nested column the table does not know can
+ * make the table unreadable through Iceberg's reader.
  */
 public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
   static final String OUTPUT_TAG = "snapshots";
@@ -142,6 +176,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   private final @Nullable List<String> partitionFields;
   private final @Nullable List<String> sortFields;
   private final @Nullable Map<String, String> tableProps;
+  private final SchemaEvolutionConfig evolution;
+  private CommitSchemaUnion.Committer committer = CommitSchemaUnion.DEFAULT_COMMITTER;
 
   public AddFiles(
       IcebergCatalogConfig catalogConfig,
@@ -152,6 +188,41 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       @Nullable Map<String, String> tableProps,
       @Nullable Integer manifestFileSize,
       @Nullable Duration intervalTrigger) {
+    this(
+        catalogConfig,
+        tableIdentifier,
+        locationPrefix,
+        partitionFields,
+        sortFields,
+        tableProps,
+        manifestFileSize,
+        intervalTrigger,
+        null);
+  }
+
+  /**
+   * @param locationPrefix when set on a partitioned table, the partition is read from the path
+   *     after this prefix instead of from the file's column stats
+   * @param partitionFields partition spec applied when the table is created by this transform
+   * @param sortFields sort order applied when the table is created by this transform
+   * @param tableProps table properties applied when the table is created by this transform
+   * @param manifestFileSize data files per manifest
+   * @param intervalTrigger streaming only: how often manifests are committed, and the width of the
+   *     schema pre-pass window
+   * @param evolution schema evolution settings; null or no options means the schema is never
+   *     changed
+   */
+  public AddFiles(
+      IcebergCatalogConfig catalogConfig,
+      String tableIdentifier,
+      @Nullable String locationPrefix,
+      @Nullable List<String> partitionFields,
+      @Nullable List<String> sortFields,
+      @Nullable Map<String, String> tableProps,
+      @Nullable Integer manifestFileSize,
+      @Nullable Duration intervalTrigger,
+      @Nullable SchemaEvolutionConfig evolution) {
+    this.evolution = evolution != null ? evolution : SchemaEvolutionConfig.disabled();
     this.catalogConfig = catalogConfig;
     this.tableIdentifier = tableIdentifier;
     this.partitionFields = partitionFields;
@@ -166,6 +237,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   @Override
   public PCollectionRowTuple expand(PCollection<String> input) {
     if (input.isBounded().equals(UNBOUNDED)) {
+      Preconditions.checkArgument(
+          !evolution.isEnabled(),
+          "Schema evolution is not yet supported for unbounded input: run a batch pipeline or"
+              + " remove the schema evolution options.");
       intervalTrigger = intervalTrigger != null ? intervalTrigger : DEFAULT_TRIGGER_INTERVAL;
       LOG.info(
           "AddFiles configured to generate a new manifest after accumulating {} files, or after {} seconds.",
@@ -182,8 +257,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           "AddFiles configured to build partition metadata after the prefix: '{}'", locationPrefix);
     }
 
+    PCollection<String> paths = input;
+    if (evolution.isEnabled()) {
+      paths = gateOnSchemaCommit(input);
+    }
+
     PCollectionTuple dataFiles =
-        input.apply(
+        paths.apply(
             "ConvertToDataFiles",
             ParDo.of(
                     new ConvertToDataFile(
@@ -192,7 +272,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                         locationPrefix,
                         partitionFields,
                         sortFields,
-                        tableProps))
+                        tableProps,
+                        evolution))
                 .withOutputTags(DATA_FILES, TupleTagList.of(ERRORS)));
     SchemaCoder<SerializableDataFile> sdfCoder;
     try {
@@ -236,6 +317,43 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     return PCollectionRowTuple.of(
         OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
+  }
+
+  /**
+   * Holds every path until the schema commit has landed. The pre-pass window is the unit of commit,
+   * and for bounded input that unit is the whole input: paths are rewindowed into the global window
+   * first, so one commit covers everything and the Wait.on signal lines up with the main input
+   * whatever windowing the caller applied upstream.
+   */
+  private PCollection<String> gateOnSchemaCommit(PCollection<String> input) {
+    PCollection<String> windowed =
+        input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
+    CommitSchemaUnion.TableCreation creation =
+        new CommitSchemaUnion.TableCreation(partitionFields, sortFields, tableProps);
+    PCollection<Long> signal =
+        windowed
+            .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema()))
+            .setCoder(CollectDistinctSchemas.groupCoder())
+            .apply(
+                "CollectDistinctSchemas",
+                Combine.globally(new CollectDistinctSchemas()).withoutDefaults())
+            .apply(
+                "CommitSchemaOnce",
+                ParDo.of(
+                    new CommitSchemaOnce(
+                        catalogConfig,
+                        tableIdentifier,
+                        evolution,
+                        evolution.incompatibleSchemaHandling(true),
+                        creation,
+                        committer)));
+    return windowed.apply("WaitForSchemaCommit", Wait.on(signal));
+  }
+
+  /** Test hook: how the schema pre-pass commits its transaction. */
+  AddFiles withSchemaCommitter(CommitSchemaUnion.Committer committer) {
+    this.committer = committer;
+    return this;
   }
 
   /**

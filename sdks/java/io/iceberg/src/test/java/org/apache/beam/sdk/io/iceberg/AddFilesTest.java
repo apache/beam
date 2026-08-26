@@ -43,12 +43,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -56,10 +58,13 @@ import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -97,6 +102,7 @@ import org.apache.iceberg.util.SerializableFunction;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Ignore;
@@ -962,6 +968,257 @@ public class AddFilesTest {
 
   private Record record(int id, String name, int age) {
     return GenericRecord.create(icebergSchema).copy("id", id, "name", name, "age", age);
+  }
+
+  // ---- AddFiles with schema evolution
+
+  private AddFiles addFiles(@Nullable SchemaEvolutionConfig config) {
+    return new AddFiles(
+        catalogConfig, tableId.toString(), null, null, null, null, null, null, config);
+  }
+
+  private static int countTransforms(Pipeline pipeline, String name) {
+    int[] count = {0};
+    pipeline.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            if (node.getFullName().contains(name)) {
+              count[0]++;
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    return count[0];
+  }
+
+  @Test
+  public void testEvolutionAddsColumnsBeforeRegisteringFiles() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String narrow = root + "narrow.parquet";
+    DataWriter<Record> writer = createWriter(narrow);
+    writer.write(record(1, "a", 1));
+    writer.close();
+    String wide = writeWider("wide.parquet");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(narrow, wide))
+            .apply(addFiles(SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION)));
+    PAssert.that(output.get("errors")).empty();
+    assertEquals(1, countTransforms(pipeline, "ReadFooterSchema"));
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    Types.NestedField email = table.schema().findField("email");
+    assertNotNull(email);
+    assertTrue(email.isOptional());
+    assertEquals(1, Iterables.size(table.snapshots()));
+    // the wide file's stats cover the new column
+    boolean sawEmailStats = false;
+    for (org.apache.iceberg.FileScanTask task : table.newScan().includeColumnStats().planFiles()) {
+      if (task.file().path().toString().endsWith("wide.parquet")) {
+        sawEmailStats = task.file().nullValueCounts().containsKey(email.fieldId());
+      }
+    }
+    assertTrue("stats for the added column", sawEmailStats);
+  }
+
+  @Test
+  public void testEvolutionDisabledKeepsTodaysGraph() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String file = root + "data.parquet";
+    DataWriter<Record> writer = createWriter(file);
+    writer.write(record(1, "a", 1));
+    writer.close();
+    pipeline.apply("Create Input", Create.of(file)).apply(addFiles(null));
+    assertEquals(0, countTransforms(pipeline, "ReadFooterSchema"));
+    assertEquals(0, countTransforms(pipeline, "WaitForSchemaCommit"));
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testIncompatibleSchemaFailsBatchPipelineByDefault() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    Schema conflicting =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.IntegerType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()));
+    Record record = GenericRecord.create(conflicting);
+    record.setField("id", 1);
+    record.setField("name", 5);
+    record.setField("age", 1);
+    String bad = writeWithSchema("bad.parquet", conflicting, record);
+    String good = root + "good.parquet";
+    DataWriter<Record> writer = createWriter(good);
+    writer.write(record(1, "a", 1));
+    writer.close();
+
+    pipeline
+        .apply("Create Input", Create.of(good, bad))
+        .apply(addFiles(SchemaEvolutionConfig.of(SchemaEvolutionOption.values())));
+    Exception e = assertThrows(Exception.class, () -> pipeline.run().waitUntilFinish());
+    assertThat(e.getMessage(), containsString("Incompatible schemas"));
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).snapshots()));
+  }
+
+  @Test
+  public void testIncompatibleSchemaRoutedToErrorsWhenConfigured() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    Schema conflicting =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.IntegerType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()));
+    Record record = GenericRecord.create(conflicting);
+    record.setField("id", 1);
+    record.setField("name", 5);
+    record.setField("age", 1);
+    String bad = writeWithSchema("bad.parquet", conflicting, record);
+    String good = root + "good.parquet";
+    DataWriter<Record> writer = createWriter(good);
+    writer.write(record(1, "a", 1));
+    writer.close();
+
+    SchemaEvolutionConfig route =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
+            .setIncompatibleSchemaHandling(
+                SchemaEvolutionConfig.IncompatibleSchemaHandling.ROUTE_TO_ERRORS)
+            .build();
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(good, bad)).apply(addFiles(route));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(bad, row.getString("file"));
+              assertThat(row.getString("error"), containsString("does not cover the file"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    Table table = catalog.loadTable(tableId);
+    assertEquals(1, Iterables.size(table.snapshots()));
+    assertEquals(1, Iterables.size(table.newScan().planFiles()));
+  }
+
+  @Test
+  public void testMissingTableIsCreatedFromTheFilesUnion() throws Exception {
+    String narrow = root + "narrow.parquet";
+    DataWriter<Record> writer = createWriter(narrow);
+    writer.write(record(1, "a", 1));
+    writer.close();
+    String wide = writeWider("wide.parquet");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(narrow, wide))
+            .apply(addFiles(SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION)));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    assertNotNull(table.schema().findField("email"));
+    assertTrue("created columns are optional", table.schema().findField("id").isOptional());
+    assertEquals(2, Iterables.size(table.newScan().planFiles()));
+  }
+
+  private PCollection<String> stream(String... files) {
+    TestStream.Builder<String> builder = TestStream.create(StringUtf8Coder.of());
+    for (String file : files) {
+      // far in the past: only the forward stamp keeps these on time
+      builder = builder.addElements(TimestampedValue.of(file, new Instant(0)));
+      builder = builder.advanceProcessingTime(Duration.standardSeconds(1));
+    }
+    return pipeline.apply(builder.advanceWatermarkToInfinity());
+  }
+
+  private AddFiles streamingAddFiles(SchemaEvolutionConfig config) {
+    return new AddFiles(
+        catalogConfig,
+        tableId.toString(),
+        null,
+        null,
+        null,
+        null,
+        10,
+        Duration.standardSeconds(5),
+        config);
+  }
+
+  /** Streaming schema evolution comes in a follow-up: until then the front door rejects it. */
+  @Test
+  public void testUnboundedInputWithEvolutionIsRejected() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    PCollection<String> paths = stream("unused.parquet");
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                paths.apply(
+                    streamingAddFiles(
+                        SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))));
+    assertThat(e.getMessage(), containsString("not yet supported for unbounded input"));
+  }
+
+  /**
+   * Whatever windowing the caller applied upstream, the pre-pass rewindows into the global window:
+   * one schema commit covers the whole input and the Wait.on gate holds every file behind it.
+   */
+  @Test
+  public void testUpstreamWindowedBatchInputEvolvesAndRegisters() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String narrow = root + "narrow.parquet";
+    DataWriter<Record> writer = createWriter(narrow);
+    writer.write(record(1, "a", 1));
+    writer.close();
+    String wide = writeWider("wide.parquet");
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply(
+                "Create Input",
+                Create.timestamped(
+                    TimestampedValue.of(narrow, new Instant(0)),
+                    TimestampedValue.of(wide, new Instant(60_000))))
+            .apply("UpstreamWindow", Window.into(FixedWindows.of(Duration.standardSeconds(30))))
+            .apply(addFiles(SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION)));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    Table table = catalog.loadTable(tableId);
+    assertNotNull(table.schema().findField("email"));
+    assertEquals(2, Iterables.size(table.newScan().planFiles()));
+  }
+
+  /**
+   * Async results are emitted in FinishBundle with their own timestamps. Emitting a finished result
+   * during a later element's ProcessElement would attribute it to that element and trip the
+   * runner's output-timestamp skew check when timestamps differ.
+   */
+  @Test
+  public void testTransientSchemaCommitFailureIsRetried() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String wide = writeWider("wide.parquet");
+    java.util.concurrent.atomic.AtomicInteger attempts =
+        new java.util.concurrent.atomic.AtomicInteger();
+    CommitSchemaUnion.Committer flaky =
+        txn -> {
+          if (attempts.incrementAndGet() == 1) {
+            throw new org.apache.iceberg.exceptions.CommitFailedException("transient");
+          }
+          txn.commitTransaction();
+        };
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(wide))
+            .apply(
+                addFiles(SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+                    .withSchemaCommitter(flaky));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+    assertNotNull(catalog.loadTable(tableId).schema().findField("email"));
   }
 
   // ---- ConvertToDataFile coverage check and pinned columns
