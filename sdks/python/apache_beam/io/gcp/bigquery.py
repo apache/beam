@@ -780,8 +780,10 @@ class _CustomBigQuerySource(BoundedSource):
     elif hasattr(self.temp_dataset, 'dataset_id'):
       return self.temp_dataset.dataset_id
     elif isinstance(self.temp_dataset, str):
-      if ':' in self.temp_dataset or '.' in self.temp_dataset:
-        return bigquery_tools.parse_table_reference(self.temp_dataset).datasetId
+      if ':' in self.temp_dataset:
+        return self.temp_dataset.split(':', 1)[1]
+      elif '.' in self.temp_dataset:
+        return self.temp_dataset.split('.', 1)[1]
       return self.temp_dataset
     return None
 
@@ -790,9 +792,11 @@ class _CustomBigQuerySource(BoundedSource):
       return self.temp_dataset.projectId
     elif hasattr(self.temp_dataset, 'project') and self.temp_dataset.project:
       return self.temp_dataset.project
-    elif isinstance(self.temp_dataset, str) and (':' in self.temp_dataset or
-                                                 '.' in self.temp_dataset):
-      return bigquery_tools.parse_table_reference(self.temp_dataset).projectId
+    elif isinstance(self.temp_dataset, str):
+      if ':' in self.temp_dataset:
+        return self.temp_dataset.split(':', 1)[0]
+      elif '.' in self.temp_dataset:
+        return self.temp_dataset.split('.', 1)[0]
     return None
 
   def _get_project(self):
@@ -3119,9 +3123,14 @@ class ReadFromBigQuery(PTransform):
     temp_dataset = self._kwargs.get('temp_dataset')
     if temp_dataset is not None:
       if isinstance(temp_dataset, str):
-        ds_ref = bigquery_tools.parse_table_reference(temp_dataset)
-        project_id = ds_ref.projectId
-        dataset_id = ds_ref.datasetId
+        if ':' in temp_dataset:
+          project_id, dataset_id = temp_dataset.split(':', 1)
+        elif '.' in temp_dataset:
+          project_id, dataset_id = temp_dataset.split('.', 1)
+        else:
+          project_id = pcoll.pipeline.options.view_as(
+              GoogleCloudOptions).project
+          dataset_id = temp_dataset
       else:
         project_id = getattr(temp_dataset, 'projectId', None) or getattr(
             temp_dataset, 'project', None)

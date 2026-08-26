@@ -35,6 +35,7 @@ import pytz
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
@@ -1432,6 +1433,114 @@ class TestBigQueryClientExperimentFallback(unittest.TestCase):
   def test_kwarg_use_legacy_client(self):
     wrapper = BigQueryWrapper(use_legacy_client=True)
     self.assertFalse(wrapper._is_modern_client)
+
+
+class TestJobReferenceCompatibility(unittest.TestCase):
+  def test_init_camel_case(self):
+    ref = bigquery_tools.JobReference(
+        jobId='test-job', projectId='test-proj', location='US')
+    self.assertEqual(ref.jobId, 'test-job')
+    self.assertEqual(ref.job_id, 'test-job')
+    self.assertEqual(ref.projectId, 'test-proj')
+    self.assertEqual(ref.project, 'test-proj')
+    self.assertEqual(ref.project_id, 'test-proj')
+    self.assertEqual(ref.location, 'US')
+
+  def test_init_snake_case(self):
+    ref = bigquery_tools.JobReference(
+        job_id='test-job', project='test-proj', location='EU')
+    self.assertEqual(ref.jobId, 'test-job')
+    self.assertEqual(ref.job_id, 'test-job')
+    self.assertEqual(ref.projectId, 'test-proj')
+    self.assertEqual(ref.project, 'test-proj')
+    self.assertEqual(ref.project_id, 'test-proj')
+    self.assertEqual(ref.location, 'EU')
+
+  def test_init_with_project_id(self):
+    ref = bigquery_tools.JobReference(
+        job_id='test-job', project_id='test-proj', location='EU')
+    self.assertEqual(ref.jobId, 'test-job')
+    self.assertEqual(ref.job_id, 'test-job')
+    self.assertEqual(ref.projectId, 'test-proj')
+    self.assertEqual(ref.project, 'test-proj')
+    self.assertEqual(ref.project_id, 'test-proj')
+
+  def test_attribute_setters(self):
+    ref = bigquery_tools.JobReference()
+    ref.job_id = 'j1'
+    ref.project = 'p1'
+    self.assertEqual(ref.jobId, 'j1')
+    self.assertEqual(ref.job_id, 'j1')
+    self.assertEqual(ref.projectId, 'p1')
+    self.assertEqual(ref.project, 'p1')
+    self.assertEqual(ref.project_id, 'p1')
+    ref.project_id = 'p2'
+    self.assertEqual(ref.projectId, 'p2')
+    self.assertEqual(ref.project, 'p2')
+    self.assertEqual(ref.project_id, 'p2')
+
+  def test_equality_with_custom_and_apitools(self):
+    ref1 = bigquery_tools.JobReference(job_id='j1', project='p1', location='US')
+    ref2 = bigquery_tools.JobReference(
+        jobId='j1', projectId='p1', location='US')
+    ref3 = bigquery_tools.JobReference(
+        jobId='j2', projectId='p1', location='US')
+    self.assertEqual(ref1, ref2)
+    self.assertNotEqual(ref1, ref3)
+    self.assertEqual(hash(ref1), hash(ref2))
+
+    if bigquery is not None and hasattr(bigquery, 'JobReference'):
+      ap_ref = bigquery.JobReference(jobId='j1', projectId='p1', location='US')
+      self.assertEqual(ref1, ap_ref)
+      self.assertEqual(ap_ref, ref1)
+
+  def test_equality_type_safety(self):
+    empty_ref = bigquery_tools.JobReference()
+    self.assertNotEqual(empty_ref, None)
+    self.assertNotEqual(empty_ref, 123)
+    self.assertNotEqual(empty_ref, "")
+    self.assertNotEqual(empty_ref, {})
+
+    ref = bigquery_tools.JobReference(project='p1')
+    table_ref = bigquery_tools.TableReference(
+        projectId='p1', datasetId='d1', tableId='t1')
+    self.assertNotEqual(ref, table_ref)
+    self.assertNotEqual(empty_ref, table_ref)
+
+  def test_pickle_and_coder_roundtrip(self):
+    import pickle
+    ref = bigquery_tools.JobReference(job_id='j1', project='p1', location='US')
+    pickled = pickle.dumps(ref)
+    unpickled = pickle.loads(pickled)
+    self.assertEqual(ref, unpickled)
+    self.assertEqual(unpickled.jobId, 'j1')
+    self.assertEqual(unpickled.projectId, 'p1')
+    self.assertEqual(unpickled.location, 'US')
+
+    coder = beam.coders.FastPrimitivesCoder()
+    encoded = coder.encode(ref)
+    decoded = coder.decode(encoded)
+    self.assertEqual(ref, decoded)
+
+  def test_table_reference_property_mutability(self):
+    from google.cloud import bigquery as gcp_bigquery
+    if gcp_bigquery is not None and hasattr(gcp_bigquery, 'TableReference'):
+      ds = gcp_bigquery.DatasetReference('p1', 'd1')
+      table = gcp_bigquery.TableReference(ds, 't1')
+      table.tableId = 't2'
+      self.assertEqual(table.tableId, 't2')
+      self.assertEqual(table.table_id, 't2')
+      table.datasetId = 'd2'
+      self.assertEqual(table.datasetId, 'd2')
+      self.assertEqual(table.dataset_id, 'd2')
+      table.projectId = 'p2'
+      self.assertEqual(table.projectId, 'p2')
+      self.assertEqual(table.project, 'p2')
+
+  def test_to_gcp_dataset_ref_colon_format(self):
+    ds_ref = bigquery_tools._to_gcp_dataset_ref('my-project:my_dataset')
+    self.assertEqual(ds_ref.project, 'my-project')
+    self.assertEqual(ds_ref.dataset_id, 'my_dataset')
 
 
 if __name__ == '__main__':

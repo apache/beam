@@ -133,7 +133,6 @@ if bigquery is not None and hasattr(bigquery, 'TableReference'):
   TableCell = getattr(bigquery, 'TableCell', None)
   Table = getattr(bigquery, 'Table', None)
   Dataset = getattr(bigquery, 'Dataset', None)
-  JobReference = getattr(bigquery, 'JobReference', None)
   Job = getattr(bigquery, 'Job', None)
   JobConfiguration = getattr(bigquery, 'JobConfiguration', None)
   JobConfigurationLoad = getattr(bigquery, 'JobConfigurationLoad', None)
@@ -292,34 +291,6 @@ else:
       if value:
         self.extend(value)
 
-  class JobReference(object):
-    def __init__(
-        self,
-        jobId=None,
-        projectId=None,
-        location=None,
-        job_id=None,
-        project=None):
-      self.jobId = jobId if jobId is not None else job_id
-      self.projectId = projectId if projectId is not None else project
-      self.location = location
-
-    @property
-    def job_id(self):
-      return self.jobId
-
-    @job_id.setter
-    def job_id(self, val):
-      self.jobId = val
-
-    @property
-    def project(self):
-      return self.projectId
-
-    @project.setter
-    def project(self, val):
-      self.projectId = val
-
   class TableCell(object):
     def __init__(self, v=None):
       self.v = v
@@ -341,18 +312,120 @@ else:
   JobStatistics4 = None
   ErrorProto = None
 
+
+class JobReference(object):
+  """Compatibility model for BigQuery JobReference.
+
+  Supports both camelCase (jobId, projectId) and snake_case (job_id, project, project_id)
+  initialization and attribute access.
+  """
+  def __init__(
+      self,
+      jobId=None,
+      projectId=None,
+      location=None,
+      job_id=None,
+      project=None,
+      project_id=None):
+    self.jobId = jobId if jobId is not None else job_id
+    self.projectId = (
+        projectId if projectId is not None else
+        (project if project is not None else project_id))
+    self.location = location
+
+  @property
+  def job_id(self):
+    return self.jobId
+
+  @job_id.setter
+  def job_id(self, val):
+    self.jobId = val
+
+  @property
+  def project(self):
+    return self.projectId
+
+  @project.setter
+  def project(self, val):
+    self.projectId = val
+
+  @property
+  def project_id(self):
+    return self.projectId
+
+  @project_id.setter
+  def project_id(self, val):
+    self.projectId = val
+
+  def __eq__(self, other):
+    if other is None:
+      return False
+    if isinstance(other, JobReference):
+      return (
+          self.jobId == other.jobId and self.projectId == other.projectId and
+          self.location == other.location)
+    if apitools_bigquery and hasattr(apitools_bigquery,
+                                     'JobReference') and isinstance(
+                                         other, apitools_bigquery.JobReference):
+      return (
+          self.jobId == getattr(other, 'jobId', None) and
+          self.projectId == getattr(other, 'projectId', None) and
+          self.location == getattr(other, 'location', None))
+    return NotImplemented
+
+  def __hash__(self):
+    return hash((self.jobId, self.projectId, self.location))
+
+  def __repr__(self):
+    return (
+        f"JobReference(jobId={self.jobId!r}, "
+        f"projectId={self.projectId!r}, "
+        f"location={self.location!r})")
+
+
+try:
+  from apitools.base.protorpclite import messages as _protorpclite_messages
+  if hasattr(_protorpclite_messages, 'Message'):
+    _orig_message_eq = _protorpclite_messages.Message.__eq__
+
+    def _message_compat_eq(self, other):
+      if isinstance(other, JobReference) and apitools_bigquery and hasattr(
+          apitools_bigquery, 'JobReference') and isinstance(
+              self, apitools_bigquery.JobReference):
+        return (
+            getattr(self, 'jobId', None) == other.jobId and
+            getattr(self, 'projectId', None) == other.projectId and
+            getattr(self, 'location', None) == other.location)
+      return _orig_message_eq(self, other)
+
+    _protorpclite_messages.Message.__eq__ = _message_compat_eq
+except ImportError:
+  pass
+
+
+def _set_table_ref_prop(ref, prop, val):
+  if hasattr(ref, '_properties') and isinstance(ref._properties, dict):
+    ref._properties[prop] = val
+  if prop == 'projectId':
+    setattr(ref, '_project', val)
+  elif prop == 'datasetId':
+    setattr(ref, '_dataset_id', val)
+  elif prop == 'tableId':
+    setattr(ref, '_table_id', val)
+
+
 # Monkey-patch gcp_bigquery classes to ensure full backward compatibility
 if gcp_bigquery:
   if not hasattr(gcp_bigquery.TableReference, 'projectId'):
     gcp_bigquery.TableReference.projectId = property(
         lambda self: self.project,
-        lambda self, val: setattr(self, '_project', val))
+        lambda self, val: _set_table_ref_prop(self, 'projectId', val))
     gcp_bigquery.TableReference.datasetId = property(
         lambda self: self.dataset_id,
-        lambda self, val: setattr(self, '_dataset_id', val))
+        lambda self, val: _set_table_ref_prop(self, 'datasetId', val))
     gcp_bigquery.TableReference.tableId = property(
         lambda self: self.table_id,
-        lambda self, val: setattr(self, '_table_id', val))
+        lambda self, val: _set_table_ref_prop(self, 'tableId', val))
 
   if not hasattr(gcp_bigquery.DatasetReference, 'projectId'):
     gcp_bigquery.DatasetReference.projectId = property(
@@ -464,7 +537,7 @@ def _to_gcp_dataset_ref(dataset_ref, project=None):
       if gcp_bigquery is not None and hasattr(gcp_bigquery.DatasetReference,
                                               'from_string'):
         return gcp_bigquery.DatasetReference.from_string(
-            dataset_ref, default_project=project)
+            dataset_ref.replace(':', '.'), default_project=project)
     proj = project or 'default'
     if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
       return gcp_bigquery.DatasetReference(proj, dataset_ref)
@@ -1147,7 +1220,11 @@ class BigQueryWrapper(object):
       return None
 
     # Fallback if legacy client.jobs.Insert is mocked
-    reference = JobReference(jobId=uuid.uuid4().hex, projectId=project_id)
+    reference = (
+        apitools_bigquery.JobReference(
+            jobId=uuid.uuid4().hex, projectId=project_id)
+        if apitools_bigquery and hasattr(apitools_bigquery, 'JobReference') else
+        JobReference(jobId=uuid.uuid4().hex, projectId=project_id))
     request = apitools_bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=apitools_bigquery.Job(
@@ -1231,7 +1308,10 @@ class BigQueryWrapper(object):
         raise
 
     # Fallback if legacy client.jobs.Insert is mocked
-    reference = JobReference(jobId=job_id, projectId=project_id)
+    reference = (
+        apitools_bigquery.JobReference(jobId=job_id, projectId=project_id)
+        if apitools_bigquery and hasattr(apitools_bigquery, 'JobReference') else
+        JobReference(jobId=job_id, projectId=project_id))
     request = apitools_bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=apitools_bigquery.Job(
@@ -1331,7 +1411,10 @@ class BigQueryWrapper(object):
           {'fields': [table_field_to_dict(f) for f in schema]})
     else:
       job_schema = schema
-    reference = JobReference(jobId=job_id, projectId=project_id)
+    reference = (
+        apitools_bigquery.JobReference(jobId=job_id, projectId=project_id)
+        if apitools_bigquery and hasattr(apitools_bigquery, 'JobReference') else
+        JobReference(jobId=job_id, projectId=project_id))
     request = apitools_bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=apitools_bigquery.Job(
@@ -1460,7 +1543,10 @@ class BigQueryWrapper(object):
         raise
 
     # Fallback if legacy client.jobs.Insert is mocked
-    reference = JobReference(jobId=job_id, projectId=project_id)
+    reference = (
+        apitools_bigquery.JobReference(jobId=job_id, projectId=project_id)
+        if apitools_bigquery and hasattr(apitools_bigquery, 'JobReference') else
+        JobReference(jobId=job_id, projectId=project_id))
     request = apitools_bigquery.BigqueryJobsInsertRequest(
         projectId=project_id,
         job=apitools_bigquery.Job(
@@ -2209,7 +2295,10 @@ class BigQueryWrapper(object):
         raise
 
     # Fallback for legacy client
-    job_reference = JobReference(jobId=job_id, projectId=job_project)
+    job_reference = (
+        apitools_bigquery.JobReference(jobId=job_id, projectId=job_project)
+        if apitools_bigquery and hasattr(apitools_bigquery, 'JobReference') else
+        JobReference(jobId=job_id, projectId=job_project))
     request = apitools_bigquery.BigqueryJobsInsertRequest(
         projectId=job_project,
         job=apitools_bigquery.Job(
