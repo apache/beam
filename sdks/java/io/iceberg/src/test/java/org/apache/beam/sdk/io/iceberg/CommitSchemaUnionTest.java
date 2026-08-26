@@ -17,11 +17,15 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -77,8 +81,15 @@ public class CommitSchemaUnionTest {
   private static final SchemaEvolutionConfig ADDITION_ONLY =
       SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION);
 
-  private static final CommitSchemaUnion.TableCreation NO_CREATION =
-      new CommitSchemaUnion.TableCreation(null, null, null);
+  private static final CommitSchemaUnion.NewTableSettings NO_CREATION =
+      new CommitSchemaUnion.NewTableSettings(null, null, null);
+
+  private static CommitSchemaUnion.Settings settings(
+      SchemaEvolutionConfig config,
+      IncompatibleSchemaHandling handling,
+      CommitSchemaUnion.NewTableSettings newTable) {
+    return new CommitSchemaUnion.Settings(config, handling, newTable);
+  }
 
   private HadoopCatalog catalog;
   private TableIdentifier tableId;
@@ -111,9 +122,7 @@ public class CommitSchemaUnionTest {
         catalog,
         tableId,
         Arrays.asList(schemas),
-        config,
-        handling,
-        NO_CREATION,
+        settings(config, handling, NO_CREATION),
         CommitSchemaUnion.DEFAULT_COMMITTER);
   }
 
@@ -550,9 +559,7 @@ public class CommitSchemaUnionTest {
         catalog,
         other,
         Arrays.asList(files(b, 2), files(a, 1)),
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertTrue(first.sameSchema(catalog.loadTable(other).schema()));
   }
@@ -719,6 +726,25 @@ public class CommitSchemaUnionTest {
     assertTrue(NameMappingUtils.covers(mapping, table.schema().asStruct()));
   }
 
+  @Test
+  public void testPlanReportsTheNameMappingRepair() {
+    assertFalse(load().properties().containsKey(TableProperties.DEFAULT_NAME_MAPPING));
+    List<CollectDistinctSchemas.SchemaGroup> covered = Arrays.asList(files(TABLE, 1));
+    CommitSchemaUnion.Settings settings =
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION);
+    CommitSchemaUnion.EvolutionPlan plan =
+        (CommitSchemaUnion.EvolutionPlan)
+            CommitSchemaUnion.plan(catalog, tableId, covered, settings);
+    assertNull(plan.newSchema);
+    assertTrue(plan.repairsNameMapping);
+
+    commit(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, files(TABLE, 1));
+    plan =
+        (CommitSchemaUnion.EvolutionPlan)
+            CommitSchemaUnion.plan(catalog, tableId, covered, settings);
+    assertFalse(plan.repairsNameMapping);
+  }
+
   // ---- retry
 
   @Test
@@ -742,9 +768,7 @@ public class CommitSchemaUnionTest {
         catalog,
         tableId,
         Arrays.asList(files(file, 1)),
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
         flakyThenExternalChange);
     Table table = load();
     assertEquals(2, attempts.get());
@@ -772,9 +796,7 @@ public class CommitSchemaUnionTest {
                 catalog,
                 tableId,
                 Arrays.asList(files(file, 1)),
-                ALL,
-                IncompatibleSchemaHandling.FAIL_PIPELINE,
-                NO_CREATION,
+                settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
                 alwaysFails));
     assertEquals(CommitSchemaUnion.MAX_ATTEMPTS, attempts.get());
   }
@@ -789,15 +811,13 @@ public class CommitSchemaUnionTest {
       TableIdentifier id,
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
-      CommitSchemaUnion.TableCreation creation,
+      CommitSchemaUnion.NewTableSettings creation,
       CollectDistinctSchemas.SchemaGroup... schemas) {
     return CommitSchemaUnion.commit(
         catalog,
         id,
         Arrays.asList(schemas),
-        config,
-        handling,
-        creation,
+        settings(config, handling, creation),
         CommitSchemaUnion.DEFAULT_COMMITTER);
   }
 
@@ -812,8 +832,8 @@ public class CommitSchemaUnionTest {
     Schema other =
         new Schema(
             required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
-    CommitSchemaUnion.TableCreation creation =
-        new CommitSchemaUnion.TableCreation(
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(
             Arrays.asList("region"), null, java.util.Collections.singletonMap("k", "v"));
     long schemaId =
         commitTo(
@@ -848,8 +868,8 @@ public class CommitSchemaUnionTest {
     Schema other =
         new Schema(
             required(1, "id", Types.LongType.get()), optional(2, "extra", Types.StringType.get()));
-    CommitSchemaUnion.TableCreation creation =
-        new CommitSchemaUnion.TableCreation(Arrays.asList("extra"), null, null);
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("extra"), null, null);
     commitTo(
         id,
         ALL,
@@ -1068,9 +1088,7 @@ public class CommitSchemaUnionTest {
             catalog,
             id,
             new ArrayList<>(),
-            ALL,
-            IncompatibleSchemaHandling.FAIL_PIPELINE,
-            NO_CREATION,
+            settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
             CommitSchemaUnion.DEFAULT_COMMITTER);
     assertEquals(CommitSchemaUnion.NO_TABLE, result);
     assertFalse(catalog.tableExists(id));
@@ -1095,6 +1113,85 @@ public class CommitSchemaUnionTest {
                 NO_CREATION,
                 files(asLong, 3),
                 files(asString, 1)));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  /** The fallback creation at registration throws the same error, so no handling can route it. */
+  @Test
+  public void testPartitionFieldAbsentFromUnionFailsCreationUnderEitherHandling() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("missing"), null, null);
+    for (IncompatibleSchemaHandling handling : IncompatibleSchemaHandling.values()) {
+      IllegalStateException e =
+          assertThrows(
+              IllegalStateException.class,
+              () -> commitTo(id, ALL, handling, creation, files(seed, 2)));
+      assertEquals(
+          "not an IncompatibleSchemaException, which the handling could downgrade",
+          IllegalStateException.class,
+          e.getClass());
+      assertThat(
+          e.getMessage(), containsString("cannot be created with partition fields [missing]"));
+    }
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testPartitionFieldOnlyInASkippedSchemaFailsCreation() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "code", Types.StringType.get()));
+    Schema loser =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(2, "code", Types.LongType.get()),
+            optional(3, "region", Types.StringType.get()));
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("region"), null, null);
+    IllegalStateException e =
+        assertThrows(
+            IllegalStateException.class,
+            () ->
+                commitTo(
+                    id,
+                    ALL,
+                    IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+                    creation,
+                    files(seed, 3),
+                    files(loser, 1)));
+    assertThat(e.getMessage(), containsString("region"));
+    assertFalse(catalog.tableExists(id));
+  }
+
+  @Test
+  public void testPlanForCreationListsAcceptedSchemasAndCreationSettings() {
+    TableIdentifier id = missing();
+    Schema seed =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
+    Schema other =
+        new Schema(
+            required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
+    CommitSchemaUnion.NewTableSettings creation =
+        new CommitSchemaUnion.NewTableSettings(Arrays.asList("region"), Arrays.asList("id"), null);
+    CommitSchemaUnion.CreationPlan plan =
+        (CommitSchemaUnion.CreationPlan)
+            CommitSchemaUnion.plan(
+                catalog,
+                id,
+                Arrays.asList(files(seed, 5), files(other, 1)),
+                settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, creation));
+    assertTrue(plan.canCreate());
+    assertEquals(2, plan.schemasToMerge.size());
+    assertEquals(5, checkStateNotNull(plan.toMerge(json(seed))).files);
+    assertEquals(1, checkStateNotNull(plan.toMerge(json(other))).files);
+    assertEquals("region", checkStateNotNull(plan.spec).fields().get(0).name());
+    assertEquals(1, checkStateNotNull(plan.sortOrder).fields().size());
     assertFalse(catalog.tableExists(id));
   }
 
@@ -1142,9 +1239,7 @@ public class CommitSchemaUnionTest {
         catalog,
         id,
         Arrays.asList(files(file, 1)),
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
         raced);
     Table table = catalog.loadTable(id);
     assertEquals(2, attempts.get());
@@ -1156,16 +1251,13 @@ public class CommitSchemaUnionTest {
 
   @Test
   public void testEmptyInputCommitsNothing() {
-    seedNameMapping();
     String before = metadataLocation(load());
     List<CollectDistinctSchemas.SchemaGroup> none = new ArrayList<>();
     CommitSchemaUnion.commit(
         catalog,
         tableId,
         none,
-        ALL,
-        IncompatibleSchemaHandling.FAIL_PIPELINE,
-        NO_CREATION,
+        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertEquals(before, metadataLocation(load()));
   }

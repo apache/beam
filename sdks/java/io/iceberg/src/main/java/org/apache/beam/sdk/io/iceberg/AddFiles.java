@@ -42,9 +42,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -54,6 +54,7 @@ import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.GroupIntoBatches;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -123,7 +124,8 @@ import org.slf4j.LoggerFactory;
  * and committed as snapshots.
  *
  * <p>Outputs: {@code snapshots} (one row per commit), {@code errors} (one row per file that could
- * not be registered: {@code file}, {@code error}).
+ * not be registered: {@code file}, {@code error}), and {@code dry_run_report} when a dry run is
+ * configured.
  *
  * <p><b>Schema evolution.</b> With a {@link SchemaEvolutionConfig} whose options are set, a
  * pre-pass reads every Parquet footer, classifies the change each distinct file schema needs on the
@@ -154,6 +156,10 @@ import org.slf4j.LoggerFactory;
 public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
   static final String OUTPUT_TAG = "snapshots";
   static final String ERROR_TAG = "errors";
+
+  /** Only present with {@link SchemaEvolutionConfig#getDryRun()}. */
+  static final String DRY_RUN_TAG = "dry_run_report";
+
   private static final Duration DEFAULT_TRIGGER_INTERVAL = Duration.standardMinutes(10);
   private static final Counter numManifestFilesAdded =
       counter(AddFiles.class, "numManifestFilesAdded");
@@ -260,7 +266,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     PCollection<String> paths = input;
     if (evolution.isEnabled()) {
-      paths = gateOnSchemaCommit(input);
+      // one commit per window, and for bounded input the window is the whole input
+      PCollection<String> windowed =
+          input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
+      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas = distinctSchemas(windowed);
+      CommitSchemaUnion.Settings settings =
+          new CommitSchemaUnion.Settings(
+              evolution,
+              evolution.incompatibleSchemaHandlingFor(input.isBounded()),
+              new CommitSchemaUnion.NewTableSettings(partitionFields, sortFields, tableProps));
+      if (evolution.getDryRun()) {
+        return report(schemas, settings);
+      }
+      PCollection<Long> committed = commitSchema(schemas, settings);
+      paths = windowed.apply("WaitForSchemaCommit", Wait.on(committed));
     }
 
     PCollectionTuple dataFiles =
@@ -320,39 +339,49 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         OUTPUT_TAG, snapshots, ERROR_TAG, dataFiles.get(ERRORS).setRowSchema(ERROR_SCHEMA));
   }
 
-  /**
-   * Holds every path until the schema commit has landed. The pre-pass window is the unit of commit,
-   * and for bounded input that unit is the whole input: paths are rewindowed into the global window
-   * first, so one commit covers everything and the Wait.on signal lines up with the main input
-   * whatever windowing the caller applied upstream.
-   */
-  private PCollection<String> gateOnSchemaCommit(PCollection<String> input) {
-    PCollection<String> windowed =
-        input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
-    CommitSchemaUnion.TableCreation creation =
-        new CommitSchemaUnion.TableCreation(partitionFields, sortFields, tableProps);
-    // unset handling follows the mode (fail the job in batch, route in streaming); the pre-pass
-    // only runs on bounded input, see expand
-    IncompatibleSchemaHandling onIncompatible =
-        evolution.incompatibleSchemaHandlingFor(input.isBounded());
-    PCollection<Long> signal =
-        windowed
-            .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema()))
-            .setCoder(CollectDistinctSchemas.groupCoder())
+  private PCollection<List<CollectDistinctSchemas.SchemaGroup>> distinctSchemas(
+      PCollection<String> windowed) {
+    return windowed
+        .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema(evolution)))
+        .setCoder(CollectDistinctSchemas.groupCoder())
+        .apply(
+            "CollectDistinctSchemas",
+            Combine.globally(new CollectDistinctSchemas()).withoutDefaults());
+  }
+
+  /** Commits the plan for the window's schemas once; the signal releases the gated paths. */
+  private PCollection<Long> commitSchema(
+      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
+      CommitSchemaUnion.Settings settings) {
+    return schemas.apply(
+        "CommitSchemaOnce",
+        ParDo.of(new CommitSchemaOnce(catalogConfig, tableIdentifier, settings, committer)));
+  }
+
+  /** Reports the plan for the window's schemas instead; nothing is committed or registered. */
+  private PCollectionRowTuple report(
+      PCollection<List<CollectDistinctSchemas.SchemaGroup>> schemas,
+      CommitSchemaUnion.Settings settings) {
+    PCollection<Row> report =
+        schemas
             .apply(
-                "CollectDistinctSchemas",
-                Combine.globally(new CollectDistinctSchemas()).withoutDefaults())
-            .apply(
-                "CommitSchemaOnce",
-                ParDo.of(
-                    new CommitSchemaOnce(
-                        catalogConfig,
-                        tableIdentifier,
-                        evolution,
-                        onIncompatible,
-                        creation,
-                        committer)));
-    return windowed.apply("WaitForSchemaCommit", Wait.on(signal));
+                "DryRunReport",
+                ParDo.of(new DryRunReport(catalogConfig, tableIdentifier, settings)))
+            .setRowSchema(DryRunReport.REPORT_SCHEMA);
+
+    PCollection<Row> emptySnapshots =
+        schemas
+            .getPipeline()
+            .apply("NoSnapshots", Create.empty(RowCoder.of(SnapshotInfo.getSchema())))
+            .setRowSchema(SnapshotInfo.getSchema());
+    PCollection<Row> emptyErrors =
+        schemas
+            .getPipeline()
+            .apply("NoErrors", Create.empty(RowCoder.of(ERROR_SCHEMA)))
+            .setRowSchema(ERROR_SCHEMA);
+    return PCollectionRowTuple.of(OUTPUT_TAG, emptySnapshots)
+        .and(ERROR_TAG, emptyErrors)
+        .and(DRY_RUN_TAG, report);
   }
 
   /** Test hook: how the schema pre-pass commits its transaction. */
