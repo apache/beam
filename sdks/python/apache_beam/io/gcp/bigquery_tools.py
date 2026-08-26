@@ -124,13 +124,289 @@ except ImportError:
 # (e.g. projectId, datasetId, tableId, tableReference) for backwards
 # compatibility across pipelines, transforms, and test suites.
 
+
+class _DatasetReferenceCompat(object):
+  """Compatibility model for BigQuery DatasetReference when google-cloud-bigquery is unavailable.
+
+  Supports both camelCase (projectId, datasetId) and snake_case (project, dataset_id, project_id).
+  """
+  def __init__(
+      self,
+      project=None,
+      dataset_id=None,
+      projectId=None,
+      datasetId=None,
+      project_id=None):
+    p = (
+        projectId if projectId is not None else
+        (project_id if project_id is not None else project))
+    d = datasetId if datasetId is not None else dataset_id
+    self._project = p or ''
+    self._dataset_id = d or ''
+
+  @classmethod
+  def from_string(cls, dataset_ref, default_project=None):
+    if ':' in dataset_ref:
+      p, d = dataset_ref.split(':', 1)
+    elif '.' in dataset_ref:
+      parts = dataset_ref.split('.', 1)
+      p, d = parts[0], parts[1]
+    else:
+      p, d = default_project or 'default', dataset_ref
+    return cls(project=p, dataset_id=d)
+
+  @property
+  def projectId(self):
+    return self._project
+
+  @projectId.setter
+  def projectId(self, val):
+    self._project = val
+
+  @property
+  def project(self):
+    return self._project
+
+  @project.setter
+  def project(self, val):
+    self._project = val
+
+  @property
+  def project_id(self):
+    return self._project
+
+  @project_id.setter
+  def project_id(self, val):
+    self._project = val
+
+  @property
+  def datasetId(self):
+    return self._dataset_id
+
+  @datasetId.setter
+  def datasetId(self, val):
+    self._dataset_id = val
+
+  @property
+  def dataset_id(self):
+    return self._dataset_id
+
+  @dataset_id.setter
+  def dataset_id(self, val):
+    self._dataset_id = val
+
+  def __repr__(self):
+    return f"DatasetReference('{self.project}', '{self.dataset_id}')"
+
+  def __eq__(self, other):
+    if other is None:
+      return False
+    if not hasattr(other, 'project') and not hasattr(other, 'projectId'):
+      return NotImplemented
+    other_p = getattr(other, 'projectId', None) or getattr(
+        other, 'project', None)
+    other_d = getattr(other, 'datasetId', None) or getattr(
+        other, 'dataset_id', None)
+    return (self.projectId, self.datasetId) == (other_p, other_d)
+
+  def __hash__(self):
+    return hash((self.projectId, self.datasetId))
+
+
+class _TableReferenceCompat(object):
+  """Compatibility model for BigQuery TableReference when google-cloud-bigquery is unavailable.
+
+  Supports both camelCase (projectId, datasetId, tableId) and snake_case
+  (project, dataset_id, table_id, project_id).
+  """
+  def __init__(
+      self,
+      dataset_ref=None,
+      table_id=None,
+      projectId=None,
+      datasetId=None,
+      tableId=None,
+      project=None,
+      dataset_id=None,
+      project_id=None):
+    p = (
+        projectId if projectId is not None else
+        (project_id if project_id is not None else project))
+    d = datasetId if datasetId is not None else dataset_id
+    t = tableId if tableId is not None else table_id
+    if p is not None or d is not None or t is not None:
+      self._project = p
+      self._dataset_id = d
+      self._table_id = t
+    elif dataset_ref is not None:
+      self._project = getattr(dataset_ref, 'projectId', None) or getattr(
+          dataset_ref, 'project', None)
+      self._dataset_id = getattr(dataset_ref, 'datasetId', None) or getattr(
+          dataset_ref, 'dataset_id', None)
+      self._table_id = table_id or ''
+    else:
+      self._project = None
+      self._dataset_id = None
+      self._table_id = None
+
+  @classmethod
+  def from_string(cls, table_ref, default_project=None):
+    parsed = parse_table_reference(table_ref, project=default_project)
+    return cls(
+        projectId=parsed.projectId,
+        datasetId=parsed.datasetId,
+        tableId=parsed.tableId)
+
+  @property
+  def projectId(self):
+    return self._project
+
+  @projectId.setter
+  def projectId(self, val):
+    self._project = val
+
+  @property
+  def project(self):
+    return self._project
+
+  @project.setter
+  def project(self, val):
+    self._project = val
+
+  @property
+  def project_id(self):
+    return self._project
+
+  @project_id.setter
+  def project_id(self, val):
+    self._project = val
+
+  @property
+  def datasetId(self):
+    return self._dataset_id
+
+  @datasetId.setter
+  def datasetId(self, val):
+    self._dataset_id = val
+
+  @property
+  def dataset_id(self):
+    return self._dataset_id
+
+  @dataset_id.setter
+  def dataset_id(self, val):
+    self._dataset_id = val
+
+  @property
+  def tableId(self):
+    return self._table_id
+
+  @tableId.setter
+  def tableId(self, val):
+    self._table_id = val
+
+  @property
+  def table_id(self):
+    return self._table_id
+
+  @table_id.setter
+  def table_id(self, val):
+    self._table_id = val
+
+  @property
+  def dataset_reference(self):
+    return _DatasetReferenceCompat(
+        projectId=self.projectId, datasetId=self.datasetId)
+
+  @property
+  def datasetReference(self):
+    return self.dataset_reference
+
+  def __repr__(self):
+    return (
+        f"TableReference(projectId='{self.projectId}', "
+        f"datasetId='{self.datasetId}', tableId='{self.tableId}')")
+
+  def __eq__(self, other):
+    if other is None:
+      return False
+    if not hasattr(other, 'tableId') and not hasattr(other, 'table_id'):
+      return NotImplemented
+    other_p = getattr(other, 'projectId', None) or getattr(
+        other, 'project', None)
+    other_d = getattr(other, 'datasetId', None) or getattr(
+        other, 'dataset_id', None)
+    other_t = getattr(other, 'tableId', None) or getattr(
+        other, 'table_id', None)
+    return (self.projectId, self.datasetId,
+            self.tableId) == (other_p, other_d, other_t)
+
+  def __hash__(self):
+    return hash((self.projectId, self.datasetId, self.tableId))
+
+
+class _TableFieldSchemaCompat(object):
+  def __init__(
+      self,
+      name='',
+      type='STRING',
+      mode='NULLABLE',
+      description=None,
+      fields=(),
+      field_type=None,
+      **kwargs):
+    ft = type or field_type or 'STRING'
+    self.name = name
+    self.field_type = ft
+    self.mode = mode or 'NULLABLE'
+    self.description = description
+    self.fields = list(fields) if fields else []
+
+  @property
+  def type(self):
+    return self.field_type
+
+  @type.setter
+  def type(self, val):
+    self.field_type = val
+
+
+class _TableSchemaCompat(list):
+  def __init__(self, fields=None):
+    if fields:
+      super().__init__(fields)
+    else:
+      super().__init__()
+
+  @property
+  def fields(self):
+    return self
+
+  @fields.setter
+  def fields(self, value):
+    self.clear()
+    if value:
+      self.extend(value)
+
+
+class _TableCellCompat(object):
+  def __init__(self, v=None):
+    self.v = v
+
+
+class _TableRowCompat(object):
+  def __init__(self, f=None):
+    self.f = f or []
+
+
 if bigquery is not None and hasattr(bigquery, 'TableReference'):
   TableReference = bigquery.TableReference
-  DatasetReference = getattr(bigquery, 'DatasetReference', None)
+  DatasetReference = getattr(
+      bigquery, 'DatasetReference', None) or _DatasetReferenceCompat
   TableFieldSchema = bigquery.TableFieldSchema
   TableSchema = bigquery.TableSchema
-  TableRow = getattr(bigquery, 'TableRow', None)
-  TableCell = getattr(bigquery, 'TableCell', None)
+  TableRow = getattr(bigquery, 'TableRow', None) or _TableRowCompat
+  TableCell = getattr(bigquery, 'TableCell', None) or _TableCellCompat
   Table = getattr(bigquery, 'Table', None)
   Dataset = getattr(bigquery, 'Dataset', None)
   Job = getattr(bigquery, 'Job', None)
@@ -145,160 +421,12 @@ if bigquery is not None and hasattr(bigquery, 'TableReference'):
   JobStatistics4 = getattr(bigquery, 'JobStatistics4', None)
   ErrorProto = getattr(bigquery, 'ErrorProto', None)
 else:
-
-  class DatasetReference(
-      gcp_bigquery.DatasetReference if gcp_bigquery else object):
-    def __init__(
-        self, project=None, dataset_id=None, projectId=None, datasetId=None):
-      p = projectId if projectId is not None else project
-      d = datasetId if datasetId is not None else dataset_id
-      if gcp_bigquery:
-        super().__init__(p or '', d or '')
-      else:
-        self._project = p or ''
-        self._dataset_id = d or ''
-
-    @property
-    def projectId(self):
-      return self._project
-
-    @projectId.setter
-    def projectId(self, val):
-      self._project = val
-
-    @property
-    def datasetId(self):
-      return self._dataset_id
-
-    @datasetId.setter
-    def datasetId(self, val):
-      self._dataset_id = val
-
-  class TableReference(gcp_bigquery.TableReference if gcp_bigquery else object):
-    def __init__(
-        self,
-        dataset_ref=None,
-        table_id=None,
-        projectId=None,
-        datasetId=None,
-        tableId=None,
-        project=None,
-        dataset_id=None):
-      p = projectId if projectId is not None else project
-      d = datasetId if datasetId is not None else dataset_id
-      t = tableId if tableId is not None else table_id
-      if p is not None or d is not None or t is not None:
-        ds_ref = DatasetReference(p, d) if (p or d) else DatasetReference(
-            '', '')
-        if gcp_bigquery:
-          super().__init__(ds_ref, t or '')
-        else:
-          self._project = p
-          self._dataset_id = d
-          self._table_id = t
-      elif dataset_ref is not None:
-        if gcp_bigquery:
-          super().__init__(dataset_ref, table_id or '')
-        else:
-          self._project = getattr(dataset_ref, 'projectId', None) or getattr(
-              dataset_ref, 'project', None)
-          self._dataset_id = getattr(dataset_ref, 'datasetId', None) or getattr(
-              dataset_ref, 'dataset_id', None)
-          self._table_id = table_id or ''
-      else:
-        if gcp_bigquery:
-          super().__init__(DatasetReference('', ''), '')
-        else:
-          self._project = None
-          self._dataset_id = None
-          self._table_id = None
-
-    @property
-    def projectId(self):
-      return self.project if hasattr(self, 'project') else getattr(
-          self, '_project', None)
-
-    @projectId.setter
-    def projectId(self, val):
-      self._project = val
-
-    @property
-    def datasetId(self):
-      return self.dataset_id if hasattr(self, 'dataset_id') else getattr(
-          self, '_dataset_id', None)
-
-    @datasetId.setter
-    def datasetId(self, val):
-      self._dataset_id = val
-
-    @property
-    def tableId(self):
-      return self.table_id if hasattr(self, 'table_id') else getattr(
-          self, '_table_id', None)
-
-    @tableId.setter
-    def tableId(self, val):
-      self._table_id = val
-
-  class TableFieldSchema(gcp_bigquery.SchemaField if gcp_bigquery else object):
-    def __init__(
-        self,
-        name='',
-        type='STRING',
-        mode='NULLABLE',
-        description=None,
-        fields=(),
-        field_type=None,
-        **kwargs):
-      ft = type or field_type or 'STRING'
-      if gcp_bigquery:
-        super().__init__(
-            name=name,
-            field_type=ft,
-            mode=mode or 'NULLABLE',
-            description=description,
-            fields=fields or (),
-            **kwargs)
-      else:
-        self.name = name
-        self.field_type = ft
-        self.mode = mode or 'NULLABLE'
-        self.description = description
-        self.fields = list(fields) if fields else []
-
-    @property
-    def type(self):
-      return self.field_type
-
-    @type.setter
-    def type(self, val):
-      self._field_type = val
-
-  class TableSchema(list):
-    def __init__(self, fields=None):
-      if fields:
-        super().__init__(fields)
-      else:
-        super().__init__()
-
-    @property
-    def fields(self):
-      return self
-
-    @fields.setter
-    def fields(self, value):
-      self.clear()
-      if value:
-        self.extend(value)
-
-  class TableCell(object):
-    def __init__(self, v=None):
-      self.v = v
-
-  class TableRow(object):
-    def __init__(self, f=None):
-      self.f = f or []
-
+  TableReference = _TableReferenceCompat
+  DatasetReference = _DatasetReferenceCompat
+  TableFieldSchema = _TableFieldSchemaCompat
+  TableSchema = _TableSchemaCompat
+  TableRow = _TableRowCompat
+  TableCell = _TableCellCompat
   Table = None
   Dataset = None
   Job = None
@@ -396,6 +524,19 @@ try:
             getattr(self, 'jobId', None) == other.jobId and
             getattr(self, 'projectId', None) == other.projectId and
             getattr(self, 'location', None) == other.location)
+      if isinstance(other, TableReference) and apitools_bigquery and hasattr(
+          apitools_bigquery, 'TableReference') and isinstance(
+              self, apitools_bigquery.TableReference):
+        return (
+            getattr(self, 'projectId', None) == other.projectId and
+            getattr(self, 'datasetId', None) == other.datasetId and
+            getattr(self, 'tableId', None) == other.tableId)
+      if isinstance(other, DatasetReference) and apitools_bigquery and hasattr(
+          apitools_bigquery, 'DatasetReference') and isinstance(
+              self, apitools_bigquery.DatasetReference):
+        return (
+            getattr(self, 'projectId', None) == other.projectId and
+            getattr(self, 'datasetId', None) == other.datasetId)
       return _orig_message_eq(self, other)
 
     _protorpclite_messages.Message.__eq__ = _message_compat_eq
@@ -520,7 +661,7 @@ def _to_gcp_table_ref(table_ref, default_project=None):
                                                     'DatasetReference'):
       return gcp_bigquery.TableReference(
           gcp_bigquery.DatasetReference(proj, dataset_id), table_id)
-    return TableReference(
+    return _TableReferenceCompat(
         projectId=proj, datasetId=dataset_id, tableId=table_id)
   return table_ref
 
@@ -538,15 +679,25 @@ def _to_gcp_dataset_ref(dataset_ref, project=None):
                                               'from_string'):
         return gcp_bigquery.DatasetReference.from_string(
             dataset_ref.replace(':', '.'), default_project=project)
+      if ':' in dataset_ref:
+        proj, ds_id = dataset_ref.split(':', 1)
+      else:
+        parts = dataset_ref.split('.', 1)
+        proj, ds_id = parts[0], parts[1]
+      return _DatasetReferenceCompat(projectId=proj, datasetId=ds_id)
     proj = project or 'default'
     if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
       return gcp_bigquery.DatasetReference(proj, dataset_ref)
-    return DatasetReference(projectId=proj, datasetId=dataset_ref)
-  if hasattr(dataset_ref, 'projectId') and hasattr(dataset_ref, 'datasetId'):
-    proj = getattr(dataset_ref, 'projectId', None) or project or 'default'
+    return _DatasetReferenceCompat(projectId=proj, datasetId=dataset_ref)
+  if hasattr(dataset_ref, 'projectId') or hasattr(dataset_ref, 'project'):
+    proj = getattr(dataset_ref, 'projectId', None) or getattr(
+        dataset_ref, 'project', None) or getattr(
+            dataset_ref, 'project_id', None) or project or 'default'
+    ds_id = getattr(dataset_ref, 'datasetId', None) or getattr(
+        dataset_ref, 'dataset_id', None)
     if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
-      return gcp_bigquery.DatasetReference(proj, dataset_ref.datasetId)
-    return DatasetReference(projectId=proj, datasetId=dataset_ref.datasetId)
+      return gcp_bigquery.DatasetReference(proj, ds_id)
+    return _DatasetReferenceCompat(projectId=proj, datasetId=ds_id)
   return dataset_ref
 
 

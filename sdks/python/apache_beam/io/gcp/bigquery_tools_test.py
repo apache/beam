@@ -1522,25 +1522,64 @@ class TestJobReferenceCompatibility(unittest.TestCase):
     decoded = coder.decode(encoded)
     self.assertEqual(ref, decoded)
 
+  @unittest.skipIf(
+      bigquery_tools.gcp_bigquery is None,
+      'google-cloud-bigquery not installed')
   def test_table_reference_property_mutability(self):
-    from google.cloud import bigquery as gcp_bigquery
-    if gcp_bigquery is not None and hasattr(gcp_bigquery, 'TableReference'):
-      ds = gcp_bigquery.DatasetReference('p1', 'd1')
-      table = gcp_bigquery.TableReference(ds, 't1')
-      table.tableId = 't2'
-      self.assertEqual(table.tableId, 't2')
-      self.assertEqual(table.table_id, 't2')
-      table.datasetId = 'd2'
-      self.assertEqual(table.datasetId, 'd2')
-      self.assertEqual(table.dataset_id, 'd2')
-      table.projectId = 'p2'
-      self.assertEqual(table.projectId, 'p2')
-      self.assertEqual(table.project, 'p2')
+    gcp_bigquery = bigquery_tools.gcp_bigquery
+    ds = gcp_bigquery.DatasetReference('p1', 'd1')
+    table = gcp_bigquery.TableReference(ds, 't1')
+    table.tableId = 't2'
+    self.assertEqual(table.tableId, 't2')
+    self.assertEqual(table.table_id, 't2')
+    table.datasetId = 'd2'
+    self.assertEqual(table.datasetId, 'd2')
+    self.assertEqual(table.dataset_id, 'd2')
+    table.projectId = 'p2'
+    self.assertEqual(table.projectId, 'p2')
+    self.assertEqual(table.project, 'p2')
+
+  def test_table_reference_compat_model(self):
+    table = bigquery_tools._TableReferenceCompat(
+        projectId='p1', datasetId='d1', tableId='t1')
+    self.assertEqual(table.projectId, 'p1')
+    self.assertEqual(table.project, 'p1')
+    self.assertEqual(table.project_id, 'p1')
+    self.assertEqual(table.datasetId, 'd1')
+    self.assertEqual(table.dataset_id, 'd1')
+    self.assertEqual(table.tableId, 't1')
+    self.assertEqual(table.table_id, 't1')
+    table.tableId = 't2'
+    self.assertEqual(table.tableId, 't2')
+    self.assertEqual(table.table_id, 't2')
+    table.datasetId = 'd2'
+    self.assertEqual(table.datasetId, 'd2')
+    self.assertEqual(table.dataset_id, 'd2')
+    table.projectId = 'p2'
+    self.assertEqual(table.projectId, 'p2')
+    self.assertEqual(table.project, 'p2')
+    self.assertEqual(table.project_id, 'p2')
+
+  def test_dataset_reference_compat_model(self):
+    ds = bigquery_tools._DatasetReferenceCompat(projectId='p1', datasetId='d1')
+    self.assertEqual(ds.projectId, 'p1')
+    self.assertEqual(ds.project, 'p1')
+    self.assertEqual(ds.project_id, 'p1')
+    self.assertEqual(ds.datasetId, 'd1')
+    self.assertEqual(ds.dataset_id, 'd1')
+    ds.projectId = 'p2'
+    self.assertEqual(ds.projectId, 'p2')
+    self.assertEqual(ds.project, 'p2')
+    ds.datasetId = 'd2'
+    self.assertEqual(ds.datasetId, 'd2')
+    self.assertEqual(ds.dataset_id, 'd2')
 
   def test_to_gcp_dataset_ref_colon_format(self):
     ds_ref = bigquery_tools._to_gcp_dataset_ref('my-project:my_dataset')
     self.assertEqual(ds_ref.project, 'my-project')
     self.assertEqual(ds_ref.dataset_id, 'my_dataset')
+    self.assertEqual(ds_ref.projectId, 'my-project')
+    self.assertEqual(ds_ref.datasetId, 'my_dataset')
 
 
 if __name__ == '__main__':
