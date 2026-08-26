@@ -24,8 +24,11 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.util.EnumSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
@@ -115,6 +118,46 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
     public abstract @Nullable List<String> getSortFields();
 
+    @SchemaFieldDescription(
+        "Schema changes the transform may make so that every file's columns are covered by the"
+            + " table schema, from: ALLOW_FIELD_ADDITION (add file columns absent from the table,"
+            + " as optional), ALLOW_FIELD_RELAXATION (make a required table column optional when"
+            + " a file may contain nulls in it or lacks it), ALLOW_TYPE_PROMOTION (widen a column"
+            + " type, e.g. int to long). Empty or absent: the table schema is never changed."
+            + " With any option set, every Parquet file's footer is read and the allowed changes"
+            + " are committed before files are registered, so stats cover every file. A file"
+            + " needing a change that is not allowed is incompatible: see"
+            + " incompatible_schema_handling. Only Parquet files can be checked: with options"
+            + " set, ORC and Avro files are routed to the error output unless"
+            + " unverifiable_file_handling is ACCEPT. Requires a batch pipeline; streaming with"
+            + " schema evolution is not yet supported.")
+    public abstract @Nullable List<String> getSchemaEvolutionOptions();
+
+    @SchemaFieldDescription(
+        "Columns (dotted paths for nested fields) that must stay required whatever the options"
+            + " say. A file that lacks such a column or holds nulls in it is routed to the error"
+            + " output; so is one whose footer has no null-count statistics for it, unless"
+            + " unverifiable_file_handling is ACCEPT. Only meaningful with"
+            + " schema_evolution_options.")
+    public abstract @Nullable List<String> getRequiredColumns();
+
+    @SchemaFieldDescription(
+        "What to do when a file's schema is incompatible with the table (needs a change that"
+            + " is not allowed, or conflicts with the table or another file): FAIL_PIPELINE"
+            + " fails the pipeline before any schema change is committed; ROUTE_TO_ERRORS skips"
+            + " the schema and routes its files to the error output. Default: FAIL_PIPELINE.")
+    public abstract @Nullable String getIncompatibleSchemaHandling();
+
+    @SchemaFieldDescription(
+        "What to do with a file the per-file checks cannot verify: an ORC or Avro file (the"
+            + " checks read Parquet footers), or a Parquet file with no null-count statistics for"
+            + " a required column (statistics disabled by the writer, or a column under a list or"
+            + " map). REJECT routes it to the error output; ACCEPT registers it unchecked, counted"
+            + " and logged. A file that fails a check is always routed. An accepted file that"
+            + " lacks a required column or holds nulls in it breaks reads of the table, not"
+            + " registration. Default: REJECT.")
+    public abstract @Nullable String getUnverifiableFileHandling();
+
     @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
     public abstract @Nullable ErrorHandling getErrorHandling();
 
@@ -140,7 +183,72 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
       public abstract Builder setErrorHandling(ErrorHandling errorHandling);
 
+      public abstract Builder setSchemaEvolutionOptions(List<String> options);
+
+      public abstract Builder setRequiredColumns(List<String> columns);
+
+      public abstract Builder setIncompatibleSchemaHandling(String handling);
+
+      public abstract Builder setUnverifiableFileHandling(String handling);
+
       public abstract Configuration build();
+    }
+
+    /** Validates and converts the schema evolution settings; null when none are set. */
+    public @Nullable SchemaEvolutionConfig getSchemaEvolution() {
+      List<String> optionNames = getSchemaEvolutionOptions();
+      List<String> pins = getRequiredColumns();
+      String handlingName = getIncompatibleSchemaHandling();
+      String unverifiableName = getUnverifiableFileHandling();
+      boolean nothingSet =
+          (optionNames == null || optionNames.isEmpty())
+              && (pins == null || pins.isEmpty())
+              && handlingName == null
+              && unverifiableName == null;
+      if (nothingSet) {
+        return null;
+      }
+      Preconditions.checkArgument(
+          optionNames != null && !optionNames.isEmpty(),
+          "required_columns, incompatible_schema_handling and unverifiable_file_handling need at"
+              + " least one schema_evolution_options entry");
+      Set<SchemaEvolutionOption> options = EnumSet.noneOf(SchemaEvolutionOption.class);
+      for (String name : checkStateNotNull(optionNames)) {
+        options.add(parseEnum(SchemaEvolutionOption.class, name, "schema_evolution_options"));
+      }
+      SchemaEvolutionConfig.Builder builder = SchemaEvolutionConfig.builder().setOptions(options);
+      if (pins != null) {
+        builder = builder.setRequiredColumns(new LinkedHashSet<>(pins));
+      }
+      if (handlingName != null) {
+        builder =
+            builder.setIncompatibleSchemaHandling(
+                parseEnum(
+                    SchemaEvolutionConfig.IncompatibleSchemaHandling.class,
+                    handlingName,
+                    "incompatible_schema_handling"));
+      }
+      if (unverifiableName != null) {
+        builder =
+            builder.setUnverifiableFileHandling(
+                parseEnum(
+                    SchemaEvolutionConfig.UnverifiableFileHandling.class,
+                    unverifiableName,
+                    "unverifiable_file_handling"));
+      }
+      return builder.build();
+    }
+
+    private static <T extends Enum<T>> T parseEnum(Class<T> type, String name, String option) {
+      for (T value : checkStateNotNull(type.getEnumConstants())) {
+        if (value.name().equalsIgnoreCase(name.trim())) {
+          return value;
+        }
+      }
+      throw new IllegalArgumentException(
+          String.format(
+              "Invalid %s value '%s'. Valid values: %s",
+              option, name, java.util.Arrays.toString(type.getEnumConstants())));
     }
 
     public IcebergCatalogConfig getIcebergCatalog() {
@@ -186,7 +294,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
                       configuration.getSortFields(),
                       configuration.getTableProperties(),
                       configuration.getManifestFileSize(),
-                      frequency != null ? Duration.standardSeconds(frequency) : null));
+                      frequency != null ? Duration.standardSeconds(frequency) : null,
+                      configuration.getSchemaEvolution()));
 
       PCollectionRowTuple output = PCollectionRowTuple.of("snapshots", result.get(OUTPUT_TAG));
       ErrorHandling errorHandling = configuration.getErrorHandling();
