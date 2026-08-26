@@ -120,6 +120,11 @@ import org.slf4j.LoggerFactory;
  * Growth.PollResult#withWatermark} if the {@link Growth.PollFn} can provide a more optimistic
  * estimate.
  *
+ * <p>By default the transform remembers the key of every output it has emitted, so the state of an
+ * input that is watched indefinitely grows without bound. {@link Growth#withTimestampCursor} bounds
+ * that state by event time, for a {@link Growth.PollFn} whose outputs arrive in roughly
+ * non-decreasing timestamp order.
+ *
  * <p>Note: This transform works only in runners supporting Splittable DoFn: see <a
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
  */
@@ -677,6 +682,8 @@ public class Watch {
 
     abstract @Nullable Coder<OutputT> getOutputCoder();
 
+    abstract @Nullable Duration getTimestampCursorAllowedLateness();
+
     abstract Builder<InputT, OutputT, KeyT> toBuilder();
 
     @AutoValue.Builder
@@ -694,6 +701,9 @@ public class Watch {
       abstract Builder<InputT, OutputT, KeyT> setPollInterval(Duration pollInterval);
 
       abstract Builder<InputT, OutputT, KeyT> setOutputCoder(Coder<OutputT> outputCoder);
+
+      abstract Builder<InputT, OutputT, KeyT> setTimestampCursorAllowedLateness(
+          Duration allowedLateness);
 
       abstract Growth<InputT, OutputT, KeyT> build();
     }
@@ -726,6 +736,38 @@ public class Watch {
      */
     public Growth<InputT, OutputT, KeyT> withOutputCoder(Coder<OutputT> outputCoder) {
       return toBuilder().setOutputCoder(outputCoder).build();
+    }
+
+    /** Like {@link #withTimestampCursor(Duration)} with no lateness allowed. */
+    public Growth<InputT, OutputT, KeyT> withTimestampCursor() {
+      return withTimestampCursor(Duration.ZERO);
+    }
+
+    /**
+     * Bounds the deduplication state by event time.
+     *
+     * <p>Deduplication still goes by output key, but a key is retired once the greatest timestamp
+     * emitted for this input has moved more than {@code allowedLateness} past it, so the state
+     * holds a trailing window rather than every key ever seen.
+     *
+     * <p>An output whose timestamp is below that mark is taken as already seen and is dropped, so
+     * this suits a {@link PollFn} whose outputs arrive in roughly non-decreasing timestamp order.
+     * Widen {@code allowedLateness} for a source that reports outputs further out of order, at the
+     * cost of a larger state.
+     *
+     * <p>Retiring a key costs the guarantee that an output is emitted once for all time. An output
+     * that a {@link PollFn} reports again at or above the current floor after its key was retired
+     * looks new and is emitted a second time. Updating a running pipeline to widen {@code
+     * allowedLateness}, or to drop the cursor altogether, lowers the floor over keys that are
+     * already gone and can emit them again for the same reason.
+     */
+    public Growth<InputT, OutputT, KeyT> withTimestampCursor(Duration allowedLateness) {
+      checkArgument(allowedLateness != null, "allowedLateness can not be null");
+      checkArgument(
+          !allowedLateness.isShorterThan(Duration.ZERO),
+          "allowedLateness must not be negative, but was %s",
+          allowedLateness);
+      return toBuilder().setTimestampCursorAllowedLateness(allowedLateness).build();
     }
 
     @Override
@@ -899,20 +941,34 @@ public class Watch {
         return stop();
       }
 
+      PollingGrowthState<TerminationStateT> pollingRestriction =
+          (PollingGrowthState<TerminationStateT>) currentRestriction;
+
+      @Nullable Duration allowedLateness = spec.getTimestampCursorAllowedLateness();
+      @Nullable Instant cursor = pollingRestriction.getCursor();
+      if (retentionFloorAtMaxTimestamp(cursor, allowedLateness)) {
+        // Nothing can be claimed above the floor, so claim an empty round and stop.
+        LOG.info("{} - will not poll, retention floor is already at max timestamp.", c.element());
+        tracker.tryClaim(
+            KV.of(
+                PollResult.<OutputT>incomplete(Collections.emptyList()),
+                pollingRestriction.getTerminationState()));
+        return stop();
+      }
+
       // Poll for additional elements.
       Instant now = Instant.now();
       Growth.PollResult<OutputT> res =
           spec.getPollFn().getClosure().apply(c.element(), wrapProcessContext(c));
 
-      PollingGrowthState<TerminationStateT> pollingRestriction =
-          (PollingGrowthState<TerminationStateT>) currentRestriction;
       // Produce a poll result that only contains never seen before results in timestamp
       // sorted order.
       Growth.PollResult<OutputT> newResults =
           computeNeverSeenBeforeResults(pollingRestriction, res);
 
       // If we had zero new results, attempt to update the watermark if the poll result
-      // provided a watermark. Otherwise attempt to claim all pending outputs.
+      // provided a watermark or the retention floor bounds future outputs. Otherwise attempt
+      // to claim all pending outputs.
       LOG.info(
           "{} - current round of polling took {} ms and returned {} results, "
               + "of which {} were new.",
@@ -944,6 +1000,26 @@ public class Watch {
         // computeNeverSeenBeforeResults returns the elements in timestamp sorted order so
         // we can get the timestamp from the first element.
         computedWatermark = newResults.getOutputs().get(0).getTimestamp();
+      } else if (allowedLateness != null && cursor != null) {
+        // Nothing below the retention floor is ever emitted, so a round with no new results and
+        // no explicit watermark can still advance the watermark to the floor.
+        computedWatermark = retentionFloor(cursor, allowedLateness);
+      }
+
+      if (allowedLateness != null && !newResults.getOutputs().isEmpty()) {
+        // The cursor only ever advances, and lands on the greatest timestamp emitted so far. Once
+        // it carries the retention floor to the maximum timestamp, every later output falls below
+        // the floor and would be dropped, so polling stops.
+        Instant newCursor =
+            Ordering.natural()
+                .nullsFirst()
+                .max(
+                    cursor,
+                    newResults.getOutputs().get(newResults.getOutputs().size() - 1).getTimestamp());
+        if (retentionFloorAtMaxTimestamp(newCursor, allowedLateness)) {
+          LOG.info("{} - will stop polling, retention floor reached max timestamp.", c.element());
+          return stop();
+        }
       }
 
       Instant currentTime = Instant.now();
@@ -979,8 +1055,14 @@ public class Watch {
       // Collect results to include as newly pending. Note that the poll result may in theory
       // contain multiple outputs mapping to the same output key - we need to ignore duplicates
       // here already.
+      Instant retentionFloor = retentionFloor(state, spec.getTimestampCursorAllowedLateness());
       Map<HashCode, TimestampedValue<OutputT>> newPending = Maps.newHashMap();
       for (TimestampedValue<OutputT> output : pollResult.getOutputs()) {
+        if (retentionFloor != null && output.getTimestamp().isBefore(retentionFloor)) {
+          // The key that would prove this output already seen has been retired, so treat the
+          // output as seen.
+          continue;
+        }
         OutputT value = output.getValue();
         HashCode hash = hash128(value);
         if (state.getCompleted().containsKey(hash) || newPending.containsKey(hash)) {
@@ -989,8 +1071,8 @@ public class Watch {
         // TODO (https://github.com/apache/beam/issues/18459):
         // Consider adding only at most N pending elements and ignoring others,
         // instead relying on future poll rounds to provide them, in order to avoid
-        // blowing up the state. Combined with garbage collection of PollingGrowthState.completed,
-        // this would make the transform scalable to very large poll results.
+        // blowing up the state. Combined with a timestamp cursor, this would make the transform
+        // scalable to very large poll results.
         newPending.put(hash, output);
       }
 
@@ -1012,7 +1094,8 @@ public class Watch {
     @NewTracker
     public GrowthTracker<OutputT, TerminationStateT> newTracker(
         @Restriction GrowthState restriction) {
-      return new GrowthTracker<>(restriction, coderFunnel);
+      return new GrowthTracker<>(
+          restriction, coderFunnel, spec.getTimestampCursorAllowedLateness());
     }
 
     @GetRestrictionCoder
@@ -1025,6 +1108,43 @@ public class Watch {
 
   /** A base class for all restrictions related to the {@link Growth} SplittableDoFn. */
   abstract static class GrowthState {}
+
+  /**
+   * The timestamp below which a key is retired from {@link PollingGrowthState#getCompleted}, or
+   * null when every key is retained.
+   *
+   * <p>An output at or above the floor is still deduplicated by key; one below it is taken as
+   * already seen.
+   */
+  private static @Nullable Instant retentionFloor(
+      PollingGrowthState<?> state, @Nullable Duration allowedLateness) {
+    if (allowedLateness == null || state.getCursor() == null) {
+      return null;
+    }
+    return retentionFloor(state.getCursor(), allowedLateness);
+  }
+
+  /** The retention floor for a cursor, saturated at the minimum timestamp. */
+  private static Instant retentionFloor(Instant cursor, Duration allowedLateness) {
+    long floorMillis;
+    try {
+      floorMillis = Math.subtractExact(cursor.getMillis(), allowedLateness.getMillis());
+    } catch (ArithmeticException e) {
+      floorMillis = BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis();
+    }
+    return new Instant(Math.max(floorMillis, BoundedWindow.TIMESTAMP_MIN_VALUE.getMillis()));
+  }
+
+  /**
+   * Whether the retention floor has reached the maximum timestamp, after which no further output
+   * can be claimed and polling on would only drop outputs.
+   */
+  private static boolean retentionFloorAtMaxTimestamp(
+      @Nullable Instant cursor, @Nullable Duration allowedLateness) {
+    return cursor != null
+        && allowedLateness != null
+        && !retentionFloor(cursor, allowedLateness).isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE);
+  }
 
   /**
    * Stores the prior pending poll results related to the {@link Growth} SplittableDoFn. Used to
@@ -1055,27 +1175,40 @@ public class Watch {
   abstract static class PollingGrowthState<TerminationStateT> extends GrowthState {
     public static <TerminationStateT> PollingGrowthState<TerminationStateT> of(
         TerminationStateT terminationState) {
-      return new AutoValue_Watch_PollingGrowthState<>(ImmutableMap.of(), null, terminationState);
+      return new AutoValue_Watch_PollingGrowthState<>(
+          ImmutableMap.of(), null, terminationState, null);
     }
 
     public static <TerminationStateT> PollingGrowthState<TerminationStateT> of(
         ImmutableMap<HashCode, Instant> completed,
         Instant pollWatermark,
         TerminationStateT terminationState) {
-      return new AutoValue_Watch_PollingGrowthState<>(completed, pollWatermark, terminationState);
+      return of(completed, pollWatermark, terminationState, null);
+    }
+
+    public static <TerminationStateT> PollingGrowthState<TerminationStateT> of(
+        ImmutableMap<HashCode, Instant> completed,
+        @Nullable Instant pollWatermark,
+        TerminationStateT terminationState,
+        @Nullable Instant cursor) {
+      return new AutoValue_Watch_PollingGrowthState<>(
+          completed, pollWatermark, terminationState, cursor);
     }
 
     // Hashes and timestamps of outputs that have already been output and should be omitted
-    // from future polls. Timestamps are preserved to allow garbage-collecting this state
-    // in the future, e.g. dropping elements from "completed" and from
-    // computeNeverSeenBeforeResults() if their timestamp is more than X behind the watermark.
-    // As of writing, we don't do this, but preserve the information for forward compatibility
-    // in case of pipeline update. TODO: do this.
+    // from future polls. Under a timestamp cursor the entries the cursor has moved past are
+    // dropped, which bounds this map; otherwise every key ever seen is kept.
     public abstract ImmutableMap<HashCode, Instant> getCompleted();
 
     public abstract @Nullable Instant getPollWatermark();
 
     public abstract TerminationStateT getTerminationState();
+
+    /**
+     * The greatest timestamp emitted for this input so far, or null when the transform is not
+     * bounding its state by event time or has emitted nothing yet.
+     */
+    public abstract @Nullable Instant getCursor();
   }
 
   @VisibleForTesting
@@ -1088,6 +1221,10 @@ public class Watch {
     // Used to hash values.
     private final Funnel<OutputT> coderFunnel;
 
+    // How far below the cursor a completed key is still retained, or null when the state is not
+    // bounded by event time.
+    private final @Nullable Duration allowedLateness;
+
     // non-null after first successful tryClaim()
     private Growth.@Nullable PollResult<OutputT> claimedPollResult;
     private @Nullable TerminationStateT claimedTerminationState;
@@ -1098,9 +1235,11 @@ public class Watch {
     // Whether we should stop claiming poll results.
     private boolean shouldStop;
 
-    GrowthTracker(GrowthState state, Funnel<OutputT> coderFunnel) {
+    GrowthTracker(
+        GrowthState state, Funnel<OutputT> coderFunnel, @Nullable Duration allowedLateness) {
       this.state = state;
       this.coderFunnel = coderFunnel;
+      this.allowedLateness = allowedLateness;
       this.shouldStop = false;
     }
 
@@ -1135,13 +1274,30 @@ public class Watch {
         ImmutableMap.Builder<HashCode, Instant> newCompleted = ImmutableMap.builder();
         newCompleted.putAll(currentState.getCompleted());
         newCompleted.putAll(claimedHashes);
+        ImmutableMap<HashCode, Instant> completed = newCompleted.build();
+
+        // A round that is not bounding the state retains every key, so it drops the cursor that
+        // would retire them and returns the restriction to the pre-cursor format.
+        Instant cursor = null;
+        if (allowedLateness != null) {
+          // The cursor only ever advances, and retires the keys it has moved past.
+          cursor = currentState.getCursor();
+          for (Instant timestamp : claimedHashes.values()) {
+            cursor = Ordering.natural().nullsFirst().max(cursor, timestamp);
+          }
+          if (cursor != null) {
+            completed = retainAtOrAfter(completed, retentionFloor(cursor, allowedLateness));
+          }
+        }
+
         residual =
             PollingGrowthState.of(
-                newCompleted.build(),
+                completed,
                 Ordering.natural()
                     .nullsFirst()
                     .max(currentState.getPollWatermark(), claimedPollResult.watermark),
-                claimedTerminationState);
+                claimedTerminationState,
+                cursor);
         state = NonPollingGrowthState.of(claimedPollResult);
       }
 
@@ -1151,6 +1307,18 @@ public class Watch {
 
     private HashCode hash128(OutputT value) {
       return Hashing.murmur3_128().hashObject(value, coderFunnel);
+    }
+
+    /** Drops the completed keys the retention floor has retired, which bounds the state. */
+    private static ImmutableMap<HashCode, Instant> retainAtOrAfter(
+        ImmutableMap<HashCode, Instant> completed, Instant floor) {
+      ImmutableMap.Builder<HashCode, Instant> retained = ImmutableMap.builder();
+      for (Map.Entry<HashCode, Instant> entry : completed.entrySet()) {
+        if (!entry.getValue().isBefore(floor)) {
+          retained.put(entry);
+        }
+      }
+      return retained.build();
     }
 
     @Override
@@ -1181,10 +1349,21 @@ public class Watch {
       ImmutableMap<HashCode, Instant> newClaimedHashes = newClaimedHashesBuilder.build();
 
       if (state instanceof PollingGrowthState) {
+        PollingGrowthState<?> pollingState = (PollingGrowthState<?>) state;
         // If we have previously claimed one of these hashes then return false.
         if (!Collections.disjoint(
-            newClaimedHashes.keySet(), ((PollingGrowthState) state).getCompleted().keySet())) {
+            newClaimedHashes.keySet(), pollingState.getCompleted().keySet())) {
           return false;
+        }
+        // An output the cursor has already moved past cannot be claimed, since the key that would
+        // prove it never seen before has been retired.
+        Instant retentionFloor = retentionFloor(pollingState, allowedLateness);
+        if (retentionFloor != null) {
+          for (Instant timestamp : newClaimedHashes.values()) {
+            if (timestamp.isBefore(retentionFloor)) {
+              return false;
+            }
+          }
         }
       } else {
         Set<HashCode> expectedHashesToClaim = new HashSet<>();
@@ -1249,6 +1428,7 @@ public class Watch {
 
     private static final int POLLING_GROWTH_STATE = 0;
     private static final int NON_POLLING_GROWTH_STATE = 1;
+    private static final int CURSOR_POLLING_GROWTH_STATE = 2;
 
     public static <OutputT, TerminationStateT> GrowthStateCoder<OutputT, TerminationStateT> of(
         Coder<OutputT> outputCoder, Coder<TerminationStateT> terminationStateCoder) {
@@ -1259,6 +1439,7 @@ public class Watch {
         MapCoder.of(HashCode128Coder.of(), InstantCoder.of());
     private static final Coder<Instant> NULLABLE_INSTANT_CODER =
         NullableCoder.of(InstantCoder.of());
+    private static final Coder<Instant> INSTANT_CODER = InstantCoder.of();
 
     private final Coder<OutputT> outputCoder;
     private final Coder<List<TimestampedValue<OutputT>>> timestampedOutputCoder;
@@ -1275,8 +1456,17 @@ public class Watch {
     @Override
     public void encode(GrowthState value, OutputStream os) throws IOException {
       if (value instanceof PollingGrowthState) {
-        VarInt.encode(POLLING_GROWTH_STATE, os);
-        encodePollingGrowthState((PollingGrowthState<TerminationStateT>) value, os);
+        PollingGrowthState<TerminationStateT> polling =
+            (PollingGrowthState<TerminationStateT>) value;
+        // A state without a cursor keeps the pre-cursor byte format.
+        if (polling.getCursor() == null) {
+          VarInt.encode(POLLING_GROWTH_STATE, os);
+          encodePollingGrowthState(polling, os);
+        } else {
+          VarInt.encode(CURSOR_POLLING_GROWTH_STATE, os);
+          encodePollingGrowthState(polling, os);
+          INSTANT_CODER.encode(polling.getCursor(), os);
+        }
       } else if (value instanceof NonPollingGrowthState) {
         VarInt.encode(NON_POLLING_GROWTH_STATE, os);
         encodeNonPollingGrowthState((NonPollingGrowthState<OutputT>) value, os);
@@ -1305,7 +1495,9 @@ public class Watch {
         case NON_POLLING_GROWTH_STATE:
           return decodeNonPollingGrowthState(is);
         case POLLING_GROWTH_STATE:
-          return decodePollingGrowthState(is);
+          return decodePollingGrowthState(is, false);
+        case CURSOR_POLLING_GROWTH_STATE:
+          return decodePollingGrowthState(is, true);
         default:
           throw new IOException("Unknown growth state type " + type);
       }
@@ -1317,11 +1509,14 @@ public class Watch {
       return NonPollingGrowthState.of(new Growth.PollResult<>(values, watermark));
     }
 
-    private GrowthState decodePollingGrowthState(InputStream is) throws IOException {
+    private GrowthState decodePollingGrowthState(InputStream is, boolean hasCursor)
+        throws IOException {
       TerminationStateT terminationState = terminationStateCoder.decode(is);
       Instant watermark = NULLABLE_INSTANT_CODER.decode(is);
       Map<HashCode, Instant> completed = COMPLETED_CODER.decode(is);
-      return PollingGrowthState.of(ImmutableMap.copyOf(completed), watermark, terminationState);
+      Instant cursor = hasCursor ? INSTANT_CODER.decode(is) : null;
+      return PollingGrowthState.of(
+          ImmutableMap.copyOf(completed), watermark, terminationState, cursor);
     }
 
     @Override
