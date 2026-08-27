@@ -82,6 +82,15 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   }
 
   @Override
+  public void catalogCleanup(List<Namespace> namespaces) throws IOException {
+    List<String> names = new ArrayList<>();
+    for (Namespace namespace : namespaces) {
+      names.add(namespace.toString());
+    }
+    BigLakeTestCatalog.dropNamespacesAndFiles(catalog, names);
+  }
+
+  @Override
   public Catalog createCatalog() {
     RESTCatalog restCatalog = new RESTCatalog();
     restCatalog.initialize(catalogName, catalogProps);

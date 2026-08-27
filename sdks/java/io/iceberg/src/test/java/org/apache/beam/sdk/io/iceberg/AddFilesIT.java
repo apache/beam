@@ -193,9 +193,14 @@ public class AddFilesIT {
     }
 
     salt = System.currentTimeMillis();
+    // Object-name prefix of this test's parquet files; DATA_PREFIX is empty for a bare bucket.
     dirName =
         format(
-            "%s/%s-%s/%s", DATA_PREFIX, getClass().getSimpleName(), salt, testName.getMethodName());
+            "%s%s-%s/%s",
+            DATA_PREFIX.isEmpty() ? "" : DATA_PREFIX + "/",
+            getClass().getSimpleName(),
+            salt,
+            testName.getMethodName());
     srcTableName = "src_" + testName.getMethodName() + "_" + salt;
     destTableName = "dest_" + testName.getMethodName() + "_" + salt;
     srcTableId = TableIdentifier.of(namespace, srcTableName);
@@ -206,14 +211,8 @@ public class AddFilesIT {
     catalog.createNamespace(Namespace.of(namespace));
   }
 
-  private void cleanupCatalog() {
-    for (String name : Arrays.asList(namespace, altNamespace)) {
-      Namespace ns = Namespace.of(name);
-      if (catalog.namespaceExists(ns)) {
-        catalog.listTables(ns).forEach(catalog::dropTable);
-        catalog.dropNamespace(ns);
-      }
-    }
+  private void cleanupCatalog() throws IOException {
+    BigLakeTestCatalog.dropNamespacesAndFiles(catalog, Arrays.asList(namespace, altNamespace));
   }
 
   @After
@@ -593,9 +592,7 @@ public class AddFilesIT {
 
     GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
     List<String> writtenFilePaths =
-        Lists.newArrayList(
-                gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems())
-            .stream()
+        Lists.newArrayList(gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems()).stream()
             .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
             .collect(Collectors.toList());
     assertEquals(20, writtenFilePaths.size());
