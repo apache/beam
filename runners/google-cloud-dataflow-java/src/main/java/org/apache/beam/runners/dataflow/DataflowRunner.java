@@ -1598,7 +1598,9 @@ public class DataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       String fileLocation =
           firstNonNull(options.getTemplateLocation(), options.getDataflowJobFile());
       checkArgument(
-          fileLocation.startsWith("/") || fileLocation.startsWith("gs://"),
+          fileLocation.startsWith("/")
+              || new File(fileLocation).isAbsolute()
+              || fileLocation.startsWith("gs://"),
           "Location must be local or on Cloud Storage, got %s.",
           fileLocation);
 
