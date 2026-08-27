@@ -433,7 +433,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     }
   }
 
-  private List<Record> readRecords(Table table) throws IOException {
+  protected List<Record> readRecords(Table table) throws IOException {
     org.apache.iceberg.Schema tableSchema = table.schema();
     TableScan tableScan = table.newScan().project(tableSchema);
     List<Record> writtenRecords = new ArrayList<>();

@@ -169,10 +169,19 @@ task integrationTest(type: Test) {
         "--project=${gcpProject}",
         "--tempLocation=${gcpTempLocation}",
     ])
-    // Warehouse (= catalog) used by the BigLake REST catalog tests; overridable for runs
-    // against a non-default project's catalog.
+    // Multiple-bucket BigLake REST catalog used by RESTCatalogBLMSIT and AddFilesIT (see
+    // BigLakeTestCatalog). Locations: the catalog's default location first, then a restricted
+    // location in another bucket. The cross-region location must be a bucket in a different
+    // region than the catalog. Override for runs against another project's catalog:
+    //   -PbiglakeWarehouse=bl://projects/PROJECT/catalogs/CATALOG
+    //   -PbiglakeLocations=gs://default-bucket/path,gs://other-bucket/path
+    //   -PbiglakeCrossRegionLocation=gs://bucket-in-another-region/path
     systemProperty "beam.iceberg.biglake.warehouse",
-        project.findProperty('biglakeWarehouse') ?: 'gs://managed-iceberg-biglake-its'
+        project.findProperty('biglakeWarehouse') ?: 'bl://projects/apache-beam-testing/catalogs/beam-lakehouse-it'
+    systemProperty "beam.iceberg.biglake.locations",
+        project.findProperty('biglakeLocations') ?: 'gs://beam-lakehouse-it,gs://beam-lakehouse-it-added-path'
+    systemProperty "beam.iceberg.biglake.crossRegionLocation",
+        project.findProperty('biglakeCrossRegionLocation') ?: 'gs://managed-iceberg-biglake-its/biglake_cross_region'
     // Connection + storage root for BigQueryManagedTableCrossEngineIT.
     if (project.findProperty('bqImtConnection') != null) {
         systemProperty "beam.bq.imt.connection", project.findProperty('bqImtConnection')

@@ -17,44 +17,53 @@
  */
 package org.apache.beam.sdk.io.iceberg.catalog;
 
+import static org.apache.beam.sdk.managed.Managed.ICEBERG;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertFalse;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.io.iceberg.BigLakeTestCatalog;
+import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.rest.RESTCatalog;
 import org.junit.After;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
-/** Tests for {@link org.apache.iceberg.rest.RESTCatalog} using BigLake Metastore. */
+/**
+ * Tests for {@link org.apache.iceberg.rest.RESTCatalog} using a multiple-bucket BigLake Metastore
+ * catalog (see {@link BigLakeTestCatalog}).
+ */
 public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   private static Map<String, String> catalogProps;
 
-  // Using a special bucket for this test class because
-  // BigLake does not support using subfolders as a warehouse (yet).
-  // Overridable for local runs against a different project's catalog, e.g.
-  // -Dbeam.iceberg.biglake.warehouse=gs://my-bucket (bucket-backed catalogs are named after
-  // their bucket).
-  private static final String BIGLAKE_WAREHOUSE =
-      System.getProperty("beam.iceberg.biglake.warehouse", "gs://managed-iceberg-biglake-its");
-
   @BeforeClass
   public static void setup() {
-    warehouse = BIGLAKE_WAREHOUSE;
-    catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", "rest")
-            .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
-            .put("warehouse", BIGLAKE_WAREHOUSE)
-            .put("header.x-goog-user-project", OPTIONS.getProject())
-            .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
-            .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
-            .build();
+    // The catalog decides where tables go (its default location); the base class only uses
+    // `warehouse` to sweep leftover files, so point it at that location.
+    warehouse = BigLakeTestCatalog.defaultLocation();
+    catalogProps = BigLakeTestCatalog.catalogProperties();
   }
 
   @After
   public void after() {
     // making sure the cleanup path is directed at the correct warehouse
-    warehouse = BIGLAKE_WAREHOUSE;
+    warehouse = BigLakeTestCatalog.defaultLocation();
   }
 
   @Override
@@ -65,13 +74,11 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   @Override
   public String bigQueryTableSpec(String tableId) {
     // BigQuery surfaces Lakehouse runtime catalog (BigLake metastore REST) tables via 4-part
-    // project.catalog.namespace.table identifiers; the catalog id of a bucket-backed catalog is
-    // the bucket name. Requires the caller to hold biglake.* read permissions (e.g.
-    // roles/biglake.viewer) in addition to the usual BigQuery roles.
+    // project.catalog.namespace.table identifiers. Requires the caller to hold biglake.* read
+    // permissions (e.g. roles/biglake.viewer) in addition to the usual BigQuery roles.
     TableIdentifier identifier = TableIdentifier.parse(tableId);
-    String catalogId = BIGLAKE_WAREHOUSE.replace("gs://", "");
-    return String.format(
-        "%s.%s.%s.%s", OPTIONS.getProject(), catalogId, identifier.namespace(), identifier.name());
+    return BigLakeTestCatalog.bigQueryTableSpec(
+        identifier.namespace().toString(), identifier.name());
   }
 
   @Override
@@ -87,5 +94,54 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
         .put("table", tableId)
         .put("catalog_properties", catalogProps)
         .build();
+  }
+
+  /**
+   * A multiple-bucket catalog may place resources under any of its restricted locations, not just
+   * its default one. BigLake pins a table under its namespace's location, so the namespace is
+   * created in a second bucket; Beam only receives the table through the catalog and must write
+   * wherever it was placed.
+   */
+  @Test
+  public void testWriteReadTableInAdditionalLocation() throws IOException {
+    String altNamespace = namespace() + "_alt";
+    String altTableId = altNamespace + ".test_table";
+    String namespaceLocation = BigLakeTestCatalog.additionalLocation() + "/" + altNamespace;
+    assertFalse(
+        "Test needs two distinct buckets",
+        BigLakeTestCatalog.bucketOf(namespaceLocation)
+            .equals(BigLakeTestCatalog.bucketOf(BigLakeTestCatalog.defaultLocation())));
+    namespacesToCleanup.add(altNamespace);
+    ((SupportsNamespaces) catalog)
+        .createNamespace(
+            Namespace.of(altNamespace), ImmutableMap.of("location", namespaceLocation));
+    Table table = catalog.createTable(TableIdentifier.parse(altTableId), ICEBERG_SCHEMA);
+    assertThat(table.location(), startsWith(namespaceLocation));
+
+    pipeline
+        .apply(Create.of(inputRows))
+        .setRowSchema(BEAM_SCHEMA)
+        .apply(Managed.write(ICEBERG).withConfig(managedIcebergConfig(altTableId)));
+    pipeline.run().waitUntilFinish();
+
+    table.refresh();
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+
+    // Both the data files Beam wrote and the metadata the catalog committed live in the
+    // additional location, not in the catalog's default bucket.
+    List<String> dataFileLocations = new ArrayList<>();
+    for (Snapshot snapshot : table.snapshots()) {
+      for (DataFile dataFile : snapshot.addedDataFiles(table.io())) {
+        dataFileLocations.add(dataFile.location());
+      }
+    }
+    assertFalse("No data files were written", dataFileLocations.isEmpty());
+    for (String location : dataFileLocations) {
+      assertThat(location, startsWith(BigLakeTestCatalog.additionalLocation()));
+    }
+    String metadataLocation = ((BaseTable) table).operations().current().metadataFileLocation();
+    assertThat(metadataLocation, startsWith(BigLakeTestCatalog.additionalLocation()));
   }
 }
