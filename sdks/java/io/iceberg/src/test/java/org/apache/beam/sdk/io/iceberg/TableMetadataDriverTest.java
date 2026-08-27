@@ -216,7 +216,7 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testWindowedDeduplication() {
+  public void testDeduplicationOfTablesAcrossRows() {
     Catalog catalog = getCatalog();
     TableIdentifier table1 = TableIdentifier.of("default", "t1");
     TableIdentifier table2 = TableIdentifier.of("default", "t2");
