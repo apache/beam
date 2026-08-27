@@ -1582,6 +1582,95 @@ class TestJobReferenceCompatibility(unittest.TestCase):
     self.assertEqual(ds_ref.datasetId, 'my_dataset')
 
 
+class TestJobConfigCompatibility(unittest.TestCase):
+  def test_load_job_config_camel_case_properties(self):
+    try:
+      from google.cloud import bigquery as gcp_bigquery
+    except ImportError:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    config = gcp_bigquery.LoadJobConfig(
+        schemaUpdateOptions=['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'],
+        ignoreUnknownValues=True,
+        maxBadRecords=10,
+        nullMarker='\\N',
+        fieldDelimiter='\t',
+        skipLeadingRows=1,
+        allowJaggedRows=True,
+        allowQuotedNewlines=True,
+        decimalTargetTypes=['NUMERIC'],
+        useAvroLogicalTypes=True,
+    )
+    self.assertEqual(
+        config.schema_update_options,
+        ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'])
+    self.assertEqual(
+        config.schemaUpdateOptions,
+        ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'])
+    self.assertTrue(config.ignore_unknown_values)
+    self.assertTrue(config.ignoreUnknownValues)
+    self.assertEqual(config.max_bad_records, 10)
+    self.assertEqual(config.maxBadRecords, 10)
+
+  def test_query_job_config_camel_case_properties(self):
+    try:
+      from google.cloud import bigquery as gcp_bigquery
+    except ImportError:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    config = gcp_bigquery.QueryJobConfig(
+        schemaUpdateOptions=['ALLOW_FIELD_ADDITION'],
+        useLegacySql=False,
+        flattenResults=True,
+        allowLargeResults=True,
+        maximumBytesBilled=1000000,
+    )
+    self.assertEqual(config.schema_update_options, ['ALLOW_FIELD_ADDITION'])
+    self.assertEqual(config.schemaUpdateOptions, ['ALLOW_FIELD_ADDITION'])
+    self.assertFalse(config.use_legacy_sql)
+    self.assertFalse(config.useLegacySql)
+    self.assertTrue(config.flatten_results)
+    self.assertTrue(config.flattenResults)
+    self.assertEqual(config.maximum_bytes_billed, 1000000)
+    self.assertEqual(config.maximumBytesBilled, 1000000)
+
+  def test_perform_load_job_with_modern_client_additional_parameters(self):
+    try:
+      from google.cloud import bigquery as gcp_bigquery
+    except ImportError:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    client = mock.MagicMock(spec=gcp_bigquery.Client)
+    mock_job = mock.MagicMock()
+    mock_job.job_id = 'test_job_id'
+    mock_job.project = 'test-project'
+    mock_job.location = 'US'
+    client.load_table_from_uri.return_value = mock_job
+
+    wrapper = bigquery_tools.BigQueryWrapper(client)
+    job_ref = wrapper.perform_load_job(
+        destination='test-project:test_dataset.test_table',
+        source_uris=['gs://test-bucket/data.csv'],
+        job_id='test_job_id',
+        additional_load_parameters={
+            'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION'],
+            'timePartitioning': {
+                'type': 'DAY', 'field': 'date'
+            },
+            'ignoreUnknownValues': True,
+        })
+
+    self.assertEqual(job_ref.jobId, 'test_job_id')
+    self.assertEqual(job_ref.projectId, 'test-project')
+    client.load_table_from_uri.assert_called_once()
+    called_config = client.load_table_from_uri.call_args.kwargs['job_config']
+    self.assertEqual(
+        called_config.schema_update_options, ['ALLOW_FIELD_ADDITION'])
+    self.assertEqual(called_config.time_partitioning.type_, 'DAY')
+    self.assertEqual(called_config.time_partitioning.field, 'date')
+    self.assertTrue(called_config.ignore_unknown_values)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

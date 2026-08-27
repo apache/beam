@@ -541,7 +541,7 @@ try:
 
     _protorpclite_messages.Message.__eq__ = _message_compat_eq
 except ImportError:
-  pass
+  _protorpclite_messages = None
 
 
 def _set_table_ref_prop(ref, prop, val):
@@ -597,6 +597,70 @@ if gcp_bigquery:
         lambda self: self.default_table_expiration_ms,
         lambda self, val: setattr(self, 'default_table_expiration_ms', val))
 
+  if hasattr(gcp_bigquery, 'LoadJobConfig'):
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'schemaUpdateOptions'):
+      gcp_bigquery.LoadJobConfig.schemaUpdateOptions = property(
+          lambda self: self.schema_update_options,
+          lambda self, val: setattr(self, 'schema_update_options', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'ignoreUnknownValues'):
+      gcp_bigquery.LoadJobConfig.ignoreUnknownValues = property(
+          lambda self: self.ignore_unknown_values,
+          lambda self, val: setattr(self, 'ignore_unknown_values', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'maxBadRecords'):
+      gcp_bigquery.LoadJobConfig.maxBadRecords = property(
+          lambda self: self.max_bad_records,
+          lambda self, val: setattr(self, 'max_bad_records', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'nullMarker'):
+      gcp_bigquery.LoadJobConfig.nullMarker = property(
+          lambda self: self.null_marker,
+          lambda self, val: setattr(self, 'null_marker', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'fieldDelimiter'):
+      gcp_bigquery.LoadJobConfig.fieldDelimiter = property(
+          lambda self: self.field_delimiter,
+          lambda self, val: setattr(self, 'field_delimiter', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'skipLeadingRows'):
+      gcp_bigquery.LoadJobConfig.skipLeadingRows = property(
+          lambda self: self.skip_leading_rows,
+          lambda self, val: setattr(self, 'skip_leading_rows', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'allowJaggedRows'):
+      gcp_bigquery.LoadJobConfig.allowJaggedRows = property(
+          lambda self: self.allow_jagged_rows,
+          lambda self, val: setattr(self, 'allow_jagged_rows', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'allowQuotedNewlines'):
+      gcp_bigquery.LoadJobConfig.allowQuotedNewlines = property(
+          lambda self: self.allow_quoted_newlines,
+          lambda self, val: setattr(self, 'allow_quoted_newlines', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'decimalTargetTypes'):
+      gcp_bigquery.LoadJobConfig.decimalTargetTypes = property(
+          lambda self: self.decimal_target_types,
+          lambda self, val: setattr(self, 'decimal_target_types', val))
+    if not hasattr(gcp_bigquery.LoadJobConfig, 'useAvroLogicalTypes'):
+      gcp_bigquery.LoadJobConfig.useAvroLogicalTypes = property(
+          lambda self: self.use_avro_logical_types,
+          lambda self, val: setattr(self, 'use_avro_logical_types', val))
+
+  if hasattr(gcp_bigquery, 'QueryJobConfig'):
+    if not hasattr(gcp_bigquery.QueryJobConfig, 'schemaUpdateOptions'):
+      gcp_bigquery.QueryJobConfig.schemaUpdateOptions = property(
+          lambda self: self.schema_update_options,
+          lambda self, val: setattr(self, 'schema_update_options', val))
+    if not hasattr(gcp_bigquery.QueryJobConfig, 'useLegacySql'):
+      gcp_bigquery.QueryJobConfig.useLegacySql = property(
+          lambda self: self.use_legacy_sql,
+          lambda self, val: setattr(self, 'use_legacy_sql', val))
+    if not hasattr(gcp_bigquery.QueryJobConfig, 'flattenResults'):
+      gcp_bigquery.QueryJobConfig.flattenResults = property(
+          lambda self: self.flatten_results,
+          lambda self, val: setattr(self, 'flatten_results', val))
+    if not hasattr(gcp_bigquery.QueryJobConfig, 'allowLargeResults'):
+      gcp_bigquery.QueryJobConfig.allowLargeResults = property(
+          lambda self: self.allow_large_results,
+          lambda self, val: setattr(self, 'allow_large_results', val))
+    if not hasattr(gcp_bigquery.QueryJobConfig, 'maximumBytesBilled'):
+      gcp_bigquery.QueryJobConfig.maximumBytesBilled = property(
+          lambda self: self.maximum_bytes_billed,
+          lambda self, val: setattr(self, 'maximum_bytes_billed', val))
+
   if hasattr(gcp_job,
              '_AsyncJob') and not hasattr(gcp_job._AsyncJob, 'jobReference'):
 
@@ -637,6 +701,29 @@ if gcp_bigquery:
             job_id=self.job_id, project=self.project, location=self.location))
     gcp_job._AsyncJob.status = property(lambda self: _JobStatusCompat(self))
     gcp_job._AsyncJob.statistics = property(lambda self: _JobStatsCompat(self))
+
+
+def _to_json_compatible(obj):
+  """Converts an object or nested structure to JSON/API-compatible dicts/types."""
+  if obj is None:
+    return None
+  if isinstance(obj, (str, int, float, bool)):
+    return obj
+  if isinstance(obj, (list, tuple, set)):
+    return [_to_json_compatible(item) for item in obj]
+  if isinstance(obj, dict):
+    return {k: _to_json_compatible(v) for k, v in obj.items()}
+  if hasattr(obj, 'to_api_repr') and callable(obj.to_api_repr):
+    return obj.to_api_repr()
+  if _protorpclite_messages is not None and hasattr(
+      _protorpclite_messages, 'Message') and isinstance(
+          obj, _protorpclite_messages.Message):
+    try:
+      from apitools.base.py import encoding
+      return encoding.MessageToDict(obj)
+    except Exception:
+      pass
+  return obj
 
 
 def _to_gcp_table_ref(table_ref, default_project=None):
@@ -1511,16 +1598,44 @@ class BigQueryWrapper(object):
       job_schema = None if schema == 'SCHEMA_AUTODETECT' else _to_gcp_schema(
           schema)
       autodetect = schema == 'SCHEMA_AUTODETECT'
-      additional_load_parameters = additional_load_parameters or {}
-      job_config = gcp_bigquery.LoadJobConfig(
-          schema=job_schema,
-          autodetect=autodetect,
-          create_disposition=create_disposition,
-          write_disposition=write_disposition,
-          source_format=source_format,
-          use_avro_logical_types=True,
-          labels=job_labels,
-          **additional_load_parameters)
+      clean_params = _to_json_compatible(additional_load_parameters or {})
+      api_repr_dict = {}
+      direct_attrs = {}
+      if isinstance(clean_params, dict):
+        for k, v in clean_params.items():
+          if '_' in k and hasattr(gcp_bigquery.LoadJobConfig, k):
+            direct_attrs[k] = v
+          else:
+            api_repr_dict[k] = v
+
+      if api_repr_dict:
+        job_config = gcp_bigquery.LoadJobConfig.from_api_repr(
+            {'load': api_repr_dict})
+      else:
+        job_config = gcp_bigquery.LoadJobConfig()
+
+      for k, v in direct_attrs.items():
+        try:
+          setattr(job_config, k, v)
+        except Exception:
+          try:
+            job_config._set_sub_prop(k, v)
+          except Exception:
+            pass
+
+      if job_schema is not None:
+        job_config.schema = job_schema
+      if autodetect:
+        job_config.autodetect = True
+      if create_disposition is not None:
+        job_config.create_disposition = create_disposition
+      if write_disposition is not None:
+        job_config.write_disposition = write_disposition
+      if source_format is not None:
+        job_config.source_format = source_format
+      job_config.use_avro_logical_types = True
+      if job_labels is not None:
+        job_config.labels = job_labels
       try:
         if source_stream:
           job = self.client.load_table_from_file(
