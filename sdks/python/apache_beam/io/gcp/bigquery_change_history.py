@@ -335,18 +335,26 @@ def build_changes_query(
   Returns:
     SQL string.
   """
-  # Normalize 'project:dataset.table' to 'project.dataset.table'
-  table = table.replace(':', '.')
+  # Normalize 'project:dataset.table' or 'project.dataset.table'
+  table_ref = bigquery_tools.parse_table_reference(table)
+  if table_ref.projectId:
+    table = f"{table_ref.projectId}.{table_ref.datasetId}.{table_ref.tableId}"
+  else:
+    table = f"{table_ref.datasetId}.{table_ref.tableId}"
   start_iso = start.to_rfc3339()
   end_iso = end.to_rfc3339()
-  # Pseudo-columns (_CHANGE_TYPE, _CHANGE_TIMESTAMP) can't be written to
-  # destination tables with their original names. Rename them so they can
+  # Pseudo-columns (_CHANGE_TYPE, _CHANGE_TIMESTAMP, and for CHANGES() _CHANGE_IS_FOR_UPDATE)
+  # can't be written to destination tables with their original names. Rename them so they can
   # be persisted to the temp table for Storage Read API reading.
   pseudo = (
       f"_CHANGE_TYPE AS {change_type_column}, "
       f"_CHANGE_TIMESTAMP AS {change_timestamp_column}")
+  except_cols = (
+      "_CHANGE_TYPE, _CHANGE_TIMESTAMP, _CHANGE_IS_FOR_UPDATE"
+      if change_function.upper() == 'CHANGES' else
+      "_CHANGE_TYPE, _CHANGE_TIMESTAMP")
   if columns is None:
-    select = f"SELECT * EXCEPT(_CHANGE_TYPE, _CHANGE_TIMESTAMP), {pseudo}"
+    select = f"SELECT * EXCEPT({except_cols}), {pseudo}"
   else:
     select = f"SELECT {', '.join(columns)}, {pseudo}"
   from_clause = (
@@ -527,7 +535,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       start_ts: Timestamp,
       end_ts: Timestamp,
       watermark_estimator: _PollWatermarkEstimator
-  ) -> Iterable[TimestampedValue[_QueryRange]]:
+  ) -> Iterable[Any]:
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
     _LOGGER.info(
@@ -555,7 +563,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       restriction_tracker=beam.DoFn.RestrictionParam(),
       watermark_estimator=beam.DoFn.WatermarkEstimatorParam(
           _PollWatermarkEstimatorProvider())
-  ) -> Iterable[TimestampedValue[_QueryRange]]:
+  ) -> Iterable[Any]:
 
     now = time.time()
     start_ts = watermark_estimator.poll_cursor()

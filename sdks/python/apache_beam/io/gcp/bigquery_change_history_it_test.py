@@ -307,7 +307,8 @@ class ReadStorageStreamsSDFTest(BigQueryChangeHistoryIntegrationBase):
       # Verify cleanup signal
       cleanup_table_keys = (
           outputs['cleanup']
-          | 'ExtractKey' >> beam.Map(lambda x: x[0]))
+          | 'ExtractKey' >> beam.Map(lambda x: x[0])
+          | 'Distinct' >> beam.Distinct())
       assert_that(
           cleanup_table_keys,
           equal_to([bigquery_tools.get_hashable_destination(table_ref)]),

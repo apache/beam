@@ -239,9 +239,13 @@ class BigQueryTableMatcher(BaseMatcher):
     try:
       return obj.__getattribute__(attr)
     except AttributeError:
+      if attr == 'type' and hasattr(obj, 'type_'):
+        return obj.type_
+      if attr == 'range' and hasattr(obj, 'range_'):
+        return obj.range_
       try:
         return obj.get(attr, None)
-      except TypeError:
+      except (TypeError, AttributeError):
         return None
 
   @staticmethod

@@ -590,6 +590,26 @@ if gcp_bigquery:
     gcp_bigquery.Table.rangePartitioning = property(
         lambda self: self.range_partitioning)
 
+  if hasattr(gcp_bigquery, 'TimePartitioning'):
+    if not hasattr(gcp_bigquery.TimePartitioning, 'type'):
+      gcp_bigquery.TimePartitioning.type = property(
+          lambda self: self.type_,
+          lambda self, val: setattr(self, 'type_', val))
+    if not hasattr(gcp_bigquery.TimePartitioning, 'expirationMs'):
+      gcp_bigquery.TimePartitioning.expirationMs = property(
+          lambda self: self.expiration_ms,
+          lambda self, val: setattr(self, 'expiration_ms', val))
+    if not hasattr(gcp_bigquery.TimePartitioning, 'requirePartitionFilter'):
+      gcp_bigquery.TimePartitioning.requirePartitionFilter = property(
+          lambda self: self.require_partition_filter,
+          lambda self, val: setattr(self, 'require_partition_filter', val))
+
+  if hasattr(gcp_bigquery, 'RangePartitioning'):
+    if not hasattr(gcp_bigquery.RangePartitioning, 'range'):
+      gcp_bigquery.RangePartitioning.range = property(
+          lambda self: self.range_,
+          lambda self, val: setattr(self, 'range_', val))
+
   if not hasattr(gcp_bigquery.Dataset, 'datasetReference'):
     gcp_bigquery.Dataset.datasetReference = property(
         lambda self: self.reference)
@@ -661,6 +681,60 @@ if gcp_bigquery:
           lambda self: self.maximum_bytes_billed,
           lambda self, val: setattr(self, 'maximum_bytes_billed', val))
 
+  if hasattr(gcp_bigquery, 'Table') and hasattr(gcp_bigquery.Table, 'labels'):
+    _orig_tbl_labels_setter = gcp_bigquery.Table.labels.fset
+    if _orig_tbl_labels_setter:
+
+      def _safe_tbl_labels_setter(self, value):
+        if value is None:
+          value = {}
+        elif not isinstance(value, dict) and hasattr(value,
+                                                     'additionalProperties'):
+          from apitools.base.py import encoding
+          value = encoding.MessageToDict(value)
+        _orig_tbl_labels_setter(self, value)
+
+      gcp_bigquery.Table.labels = gcp_bigquery.Table.labels.setter(
+          _safe_tbl_labels_setter)
+
+  if hasattr(gcp_bigquery, 'Dataset') and hasattr(gcp_bigquery.Dataset,
+                                                  'labels'):
+    _orig_ds_labels_setter = gcp_bigquery.Dataset.labels.fset
+    if _orig_ds_labels_setter:
+
+      def _safe_ds_labels_setter(self, value):
+        if value is None:
+          value = {}
+        elif not isinstance(value, dict) and hasattr(value,
+                                                     'additionalProperties'):
+          from apitools.base.py import encoding
+          value = encoding.MessageToDict(value)
+        _orig_ds_labels_setter(self, value)
+
+      gcp_bigquery.Dataset.labels = gcp_bigquery.Dataset.labels.setter(
+          _safe_ds_labels_setter)
+
+  try:
+    from google.cloud.bigquery.job.base import _JobConfig as _GcpJobConfig
+    if hasattr(_GcpJobConfig, 'labels') and hasattr(_GcpJobConfig.labels,
+                                                    'fset'):
+      _orig_job_labels_setter = _GcpJobConfig.labels.fset
+      if _orig_job_labels_setter:
+
+        def _safe_job_labels_setter(self, value):
+          if value is None:
+            value = {}
+          elif not isinstance(value, dict) and hasattr(value,
+                                                       'additionalProperties'):
+            from apitools.base.py import encoding
+            value = encoding.MessageToDict(value)
+          _orig_job_labels_setter(self, value)
+
+        _GcpJobConfig.labels = _GcpJobConfig.labels.setter(
+            _safe_job_labels_setter)
+  except ImportError:
+    pass
+
   if hasattr(gcp_job,
              '_AsyncJob') and not hasattr(gcp_job._AsyncJob, 'jobReference'):
 
@@ -696,6 +770,18 @@ if gcp_bigquery:
       def totalBytesProcessed(self):
         return getattr(self._job, 'total_bytes_processed', None)
 
+      @property
+      def referencedTables(self):
+        tables = getattr(self._job, 'referenced_tables', None)
+        if tables is not None:
+          return [
+              TableReference(
+                  projectId=t.project,
+                  datasetId=t.dataset_id,
+                  tableId=t.table_id) for t in tables
+          ]
+        return None
+
     gcp_job._AsyncJob.jobReference = property(
         lambda self: JobReference(
             job_id=self.job_id, project=self.project, location=self.location))
@@ -724,6 +810,16 @@ def _to_json_compatible(obj):
     except Exception:
       pass
   return obj
+
+
+def _extract_dict_labels(labels):
+  """Converts labels to a non-empty dictionary or returns None."""
+  if not labels:
+    return None
+  labels = _to_json_compatible(labels)
+  if isinstance(labels, dict) and labels:
+    return labels
+  return None
 
 
 def _to_gcp_table_ref(table_ref, default_project=None):
@@ -830,6 +926,59 @@ def _to_gcp_schema(schema):
   return schema
 
 
+def _to_table_schema(schema):
+  """Converts a list of google.cloud.bigquery.SchemaField, dict, or TableSchema into a TableSchema."""
+  if schema is None:
+    return TableSchema()
+  if isinstance(schema, TableSchema):
+    return schema
+  if isinstance(schema, dict):
+    return _to_table_schema(schema.get('fields', []))
+  if hasattr(schema, 'fields') and not isinstance(schema, (list, tuple)):
+    return _to_table_schema(schema.fields)
+
+  def _to_field_schema(f):
+    if isinstance(f, TableFieldSchema):
+      return f
+    if isinstance(f, dict):
+      f_dict = f
+    elif hasattr(f, 'to_api_repr'):
+      f_dict = f.to_api_repr()
+    else:
+      f_dict = None
+
+    if f_dict is not None:
+      name = f_dict.get('name', '')
+      field_type = f_dict.get('type') or f_dict.get('type_') or 'STRING'
+      mode = f_dict.get('mode', 'NULLABLE')
+      description = f_dict.get('description', None)
+      sub_fields = [_to_field_schema(sf) for sf in f_dict.get('fields', [])]
+      return TableFieldSchema(
+          name=name,
+          type=field_type,
+          mode=mode,
+          description=description,
+          fields=sub_fields)
+
+    name = getattr(f, 'name', '')
+    field_type = getattr(f, 'field_type', None) or getattr(f, 'type',
+                                                           None) or 'STRING'
+    mode = getattr(f, 'mode', 'NULLABLE')
+    description = getattr(f, 'description', None)
+    sub = getattr(f, 'fields', ())
+    sub_fields = [_to_field_schema(sf) for sf in sub] if sub else ()
+    return TableFieldSchema(
+        name=name,
+        type=field_type,
+        mode=mode,
+        description=description,
+        fields=sub_fields)
+
+  if isinstance(schema, (list, tuple)):
+    return TableSchema(fields=[_to_field_schema(f) for f in schema])
+  return TableSchema()
+
+
 if gcp_bigquery:
 
   class _ClientTablesCompat:
@@ -875,6 +1024,65 @@ if gcp_bigquery:
               ds_id),
           tbl_id)
       gcp_table = gcp_bigquery.Table(gcp_tbl_ref, schema=_to_gcp_schema(schema))
+      if table is not None:
+        tp = getattr(table, 'timePartitioning', None) or getattr(
+            table, 'time_partitioning', None)
+        if tp is not None:
+          if isinstance(tp, gcp_bigquery.TimePartitioning):
+            gcp_table.time_partitioning = tp
+          else:
+            tp_field = getattr(tp, 'field', None)
+            tp_type = getattr(tp, 'type', None) or getattr(tp, 'type_', None)
+            tp_exp = getattr(tp, 'expirationMs', None) or getattr(
+                tp, 'expiration_ms', None)
+            tp_req = getattr(tp, 'requirePartitionFilter', None) or getattr(
+                tp, 'require_partition_filter', None)
+            gcp_table.time_partitioning = gcp_bigquery.TimePartitioning(
+                type_=tp_type,
+                field=tp_field,
+                expiration_ms=tp_exp,
+                require_partition_filter=tp_req)
+        rp = getattr(table, 'rangePartitioning', None) or getattr(
+            table, 'range_partitioning', None)
+        if rp is not None:
+          if isinstance(rp, gcp_bigquery.RangePartitioning):
+            gcp_table.range_partitioning = rp
+          else:
+            rp_field = getattr(rp, 'field', None)
+            rp_range = getattr(rp, 'range', None) or getattr(rp, 'range_', None)
+            if rp_range is not None and hasattr(gcp_bigquery, 'PartitionRange'):
+              start = getattr(rp_range, 'start', None)
+              end = getattr(rp_range, 'end', None)
+              interval = getattr(rp_range, 'interval', None)
+              rp_range = gcp_bigquery.PartitionRange(
+                  start=start, end=end, interval=interval)
+            gcp_table.range_partitioning = gcp_bigquery.RangePartitioning(
+                field=rp_field, range_=rp_range)
+        clustering = getattr(table, 'clustering', None)
+        if clustering is not None:
+          fields = getattr(clustering, 'fields', clustering)
+          if isinstance(fields, (list, tuple)):
+            gcp_table.clustering_fields = list(fields)
+        if getattr(table, 'description', None):
+          gcp_table.description = table.description
+        if getattr(table, 'friendlyName', None) or getattr(
+            table, 'friendly_name', None):
+          gcp_table.friendly_name = getattr(
+              table, 'friendlyName', None) or getattr(
+                  table, 'friendly_name', None)
+        dict_labels = _extract_dict_labels(getattr(table, 'labels', None))
+        if dict_labels:
+          gcp_table.labels = dict_labels
+        kms = getattr(
+            getattr(table, 'encryptionConfiguration', None),
+            'kmsKeyName',
+            None) or getattr(
+                getattr(table, 'encryption_configuration', None),
+                'kms_key_name',
+                None)
+        if kms:
+          gcp_table.encryption_configuration = (
+              gcp_bigquery.EncryptionConfiguration(kms_key_name=kms))
       return self._client.create_table(gcp_table, exists_ok=True)
 
     def Delete(self, request):
@@ -992,8 +1200,82 @@ if gcp_bigquery:
       job_id = getattr(request, 'jobId', None)
       loc = getattr(request, 'location', None)
       page_token = getattr(request, 'pageToken', None)
+      max_results = getattr(request, 'maxResults', None)
       job = self._client.get_job(job_id, project=proj, location=loc)
-      return job.result(page_token=page_token)
+      if page_token is not None:
+        return self._client.list_rows(
+            job, page_token=page_token, max_results=max_results)
+      return job.result(max_results=max_results)
+
+    def Insert(self, request, upload=None):
+      job_obj = getattr(request, 'job', None)
+      job_ref = (
+          getattr(job_obj, 'jobReference', None)
+          if job_obj else getattr(request, 'jobReference', None))
+      job_id = getattr(job_ref, 'jobId', None) or getattr(
+          job_ref, 'job_id', None)
+      proj = (
+          getattr(request, 'projectId', None) or
+          getattr(job_ref, 'projectId', None) or
+          getattr(job_ref, 'project', None))
+      config = getattr(job_obj, 'configuration', None) if job_obj else None
+      if config and getattr(config, 'query', None):
+        q = config.query
+        dest = None
+        if getattr(q, 'destinationTable', None):
+          dest = _to_gcp_table_ref(q.destinationTable, default_project=proj)
+        dict_labels = _extract_dict_labels(getattr(config, 'labels', None))
+        job_config = gcp_bigquery.QueryJobConfig(
+            dry_run=getattr(q, 'dryRun', False),
+            use_legacy_sql=getattr(q, 'useLegacySql', False)
+            if getattr(q, 'useLegacySql', None) is not None else False,
+            flatten_results=getattr(q, 'flattenResults', None),
+            priority=getattr(q, 'priority', 'INTERACTIVE'),
+            destination=dest,
+        )
+        if dict_labels:
+          job_config.labels = dict_labels
+        kms = getattr(
+            getattr(q, 'destinationEncryptionConfiguration', None),
+            'kmsKeyName',
+            None)
+        if kms:
+          job_config.destination_encryption_configuration = (
+              gcp_bigquery.EncryptionConfiguration(kms_key_name=kms))
+        return self._client.query(
+            q.query,
+            job_config=job_config,
+            job_id=job_id,
+            project=proj,
+            job_retry=None,
+        )
+      elif config and getattr(config, 'load', None):
+        ld = config.load
+        dest = _to_gcp_table_ref(
+            getattr(ld, 'destinationTable', None), default_project=proj)
+        uris = list(getattr(ld, 'sourceUris', []))
+        if uris:
+          return self._client.load_table_from_uri(
+              uris, dest, job_id=job_id, project=proj)
+      elif config and getattr(config, 'copy', None):
+        cp = config.copy
+        sources = [
+            _to_gcp_table_ref(s, default_project=proj)
+            for s in getattr(cp, 'sourceTables', [])
+        ]
+        dest = _to_gcp_table_ref(
+            getattr(cp, 'destinationTable', None), default_project=proj)
+        return self._client.copy_table(
+            sources, dest, job_id=job_id, project=proj)
+      elif config and getattr(config, 'extract', None):
+        ex = config.extract
+        src = _to_gcp_table_ref(
+            getattr(ex, 'sourceTable', None), default_project=proj)
+        uris = list(getattr(ex, 'destinationUris', []))
+        return self._client.extract_table(
+            src, uris, job_id=job_id, project=proj)
+
+      return self._client.get_job(job_id, project=proj)
 
   if not hasattr(gcp_bigquery.Client, 'tables'):
     gcp_bigquery.Client.tables = property(
@@ -1515,11 +1797,13 @@ class BigQueryWrapper(object):
       write_disposition=None,
       job_labels=None):
     if self._is_modern_client:
+      dict_labels = _extract_dict_labels(job_labels)
       job_config = gcp_bigquery.CopyJobConfig(
           create_disposition=create_disposition,
           write_disposition=write_disposition,
-          labels=job_labels,
       )
+      if dict_labels:
+        job_config.labels = dict_labels
       src = from_table_reference if isinstance(
           from_table_reference, list) else [from_table_reference]
       src_refs = [_to_gcp_table_ref(t, default_project=project_id) for t in src]
@@ -1634,8 +1918,9 @@ class BigQueryWrapper(object):
       if source_format is not None:
         job_config.source_format = source_format
       job_config.use_avro_logical_types = True
-      if job_labels is not None:
-        job_config.labels = job_labels
+      dict_labels = _extract_dict_labels(job_labels)
+      if dict_labels:
+        job_config.labels = dict_labels
       try:
         if source_stream:
           job = self.client.load_table_from_file(
@@ -1780,6 +2065,7 @@ class BigQueryWrapper(object):
             self._get_temp_table(self._get_temp_table_project(project_id)),
             default_project=project_id or getattr(self.client, 'project', None))
 
+      dict_labels = _extract_dict_labels(job_labels)
       job_config = gcp_bigquery.QueryJobConfig(
           dry_run=dry_run,
           use_legacy_sql=use_legacy_sql,
@@ -1787,8 +2073,9 @@ class BigQueryWrapper(object):
           destination=dest_table,
           flatten_results=flatten_results,
           priority=priority,
-          labels=job_labels,
       )
+      if dict_labels:
+        job_config.labels = dict_labels
       if kms_key:
         job_config.destination_encryption_configuration = (
             gcp_bigquery.EncryptionConfiguration(kms_key_name=kms_key))
@@ -1907,7 +2194,10 @@ class BigQueryWrapper(object):
       return self.client.jobs.GetQueryResults(request)
 
     job = self.client.get_job(job_id, project=project_id, location=location)
-    return job.result(max_results=max_results, page_token=page_token)
+    if page_token is not None:
+      return self.client.list_rows(
+          job, page_token=page_token, max_results=max_results)
+    return job.result(max_results=max_results)
 
   @retry.with_exponential_backoff(
       num_retries=MAX_RETRIES,
@@ -2150,8 +2440,9 @@ class BigQueryWrapper(object):
           dataset = gcp_bigquery.Dataset(dataset_ref)
           if location is not None:
             dataset.location = location
-          if labels is not None:
-            dataset.labels = labels
+          dict_labels = _extract_dict_labels(labels)
+          if dict_labels:
+            dataset.labels = dict_labels
           if kms_key is not None:
             dataset.default_encryption_configuration = (
                 gcp_bigquery.EncryptionConfiguration(kms_key_name=kms_key))
@@ -2537,13 +2828,15 @@ class BigQueryWrapper(object):
       src_ref = _to_gcp_table_ref(table_reference, default_project=job_project)
       dest_uris = destination if isinstance(destination,
                                             list) else [destination]
+      dict_labels = _extract_dict_labels(job_labels)
       job_config = gcp_bigquery.ExtractJobConfig(
           destination_format=destination_format,
           print_header=include_header,
           compression=compression,
           use_avro_logical_types=use_avro_logical_types,
-          labels=job_labels,
       )
+      if dict_labels:
+        job_config.labels = dict_labels
       try:
         job = self.client.extract_table(
             src_ref,
@@ -2705,6 +2998,28 @@ class BigQueryWrapper(object):
       priority,
       dry_run=False,
       job_labels=None):
+    if self._is_modern_client:
+      job_config = gcp_bigquery.QueryJobConfig(
+          dry_run=dry_run,
+          use_legacy_sql=use_legacy_sql,
+          flatten_results=flatten_results,
+          priority=priority,
+      )
+      if job_labels:
+        dict_labels = _extract_dict_labels(job_labels)
+        if dict_labels:
+          job_config.labels = dict_labels
+      job = self.client.query(
+          query,
+          job_config=job_config,
+          project=project_id,
+      )
+      if dry_run:
+        return
+      rows = job.result()
+      yield list(rows), _to_table_schema(rows.schema)
+      return
+
     job = self._start_query_job(
         project_id,
         query,
@@ -2745,8 +3060,9 @@ class BigQueryWrapper(object):
         page_token = response.pageToken
       else:
         # Modern RowIterator
-        yield list(response), TableSchema(fields=response.schema)
+        yield list(response), _to_table_schema(response.schema)
         break
+
 
   def insert_rows(
       self,

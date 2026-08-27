@@ -89,6 +89,26 @@ class BuildChangesQueryTest(unittest.TestCase):
         'proj.ds.tbl', start, end, 'APPENDS', row_filter='status = "active"')
     self.assertIn('WHERE status = "active"', sql)
 
+  def test_unqualified_table_does_not_emit_none_prefix(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('ds.tbl', start, end, 'APPENDS')
+    self.assertIn('TABLE `ds.tbl`', sql)
+    self.assertNotIn('None.', sql)
+
+  def test_domain_scoped_project_table(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query(
+        'google.com:clouddfe:ds.tbl', start, end, 'APPENDS')
+    self.assertIn('TABLE `google.com:clouddfe.ds.tbl`', sql)
+
+  def test_changes_query_excepts_is_for_update(self):
+    start = _ts(2025, 1, 1)
+    end = _ts(2025, 1, 2)
+    sql = build_changes_query('proj.ds.tbl', start, end, 'CHANGES')
+    self.assertIn('_CHANGE_IS_FOR_UPDATE', sql)
+
   def test_no_row_filter(self):
     start = _ts(2025, 1, 1)
     end = _ts(2025, 1, 2)
