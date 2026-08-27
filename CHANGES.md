@@ -204,7 +204,7 @@
 
 * (Java) Projects using the Flink runner with Flink 2.1 or later alongside libraries requiring `org.lz4:lz4-java` (e.g., Kafka clients) may encounter a Gradle capability conflict, because Flink 2.1+ ships `at.yawk.lz4:lz4-java` which declares the same capability. To resolve, add a `capabilitiesResolution` rule to your `build.gradle` that selects `at.yawk.lz4:lz4-java` ([#38947](https://github.com/apache/beam/issues/38947)).
 * (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
-* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39406)).
+* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39548)).
 * (Java) Pipelines using the Dataflow Runner and Java versions 17+ may experience spiky memory caused by a JVM upgrade in the runner image ([#39897](https://github.com/apache/beam/issues/39897).
 
 # [2.74.0] - 2026-06-02
@@ -251,7 +251,7 @@
 ## Known Issues
 
 * (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
-* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39406)).
+* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39548)).
 * (Java) Pipelines using the Dataflow Runner and Java versions 17+ may experience spiky memory caused by a JVM upgrade in the runner image ([#39897](https://github.com/apache/beam/issues/39897).
 
 # [2.73.0] - 2026-04-29
