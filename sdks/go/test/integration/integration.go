@@ -77,6 +77,8 @@ var directFilters = []string{
 	// Triggers, Panes are not yet supported
 	"TestTrigger.*",
 	"TestPanes",
+	// TestStream-based wait tests run on Prism; bounded variants run here.
+	"TestWaitStream.*",
 	// The direct runner does not support the TestStream primitive
 	"TestTestStream.*",
 	// (https://github.com/apache/beam/issues/21130): The direct runner does not support windowed side inputs
@@ -117,6 +119,8 @@ var portableFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
+	// TestStream-based wait tests run on Prism; bounded variants run here.
+	"TestWaitStream.*",
 	// TODO(https://github.com/apache/beam/issues/21058): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
@@ -198,9 +202,13 @@ var flinkFilters = []string{
 	"TestTestStreamSimple_InfinityDefault",
 	"TestTestStreamToGBK",
 	"TestTestStreamTimersEventTime",
+	// TODO(https://github.com/apache/beam/issues/31122): Flink's TestStream
+	// corrupts some length-prefixed and custom-coded values. These tests use a
+	// user-defined struct; sequencing variants also rely on process-local state.
+	"TestWaitStream.*",
 
 	"TestTimers_EventTime_WithNoOutputTimestamp", // Encounter error: TimestampCombiner moved element from TIMESTAMP_MAX_VALUE to earlier time (end of global window) for window GlobalWindow
-	"TestTimers_ProcessingTime.*",    // Flink doesn't support processing time timers.
+	"TestTimers_ProcessingTime.*",                // Flink doesn't support processing time timers.
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
@@ -216,6 +224,9 @@ var sparkFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
+	// Spark does not support TestStream or side inputs to executable stages.
+	"TestWaitStream.*",
+	"TestWaitBounded.*",
 	// [BEAM-13921]: Spark doesn't support side inputs to executable stages
 	"TestDebeziumIO_BasicRead",
 	// TODO(BEAM-13215): GCP IOs currently do not work in non-Dataflow portable runners.
@@ -257,6 +268,8 @@ var dataflowFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
+	// TestStream-based wait tests run on Prism; bounded variants run here.
+	"TestWaitStream.*",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
 	"TestSpannerIO.*",
