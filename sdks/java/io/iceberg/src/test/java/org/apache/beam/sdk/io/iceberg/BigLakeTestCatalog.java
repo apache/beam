@@ -43,8 +43,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *   <li>{@code beam.iceberg.biglake.locations}: comma-separated {@code gs://} prefixes the catalog
  *       may write to; the first is the catalog's default location, the rest are additional
  *       restricted locations
- *   <li>{@code beam.iceberg.biglake.crossRegionLocation}: a {@code gs://} prefix in a bucket
- *       located in a different region than the catalog
  * </ul>
  */
 public final class BigLakeTestCatalog {
@@ -59,14 +57,6 @@ public final class BigLakeTestCatalog {
               .trimResults()
               .omitEmptyStrings()
               .split(requiredProperty("beam.iceberg.biglake.locations")));
-
-  /**
-   * A location in a bucket the catalog does not manage and that is in a different region than the
-   * catalog (BigQuery cannot read cross-region data files; see
-   * AddFilesIT#testBatchParquetImportFromCrossRegionBucket).
-   */
-  public static final String CROSS_REGION_LOCATION =
-      requiredProperty("beam.iceberg.biglake.crossRegionLocation");
 
   /** Catalog id, which is also the second segment of BigQuery's 4-part table reference. */
   public static final String CATALOG_ID = parseCatalogId(WAREHOUSE);
