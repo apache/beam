@@ -351,7 +351,10 @@ tasks.register("miniCluster", Jar) {
     exclude "**/PortablePipelineJarUtils*"
   }
   manifest {
-    attributes('Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint')
+    attributes(
+      'Main-Class': 'org.apache.beam.runners.flink.FlinkMiniClusterEntryPoint',
+      'Multi-Release': 'true'
+    )
   }
   zip64 true // jar needs to contain more than 65535 files
 }
