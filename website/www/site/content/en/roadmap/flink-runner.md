@@ -21,7 +21,7 @@ _Last updated on Aug 2026._
 
 ## Flink versions
 
-Beam aims to support latest Flink minor versions. See [Flink Runner Support Table](/documentation/runners/flink#flink-versions-supported-by-beam-releases)
+Beam aims to support latest Flink minor versions. See [Flink Runner Support Table](/documentation/runners/flink#flink-version-compatibility)
 for current coverage.
 
 ### Flink 2.x Support
