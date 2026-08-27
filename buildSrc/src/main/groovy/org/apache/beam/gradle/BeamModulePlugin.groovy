@@ -1388,8 +1388,14 @@ class BeamModulePlugin implements Plugin<Project> {
         getSourceDirectories().setFrom(
             project.files(project.sourceSets.main.allSource.srcDirs)
             )
-        getExecutionData().setFrom(project.file(
-            project.getLayout().getBuildDirectory().file("jacoco/test.exec")
+        // Collect execution data from every Test task that ran in this module
+        // (e.g. test, needsRunnerTests, validatesRunner) instead of only
+        // build/jacoco/test.exec, so coverage from runner-based test tasks is
+        // no longer dropped from the report.
+        // See https://github.com/apache/beam/issues/18194.
+        getExecutionData().setFrom(project.fileTree(
+            dir: project.getLayout().getBuildDirectory().dir("jacoco"),
+            include: ['*.exec']
             ))
         reports {
           html.required = true
