@@ -19,15 +19,24 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import com.google.api.services.storage.model.StorageObject;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
+import org.apache.iceberg.catalog.TableIdentifier;
 
 /**
  * Test-side description of the BigLake (Lakehouse) Iceberg REST catalog the ITs run against.
@@ -124,9 +133,50 @@ public final class BigLakeTestCatalog {
         .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
         .put("warehouse", WAREHOUSE)
         .put("header.x-goog-user-project", PROJECT)
+        // Required by catalogs in vended-credentials mode; ignored in end-user mode.
+        .put("header.X-Iceberg-Access-Delegation", "vended-credentials")
         .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
         .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
         .build();
+  }
+
+  /**
+   * Drops every table in the namespaces and then the namespaces themselves, and deletes the tables'
+   * files from Cloud Storage: BigLake keeps a dropped table's data and metadata (even with purge),
+   * and table locations carry a random suffix, so they are captured before the drop.
+   */
+  public static void dropNamespacesAndFiles(Catalog catalog, List<String> namespaces)
+      throws IOException {
+    List<String> tableLocations = new ArrayList<>();
+    for (String name : namespaces) {
+      Namespace namespace = Namespace.of(name);
+      if (!((SupportsNamespaces) catalog).namespaceExists(namespace)) {
+        continue;
+      }
+      for (TableIdentifier identifier : catalog.listTables(namespace)) {
+        tableLocations.add(catalog.loadTable(identifier).location());
+        catalog.dropTable(identifier);
+      }
+      ((SupportsNamespaces) catalog).dropNamespace(namespace);
+    }
+    for (String location : tableLocations) {
+      deleteObjects(location);
+    }
+  }
+
+  /** Deletes every object under a {@code gs://bucket/prefix} location. */
+  public static void deleteObjects(String gcsLocation) throws IOException {
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<StorageObject> objects =
+        gcsUtil.listObjects(bucketOf(gcsLocation), prefixOf(gcsLocation), null).getItems();
+    if (objects == null || objects.isEmpty()) {
+      return;
+    }
+    List<String> paths = new ArrayList<>();
+    for (StorageObject object : objects) {
+      paths.add("gs://" + object.getBucket() + "/" + object.getName());
+    }
+    gcsUtil.remove(paths);
   }
 
   /** BigQuery's 4-part {@code project.catalog.namespace.table} reference. */
