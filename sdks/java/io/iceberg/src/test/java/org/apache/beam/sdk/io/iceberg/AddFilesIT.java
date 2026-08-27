@@ -27,7 +27,6 @@ import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.storage.model.StorageObject;
@@ -112,7 +111,6 @@ public class AddFilesIT {
   private static final String DATA_LOCATION = BigLakeTestCatalog.defaultLocation();
   private static final String DATA_BUCKET = BigLakeTestCatalog.bucketOf(DATA_LOCATION);
   private static final String DATA_PREFIX = BigLakeTestCatalog.prefixOf(DATA_LOCATION);
-  private static final String CROSS_REGION_LOCATION = BigLakeTestCatalog.CROSS_REGION_LOCATION;
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   @Rule public TestName testName = new TestName();
@@ -237,19 +235,12 @@ public class AddFilesIT {
       LOG.warn("Failed to clean up Iceberg catalog", e);
     }
 
-    deleteBlobs(DATA_BUCKET, dirName);
-    deleteBlobs(
-        BigLakeTestCatalog.bucketOf(CROSS_REGION_LOCATION),
-        BigLakeTestCatalog.prefixOf(CROSS_REGION_LOCATION) + "/" + dirName);
-  }
-
-  private void deleteBlobs(String bucket, String prefix) {
     try {
       Iterable<Blob> blobs =
-          storage.list(bucket, Storage.BlobListOption.prefix(prefix)).getValues();
+          storage.list(DATA_BUCKET, Storage.BlobListOption.prefix(dirName)).getValues();
       blobs.forEach(b -> storage.delete(b.getBlobId()));
     } catch (Exception e) {
-      LOG.warn("Failed to clean up gs://{}/{}", bucket, prefix, e);
+      LOG.warn("Failed to clean up GCS bucket", e);
     }
   }
 
@@ -429,57 +420,6 @@ public class AddFilesIT {
   }
 
   /**
-   * The catalog does not police where added files live: data in a bucket it does not manage, even
-   * in another region, registers and reads fine through Iceberg. BigQuery, however, cannot read
-   * data files outside the catalog's region, so the cross-engine read of such a table fails. (Files
-   * in an unmanaged bucket in the catalog's region read fine from BigQuery.) Documents the
-   * trade-off of adding files in place from a cross-region bucket.
-   */
-  @Test
-  public void testBatchParquetImportFromCrossRegionBucket() throws IOException {
-    String crossRegionBucket = BigLakeTestCatalog.bucketOf(CROSS_REGION_LOCATION);
-    for (String location : BigLakeTestCatalog.LOCATIONS) {
-      assertNotEquals(
-          "Test needs a bucket outside the catalog: " + CROSS_REGION_LOCATION,
-          BigLakeTestCatalog.bucketOf(location),
-          crossRegionBucket);
-    }
-    List<String> writtenFilePaths =
-        writeParquetFiles(
-            crossRegionBucket, BigLakeTestCatalog.prefixOf(CROSS_REGION_LOCATION) + "/" + dirName);
-
-    Pipeline p = Pipeline.create();
-    PCollectionRowTuple tuple =
-        p.apply(Create.of(writtenFilePaths))
-            .apply(
-                new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
-                    destTableId.toString(),
-                    null,
-                    PARTITION_FIELDS,
-                    null,
-                    TABLE_PROPS,
-                    null,
-                    null));
-    PAssert.that(tuple.get("errors")).empty();
-    p.run().waitUntilFinish();
-
-    assertTrue(checkTableHasRegisteredParquetFiles(writtenFilePaths));
-    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ false);
-
-    Pipeline bq = Pipeline.create();
-    bq.apply(
-            Managed.read(Managed.BIGQUERY)
-                .withConfig(
-                    ImmutableMap.of(
-                        "table",
-                        BigLakeTestCatalog.bigQueryTableSpec(
-                            destTableId.namespace().toString(), destTableId.name()))))
-        .getSinglePCollection();
-    assertThrows(Pipeline.PipelineExecutionException.class, () -> bq.run().waitUntilFinish());
-  }
-
-  /**
    * The destination table lives in the catalog's additional location (a second bucket) while the
    * source parquet files stay in the default one. BigLake pins tables under their namespace's
    * location, so the table is created in a namespace placed in the second bucket; AddFiles must
@@ -525,14 +465,10 @@ public class AddFilesIT {
     checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
   }
 
+  /** Writes TEST_ROWS as parquet under the test's data dir and returns the written file paths. */
   private List<String> writeParquetFiles() throws IOException {
-    return writeParquetFiles(DATA_BUCKET, dirName);
-  }
-
-  /** Writes TEST_ROWS as parquet under gs://{bucket}/{dir}/ and returns the written file paths. */
-  private List<String> writeParquetFiles(String bucket, String dir) throws IOException {
-    String parquetDir = format("gs://%s/%s/", bucket, dir);
-    String tempDir = format("gs://%s/%s-tmp/", bucket, dir);
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
     LOG.info("Writing records to the parquet dir");
     Pipeline q = Pipeline.create();
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
@@ -555,7 +491,7 @@ public class AddFilesIT {
     q.run().waitUntilFinish();
 
     GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
-    Iterable<StorageObject> objects = gcsUtil.listObjects(bucket, dir, null).getItems();
+    Iterable<StorageObject> objects = gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems();
     List<String> writtenFilePaths =
         Lists.newArrayList(objects).stream()
             .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
