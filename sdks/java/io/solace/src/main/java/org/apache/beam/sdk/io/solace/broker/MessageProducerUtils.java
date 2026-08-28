@@ -40,7 +40,7 @@ public class MessageProducerUtils {
    * @param deliveryMode The {@link DeliveryMode} used to publish the message.
    * @return A {@link BytesXMLMessage} that can be sent to Solace "as is".
    */
-  public static BytesXMLMessage createBytesXMLMessage(
+  public static BytesXMLMessage createMessage(
       Solace.Record record, boolean useCorrelationKeyLatency, DeliveryMode deliveryMode) {
     BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
     msg.setDeliveryMode(deliveryMode);
@@ -90,7 +90,7 @@ public class MessageProducerUtils {
       JCSMPSendMultipleEntry entry =
           JCSMPFactory.onlyInstance()
               .createSendMultipleEntry(
-                  createBytesXMLMessage(record, useCorrelationKeyLatency, deliveryMode),
+                  createMessage(record, useCorrelationKeyLatency, deliveryMode),
                   destinationFn.apply(record));
       entries[i] = entry;
     }

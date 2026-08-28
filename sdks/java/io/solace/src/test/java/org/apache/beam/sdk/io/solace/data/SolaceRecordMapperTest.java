@@ -77,7 +77,7 @@ public class SolaceRecordMapperTest {
             .setAttachmentBytes(new byte[] {3, 4})
             .build();
     BytesXMLMessage message =
-        MessageProducerUtils.createBytesXMLMessage(source, false, DeliveryMode.DIRECT);
+        MessageProducerUtils.createMessage(source, false, DeliveryMode.DIRECT);
     message.setReadOnly();
 
     Record record = Solace.SolaceRecordMapper.toRecord(message);
