@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1-bullseye
+ARG BASE_IMAGE=golang:1-bookworm
 #Two-stage assembly
 FROM $BASE_IMAGE AS build
 ARG GIT_COMMIT="<unknown>"
@@ -44,7 +44,7 @@ RUN cd cmd/migration_tool &&\
     go build -o /go/bin/migration_tool
 
 # Null image
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 # Install deps being used by sh files
