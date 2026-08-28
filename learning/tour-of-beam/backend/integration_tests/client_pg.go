@@ -24,10 +24,12 @@ import (
 
 func GetSnippet(ctx context.Context, snippetId string) (*pb.GetSnippetResponse, error) {
 	routerHost := os.Getenv("PLAYGROUND_ROUTER_HOST")
-	conn, err := grpc.DialContext(ctx, routerHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(routerHost, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("dial grpc: %w", err)
 	}
+	defer conn.Close()
+
 	client := pb.NewPlaygroundServiceClient(conn)
 
 	req := &pb.GetSnippetRequest{Id: snippetId}
