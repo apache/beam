@@ -154,8 +154,7 @@ class MainTest(unittest.TestCase):
         '--var=my_line',
     ]
     self.assertCountEqual(
-        main._preparse_jinja_flags(argv),
-        [
+        main._preparse_jinja_flags(argv), [
             '--runner=DirectRunner',
             '--jinja_variables=' + '{"var": "my_line"}',
         ])
