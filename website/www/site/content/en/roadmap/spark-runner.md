@@ -25,7 +25,7 @@ Support for Spark 4 in Beam's Spark runner is ongoing.
 
 As of Beam 2.74.0, Spark 4 is supported by Classic Spark runner in batch mode.
 
-As od Spark 4, DStream API is deprecated and community interest is around Structured Streaming. We are working on improving the Structured Streaming support in Beam's Spark runner, this includes
+As of Spark 4, DStream API is deprecated and community interest is around Structured Streaming. We are working on improving the Structured Streaming support in Beam's Spark runner, this includes
 - Complete streaming support for Spark 4 based on Structured Streaming
 - Build Spark 4 portable runner based on Structured Streaming
 
