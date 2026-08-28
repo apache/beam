@@ -30,7 +30,7 @@ require (
 	cloud.google.com/go/datastore v1.26.0
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/pubsub v1.51.1
-	cloud.google.com/go/spanner v1.94.0
+	cloud.google.com/go/spanner v1.95.0
 	cloud.google.com/go/storage v1.65.0
 	github.com/aws/aws-sdk-go-v2 v1.43.7
 	github.com/aws/aws-sdk-go-v2/config v1.32.38
@@ -70,7 +70,7 @@ require (
 
 require (
 	github.com/avast/retry-go/v4 v4.7.0
-	github.com/fsouza/fake-gcs-server v1.56.0
+	github.com/fsouza/fake-gcs-server v1.56.1
 	github.com/golang-cz/devslog v0.0.17
 	github.com/moby/moby/api v1.55.0
 	github.com/moby/moby/client v0.5.1
@@ -82,7 +82,7 @@ require (
 	cloud.google.com/go/auth v0.23.0 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
 	cloud.google.com/go/monitoring v1.29.0 // indirect
-	cloud.google.com/go/pubsub/v2 v2.6.1 // indirect
+	cloud.google.com/go/pubsub/v2 v2.6.2 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	filippo.io/edwards25519 v1.2.0 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect

@@ -27,31 +27,20 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.BeamParquetInputFile;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -75,8 +64,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.iceberg.AppendFiles;
@@ -111,7 +98,6 @@ import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
-import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
@@ -251,15 +237,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * <p><b>Asynchronous Bundle Processing:</b> Because file I/O, catalog lookups, and metadata
    * inference can be highly latency-bound, this DoFn implements an asynchronous processing pattern
    * to maximize throughput. By default, Beam processes elements in a bundle sequentially. To avoid
-   * bottlenecking the pipeline, we use an internal {@link ExecutorService} to process multiple
+   * bottlenecking the pipeline, we use an internal {@link BoundedAsyncTasks} to process multiple
    * files concurrently within a single DoFn instance.
    *
    * <p><b>Lifecycle & Thread Safety:</b>
    *
    * <ul>
    *   <li><b>{@link ProcessElement}:</b> Submits the heavy lifting (format inference, metrics
-   *       collection, and partition resolution) to a background thread pool and stores the
-   *       resulting {@link Future}.
+   *       collection, and partition resolution) to a background thread pool and emits results as
+   *       they complete.
    *   <li><b>{@link FinishBundle}:</b> Blocks and awaits the completion of all futures in the
    *       current bundle. It safely emits the successfully parsed {@link DataFile}s, or error rows,
    *       back to the runner on the main thread, as {@link MultiOutputReceiver} is not thread-safe.
@@ -274,8 +260,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable List<String> partitionFields;
     private final @Nullable List<String> sortFields;
     private final @Nullable Map<String, String> tableProps;
-    private transient @MonotonicNonNull ExecutorService executor;
-    private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
+    private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
     private transient volatile @MonotonicNonNull Table table;
 
     // Number of parallel threads processing incoming files
@@ -329,19 +314,21 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @Setup
     public void setup() {
-      executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+      tasks = new BoundedAsyncTasks<>(THREAD_POOL_SIZE, MAX_IN_FLIGHT_TASKS);
+    }
+
+    /** Clears anything left behind if the runner reuses this instance after a failed bundle. */
+    @StartBundle
+    public void startBundle() {
+
+      checkStateNotNull(tasks).cancelAll();
     }
 
     @Teardown
     public void teardown() {
-      if (executor != null) {
-        executor.shutdownNow();
+      if (tasks != null) {
+        tasks.shutdown();
       }
-    }
-
-    @StartBundle
-    public void startBundle() {
-      activeTasks = Lists.newLinkedList();
     }
 
     @ProcessElement
@@ -351,28 +338,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         BoundedWindow window,
         PaneInfo paneInfo,
         MultiOutputReceiver output)
-        throws IOException, InterruptedException, ExecutionException {
-      LinkedList<Future<ProcessResult>> activeTasks = checkStateNotNull(this.activeTasks);
-
-      // start draining finished tasks, but don't block
-      Iterator<Future<ProcessResult>> iterator = activeTasks.iterator();
-      while (iterator.hasNext()) {
-        Future<ProcessResult> future = iterator.next();
-        if (future.isDone()) {
-          outputResult(future.get(), output);
-          iterator.remove();
-        }
-      }
-
-      // if we have too many active tasks, wait until some finish
-      while (activeTasks.size() >= MAX_IN_FLIGHT_TASKS) {
-        Future<ProcessResult> oldestTask = activeTasks.removeFirst();
-        outputResult(oldestTask.get(), output); // .get() blocks until the task completes
-      }
-
-      // create a new task for the current element and add to queue
+        throws Exception {
       Callable<ProcessResult> task = createProcessTask(filePath, timestamp, window, paneInfo);
-      activeTasks.add(checkStateNotNull(executor).submit(task));
+      checkStateNotNull(tasks).submit(task, result -> outputResult(result, output));
     }
 
     private void outputResult(ProcessResult result, MultiOutputReceiver output) {
@@ -398,18 +366,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
-      // Block and wait for threads to finish their work
-      int numErrors = 0;
-      for (Future<ProcessResult> future : checkStateNotNull(activeTasks)) {
-        ProcessResult result = future.get();
-        if (result.errorRow != null) {
-          context.output(ERRORS, result.errorRow, result.timestamp, result.window);
-          numErrors++;
-        } else if (result.dataFile != null) {
-          context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
-        }
+      checkStateNotNull(tasks).awaitAll(result -> outputAtFinish(result, context));
+    }
+
+    private static void outputAtFinish(ProcessResult result, FinishBundleContext context) {
+      if (result.errorRow != null) {
+        context.output(ERRORS, result.errorRow, result.timestamp, result.window);
+        numErrorFiles.inc();
+      } else if (result.dataFile != null) {
+        context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
       }
-      numErrorFiles.inc(numErrors);
     }
 
     private Callable<ProcessResult> createProcessTask(
@@ -449,7 +415,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         @Nullable ParquetMetadata parquetFooter = null;
         if (format.equals(FileFormat.PARQUET)) {
           try {
-            parquetFooter = readParquetFooter(filePath);
+            parquetFooter = ParquetFooters.read(filePath);
           } catch (Exception e) {
             return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
           }
@@ -561,7 +527,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         throws IOException {
       Preconditions.checkArgument(
           format.equals(FileFormat.PARQUET), "Table creation is only supported for Parquet files.");
-      MessageType messageType = readParquetFooter(filePath).getFileMetaData().getSchema();
+      MessageType messageType = ParquetFooters.read(filePath).getFileMetaData().getSchema();
       return ParquetSchemaUtil.convert(messageType);
     }
 
@@ -872,12 +838,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
   }
 
-  static ParquetMetadata readParquetFooter(String filePath) throws IOException {
-    try (ParquetFileReader reader = ParquetFileReader.open(getParquetInputFile(filePath))) {
-      return reader.getFooter();
-    }
-  }
-
   /**
    * Some exceptions carry a null message (bare EOFException, NPE); the error-routing path must
    * never throw on one.
@@ -909,15 +869,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         new FileMetaData(
             originalMessageType, oldFileMeta.getKeyValueMetaData(), oldFileMeta.getCreatedBy());
     return new ParquetMetadata(newFileMeta, footer.getBlocks());
-  }
-
-  static org.apache.parquet.io.InputFile getParquetInputFile(String filePath) throws IOException {
-    ResourceId resourceId =
-        Iterables.getOnlyElement(FileSystems.match(filePath).metadata()).resourceId();
-    Compression compression = Compression.detect(checkStateNotNull(resourceId.getFilename()));
-    SeekableByteChannel channel =
-        (SeekableByteChannel) compression.readDecompressed(FileSystems.open(resourceId));
-    return new BeamParquetInputFile(channel);
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

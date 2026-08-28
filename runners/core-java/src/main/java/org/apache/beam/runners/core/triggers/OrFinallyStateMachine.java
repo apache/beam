@@ -23,9 +23,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 /**
  * Executes the {@code actual} trigger until it finishes or until the {@code until} trigger fires.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class OrFinallyStateMachine extends TriggerStateMachine {
 
   private static final int ACTUAL = 0;
@@ -96,7 +93,7 @@ class OrFinallyStateMachine extends TriggerStateMachine {
 
   @Override
   public String toString() {
-    return String.format("%s.orFinally(%s)", subTriggers.get(ACTUAL), subTriggers.get(UNTIL));
+    return String.format("%s.orFinally(%s)", subTriggers().get(ACTUAL), subTriggers().get(UNTIL));
   }
 
   private void updateFinishedState(TriggerContext c) throws Exception {

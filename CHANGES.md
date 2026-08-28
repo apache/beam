@@ -65,6 +65,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added `schema_update_options` to `WriteToBigQuery` file loads, allowing BigQuery load jobs to add nullable fields or relax required fields when appending data (Python) ([#21141](https://github.com/apache/beam/issues/21141)).
 * BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part `project.catalog.namespace.table` identifiers (or a `TableReference` with a composite `catalog.namespace` dataset id). Previously such references were silently mis-parsed (Java) ([#39597](https://github.com/apache/beam/issues/39597)) .
 
 ## New Features / Improvements
@@ -89,6 +90,7 @@
 * (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
+* (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
 
 ## Security Fixes
 
@@ -204,6 +206,8 @@
 
 * (Java) Projects using the Flink runner with Flink 2.1 or later alongside libraries requiring `org.lz4:lz4-java` (e.g., Kafka clients) may encounter a Gradle capability conflict, because Flink 2.1+ ships `at.yawk.lz4:lz4-java` which declares the same capability. To resolve, add a `capabilitiesResolution` rule to your `build.gradle` that selects `at.yawk.lz4:lz4-java` ([#38947](https://github.com/apache/beam/issues/38947)).
 * (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39548)).
+* (Java) Pipelines using the Dataflow Runner and Java versions 17+ may experience spiky memory caused by a JVM upgrade in the runner image ([#39897](https://github.com/apache/beam/issues/39897).
 
 # [2.74.0] - 2026-06-02
 
@@ -249,6 +253,8 @@
 ## Known Issues
 
 * (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39548)).
+* (Java) Pipelines using the Dataflow Runner and Java versions 17+ may experience spiky memory caused by a JVM upgrade in the runner image ([#39897](https://github.com/apache/beam/issues/39897).
 
 # [2.73.0] - 2026-04-29
 
