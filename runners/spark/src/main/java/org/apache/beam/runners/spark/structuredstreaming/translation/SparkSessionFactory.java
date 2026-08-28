@@ -175,6 +175,12 @@ public class SparkSessionFactory {
       sparkConf.setIfMissing("spark.sql.shuffle.partitions", Integer.toString(partitions));
     }
 
+    // Spark 4 transformWithState (used for streaming pipelines) requires the RocksDB state store.
+    // This is a harmless, inert configuration for batch pipelines on Spark 3.
+    sparkConf.setIfMissing(
+        "spark.sql.streaming.stateStore.providerClass",
+        "org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider");
+
     return SparkSession.builder().config(sparkConf);
   }
 
