@@ -28,7 +28,9 @@ func GetSnippet(ctx context.Context, snippetId string) (*pb.GetSnippetResponse, 
 	if err != nil {
 		return nil, fmt.Errorf("dial grpc: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	client := pb.NewPlaygroundServiceClient(conn)
 
