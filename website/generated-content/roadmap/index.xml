@@ -15,79 +15,7 @@ limitations under the License.
 &lt;ul>
 &lt;li>&lt;a href="/documentation/dsls/sql/overview">Beam SQL documentation&lt;/a>&lt;/li>
 &lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-sql">dsl-sql&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Roadmap: Connectors - Go SDK</title><link>/roadmap/connectors-go-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-go-sdk/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Roadmap for connectors developed using Go SDK.&lt;/p>
-&lt;ul>
-&lt;li>Go SDK plans to utilize currently available Java and Python connectors
-through cross-language transforms feature.
-&lt;ul>
-&lt;li>KafkaIO via Java - DONE&lt;/li>
-&lt;li>BigQuery via Java - In Progress&lt;/li>
-&lt;li>Beam SQL via Java&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>The Go SDK supports SplittableDoFns for bounded pipelines, so scalable bounded pipelines are possible.
-&lt;ul>
-&lt;li>The textio package supports &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadSdf">ReadSdf&lt;/a> and &lt;a href="https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam/io/textio#ReadAllSdf">ReadAllSdf&lt;/a> for efficient batch text reads.&lt;/li>
-&lt;li>A general FileIO will be produced to simplify adding new file based connectors.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul></description></item><item><title>Roadmap: Connectors - Java SDK</title><link>/roadmap/connectors-java-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-java-sdk/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Roadmap for connectors developed using Java SDK.&lt;/p>
-&lt;h1 id="couchbase">Couchbase&lt;/h1>
-&lt;p>Couchbase is a NoSQL document-oriented database. See
-&lt;a href="https://github.com/apache/beam/issues/18381">Issue 18381&lt;/a> for more details on the
-planned Beam connector for Couchbase.&lt;/p>
-&lt;h1 id="influxdb">InfluxDB&lt;/h1>
-&lt;p>InfluxDB is a database for fast and highly available storage and retrieval
-of time series data. See &lt;a href="https://issues.apache.org/jira/browse/BEAM-2546">BEAM-2546&lt;/a> for
-more details on the planned Beam connector for InfluxDB.&lt;/p>
-&lt;h1 id="memcached">Memcached&lt;/h1>
-&lt;p>Memcached is a distributed memory caching system. See
-&lt;a href="https://issues.apache.org/jira/browse/BEAM-1678">BEAM-1678&lt;/a> for more details on the
-planned Beam connector for Memcached.&lt;/p></description></item><item><title>Roadmap: Connectors - Python SDK</title><link>/roadmap/connectors-python-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-python-sdk/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>Roadmap for connectors developed using Python SDK.&lt;/p>
-&lt;h1 id="kafka">Kafka&lt;/h1>
-&lt;p>An Apache Kafka connectors for Python SDK that is fully developed using
-Splittable DoFn API is planned. This is partially blocked till
-Splittable DoFn work related to portability framework is finalized.
-See &lt;a href="https://issues.apache.org/jira/browse/BEAM-3788">BEAM-3788&lt;/a> for more details.&lt;/p>
-&lt;h1 id="parquet">Parquet&lt;/h1>
-&lt;p>A Python connector for Parquet file format is currently in development.
-See &lt;a href="https://issues.apache.org/jira/browse/BEAM-4444">BEAM-4444&lt;/a> for more details.&lt;/p></description></item><item><title>Roadmap: Euphoria API Roadmap</title><link>/roadmap/euphoria/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/euphoria/</guid><description>
+&lt;/ul></description></item><item><title>Roadmap: Euphoria API Roadmap</title><link>/roadmap/euphoria/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/euphoria/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -100,6 +28,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="euphoria-api">Euphoria API&lt;/h1>
+&lt;p>&lt;strong>Note&lt;/strong> Euphoria is deprecated and scheduled for removal in a future release.&lt;/p>
 &lt;p>Easy to use Java 8 DSL for the Beam Java SDK. Provides a high-level abstraction of Beam transformations, which is both easy to read and write. Can be used as a complement to existing Beam pipelines (convertible back and forth). You can have a glimpse of the API at &lt;a href="/documentation/sdks/java/euphoria/#wordcount-example">WordCount example&lt;/a>.&lt;/p>
 &lt;ul>
 &lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adsl-euphoria">dsl-euphoria&lt;/a> / &lt;a href="https://issues.apache.org/jira/browse/BEAM-3900">BEAM-3900&lt;/a>&lt;/li>
@@ -129,10 +58,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="google-cloud-dataflow-runner-roadmap">Google Cloud Dataflow Runner Roadmap&lt;/h1>
-&lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
+&lt;p>Please check GitHub Issue tracker for recent developments on this topic:&lt;/p>
+&lt;ul>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adataflow">runner-dataflow&lt;/a>&lt;/li>
+&lt;/ul>
+&lt;p>Available resources:&lt;/p>
 &lt;ul>
 &lt;li>&lt;a href="/documentation/runners/dataflow">Runner documentation&lt;/a>&lt;/li>
-&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-dataflow">runner-dataflow&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Flink Runner Roadmap</title><link>/roadmap/flink-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/flink-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -146,10 +78,21 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="apache-flink-runner-roadmap">Apache Flink Runner Roadmap&lt;/h1>
-&lt;p>This roadmap is in progress. In the meantime, here are available resources:&lt;/p>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
+&lt;h2 id="flink-versions">Flink versions&lt;/h2>
+&lt;p>Beam aims to support latest Flink minor versions. See &lt;a href="/documentation/runners/flink#flink-version-compatibility">Flink Runner Support Table&lt;/a>
+for current coverage.&lt;/p>
+&lt;h3 id="flink-2x-support">Flink 2.x Support&lt;/h3>
+&lt;p>One of the major changes in Flink 2 is the removal of Flink DataSet API. As a result Beam Flink 2 runners switched to use DataStream API for batch mode. One area of interest is to improve the batch support of DataStream API.&lt;/p>
+&lt;h2 id="available-resources">Available resources&lt;/h2>
+&lt;p>Please check GitHub Issue tracker for recent developments on this topic:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="/documentation/runners/flink">Runner documentation&lt;/a>&lt;/li>
-&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-flink">runner-flink&lt;/a>&lt;/li>
+&lt;li>
+&lt;p>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aflink">runner-flink&lt;/a>&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>&lt;a href="/documentation/runners/flink">Runner documentation&lt;/a>&lt;/p>
+&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Go SDK Roadmap</title><link>/roadmap/go-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/go-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -163,19 +106,26 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="go-sdk-roadmap">Go SDK Roadmap&lt;/h1>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
 &lt;p>The Go SDK is &lt;a href="/blog/go-sdk-release/">fully released as of v2.33.0&lt;/a>.&lt;/p>
-&lt;p>The Go SDK the first SDK purely on the &lt;a href="/roadmap/portability/">Beam Portability Framework&lt;/a>
+&lt;p>The Go SDK is the first SDK purely on the &lt;a href="/roadmap/portability/">Beam Portability Framework&lt;/a>
 and can execute pipelines on portable runners, like Flink, Spark, and Google Cloud Dataflow.&lt;/p>
 &lt;p>Current roadmap:&lt;/p>
 &lt;ul>
-&lt;li>continue building up unbounded pipeline facing features, as described on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK">Beam Dev Wiki&lt;/a>.&lt;/li>
-&lt;li>improve IO support via cross language transforms, and add scalable native transforms. &lt;a href="/roadmap/connectors-go-sdk/">Go SDK Connector Roadmap&lt;/a>&lt;/li>
+&lt;li>Continue building up unbounded pipeline facing features, as described on the &lt;a href="https://cwiki.apache.org/confluence/display/BEAM/Supporting+Streaming+in+the+Go+SDK">Beam Dev Wiki&lt;/a>.&lt;/li>
+&lt;li>Improve I/O support via cross-language transforms:
+&lt;ul>
+&lt;li>Complete Beam portable schema support for Go SDK (&lt;a href="https://github.com/apache/beam/issues/39684">Issue&lt;/a>).&lt;/li>
+&lt;li>Utilize currently available Java and Python connectors through the cross-language transforms feature.&lt;/li>
+&lt;li>Support auto-generated cross-language transform wrappers (&lt;a href="https://s.apache.org/autogen-wrappers">doc&lt;/a>), currently supported by Python.&lt;/li>
+&lt;/ul>
+&lt;/li>
 &lt;/ul>
 &lt;p>Otherwise, improving examples and documentation for devs and users alike is ongoing.
 Contributions are welcome. Please contact the &lt;a href="mailto:dev@beam.apache.org?subject=%5BGo%20SDK%5D%20How%20can%20I%20help%3F">dev list&lt;/a>
 for assistance in finding a place to help out.&lt;/p>
 &lt;ul>
-&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Asdk-go">sdk-go&lt;/a>&lt;/li>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Ago">sdk-go&lt;/a>&lt;/li>
 &lt;li>Contact: Robert Burke (@lostluck) &lt;a href="mailto:lostluck@apache.org?subject=%5BGo%20SDK%20Roadmap%5D">Email&lt;/a> - Please also cc the &lt;a href="mailto:dev@beam.apache.org">dev@beam.apache.org&lt;/a> list. I strongly prefer public discussion of Go SDK matters.&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Java SDK Roadmap</title><link>/roadmap/java-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/java-sdk/</guid><description>
 &lt;!--
@@ -190,12 +140,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="java-sdk-roadmap">Java SDK Roadmap&lt;/h1>
-&lt;h2 id="next-java-lts-version-support-java-25">Next Java LTS version support (Java 25)&lt;/h2>
-&lt;p>Work to support the next LTS release of Java is in progress. For more details
-about the scope and info on the various tasks please see the GitHub Issue.&lt;/p>
-&lt;ul>
-&lt;li>GitHub: &lt;a href="https://github.com/apache/beam/issues/35627">#35627&lt;/a>&lt;/li>
-&lt;/ul></description></item><item><title>Roadmap: Multi-SDK Connector Efforts</title><link>/roadmap/connectors-multi-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-multi-sdk/</guid><description>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
+&lt;h2 id="next-java-lts-version-support">Next Java LTS version support&lt;/h2>
+&lt;p>Beam aims to support new Java LTS versions in a timely manner.&lt;/p>
+&lt;p>Work to support the next LTS release of Java is done as of Beam 2.69.0. For more details, see &lt;a href="/documentation/sdks/java/#java-version-compatibility">Java Version Compatibility matrix&lt;/a>.&lt;/p></description></item><item><title>Roadmap: Multi-SDK Connector Efforts</title><link>/roadmap/connectors-multi-sdk/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/connectors-multi-sdk/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -207,85 +155,26 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 -->
-&lt;p>Connector-related efforts that will benefit multiple SDKs.&lt;/p>
-&lt;h1 id="splittable-dofn">Splittable DoFn&lt;/h1>
-&lt;p>Splittable DoFn is the next generation sources framework for Beam that will
-replace current frameworks for developing bounded and unbounded sources.
-Splittable DoFn is being developed along side current Beam portability
-efforts. See &lt;a href="/roadmap/portability/">Beam portability framework roadmap&lt;/a> for more details.&lt;/p>
-&lt;h1 id="cross-language-transforms">Cross-language transforms&lt;/h1>
-&lt;p>&lt;em>Last updated on May 2020.&lt;/em>&lt;/p>
-&lt;p>As an added benefit of Beam portability effort, we are able to utilize Beam transforms across SDKs. This has many benefits.&lt;/p>
+&lt;p>Roadmap for connectors and cross-cutting efforts that benefit multiple SDKs.&lt;/p>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
+&lt;h1 id="extended-metadata-and-sdk-level-cdc-change-data-capture-support">Extended Metadata and SDK level CDC (Change Data Capture) support&lt;/h1>
+&lt;p>Beam is introducing &lt;strong>Extended Metadata&lt;/strong> to make element values extensible across SDKs. This provides native support for Change Data Capture (CDC) operations (&lt;code>INSERT&lt;/code>, &lt;code>UPDATE&lt;/code>, &lt;code>DELETE&lt;/code>) consumed by lakehouse and database connectors, SDK-level pipeline drain, and fluent &lt;code>OutputBuilder&lt;/code> APIs.&lt;/p>
+&lt;p>Learn more from the &lt;a href="https://s.apache.org/beam-element-extended-metadata">Beam Element Extended Metadata Design Doc&lt;/a>.&lt;/p>
+&lt;h1 id="opentelemetry-support">OpenTelemetry Support&lt;/h1>
+&lt;p>Beam is adding native &lt;a href="https://opentelemetry.io/">OpenTelemetry&lt;/a> support across SDKs, runners, and connectors (&lt;a href="https://github.com/apache/beam/issues/33176">#33176&lt;/a>) for distributed tracing. This leverages Extended Metadata to propagate W3C Trace Context (&lt;code>traceparent&lt;/code> and &lt;code>tracestate&lt;/code>) across transform stages and worker boundaries, integrates trace header propagation into streaming I/Os (such as Kafka, Pub/Sub, and Spanner change streams), and enables runner-level trace and log correlation.&lt;/p>
+&lt;h1 id="io-connector-ecosystem">IO Connector Ecosystem&lt;/h1>
+&lt;p>Beam is actively expanding the Beam I/O connector portfolio with a focus on modern data lakehouse formats, native Change Data Capture (CDC), and unified access patterns:&lt;/p>
 &lt;ul>
-&lt;li>Connector sharing across SDKs. For example,
+&lt;li>&lt;strong>First-Class Lakehouse Connectors&lt;/strong>:
 &lt;ul>
-&lt;li>Beam pipelines written using Python and Go SDKs will be able to utilize the vast selection of connectors that are currently implemented for Java SDK.&lt;/li>
-&lt;li>Java SDK will be able to utilize connectors for systems that only offer a Python API.&lt;/li>
-&lt;li>Go SDK, will be able to utilize connectors currently available for Java and Python SDKs.&lt;/li>
+&lt;li>&lt;strong>&lt;a href="/documentation/io/built-in/iceberg/">Apache Iceberg&lt;/a>&lt;/strong>: Full support for batch and streaming reads, streaming appends, dynamic destinations, and changelog CDC reading. Available natively in Java, via cross-language transforms in Python, in &lt;a href="/documentation/sdks/yaml/">Beam YAML&lt;/a>, and via the &lt;a href="/documentation/io/managed-io/">Managed I/O&lt;/a> API.&lt;/li>
+&lt;li>&lt;strong>Delta Lake&lt;/strong>: Native read capabilities (&lt;a href="https://github.com/apache/beam/issues/38551">#38551&lt;/a>) and batch changelog (CDC) reading (&lt;a href="https://github.com/apache/beam/issues/39492">#39492&lt;/a>), exposed through core transforms and the &lt;a href="/documentation/io/managed-io/">Managed I/O&lt;/a> API.&lt;/li>
 &lt;/ul>
 &lt;/li>
-&lt;li>Ease of developing and maintaining Beam transforms - in general, with cross-language transforms, Beam transform authors will be able to implement new Beam transforms using a
-language of choice and utilize these transforms from other languages reducing the maintenance and support overheads.&lt;/li>
-&lt;li>&lt;a href="/documentation/dsls/sql/overview/">Beam SQL&lt;/a>, that is currently only available to Java SDK, will become available to Python and Go SDKs.&lt;/li>
-&lt;li>&lt;a href="https://www.tensorflow.org/tfx/transform/get_started">Beam TFX transforms&lt;/a>, that are currently only available to Beam Python SDK pipelines will become available to Java and Go SDKs.&lt;/li>
+&lt;li>&lt;strong>Managed I/O Expansion&lt;/strong>: Exposing more storage systems through the &lt;a href="/documentation/io/managed-io/">Managed I/O API&lt;/a>, which standardizes connector configurations using Beam Schemas, provides frictionless cross-language access (Java, Python, YAML), and enables runner-level optimizations.&lt;/li>
+&lt;li>&lt;strong>Native CDC Integration&lt;/strong>: Integrating database change streams (such as Spanner change streams and Debezium-based sources) directly into lakehouse sinks using Beam&amp;rsquo;s native CDC &lt;code>ValueKind&lt;/code> metadata.&lt;/li>
 &lt;/ul>
-&lt;h2 id="completed-and-ongoing-efforts">Completed and Ongoing Efforts&lt;/h2>
-&lt;p>Many efforts related to cross-language transforms are currently in flux. Some of the completed and ongoing efforts are given below.&lt;/p>
-&lt;h3 id="cross-language-transforms-api-and-expansion-service">Cross-language transforms API and expansion service&lt;/h3>
-&lt;p>Work related to developing/updating the cross-language transforms API for Java/Python/Go SDKs and work related to cross-language transform expansion services.&lt;/p>
-&lt;ul>
-&lt;li>Basic API for Java SDK - completed&lt;/li>
-&lt;li>Basic API for Python SDK - completed&lt;/li>
-&lt;li>Basic API for Go SDK - In progress&lt;/li>
-&lt;li>Basic cross-language transform expansion service for Java and Python SDKs - completed&lt;/li>
-&lt;li>Artifact staging - mostly completed - &lt;a href="https://lists.apache.org/thread.html/6fcee7047f53cf1c0636fb65367ef70842016d57effe2e5795c4137d@%3Cdev.beam.apache.org%3E">email thread&lt;/a>, &lt;a href="https://docs.google.com/document/d/1XaiNekAY2sptuQRIXpjGAyaYdSc-wlJ-VKjl04c8N48/edit#heading=h.900gc947qrw8">doc&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="support-for-flink-runner">Support for Flink runner&lt;/h3>
-&lt;p>Work related to making cross-language transforms available for Flink runner.&lt;/p>
-&lt;ul>
-&lt;li>Basic support for executing cross-language transforms on portable Flink runner - completed&lt;/li>
-&lt;/ul>
-&lt;h3 id="support-for-dataflow-runner">Support for Dataflow runner&lt;/h3>
-&lt;p>Work related to making cross-language transforms available for Dataflow runner.&lt;/p>
-&lt;ul>
-&lt;li>Basic support for executing cross-language transforms on Dataflow runner
-&lt;ul>
-&lt;li>This work requires updates to Dataflow service&amp;rsquo;s job submission and job execution logic. This is currently being developed at Google.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;/ul>
-&lt;h3 id="support-for-direct-runner">Support for Direct runner&lt;/h3>
-&lt;p>Work related to making cross-language transforms available on Direct runner&lt;/p>
-&lt;ul>
-&lt;li>Basic support for executing cross-language transforms on Pyton Direct runner - completed&lt;/li>
-&lt;li>Basic support for executing cross-language transforms on Java Direct runner - Not started&lt;/li>
-&lt;/ul>
-&lt;h3 id="connectortransform-support">Connector/transform support&lt;/h3>
-&lt;p>Ongoing and planned work related to making existing connectors/transforms available to other SDKs through the cross-language transforms framework.&lt;/p>
-&lt;ul>
-&lt;li>Java JdbcIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-10135">BEAM-10135&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10136">BEAM-10136&lt;/a>&lt;/li>
-&lt;li>Java KafkaIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7029">BEAM-7029&lt;/a>&lt;/li>
-&lt;li>Java KinesisIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-10137">BEAM-10137&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10138">BEAM-10138&lt;/a>&lt;/li>
-&lt;li>Java PubSubIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7738">BEAM-7738&lt;/a>&lt;/li>
-&lt;li>Java SnowflakeIO - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-9897">BEAM-9897&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-9898">BEAM-9898&lt;/a>&lt;/li>
-&lt;li>Java SpannerIO - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-10139">BEAM-10139&lt;/a>, &lt;a href="https://issues.apache.org/jira/browse/BEAM-10140">BEAM-10140&lt;/a>&lt;/li>
-&lt;li>Java SQL - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-8603">BEAM-8603&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="portable-beam-schema">Portable Beam schema&lt;/h3>
-&lt;p>Portable Beam schema support will provide a generalized mechanism for serializing and transferring data across language boundaries which will be extremely useful for pipelines that employ cross-language transforms.&lt;/p>
-&lt;ul>
-&lt;li>Make row coder a standard coder and implement in python - completed - &lt;a href="https://issues.apache.org/jira/browse/BEAM-7886">BEAM-7886&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="integrationperformance-testing">Integration/Performance testing&lt;/h3>
-&lt;ul>
-&lt;li>Add an integration test suite for cross-language transforms on Flink runner - In progress - &lt;a href="https://issues.apache.org/jira/browse/BEAM-6683">BEAM-6683&lt;/a>&lt;/li>
-&lt;/ul>
-&lt;h3 id="documentation">Documentation&lt;/h3>
-&lt;p>Work related to adding documenting on cross-language transforms to Beam Website.&lt;/p>
-&lt;ul>
-&lt;li>Document cross-language transforms API for Java/Python - Not started&lt;/li>
-&lt;li>Document API for making existing transforms available as cross-language transforms for Java/Python - Not started&lt;/li>
-&lt;/ul></description></item><item><title>Roadmap: Nemo Runner Roadmap</title><link>/roadmap/nemo-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/nemo-runner/</guid><description>
+&lt;p>See the full list of available connectors in the &lt;a href="/documentation/io/connectors/">Beam Connectors Overview&lt;/a>.&lt;/p></description></item><item><title>Roadmap: Nemo Runner Roadmap</title><link>/roadmap/nemo-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/nemo-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -417,6 +306,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="apache-beam-prism-runner-roadmap">Apache Beam Prism Runner Roadmap&lt;/h1>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
 &lt;p>The goal for the Prism runner is to provide a good default onboarding experience for Apache Beam.&lt;/p>
 &lt;ul>
 &lt;li>Prism should be able to execute any Beam pipeline that can execute on a local machine.&lt;/li>
@@ -445,17 +335,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="python-sdk-roadmap">Python SDK Roadmap&lt;/h1>
-&lt;h2 id="python-3-support">Python 3 Support&lt;/h2>
-&lt;p>Apache Beam 2.64.0 and higher support Python 3.9, 3.10, 3.11 and 3.12. We&amp;rsquo;re continuing to &lt;a href="https://issues.apache.org/jira/browse/BEAM-1251?focusedCommentId=16890504&amp;amp;page=com.atlassian.jira.plugin.system.issuetabpanels%3Acomment-tabpanel#comment-1689050">improve&lt;/a> the experience for Python 3 users and add support for Python 3.x minor versions:&lt;/p>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
+&lt;h2 id="python-version-support">Python Version Support&lt;/h2>
+&lt;p>Apache Beam 2.73.0 and higher support Python 3.10, 3.11, 3.12, 3.13 and 3.14. Beam aims to support new Python minor versions in a timely manner:&lt;/p>
 &lt;ul>
-&lt;li>&lt;a href="https://issues.apache.org/jira/secure/RapidBoard.jspa?rapidView=245&amp;amp;view=detail">Kanban Board&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://docs.google.com/document/d/1s1BJVCY65LB_SYK1SU1u7NbZiFANoq-nEYaEvzRbYlA">Python 3 Conversion Quick Start Guide&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://issues.apache.org/jira/browse/BEAM-1251">Tracking Issue&lt;/a>&lt;/li>
-&lt;li>&lt;a href="https://docs.google.com/document/d/1xDG0MWVlDKDPu_IW9gtMvxi2S9I0GB0VDTkPhjXT0nE">Original Proposal&lt;/a>&lt;/li>
+&lt;li>&lt;a href="/documentation/sdks/python/#python-version-compatibility">Python Version Compatibility matrix&lt;/a>&lt;/li>
 &lt;/ul>
+&lt;h2 id="cross-language-connectors-and-auto-generated-wrappers">Cross-Language Connectors and Auto-Generated Wrappers&lt;/h2>
+&lt;p>Rather than reimplementing storage connectors natively from scratch in Python, the preferred approach for Beam data connectors is leveraging mature Java I/O connectors via Beam&amp;rsquo;s cross-language (xlang) framework:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>Preferred Cross-Language Path&lt;/strong>: Core I/O connectors (such as Kafka, Apache Iceberg, Delta Lake, Snowflake, and JDBC) are authored as &lt;a href="/documentation/sdks/python-custom-multi-language-pipelines-guide">SchemaTransforms&lt;/a> in Java and exposed to Python pipelines. Python users can invoke them seamlessly or configure them via the simplified &lt;a href="/documentation/io/managed-io">Managed I/O&lt;/a> API.&lt;/li>
+&lt;li>&lt;strong>Auto-Generated Transform Wrappers&lt;/strong>: The Python SDK natively supports generating wrappers for external transforms (&lt;a href="https://s.apache.org/autogen-wrappers">design doc&lt;/a>). By discovering SchemaTransforms registered in expansion services, the Python SDK automatically provides idiomatic, typed Python wrappers and documentation without requiring developers to manually write and maintain boilerplate code.&lt;/li>
+&lt;/ul>
+&lt;h2 id="ai-and-machine-learning-beam-ml">AI and Machine Learning (Beam ML)&lt;/h2>
+&lt;p>Machine learning and artificial intelligence represent the primary focus area for native Python transform and connector development:&lt;/p>
+&lt;ul>
+&lt;li>&lt;strong>&lt;a href="/documentation/ml/overview/">RunInference&lt;/a>&lt;/strong>: High-throughput, production-grade model inference supporting leading ML frameworks (including PyTorch, TensorFlow, TensorRT, ONNX, and Hugging Face) in both batch and streaming pipelines.&lt;/li>
+&lt;li>&lt;strong>Vector Database Connectors&lt;/strong>: Native integrations and configurations for vector databases (such as Qdrant, Pinecone, and Vertex AI Vector Search), supporting large-scale embedding generation and Retrieval-Augmented Generation (RAG) workflows.&lt;/li>
+&lt;li>&lt;strong>LLM &amp;amp; Multi-Model Workflows&lt;/strong>: Native patterns for model evaluation, multi-model ensemble pipelines, and orchestration with modern AI systems.&lt;/li>
+&lt;/ul>
+&lt;p>Learn more about Beam&amp;rsquo;s machine learning capabilities in the &lt;a href="/documentation/ml/overview/">Beam ML Documentation&lt;/a>.&lt;/p>
+&lt;h2 id="contributions-and-feedback">Contributions and Feedback&lt;/h2>
 &lt;p>Contributions and feedback are welcome!&lt;/p>
-&lt;p>If you are interested in helping, you can select an unassigned issue on the Kanban board and assign it to yourself. If you cannot assign the issue to yourself, comment on the issue. When submitting a new PR, please tag &lt;a href="https://github.com/aaltay">@aaltay&lt;/a>, and &lt;a href="https://github.com/tvalentyn">@tvalentyn&lt;/a>.&lt;/p>
-&lt;p>To report a Python 3 related issue, create a subtask in &lt;a href="https://issues.apache.org/jira/browse/BEAM-1251">BEAM-1251&lt;/a> and cc: [~altay] and [~tvalentyn] in a JIRA comment. The best way to help us identify and investigate the issue is with a minimal pipeline that reproduces the issue.&lt;/p>
+&lt;p>If you are interested in helping, you can select an unassigned issue on the Kanban board and assign it to yourself. If you cannot assign the issue to yourself, comment on the issue. When submitting a new PR, please tag &lt;a href="https://github.com/damccorm">@damccorm&lt;/a>, and &lt;a href="https://github.com/tvalentyn">@tvalentyn&lt;/a>.&lt;/p>
+&lt;p>To report a Python related issue, create a GitHub Issue in &lt;a href="https://github.com/apache/beam/issues?q=is%3Aissue%20state%3Aopen%20label%3Apython">Python label&lt;/a> and cc: [~damccorm] and [~tvalentyn] in a comment. The best way to help us identify and investigate the issue is with a minimal pipeline that reproduces the issue.&lt;/p>
 &lt;p>You can also discuss encountered issues on user@ or dev@ mailing lists as appropriate.&lt;/p></description></item><item><title>Roadmap: Samza Runner Roadmap</title><link>/roadmap/samza-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/samza-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -487,12 +390,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 &lt;h1 id="apache-spark-runner-roadmap">Apache Spark Runner Roadmap&lt;/h1>
-&lt;h2 id="spark-3">Spark 3&lt;/h2>
-&lt;p>Support for Spark 3 in Beam&amp;rsquo;s Spark runner is ongoing. For info on the various
-tasks please refer to the JIRA ticket.&lt;/p>
+&lt;p>&lt;em>Last updated on Aug 2026.&lt;/em>&lt;/p>
+&lt;h2 id="spark-4">Spark 4&lt;/h2>
+&lt;p>Support for Spark 4 in Beam&amp;rsquo;s Spark runner is ongoing.&lt;/p>
+&lt;p>As of Beam 2.74.0, Spark 4 is supported by Classic Spark runner in batch mode.&lt;/p>
+&lt;p>As of Spark 4, DStream API is deprecated and community interest is around Structured Streaming. We are working on improving the Structured Streaming support in Beam&amp;rsquo;s Spark runner, this includes&lt;/p>
 &lt;ul>
-&lt;li>JIRA: &lt;a href="https://issues.apache.org/jira/browse/BEAM-7093">BEAM-7093&lt;/a>&lt;/li>
-&lt;li>Contact: &lt;a href="mailto:iemejia@apache.org">Ismaël Mejía&lt;/a>&lt;/li>
+&lt;li>Complete streaming support for Spark 4 based on Structured Streaming&lt;/li>
+&lt;li>Build Spark 4 portable runner based on Structured Streaming&lt;/li>
+&lt;/ul>
+&lt;p>For info on the various tasks please refer to the GitHub Issue.&lt;/p>
+&lt;ul>
+&lt;li>Issues: &lt;a href="https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aspark">runner-spark&lt;/a>&lt;/li>
 &lt;/ul></description></item><item><title>Roadmap: Twister2 Runner Roadmap</title><link>/roadmap/twister2-runner/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/roadmap/twister2-runner/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
