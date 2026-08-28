@@ -22,12 +22,11 @@ import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPFactory;
 import com.solacesystems.jcsmp.TextMessage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -587,28 +586,18 @@ public class Solace {
       if (msg.getContentLength() == 0) {
         return new byte[0];
       }
-      try {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.write(msg.getBytes());
-        return out.toByteArray();
-      } catch (IOException e) {
-        LOG.error("Could not read bytes from BytesXMLMessage.", e);
-        return new byte[0];
-      }
+      return Arrays.copyOf(msg.getBytes(), msg.getContentLength());
     }
 
     private static byte[] readAttachment(BytesXMLMessage msg) {
       if (msg.getAttachmentContentLength() == 0) {
         return new byte[0];
       }
-      try {
-        ByteArrayOutputStream out = new ByteArrayOutputStream();
-        out.write(msg.getAttachmentByteBuffer().array());
-        return out.toByteArray();
-      } catch (IOException e) {
-        LOG.error("Could not read attachment from BytesXMLMessage.", e);
-        return new byte[0];
-      }
+
+      ByteBuffer buffer = msg.getAttachmentByteBuffer();
+      byte[] attachment = new byte[buffer.remaining()];
+      buffer.get(attachment);
+      return attachment;
     }
   }
 }
