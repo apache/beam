@@ -232,6 +232,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
                   "beam.spark.test.reuseSparkContext": "false",
                   "spark.ui.enabled": "false",
                   "spark.ui.showConsoleProgress": "false",
+                  // For Windows OS: see https://cwiki.apache.org/confluence/spaces/HADOOP2/pages/120730292/WindowsProblems
+				  // 'hadoop.home.dir': "${rootDir.absolutePath}\\build\\hadoop-home",
           ],
           testCategories: testCategories,
           testFilter: testFilter,

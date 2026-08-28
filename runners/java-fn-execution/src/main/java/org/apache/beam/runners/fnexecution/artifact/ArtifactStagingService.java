@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.fnexecution.artifact;
 
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
+
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -40,6 +42,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -71,6 +74,8 @@ public class ArtifactStagingService
     extends ArtifactStagingServiceGrpc.ArtifactStagingServiceImplBase implements FnService {
 
   private static final Logger LOG = LoggerFactory.getLogger(ArtifactStagingService.class);
+
+  private static final Pattern WINDOWS_INVALID_CHARS = Pattern.compile("[<>:\"\\\\|?*\\x00-\\x1F]");
 
   private final ArtifactDestinationProvider destinationProvider;
 
@@ -510,10 +515,11 @@ public class ArtifactStagingService
         // all path separators.
         List<String> components = Splitter.onPattern("[^A-Za-z-_.]]").splitToList(path);
         String base = components.get(components.size() - 1);
-        String sanitizedEnvironment = environment.replaceAll("[<>:\"/\\\\|?*]", "_");
+        if (IS_OS_WINDOWS) {
+          environment = WINDOWS_INVALID_CHARS.matcher(environment).replaceAll("_");
+        }
         return clip(
-            String.format("%s-%s-%s", idGenerator.getId(), clip(sanitizedEnvironment, 25), base),
-            100);
+            String.format("%s-%s-%s", idGenerator.getId(), clip(environment, 25), base), 100);
       }
 
       private String clip(String s, int maxLength) {
