@@ -16,183 +16,61 @@
 package spannerio
 
 import (
-	"bufio"
 	"context"
 	"fmt"
-	"net"
-	"os/exec"
 	"regexp"
-	"runtime"
-	"syscall"
 	"testing"
-	"time"
 
 	"cloud.google.com/go/spanner"
 	database "cloud.google.com/go/spanner/admin/database/apiv1"
 	adminpb "cloud.google.com/go/spanner/admin/database/apiv1/databasepb"
 	instance "cloud.google.com/go/spanner/admin/instance/apiv1"
 	instancepb "cloud.google.com/go/spanner/admin/instance/apiv1/instancepb"
+	"github.com/testcontainers/testcontainers-go/wait"
 	"google.golang.org/api/option"
 	"google.golang.org/api/option/internaloption"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+
+	"github.com/apache/beam/sdks/v2/go/test/integration/internal/containers"
 )
 
-const emulatorStartupTimeout = 30 * time.Second
+const (
+	// spannerImage must be fully qualified with the gcr.io registry - the
+	// image is not published to Docker Hub, so an unqualified reference
+	// resolves there instead and fails with a misleading "pull access
+	// denied" error.
+	spannerImage = "gcr.io/cloud-spanner-emulator/emulator:latest"
+	maxRetries   = 5
+)
 
-var validDBPattern = regexp.MustCompile("^projects/(?P<project>[^/]+)/instances/(?P<instance>[^/]+)/databases/(?P<database>[^/]+)$")
+var (
+	spannerPorts   = []string{"9010/tcp", "9020/tcp"}
+	validDBPattern = regexp.MustCompile("^projects/(?P<project>[^/]+)/instances/(?P<instance>[^/]+)/databases/(?P<database>[^/]+)$")
+)
 
-// setUpSpannerEmulator starts a real Cloud Spanner emulator. This lets these
-// tests run on CI runners that have no container runtime available: on
-// Linux (the only platform our CI runs on) gcloud ships a native emulator
-// binary via the "cloud-spanner-emulator" component
-// (`gcloud components install cloud-spanner-emulator`), so we drive it
-// through `gcloud emulators spanner start` there.
-//
-// gcloud does not ship that component for macOS at all - not even for its
-// own Docker-backed --use-docker mode, which still refuses to run without
-// the component being present. Since macOS is presumed to only ever be used
-// for local development, never CI, we bypass gcloud entirely there and run
-// the official emulator image directly via `docker run`.
+// setUpSpannerEmulator starts a real Cloud Spanner emulator as a Docker
+// testcontainer and returns its endpoint.
 func setUpSpannerEmulator(ctx context.Context, t *testing.T) string {
 	t.Helper()
 
-	if runtime.GOOS == "darwin" {
-		return setUpSpannerEmulatorDocker(ctx, t)
-	}
-
-	if _, err := exec.LookPath("gcloud"); err != nil {
-		t.Skip("gcloud CLI not found on PATH; skipping test that requires the Spanner emulator")
-	}
-
-	grpcPort := mustFreePort(t)
-	restPort := mustFreePort(t)
-	endpoint := fmt.Sprintf("127.0.0.1:%d", grpcPort)
-
-	cmd := exec.Command("gcloud", "emulators", "spanner", "start",
-		"--host-port="+endpoint,
-		fmt.Sprintf("--rest-port=%d", restPort),
+	container := containers.NewContainer(
+		ctx,
+		t,
+		spannerImage,
+		maxRetries,
+		containers.WithPorts(spannerPorts),
+		containers.WithWaitStrategy(wait.ForLog("Cloud Spanner emulator running")),
 	)
 
-	stdout, err := cmd.StdoutPipe()
+	mappedPort := containers.Port(ctx, t, container, spannerPorts[0])
+
+	hostIP, err := container.Host(ctx)
 	if err != nil {
-		t.Fatalf("Unable to open spanner emulator output pipe: %v", err)
-	}
-	cmd.Stderr = cmd.Stdout
-
-	if err := cmd.Start(); err != nil {
-		t.Fatalf("Unable to start spanner emulator: %v", err)
+		t.Fatalf("Unable to get spanner host: %v", err)
 	}
 
-	go func() {
-		scanner := bufio.NewScanner(stdout)
-		for scanner.Scan() {
-			t.Logf("[spanner emulator] %s", scanner.Text())
-		}
-	}()
-
-	t.Cleanup(func() { stopEmulatorProcess(cmd) })
-
-	waitForEmulator(ctx, t, endpoint)
-
-	return endpoint
-}
-
-// spannerEmulatorImage is the official Cloud Spanner emulator image, used
-// directly (bypassing gcloud) on platforms gcloud doesn't support.
-const spannerEmulatorImage = "gcr.io/cloud-spanner-emulator/emulator"
-
-// setUpSpannerEmulatorDocker runs the Spanner emulator as a detached Docker
-// container, for platforms where gcloud can't run the emulator itself.
-func setUpSpannerEmulatorDocker(ctx context.Context, t *testing.T) string {
-	t.Helper()
-
-	if _, err := exec.LookPath("docker"); err != nil {
-		t.Skip("gcloud has no Spanner emulator support on this platform, and docker was not found on PATH; skipping test that requires the Spanner emulator")
-	}
-
-	grpcPort := mustFreePort(t)
-	restPort := mustFreePort(t)
-	endpoint := fmt.Sprintf("127.0.0.1:%d", grpcPort)
-
-	containerName := fmt.Sprintf("spanner-emulator-test-%d", grpcPort)
-
-	cmd := exec.Command("docker", "run", "-d", "--rm",
-		"--name", containerName,
-		"-p", fmt.Sprintf("127.0.0.1:%d:9010", grpcPort),
-		"-p", fmt.Sprintf("127.0.0.1:%d:9020", restPort),
-		spannerEmulatorImage,
-	)
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("Unable to start spanner emulator container: %v\n%s", err, out)
-	}
-
-	t.Cleanup(func() {
-		if out, err := exec.Command("docker", "stop", containerName).CombinedOutput(); err != nil {
-			t.Logf("Unable to stop spanner emulator container %s: %v\n%s", containerName, err, out)
-		}
-	})
-
-	waitForEmulator(ctx, t, endpoint)
-
-	return endpoint
-}
-
-// mustFreePort asks the OS for an ephemeral port and immediately releases it,
-// so the emulator process can bind to it. This has an inherent (small) race
-// with any other process on the machine, which is an accepted trade-off for
-// test infrastructure.
-func mustFreePort(t *testing.T) int {
-	t.Helper()
-
-	l, err := net.Listen("tcp", "localhost:0")
-	if err != nil {
-		t.Fatalf("Unable to find a free port: %v", err)
-	}
-	defer l.Close()
-
-	return l.Addr().(*net.TCPAddr).Port
-}
-
-func waitForEmulator(ctx context.Context, t *testing.T, endpoint string) {
-	t.Helper()
-
-	deadline := time.Now().Add(emulatorStartupTimeout)
-	for time.Now().Before(deadline) {
-		conn, err := net.DialTimeout("tcp", endpoint, time.Second)
-		if err == nil {
-			conn.Close()
-			return
-		}
-		select {
-		case <-ctx.Done():
-			t.Fatalf("Context cancelled while waiting for spanner emulator: %v", ctx.Err())
-		case <-time.After(200 * time.Millisecond):
-		}
-	}
-	t.Fatalf("Spanner emulator did not become ready at %s within %s", endpoint, emulatorStartupTimeout)
-}
-
-// stopEmulatorProcess terminates the emulator gracefully, falling back to a
-// hard kill if it doesn't exit promptly.
-func stopEmulatorProcess(cmd *exec.Cmd) {
-	if cmd.Process == nil {
-		return
-	}
-
-	_ = cmd.Process.Signal(syscall.SIGTERM)
-
-	done := make(chan struct{})
-	go func() {
-		_ = cmd.Wait()
-		close(done)
-	}()
-
-	select {
-	case <-done:
-	case <-time.After(5 * time.Second):
-		_ = cmd.Process.Kill()
-	}
+	return fmt.Sprintf("%s:%s", hostIP, mappedPort)
 }
 
 func NewClient(ctx context.Context, t *testing.T, endpoint string, db string) *spanner.Client {
