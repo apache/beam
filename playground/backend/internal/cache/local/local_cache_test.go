@@ -61,7 +61,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 	preparedItemsMap[preparedId] = make(map[cache.SubKey]interface{})
 	preparedItemsMap[preparedId][preparedSubKey] = value
 	preparedExpMap := make(map[uuid.UUID]time.Time)
-	preparedExpMap[preparedId] = time.Now().Add(time.Millisecond)
+	preparedExpMap[preparedId] = time.Now().Add(time.Minute)
 	endedExpMap := make(map[uuid.UUID]time.Time)
 	endedExpMap[preparedId] = time.Now().Add(-time.Millisecond)
 	type fields struct {
@@ -147,7 +147,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 func TestLocalCache_SetValue(t *testing.T) {
 	preparedId, _ := uuid.NewUUID()
 	preparedExpMap := make(map[uuid.UUID]time.Time)
-	preparedExpMap[preparedId] = time.Now().Add(time.Millisecond)
+	preparedExpMap[preparedId] = time.Now().Add(time.Minute)
 	type fields struct {
 		cleanupInterval     time.Duration
 		items               map[uuid.UUID]map[cache.SubKey]interface{}
