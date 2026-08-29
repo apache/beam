@@ -40,7 +40,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.model.jobmanagement.v1.ArtifactApi;
 import org.apache.beam.model.jobmanagement.v1.ArtifactStagingServiceGrpc;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
@@ -292,6 +291,8 @@ public class ArtifactStagingService
         // to it. This must happen for unchecked exceptions as well: getDestination can throw e.g.
         // InvalidPathException, and leaving the error unset would block the producer forever.
         totalPendingBytes.setException(exn);
+        // Free a producer already blocked in put; its next aquire observes the exception.
+        bytesQueue.clear();
         LOG.error("Exception staging artifacts", exn);
         if (exn instanceof InterruptedException) {
           Thread.currentThread().interrupt();
@@ -420,10 +421,10 @@ public class ArtifactStagingService
               ByteString chunk = responseWrapper.getGetArtifactResponse().getData();
               if (chunk.size() > 0) { // Make sure we don't accidentally send the EOF value.
                 totalPendingBytes.aquire(chunk.size());
-                putChunk(chunk);
+                currentOutput.put(chunk);
               }
               if (responseWrapper.getIsLast()) {
-                putChunk(ByteString.EMPTY); // The EOF value.
+                currentOutput.put(ByteString.EMPTY); // The EOF value.
                 if (pendingGets.isEmpty()) {
                   resolveNextEnvironment(responseObserver);
                 } else {
@@ -432,14 +433,11 @@ public class ArtifactStagingService
                 }
               }
             } catch (Exception exn) {
-              // The write of a previous chunk failed; surface the failure to the client rather
-              // than leaving the stream unterminated, which would make the client block forever.
-              LOG.error("Error staging artifacts", exn);
               if (exn instanceof InterruptedException) {
                 Thread.currentThread().interrupt();
               }
-              state = State.ERROR;
-              stagingExecutor.shutdownNow();
+              onError(exn);
+              // Terminate the stream towards the client, which would otherwise wait forever.
               responseObserver.onError(
                   Status.INTERNAL
                       .withDescription("Error staging artifacts: " + exn)
@@ -452,14 +450,6 @@ public class ArtifactStagingService
             responseObserver.onError(
                 new StatusException(
                     Status.INVALID_ARGUMENT.withDescription("Illegal state " + state)));
-        }
-      }
-
-      private void putChunk(ByteString chunk) throws Exception {
-        // The queue is drained by a StoreArtifact task. Don't block forever on a plain put if
-        // that task has died with an error; poll so its exception can interrupt the wait.
-        while (!currentOutput.offer(chunk, 1, TimeUnit.SECONDS)) {
-          totalPendingBytes.checkException();
         }
       }
 
