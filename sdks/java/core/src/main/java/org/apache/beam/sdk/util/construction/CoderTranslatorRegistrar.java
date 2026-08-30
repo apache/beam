@@ -41,13 +41,23 @@ public interface CoderTranslatorRegistrar {
    * Returns whether the given Coder is known to this CoderTranslatorRegistrar. If the Coder is
    * known, then getCoderTranslator() will return a non-null CoderTranslator.
    */
-  boolean isKnownCoder(Coder<?> coder, PipelineOptions options);
+  default boolean isKnownCoder(Coder<?> coder, PipelineOptions options) {
+    return getCoderURNs().containsKey(coder.getClass());
+  }
 
   /** Returns the CoderTranslator to use for this Coder, or null if the Coder is not known. */
-  @Nullable
-  CoderTranslator<? extends Coder> getCoderTranslator(Class<? extends Coder> coderClass);
+  default @Nullable CoderTranslator<? extends Coder> getCoderTranslator(
+      Class<? extends Coder> coderClass) {
+    return getCoderTranslators().get(coderClass);
+  }
 
   /** Returns the Coder to use for the given Urn, or null if the Urn is for an unknown Coder. */
-  @Nullable
-  Class<? extends Coder> getCoderForUrn(String coderUrn);
+  default @Nullable Class<? extends Coder> getCoderForUrn(String coderUrn) {
+    for (Map.Entry<Class<? extends Coder>, String> coderUrnEntry : getCoderURNs().entrySet()) {
+      if (coderUrnEntry.getValue().equals(coderUrn)) {
+        return coderUrnEntry.getKey();
+      }
+    }
+    return null;
+  }
 }
