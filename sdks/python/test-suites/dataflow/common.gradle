@@ -651,22 +651,23 @@ task mockAPITests {
 }
 
 // add all RunInference E2E tests that run on DataflowRunner
-// As of now, this test suite is enable in py310 suite as the base NVIDIA image used for Tensor RT
-// contains Python 3.10.
 // TODO: https://github.com/apache/beam/issues/22651
 project.tasks.register("inferencePostCommitIT") {
   dependsOn = [
-  // TODO(https://github.com/apache/beam/issues/33078): restore the tensorRT tests once the staged
-  // model is fixed.
-  // 'tensorRTtests',
   'vertexAIInferenceTest',
   'geminiInferenceTest',
   'mockAPITests',
   ]
 }
 
+// The base NVIDIA image used for TensorRT contains Python 3.12, so the TensorRT
+// suite belongs here rather than in the py310 suite above.
 project.tasks.register("inferencePostCommitITPy312") {
   dependsOn = [
+  // TODO(https://github.com/apache/beam/issues/33078): restore the tensorRT tests once the staged
+  // model is rebuilt. A serialized engine can only be read by the TensorRT major version that
+  // built it, and the staged engine was built with TensorRT 8.x.
+  // 'tensorRTtests',
   'vllmTests',
   ]
 }
