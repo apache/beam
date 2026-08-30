@@ -349,7 +349,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4, max_batch_size=4)
     self.assertEqual(
-        'RunInferenceTensorRT', inference_runner.get_metrics_namespace())
+        'BeamML_TensorRT', inference_runner.get_metrics_namespace())
 
 
 @pytest.mark.uses_tensorrt
