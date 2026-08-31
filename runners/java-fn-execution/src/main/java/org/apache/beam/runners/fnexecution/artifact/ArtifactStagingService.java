@@ -228,13 +228,17 @@ public class ArtifactStagingService
     }
 
     synchronized void aquire(int permits) throws Exception {
-      while (usedPermits >= totalPermits) {
-        if (exception != null) {
-          throw exception;
-        }
+      while (exception == null && usedPermits >= totalPermits) {
         this.wait();
       }
+      checkException();
       usedPermits += permits;
+    }
+
+    synchronized void checkException() throws Exception {
+      if (exception != null) {
+        throw exception;
+      }
     }
 
     synchronized void release(int permits) {
@@ -287,13 +291,21 @@ public class ArtifactStagingService
             .setTypeUrn(dest.getTypeUrn())
             .setTypePayload(dest.getTypePayload())
             .build();
-      } catch (IOException | InterruptedException exn) {
+      } catch (Exception exn) {
         // As this thread will no longer be draining the queue, we don't want to get stuck writing
-        // to it.
+        // to it. This must happen for unchecked exceptions as well: getDestination can throw e.g.
+        // InvalidPathException, and leaving the error unset would block the producer forever.
         totalPendingBytes.setException(exn);
+        // Free a producer already blocked in put; its next aquire observes the exception.
+        bytesQueue.clear();
         LOG.error("Exception staging artifacts", exn);
+        if (exn instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         if (exn instanceof IOException) {
           throw (IOException) exn;
+        } else if (exn instanceof RuntimeException) {
+          throw (RuntimeException) exn;
         } else {
           throw new RuntimeException(exn);
         }
@@ -426,8 +438,16 @@ public class ArtifactStagingService
                 }
               }
             } catch (Exception exn) {
-              LOG.error("Error submitting.", exn);
+              if (exn instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
               onError(exn);
+              // Terminate the stream towards the client, which would otherwise wait forever.
+              responseObserver.onError(
+                  Status.INTERNAL
+                      .withDescription("Error staging artifacts: " + exn)
+                      .withCause(exn)
+                      .asException());
             }
             break;
 
