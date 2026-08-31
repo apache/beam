@@ -807,7 +807,7 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
-      ParquetMetadata footer = AddFiles.readParquetFooter(fileName);
+      ParquetMetadata footer = ParquetFooters.read(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
               file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
@@ -873,7 +873,7 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
-      ParquetMetadata footer = AddFiles.readParquetFooter(fileName);
+      ParquetMetadata footer = ParquetFooters.read(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
               file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
