@@ -96,6 +96,7 @@
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
 * (Go) Fixed GCS glob matching silently dropping objects when the glob pattern contains multi-byte characters ([#39969](https://github.com/apache/beam/issues/39969)).
+* (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
 
 ## Security Fixes
 
