@@ -82,6 +82,7 @@
 
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Java) Fixed the declared schema of the error output of the Kafka write SchemaTransform, which wrapped the error schema a second time and did not match the rows it emits ([#39760](https://github.com/apache/beam/issues/39760)).
+* (Java) `BigQueryIO.Write.withMaxRetryJobs` is now honored for bounded (batch) pipelines using `FILE_LOADS`, which previously always retried failed load jobs 3 times. Pipelines that never call it keep their existing defaults ([#28281](https://github.com/apache/beam/issues/28281)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
