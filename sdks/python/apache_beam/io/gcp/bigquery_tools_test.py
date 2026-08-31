@@ -1413,234 +1413,11 @@ class TestTypeOverrides(unittest.TestCase):
     typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
 
-
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
-class TestBigQueryClientExperimentFallback(unittest.TestCase):
-  def test_default_client_is_modern(self):
-    wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
-    self.assertTrue(wrapper._is_modern_client)
-
-  def test_experiment_flag_use_legacy_bigquery_client(self):
-    options = PipelineOptions(['--experiments=use_legacy_bigquery_client'])
-    wrapper = BigQueryWrapper.from_pipeline_options(options)
-    self.assertFalse(wrapper._is_modern_client)
-
-  def test_experiment_flag_use_legacy_bq_client(self):
-    options = PipelineOptions(['--experiments=use_legacy_bq_client'])
-    wrapper = BigQueryWrapper.from_pipeline_options(options)
-    self.assertFalse(wrapper._is_modern_client)
-
-  def test_kwarg_use_legacy_client(self):
-    wrapper = BigQueryWrapper(use_legacy_client=True)
-    self.assertFalse(wrapper._is_modern_client)
-
-
-class TestJobReferenceCompatibility(unittest.TestCase):
-  def test_init_camel_case(self):
-    ref = bigquery_tools.JobReference(
-        jobId='test-job', projectId='test-proj', location='US')
-    self.assertEqual(ref.jobId, 'test-job')
-    self.assertEqual(ref.job_id, 'test-job')
-    self.assertEqual(ref.projectId, 'test-proj')
-    self.assertEqual(ref.project, 'test-proj')
-    self.assertEqual(ref.project_id, 'test-proj')
-    self.assertEqual(ref.location, 'US')
-
-  def test_init_snake_case(self):
-    ref = bigquery_tools.JobReference(
-        job_id='test-job', project='test-proj', location='EU')
-    self.assertEqual(ref.jobId, 'test-job')
-    self.assertEqual(ref.job_id, 'test-job')
-    self.assertEqual(ref.projectId, 'test-proj')
-    self.assertEqual(ref.project, 'test-proj')
-    self.assertEqual(ref.project_id, 'test-proj')
-    self.assertEqual(ref.location, 'EU')
-
-  def test_init_with_project_id(self):
-    ref = bigquery_tools.JobReference(
-        job_id='test-job', project_id='test-proj', location='EU')
-    self.assertEqual(ref.jobId, 'test-job')
-    self.assertEqual(ref.job_id, 'test-job')
-    self.assertEqual(ref.projectId, 'test-proj')
-    self.assertEqual(ref.project, 'test-proj')
-    self.assertEqual(ref.project_id, 'test-proj')
-
-  def test_attribute_setters(self):
-    ref = bigquery_tools.JobReference()
-    ref.job_id = 'j1'
-    ref.project = 'p1'
-    self.assertEqual(ref.jobId, 'j1')
-    self.assertEqual(ref.job_id, 'j1')
-    self.assertEqual(ref.projectId, 'p1')
-    self.assertEqual(ref.project, 'p1')
-    self.assertEqual(ref.project_id, 'p1')
-    ref.project_id = 'p2'
-    self.assertEqual(ref.projectId, 'p2')
-    self.assertEqual(ref.project, 'p2')
-    self.assertEqual(ref.project_id, 'p2')
-
-  def test_equality_with_custom_and_apitools(self):
-    ref1 = bigquery_tools.JobReference(job_id='j1', project='p1', location='US')
-    ref2 = bigquery_tools.JobReference(
-        jobId='j1', projectId='p1', location='US')
-    ref3 = bigquery_tools.JobReference(
-        jobId='j2', projectId='p1', location='US')
-    self.assertEqual(ref1, ref2)
-    self.assertNotEqual(ref1, ref3)
-    self.assertEqual(hash(ref1), hash(ref2))
-
-    if bigquery is not None and hasattr(bigquery, 'JobReference'):
-      ap_ref = bigquery.JobReference(jobId='j1', projectId='p1', location='US')
-      self.assertEqual(ref1, ap_ref)
-      self.assertEqual(ap_ref, ref1)
-
-  def test_equality_type_safety(self):
-    empty_ref = bigquery_tools.JobReference()
-    self.assertNotEqual(empty_ref, None)
-    self.assertNotEqual(empty_ref, 123)
-    self.assertNotEqual(empty_ref, "")
-    self.assertNotEqual(empty_ref, {})
-
-    ref = bigquery_tools.JobReference(project='p1')
-    table_ref = bigquery_tools.TableReference(
-        projectId='p1', datasetId='d1', tableId='t1')
-    self.assertNotEqual(ref, table_ref)
-    self.assertNotEqual(empty_ref, table_ref)
-
-  def test_pickle_and_coder_roundtrip(self):
-    import pickle
-    ref = bigquery_tools.JobReference(job_id='j1', project='p1', location='US')
-    pickled = pickle.dumps(ref)
-    unpickled = pickle.loads(pickled)
-    self.assertEqual(ref, unpickled)
-    self.assertEqual(unpickled.jobId, 'j1')
-    self.assertEqual(unpickled.projectId, 'p1')
-    self.assertEqual(unpickled.location, 'US')
-
-    coder = beam.coders.FastPrimitivesCoder()
-    encoded = coder.encode(ref)
-    decoded = coder.decode(encoded)
-    self.assertEqual(ref, decoded)
-
-  @unittest.skipIf(
-      bigquery_tools.gcp_bigquery is None,
-      'google-cloud-bigquery not installed')
-  def test_table_reference_property_mutability(self):
-    gcp_bigquery = bigquery_tools.gcp_bigquery
-    ds = gcp_bigquery.DatasetReference('p1', 'd1')
-    table = gcp_bigquery.TableReference(ds, 't1')
-    table.tableId = 't2'
-    self.assertEqual(table.tableId, 't2')
-    self.assertEqual(table.table_id, 't2')
-    table.datasetId = 'd2'
-    self.assertEqual(table.datasetId, 'd2')
-    self.assertEqual(table.dataset_id, 'd2')
-    table.projectId = 'p2'
-    self.assertEqual(table.projectId, 'p2')
-    self.assertEqual(table.project, 'p2')
-
-  def test_table_reference_compat_model(self):
-    table = bigquery_tools._TableReferenceCompat(
-        projectId='p1', datasetId='d1', tableId='t1')
-    self.assertEqual(table.projectId, 'p1')
-    self.assertEqual(table.project, 'p1')
-    self.assertEqual(table.project_id, 'p1')
-    self.assertEqual(table.datasetId, 'd1')
-    self.assertEqual(table.dataset_id, 'd1')
-    self.assertEqual(table.tableId, 't1')
-    self.assertEqual(table.table_id, 't1')
-    table.tableId = 't2'
-    self.assertEqual(table.tableId, 't2')
-    self.assertEqual(table.table_id, 't2')
-    table.datasetId = 'd2'
-    self.assertEqual(table.datasetId, 'd2')
-    self.assertEqual(table.dataset_id, 'd2')
-    table.projectId = 'p2'
-    self.assertEqual(table.projectId, 'p2')
-    self.assertEqual(table.project, 'p2')
-    self.assertEqual(table.project_id, 'p2')
-
-  def test_dataset_reference_compat_model(self):
-    ds = bigquery_tools._DatasetReferenceCompat(projectId='p1', datasetId='d1')
-    self.assertEqual(ds.projectId, 'p1')
-    self.assertEqual(ds.project, 'p1')
-    self.assertEqual(ds.project_id, 'p1')
-    self.assertEqual(ds.datasetId, 'd1')
-    self.assertEqual(ds.dataset_id, 'd1')
-    ds.projectId = 'p2'
-    self.assertEqual(ds.projectId, 'p2')
-    self.assertEqual(ds.project, 'p2')
-    ds.datasetId = 'd2'
-    self.assertEqual(ds.datasetId, 'd2')
-    self.assertEqual(ds.dataset_id, 'd2')
-
-  def test_to_gcp_dataset_ref_colon_format(self):
-    ds_ref = bigquery_tools._to_gcp_dataset_ref('my-project:my_dataset')
-    self.assertEqual(ds_ref.project, 'my-project')
-    self.assertEqual(ds_ref.dataset_id, 'my_dataset')
-    self.assertEqual(ds_ref.projectId, 'my-project')
-    self.assertEqual(ds_ref.datasetId, 'my_dataset')
-
-
-class TestJobConfigCompatibility(unittest.TestCase):
-  def test_load_job_config_camel_case_properties(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    config = gcp_bigquery.LoadJobConfig(
-        schemaUpdateOptions=['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'],
-        ignoreUnknownValues=True,
-        maxBadRecords=10,
-        nullMarker='\\N',
-        fieldDelimiter='\t',
-        skipLeadingRows=1,
-        allowJaggedRows=True,
-        allowQuotedNewlines=True,
-        decimalTargetTypes=['NUMERIC'],
-        useAvroLogicalTypes=True,
-    )
-    self.assertEqual(
-        config.schema_update_options,
-        ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'])
-    self.assertEqual(
-        config.schemaUpdateOptions,
-        ['ALLOW_FIELD_ADDITION', 'ALLOW_FIELD_RELAXATION'])
-    self.assertTrue(config.ignore_unknown_values)
-    self.assertTrue(config.ignoreUnknownValues)
-    self.assertEqual(config.max_bad_records, 10)
-    self.assertEqual(config.maxBadRecords, 10)
-
-  def test_query_job_config_camel_case_properties(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    config = gcp_bigquery.QueryJobConfig(
-        schemaUpdateOptions=['ALLOW_FIELD_ADDITION'],
-        useLegacySql=False,
-        flattenResults=True,
-        allowLargeResults=True,
-        maximumBytesBilled=1000000,
-    )
-    self.assertEqual(config.schema_update_options, ['ALLOW_FIELD_ADDITION'])
-    self.assertEqual(config.schemaUpdateOptions, ['ALLOW_FIELD_ADDITION'])
-    self.assertFalse(config.use_legacy_sql)
-    self.assertFalse(config.useLegacySql)
-    self.assertTrue(config.flatten_results)
-    self.assertTrue(config.flattenResults)
-    self.assertEqual(config.maximum_bytes_billed, 1000000)
-    self.assertEqual(config.maximumBytesBilled, 1000000)
-
   def test_perform_load_job_with_modern_client_additional_parameters(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
+    if bigquery_tools.gcp_bigquery is None:
       raise unittest.SkipTest('google-cloud-bigquery is not installed')
 
-    client = mock.MagicMock(spec=gcp_bigquery.Client)
+    client = mock.MagicMock(spec=bigquery_tools.gcp_bigquery.Client)
     mock_job = mock.MagicMock()
     mock_job.job_id = 'test_job_id'
     mock_job.project = 'test-project'
@@ -1670,39 +1447,15 @@ class TestJobConfigCompatibility(unittest.TestCase):
     self.assertEqual(called_config.time_partitioning.field, 'date')
     self.assertTrue(called_config.ignore_unknown_values)
 
-  def test_job_configs_with_none_labels(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    # Instantiating configs with labels=None or empty dict must not fail
-    q_cfg = gcp_bigquery.QueryJobConfig(labels=None)
-    self.assertEqual(q_cfg.labels, {})
-    l_cfg = gcp_bigquery.LoadJobConfig(labels=None)
-    self.assertEqual(l_cfg.labels, {})
-    c_cfg = gcp_bigquery.CopyJobConfig(labels=None)
-    self.assertEqual(c_cfg.labels, {})
-    e_cfg = gcp_bigquery.ExtractJobConfig(labels=None)
-    self.assertEqual(e_cfg.labels, {})
-
-    # Setting labels = None on Dataset and Table must not fail
-    ds = gcp_bigquery.Dataset('test-project.test_dataset')
-    ds.labels = None
-    self.assertEqual(ds.labels, {})
-    tbl = gcp_bigquery.Table('test-project.test_dataset.test_table')
-    tbl.labels = None
-    self.assertEqual(tbl.labels, {})
-
   def test_start_query_job_with_none_labels(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
+    if bigquery_tools.gcp_bigquery is None:
       raise unittest.SkipTest('google-cloud-bigquery is not installed')
 
-    client = mock.MagicMock(spec=gcp_bigquery.Client)
+    client = mock.MagicMock(spec=bigquery_tools.gcp_bigquery.Client)
     mock_job = mock.MagicMock()
     mock_job.job_id = 'query_job_id'
+    mock_job.project = 'test-project'
+    mock_job.location = 'US'
     client.query.return_value = mock_job
 
     wrapper = bigquery_tools.BigQueryWrapper(client)
@@ -1721,183 +1474,26 @@ class TestJobConfigCompatibility(unittest.TestCase):
     called_config = client.query.call_args.kwargs['job_config']
     self.assertEqual(called_config.labels, {})
 
-  def test_insert_copy_job_with_none_labels(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
 
-    client = mock.MagicMock(spec=gcp_bigquery.Client)
-    mock_job = mock.MagicMock()
-    mock_job.job_id = 'copy_job_id'
-    mock_job.project = 'test-project'
-    mock_job.location = 'US'
-    client.copy_table.return_value = mock_job
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryClientExperimentFallback(unittest.TestCase):
+  def test_default_client_is_modern(self):
+    wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
+    self.assertTrue(wrapper._is_modern_client)
 
-    wrapper = bigquery_tools.BigQueryWrapper(client)
-    job_ref = wrapper._insert_copy_job(
-        project_id='test-project',
-        job_id='copy_job_id',
-        from_table_reference='test-project:test_dataset.src_table',
-        to_table_reference='test-project:test_dataset.dst_table',
-        job_labels=None,
-    )
-    self.assertEqual(job_ref.jobId, 'copy_job_id')
-    client.copy_table.assert_called_once()
-    called_config = client.copy_table.call_args.kwargs['job_config']
-    self.assertEqual(called_config.labels, {})
+  def test_experiment_flag_use_legacy_bigquery_client(self):
+    options = PipelineOptions(['--experiments=use_legacy_bigquery_client'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+    self.assertFalse(wrapper._is_modern_client)
 
-  def test_perform_extract_job_with_none_labels(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+  def test_experiment_flag_use_legacy_bq_client(self):
+    options = PipelineOptions(['--experiments=use_legacy_bq_client'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+    self.assertFalse(wrapper._is_modern_client)
 
-    client = mock.MagicMock(spec=gcp_bigquery.Client)
-    mock_job = mock.MagicMock()
-    mock_job.job_id = 'extract_job_id'
-    mock_job.project = 'test-project'
-    mock_job.location = 'US'
-    client.extract_table.return_value = mock_job
-
-    wrapper = bigquery_tools.BigQueryWrapper(client)
-    job_ref = wrapper.perform_extract_job(
-        destination='gs://test-bucket/output.csv',
-        job_id='extract_job_id',
-        table_reference='test-project:test_dataset.src_table',
-        destination_format='CSV',
-        job_labels=None,
-    )
-    self.assertEqual(job_ref.jobId, 'extract_job_id')
-    client.extract_table.assert_called_once()
-    called_config = client.extract_table.call_args.kwargs['job_config']
-    self.assertEqual(called_config.labels, {})
-
-  def test_to_table_schema_nested_records(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    schema = [
-        gcp_bigquery.SchemaField(
-            'person',
-            'RECORD',
-            mode='NULLABLE',
-            fields=[
-                gcp_bigquery.SchemaField('name', 'STRING', mode='REQUIRED'),
-                gcp_bigquery.SchemaField('age', 'INTEGER', mode='NULLABLE'),
-                gcp_bigquery.SchemaField(
-                    'address',
-                    'RECORD',
-                    fields=[
-                        gcp_bigquery.SchemaField(
-                            'city', 'STRING', mode='NULLABLE'),
-                    ]),
-            ]),
-    ]
-    table_schema = bigquery_tools._to_table_schema(schema)
-    self.assertEqual(len(table_schema.fields), 1)
-    person = table_schema.fields[0]
-    self.assertEqual(person.name, 'person')
-    self.assertEqual(person.type, 'RECORD')
-    self.assertEqual(len(person.fields), 3)
-    self.assertEqual(person.fields[0].name, 'name')
-    self.assertEqual(person.fields[0].type, 'STRING')
-    self.assertEqual(person.fields[1].name, 'age')
-    self.assertEqual(person.fields[1].type, 'INTEGER')
-    self.assertEqual(person.fields[2].name, 'address')
-    self.assertEqual(person.fields[2].type, 'RECORD')
-    self.assertEqual(len(person.fields[2].fields), 1)
-    self.assertEqual(person.fields[2].fields[0].name, 'city')
-    self.assertEqual(person.fields[2].fields[0].type, 'STRING')
-
-  def test_to_table_schema_dict(self):
-    dict_schema = {
-        'fields': [
-            {'name': 'id', 'type': 'INTEGER', 'mode': 'REQUIRED'},
-            {'name': 'val', 'type': 'STRING', 'mode': 'NULLABLE'},
-        ]
-    }
-    table_schema = bigquery_tools._to_table_schema(dict_schema)
-    self.assertEqual(len(table_schema.fields), 2)
-    self.assertEqual(table_schema.fields[0].name, 'id')
-    self.assertEqual(table_schema.fields[0].type, 'INTEGER')
-    self.assertEqual(table_schema.fields[1].name, 'val')
-    self.assertEqual(table_schema.fields[1].type, 'STRING')
-
-  def test_job_stats_referenced_tables(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    mock_job = mock.MagicMock(spec=gcp_bigquery.QueryJob)
-    mock_job.job_id = 'query_job_id'
-    mock_job.project = 'test-project'
-    mock_job.location = 'US'
-    t1 = gcp_bigquery.TableReference.from_string('test-project.dataset.table1')
-    t2 = gcp_bigquery.TableReference.from_string('test-project.dataset.table2')
-    mock_job.referenced_tables = [t1, t2]
-
-    stats = bigquery_tools._JobStatsCompat(mock_job)
-    ref_tables = stats.referencedTables
-    self.assertEqual(len(ref_tables), 2)
-    self.assertEqual(ref_tables[0].projectId, 'test-project')
-    self.assertEqual(ref_tables[0].datasetId, 'dataset')
-    self.assertEqual(ref_tables[0].tableId, 'table1')
-    self.assertEqual(ref_tables[1].projectId, 'test-project')
-    self.assertEqual(ref_tables[1].datasetId, 'dataset')
-    self.assertEqual(ref_tables[1].tableId, 'table2')
-
-  def test_client_tables_compat_insert_labels_and_metadata(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    client = mock.MagicMock(spec=gcp_bigquery.Client)
-    client.project = 'test-project'
-    created_table_mock = mock.MagicMock(spec=gcp_bigquery.Table)
-    client.create_table.return_value = created_table_mock
-
-    tables_compat = bigquery_tools._ClientTablesCompat(client)
-    request = mock.MagicMock()
-    request.projectId = 'test-project'
-    request.datasetId = 'test_dataset'
-    request.table = mock.MagicMock()
-    request.table.tableReference = mock.MagicMock()
-    request.table.tableReference.projectId = 'test-project'
-    request.table.tableReference.datasetId = 'test_dataset'
-    request.table.tableReference.tableId = 'test_table'
-    request.table.schema = None
-    request.table.labels = {'env': 'test', 'tier': 'frontend'}
-    request.table.friendlyName = 'My Test Table'
-    request.table.description = 'A test table description'
-    request.table.timePartitioning = None
-    request.table.rangePartitioning = None
-    request.table.clustering = None
-    request.table.encryptionConfiguration = None
-
-    tables_compat.Insert(request)
-    client.create_table.assert_called_once()
-    passed_table = client.create_table.call_args.args[0]
-    self.assertEqual(passed_table.labels, {'env': 'test', 'tier': 'frontend'})
-    self.assertEqual(passed_table.friendly_name, 'My Test Table')
-    self.assertEqual(passed_table.description, 'A test table description')
-
-  def test_labels_setter_clears_on_none(self):
-    try:
-      from google.cloud import bigquery as gcp_bigquery
-    except ImportError:
-      raise unittest.SkipTest('google-cloud-bigquery is not installed')
-
-    table = gcp_bigquery.Table('test-project.dataset.table')
-    table.labels = {'initial': 'label'}
-    self.assertEqual(table.labels, {'initial': 'label'})
-    table.labels = None
-    self.assertEqual(table.labels, {})
-
+  def test_kwarg_use_legacy_client(self):
+    wrapper = BigQueryWrapper(use_legacy_client=True)
+    self.assertFalse(wrapper._is_modern_client)
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
