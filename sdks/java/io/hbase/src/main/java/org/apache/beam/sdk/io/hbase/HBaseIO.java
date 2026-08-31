@@ -549,14 +549,36 @@ public class HBaseIO {
     @Override
     public void close() throws IOException {
       LOG.debug("Closing reader after reading {} records.", recordsReturned);
+      IOException thrown = null;
       if (scanner != null) {
-        scanner.close();
-        scanner = null;
+        try {
+          scanner.close();
+        } catch (IOException e) {
+          thrown = e;
+        } finally {
+          scanner = null;
+        }
       }
       if (connection != null) {
-        connection.close();
-        connection = null;
+        try {
+          connection.close();
+        } catch (IOException e) {
+          thrown = addSuppressed(thrown, e);
+        } finally {
+          connection = null;
+        }
       }
+      if (thrown != null) {
+        throw thrown;
+      }
+    }
+
+    private static IOException addSuppressed(IOException first, IOException next) {
+      if (first != null) {
+        first.addSuppressed(next);
+        return first;
+      }
+      return next;
     }
 
     @Override
@@ -765,13 +787,34 @@ public class HBaseIO {
 
       @Teardown
       public void tearDown() throws Exception {
+        Exception thrown = null;
         if (mutator != null) {
-          mutator.close();
-          mutator = null;
+          try {
+            mutator.close();
+          } catch (Exception e) {
+            thrown = e;
+          } finally {
+            mutator = null;
+          }
         }
         if (connection != null) {
-          connection.close();
-          connection = null;
+          try {
+            connection.close();
+          } catch (Exception e) {
+            if (thrown != null) {
+              thrown.addSuppressed(e);
+            } else {
+              thrown = e;
+            }
+          } finally {
+            connection = null;
+          }
+        }
+        if (thrown != null) {
+          if (thrown instanceof IOException) {
+            throw (IOException) thrown;
+          }
+          throw thrown;
         }
       }
 
@@ -930,13 +973,31 @@ public class HBaseIO {
 
       @Teardown
       public void tearDown() throws Exception {
-
+        Exception thrown = null;
         if (table != null) {
-          table.close();
-          table = null;
+          try {
+            table.close();
+          } catch (Exception e) {
+            thrown = e;
+          } finally {
+            table = null;
+          }
         }
-
-        HBaseSharedConnection.close(configuration);
+        try {
+          HBaseSharedConnection.close(configuration);
+        } catch (Exception e) {
+          if (thrown != null) {
+            thrown.addSuppressed(e);
+          } else {
+            thrown = e;
+          }
+        }
+        if (thrown != null) {
+          if (thrown instanceof IOException) {
+            throw (IOException) thrown;
+          }
+          throw thrown;
+        }
       }
 
       @ProcessElement
