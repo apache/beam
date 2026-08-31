@@ -111,8 +111,6 @@ public class FlinkPipelineOptionsTest {
     assertThat(options.getAllowNonRestoredState(), is(false));
     assertThat(options.getDisableMetrics(), is(false));
     assertThat(options.getFasterCopy(), is(false));
-    assertThat(options.getCacheSideInputMaterialization(), is(false));
-
     assertThat(options.isStreaming(), is(false));
     assertThat(options.getMaxBundleSize(), is(5000L));
     assertThat(options.getMaxBundleTimeMills(), is(10000L));

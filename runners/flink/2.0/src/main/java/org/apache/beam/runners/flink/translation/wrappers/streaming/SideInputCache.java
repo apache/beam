@@ -35,6 +35,9 @@ final class SideInputCache {
 
   // Materialized view sizes are unknown to the runner, so the cache cannot be bounded by weight;
   // soft values let the JVM reclaim entries under memory pressure instead of failing with OOM.
+  // Operator instances must not clear job entries when they close because peer subtasks and later
+  // operators can still use them. Expiration bounds entries after their last access.
+  // Attempt-specific keys prevent restored state from using a value cached by an earlier attempt.
   private static final Cache<Key<?>, Value<?>> MATERIALIZED_SIDE_INPUTS =
       CacheBuilder.newBuilder().expireAfterAccess(5, TimeUnit.MINUTES).softValues().build();
 
@@ -42,6 +45,7 @@ final class SideInputCache {
 
   static <T> @Nullable T getOrMaterialize(
       JobID jobId,
+      int attemptNumber,
       PCollectionView<T> view,
       BoundedWindow window,
       Supplier<@Nullable T> materializer) {
@@ -50,7 +54,7 @@ final class SideInputCache {
         (Cache<Key<T>, Value<T>>) (Cache<?, ?>) MATERIALIZED_SIDE_INPUTS;
     try {
       return cache
-          .get(new Key<>(jobId, view, window), () -> new Value<>(materializer.get()))
+          .get(new Key<>(jobId, attemptNumber, view, window), () -> new Value<>(materializer.get()))
           .getValue();
     } catch (ExecutionException | UncheckedExecutionException e) {
       Throwable cause = e.getCause() != null ? e.getCause() : e;
@@ -59,21 +63,20 @@ final class SideInputCache {
     }
   }
 
-  static void invalidate(JobID jobId, PCollectionView<?> view, BoundedWindow window) {
-    MATERIALIZED_SIDE_INPUTS.invalidate(new Key<>(jobId, view, window));
-  }
-
-  static void invalidateAll(JobID jobId) {
-    MATERIALIZED_SIDE_INPUTS.asMap().keySet().removeIf(key -> jobId.equals(key.jobId));
+  static void invalidate(
+      JobID jobId, int attemptNumber, PCollectionView<?> view, BoundedWindow window) {
+    MATERIALIZED_SIDE_INPUTS.invalidate(new Key<>(jobId, attemptNumber, view, window));
   }
 
   private static final class Key<T> {
     private final JobID jobId;
+    private final int attemptNumber;
     private final PCollectionView<T> view;
     private final BoundedWindow window;
 
-    private Key(JobID jobId, PCollectionView<T> view, BoundedWindow window) {
+    private Key(JobID jobId, int attemptNumber, PCollectionView<T> view, BoundedWindow window) {
       this.jobId = jobId;
+      this.attemptNumber = attemptNumber;
       this.view = view;
       this.window = window;
     }
@@ -88,13 +91,14 @@ final class SideInputCache {
       }
       Key<?> other = (Key<?>) object;
       return Objects.equals(jobId, other.jobId)
+          && attemptNumber == other.attemptNumber
           && Objects.equals(view, other.view)
           && Objects.equals(window, other.window);
     }
 
     @Override
     public int hashCode() {
-      return Objects.hash(jobId, view, window);
+      return Objects.hash(jobId, attemptNumber, view, window);
     }
   }
 

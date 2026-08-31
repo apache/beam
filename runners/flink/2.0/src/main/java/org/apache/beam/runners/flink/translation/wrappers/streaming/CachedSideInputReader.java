@@ -17,30 +17,68 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming;
 
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.DefaultTrigger;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.flink.api.common.JobID;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 
-/** {@link SideInputReader} that caches materialized views within a TaskManager JVM. */
+/** {@link SideInputReader} that caches single-pane materialized views within a TaskManager JVM. */
 public final class CachedSideInputReader implements SideInputReader {
 
-  public static CachedSideInputReader of(JobID jobId, SideInputReader delegate) {
-    return new CachedSideInputReader(jobId, delegate);
+  public static CachedSideInputReader of(
+      JobID jobId,
+      int attemptNumber,
+      SideInputReader delegate,
+      Collection<PCollectionView<?>> cacheableViews) {
+    return new CachedSideInputReader(jobId, attemptNumber, delegate, cacheableViews);
+  }
+
+  static Collection<PCollectionView<?>> cacheableViews(Collection<PCollectionView<?>> sideInputs) {
+    Collection<PCollectionView<?>> cacheableViews = new ArrayList<>();
+    for (PCollectionView<?> view : sideInputs) {
+      PCollection<?> pCollection = view.getPCollection();
+      WindowingStrategy<?, ?> strategy = view.getWindowingStrategyInternal();
+      if (pCollection != null
+          && pCollection.isBounded() == PCollection.IsBounded.BOUNDED
+          && strategy.getTrigger() instanceof DefaultTrigger
+          && Duration.ZERO.equals(strategy.getAllowedLateness())) {
+        cacheableViews.add(view);
+      }
+    }
+    return Collections.unmodifiableCollection(cacheableViews);
   }
 
   private final JobID jobId;
+  private final int attemptNumber;
   private final SideInputReader delegate;
+  private final Collection<PCollectionView<?>> cacheableViews;
 
-  private CachedSideInputReader(JobID jobId, SideInputReader delegate) {
+  private CachedSideInputReader(
+      JobID jobId,
+      int attemptNumber,
+      SideInputReader delegate,
+      Collection<PCollectionView<?>> cacheableViews) {
     this.jobId = jobId;
+    this.attemptNumber = attemptNumber;
     this.delegate = delegate;
+    this.cacheableViews = cacheableViews;
   }
 
   @Override
   public <T> @Nullable T get(PCollectionView<T> view, BoundedWindow window) {
-    return SideInputCache.getOrMaterialize(jobId, view, window, () -> delegate.get(view, window));
+    if (!cacheableViews.contains(view)) {
+      return delegate.get(view, window);
+    }
+    return SideInputCache.getOrMaterialize(
+        jobId, attemptNumber, view, window, () -> delegate.get(view, window));
   }
 
   @Override

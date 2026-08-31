@@ -103,7 +103,7 @@
 
 ## New Features / Improvements
 
-* Added opt-in caching of materialized side-input views for classic Java Flink DataStream batch execution with `--cacheSideInputMaterialization=true` ([#39866](https://github.com/apache/beam/issues/39866)).
+* Added automatic caching of bounded, single-pane side-input views for classic Java Flink DataStream execution ([#39866](https://github.com/apache/beam/issues/39866)).
 * Added `GroupIntoBatches` transform and the standard
   `beam:coder:sharded_key:v1` coder to the Go SDK, along with
   `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,
