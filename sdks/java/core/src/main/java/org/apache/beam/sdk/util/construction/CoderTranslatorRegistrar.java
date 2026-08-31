@@ -44,10 +44,8 @@ public interface CoderTranslatorRegistrar {
   boolean isKnownCoder(Coder<?> coder, PipelineOptions options);
 
   /** Returns the CoderTranslator to use for this Coder, or null if the Coder is not known. */
-  @Nullable
-  CoderTranslator<? extends Coder> getCoderTranslator(Class<? extends Coder> coderClass);
+  @Nullable CoderTranslator<? extends Coder> getCoderTranslator(Class<? extends Coder> coderClass);
 
   /** Returns the Coder to use for the given Urn, or null if the Urn is for an unknown Coder. */
-  @Nullable
-  Class<? extends Coder> getCoderForUrn(String coderUrn);
+  @Nullable Class<? extends Coder> getCoderForUrn(String coderUrn);
 }

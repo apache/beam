@@ -31,11 +31,13 @@ public class FhirSearchParameter<T> {
 
   /** FHIR resource type. */
   private final String resourceType;
+
   /**
    * The key is used as a key for the search query, if there is source information to propagate
    * through the pipeline.
    */
   private final String key;
+
   /**
    * The search query. For an OR search, put both query values in a single string. For an AND
    * search, use a list.
