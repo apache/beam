@@ -28,6 +28,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Components;
@@ -46,6 +47,7 @@ import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.TimestampPrefixingWindowCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -63,6 +65,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.hamcrest.Matchers;
 import org.junit.Test;
@@ -172,6 +175,43 @@ public class CoderTranslationTest {
           "All Model Coders should be registered",
           CoderTranslation.getKnownTranslators().keySet(),
           hasItems(new ModelCoderRegistrar().getCoderTranslators().keySet().toArray(new Class[0])));
+    }
+
+    @Test
+    public void legacyRegistrarUsesDefaultLookupMethods() {
+      CoderTranslatorRegistrar registrar = new LegacyCoderTranslatorRegistrar();
+
+      assertThat(
+          registrar.isKnownCoder(StringUtf8Coder.of(), PipelineOptionsFactory.create()),
+          equalTo(true));
+      assertThat(
+          registrar.getCoderTranslator(StringUtf8Coder.class),
+          equalTo(LegacyCoderTranslatorRegistrar.TRANSLATOR));
+      assertThat(
+          registrar.getCoderForUrn(LegacyCoderTranslatorRegistrar.URN),
+          equalTo(StringUtf8Coder.class));
+      assertThat(
+          registrar.isKnownCoder(VarLongCoder.of(), PipelineOptionsFactory.create()),
+          equalTo(false));
+      assertThat(registrar.getCoderTranslator(VarLongCoder.class), Matchers.nullValue());
+      assertThat(registrar.getCoderForUrn("unknown"), Matchers.nullValue());
+    }
+
+    /** Implements only the registrar methods available before Beam 2.77.0. */
+    private static class LegacyCoderTranslatorRegistrar implements CoderTranslatorRegistrar {
+      private static final String URN = "beam:coder:legacy_test:v1";
+      private static final CoderTranslator<StringUtf8Coder> TRANSLATOR =
+          CoderTranslators.atomic(StringUtf8Coder.class);
+
+      @Override
+      public Map<Class<? extends Coder>, String> getCoderURNs() {
+        return ImmutableMap.of(StringUtf8Coder.class, URN);
+      }
+
+      @Override
+      public Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators() {
+        return ImmutableMap.of(StringUtf8Coder.class, TRANSLATOR);
+      }
     }
   }
 
