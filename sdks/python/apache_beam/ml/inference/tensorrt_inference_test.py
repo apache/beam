@@ -108,10 +108,11 @@ def _custom_tensorRT_inference_fn(batch, engine, inference_args):
 
   # Process I/O and execute the network
   with context_lock:
+    host_input = np.ascontiguousarray(batch)
     _assign_or_fail(
         cuda.cuMemcpyHtoDAsync(
             inputs[0]['allocation'],
-            np.ascontiguousarray(batch),
+            host_input.ctypes.data,
             inputs[0]['size'],
             stream))
     if _trt_major_version() >= 10:
@@ -121,7 +122,7 @@ def _custom_tensorRT_inference_fn(batch, engine, inference_args):
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
-              cpu_allocations[output],
+              cpu_allocations[output].ctypes.data,
               outputs[output]['allocation'],
               outputs[output]['size'],
               stream))
@@ -406,10 +407,11 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
 
         # Process I/O and execute the network
         with context_lock:
+          host_input = np.ascontiguousarray(batch)
           _assign_or_fail(
               cuda.cuMemcpyHtoDAsync(
                   inputs[0]['allocation'],
-                  np.ascontiguousarray(batch),
+                  host_input.ctypes.data,
                   inputs[0]['size'],
                   stream))
           if _trt_major_version() >= 10:
@@ -419,7 +421,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           for output in range(len(cpu_allocations)):
             _assign_or_fail(
                 cuda.cuMemcpyDtoHAsync(
-                    cpu_allocations[output],
+                    cpu_allocations[output].ctypes.data,
                     outputs[output]['allocation'],
                     outputs[output]['size'],
                     stream))

@@ -262,10 +262,18 @@ def _default_tensorRT_inference_fn(
 
   # Process I/O and execute the network
   with context_lock:
+    # Host buffers are passed as explicit addresses rather than as arrays.
+    # A numpy array holding exactly one element is coerced to a scalar, which
+    # is then read as a null host pointer and fails with CUDA_ERROR_INVALID_
+    # VALUE. Single element outputs are common, for example the num_detections
+    # output of an object detection model.
+    # host_input must stay referenced until the stream is synchronized below,
+    # because the copy is asynchronous.
+    host_input = np.ascontiguousarray(batch)
     _assign_or_fail(
         cuda.cuMemcpyHtoDAsync(
             inputs[0]['allocation'],
-            np.ascontiguousarray(batch),
+            host_input.ctypes.data,
             inputs[0]['size'],
             stream))
     if _trt_major_version() >= 10:
@@ -276,7 +284,7 @@ def _default_tensorRT_inference_fn(
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
-              cpu_allocations[output],
+              cpu_allocations[output].ctypes.data,
               outputs[output]['allocation'],
               outputs[output]['size'],
               stream))

@@ -95,6 +95,7 @@
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
 * (Python) `TensorRTEngineHandlerNumPy` now works with TensorRT 10 and later, which removed the binding API it was written against. TensorRT 8.x remains supported, so no existing GPU loses support ([#36306](https://github.com/apache/beam/issues/36306)).
+* (Python) Fixed `TensorRTEngineHandlerNumPy` failing with `CUDA_ERROR_INVALID_VALUE` on models with a single-element input or output tensor, such as the `num_detections` output of an object detection model ([#36306](https://github.com/apache/beam/issues/36306)).
 
 ## Security Fixes
 
