@@ -206,6 +206,26 @@ public class ArtifactStagingServiceTest {
     checkArtifacts(contentsList, staged.get(environment));
   }
 
+  @Test
+  public void testStageFileArtifactWithAbsolutePath() throws Exception {
+    java.io.File source = tempFolder.newFile("real-artifact.bin");
+    java.nio.file.Files.write(
+        source.toPath(), "payload".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    RunnerApi.ArtifactInformation fileArtifact =
+        RunnerApi.ArtifactInformation.newBuilder()
+            .setTypeUrn(ArtifactRetrievalService.FILE_ARTIFACT_URN)
+            .setTypePayload(
+                RunnerApi.ArtifactFilePayload.newBuilder()
+                    .setPath(source.getAbsolutePath())
+                    .build()
+                    .toByteString())
+            .setRoleUrn("beam:artifact:role:pip_requirements_file:v1")
+            .build();
+    stagingService.registerJob("fileToken", ImmutableMap.of("env", ImmutableList.of(fileArtifact)));
+    ArtifactStagingService.offer(retrievalService, stagingStub, "fileToken");
+    assertEquals(1, stagingService.getStagedArtifacts("fileToken").size());
+  }
+
   @SuppressWarnings("InlineMeInliner") // inline `Strings.repeat()` - Java 11+ API only
   @Test(timeout = 60_000)
   public void testDestinationFailureFailsOfferInsteadOfHanging() throws Exception {

@@ -61,7 +61,6 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusException;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.stub.StreamObserver;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.slf4j.Logger;
@@ -75,7 +74,8 @@ public class ArtifactStagingService
 
   private static final Logger LOG = LoggerFactory.getLogger(ArtifactStagingService.class);
 
-  private static final Pattern WINDOWS_INVALID_CHARS = Pattern.compile("[<>:\"\\\\|?*\\x00-\\x1F]");
+  private static final Pattern WINDOWS_INVALID_CHARS =
+      Pattern.compile("[<>:\"/\\\\|?*\\x00-\\x1F]");
 
   private final ArtifactDestinationProvider destinationProvider;
 
@@ -531,10 +531,13 @@ public class ArtifactStagingService
         } catch (InvalidProtocolBufferException exn) {
           throw new RuntimeException(exn);
         }
-        // Limit to the last contiguous alpha-numeric sequence. In particular, this will exclude
+        // Limit to the last contiguous valid windows path chars. In particular, this will exclude
         // all path separators.
-        List<String> components = Splitter.onPattern("[^A-Za-z-_.]]").splitToList(path);
-        String base = components.get(components.size() - 1);
+        String base =
+            WINDOWS_INVALID_CHARS
+                .splitAsStream(path)
+                .reduce((first, second) -> second)
+                .orElse("artifact");
         if (IS_OS_WINDOWS) {
           environment = WINDOWS_INVALID_CHARS.matcher(environment).replaceAll("_");
         }
