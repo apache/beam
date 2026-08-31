@@ -61,8 +61,7 @@ public class FlinkJobServerDriver extends JobServerDriver {
                 + "over configurations in FLINK_CONF_DIR.")
     private String flinkConfDir = null;
 
-    @Nullable
-    String getFlinkConfDir() {
+    @Nullable String getFlinkConfDir() {
       return flinkConfDir;
     }
   }

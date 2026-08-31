@@ -66,7 +66,7 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         outputCoder,
         bqServices,
         projectionPushdownApplied,
-        /*picosTimestampPrecision=*/ null);
+        /* picosTimestampPrecision= */ null);
   }
 
   public static <T> BigQueryStorageTableSource<T> create(
@@ -84,8 +84,8 @@ public class BigQueryStorageTableSource<T> extends BigQueryStorageSourceBase<T> 
         parseFn,
         outputCoder,
         bqServices,
-        /*projectionPushdownApplied=*/ false,
-        /*picosTimestampPrecision=*/ null);
+        /* projectionPushdownApplied= */ false,
+        /* picosTimestampPrecision= */ null);
   }
 
   public static <T> BigQueryStorageTableSource<T> create(

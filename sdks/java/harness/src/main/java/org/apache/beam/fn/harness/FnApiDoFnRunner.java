@@ -302,6 +302,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * otherwise.
    */
   private RestrictionTracker<RestrictionT, PositionT> currentTracker;
+
   /**
    * If non-null, set to true after currentTracker has had a tryClaim issued on it. Used to ignore
    * checkpoint split requests if no progress was made.
@@ -1278,8 +1279,8 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
   private <K> boolean timerModified(
       Table<String, String, Timer<K>> modifiedTimerIds, String timerFamilyOrId, Timer<K> timer) {
-    @Nullable
-    Timer<K> modifiedTimer = modifiedTimerIds.get(timerFamilyOrId, timer.getDynamicTimerTag());
+    @Nullable Timer<K> modifiedTimer =
+        modifiedTimerIds.get(timerFamilyOrId, timer.getDynamicTimerTag());
     return modifiedTimer != null && !modifiedTimer.equals(timer);
   }
 

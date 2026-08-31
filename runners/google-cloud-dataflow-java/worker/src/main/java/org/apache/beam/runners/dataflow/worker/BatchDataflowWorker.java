@@ -60,8 +60,10 @@ import org.slf4j.LoggerFactory;
 })
 public class BatchDataflowWorker implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(BatchDataflowWorker.class);
+
   /** The idGenerator to generate unique id globally. */
   private static final IdGenerator idGenerator = IdGenerators.decrementingLongs();
+
   /**
    * Function which converts map tasks to their network representation for execution.
    *
@@ -77,6 +79,7 @@ public class BatchDataflowWorker implements Closeable {
           .andThen(new MapTaskToNetworkFunction(idGenerator));
 
   private static final int DEFAULT_STATUS_PORT = 8081;
+
   /**
    * A weight in "bytes" for the overhead of a {@link Weighted} wrapper in the cache. It is just an
    * approximation so it is OK for it to be fairly arbitrary as long as it is nonzero.
@@ -84,28 +87,37 @@ public class BatchDataflowWorker implements Closeable {
   private static final int OVERHEAD_WEIGHT = 8;
 
   private static final long MEGABYTES = 1024 * 1024;
+
   /**
    * Limit the number of logical references. Weak references may never be cleared if the object is
    * long lived irrespective if the user actually is interested in the key lookup anymore.
    */
   private static final int MAX_LOGICAL_REFERENCES = 1_000_000;
+
   /** How many concurrent write operations to a cache should we allow. */
   private static final int CACHE_CONCURRENCY_LEVEL = 4 * Runtime.getRuntime().availableProcessors();
+
   /** A client to get and update work items. */
   private final WorkUnitClient workUnitClient;
+
   /**
    * Pipeline options, initially provided via the constructor and partially provided via each work
    * work unit.
    */
   private final DataflowWorkerHarnessOptions options;
+
   /** The factory to create {@link DataflowMapTaskExecutor DataflowMapTaskExecutors}. */
   private final DataflowMapTaskExecutorFactory mapTaskExecutorFactory;
+
   /** Registry of known {@link ReaderFactory ReaderFactories}. */
   private final ReaderRegistry readerRegistry = ReaderRegistry.defaultRegistry();
+
   /** Registry of known {@link SinkFactory SinkFactories}. */
   private final SinkRegistry sinkRegistry = SinkRegistry.defaultRegistry();
+
   /** A side input cache shared between all execution contexts. */
   private final Cache<?, WeightedValue<?>> sideInputDataCache;
+
   /**
    * A side input cache shared between all execution contexts. This cache is meant to store values
    * as weak references. This allows for insertion of logical keys with zero weight since they will
@@ -116,8 +128,10 @@ public class BatchDataflowWorker implements Closeable {
   private final Function<MapTask, MutableNetwork<Node, Edge>> mapTaskToNetwork;
   private final MemoryMonitor memoryMonitor;
   private final Thread memoryMonitorThread;
+
   /** Status pages returning health of worker. */
   private final WorkerStatusPages statusPages;
+
   /** Periodic sender of debug information to the debug capture service. */
   private DebugCapture.Manager debugCaptureManager = null;
 
