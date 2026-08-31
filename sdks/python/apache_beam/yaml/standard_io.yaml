@@ -183,6 +183,64 @@
   config:
     gradle_target: 'sdks:java:extensions:schemaio-expansion-service:shadowJar'
 
+# JMS
+- type: renaming
+  transforms:
+    'ReadFromJms': 'ReadFromJms'
+    'WriteToJms': 'WriteToJms'
+  config:
+    mappings:
+      'ReadFromJms':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+        max_num_records: 'max_num_records'
+        max_read_time_seconds: 'max_read_time_seconds'
+        close_timeout_seconds: 'close_timeout_seconds'
+        acknowledge_mode: 'acknowledge_mode'
+        individual_acknowledge_mode_code: 'individual_acknowledge_mode_code'
+      'WriteToJms':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromJms': 'beam:schematransform:org.apache.beam:jms_read:v1'
+        'WriteToJms': 'beam:schematransform:org.apache.beam:jms_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
+- type: renaming
+  transforms:
+    'ReadFromIbmMQ': 'ReadFromIbmMQ'
+    'WriteToIbmMQ': 'WriteToIbmMQ'
+  config:
+    mappings:
+      'ReadFromIbmMQ':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+        max_num_records: 'max_num_records'
+        max_read_time_seconds: 'max_read_time_seconds'
+        close_timeout_seconds: 'close_timeout_seconds'
+        acknowledge_mode: 'acknowledge_mode'
+        individual_acknowledge_mode_code: 'individual_acknowledge_mode_code'
+      'WriteToIbmMQ':
+        connection_configuration: 'connection_configuration'
+        queue: 'queue'
+        topic: 'topic'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromIbmMQ': 'beam:schematransform:org.apache.beam:jms_read:v1'
+        'WriteToIbmMQ': 'beam:schematransform:org.apache.beam:jms_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
+        classpath:
+          - 'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25'
+          - 'org.json:json:20251224'
+
+
 # Debezium
 - type: renaming
   transforms:
@@ -250,6 +308,62 @@
       config:
         gradle_target: 'sdks:java:io:amazon-web-services2:expansion-service:shadowJar'
 
+# Snowflake
+- type: renaming
+  transforms:
+    'ReadFromSnowflake': 'ReadFromSnowflake'
+    'WriteToSnowflake': 'WriteToSnowflake'
+  config:
+    mappings:
+      'ReadFromSnowflake':
+        server_name: 'server_name'
+        username: 'username'
+        password: 'password'
+        oauth_token: 'oauth_token'
+        private_key: 'private_key'
+        private_key_passphrase: 'private_key_passphrase'
+        database: 'database'
+        snowflake_schema: 'snowflake_schema'
+        warehouse: 'warehouse'
+        role: 'role'
+        table: 'table'
+        query: 'query'
+        staging_bucket_name: 'staging_bucket_name'
+        storage_integration_name: 'storage_integration_name'
+        schema: 'schema'
+        quotation_mark: 'quotation_mark'
+      'WriteToSnowflake':
+        server_name: 'server_name'
+        username: 'username'
+        password: 'password'
+        oauth_token: 'oauth_token'
+        private_key: 'private_key'
+        private_key_passphrase: 'private_key_passphrase'
+        database: 'database'
+        schema: 'schema'
+        warehouse: 'warehouse'
+        role: 'role'
+        table: 'table'
+        snow_pipe: 'snow_pipe'
+        staging_bucket_name: 'staging_bucket_name'
+        storage_integration_name: 'storage_integration_name'
+        create_disposition: 'create_disposition'
+        write_disposition: 'write_disposition'
+        quotation_mark: 'quotation_mark'
+        flush_row_limit: 'flush_row_limit'
+        flush_time_limit_millis: 'flush_time_limit_millis'
+        shards_number: 'shards_number'
+        debug_mode: 'debug_mode'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromSnowflake':
+          'beam:schematransform:org.apache.beam:snowflake_read:v1'
+        'WriteToSnowflake':
+          'beam:schematransform:org.apache.beam:snowflake_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:snowflake:expansion-service:shadowJar'
+
 # Databases
 - type: renaming
   transforms:
@@ -279,6 +393,7 @@
         table: 'location'
         partition_column : 'partition_column'
         num_partitions: 'num_partitions'
+        secret_manager: 'secret_manager'
         type: 'jdbc_type'
         username: 'username'
       'WriteToJdbc':
@@ -291,6 +406,7 @@
         password: 'password'
         table: 'location'
         batch_size: 'batch_size'
+        secret_manager: 'secret_manager'
         type: 'jdbc_type'
         username: 'username'
         query: 'write_statement'

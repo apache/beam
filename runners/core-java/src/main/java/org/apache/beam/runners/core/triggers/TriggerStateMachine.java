@@ -18,6 +18,7 @@
 package org.apache.beam.runners.core.triggers;
 
 import java.io.Serializable;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import org.apache.beam.runners.core.MergingStateAccessor;
@@ -27,7 +28,9 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.transforms.windowing.WindowFn;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Instant;
 
 /**
@@ -93,9 +96,6 @@ import org.joda.time.Instant;
  * invocations of the callbacks. All important values should be persisted using state before the
  * callback returns.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class TriggerStateMachine implements Serializable {
 
   /**
@@ -130,7 +130,11 @@ public abstract class TriggerStateMachine implements Serializable {
     /** Returns an iterable over the unfinished sub-triggers of the current trigger. */
     Iterable<ExecutableTriggerStateMachine> unfinishedSubTriggers();
 
-    /** Returns the first unfinished sub-trigger. */
+    /**
+     * Returns the first unfinished sub-trigger, or {@code null} if all sub-triggers of the current
+     * trigger are finished.
+     */
+    @Nullable
     ExecutableTriggerStateMachine firstUnfinishedSubTrigger();
 
     /**
@@ -192,6 +196,7 @@ public abstract class TriggerStateMachine implements Serializable {
     public abstract @Nullable Instant currentSynchronizedProcessingTime();
 
     /** The current event time for the input or {@code null} if unknown. */
+    @Pure
     public abstract @Nullable Instant currentEventTime();
   }
 
@@ -346,8 +351,8 @@ public abstract class TriggerStateMachine implements Serializable {
     }
   }
 
-  public Iterable<TriggerStateMachine> subTriggers() {
-    return subTriggers;
+  public List<TriggerStateMachine> subTriggers() {
+    return MoreObjects.firstNonNull(subTriggers, Collections.emptyList());
   }
 
   /** Returns whether this performs the same triggering as the given {@code Trigger}. */

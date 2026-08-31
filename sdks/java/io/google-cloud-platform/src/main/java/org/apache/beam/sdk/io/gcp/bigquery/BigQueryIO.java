@@ -589,6 +589,13 @@ public class BigQueryIO {
    */
   private static final String PROJECT_ID_REGEXP = "[a-z][-a-z0-9:.]{0,61}[a-z0-9]";
 
+  /**
+   * Matches a whole string against {@link #PROJECT_ID_REGEXP}. Used by {@link
+   * BigQueryHelpers#parseTableSpec} to decide whether the leading segment of a dotted table
+   * specification is a project id.
+   */
+  static final Pattern PROJECT_ID_PATTERN = Pattern.compile(PROJECT_ID_REGEXP);
+
   /** Regular expression that matches Dataset IDs. */
   private static final String DATASET_REGEXP = "[-\\w.]{1,1024}";
 
@@ -604,6 +611,12 @@ public class BigQueryIO {
   /**
    * Matches table specifications in the form {@code "[project_id]:[dataset_id].[table_id]"}, {@code
    * "[project_id].[dataset_id].[table_id]"}, or {@code "[dataset_id].[table_id]"}.
+   *
+   * <p>This pattern is used for syntactic validation only; the assignment of the matched string's
+   * segments to the project/dataset/table fields is done by {@link BigQueryHelpers#parseTableSpec},
+   * which additionally understands 4-part Lakehouse runtime catalog (BigLake metastore) references
+   * {@code "[project_id].[catalog_id].[namespace_id].[table_id]"}, mapping them to a composite
+   * {@code "[catalog_id].[namespace_id]"} dataset id.
    */
   private static final String DATASET_TABLE_REGEXP =
       String.format(

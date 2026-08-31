@@ -34,7 +34,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import javax.sql.DataSource;
 import net.snowflake.client.api.datasource.SnowflakeDataSource;
 import net.snowflake.client.api.datasource.SnowflakeDataSourceFactory;
@@ -87,6 +86,7 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -231,6 +231,7 @@ public class SnowflakeIO {
    */
   @FunctionalInterface
   public interface UserDataMapper<T> extends Serializable {
+    @Nullable
     Object[] mapRow(T element);
   }
 

@@ -151,7 +151,7 @@ tasks.register("yamlIntegrationTests") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
 
   doLast {
     exec {
@@ -172,6 +172,7 @@ tasks.register("postCommitYamlIntegrationTests") {
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:snowflake:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"
 
   doLast {

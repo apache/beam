@@ -895,7 +895,7 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code>list[<span style="color: green;">str</span>]</code>
       </td>
       <td>
-        List of top-level metadata columns to include with CDC output rows. Supported columns: 
+        List of top-level metadata columns to include with CDC output rows. Supported columns:
 - `_change_type`
 - `_row_id`
 - `_last_updated_sequence_number`
@@ -1034,7 +1034,7 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code style="color: green">str</code>
       </td>
       <td>
-        Timestamp of the Delta Lake table to read.
+        Timestamp of the Delta Lake table to read (in UTC ISO 8601 format, e.g. <code>2026-05-20T15:43:26Z</code>). Cannot be set if version is set.
       </td>
     </tr>
     <tr>
@@ -1045,7 +1045,7 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code style="color: #f54251">int64</code>
       </td>
       <td>
-        Version of the Delta Lake table to read.
+        Version of the Delta Lake table to read. Cannot be set if timestamp is set.
       </td>
     </tr>
   </table>
