@@ -205,7 +205,12 @@ class ComputeRangesTest(unittest.TestCase):
     self.assertEqual(len(ranges), 2)
 
 
-@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+from apache_beam.io.gcp import bigquery_change_history
+
+
+@unittest.skipIf(
+    bigquery_change_history.bq_storage is None,
+    'google-cloud-bigquery-storage is not installed')
 class ValidationTest(unittest.TestCase):
   """Tests for ReadBigQueryChangeHistory validation."""
   def test_invalid_change_function(self):

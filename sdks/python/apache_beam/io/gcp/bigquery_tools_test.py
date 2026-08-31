@@ -1478,8 +1478,16 @@ class TestTypeOverrides(unittest.TestCase):
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryClientExperimentFallback(unittest.TestCase):
   def test_default_client_is_modern(self):
+    if bigquery_tools.gcp_bigquery is None:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
     wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
     self.assertTrue(wrapper._is_modern_client)
+
+  def test_default_client_is_legacy_when_no_modern_client(self):
+    if bigquery_tools.gcp_bigquery is not None:
+      raise unittest.SkipTest('google-cloud-bigquery is installed')
+    wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
+    self.assertFalse(wrapper._is_modern_client)
 
   def test_experiment_flag_use_legacy_bigquery_client(self):
     options = PipelineOptions(['--experiments=use_legacy_bigquery_client'])

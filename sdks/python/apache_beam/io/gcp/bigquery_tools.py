@@ -90,22 +90,28 @@ except ImportError:
 
 try:
   from google.api_core.client_info import ClientInfo
+except ImportError:
+  ClientInfo = None
+
+try:
   from google.api_core.exceptions import ClientError
   from google.api_core.exceptions import Conflict
   from google.api_core.exceptions import Forbidden
   from google.api_core.exceptions import GoogleAPICallError
   from google.api_core.exceptions import NotFound
   from google.api_core.exceptions import ServerError
+except ImportError:
+  GoogleAPICallError = type('GoogleAPICallError', (Exception, ), {})
+  ClientError = type('ClientError', (GoogleAPICallError, ), {})
+  Conflict = type('Conflict', (ClientError, ), {'code': 409})
+  Forbidden = type('Forbidden', (ClientError, ), {'code': 403})
+  NotFound = type('NotFound', (ClientError, ), {'code': 404})
+  ServerError = type('ServerError', (GoogleAPICallError, ), {})
+
+try:
   from google.cloud import bigquery as gcp_bigquery
   from google.cloud.bigquery import job as gcp_job
 except ImportError:
-  ClientInfo = None
-  ClientError = None
-  Conflict = None
-  Forbidden = None
-  GoogleAPICallError = None
-  NotFound = None
-  ServerError = None
   gcp_bigquery = None
   gcp_job = None
 
