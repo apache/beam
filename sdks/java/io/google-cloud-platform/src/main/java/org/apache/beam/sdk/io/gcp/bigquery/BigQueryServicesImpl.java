@@ -814,20 +814,35 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
+     * <p>A table that BigQuery reports as not found is treated as deleted successfully, since that
+     * is the state the caller asked for.
+     *
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
-      executeWithRetries(
-          client
-              .tables()
-              .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
-          String.format(
-              "Unable to delete table: %s, aborting after %d retries.",
-              tableRef.getTableId(), MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
-          createDefaultBackoff(),
-          ALWAYS_RETRY);
+      try {
+        executeWithRetries(
+            client
+                .tables()
+                .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+            String.format(
+                "Unable to delete table: %s, aborting after %d retries.",
+                tableRef.getTableId(), MAX_RPC_RETRIES),
+            Sleeper.DEFAULT,
+            createDefaultBackoff(),
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (!errorExtractor.itemNotFound(e)) {
+          throw e;
+        }
+
+        // a delete can succeed at bigquery and still have its work item fail to commit afterwards.
+        // the runner then replays that work item, and the replayed delete gets a 404 because the
+        // first attempt already removed the table. failing here would make the work item retry
+        // forever, which in a streaming job stalls the drain indefinitely
+        LOG.info("Table {} is already deleted, treating as success.", tableRef.getTableId());
+      }
     }
 
     @Override
@@ -960,18 +975,32 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
+     * <p>A dataset that BigQuery reports as not found is treated as deleted successfully, since
+     * that is the state the caller asked for.
+     *
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
-      executeWithRetries(
-          client.datasets().delete(projectId, datasetId),
-          String.format(
-              "Unable to delete table: %s, aborting after %d retries.", datasetId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
-          createDefaultBackoff(),
-          ALWAYS_RETRY);
+      try {
+        executeWithRetries(
+            client.datasets().delete(projectId, datasetId),
+            String.format(
+                "Unable to delete table: %s, aborting after %d retries.",
+                datasetId, MAX_RPC_RETRIES),
+            Sleeper.DEFAULT,
+            createDefaultBackoff(),
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (!errorExtractor.itemNotFound(e)) {
+          throw e;
+        }
+
+        // see deleteTable: a replayed work item can find the dataset its own earlier attempt
+        // already removed, and treating that 404 as a failure would retry forever
+        LOG.info("Dataset {} is already deleted, treating as success.", datasetId);
+      }
     }
 
     static class InsertBatchofRowsCallable implements Callable<List<InsertErrors>> {
