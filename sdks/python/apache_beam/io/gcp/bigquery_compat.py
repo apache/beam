@@ -358,7 +358,8 @@ if apitools_bigquery is not None and hasattr(apitools_bigquery,
   Dataset = getattr(apitools_bigquery, "Dataset", None)
   Job = getattr(apitools_bigquery, "Job", None)
   JobConfiguration = getattr(apitools_bigquery, "JobConfiguration", None)
-  JobConfigurationLoad = getattr(apitools_bigquery, "JobConfigurationLoad", None)
+  JobConfigurationLoad = getattr(
+      apitools_bigquery, "JobConfigurationLoad", None)
   JobConfigurationQuery = getattr(
       apitools_bigquery, "JobConfigurationQuery", None)
   JobConfigurationExtract = getattr(
@@ -886,8 +887,8 @@ def _to_table_schema(schema):
           fields=sub_fields)
 
     name = getattr(f, "name", "")
-    field_type = getattr(f, "field_type", None) or getattr(f, "type",
-                                                           None) or "STRING"
+    field_type = getattr(f, "field_type", None) or getattr(
+        f, "type", None) or "STRING"
     mode = getattr(f, "mode", "NULLABLE")
     description = getattr(f, "description", None)
     sub = getattr(f, "fields", ())
@@ -1038,15 +1039,14 @@ class _ClientTablesCompat:
         gcp_table.description = table.description
       if getattr(table, "friendlyName", None) or getattr(
           table, "friendly_name", None):
-        gcp_table.friendly_name = getattr(
-            table, "friendlyName", None) or getattr(
-                table, "friendly_name", None)
+        gcp_table.friendly_name = getattr(table, "friendlyName",
+                                          None) or getattr(
+                                              table, "friendly_name", None)
       dict_labels = _extract_dict_labels(getattr(table, "labels", None))
       if dict_labels:
         gcp_table.labels = dict_labels
       kms = getattr(
-          getattr(table, "encryptionConfiguration", None),
-          "kmsKeyName",
+          getattr(table, "encryptionConfiguration", None), "kmsKeyName",
           None) or getattr(
               getattr(table, "encryption_configuration", None),
               "kms_key_name",
@@ -1180,8 +1180,8 @@ class _ClientJobsCompat:
   def Insert(self, request, upload=None):
     job_obj = getattr(request, "job", None)
     job_ref = (
-        getattr(job_obj, "jobReference", None)
-        if job_obj else getattr(request, "jobReference", None))
+        getattr(job_obj, "jobReference", None) if job_obj else getattr(
+            request, "jobReference", None))
     job_id = getattr(job_ref, "jobId", None) or getattr(job_ref, "job_id", None)
     proj = (
         getattr(request, "projectId", None) or
@@ -1196,8 +1196,8 @@ class _ClientJobsCompat:
       dict_labels = _extract_dict_labels(getattr(config, "labels", None))
       job_config = gcp_bigquery.QueryJobConfig(
           dry_run=getattr(q, "dryRun", False),
-          use_legacy_sql=getattr(q, "useLegacySql", False)
-          if getattr(q, "useLegacySql", None) is not None else False,
+          use_legacy_sql=getattr(q, "useLegacySql", False) if getattr(
+              q, "useLegacySql", None) is not None else False,
           flatten_results=getattr(q, "flattenResults", None),
           priority=getattr(q, "priority", "INTERACTIVE"),
           destination=dest,

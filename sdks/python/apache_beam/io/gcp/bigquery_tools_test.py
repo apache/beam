@@ -1495,6 +1495,7 @@ class TestBigQueryClientExperimentFallback(unittest.TestCase):
     wrapper = BigQueryWrapper(use_legacy_client=True)
     self.assertFalse(wrapper._is_modern_client)
 
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

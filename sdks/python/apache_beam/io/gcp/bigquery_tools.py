@@ -1937,7 +1937,6 @@ class BigQueryWrapper(object):
         yield list(response), _to_table_schema(response.schema)
         break
 
-
   def insert_rows(
       self,
       project_id,

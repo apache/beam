@@ -534,8 +534,7 @@ class _PollChangeHistoryFn(beam.DoFn, beam.transforms.core.RestrictionProvider):
       self,
       start_ts: Timestamp,
       end_ts: Timestamp,
-      watermark_estimator: _PollWatermarkEstimator
-  ) -> Iterable[Any]:
+      watermark_estimator: _PollWatermarkEstimator) -> Iterable[Any]:
     """Compute and yield _QueryRange elements, advancing estimator state."""
     ranges = compute_ranges(start_ts, end_ts, self._change_function)
     _LOGGER.info(

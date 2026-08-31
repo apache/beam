@@ -123,8 +123,7 @@ class TestJobReferenceCompatibility(unittest.TestCase):
     self.assertNotEqual(empty_ref, table_ref)
 
   def test_pickle_and_coder_roundtrip(self):
-    ref = bigquery_compat.JobReference(
-        job_id="j1", project="p1", location="US")
+    ref = bigquery_compat.JobReference(job_id="j1", project="p1", location="US")
     pickled = pickle.dumps(ref)
     unpickled = pickle.loads(pickled)
     self.assertEqual(ref, unpickled)
@@ -196,11 +195,13 @@ class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
     self.assertEqual(ds_ref.datasetId, "my_dataset")
 
   def test_to_gcp_dataset_ref_domain_scoped(self):
-    ds_ref1 = bigquery_compat._to_gcp_dataset_ref("google.com:clouddfe:my_dataset")
+    ds_ref1 = bigquery_compat._to_gcp_dataset_ref(
+        "google.com:clouddfe:my_dataset")
     self.assertEqual(ds_ref1.project, "google.com:clouddfe")
     self.assertEqual(ds_ref1.dataset_id, "my_dataset")
 
-    ds_ref2 = bigquery_compat._to_gcp_dataset_ref("google.com:clouddfe.my_dataset")
+    ds_ref2 = bigquery_compat._to_gcp_dataset_ref(
+        "google.com:clouddfe.my_dataset")
     self.assertEqual(ds_ref2.project, "google.com:clouddfe")
     self.assertEqual(ds_ref2.dataset_id, "my_dataset")
 
@@ -456,8 +457,12 @@ class TestSchemaConversionCompatibility(unittest.TestCase):
   def test_to_table_schema_dict(self):
     dict_schema = {
         "fields": [
-            {"name": "id", "type": "INTEGER", "mode": "REQUIRED"},
-            {"name": "val", "type": "STRING", "mode": "NULLABLE"},
+            {
+                "name": "id", "type": "INTEGER", "mode": "REQUIRED"
+            },
+            {
+                "name": "val", "type": "STRING", "mode": "NULLABLE"
+            },
         ]
     }
     table_schema = bigquery_compat._to_table_schema(dict_schema)
