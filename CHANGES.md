@@ -96,6 +96,7 @@
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
 * (Go) Fixed GCS glob matching silently dropping objects when the glob pattern contains multi-byte characters ([#39969](https://github.com/apache/beam/issues/39969)).
+* (Java) `BigQueryIO.Write.withMaxRetryJobs` is now honored for bounded (batch) pipelines using `FILE_LOADS`, which previously always retried failed load jobs 3 times. Pipelines that never call it keep their existing defaults ([#28281](https://github.com/apache/beam/issues/28281)).
 
 ## Security Fixes
 
