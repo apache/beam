@@ -1,0 +1,84 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: firestore_vars
+    type: "apache_beam.yaml.integration_tests.temp_firestore_collection"
+    config:
+      project: "apache-beam-testing"
+      database: "firestoredb"
+
+pipelines:
+  - pipeline:
+      type: composite
+      transforms:
+        - type: Create
+          name: CreateData
+          config:
+            elements:
+              - {document_id: "a", name: "Alice"}
+              - {document_id: "b", name: "Bob"}
+        - type: WriteToFirestore
+          name: WriteData
+          input: CreateData
+          config:
+            project: "apache-beam-testing"
+            database: "firestoredb"
+            collection: '{firestore_vars[COLLECTION]}'
+            error_handling:
+              output: write_errors
+        - type: AssertEqual
+          input: WriteData.write_errors
+          config:
+            elements: []
+    options:
+      project: "apache-beam-testing"
+      firestore_db: "firestoredb"
+
+  - pipeline:
+      type: composite
+      transforms:
+        - type: ReadFromFirestore
+          name: ReadData
+          config:
+            project: "apache-beam-testing"
+            database: "firestoredb"
+            collection: '{firestore_vars[COLLECTION]}'
+            schema: |
+              {
+                "type": "object",
+                "properties": {
+                  "document_id": {"type": "string"},
+                  "name": {"type": "string"}
+                },
+                "required": ["document_id", "name"]
+              }
+            error_handling:
+              output: read_errors
+        - type: AssertEqual
+          input: ReadData
+          config:
+            elements:
+              - {document_id: "a", name: "Alice"}
+              - {document_id: "b", name: "Bob"}
+        - type: AssertEqual
+          input: ReadData.read_errors
+          config:
+            elements: []
+    options:
+      project: "apache-beam-testing"
+      firestore_db: "firestoredb"

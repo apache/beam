@@ -535,6 +535,7 @@ if __name__ == '__main__':
               # errors raised during async flushes instead of swallowing them.
               'google-cloud-bigtable>=2.42.0,<3',
               'google-cloud-build>=3.35.0,<4',
+              'google-cloud-firestore>=2.0.0,<3',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
