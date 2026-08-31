@@ -216,7 +216,7 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testDeduplicationOfTablesAcrossRows() {
+  public void testWindowedDeduplication() {
     Catalog catalog = getCatalog();
     TableIdentifier table1 = TableIdentifier.of("default", "t1");
     TableIdentifier table2 = TableIdentifier.of("default", "t2");
@@ -269,6 +269,10 @@ public class TableMetadataDriverTest implements Serializable {
             elements -> {
               List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
               assertEquals(2, list.size());
+              Map<String, SerializableTableSpec> map =
+                  list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
+              assertTrue(map.containsKey("default.t1"));
+              assertTrue(map.containsKey("default.t2"));
               return null;
             });
 
@@ -276,7 +280,7 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testMaxTablesCapSampling() {
+  public void testMaximumCacheSizeCap() {
     Catalog catalog = getCatalog();
     for (int i = 1; i <= 6; i++) {
       catalog.createTable(TableIdentifier.of("default", "cap_table_" + i), ICEBERG_SCHEMA);
@@ -317,20 +321,81 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    int maxTables = 3;
+    int maxCacheSize = 3;
     PCollection<KV<String, SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(dynamicDestinations)
-                .setMaxTables(maxTables)
+                .setMaximumCacheSize(maxCacheSize)
                 .build());
 
     PAssert.that(specs)
         .satisfies(
             elements -> {
               List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
-              assertEquals(maxTables, list.size());
+              assertEquals(maxCacheSize, list.size());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testUncappedByDefault() {
+    Catalog catalog = getCatalog();
+    for (int i = 1; i <= 10; i++) {
+      catalog.createTable(TableIdentifier.of("default", "uncapped_table_" + i), ICEBERG_SCHEMA);
+    }
+
+    DynamicDestinations dynamicDestinations =
+        new DynamicDestinations() {
+          @Override
+          public Schema getDataSchema() {
+            return BEAM_SCHEMA;
+          }
+
+          @Override
+          public Row getData(Row element) {
+            return element;
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String destination) {
+            return IcebergDestination.builder()
+                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
+                .build();
+          }
+
+          @Override
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            return element.getValue().getString("dest");
+          }
+        };
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 1; i <= 10; i++) {
+      rows.add(
+          Row.withSchema(BEAM_SCHEMA)
+              .addValues((long) i, "v_" + i, "default.uncapped_table_" + i)
+              .build());
+    }
+
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    // Without setting maximumCacheSize, all 10 distinct tables are emitted
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        input.apply(
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(dynamicDestinations)
+                .build());
+
+    PAssert.that(specs)
+        .satisfies(
+            elements -> {
+              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              assertEquals(10, list.size());
               return null;
             });
 
@@ -399,7 +464,7 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testInvalidMaxTablesThrowsException() {
+  public void testInvalidMaximumCacheSizeThrowsException() {
     TableIdentifier tableId = TableIdentifier.of("default", "dummy_table");
     DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
 
@@ -409,7 +474,7 @@ public class TableMetadataDriverTest implements Serializable {
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(dynamicDestinations)
-                .setMaxTables(0)
+                .setMaximumCacheSize(0)
                 .build());
 
     assertThrows(
@@ -418,7 +483,7 @@ public class TableMetadataDriverTest implements Serializable {
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(dynamicDestinations)
-                .setMaxTables(-5)
+                .setMaximumCacheSize(-5)
                 .build());
   }
 

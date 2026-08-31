@@ -40,34 +40,34 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
  * A driver transform that extracts table identifiers from incoming {@link Row}s, deduplicates them
- * per window, samples up to a maximum number of tables, loads their declarative metadata from the
- * Iceberg catalog, and emits {@link KV} pairs of table identifier strings to {@link
- * SerializableTableSpec}.
+ * per window, optionally bounds the cache size up to {@code maximumCacheSize}, loads their
+ * declarative metadata from the Iceberg catalog, and emits {@link KV} pairs of table identifier
+ * strings to {@link SerializableTableSpec}.
  *
  * <p>Can also be materialized into a broadcasted {@link PCollectionView} via {@link
- * #asView(IcebergCatalogConfig, DynamicDestinations)}. If the number of distinct tables in a window
- * exceeds {@code maxTables}, up to {@code maxTables} tables are sampled into the broadcasted view,
- * while remaining destinations can fall back to worker-local catalog loading.
+ * #asView(IcebergCatalogConfig, DynamicDestinations)}. By default, the cache size is uncapped. If
+ * {@code maximumCacheSize} is configured and the number of distinct tables in a window exceeds it,
+ * up to {@code maximumCacheSize} tables are sampled into the broadcasted view, while remaining
+ * destinations fall back to worker-local catalog loading.
  */
 @Internal
 @AutoValue
 public abstract class TableMetadataDriver
     extends PTransform<PCollection<Row>, PCollection<KV<String, SerializableTableSpec>>> {
 
-  public static final int DEFAULT_MAX_TABLES = 100;
-
   public abstract IcebergCatalogConfig getCatalogConfig();
 
   public abstract DynamicDestinations getDynamicDestinations();
 
-  public abstract int getMaxTables();
+  public abstract @Nullable Integer getMaximumCacheSize();
 
   public static Builder builder() {
-    return new AutoValue_TableMetadataDriver.Builder().setMaxTables(DEFAULT_MAX_TABLES);
+    return new AutoValue_TableMetadataDriver.Builder();
   }
 
   public abstract Builder toBuilder();
@@ -78,44 +78,45 @@ public abstract class TableMetadataDriver
 
     public abstract Builder setDynamicDestinations(DynamicDestinations dynamicDestinations);
 
-    public abstract Builder setMaxTables(int maxTables);
+    public abstract Builder setMaximumCacheSize(@Nullable Integer maximumCacheSize);
 
     abstract TableMetadataDriver autoBuild();
 
     public TableMetadataDriver build() {
       TableMetadataDriver driver = autoBuild();
-      Preconditions.checkArgument(
-          driver.getMaxTables() > 0,
-          "maxTables must be greater than 0, got %s",
-          driver.getMaxTables());
+      Integer maxCacheSize = driver.getMaximumCacheSize();
+      if (maxCacheSize != null) {
+        Preconditions.checkArgument(
+            maxCacheSize > 0, "maximumCacheSize must be greater than 0, got %s", maxCacheSize);
+      }
       return driver;
     }
   }
 
   /**
-   * Helper that applies {@link TableMetadataDriver} and creates a {@link PCollectionView} of {@link
-   * Map} of table identifier strings to {@link SerializableTableSpec} using {@link
-   * #DEFAULT_MAX_TABLES}.
+   * Helper that applies {@link TableMetadataDriver} and creates an uncapped {@link PCollectionView}
+   * of {@link Map} of table identifier strings to {@link SerializableTableSpec}.
    */
   public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
       asView(IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
-    return asView(catalogConfig, dynamicDestinations, DEFAULT_MAX_TABLES);
+    return asView(catalogConfig, dynamicDestinations, null);
   }
 
   /**
-   * Helper that applies {@link TableMetadataDriver} with a custom {@code maxTables} limit and
-   * creates a {@link PCollectionView} of {@link Map} of table identifier strings to {@link
+   * Helper that applies {@link TableMetadataDriver} with an optional {@code maximumCacheSize} limit
+   * and creates a {@link PCollectionView} of {@link Map} of table identifier strings to {@link
    * SerializableTableSpec}.
    *
    * @param catalogConfig the catalog configuration used to poll metadata.
    * @param dynamicDestinations destination strategy extracting table IDs from rows.
-   * @param maxTables maximum distinct tables to poll and broadcast per window.
+   * @param maximumCacheSize optional maximum distinct tables to poll and broadcast per window (null
+   *     for uncapped).
    */
   public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
       asView(
           IcebergCatalogConfig catalogConfig,
           DynamicDestinations dynamicDestinations,
-          int maxTables) {
+          @Nullable Integer maximumCacheSize) {
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
@@ -125,7 +126,7 @@ public abstract class TableMetadataDriver
                 TableMetadataDriver.builder()
                     .setCatalogConfig(catalogConfig)
                     .setDynamicDestinations(dynamicDestinations)
-                    .setMaxTables(maxTables)
+                    .setMaximumCacheSize(maximumCacheSize)
                     .build())
             .apply("CreateTableMetadataView", View.asMap());
       }
@@ -141,10 +142,15 @@ public abstract class TableMetadataDriver
 
     PCollection<String> distinctTableIds = tableIds.apply("DistinctTableIds", Distinct.create());
 
-    PCollection<String> sampledTableIds =
-        distinctTableIds.apply("SampleTableIds", Sample.any(getMaxTables()));
+    PCollection<String> cachedTableIds;
+    Integer maxCacheSize = getMaximumCacheSize();
+    if (maxCacheSize != null) {
+      cachedTableIds = distinctTableIds.apply("CapCacheSize", Sample.any(maxCacheSize));
+    } else {
+      cachedTableIds = distinctTableIds;
+    }
 
-    return sampledTableIds
+    return cachedTableIds
         .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
   }
