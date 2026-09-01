@@ -17,7 +17,9 @@ package graphx
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"reflect"
 	"sort"
 	"strings"
 
@@ -26,11 +28,14 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window/trigger"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/contextreg"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/pipelinex"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/state"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/jsonx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/options/resource"
@@ -69,6 +74,8 @@ const (
 	URNWindowMappingGlobal  = "beam:go:windowmapping:global:v1"
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
+	URNWindowMappingCustom  = "beam:go:windowmapping:custom:v1"
+	URNCustomWindowFn       = "beam:go:windowfn:custom:v1"
 
 	URNProgressReporting        = "beam:protocol:progress_reporting:v1"
 	URNMultiCore                = "beam:protocol:multi_core_bundle_processing:v1"
@@ -358,6 +365,11 @@ func getSideWindowMappingUrn(winFn *window.Fn) string {
 		mappingUrn = URNWindowMappingSliding
 	case window.Sessions:
 		panic("session windowing is not supported for side inputs")
+	case window.CustomWindows:
+		if winFn.NeedsElement() {
+			panic("element-aware custom WindowFn is not supported for side inputs")
+		}
+		mappingUrn = URNWindowMappingCustom
 	}
 	return mappingUrn
 }
@@ -1461,6 +1473,30 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 				},
 			),
 		}, nil
+	case window.CustomWindows:
+		t := reflect.TypeOf(w.CustomFn)
+		key, ok := runtime.TypeKey(reflectx.SkipPtr(t))
+		if !ok {
+			return nil, errors.Errorf("custom WindowFn type %v is not registered", t)
+		}
+		structPayload, err := jsonx.Marshal(w.CustomFn)
+		if err != nil {
+			return nil, errors.Wrapf(err, "marshaling custom WindowFn %v", t)
+		}
+		envelope, err := json.Marshal(struct {
+			Type    string          `json:"type"`
+			Payload json.RawMessage `json:"payload"`
+		}{
+			Type:    key,
+			Payload: structPayload,
+		})
+		if err != nil {
+			return nil, errors.Wrapf(err, "marshaling custom WindowFn envelope")
+		}
+		return &pipepb.FunctionSpec{
+			Urn:     URNCustomWindowFn,
+			Payload: envelope,
+		}, nil
 	default:
 		return nil, errors.Errorf("unexpected windowing strategy: %v", w)
 	}
@@ -1470,7 +1506,7 @@ func makeWindowCoder(w *window.Fn) (*coder.WindowCoder, error) {
 	switch w.Kind {
 	case window.GlobalWindows:
 		return coder.NewGlobalWindow(), nil
-	case window.FixedWindows, window.SlidingWindows, window.Sessions, URNSlidingWindowsWindowFn:
+	case window.FixedWindows, window.SlidingWindows, window.Sessions, window.CustomWindows, URNSlidingWindowsWindowFn:
 		return coder.NewIntervalWindow(), nil
 	default:
 		return nil, errors.Errorf("unexpected windowing strategy for coder: %v", w)
