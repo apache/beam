@@ -147,7 +147,7 @@ type ElementEncoder = coder.ElementEncoder
 type ElementDecoder = coder.ElementDecoder
 
 // Init is the hook that all user code must call after flags processing and
-// other static initialization, for now.
+// other static initialization, and before pipeline construction.
 func Init() {
 	runtime.Init()
 }
