@@ -45,15 +45,10 @@ import org.junit.runners.JUnit4;
 import scala.collection.immutable.Map$;
 
 /**
- * Guards the Spark 4 streaming entries of {@link SparkSessionFactory.SparkKryoRegistrator}: the
- * classes Spark itself pushes through the user Kryo instance during a Structured Streaming query,
- * which the runner never names anywhere else.
- *
- * <p>These are registered by name in the shared runner base, because that base also compiles
- * against Spark 3 where neither class exists. A rename or a package move on a future Spark version
- * would therefore not break the build, it would silently drop the registration and only surface as
- * a streaming query dying on its first micro-batch. This test names the classes at compile time
- * against the Spark 4 classpath, so that failure mode becomes a compile error instead.
+ * Guards the Spark 4 streaming entries of {@link SparkSessionFactory.SparkKryoRegistrator}. The
+ * registrator references them by name, so a rename in a future Spark version would silently drop
+ * the registration and only surface as a streaming query dying on its first micro-batch. This test
+ * names the classes at compile time, turning that failure mode into a compile error.
  *
  * @see SparkSessionFactory.SparkKryoRegistrator
  */

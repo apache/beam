@@ -290,38 +290,19 @@ public class SparkSessionFactory {
       kryo.register(TupleTag.class);
       kryo.register(TupleTagList.class);
 
-      // Spark internals only present when running streaming pipelines on Spark 4. These are
-      // registered by name because the shared runner base also compiles against Spark 3, where
-      // none of these classes exist. This call must stay last: Kryo auto assigns registration ids
-      // sequentially, so registering these conditional, by-name classes after everything else
-      // keeps the auto assigned ids of all the registrations above identical on Spark 3 and
-      // Spark 4 classpaths. See registerSparkStreamingInternals for the details.
+      // Streaming internals that only exist as of Spark 4, registered by name so this shared
+      // source also compiles against Spark 3. Must stay last so the auto assigned ids of the
+      // registrations above are identical in the Spark 3 and Spark 4 artifacts.
       registerSparkStreamingInternals(kryo);
     }
 
     /**
-     * Registers the Spark internals that a Structured Streaming query serializes behind the
-     * runner's back, so streaming pipelines also work with {@code
-     * spark.kryo.registrationRequired=true}.
-     *
-     * <ul>
-     *   <li>{@code StateSchemaMetadata} is broadcast by Spark 4 for every {@code
-     *       transformWithState} query, so every streaming pipeline using Beam state or timers hits
-     *       it, and hits it on the very first micro-batch.
-     *   <li>{@code MemoryWriterCommitMessage} is the commit message of Spark's {@code memory} sink.
-     *       The runner itself writes to the {@code noop} sink, but the {@code memory} sink is what
-     *       one reaches for when inspecting a query's output, and it is nested inside the already
-     *       registered {@link DataWritingSparkTaskResult}.
-     * </ul>
-     *
-     * <p>Both are Scala case classes holding further Scala and Spark types ({@code immutable.Map},
-     * {@code StructType}, {@code org.apache.avro.Schema}, {@code Row}), none of which are
-     * registered either. Registering them with a {@link JavaSerializer} rather than Kryo's default
-     * field serializer covers that whole object graph in one go, since both classes are {@link
-     * java.io.Serializable}. That keeps this list from having to track Spark's internal field
-     * layout across versions. Neither object is on a hot path, one is broadcast once per query and
-     * the other is one message per task commit, so the cost of Java serialization here does not
-     * matter.
+     * Registers the internals a Structured Streaming query serializes behind the runner's back, so
+     * streaming pipelines work with {@code spark.kryo.registrationRequired=true}: {@code
+     * StateSchemaMetadata} (broadcast for every {@code transformWithState} query) and {@code
+     * MemoryWriterCommitMessage} (the {@code memory} sink's commit message, nested inside the
+     * already registered {@link DataWritingSparkTaskResult}). A {@link JavaSerializer} covers their
+     * whole Scala object graph without tracking Spark's field layout; neither is on a hot path.
      */
     private void registerSparkStreamingInternals(Kryo kryo) {
       tryToRegister(
