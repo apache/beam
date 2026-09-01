@@ -290,8 +290,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       boolean ignoreUnknown = ignoreUnknownValues || autoSchemaUpdates;
       @Nullable TableRow unknownFields = autoSchemaUpdates ? new TableRow() : null;
       boolean allowMissingFields = autoSchemaUpdates;
-      @Nullable
-      Message msg =
+      @Nullable Message msg =
           TableRowToStorageApiProto.messageFromTableRow(
               schemaInformation,
               descriptorToUse,
@@ -307,5 +306,6 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
           unknownFields,
           formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
-  };
+  }
+  ;
 }

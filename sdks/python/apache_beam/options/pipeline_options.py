@@ -733,6 +733,7 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
       'apache_beam.runners.portability.flink_runner.FlinkRunner',
       'apache_beam.runners.portability.fn_api_runner.FnApiRunner',
+      'apache_beam.runners.portability.kafka_streams_runner.KafkaStreamsRunner',
       'apache_beam.runners.portability.portable_runner.PortableRunner',
       'apache_beam.runners.portability.prism_runner.PrismRunner',
       'apache_beam.runners.portability.spark_runner.SparkRunner',
@@ -2163,6 +2164,32 @@ class FlinkRunnerOptions(PipelineOptions):
         help='The pipeline wide maximum degree of parallelism to be used. The'
         ' maximum parallelism specifies the upper limit for dynamic scaling'
         ' and the number of key groups used for partitioned state.')
+
+
+class KafkaStreamsRunnerOptions(PipelineOptions):
+  """Options for the Kafka Streams runner.
+
+  The runner is experimental and is not production ready. It is not part of
+  any Apache Beam release: its job server is built only when the Beam build is
+  run with -Pwith-kafka-streams-runner, so using it means building that job
+  server from a Beam source tree.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bootstrap_servers',
+        default='localhost:9092',
+        help='Comma-separated list of host:port Kafka brokers the pipeline '
+        'connects to.')
+    parser.add_argument(
+        '--application_id',
+        help='Kafka Streams application.id for the pipeline. Must be unique '
+        'per pipeline, since it identifies the consumer group and the '
+        'runner\'s internal topics.')
+    parser.add_argument(
+        '--kafka_streams_job_server_jar',
+        help='Path or URL to a Beam Kafka Streams job server jar. If unset, '
+        'the jar is built from the Beam source tree.')
 
 
 class SparkRunnerOptions(PipelineOptions):

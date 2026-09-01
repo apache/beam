@@ -2005,14 +2005,12 @@ public final class FirestoreV1 {
       }
 
       @VisibleForTesting
-      @Nullable
-      String getProjectId() {
+      @Nullable String getProjectId() {
         return this.projectId;
       }
 
       @VisibleForTesting
-      @Nullable
-      String getDatabaseId() {
+      @Nullable String getDatabaseId() {
         return this.databaseId;
       }
     }

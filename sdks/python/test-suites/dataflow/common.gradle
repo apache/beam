@@ -592,10 +592,12 @@ task anthropicInferenceTest {
 task installTFTRequirements {
   dependsOn 'initializeForDataflowJob'
   doLast {
+    // Keep the SDK under test: TFT requirements can pull a different Beam from PyPI.
+    def sdk = project.ext.sdkLocation
     exec {
       workingDir "$rootProject.projectDir/sdks/python/apache_beam/testing/benchmarks/cloudml/"
       executable 'sh'
-      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt"
+      args '-c', ". ${envdir}/bin/activate && pip install -r requirements.txt && pip install --force-reinstall --no-deps '${sdk}[gcp]'"
     }
   }
 }
@@ -607,6 +609,8 @@ task tftTests {
   doLast {
     def opts = project.findProperty('opts')
     opts += " --sdk_location=${project.ext.sdkLocation}"
+    // Reinstall the staged SDK after requirements on workers (runs after requirements install).
+    opts += " --extra_package=${project.ext.sdkLocation}"
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
     def argMap = [
         "test_opts": testOpts,

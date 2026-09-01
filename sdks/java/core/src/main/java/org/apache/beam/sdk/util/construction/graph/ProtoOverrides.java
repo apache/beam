@@ -98,8 +98,7 @@ public class ProtoOverrides {
      *
      * <p>Introduced components must not collide with any components in the existing components.
      */
-    @Nullable
-    MessageWithComponents getReplacement(
+    @Nullable MessageWithComponents getReplacement(
         String transformId, ComponentsOrBuilder existingComponents);
   }
 }

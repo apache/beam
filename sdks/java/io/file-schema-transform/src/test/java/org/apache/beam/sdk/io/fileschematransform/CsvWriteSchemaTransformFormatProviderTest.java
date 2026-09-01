@@ -101,8 +101,7 @@ public class CsvWriteSchemaTransformFormatProviderTest
 
   @Override
   protected FileWriteSchemaTransformConfiguration buildConfiguration(String folder) {
-    return defaultConfiguration(folder)
-        .toBuilder()
+    return defaultConfiguration(folder).toBuilder()
         .setNumShards(1)
         .setCsvConfiguration(
             csvConfigurationBuilder()

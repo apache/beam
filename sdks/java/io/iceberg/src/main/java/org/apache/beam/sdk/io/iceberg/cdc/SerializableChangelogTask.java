@@ -118,8 +118,8 @@ public abstract class SerializableChangelogTask {
     abstract Builder setDataFile(SerializableDataFile dataFile);
 
     @SchemaIgnore
-    public Builder setDataFile(DataFile df, String partitionPath, boolean includeMetrics) {
-      return setDataFile(SerializableDataFile.from(df, partitionPath, includeMetrics));
+    public Builder setDataFile(DataFile df, PartitionSpec spec, boolean includeMetrics) {
+      return setDataFile(SerializableDataFile.from(df, spec, includeMetrics));
     }
 
     abstract Builder setExistingDeletes(List<SerializableDeleteFile> existingDeletes);
@@ -159,10 +159,7 @@ public abstract class SerializableChangelogTask {
             .setOperation(task.operation())
             .setOrdinal(task.changeOrdinal())
             .setCommitSnapshotId(task.commitSnapshotId())
-            .setDataFile(
-                contentScanTask.file(),
-                spec.partitionToPath(contentScanTask.partition()),
-                includeMetrics)
+            .setDataFile(contentScanTask.file(), spec, includeMetrics)
             .setSpecId(spec.specId())
             .setStart(contentScanTask.start())
             .setLength(contentScanTask.length())

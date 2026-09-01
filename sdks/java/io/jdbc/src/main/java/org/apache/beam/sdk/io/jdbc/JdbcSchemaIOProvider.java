@@ -60,6 +60,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         .addStringField("jdbcUrl")
         .addStringField("username")
         .addStringField("password")
+        .addNullableField("secretManager", FieldType.STRING)
         .addNullableField("connectionProperties", FieldType.STRING)
         .addNullableField("connectionInitSqls", FieldType.iterable(FieldType.STRING))
         .addNullableField("readQuery", FieldType.STRING)
@@ -122,8 +123,7 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
         public PCollection<Row> expand(PBegin input) {
 
           // If we define a partition column we need to go a different route
-          @Nullable
-          String partitionColumn =
+          @Nullable String partitionColumn =
               config.getSchema().hasField("partitionColumn")
                   ? config.getString("partitionColumn")
                   : null;
@@ -220,6 +220,11 @@ public class JdbcSchemaIOProvider implements SchemaIOProvider {
                   Preconditions.checkStateNotNull(config.getString("jdbcUrl")))
               .withUsername(config.getString("username"))
               .withPassword(config.getString("password"));
+
+      @Nullable String secretManager = config.getString("secretManager");
+      if (secretManager != null) {
+        dataSourceConfiguration = dataSourceConfiguration.withSecretManager(secretManager);
+      }
 
       @Nullable String connectionProperties = config.getString("connectionProperties");
       if (connectionProperties != null) {

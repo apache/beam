@@ -57,8 +57,7 @@ public class DataflowTemplateJob extends DataflowPipelineJob {
   }
 
   @VisibleForTesting
-  @Nullable
-  State waitUntilFinish(
+  @Nullable State waitUntilFinish(
       Duration duration,
       MonitoringUtil.JobMessagesHandler messageHandler,
       Sleeper sleeper,

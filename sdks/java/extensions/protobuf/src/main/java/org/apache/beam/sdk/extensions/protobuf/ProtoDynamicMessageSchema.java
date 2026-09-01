@@ -26,7 +26,9 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
-/** @deprecated Use {@link ProtoBeamConverter} */
+/**
+ * @deprecated Use {@link ProtoBeamConverter}
+ */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
 })

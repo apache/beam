@@ -20,8 +20,11 @@ package org.apache.beam.sdk.io.solace;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 
 import com.solacesystems.jcsmp.DeliveryMode;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -80,6 +83,31 @@ public class SolaceIOWriteTest {
         "To Record",
         MapElements.into(TypeDescriptor.of(Record.class))
             .via(kv -> SolaceDataUtils.getSolaceRecord(kv.getValue(), kv.getKey())));
+  }
+
+  private PCollection<Record> getRecordsForEachPayloadTypes(Pipeline p) {
+    TestStream.Builder<Record.PayloadType> kvBuilder =
+        TestStream.create(AvroCoder.of(Record.PayloadType.class)).advanceWatermarkTo(Instant.EPOCH);
+
+    for (var payloadType : Record.PayloadType.values()) {
+      kvBuilder =
+          kvBuilder.addElements(payloadType).advanceProcessingTime(Duration.standardSeconds(60));
+    }
+
+    TestStream<Record.PayloadType> testStream = kvBuilder.advanceWatermarkToInfinity();
+
+    return p.apply("Test stream ", testStream)
+        .apply(
+            "To Record",
+            MapElements.into(TypeDescriptor.of(Record.class))
+                .via(
+                    payloadType ->
+                        Solace.Record.builder()
+                            .setMessageId(payloadType.name().toLowerCase())
+                            .setPayloadType(payloadType)
+                            .setPayload(
+                                ("payload-" + payloadType.name()).getBytes(StandardCharsets.UTF_8))
+                            .build()));
   }
 
   private SolaceOutput getWriteTransform(
@@ -167,6 +195,61 @@ public class SolaceIOWriteTest {
     PCollection<String> ids = getIdsPCollection(output);
 
     PAssert.that(ids).containsInAnyOrder(keys);
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteMixedPayloadTypesStreaming() throws Exception {
+    PCollection<Record> records = getRecordsForEachPayloadTypes(pipeline);
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    SolaceOutput output =
+        records.apply(
+            "Write mixed records",
+            SolaceIO.write()
+                .to(Solace.Queue.fromName("queue"))
+                .withSubmissionMode(SubmissionMode.LOWER_LATENCY)
+                .withWriterType(WriterType.STREAMING)
+                .withDeliveryMode(DeliveryMode.PERSISTENT)
+                .withSessionServiceFactory(MockSessionServiceFactory.builder().build())
+                .withErrorHandler(errorHandler));
+
+    var expectedIds =
+        Stream.of(Record.PayloadType.values())
+            .map(payloadType -> payloadType.name().toLowerCase())
+            .collect(Collectors.toList());
+    PAssert.that(getIdsPCollection(output)).containsInAnyOrder(expectedIds);
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteMixedPayloadTypesBatched() throws Exception {
+    PCollection<Record> records = getRecordsForEachPayloadTypes(pipeline);
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output =
+        records.apply(
+            "Write mixed records",
+            SolaceIO.write()
+                .to(Solace.Queue.fromName("queue"))
+                .withSubmissionMode(SubmissionMode.HIGHER_THROUGHPUT)
+                .withWriterType(WriterType.BATCHED)
+                .withDeliveryMode(DeliveryMode.PERSISTENT)
+                .withSessionServiceFactory(MockSessionServiceFactory.builder().build())
+                .withErrorHandler(errorHandler));
+
+    var expectedIds =
+        Stream.of(Record.PayloadType.values())
+            .map(payloadType -> payloadType.name().toLowerCase())
+            .collect(Collectors.toList());
+    PAssert.that(getIdsPCollection(output)).containsInAnyOrder(expectedIds);
     errorHandler.close();
     PAssert.that(errorHandler.getOutput()).empty();
     pipeline.run();
