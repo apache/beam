@@ -243,8 +243,7 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                 Field.of("failed_row", FieldType.row(inputSchema)),
                 Field.of("error_message", FieldType.STRING));
         boolean isDynamicDestinations = configuration.getTable().equals(DYNAMIC_DESTINATIONS);
-        @Nullable
-        Schema recordSchema =
+        @Nullable Schema recordSchema =
             isDynamicDestinations ? inputSchema.getField(RECORD).getType().getRowSchema() : null;
         PCollection<Row> failedRowsWithErrors =
             result
