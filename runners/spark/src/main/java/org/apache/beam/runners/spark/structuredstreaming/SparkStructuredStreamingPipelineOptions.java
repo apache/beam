@@ -48,16 +48,13 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
 
   void setWatermarkDelayMillis(long value);
 
-  // Note: deliberately NOT named getMaxRecordsPerBatch. The legacy Spark runner's
-  // SparkPipelineOptions already declares Long getMaxRecordsPerBatch(); a same-name getter with a
-  // different return type breaks proxy generation for every registered PipelineOptions interface.
-  @Description(
-      "Maximum number of records to read per micro-batch from a streaming source "
-          + "(streaming mode only).")
-  @Default.Integer(1000)
-  int getMaxRecordsPerMicroBatch();
+  // Mirrors the legacy SparkPipelineOptions declaration exactly, so users migrating from the
+  // legacy runner keep the same flag.
+  @Description("Max records per micro-batch. For streaming sources only.")
+  @Default.Long(-1)
+  Long getMaxRecordsPerBatch();
 
-  void setMaxRecordsPerMicroBatch(int value);
+  void setMaxRecordsPerBatch(Long maxRecordsPerBatch);
 
   @Description(
       "Maximum duration in milliseconds of a micro-batch trigger interval (streaming mode only).")
