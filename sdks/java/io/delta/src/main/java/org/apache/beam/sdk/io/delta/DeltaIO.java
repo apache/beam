@@ -36,12 +36,15 @@ import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -197,9 +200,11 @@ public class DeltaIO {
       } else if (deltaType instanceof BinaryType) {
         return Schema.FieldType.BYTES;
       } else if (deltaType instanceof TimestampType) {
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(Timestamp.MICROS);
+      } else if (deltaType instanceof TimestampNTZType) {
+        return Schema.FieldType.logicalType(SqlTypes.DATETIME);
       } else if (deltaType instanceof DateType) {
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(SqlTypes.DATE);
       } else if (deltaType instanceof ArrayType) {
         DataType elementType = ((ArrayType) deltaType).getElementType();
         return Schema.FieldType.iterable(convertToBeamFieldType(elementType));
@@ -230,7 +235,7 @@ public class DeltaIO {
       } else if (col.equals(COMMIT_VERSION_COLUMN)) {
         builder.addField(COMMIT_VERSION_COLUMN, Schema.FieldType.INT64);
       } else if (col.equals(COMMIT_TIMESTAMP_COLUMN)) {
-        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME);
+        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS));
       }
     }
     return builder.build();
