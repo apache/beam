@@ -30,9 +30,11 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
@@ -273,6 +275,78 @@ public class TableMetadataDriverTest implements Serializable {
                   list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
               assertTrue(map.containsKey("default.t1"));
               assertTrue(map.containsKey("default.t2"));
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testUnboundedGlobalWindowStreamingDeduplication() {
+    Catalog catalog = getCatalog();
+    TableIdentifier table1 = TableIdentifier.of("default", "stream_t1");
+    TableIdentifier table2 = TableIdentifier.of("default", "stream_t2");
+
+    catalog.createTable(table1, ICEBERG_SCHEMA);
+    catalog.createTable(table2, ICEBERG_SCHEMA);
+
+    DynamicDestinations dynamicDestinations =
+        new DynamicDestinations() {
+          @Override
+          public Schema getDataSchema() {
+            return BEAM_SCHEMA;
+          }
+
+          @Override
+          public Row getData(Row element) {
+            return element;
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String destination) {
+            return IcebergDestination.builder()
+                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
+                .build();
+          }
+
+          @Override
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            return element.getValue().getString("dest");
+          }
+        };
+
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.stream_t1").build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.stream_t2").build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "v3", "default.stream_t1").build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(row1)
+            .addElements(row2)
+            .addElements(row3)
+            .advanceProcessingTime(Duration.standardSeconds(5))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input = pipeline.apply("StreamInput", stream);
+
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        input.apply(
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(dynamicDestinations)
+                .setRefreshInterval(Duration.standardSeconds(2))
+                .build());
+
+    PAssert.that(specs)
+        .satisfies(
+            elements -> {
+              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              assertEquals(2, list.size());
+              Map<String, SerializableTableSpec> map =
+                  list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
+              assertTrue(map.containsKey("default.stream_t1"));
+              assertTrue(map.containsKey("default.stream_t2"));
               return null;
             });
 
@@ -546,6 +620,30 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
+  public void testInvalidRefreshIntervalThrowsException() {
+    TableIdentifier tableId = TableIdentifier.of("default", "dummy_table");
+    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(dynamicDestinations)
+                .setRefreshInterval(Duration.ZERO)
+                .build());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(dynamicDestinations)
+                .setRefreshInterval(Duration.standardSeconds(-5))
+                .build());
+  }
+
+  @Test
   public void testWindowPreservation() {
     Catalog catalog = getCatalog();
     TableIdentifier tableW1 = TableIdentifier.of("default", "table_w1");
@@ -632,6 +730,38 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs).empty();
 
     pipeline.run();
+  }
+
+  @Test
+  public void testDisplayData() {
+    TableIdentifier tableId = TableIdentifier.of("default", "display_table");
+    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
+
+    TableMetadataDriver driver =
+        TableMetadataDriver.builder()
+            .setCatalogConfig(catalogConfig)
+            .setDynamicDestinations(dynamicDestinations)
+            .setMaximumCacheSize(42)
+            .setRefreshInterval(Duration.standardMinutes(10))
+            .build();
+
+    DisplayData displayData = DisplayData.from(driver);
+    Map<DisplayData.Identifier, DisplayData.Item> items = displayData.asMap();
+
+    assertNotNull(displayData);
+    boolean hasCacheSize = false;
+    boolean hasRefreshInterval = false;
+    for (DisplayData.Item item : items.values()) {
+      if ("maximumCacheSize".equals(item.getKey())) {
+        assertEquals(42L, item.getValue());
+        hasCacheSize = true;
+      }
+      if ("refreshInterval".equals(item.getKey())) {
+        hasRefreshInterval = true;
+      }
+    }
+    assertTrue(hasCacheSize);
+    assertTrue(hasRefreshInterval);
   }
 
   @Test

@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+
 import com.google.auto.value.AutoValue;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
@@ -30,8 +32,13 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.display.DisplayData;
+import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
+import org.apache.beam.sdk.transforms.windowing.Repeatedly;
+import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
@@ -42,6 +49,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,24 +58,35 @@ import org.slf4j.LoggerFactory;
  * A driver transform that extracts table identifiers from incoming {@link Row}s, deduplicates them
  * per window, optionally bounds the cache size up to {@code maximumCacheSize}, loads their
  * declarative metadata from the Iceberg catalog, and emits {@link KV} pairs of table identifier
- * strings to {@link SerializableTableSpec}.
+ * strings to {@link SerializableTableSpec}. This is intended to be used in Beam pipelines that may
+ * utilize a large number of workers to handle Iceberg writes, where having every worker thread
+ * query for table metadata results in an excessive amount of requests and a high level of
+ * redundancy.
  *
  * <p>Can also be materialized into a broadcasted {@link PCollectionView} via {@link
  * #asView(IcebergCatalogConfig, DynamicDestinations)}. By default, the cache size is uncapped. If
  * {@code maximumCacheSize} is configured and the number of distinct tables in a window exceeds it,
  * up to {@code maximumCacheSize} tables are sampled into the broadcasted view, while remaining
  * destinations fall back to worker-local catalog loading.
+ *
+ * <p>For unbounded streaming pipelines in {@link GlobalWindows}, an {@link AfterProcessingTime}
+ * trigger is automatically applied to fire deduplication and refresh table metadata at the
+ * configured {@code refreshInterval} (defaulting to {@link #DEFAULT_REFRESH_INTERVAL}).
  */
 @Internal
 @AutoValue
 public abstract class TableMetadataDriver
     extends PTransform<PCollection<Row>, PCollection<KV<String, SerializableTableSpec>>> {
 
+  public static final Duration DEFAULT_REFRESH_INTERVAL = Duration.standardMinutes(5);
+
   public abstract IcebergCatalogConfig getCatalogConfig();
 
   public abstract DynamicDestinations getDynamicDestinations();
 
   public abstract @Nullable Integer getMaximumCacheSize();
+
+  public abstract @Nullable Duration getRefreshInterval();
 
   public static Builder builder() {
     return new AutoValue_TableMetadataDriver.Builder();
@@ -83,6 +102,8 @@ public abstract class TableMetadataDriver
 
     public abstract Builder setMaximumCacheSize(@Nullable Integer maximumCacheSize);
 
+    public abstract Builder setRefreshInterval(@Nullable Duration refreshInterval);
+
     abstract TableMetadataDriver autoBuild();
 
     public TableMetadataDriver build() {
@@ -91,6 +112,13 @@ public abstract class TableMetadataDriver
       if (maxCacheSize != null) {
         Preconditions.checkArgument(
             maxCacheSize > 0, "maximumCacheSize must be greater than 0, got %s", maxCacheSize);
+      }
+      Duration refreshInterval = driver.getRefreshInterval();
+      if (refreshInterval != null) {
+        Preconditions.checkArgument(
+            refreshInterval.isLongerThan(Duration.ZERO),
+            "refreshInterval must be positive, got %s",
+            refreshInterval);
       }
       return driver;
     }
@@ -102,7 +130,7 @@ public abstract class TableMetadataDriver
    */
   public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
       asView(IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
-    return asView(catalogConfig, dynamicDestinations, null);
+    return asView(catalogConfig, dynamicDestinations, null, null);
   }
 
   /**
@@ -120,6 +148,26 @@ public abstract class TableMetadataDriver
           IcebergCatalogConfig catalogConfig,
           DynamicDestinations dynamicDestinations,
           @Nullable Integer maximumCacheSize) {
+    return asView(catalogConfig, dynamicDestinations, maximumCacheSize, null);
+  }
+
+  /**
+   * Helper that applies {@link TableMetadataDriver} with an optional {@code maximumCacheSize} limit
+   * and custom {@code refreshInterval}, creating a {@link PCollectionView} of {@link Map} of table
+   * identifier strings to {@link SerializableTableSpec}.
+   *
+   * @param catalogConfig the catalog configuration used to poll metadata.
+   * @param dynamicDestinations destination strategy extracting table IDs from rows.
+   * @param maximumCacheSize optional maximum distinct tables to poll and broadcast per window (null
+   *     for uncapped).
+   * @param refreshInterval optional refresh interval for streaming global window triggers.
+   */
+  public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
+      asView(
+          IcebergCatalogConfig catalogConfig,
+          DynamicDestinations dynamicDestinations,
+          @Nullable Integer maximumCacheSize,
+          @Nullable Duration refreshInterval) {
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
@@ -130,6 +178,7 @@ public abstract class TableMetadataDriver
                     .setCatalogConfig(catalogConfig)
                     .setDynamicDestinations(dynamicDestinations)
                     .setMaximumCacheSize(maximumCacheSize)
+                    .setRefreshInterval(refreshInterval)
                     .build())
             .apply("CreateTableMetadataView", View.asMap());
       }
@@ -143,7 +192,29 @@ public abstract class TableMetadataDriver
             .apply("ExtractTableIds", ParDo.of(new ExtractTableIdsDoFn(getDynamicDestinations())))
             .setCoder(StringUtf8Coder.of());
 
-    PCollection<String> distinctTableIds = tableIds.apply("DistinctTableIds", Distinct.create());
+    boolean isUnboundedGlobal =
+        input.isBounded() == PCollection.IsBounded.UNBOUNDED
+            && input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows;
+
+    PCollection<String> triggeredTableIds;
+    if (isUnboundedGlobal) {
+      Duration customInterval = getRefreshInterval();
+      Duration interval =
+          checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
+      triggeredTableIds =
+          tableIds.apply(
+              "ApplyStreamingTrigger",
+              Window.<String>into(new GlobalWindows())
+                  .triggering(
+                      Repeatedly.forever(
+                          AfterProcessingTime.pastFirstElementInPane().plusDelayOf(interval)))
+                  .accumulatingFiredPanes());
+    } else {
+      triggeredTableIds = tableIds;
+    }
+
+    PCollection<String> distinctTableIds =
+        triggeredTableIds.apply("DistinctTableIds", Distinct.create());
 
     PCollection<String> cachedTableIds;
     Integer maxCacheSize = getMaximumCacheSize();
@@ -156,6 +227,17 @@ public abstract class TableMetadataDriver
     return cachedTableIds
         .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
         .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder.addIfNotNull(
+        DisplayData.item("maximumCacheSize", getMaximumCacheSize())
+            .withLabel("Maximum Cache Size"));
+    builder.addIfNotNull(
+        DisplayData.item("refreshInterval", getRefreshInterval())
+            .withLabel("Table Metadata Refresh Interval"));
   }
 
   static class ExtractTableIdsDoFn extends DoFn<Row, String> {
@@ -185,6 +267,8 @@ public abstract class TableMetadataDriver
     private static final Logger LOG = LoggerFactory.getLogger(CatalogPollingDoFn.class);
     private static final Counter TABLES_POLLED_COUNTER =
         Metrics.counter(TableMetadataDriver.class, "tablesPolled");
+    private static final Counter TABLES_SKIPPED_MISSING_COUNTER =
+        Metrics.counter(TableMetadataDriver.class, "tablesSkippedMissing");
 
     private final IcebergCatalogConfig catalogConfig;
 
@@ -202,9 +286,10 @@ public abstract class TableMetadataDriver
         TABLES_POLLED_COUNTER.inc();
         out.output(KV.of(tableIdString, spec));
       } catch (NoSuchTableException e) {
-        LOG.debug(
+        LOG.info(
             "Table '{}' does not exist in catalog. Skipping metadata emission for side-input view.",
             tableIdString);
+        TABLES_SKIPPED_MISSING_COUNTER.inc();
       }
     }
   }
