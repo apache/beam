@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import threading
 from collections.abc import Callable
@@ -49,11 +50,16 @@ except ModuleNotFoundError:
   LOGGER.warning(msg)
 
 
+@functools.lru_cache(maxsize=1)
 def _trt_major_version() -> int:
   """Returns the major version of the installed TensorRT.
 
   TensorRT 10 replaced the index based "binding" API with a name based
   "tensor" API, so the major version selects which code path to take.
+
+  Cached rather than resolved at import time because the module is importable
+  without TensorRT, so that jobs can be submitted from a machine that does not
+  have it installed.
   """
   import tensorrt as trt
   try:
@@ -63,12 +69,16 @@ def _trt_major_version() -> int:
     return 10 if hasattr(trt.ICudaEngine, 'num_io_tensors') else 8
 
 
+@functools.lru_cache(maxsize=1)
 def _import_cuda_driver():
   """Imports the CUDA driver bindings.
 
   ``cuda.bindings.driver`` is the module path used by cuda-python 12.8 and
   later. It replaced the ``cuda.cuda`` alias, which was removed in
   cuda-python 13.0, so only fall back to that for older installations.
+
+  Cached because this is called from _assign_or_fail, which runs on every
+  CUDA call.
   """
   try:
     from cuda.bindings import driver as cuda

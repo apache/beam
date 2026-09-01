@@ -27,7 +27,8 @@ and verifies each result by loading it back through the model handler the
 tests use. It cannot run as part of the test suite because it needs a GPU.
 
 Run it in the same container and on the same GPU type the tests use. See
-README.md in this directory for the exact commands.
+README.md in this directory for the exact commands. Requires TensorRT 10 or
+later; the engines built by TensorRT 8 are the ones being replaced.
 """
 
 # pytype: skip-file
@@ -68,15 +69,6 @@ def _copy(src, dst):
       fout.write(chunk)
 
 
-def _network_creation_flags():
-  """Explicit batch is only a flag on TensorRT 8.x; it is the default after."""
-  explicit_batch = getattr(
-      trt.NetworkDefinitionCreationFlag, 'EXPLICIT_BATCH', None)
-  if explicit_batch is None or TRT_MAJOR >= 10:
-    return 0
-  return 1 << int(explicit_batch)
-
-
 def build_engine(onnx_path, engine_path):
   """Parses an ONNX file and serializes an engine for this GPU."""
   # The SSD MobileNet ONNX contains an EfficientNMS_TRT node, so the bundled
@@ -84,7 +76,10 @@ def build_engine(onnx_path, engine_path):
   trt.init_libnvinfer_plugins(TRT_LOGGER, namespace="")
 
   builder = trt.Builder(TRT_LOGGER)
-  network = builder.create_network(flags=_network_creation_flags())
+  # Explicit batch is the default from TensorRT 10 onwards, so no creation
+  # flags are needed. Engines are only ever rebuilt for the container the
+  # tests currently use, so there is no reason to support TensorRT 8 here.
+  network = builder.create_network()
   parser = trt.OnnxParser(network, TRT_LOGGER)
   with open(onnx_path, 'rb') as f:
     if not parser.parse(f.read()):

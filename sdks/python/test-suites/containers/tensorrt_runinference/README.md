@@ -52,7 +52,8 @@ the same COCO images the integration test uses.
 
 It needs a GPU, so it cannot run as part of the test suite. Run it in the same container
 and on the same GPU type the tests use. As of writing that is
-`nvcr.io/nvidia/tensorrt:26.06-py3` on an `nvidia-tesla-t4`.
+`nvcr.io/nvidia/tensorrt:26.06-py3` on an `nvidia-tesla-t4`. It requires TensorRT 10 or
+later, since the TensorRT 8 engines are the ones being replaced.
 
 The host needs a driver new enough for that container (580 or later), plus Docker and
 the NVIDIA container toolkit. On a GCE deep learning VM image the toolkit is already

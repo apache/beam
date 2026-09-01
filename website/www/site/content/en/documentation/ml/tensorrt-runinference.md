@@ -79,7 +79,7 @@ RUN pip install --no-cache-dir apache-beam[gcp]==2.76.0
 COPY --from=apache/beam_python3.12_sdk:2.76.0 /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
-    && pip install torch \
+    && pip install torch==2.13.0 \
     && pip install torchvision>=0.8.2 \
     && pip install pillow>=8.0.0 \
     && pip install transformers>=4.18.0 \
