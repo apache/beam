@@ -1136,34 +1136,29 @@ class DeferredDataFrameOrSeries(frame_base.DeferredFrame):
       proxy_frame = reindexed._expr.proxy()
       k_val = key_series.iloc[0]
       if isinstance(proxy_frame, pd.DataFrame):
+        if not proxy_frame.index.is_unique:
+          proxy_frame = proxy_frame.copy()
+          proxy_frame.index = proxy_frame.index.drop_duplicates()
         dummy_index = (
             pd.MultiIndex.from_tuples([k_val], names=proxy_frame.index.names) if
             isinstance(k_val, tuple) else pd.Index([k_val],
                                                    name=proxy_frame.index.name))
-        dummy_data = {
-            col: [proxy_frame[col].dtype.type()]
-            for col in proxy_frame.columns
-        }
-        dummy_df = pd.DataFrame(dummy_data, index=dummy_index)
-        xs_proxy = dummy_df.xs(k_val, **kwargs)
-        if isinstance(xs_proxy, pd.DataFrame) or isinstance(xs_proxy,
-                                                            pd.Series):
+        dummy_obj = proxy_frame.reindex(dummy_index)
+        xs_proxy = dummy_obj.xs(k_val, **kwargs)
+        if isinstance(xs_proxy, (pd.DataFrame, pd.Series)):
           xs_proxy = xs_proxy.iloc[:0]
       else:
-        val = proxy_frame.dtype.type()
-        dummy_index = (
-            pd.MultiIndex.from_tuples([k_val], names=proxy_frame.index.names) if
-            isinstance(k_val, tuple) else pd.Index([k_val],
-                                                   name=proxy_frame.index.name))
-        dummy_ser = pd.Series([val],
-                              index=dummy_index,
-                              dtype=proxy_frame.dtype,
-                              name=proxy_frame.name)
-        xs_proxy = dummy_ser.xs(k_val, **kwargs)
-        if isinstance(xs_proxy, pd.Series):
-          xs_proxy = xs_proxy.iloc[:0]
-        else:
+        try:
           xs_proxy = proxy_frame.dtype.type()
+        except TypeError:
+          dummy_index = (
+              pd.MultiIndex.from_tuples([k_val], names=proxy_frame.index.names)
+              if isinstance(k_val, tuple) else pd.Index(
+                  [k_val], name=proxy_frame.index.name))
+          if not proxy_frame.index.is_unique:
+            proxy_frame = proxy_frame.copy()
+            proxy_frame.index = proxy_frame.index.drop_duplicates()
+          xs_proxy = proxy_frame.reindex(dummy_index).iloc[0]
 
       def unwrap_xs(ser):
         if ser.empty:

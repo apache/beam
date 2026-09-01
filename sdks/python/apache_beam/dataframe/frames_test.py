@@ -337,6 +337,13 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs('mammal'), df_single_index, check_proxy=False)
     self._run_test(lambda df: df.num_legs.xs('bird'), df_single_index)
 
+    # Categorical Series single match
+    s_cat = pd.Series(
+        pd.Categorical(['a', 'b', 'c']),
+        index=['r1', 'r2', 'r3'],
+        name='cat_col')
+    self._run_test(lambda s: s.xs('r1'), s_cat, check_proxy=False)
+
   def test_dataframe_xs(self):
     # Test cases reported in BEAM-13421
     df = pd.DataFrame(
@@ -372,6 +379,28 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(
         lambda df: df.xs(('state', 'day2')),
         df_unique.set_index(['provider', 'time']))
+
+    # Categorical and extension dtype tests
+    df_cat = pd.DataFrame({
+        'cat': pd.Categorical(['a', 'b', 'c']), 'val': [1, 2, 3]
+    },
+                          index=['r1', 'r2', 'r3'])
+    self._run_test(lambda df: df.xs('r1'), df_cat)
+
+    df_dt_tz = pd.DataFrame({
+        'dt': pd.Series([
+            pd.Timestamp('2023-01-01', tz='UTC'),
+            pd.Timestamp('2023-01-02', tz='UTC')
+        ],
+                        dtype='datetime64[ns, UTC]'),
+        'val': [1, 2]
+    },
+                            index=['r1', 'r2'])
+    self._run_test(lambda df: df.xs('r1'), df_dt_tz)
+
+    df_null_int = pd.DataFrame({'num': pd.Series([1, 2, None], dtype='Int64')},
+                               index=['r1', 'r2', 'r3'])
+    self._run_test(lambda df: df.xs('r1'), df_null_int)
 
   def test_set_column(self):
     def new_column(df):
