@@ -96,6 +96,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -162,6 +163,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   protected final List<TupleTag<?>> additionalOutputTags;
 
   protected final Collection<PCollectionView<?>> sideInputs;
+  private final Collection<PCollectionView<?>> cacheableSideInputs;
   protected final Map<Integer, PCollectionView<?>> sideInputTagMapping;
 
   protected final WindowingStrategy<?, ?> windowingStrategy;
@@ -304,6 +306,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     this.additionalOutputTags = additionalOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
     this.sideInputs = sideInputs;
+    this.cacheableSideInputs = CachedSideInputReader.cacheableViews(sideInputs);
     this.serializedOptions = new SerializablePipelineOptions(options);
     this.isStreaming = serializedOptions.get().as(FlinkPipelineOptions.class).isStreaming();
     this.windowingStrategy = windowingStrategy;
@@ -473,7 +476,12 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
               serializedOptions);
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
-      sideInputReader = sideInputHandler;
+      sideInputReader =
+          createSideInputReader(
+              cacheableSideInputs,
+              getContainingTask().getEnvironment().getJobID(),
+              getContainingTask().getEnvironment().getTaskInfo().getAttemptNumber(),
+              sideInputHandler);
 
       Stream<WindowedValue<InputT>> pushedBack = pushedBackElementsHandler.getElements();
       long min =
@@ -797,6 +805,27 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
     PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
     sideInputHandler.addSideInputValue(sideInput, value);
+    // Invalidate only after the state write: a concurrent reader that re-caches between an
+    // earlier invalidation and the write would pin the previous value with no later invalidation.
+    for (BoundedWindow window : value.getWindows()) {
+      SideInputCache.invalidate(
+          getContainingTask().getEnvironment().getJobID(),
+          getContainingTask().getEnvironment().getTaskInfo().getAttemptNumber(),
+          sideInput,
+          window);
+    }
+  }
+
+  @VisibleForTesting
+  static SideInputReader createSideInputReader(
+      Collection<PCollectionView<?>> cacheableViews,
+      JobID jobId,
+      int attemptNumber,
+      SideInputReader delegate) {
+    if (!cacheableViews.isEmpty()) {
+      return CachedSideInputReader.of(jobId, attemptNumber, delegate, cacheableViews);
+    }
+    return delegate;
   }
 
   @Override
