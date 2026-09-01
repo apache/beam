@@ -51,6 +51,7 @@ try:
 except ImportError:
   apitools_bigquery = None
 
+
 @unittest.skipIf(
     HttpError is None or gcp_bigquery is None,
     'GCP dependencies are not installed')
