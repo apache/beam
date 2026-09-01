@@ -403,6 +403,64 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
+  public void testNonExistentTableIsSkippedWithoutFailingBundle() {
+    Catalog catalog = getCatalog();
+    TableIdentifier validTable = TableIdentifier.of("default", "existing_table");
+    catalog.createTable(validTable, ICEBERG_SCHEMA);
+
+    DynamicDestinations dynamicDestinations =
+        new DynamicDestinations() {
+          @Override
+          public Schema getDataSchema() {
+            return BEAM_SCHEMA;
+          }
+
+          @Override
+          public Row getData(Row element) {
+            return element;
+          }
+
+          @Override
+          public IcebergDestination instantiateDestination(String destination) {
+            return IcebergDestination.builder()
+                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
+                .build();
+          }
+
+          @Override
+          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+            return element.getValue().getString("dest");
+          }
+        };
+
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.existing_table").build(),
+            Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.non_existent_table").build());
+
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        input.apply(
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(dynamicDestinations)
+                .build());
+
+    // Only the existing table is emitted; the non-existent table is skipped without failing bundle
+    PAssert.that(specs)
+        .satisfies(
+            elements -> {
+              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              assertEquals(1, list.size());
+              assertEquals("default.existing_table", list.get(0).getKey());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
   public void testFiltersNullAndBlankTableIdentifiers() {
     TableIdentifier validTableId = TableIdentifier.of("default", "valid_dest_table");
     getCatalog().createTable(validTableId, ICEBERG_SCHEMA);

@@ -40,8 +40,11 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A driver transform that extracts table identifiers from incoming {@link Row}s, deduplicates them
@@ -179,6 +182,7 @@ public abstract class TableMetadataDriver
   }
 
   static class CatalogPollingDoFn extends DoFn<String, KV<String, SerializableTableSpec>> {
+    private static final Logger LOG = LoggerFactory.getLogger(CatalogPollingDoFn.class);
     private static final Counter TABLES_POLLED_COUNTER =
         Metrics.counter(TableMetadataDriver.class, "tablesPolled");
 
@@ -192,10 +196,16 @@ public abstract class TableMetadataDriver
     public void processElement(
         @Element String tableIdString, OutputReceiver<KV<String, SerializableTableSpec>> out) {
       TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableIdString);
-      Table table = catalogConfig.catalog().loadTable(tableId);
-      SerializableTableSpec spec = SerializableTableSpec.fromTable(tableIdString, table);
-      TABLES_POLLED_COUNTER.inc();
-      out.output(KV.of(tableIdString, spec));
+      try {
+        Table table = catalogConfig.catalog().loadTable(tableId);
+        SerializableTableSpec spec = SerializableTableSpec.fromTable(tableIdString, table);
+        TABLES_POLLED_COUNTER.inc();
+        out.output(KV.of(tableIdString, spec));
+      } catch (NoSuchTableException e) {
+        LOG.debug(
+            "Table '{}' does not exist in catalog. Skipping metadata emission for side-input view.",
+            tableIdString);
+      }
     }
   }
 }
