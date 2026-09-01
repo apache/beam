@@ -60,7 +60,17 @@ public class BeamBuiltinAggregations {
   public static final Map<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>
       BUILTIN_AGGREGATOR_FACTORIES =
           ImmutableMap.<String, Function<Schema.FieldType, CombineFn<?, ?, ?>>>builder()
+              // SINGLE_VALUE is emitted by Calcite to enforce the cardinality of a scalar
+              // subquery (a subquery used as a scalar must yield exactly one row). The single
+              // input value is returned as-is; unlike COUNT/SUM it must not drop nulls, so a
+              // scalar subquery evaluating to NULL surfaces NULL.
+              .put("SINGLE_VALUE", typeName -> new SingleValue<>())
               .put("ANY_VALUE", typeName -> Sample.anyValueCombineFn())
+              // SINGLE_VALUE is emitted by Calcite to enforce the cardinality of a scalar
+              // subquery (a subquery used as a scalar must yield exactly one row). The single
+              // input value is returned as-is; unlike COUNT/SUM it must not drop nulls, so a
+              // scalar subquery evaluating to NULL surfaces NULL.
+              .put("SINGLE_VALUE", typeName -> Sample.anyValueCombineFn())
               // Drop null elements for these aggregations.
               .put("COUNT", typeName -> new DropNullFnWithDefault(Count.combineFn()))
               .put("MAX", typeName -> new DropNullFn(BeamBuiltinAggregations.createMax(typeName)))
@@ -694,6 +704,54 @@ public class BeamBuiltinAggregations {
         return null;
       }
       return accumulator.bitXOr;
+    }
+  }
+
+  /**
+   * {@link CombineFn} for SINGLE_VALUE to enforce that a scalar subquery returns exactly one row.
+   */
+  public static class SingleValue<T> extends CombineFn<T, java.util.List<T>, T> {
+    @Override
+    public java.util.List<T> createAccumulator() {
+      return new java.util.ArrayList<>();
+    }
+
+    @Override
+    public java.util.List<T> addInput(java.util.List<T> accumulator, T input) {
+      if (accumulator.size() < 2) {
+        accumulator.add(input);
+      }
+      return accumulator;
+    }
+
+    @Override
+    public java.util.List<T> mergeAccumulators(Iterable<java.util.List<T>> accumulators) {
+      java.util.List<T> merged = createAccumulator();
+      for (java.util.List<T> accum : accumulators) {
+        merged.addAll(accum);
+        if (merged.size() >= 2) {
+          merged = new java.util.ArrayList<>(merged.subList(0, 2));
+        }
+      }
+      return merged;
+    }
+
+    @Override
+    public T extractOutput(java.util.List<T> accumulator) {
+      if (accumulator.isEmpty()) {
+        return null;
+      }
+      if (accumulator.size() > 1) {
+        throw new IllegalArgumentException("Subquery returned more than one row");
+      }
+      return accumulator.get(0);
+    }
+
+    @Override
+    public Coder<java.util.List<T>> getAccumulatorCoder(
+        CoderRegistry registry, Coder<T> inputCoder) {
+      return org.apache.beam.sdk.coders.ListCoder.of(
+          org.apache.beam.sdk.coders.NullableCoder.of(inputCoder));
     }
   }
 }
