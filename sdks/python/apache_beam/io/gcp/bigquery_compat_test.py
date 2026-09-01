@@ -37,6 +37,11 @@ from apache_beam.io.gcp import bigquery_compat
 from apache_beam.io.gcp import bigquery_tools
 
 try:
+  from apitools.base.py.exceptions import HttpError
+except ImportError:
+  HttpError = None
+
+try:
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None
@@ -46,7 +51,9 @@ try:
 except ImportError:
   apitools_bigquery = None
 
-
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestJobReferenceCompatibility(unittest.TestCase):
   def test_init_camel_case(self):
     ref = bigquery_compat.JobReference(
@@ -137,6 +144,9 @@ class TestJobReferenceCompatibility(unittest.TestCase):
     self.assertEqual(ref, decoded)
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
   @unittest.skipIf(gcp_bigquery is None, "google-cloud-bigquery not installed")
   def test_table_reference_property_mutability(self):
@@ -234,6 +244,9 @@ class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
     self.assertEqual(s.fields[1].name, "val")
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestJobConfigCompatibility(unittest.TestCase):
   def test_load_job_config_camel_case_properties(self):
     if gcp_bigquery is None:
@@ -416,6 +429,9 @@ class TestJobConfigCompatibility(unittest.TestCase):
     self.assertEqual(table.range_partitioning, rp)
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestSchemaConversionCompatibility(unittest.TestCase):
   def test_to_table_schema_nested_records(self):
     if gcp_bigquery is None:
@@ -473,6 +489,9 @@ class TestSchemaConversionCompatibility(unittest.TestCase):
     self.assertEqual(table_schema.fields[1].type, "STRING")
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestClientCompatibility(unittest.TestCase):
   def test_job_stats_referenced_tables(self):
     if gcp_bigquery is None:
@@ -531,6 +550,9 @@ class TestClientCompatibility(unittest.TestCase):
     self.assertEqual(passed_table.description, "A test table description")
 
 
+@unittest.skipIf(
+    HttpError is None or gcp_bigquery is None,
+    'GCP dependencies are not installed')
 class TestTablePartitioningAndClusteringCompatibility(unittest.TestCase):
   def test_time_partitioning_from_dict_and_camel_case(self):
     if gcp_bigquery is None:
