@@ -105,12 +105,9 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitArmIT
           arguments: |
-            -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
             -PusePrebuiltSdkContainer \
         env:
-          # Use multiarch images published by Publish Beam SDK Snapshots.
-          SDK_CONTAINER_IMAGE: gcr.io/apache-beam-testing/beam-sdk/beam_python${{ matrix.python_version }}_sdk:latest
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
