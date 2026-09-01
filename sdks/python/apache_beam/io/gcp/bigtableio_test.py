@@ -331,6 +331,61 @@ class TestWriteBigTable(unittest.TestCase):
           ServiceCallMetric.bigtable_error_code_to_grpc_status_string(OK),
           2)
 
+  def test_write_batch_error_surfaces_from_async_flush(self):
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1,
+        max_row_bytes=5242880)
+    write_fn.table = self.table
+    write_fn.start_bundle()
+
+    direct_rows = [self.generate_row(i) for i in range(5)]
+    with patch.object(Table,
+                      'mutate_rows',
+                      side_effect=Exception('batch RPC failed')):
+      for direct_row in direct_rows:
+        write_fn.process(direct_row)
+      with self.assertRaises(Exception):
+        write_fn.finish_bundle()
+
+  def test_write_batch_error_surfaces_from_buffered_rows(self):
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1000,
+        max_row_bytes=5242880)
+    write_fn.table = self.table
+    write_fn.start_bundle()
+
+    mock_mutate = MagicMock(side_effect=Exception('batch RPC failed'))
+    with patch.object(Table, 'mutate_rows', mock_mutate):
+      write_fn.process(self.generate_row(0))
+      with self.assertRaises(Exception):
+        write_fn.finish_bundle()
+      self.assertGreater(
+          mock_mutate.call_count, 0, 'buffered row was never flushed')
+
+  def test_write_close_error_is_surfaced(self):
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1000,
+        max_row_bytes=5242880)
+    write_fn.table = self.table
+    write_fn.start_bundle()
+
+    with patch.object(MutationsBatcher,
+                      'close',
+                      side_effect=Exception('error on close')) as mock_close:
+      write_fn.process(self.generate_row(0))
+      with self.assertRaises(Exception):
+        write_fn.finish_bundle()
+      mock_close.assert_called_once()
+
   def generate_row(self, index=0):
     rand = choice(string.ascii_letters + string.digits)
     value = ''.join(rand for i in range(100))

@@ -178,6 +178,7 @@ class WriteTables<DestinationT extends @NonNull Object>
         this.isFirstPane = isFirstPane;
       }
     }
+
     // All pending load jobs.
     private List<PendingJobData> pendingJobs = Lists.newArrayList();
 

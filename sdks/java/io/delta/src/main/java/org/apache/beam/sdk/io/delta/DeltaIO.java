@@ -132,14 +132,8 @@ public class DeltaIO {
       if (path == null) {
         throw new IllegalArgumentException("Table path must be set.");
       }
-      if (getTimestamp() != null) {
-        throw new UnsupportedOperationException(
-            "Reading from a specific timestamp is not supported yet");
-      }
-
-      if (getVersion() != null) {
-        throw new UnsupportedOperationException(
-            "Reading from a specific version is not supported yet");
+      if (getVersion() != null && getTimestamp() != null) {
+        throw new IllegalArgumentException("Cannot set both version and timestamp.");
       }
 
       Configuration conf = new Configuration();
@@ -151,7 +145,17 @@ public class DeltaIO {
       }
       Engine engine = DefaultEngine.create(conf);
       Table table = Table.forPath(engine, path);
-      io.delta.kernel.Snapshot snapshot = table.getLatestSnapshot(engine);
+      Snapshot snapshot;
+      Long versionVal = getVersion();
+      String timestampVal = getTimestamp();
+      if (versionVal != null) {
+        snapshot = table.getSnapshotAsOfVersion(engine, versionVal);
+      } else if (timestampVal != null) {
+        long timestampMillis = java.time.Instant.parse(timestampVal).toEpochMilli();
+        snapshot = table.getSnapshotAsOfTimestamp(engine, timestampMillis);
+      } else {
+        snapshot = table.getLatestSnapshot(engine);
+      }
       StructType deltaSchema = snapshot.getSchema();
       if (deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
@@ -160,7 +164,9 @@ public class DeltaIO {
 
       return input
           .apply("Create Path", Create.of(path))
-          .apply("Plan Files", ParDo.of(new CreateReadTasksDoFn(hadoopConfig)))
+          .apply(
+              "Plan Files",
+              ParDo.of(new CreateReadTasksDoFn(hadoopConfig, getVersion(), getTimestamp())))
           .apply("Read Logical Data", ParDo.of(new DeltaSourceDoFn(hadoopConfig)))
           .setRowSchema(beamSchema);
     }
@@ -168,7 +174,9 @@ public class DeltaIO {
     static Schema convertToBeamSchema(StructType deltaSchema) {
       Schema.Builder builder = Schema.builder();
       for (StructField field : deltaSchema.fields()) {
-        builder.addField(field.getName(), convertToBeamFieldType(field.getDataType()));
+        builder.addField(
+            Schema.Field.of(field.getName(), convertToBeamFieldType(field.getDataType()))
+                .withNullable(field.isNullable()));
       }
       return builder.build();
     }

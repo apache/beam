@@ -42,7 +42,9 @@ public class DefaultTrigger extends Trigger {
     return window.maxTimestamp();
   }
 
-  /** @return false; the default trigger never finishes */
+  /**
+   * @return false; the default trigger never finishes
+   */
   @Override
   public boolean mayFinish() {
     return false;

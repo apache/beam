@@ -615,7 +615,7 @@ class BeamModulePlugin implements Plugin<Project> {
     def cassandra_driver_version = "3.10.2"
     def cdap_version = "6.11.4"
     def checkerframework_version = "3.42.0"
-    def classgraph_version = "4.8.162"
+    def classgraph_version = "4.8.192"
     def delta_lake_version = "4.2.0"
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
@@ -880,6 +880,7 @@ class BeamModulePlugin implements Plugin<Project> {
         opentelemetry_context                       : "io.opentelemetry:opentelemetry-context:$opentelemetry_version", // Set version explicitly as it's standalone runtime dep for Beam modules
         opentelemetry_gcp_auth                      : "io.opentelemetry.contrib:opentelemetry-gcp-auth-extension:$opentelemetry_contrib_version-alpha",
         opentelemetry_sdk                           : "io.opentelemetry:opentelemetry-sdk", // opentelemetry-bom sets version
+        opentelemetry_sdk_testing                   : "io.opentelemetry:opentelemetry-sdk-testing", // opentelemetry-bom sets version
         opentelemetry_exporter_otlp                 : "io.opentelemetry:opentelemetry-exporter-otlp", // opentelemetry-bom sets version
         opentelemetry_extension_autoconfigure       : "io.opentelemetry:opentelemetry-sdk-extension-autoconfigure", // opentelemetry-bom sets version
         opentelemetry_proto                         : "io.opentelemetry.proto:opentelemetry-proto:$opentelemetry_version-alpha",
@@ -1198,16 +1199,16 @@ class BeamModulePlugin implements Plugin<Project> {
         // If compiled on older SDK, compile with JDK configured with compatible javaXXHome
         // The order is intended here
         if (requireJavaVersion.compareTo(JavaVersion.VERSION_11) <= 0 &&
-        project.findProperty('java11Home')) {
+            project.findProperty('java11Home')) {
           forkJavaVersion = '11'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_17) <= 0 &&
-        project.findProperty('java17Home')) {
+            project.findProperty('java17Home')) {
           forkJavaVersion = '17'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_21) <= 0 &&
-        project.findProperty('java21Home')) {
+            project.findProperty('java21Home')) {
           forkJavaVersion = '21'
         } else if (requireJavaVersion.compareTo(JavaVersion.VERSION_25) <= 0 &&
-        project.findProperty('java25Home')) {
+            project.findProperty('java25Home')) {
           forkJavaVersion = '25'
         } else {
           logger.config("Module ${project.name} disabled. To enable, either " +
@@ -1479,6 +1480,18 @@ class BeamModulePlugin implements Plugin<Project> {
         maxErrors = 0
         toolVersion = "8.23"
       }
+      project.tasks.withType(org.gradle.api.plugins.quality.Checkstyle).configureEach {
+        classpath = project.files()
+        maxHeapSize = '1g'
+        reports {
+          html.required = false
+        }
+        if (name == 'checkstyleMain') {
+          source = 'src/main/java'
+        } else if (name == 'checkstyleTest') {
+          source = 'src/test/java'
+        }
+      }
       // CheckStyle can be removed from the 'check' task by passing -PdisableCheckStyle=true on the Gradle
       // command-line. This is useful for pre-commit which runs checkStyle separately.
       def disableCheckStyle = project.hasProperty('disableCheckStyle') &&
@@ -1506,7 +1519,7 @@ class BeamModulePlugin implements Plugin<Project> {
         enforceCheck !disableSpotlessCheck
         java {
           licenseHeader javaLicenseHeader
-          googleJavaFormat('1.7')
+          googleJavaFormat('1.17.0')
           target project.fileTree(project.projectDir) {
             include 'src/*/java/**/*.java'
             exclude '**/DefaultPackageTest.java'
@@ -2126,7 +2139,8 @@ class BeamModulePlugin implements Plugin<Project> {
                     } else {
                       dependencyNode.appendNode('groupId', it.group)
                       dependencyNode.appendNode('artifactId', it.name)
-                      if (it.version != null) { // bom-managed artifacts do not have their versions
+                      if (it.version != null) {
+                        // bom-managed artifacts do not have their versions
                         dependencyNode.appendNode('version', it.version)
                       }
                       dependencyNode.appendNode('scope', param.scope)
@@ -2427,12 +2441,17 @@ class BeamModulePlugin implements Plugin<Project> {
           project.disableSpotlessCheck == 'true'
       project.spotless {
         enforceCheck !disableSpotlessCheck
-        def grEclipseConfig = project.project(":").file("buildSrc/greclipse.properties")
         groovy {
-          greclipse().configFile(grEclipseConfig)
+          leadingTabsToSpaces(2)
+          trimTrailingWhitespace()
+          endWithNewline()
           target project.fileTree(project.projectDir) { include '**/*.groovy' }
         }
-        groovyGradle { greclipse().configFile(grEclipseConfig) }
+        groovyGradle {
+          leadingTabsToSpaces(2)
+          trimTrailingWhitespace()
+          endWithNewline()
+        }
       }
       // Workaround to fix spotless groovy and groovyGradle tasks use the same intermediate dir,
       // until Beam no longer build on Java8 and can upgrade spotless plugin.
@@ -2489,7 +2508,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:$protobuf_version" }
+          artifact = "com.google.protobuf:protoc:$protobuf_version"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2571,7 +2591,8 @@ class BeamModulePlugin implements Plugin<Project> {
       project.protobuf {
         protoc {
           // The artifact spec for the Protobuf Compiler
-          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}" }
+          artifact = "com.google.protobuf:protoc:${GrpcVendoring_1_69_0.protobuf_version}"
+        }
 
         // Configure the codegen plugins
         plugins {
@@ -2769,7 +2790,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,
@@ -3061,7 +3083,8 @@ class BeamModulePlugin implements Plugin<Project> {
         doLast {
           def beamPythonTestPipelineOptions = [
             "pipeline_opts": config.pythonPipelineOptions + (usesDataflowRunner ? [
-              "--sdk_location=${project.ext.sdkLocation}"]
+              "--sdk_location=${project.ext.sdkLocation}"
+            ]
             : []),
             "test_opts": config.pytestOptions,
             "suite": config.name,

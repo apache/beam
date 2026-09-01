@@ -151,7 +151,7 @@ tasks.register("yamlIntegrationTests") {
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
 
   doLast {
     exec {
@@ -172,9 +172,11 @@ tasks.register("postCommitYamlIntegrationTests") {
   dependsOn ":sdks:java:io:expansion-service:build"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
   dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:snowflake:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"
 
   doLast {
-    def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging'
+    def testSetInput = project.findProperty('yamlTestSet') ?: 'data,databases,messaging,e2e'
     def testSetsToRun = testSetInput.tokenize(',').collect { it.trim() }.findAll { !it.isEmpty() }
     testSetsToRun.each { currentTestSet ->
       def test_files_dir
@@ -189,8 +191,11 @@ tasks.register("postCommitYamlIntegrationTests") {
         case 'messaging':
           test_files_dir = 'extended_tests/messaging'
           break
+        case 'e2e':
+          test_files_dir = 'extended_tests/e2e'
+          break
         default:
-          throw StopExecutionException("Unknown yamlTestSet: ${currentTestSet}. Must be one of 'data', 'databases', or 'messaging'.")
+          throw StopExecutionException("Unknown yamlTestSet: ${currentTestSet}. Must be one of 'data', 'databases', 'messaging', or 'e2e'.")
       }
       exec {
         executable 'sh'

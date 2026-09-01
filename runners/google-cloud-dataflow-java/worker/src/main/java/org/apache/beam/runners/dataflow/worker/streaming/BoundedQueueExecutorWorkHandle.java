@@ -17,13 +17,15 @@
  */
 package org.apache.beam.runners.dataflow.worker.streaming;
 
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import java.util.List;
 
 /**
  * A handle to use when requesting pulling more work from @BoundedQueueExecutor
  * via @BoundedQueueExecutor.pollWork
  */
 public interface BoundedQueueExecutorWorkHandle {
-  // Returns all work that are tracked by the handle
-  ImmutableList<Work> getWorkBatch();
+  // Returns all work that are tracked by the handle.
+  // Returned list cannot be modified. Copying the list is fine.
+  // Don't keep reference to the returned list after the processing exits the harness threads.
+  List<Work> getWorkBatch();
 }
