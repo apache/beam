@@ -1474,6 +1474,43 @@ class TestTypeOverrides(unittest.TestCase):
     called_config = client.query.call_args.kwargs['job_config']
     self.assertEqual(called_config.labels, {})
 
+  def test_create_table_with_additional_parameters_partitioning_and_clustering(
+      self):
+    if bigquery_tools.gcp_bigquery is None:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    mock_client = mock.Mock(spec=bigquery_tools.gcp_bigquery.Client)
+    mock_client.create_table = mock.Mock(side_effect=lambda table: table)
+    wrapper = BigQueryWrapper(client=mock_client)
+
+    schema = {
+        'fields': [{
+            'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+        }, {
+            'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'
+        }]
+    }
+    additional_params = {
+        'timePartitioning': {
+            'type': 'DAY'
+        },
+        'clustering': {
+            'fields': ['language']
+        }
+    }
+    res = wrapper._create_table(
+        project_id='test-project',
+        dataset_id='test_dataset',
+        table_id='test_table',
+        schema=schema,
+        additional_parameters=additional_params)
+    mock_client.create_table.assert_called_once()
+    created_table = mock_client.create_table.call_args[0][0]
+    self.assertEqual(created_table.time_partitioning.type_, 'DAY')
+    self.assertEqual(created_table.clustering_fields, ['language'])
+    self.assertEqual(len(created_table.schema), 2)
+    self.assertEqual(res, created_table)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryClientExperimentFallback(unittest.TestCase):

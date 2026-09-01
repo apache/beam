@@ -531,6 +531,162 @@ class TestClientCompatibility(unittest.TestCase):
     self.assertEqual(passed_table.description, "A test table description")
 
 
+class TestTablePartitioningAndClusteringCompatibility(unittest.TestCase):
+  def test_time_partitioning_from_dict_and_camel_case(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    table = gcp_bigquery.Table("my-proj.my_ds.my_tbl")
+    table.timePartitioning = {"type": "DAY"}
+    self.assertIsNotNone(table.time_partitioning)
+    self.assertEqual(table.time_partitioning.type_, "DAY")
+    self.assertEqual(table.timePartitioning.type, "DAY")
+
+    table2 = gcp_bigquery.Table("my-proj.my_ds.my_tbl")
+    table2.time_partitioning = {
+        "type": "HOUR", "field": "ts", "expirationMs": 86400000
+    }
+    self.assertEqual(table2.time_partitioning.type_, "HOUR")
+    self.assertEqual(table2.time_partitioning.field, "ts")
+    self.assertEqual(table2.time_partitioning.expiration_ms, 86400000)
+
+  def test_range_partitioning_from_dict_and_camel_case(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    table = gcp_bigquery.Table("my-proj.my_ds.my_tbl")
+    table.rangePartitioning = {
+        "field": "id", "range": {
+            "start": 0, "end": 100, "interval": 10
+        }
+    }
+    self.assertIsNotNone(table.range_partitioning)
+    self.assertEqual(table.range_partitioning.field, "id")
+    self.assertEqual(table.range_partitioning.range_.start, 0)
+    self.assertEqual(table.range_partitioning.range_.end, 100)
+    self.assertEqual(table.range_partitioning.range_.interval, 10)
+
+  def test_clustering_from_dict_and_list(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    table = gcp_bigquery.Table("my-proj.my_ds.my_tbl")
+    table.clustering = {"fields": ["language", "country"]}
+    self.assertEqual(table.clustering_fields, ["language", "country"])
+    self.assertEqual(table.clustering.fields, ["language", "country"])
+    self.assertEqual(table.clustering["fields"], ["language", "country"])
+    self.assertEqual(table.clustering.get("fields"), ["language", "country"])
+
+    table2 = gcp_bigquery.Table("my-proj.my_ds.my_tbl")
+    table2.clustering = ["language"]
+    self.assertEqual(table2.clustering_fields, ["language"])
+    self.assertEqual(table2.clustering.fields, ["language"])
+
+  def test_client_tables_compat_insert_with_partitioning_and_clustering(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    client = mock.Mock()
+    tables_compat = bigquery_compat._ClientTablesCompat(client)
+
+    request = mock.Mock()
+    request.projectId = "my-proj"
+    request.datasetId = "my-ds"
+    request.table = mock.Mock()
+    request.table.tableReference = mock.Mock()
+    request.table.tableReference.projectId = "my-proj"
+    request.table.tableReference.datasetId = "my-ds"
+    request.table.tableReference.tableId = "my-tbl"
+    request.table.schema = None
+    request.table.timePartitioning = {"type": "DAY"}
+    request.table.rangePartitioning = None
+    request.table.clustering = {"fields": ["language"]}
+    request.table.description = None
+    request.table.friendlyName = None
+    request.table.labels = None
+    request.table.encryptionConfiguration = None
+
+    tables_compat.Insert(request)
+    client.create_table.assert_called_once()
+    passed_table = client.create_table.call_args.args[0]
+    self.assertEqual(passed_table.time_partitioning.type_, "DAY")
+    self.assertEqual(passed_table.clustering_fields, ["language"])
+
+  def test_range_partitioning_from_apitools_with_zero_start(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    # If apitools RangePartitioning model is available, test with it directly
+    if apitools_bigquery is not None and hasattr(apitools_bigquery,
+                                                 "RangePartitioning"):
+      rp = apitools_bigquery.RangePartitioning(
+          field="id",
+          range=apitools_bigquery.RangePartitioning.RangeValue(
+              start=0, end=100, interval=10))
+      gcp_rp = bigquery_compat._to_gcp_range_partitioning(rp)
+      self.assertEqual(gcp_rp.field, "id")
+      self.assertEqual(gcp_rp.range_.start, 0)
+      self.assertEqual(gcp_rp.range_.end, 100)
+      self.assertEqual(gcp_rp.range_.interval, 10)
+
+    # Also test with object having start=0
+    class RangeObj:
+      def __init__(self):
+        self.start = 0
+        self.end = 50
+        self.interval = 5
+
+    class RPObj:
+      def __init__(self):
+        self.field = "num"
+        self.range = RangeObj()
+
+    gcp_rp2 = bigquery_compat._to_gcp_range_partitioning(RPObj())
+    self.assertEqual(gcp_rp2.field, "num")
+    self.assertEqual(gcp_rp2.range_.start, 0)
+    self.assertEqual(gcp_rp2.range_.end, 50)
+    self.assertEqual(gcp_rp2.range_.interval, 5)
+
+  def test_time_partitioning_require_filter_false_and_str(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    # String input
+    table = gcp_bigquery.Table("my-proj.my_ds.my_tbl")
+    table.timePartitioning = "DAY"
+    self.assertEqual(table.time_partitioning.type_, "DAY")
+
+    # requirePartitionFilter = False and expirationMs = 0 explicitly preserved
+    table2 = gcp_bigquery.Table("my-proj.my_ds.my_tbl2")
+    table2.timePartitioning = {
+        "type": "HOUR",
+        "requirePartitionFilter": False,
+        "expirationMs": 0,
+    }
+    self.assertEqual(table2.time_partitioning.type_, "HOUR")
+    self.assertIs(table2.time_partitioning.require_partition_filter, False)
+    self.assertEqual(table2.time_partitioning.expiration_ms, 0)
+
+  def test_client_tables_compat_insert_with_bare_mock(self):
+    if gcp_bigquery is None:
+      raise unittest.SkipTest("google-cloud-bigquery is not installed")
+
+    client = mock.Mock()
+    tables_compat = bigquery_compat._ClientTablesCompat(client)
+
+    # Bare mock where request.table has unconfigured attributes returning Mocks
+    req = mock.Mock()
+    req.table = mock.Mock()
+    req.table.tableReference = mock.Mock()
+    req.table.tableReference.projectId = "my-proj"
+    req.table.tableReference.datasetId = "my-ds"
+    req.table.tableReference.tableId = "my-tbl"
+    req.table.schema = None
+
+    tables_compat.Insert(req)
+    client.create_table.assert_called_once()
+
+
 if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()

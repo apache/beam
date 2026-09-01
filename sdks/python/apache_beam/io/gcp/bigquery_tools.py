@@ -160,9 +160,12 @@ from apache_beam.io.gcp.bigquery_compat import _TableFieldSchemaCompat
 from apache_beam.io.gcp.bigquery_compat import _TableReferenceCompat
 from apache_beam.io.gcp.bigquery_compat import _TableRowCompat
 from apache_beam.io.gcp.bigquery_compat import _TableSchemaCompat
+from apache_beam.io.gcp.bigquery_compat import _to_gcp_clustering_fields
 from apache_beam.io.gcp.bigquery_compat import _to_gcp_dataset_ref
+from apache_beam.io.gcp.bigquery_compat import _to_gcp_range_partitioning
 from apache_beam.io.gcp.bigquery_compat import _to_gcp_schema
 from apache_beam.io.gcp.bigquery_compat import _to_gcp_table_ref
+from apache_beam.io.gcp.bigquery_compat import _to_gcp_time_partitioning
 from apache_beam.io.gcp.bigquery_compat import _to_json_compatible
 from apache_beam.io.gcp.bigquery_compat import _to_table_schema
 
@@ -1267,8 +1270,40 @@ class BigQueryWrapper(object):
       gcp_schema = _to_gcp_schema(schema)
       table = gcp_bigquery.Table(table_ref, schema=gcp_schema)
       if additional_parameters:
-        for k, v in additional_parameters.items():
-          setattr(table, k, v)
+        clean_params = _to_json_compatible(additional_parameters)
+        if isinstance(clean_params, dict):
+          for k, v in clean_params.items():
+            if k in ('timePartitioning', 'time_partitioning'):
+              table.time_partitioning = _to_gcp_time_partitioning(v)
+            elif k in ('rangePartitioning', 'range_partitioning'):
+              table.range_partitioning = _to_gcp_range_partitioning(v)
+            elif k in ('clustering', 'clustering_fields'):
+              table.clustering_fields = _to_gcp_clustering_fields(v)
+            elif k in ('friendlyName', 'friendly_name'):
+              table.friendly_name = v
+            elif k in ('description', ):
+              table.description = v
+            elif k in ('labels', ):
+              table.labels = _extract_dict_labels(v) or {}
+            elif k in ('encryptionConfiguration', 'encryption_configuration'):
+              kms = getattr(v, 'kmsKeyName', None) or getattr(
+                  v, 'kms_key_name', None) or (
+                      v.get('kmsKeyName') or v.get('kms_key_name')
+                      if isinstance(v, dict) else None)
+              if kms:
+                table.encryption_configuration = (
+                    gcp_bigquery.EncryptionConfiguration(kms_key_name=kms))
+            else:
+              try:
+                setattr(table, k, v)
+              except Exception:
+                pass
+        else:
+          for k, v in additional_parameters.items():
+            try:
+              setattr(table, k, v)
+            except Exception:
+              pass
       response = self.client.create_table(table)
       _LOGGER.debug("Created the table with id %s", table_id)
       # The response is a Table instance.

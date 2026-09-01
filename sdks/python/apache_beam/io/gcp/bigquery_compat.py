@@ -503,14 +503,136 @@ def _set_table_ref_prop(ref, prop, val):
     setattr(ref, "_table_id", val)
 
 
+def _extract_field(obj, *field_names):
+  """Extracts the first matching non-None field from a dict or object."""
+  if obj is None:
+    return None
+  for name in field_names:
+    if isinstance(obj, dict):
+      if name in obj and obj[name] is not None:
+        return obj[name]
+    elif hasattr(obj, name):
+      val = getattr(obj, name)
+      if val is not None and not hasattr(val, "_mock_methods"):
+        return val
+  return None
+
+
+class _ClusteringCompat(dict):
+  """Compatibility model for Table clustering.
+
+  Supports dict access, json serialization, and attribute access to fields.
+  Note: Mutations to .fields in-place do not re-sync back to the parent table.
+  """
+  def __init__(self, fields=None):
+    fields_list = list(fields) if fields else []
+    super().__init__(fields=fields_list)
+
+  @property
+  def fields(self):
+    return self.get("fields", [])
+
+  @fields.setter
+  def fields(self, val):
+    self["fields"] = list(val) if val else []
+
+
+def _to_gcp_time_partitioning(tp):
+  """Converts a dict, apitools TimePartitioning, string, or google.cloud.bigquery.TimePartitioning."""
+  if tp is None:
+    return None
+  if hasattr(tp, "_mock_methods") or hasattr(tp, "_mock_children"):
+    return tp
+  if gcp_bigquery is not None and isinstance(
+      tp, getattr(gcp_bigquery, "TimePartitioning", ())):
+    return tp
+  if isinstance(tp, str):
+    if gcp_bigquery is not None and hasattr(gcp_bigquery, "TimePartitioning"):
+      return gcp_bigquery.TimePartitioning(type_=tp)
+    return tp
+
+  tp_field = _extract_field(tp, "field")
+  tp_type = _extract_field(tp, "type", "type_")
+  tp_exp = _extract_field(tp, "expirationMs", "expiration_ms")
+  tp_req = _extract_field(
+      tp, "requirePartitionFilter", "require_partition_filter")
+  try:
+    exp_ms = int(tp_exp) if tp_exp is not None else None
+  except (ValueError, TypeError):
+    exp_ms = None
+  if gcp_bigquery is not None and hasattr(gcp_bigquery, "TimePartitioning"):
+    return gcp_bigquery.TimePartitioning(
+        type_=tp_type,
+        field=tp_field,
+        expiration_ms=exp_ms,
+        require_partition_filter=tp_req)
+  return tp
+
+
+def _to_gcp_range_partitioning(rp):
+  """Converts a dict, apitools RangePartitioning, or google.cloud.bigquery.RangePartitioning."""
+  if rp is None:
+    return None
+  if hasattr(rp, "_mock_methods") or hasattr(rp, "_mock_children"):
+    return rp
+  if gcp_bigquery is not None and isinstance(
+      rp, getattr(gcp_bigquery, "RangePartitioning", ())):
+    return rp
+
+  rp_field = _extract_field(rp, "field")
+  rp_range = _extract_field(rp, "range", "range_")
+  if rp_range is not None and gcp_bigquery is not None and hasattr(
+      gcp_bigquery, "PartitionRange"):
+    if not isinstance(rp_range, getattr(gcp_bigquery, "PartitionRange", ())):
+      start = _extract_field(rp_range, "start")
+      end = _extract_field(rp_range, "end")
+      interval = _extract_field(rp_range, "interval")
+      try:
+        start = int(start) if start is not None else None
+      except (ValueError, TypeError):
+        start = None
+      try:
+        end = int(end) if end is not None else None
+      except (ValueError, TypeError):
+        end = None
+      try:
+        interval = int(interval) if interval is not None else None
+      except (ValueError, TypeError):
+        interval = None
+      rp_range = gcp_bigquery.PartitionRange(
+          start=start, end=end, interval=interval)
+  if gcp_bigquery is not None and hasattr(gcp_bigquery, "RangePartitioning"):
+    return gcp_bigquery.RangePartitioning(field=rp_field, range_=rp_range)
+  return rp
+
+
+def _to_gcp_clustering_fields(clustering):
+  """Extracts clustering field list from list, dict, or apitools Clustering."""
+  if clustering is None:
+    return None
+  if hasattr(clustering, "_mock_methods") or hasattr(clustering,
+                                                     "_mock_children"):
+    return clustering
+  if isinstance(clustering, (list, tuple)):
+    return list(clustering)
+  fields = _extract_field(clustering, "fields")
+  if isinstance(fields, (list, tuple)):
+    return list(fields)
+  return None
+
+
 # -----------------------------------------------------------------------------
 # Compatibility Monkey-Patching for google.cloud.bigquery Classes
 # -----------------------------------------------------------------------------
 
+_PATCHED_GCP_BIGQUERY = False
+
 
 def _patch_gcp_bigquery():
-  if not gcp_bigquery:
+  global _PATCHED_GCP_BIGQUERY
+  if not gcp_bigquery or _PATCHED_GCP_BIGQUERY:
     return
+  _PATCHED_GCP_BIGQUERY = True
 
   if not hasattr(gcp_bigquery.TableReference, "projectId"):
     gcp_bigquery.TableReference.projectId = property(
@@ -541,11 +663,41 @@ def _patch_gcp_bigquery():
     gcp_bigquery.Table.numRows = property(lambda self: self.num_rows)
     gcp_bigquery.Table.numBytes = property(lambda self: self.num_bytes)
     gcp_bigquery.Table.timePartitioning = property(
-        lambda self: self.time_partitioning,
-        lambda self, val: setattr(self, "time_partitioning", val))
+        lambda self: self.time_partitioning, lambda self, val: setattr(
+            self, "time_partitioning", _to_gcp_time_partitioning(val)))
     gcp_bigquery.Table.rangePartitioning = property(
-        lambda self: self.range_partitioning,
-        lambda self, val: setattr(self, "range_partitioning", val))
+        lambda self: self.range_partitioning, lambda self, val: setattr(
+            self, "range_partitioning", _to_gcp_range_partitioning(val)))
+
+  if hasattr(gcp_bigquery.Table, "time_partitioning"):
+    orig_tp_setter = gcp_bigquery.Table.time_partitioning.fset
+    if orig_tp_setter is not None:
+      gcp_bigquery.Table.time_partitioning = property(
+          gcp_bigquery.Table.time_partitioning.fget,
+          lambda self, val: orig_tp_setter(
+              self, _to_gcp_time_partitioning(val)))
+
+  if hasattr(gcp_bigquery.Table, "range_partitioning"):
+    orig_rp_setter = gcp_bigquery.Table.range_partitioning.fset
+    if orig_rp_setter is not None:
+      gcp_bigquery.Table.range_partitioning = property(
+          gcp_bigquery.Table.range_partitioning.fget,
+          lambda self, val: orig_rp_setter(
+              self, _to_gcp_range_partitioning(val)))
+
+  if not hasattr(gcp_bigquery.Table, "clustering"):
+    gcp_bigquery.Table.clustering = property(
+        lambda self: _ClusteringCompat(self.clustering_fields)
+        if self.clustering_fields else None, lambda self, val: setattr(
+            self, "clustering_fields", _to_gcp_clustering_fields(val)))
+
+  if hasattr(gcp_bigquery.Table, "clustering_fields"):
+    orig_cf_setter = gcp_bigquery.Table.clustering_fields.fset
+    if orig_cf_setter is not None:
+      gcp_bigquery.Table.clustering_fields = property(
+          gcp_bigquery.Table.clustering_fields.fget,
+          lambda self, val: orig_cf_setter(
+              self, _to_gcp_clustering_fields(val)))
 
   if hasattr(gcp_bigquery, "TimePartitioning"):
     if not hasattr(gcp_bigquery.TimePartitioning, "type"):
@@ -997,60 +1149,30 @@ class _ClientTablesCompat:
         tbl_id)
     gcp_table = gcp_bigquery.Table(gcp_tbl_ref, schema=_to_gcp_schema(schema))
     if table is not None:
-      tp = getattr(table, "timePartitioning", None) or getattr(
-          table, "time_partitioning", None)
+      tp = _extract_field(table, "timePartitioning", "time_partitioning")
       if tp is not None:
-        if isinstance(tp, gcp_bigquery.TimePartitioning):
-          gcp_table.time_partitioning = tp
-        else:
-          tp_field = getattr(tp, "field", None)
-          tp_type = getattr(tp, "type", None) or getattr(tp, "type_", None)
-          tp_exp = getattr(tp, "expirationMs", None) or getattr(
-              tp, "expiration_ms", None)
-          tp_req = getattr(tp, "requirePartitionFilter", None) or getattr(
-              tp, "require_partition_filter", None)
-          gcp_table.time_partitioning = gcp_bigquery.TimePartitioning(
-              type_=tp_type,
-              field=tp_field,
-              expiration_ms=tp_exp,
-              require_partition_filter=tp_req)
-      rp = getattr(table, "rangePartitioning", None) or getattr(
-          table, "range_partitioning", None)
+        gcp_table.time_partitioning = _to_gcp_time_partitioning(tp)
+      rp = _extract_field(table, "rangePartitioning", "range_partitioning")
       if rp is not None:
-        if isinstance(rp, gcp_bigquery.RangePartitioning):
-          gcp_table.range_partitioning = rp
-        else:
-          rp_field = getattr(rp, "field", None)
-          rp_range = getattr(rp, "range", None) or getattr(rp, "range_", None)
-          if rp_range is not None and hasattr(gcp_bigquery, "PartitionRange"):
-            start = getattr(rp_range, "start", None)
-            end = getattr(rp_range, "end", None)
-            interval = getattr(rp_range, "interval", None)
-            rp_range = gcp_bigquery.PartitionRange(
-                start=start, end=end, interval=interval)
-          gcp_table.range_partitioning = gcp_bigquery.RangePartitioning(
-              field=rp_field, range_=rp_range)
-      clustering = getattr(table, "clustering", None)
+        gcp_table.range_partitioning = _to_gcp_range_partitioning(rp)
+      clustering = _extract_field(table, "clustering", "clustering_fields")
       if clustering is not None:
-        fields = getattr(clustering, "fields", clustering)
-        if isinstance(fields, (list, tuple)):
-          gcp_table.clustering_fields = list(fields)
-      if getattr(table, "description", None):
-        gcp_table.description = table.description
-      if getattr(table, "friendlyName", None) or getattr(
-          table, "friendly_name", None):
-        gcp_table.friendly_name = getattr(table, "friendlyName",
-                                          None) or getattr(
-                                              table, "friendly_name", None)
+        cl_fields = _to_gcp_clustering_fields(clustering)
+        if cl_fields:
+          gcp_table.clustering_fields = cl_fields
+      desc = _extract_field(table, "description")
+      if desc is not None:
+        gcp_table.description = desc
+      fname = _extract_field(table, "friendlyName", "friendly_name")
+      if fname is not None:
+        gcp_table.friendly_name = fname
       dict_labels = _extract_dict_labels(getattr(table, "labels", None))
       if dict_labels:
         gcp_table.labels = dict_labels
-      kms = getattr(
-          getattr(table, "encryptionConfiguration", None), "kmsKeyName",
-          None) or getattr(
-              getattr(table, "encryption_configuration", None),
-              "kms_key_name",
-              None)
+      enc = _extract_field(
+          table, "encryptionConfiguration", "encryption_configuration")
+      kms = _extract_field(
+          enc, "kmsKeyName", "kms_key_name") if enc is not None else None
       if kms:
         gcp_table.encryption_configuration = (
             gcp_bigquery.EncryptionConfiguration(kms_key_name=kms))
