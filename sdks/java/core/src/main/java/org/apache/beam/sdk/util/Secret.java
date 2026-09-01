@@ -17,30 +17,75 @@
  */
 package org.apache.beam.sdk.util;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * A secret management interface used for handling sensitive data.
+ * A secret management class used for handling sensitive data.
  *
- * <p>This interface provides a generic way to handle secrets. Implementations of this interface
- * should handle fetching secrets from a secret management system. The underlying secret management
- * system should be able to return a valid byte array representing the secret.
+ * <p>This class provides a generic way to handle secrets. Implementations of this class should
+ * handle fetching secrets from a secret management system. The underlying secret management system
+ * should be able to return a valid byte array representing the secret.
  */
-public interface Secret extends Serializable {
+public abstract class Secret implements Serializable {
+  private transient byte @Nullable [] cachedSecretBytes = null;
+
   /**
    * Returns the secret as a byte array.
    *
    * @return The secret as a byte array.
    */
-  byte[] getSecretBytes();
+  public abstract byte[] getSecretBytes();
 
-  static Secret parseSecretOption(String secretOption) {
+  /** Returns the secret as a byte array, optionally caching the result in memory. */
+  public synchronized byte[] getBytes(boolean cacheSecret) {
+    byte[] localCached = cachedSecretBytes;
+    if (cacheSecret && localCached != null) {
+      return localCached;
+    }
+    byte[] secretBytes = getSecretBytes();
+    if (cacheSecret) {
+      this.cachedSecretBytes = secretBytes;
+    }
+    return secretBytes;
+  }
+
+  /** Returns the secret as a byte array without caching. */
+  public byte[] getBytes() {
+    return getBytes(false);
+  }
+
+  /** Returns secret value as UTF-8 string, optionally caching the result in memory. */
+  public @Nullable String getString(boolean cacheSecret) {
+    byte[] secretBytes = getBytes(cacheSecret);
+    return secretBytes == null ? null : new String(secretBytes, StandardCharsets.UTF_8);
+  }
+
+  /** Returns secret value as UTF-8 string without caching. */
+  public @Nullable String getString() {
+    return getString(false);
+  }
+
+  /**
+   * Parses a secret string and returns the appropriate secret type.
+   *
+   * <p>The secret string should be formatted like:
+   * 'type:&lt;secret_type&gt;;&lt;secret_param&gt;:&lt;value&gt;'
+   *
+   * <p>For example, 'type:GcpSecret;version_name:my_secret/versions/latest' would return a
+   * GcpSecret initialized with 'my_secret/versions/latest'.
+   */
+  public static Secret parseSecretOption(String secretOption) {
+    if (secretOption == null) {
+      throw new IllegalArgumentException("Secret option string cannot be null");
+    }
     Map<String, String> paramMap = new HashMap<>();
     for (String param : secretOption.split(";", -1)) {
       String[] parts = param.split(":", 2);
@@ -50,69 +95,108 @@ public interface Secret extends Serializable {
     }
 
     if (!paramMap.containsKey("type")) {
-      throw new RuntimeException("Secret string must contain a valid type parameter");
+      throw new IllegalArgumentException("Secret string must contain a valid type parameter");
     }
 
-    String secretType = paramMap.get("type");
-    paramMap.remove("type");
-
-    if (secretType == null) {
-      throw new RuntimeException("Secret string must contain a valid value for type parameter");
+    String rawType = paramMap.remove("type");
+    if (rawType == null || rawType.isEmpty()) {
+      throw new IllegalArgumentException("Secret string must contain a valid type parameter");
     }
 
-    switch (secretType.toLowerCase()) {
+    String secretType = rawType.toLowerCase();
+    String secretManager;
+    switch (secretType) {
       case "gcpsecret":
-        Set<String> gcpSecretParams = new HashSet<>(Arrays.asList("version_name"));
-        for (String paramName : paramMap.keySet()) {
-          if (!gcpSecretParams.contains(paramName)) {
-            throw new RuntimeException(
-                String.format(
-                    "Invalid secret parameter %s, GcpSecret only supports the following parameters: %s",
-                    paramName, gcpSecretParams));
-          }
-        }
-        String versionName =
-            Preconditions.checkNotNull(
-                paramMap.get("version_name"),
-                "version_name must contain a valid value for versionName parameter");
-        return new GcpSecret(versionName);
+        secretManager = "GoogleCloudSecretManager";
+        break;
       case "gcphsmgeneratedsecret":
-        Set<String> gcpHsmGeneratedSecretParams =
-            new HashSet<>(
-                Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
-        for (String paramName : paramMap.keySet()) {
-          if (!gcpHsmGeneratedSecretParams.contains(paramName)) {
-            throw new RuntimeException(
-                String.format(
-                    "Invalid secret parameter %s, GcpHsmGeneratedSecret only supports the following parameters: %s",
-                    paramName, gcpHsmGeneratedSecretParams));
-          }
-        }
-        String projectId =
-            Preconditions.checkNotNull(
-                paramMap.get("project_id"),
-                "project_id must contain a valid value for projectId parameter");
-        String locationId =
-            Preconditions.checkNotNull(
-                paramMap.get("location_id"),
-                "location_id must contain a valid value for locationId parameter");
-        String keyRingId =
-            Preconditions.checkNotNull(
-                paramMap.get("key_ring_id"),
-                "key_ring_id must contain a valid value for keyRingId parameter");
-        String keyId =
-            Preconditions.checkNotNull(
-                paramMap.get("key_id"), "key_id must contain a valid value for keyId parameter");
-        String jobName =
-            Preconditions.checkNotNull(
-                paramMap.get("job_name"),
-                "job_name must contain a valid value for jobName parameter");
-        return new GcpHsmGeneratedSecret(projectId, locationId, keyRingId, keyId, jobName);
+        secretManager = "GoogleCloudHsmGeneratedSecretManager";
+        break;
       default:
-        throw new RuntimeException(
+        throw new IllegalArgumentException(
             String.format(
                 "Invalid secret type %s, currently only GcpSecret and GcpHsmGeneratedSecret are supported",
                 secretType));
     }
+
+    try {
+      ObjectMapper mapper = new ObjectMapper();
+      String jsonSpec = mapper.writeValueAsString(paramMap);
+      return fromJson(jsonSpec, secretManager);
+    } catch (Exception e) {
+      if (e instanceof IllegalArgumentException) {
+        throw (IllegalArgumentException) e;
+      }
+      throw new RuntimeException("Failed to parse secret option", e);
+    }
+  }
+
+  /**
+   * Return a Secret instance based on secret_manager provider and secret specification JSON string.
+   *
+   * @param spec Secret string (raw secret or JSON specification string).
+   * @param secretManager Secret manager string (e.g. 'GoogleCloudSecretManager').
+   * @return An instance of Secret.
+   */
+  public static Secret fromJson(@Nullable String spec, @Nullable String secretManager) {
+    Logger logger = LoggerFactory.getLogger(Secret.class);
+    String smManager = secretManager != null ? secretManager.trim() : null;
+    if (smManager != null && smManager.isEmpty()) {
+      smManager = null;
+    }
+
+    Map<String, String> specMap = null;
+    if (spec != null && !spec.isEmpty()) {
+      try {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.configure(com.fasterxml.jackson.core.JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        specMap = mapper.readValue(spec, new TypeReference<Map<String, String>>() {});
+      } catch (Exception e) {
+        logger.debug("Failed to parse secret spec as JSON map", e);
+      }
+    }
+
+    if (smManager != null) {
+      switch (smManager.toLowerCase()) {
+        case "googlecloudsecretmanager":
+        case "gcpsecret":
+          if (specMap != null) {
+            return GcpSecret.fromMap(specMap);
+          } else if (spec != null) {
+            return new GcpSecret(spec);
+          } else {
+            throw new IllegalArgumentException("Invalid spec for GcpSecret");
+          }
+        case "googlecloudhsmgeneratedsecretmanager":
+        case "gcphsmgeneratedsecret":
+          if (specMap != null) {
+            return GcpHsmGeneratedSecret.fromMap(specMap);
+          } else {
+            throw new IllegalArgumentException("Invalid spec for GcpHsmGeneratedSecret");
+          }
+        default:
+          throw new IllegalArgumentException(
+              String.format(
+                  "Unsupported secret manager: '%s'. Currently supported options: 'GoogleCloudSecretManager', 'GoogleCloudHsmGeneratedSecretManager'.",
+                  smManager));
+      }
+    }
+
+    if (specMap != null) {
+      logger.warn(
+          "The 'spec' parameter appears to be a JSON specification, but 'secret_manager' is not set. Defaulting to Raw.");
+    }
+
+    return new RawSecret(spec != null ? spec : "");
+  }
+
+  /**
+   * Return a Secret instance with default raw secret handling.
+   *
+   * @param spec Secret string (raw secret or JSON specification string).
+   * @return An instance of Secret.
+   */
+  public static Secret fromJson(@Nullable String spec) {
+    return fromJson(spec, null);
   }
 }

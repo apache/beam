@@ -1171,8 +1171,8 @@ public class HadoopFormatIO {
 
     private final transient @Nullable Configuration configuration;
 
-    private final @Nullable PTransform<
-            PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
+    private final @Nullable
+        PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
         configTransform;
 
     private final ExternalSynchronization externalSynchronization;
@@ -1183,7 +1183,7 @@ public class HadoopFormatIO {
         @Nullable Configuration configuration,
         @Nullable
             PTransform<PCollection<? extends KV<KeyT, ValueT>>, PCollectionView<Configuration>>
-                configTransform,
+            configTransform,
         ExternalSynchronization externalSynchronization,
         boolean withPartitioning) {
       this.configuration = configuration;

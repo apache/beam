@@ -197,6 +197,7 @@ public class SimpleMonitoringInfoBuilder {
   public void clear() {
     this.builder = MonitoringInfo.newBuilder();
   }
+
   /** Clear the builder and merge from the provided monitoringInfo. */
   public void merge(MonitoringInfo monitoringInfo) {
     this.builder.mergeFrom(monitoringInfo);

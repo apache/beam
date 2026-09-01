@@ -208,16 +208,16 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
     @Override
     public void finishKey(@Nullable Object key) throws IOException {
       if (context.multiKeyBundleEnabled()) {
-        flush(/*bundleLevel=*/ false);
+        flush(/* bundleLevel= */ false);
       }
     }
 
     @Override
     public void close() throws IOException {
       if (context.multiKeyBundleEnabled()) {
-        flush(/*bundleLevel=*/ true);
+        flush(/* bundleLevel= */ true);
       } else {
-        flush(/*bundleLevel=*/ false);
+        flush(/* bundleLevel= */ false);
       }
     }
 

@@ -55,6 +55,7 @@ import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWor
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
 import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
@@ -142,6 +143,7 @@ public class StreamingModeExecutionContext
   private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
 
   private final WindmillTagEncoding windmillTagEncoding;
+
   /**
    * The current user-facing key for this execution context.
    *
@@ -193,7 +195,6 @@ public class StreamingModeExecutionContext
   private @Nullable KeyTransitionListener keyTransitionListener;
   private @Nullable FailedWorkHandler onFailedWorkHandler;
 
-  private List<Work> executedWorks = Collections.emptyList();
   private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
   private List<Windmill.OutputMessageBundle> bundleOutputMessages = Collections.emptyList();
   private List<Windmill.PubSubMessageBundle> bundlePubsubMessages = Collections.emptyList();
@@ -321,7 +322,6 @@ public class StreamingModeExecutionContext
   public void reset() {
     // these lists and maps are returned to callers after processing
     // don't clear and reuse, instead reset the reference.
-    this.executedWorks = Collections.emptyList();
     this.outputBuilders = Collections.emptyList();
     this.bundleOutputMessages = Collections.emptyList();
     this.bundlePubsubMessages = Collections.emptyList();
@@ -357,7 +357,6 @@ public class StreamingModeExecutionContext
       FailedWorkHandler onFailedWorkHandler)
       throws CoderException {
     reset();
-    this.executedWorks = new ArrayList<>();
     this.outputBuilders = new ArrayList<>();
     this.bundleOutputMessages = new ArrayList<>();
     this.bundlePubsubMessages = new ArrayList<>();
@@ -584,11 +583,13 @@ public class StreamingModeExecutionContext
 
   /** Invalidate the state and reader caches for this computation and key. */
   public void invalidateCache() {
-    for (Work w : executedWorks) {
-      WindmillComputationKey compKey =
-          WindmillComputationKey.create(computationId, w.getShardedKey());
-      readerCache.invalidateReader(compKey);
-      stateCache.invalidate(w.getShardedKey());
+    if (budgetHandle != null) {
+      for (Work w : budgetHandle.getWorkBatch()) {
+        WindmillComputationKey compKey =
+            WindmillComputationKey.create(computationId, w.getShardedKey());
+        readerCache.invalidateReader(compKey);
+        stateCache.invalidate(w.getShardedKey());
+      }
     }
     if (activeReader != null) {
       try {
@@ -724,6 +725,23 @@ public class StreamingModeExecutionContext
       return;
     }
 
+    // If this is a multi-key work item, then we need to retry all of the individual work items
+    // without merging so that we can identify large commits to truncate.
+    // TODO: Can we request truncation without retrying if the first commit exceed the limits?
+    BoundedQueueExecutorWorkHandle handle = checkNotNull(budgetHandle);
+    List<Work> currentBatch = handle.getWorkBatch();
+    checkState(!currentBatch.isEmpty());
+    if (currentBatch.size() > 1) {
+      LOG.warn(
+          "Windmill Commit limit exceeded on a multi key bundle. Retrying without batching. Batch size: {}",
+          currentBatch.size());
+      for (Work w : currentBatch) {
+        w.setMultiKeyBatchingDisabled(true);
+      }
+      throw new MultiKeyCommitValidationException(
+          "Commit size validation failed for batch. Retrying individually.");
+    }
+
     KeyCommitTooLargeException e =
         KeyCommitTooLargeException.causedBy(
             systemName, byteLimit, commitRequest, key, hotKeyLoggingEnabled);
@@ -737,11 +755,6 @@ public class StreamingModeExecutionContext
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
     currentBuilder.clear();
     currentBuilder.mergeFrom(truncationBuilder.build());
-
-    // TODO: throw and retry when truncation is not on a single key bundle.
-    checkState(
-        !multiKeyBundleOptions.multiKeyBundleEnabled(),
-        "Commit truncation not implemented for multikey bundles");
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
@@ -780,12 +793,13 @@ public class StreamingModeExecutionContext
       throw new WorkItemCancelledException(activeWork.getWorkItem().getShardingKey());
     }
 
-    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
+    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT)
+        || activeWork.isMultiKeyBatchingDisabled()
+        || shouldStopBatching()) {
       return false;
     }
 
-    @Nullable
-    ExecutableWork additionalWork =
+    @Nullable ExecutableWork additionalWork =
         executor.pollWork(
             computationId,
             activeWork.getKeyGroup(),
@@ -803,7 +817,6 @@ public class StreamingModeExecutionContext
   }
 
   private boolean shouldStopBatching() {
-    // TODO: stop batching if the previous work item requested truncation
     if (workItemsPolled >= multiKeyBundleOptions.maxKeyGroupBatchSize()) {
       return true;
     }
@@ -827,7 +840,6 @@ public class StreamingModeExecutionContext
     this.outputBuilder = createOutputBuilder(newWork);
     this.outputBuilders.add(this.outputBuilder);
     newWork.setOnFailureListener(this.workBatchFailed);
-    this.executedWorks.add(newWork);
 
     logHotKeyIfDetected(newWork, this.key);
 
@@ -888,11 +900,6 @@ public class StreamingModeExecutionContext
     return multiKeyBundleOptions.multiKeyBundleEnabled();
   }
 
-  // Returns list of Work that was executed in the bundle
-  public List<Work> getExecutedWorks() {
-    return executedWorks;
-  }
-
   // Returns finalization callbacks recorded during the bundle execution
   public Map<Long, Pair<Instant, Runnable>> getFinalizationCallbacks() {
     return finalizationCallbacks;
@@ -931,8 +938,7 @@ public class StreamingModeExecutionContext
     return getWork().getWorkItem();
   }
 
-  @Nullable
-  String getStateFamily(NameContext nameContext) {
+  @Nullable String getStateFamily(NameContext nameContext) {
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 
@@ -1350,8 +1356,7 @@ public class StreamingModeExecutionContext
     }
 
     private boolean isTimerUnmodified(TimerData timerData) {
-      @Nullable
-      TimerData updatedTimer =
+      @Nullable TimerData updatedTimer =
           modifiedUserTimerKeys.get(
               WindmillTimerInternals.getTimerDataKey(timerData), timerData.getNamespace());
       return updatedTimer == null || updatedTimer.equals(timerData);

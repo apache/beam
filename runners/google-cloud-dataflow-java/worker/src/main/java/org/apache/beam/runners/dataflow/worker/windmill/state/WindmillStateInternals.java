@@ -44,6 +44,7 @@ public class WindmillStateInternals<K> implements StateInternals {
   @VisibleForTesting
   static final ThreadLocal<Supplier<Boolean>> COMPACT_NOW =
       ThreadLocal.withInitial(ShouldCompactNowFn::new);
+
   /**
    * The key will be null when not in a keyed context, from the users perspective. There is still a
    * "key" for the Windmill computation, but it cannot be meaningfully deserialized.

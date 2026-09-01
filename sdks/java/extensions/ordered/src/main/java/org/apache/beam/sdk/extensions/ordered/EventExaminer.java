@@ -48,8 +48,7 @@ public interface EventExaminer<EventT, StateT extends MutableState<EventT, ?>>
    * @param event the first event in the sequence.
    * @return the state to persist.
    */
-  @NonNull
-  StateT createStateOnInitialEvent(EventT event);
+  @NonNull StateT createStateOnInitialEvent(EventT event);
 
   /**
    * Is this event the last expected event for a given key and window?
