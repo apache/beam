@@ -268,6 +268,11 @@ def parse_known_args(argv):
           'and publishes them to Pub/Sub. This delay allows the main streaming '
           'pipeline workers to start and scale before data ingestion begins.'),
   )
+  parser.add_argument(
+      '--timeout_ms',
+      type=int,
+      default=1800000,
+      help='Maximum pipeline runtime before cleanup, in milliseconds.')
 
   # Model & inference
   parser.add_argument(
@@ -496,7 +501,7 @@ def run(
 
   result = pipeline.run()
   try:
-    result.wait_until_finish(duration=1800000)  # 30 min
+    result.wait_until_finish(duration=known_args.timeout_ms)
   finally:
     try:
       result.cancel()
