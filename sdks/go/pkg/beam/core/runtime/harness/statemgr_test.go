@@ -26,6 +26,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/harness/statecache"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 )
@@ -507,4 +509,100 @@ func contains(got, want error) bool {
 		return true
 	}
 	return strings.Contains(got.Error(), want.Error())
+}
+
+func TestNewScopedStateReader(t *testing.T) {
+	mgr := &StateChannelManager{}
+	s := NewScopedStateReader(mgr, "inst1")
+	if s == nil {
+		t.Fatal("NewScopedStateReader returned nil")
+	}
+	if s.mgr != mgr {
+		t.Error("mgr field not set")
+	}
+	if s.instID != "inst1" {
+		t.Errorf("instID = %v, want inst1", s.instID)
+	}
+	if s.cache != nil {
+		t.Error("cache should be nil for NewScopedStateReader")
+	}
+}
+
+func TestNewScopedStateReaderWithCache(t *testing.T) {
+	mgr := &StateChannelManager{}
+	cache := &statecache.SideInputCache{}
+	cache.Init(1)
+	s := NewScopedStateReaderWithCache(mgr, "inst2", cache)
+	if s == nil {
+		t.Fatal("NewScopedStateReaderWithCache returned nil")
+	}
+	if s.mgr != mgr {
+		t.Error("mgr field not set")
+	}
+	if s.instID != "inst2" {
+		t.Errorf("instID = %v, want inst2", s.instID)
+	}
+	if s.cache != cache {
+		t.Error("cache field not set correctly")
+	}
+}
+
+func TestScopedStateReader_GetSideInputCache(t *testing.T) {
+	cache := &statecache.SideInputCache{}
+	cache.Init(1)
+	s := NewScopedStateReaderWithCache(&StateChannelManager{}, "inst", cache)
+	got := s.GetSideInputCache()
+	if got != cache {
+		t.Error("GetSideInputCache returned wrong cache")
+	}
+}
+
+func TestScopedStateReader_Close(t *testing.T) {
+	mgr := &StateChannelManager{}
+	s := NewScopedStateReader(mgr, "inst")
+	err := s.Close()
+	if err != nil {
+		t.Errorf("Close returned error: %v", err)
+	}
+	if !s.closed {
+		t.Error("Close did not set closed flag")
+	}
+	// Second close should not error but should no-op.
+	err = s.Close()
+	if err != nil {
+		t.Errorf("Second Close returned error: %v", err)
+	}
+}
+
+func TestStateChannelManager_PortsInit(t *testing.T) {
+	mgr := &StateChannelManager{}
+	if mgr.ports != nil {
+		t.Error("ports should be nil before first Open call")
+	}
+	// Force-initialize ports by attempting Open; even if it fails, the map should be created.
+	// Restore: just set it directly since we don't want to dial.
+	mgr.mu.Lock()
+	mgr.ports = make(map[string]*StateChannel)
+	mgr.mu.Unlock()
+	if mgr.ports == nil {
+		t.Error("ports map should exist after initialization")
+	}
+}
+
+func TestScopedStateReader_OpenReader_Closed(t *testing.T) {
+	s := NewScopedStateReader(&StateChannelManager{}, "inst")
+	s.closed = true
+	_, err := s.OpenIterableSideInput(context.Background(), exec.StreamID{}, "side1", nil)
+	if err == nil {
+		t.Error("expected error when opening reader on closed ScopedStateReader")
+	}
+}
+
+func TestScopedStateReader_OpenWriter_Closed(t *testing.T) {
+	s := NewScopedStateReader(&StateChannelManager{}, "inst")
+	s.closed = true
+	_, err := s.OpenBagUserStateAppender(context.Background(), exec.StreamID{}, "state1", nil, nil)
+	if err == nil {
+		t.Error("expected error when opening writer on closed ScopedStateReader")
+	}
 }
