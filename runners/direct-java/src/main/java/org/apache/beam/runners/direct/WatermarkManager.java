@@ -1727,6 +1727,7 @@ class WatermarkManager<ExecutableT, CollectionT> {
   public static class FiredTimers<ExecutableT> {
     /** The executable the timers were set at and will be delivered to. */
     private final ExecutableT executable;
+
     /** The key the timers were set for and will be delivered to. */
     private final StructuralKey<?> key;
 

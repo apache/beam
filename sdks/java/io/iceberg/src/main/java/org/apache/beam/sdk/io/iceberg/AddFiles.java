@@ -716,8 +716,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       // Forces name-based resolution: zero-copy files typically don't carry
       // field ids, so any schema column missing from the mapping is unreadable
       // in registered files.
-      @Nullable
-      NameMapping existing =
+      @Nullable NameMapping existing =
           NameMappingUtils.parseOrNull(
               table.properties().get(TableProperties.DEFAULT_NAME_MAPPING));
       if (existing != null && NameMappingUtils.covers(existing, table.schema().asStruct())) {

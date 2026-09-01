@@ -193,8 +193,7 @@ public class SerializableTableSpecTest {
     Table table = catalog.createTable(tableId, TestFixtures.SCHEMA);
 
     SerializableTableSpec spec =
-        SerializableTableSpec.fromTable(tableId, table)
-            .toBuilder()
+        SerializableTableSpec.fromTable(tableId, table).toBuilder()
             .setProperties(Collections.emptyMap())
             .build();
 

@@ -321,7 +321,8 @@ public class GroupIntoBatches<K, InputT>
     public long getElementByteSize() {
       return this.elementByteSize;
     }
-  };
+  }
+  ;
 
   @Override
   public PCollection<KV<K, Iterable<InputT>>> expand(PCollection<KV<K, InputT>> input) {
