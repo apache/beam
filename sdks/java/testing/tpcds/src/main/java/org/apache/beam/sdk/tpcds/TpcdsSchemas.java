@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.tpcds;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
+@SuppressFBWarnings(
+    value = "MS_EXPOSE_REP",
+    justification =
+        "Fixed TPC-DS table definitions, built once at class load."
+            + " Schema is mutable only through setUUID, which no caller here uses, and copying twenty-four schemas on every accessor call would cost real time in a benchmark harness.")
 public class TpcdsSchemas {
   /**
    * Get all tpcds table schemas automatically by reading json files. In this case all field will be
