@@ -177,6 +177,21 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
+  def test_parse_table_reference_without_regex_package(self):
+    with mock.patch.object(bigquery_tools, 'regex', None):
+      parsed_ref = parse_table_reference('my-project:my_dataset.my_table')
+      self.assertEqual(parsed_ref.projectId, 'my-project')
+      self.assertEqual(parsed_ref.datasetId, 'my_dataset')
+      self.assertEqual(parsed_ref.tableId, 'my_table')
+
+      parsed_ref2 = parse_table_reference('my_dataset.my_table$20250101')
+      self.assertIsNone(parsed_ref2.projectId)
+      self.assertEqual(parsed_ref2.datasetId, 'my_dataset')
+      self.assertEqual(parsed_ref2.tableId, 'my_table$20250101')
+
+      with self.assertRaises(ValueError):
+        parse_table_reference('invalid_table_ref')
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestBigQueryWrapper(unittest.TestCase):

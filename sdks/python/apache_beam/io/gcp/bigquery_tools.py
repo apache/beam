@@ -77,6 +77,10 @@ from apache_beam.utils.histogram import LinearBucket
 # Protect against environments where bigquery library is not available.
 try:
   import regex
+except ImportError:
+  regex = None
+
+try:
   from apitools.base.py import extra_types
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
@@ -180,7 +184,10 @@ BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 
 _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
 _DATASET_PATTERN = r'\w{1,1024}'
-_TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
+_TABLE_PATTERN_REGEX = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
+_TABLE_PATTERN_RE = r'[\w\s\-$]{1,1024}'
+_TABLE_PATTERN = (
+    _TABLE_PATTERN_REGEX if regex is not None else _TABLE_PATTERN_RE)
 
 # TODO(https://github.com/apache/beam/issues/25946): Add support for
 # more Beam portable schema types as Python types
@@ -363,10 +370,14 @@ def parse_table_reference(table, dataset=None, project=None):
   # table argument will contain a full table reference instead of just a
   # table name.
   if dataset is None:
+    table_pattern = (
+        _TABLE_PATTERN_REGEX if regex is not None else _TABLE_PATTERN_RE)
     pattern = (
         f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
-        f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
-    match = regex.fullmatch(pattern, table)
+        f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{table_pattern})')
+    match = (
+        regex.fullmatch(pattern, table) if regex is not None else re.fullmatch(
+            pattern, table))
     if not match:
       raise ValueError(
           'Expected a table reference (PROJECT:DATASET.TABLE or '
@@ -1255,7 +1266,11 @@ class BigQueryWrapper(object):
       schema,
       additional_parameters=None):
 
-    valid_tablename = regex.fullmatch(_TABLE_PATTERN, table_id, regex.ASCII)
+    if regex is not None:
+      valid_tablename = regex.fullmatch(
+          _TABLE_PATTERN_REGEX, table_id, regex.ASCII)
+    else:
+      valid_tablename = re.fullmatch(_TABLE_PATTERN_RE, table_id, re.ASCII)
     if not valid_tablename:
       raise ValueError(
           'Invalid BigQuery table name: %s \n'
