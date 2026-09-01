@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
+import org.apache.beam.sdk.io.solace.write.SolaceWriteSessionsHandler;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.broker.SessionService;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -132,7 +133,7 @@ public abstract class UnboundedSolaceWriter
         currentBundleProducerIndex, sessionServiceFactory, writerTransformUuid);
   }
 
-  public void publishResults(BeamContextWrapper context) {
+    public void publishResults(BeamContextWrapper context) {
     long sumPublish = 0;
     long countPublish = 0;
     long minPublish = Long.MAX_VALUE;
@@ -143,57 +144,64 @@ public abstract class UnboundedSolaceWriter
     long minFailed = Long.MAX_VALUE;
     long maxFailed = 0;
 
-    Queue<PublishResult> publishResultsQueue =
-        solaceSessionServiceWithProducer().getPublishedResultsQueue();
-    Solace.PublishResult result = publishResultsQueue.poll();
+    // Drain the publish-results queue of every producer, not just the current
+    // bundle's producer. Previously only the current producer's queue was polled,
+    // so results published by other producers were silently dropped (fixes #39588).
+    for (int producerIndex = 0; producerIndex < producersMapCardinality; producerIndex++) {
+      SessionService producerSession =
+          SolaceWriteSessionsHandler.getSessionServiceWithProducer(
+              producerIndex, sessionServiceFactory, writerTransformUuid);
+      Queue<PublishResult> publishResultsQueue = producerSession.getPublishedResultsQueue();
+      Solace.PublishResult result = publishResultsQueue.poll();
 
-    if (result != null) {
-      if (getCurrentBundleTimestamp() == null) {
-        setCurrentBundleTimestamp(Instant.now());
-      }
-    }
-
-    while (result != null) {
-      Long latency = result.getLatencyNanos();
-
-      if (latency == null && shouldPublishLatencyMetrics()) {
-        LOG.error(
-            "SolaceIO.Write: Latency is null but user asked for latency metrics."
-                + " This may be a bug.");
+      if (result != null) {
+        if (getCurrentBundleTimestamp() == null) {
+          setCurrentBundleTimestamp(Instant.now());
+        }
       }
 
-      if (latency != null) {
+      while (result != null) {
+        Long latency = result.getLatencyNanos();
+
+        if (latency == null && shouldPublishLatencyMetrics()) {
+          LOG.error(
+              "SolaceIO.Write: Latency is null but user asked for latency metrics."
+                  + " This may be a bug.");
+        }
+
+        if (latency != null) {
+          if (result.getPublished()) {
+            sumPublish += latency;
+            countPublish++;
+            minPublish = Math.min(minPublish, latency);
+            maxPublish = Math.max(maxPublish, latency);
+          } else {
+            sumFailed += latency;
+            countFailed++;
+            minFailed = Math.min(minFailed, latency);
+            maxFailed = Math.max(maxFailed, latency);
+          }
+        }
         if (result.getPublished()) {
-          sumPublish += latency;
-          countPublish++;
-          minPublish = Math.min(minPublish, latency);
-          maxPublish = Math.max(maxPublish, latency);
+          context.output(
+              SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
         } else {
-          sumFailed += latency;
-          countFailed++;
-          minFailed = Math.min(minFailed, latency);
-          maxFailed = Math.max(maxFailed, latency);
+          try {
+            BadRecord b =
+                BadRecord.fromExceptionInformation(
+                    result,
+                    null,
+                    null,
+                    Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown error."));
+            context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
+          } catch (IOException e) {
+            // ignore, the exception is thrown when the exception argument in the
+            // `BadRecord.fromExceptionInformation` is not null.
+          }
         }
-      }
-      if (result.getPublished()) {
-        context.output(
-            SUCCESSFUL_PUBLISH_TAG, result, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
-      } else {
-        try {
-          BadRecord b =
-              BadRecord.fromExceptionInformation(
-                  result,
-                  null,
-                  null,
-                  Optional.ofNullable(result.getError()).orElse("SolaceIO.Write: unknown error."));
-          context.output(FAILED_PUBLISH_TAG, b, getCurrentBundleTimestamp(), GlobalWindow.INSTANCE);
-        } catch (IOException e) {
-          // ignore, the exception is thrown when the exception argument in the
-          // `BadRecord.fromExceptionInformation` is not null.
-        }
-      }
 
-      result = publishResultsQueue.poll();
+        result = publishResultsQueue.poll();
+      }
     }
 
     if (shouldPublishLatencyMetrics()) {
