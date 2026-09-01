@@ -86,6 +86,7 @@ public interface StreamingInsertsMetrics {
     abstract ConcurrentLinkedQueue<java.time.Duration> rpcLatencies();
 
     abstract ConcurrentLinkedQueue<String> rpcErrorStatus();
+
     // Represents <Rpc Status, Number of Rows> for rows that are retried because of a failed
     // InsertAll RPC.
     abstract ConcurrentLinkedQueue<KV<String, Integer>> retriedRowsByStatus();

@@ -30,6 +30,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -146,9 +147,9 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testKafkaErrorFnSuccess() throws Exception {
     List<KV<byte[], byte[]>> msg =
         Arrays.asList(
-            KV.of(new byte[1], "{\"name\":\"a\"}".getBytes(UTF_8)),
-            KV.of(new byte[1], "{\"name\":\"b\"}".getBytes(UTF_8)),
-            KV.of(new byte[1], "{\"name\":\"c\"}".getBytes(UTF_8)));
+            KV.of(null, "{\"name\":\"a\"}".getBytes(UTF_8)),
+            KV.of(null, "{\"name\":\"b\"}".getBytes(UTF_8)),
+            KV.of(null, "{\"name\":\"c\"}".getBytes(UTF_8)));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
@@ -159,6 +160,9 @@ public class KafkaWriteSchemaTransformProviderTest {
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(OUTPUT_TAG)
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()));
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -168,9 +172,9 @@ public class KafkaWriteSchemaTransformProviderTest {
   public void testKafkaErrorFnRawSuccess() throws Exception {
     List<KV<byte[], byte[]>> msg =
         Arrays.asList(
-            KV.of(new byte[1], "a".getBytes(UTF_8)),
-            KV.of(new byte[1], "b".getBytes(UTF_8)),
-            KV.of(new byte[1], "c".getBytes(UTF_8)));
+            KV.of(null, "a".getBytes(UTF_8)),
+            KV.of(null, "b".getBytes(UTF_8)),
+            KV.of(null, "c".getBytes(UTF_8)));
 
     PCollection<Row> input = p.apply(Create.of(RAW_ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAM_RAW_SCHEMA);
@@ -182,6 +186,9 @@ public class KafkaWriteSchemaTransformProviderTest {
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(OUTPUT_TAG)
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()));
 
     PAssert.that(output.get(OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
@@ -199,6 +206,9 @@ public class KafkaWriteSchemaTransformProviderTest {
                 .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
     output.get(ERROR_TAG).setRowSchema(errorSchema);
+    output
+        .get(OUTPUT_TAG)
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()));
     p.run().waitUntilFinish();
   }
 
@@ -223,8 +233,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     record3.put("name", "c");
 
     List<KV<byte[], GenericRecord>> msg =
-        Arrays.asList(
-            KV.of(new byte[1], record1), KV.of(new byte[1], record2), KV.of(new byte[1], record3));
+        Arrays.asList(KV.of(null, record1), KV.of(null, record2), KV.of(null, record3));
 
     PCollection<Row> input = p.apply(Create.of(ROWS));
     Schema errorSchema = ErrorHandling.errorSchema(BEAMSCHEMA);
@@ -238,7 +247,7 @@ public class KafkaWriteSchemaTransformProviderTest {
     output.get(ERROR_TAG).setRowSchema(errorSchema);
     output
         .get(RECORD_OUTPUT_TAG)
-        .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)));
+        .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), AvroCoder.of(avroSchema)));
     PAssert.that(output.get(RECORD_OUTPUT_TAG)).containsInAnyOrder(msg);
     p.run().waitUntilFinish();
   }

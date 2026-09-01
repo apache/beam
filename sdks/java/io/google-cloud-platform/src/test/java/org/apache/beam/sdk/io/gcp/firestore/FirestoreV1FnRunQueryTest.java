@@ -159,10 +159,7 @@ public final class FirestoreV1FnRunQueryTest
         RunQueryRequest.newBuilder()
             .setParent(String.format("projects/%s/databases/(default)/document", projectId))
             .setStructuredQuery(
-                testData
-                    .request
-                    .getStructuredQuery()
-                    .toBuilder()
+                testData.request.getStructuredQuery().toBuilder()
                     .setStartAt(
                         Cursor.newBuilder()
                             .setBefore(false)
@@ -201,10 +198,7 @@ public final class FirestoreV1FnRunQueryTest
         RunQueryRequest.newBuilder()
             .setParent(String.format("projects/%s/databases/(default)/document", projectId))
             .setStructuredQuery(
-                testData
-                    .request
-                    .getStructuredQuery()
-                    .toBuilder()
+                testData.request.getStructuredQuery().toBuilder()
                     .setStartAt(
                         Cursor.newBuilder()
                             .setBefore(false)

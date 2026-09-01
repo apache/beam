@@ -27,7 +27,9 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.Operation;
 public abstract class DataflowMapTaskExecutor extends MapTaskExecutor
     implements DataflowWorkExecutor {
 
-  /** @deprecated subclasses should move to composition instead of inheritance, make this private */
+  /**
+   * @deprecated subclasses should move to composition instead of inheritance, make this private
+   */
   @Deprecated
   protected DataflowMapTaskExecutor(
       List<Operation> operations,

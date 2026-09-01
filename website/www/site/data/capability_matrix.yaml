@@ -26,6 +26,8 @@ capability-matrix:
       name: Apache Nemo
     - class: jet
       name: Hazelcast Jet
+    - class: kafka-streams
+      name: Kafka Streams (experimental, not released)
     - class: twister2
       name: Twister2
     - class: python direct
@@ -80,6 +82,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: "Stateless ParDo runs in the SDK harness over the Fn API, including multiple outputs."
         - name: GroupByKey
           description: Grouping of key-value pairs per key, window, and pane. (See also other tabs.)
           values:
@@ -119,6 +125,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: "Shuffles through a Kafka repartition topic keyed by the encoded Beam key."
         - name: Flatten
           description: Concatenates multiple homogenously typed collections together.
           values:
@@ -157,6 +167,10 @@ capability-matrix:
             - class: python direct
               l1: ""
               l2:
+              l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
               l3: ""
         - name: Combine
           description: 'Application of an associative, commutative operation over all values ("globally") or over all values associated with each key ("per key"). Can be implemented using ParDo, but often more efficient implementations exist.'
@@ -197,6 +211,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: "Executed through the GroupByKey expansion; there is no lifted pre-combine yet."
         - name: Composite Transforms
           description: Allows easy extensibility for library writers.  In the near future, we expect there to be more information provided at this level -- customized metadata hooks for monitoring, additional runtime/environment hooks, etc.
           values:
@@ -235,6 +253,10 @@ capability-matrix:
             - class: python direct
               l1: ""
               l2:
+              l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
               l3: ""
         - name: Side Inputs
           description: Side inputs are additional <tt>PCollections</tt> whose contents are computed during pipeline execution and then made accessible to DoFn code. The exact shape of the side input depends both on the <tt>PCollectionView</tt> used to describe the access pattern (interable, map, singleton) and the window of the element from the main input that is currently being processed.
@@ -275,6 +297,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: "Stages run without a side input handler."
         - name: Source API
           description: Allows users to provide additional input sources. Supports both bounded and unbounded data. Includes hooks necessary to provide efficient parallelization (size estimation, progress information, dynamic splitting, etc).
           values:
@@ -314,6 +340,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "Partially"
+              l2: bounded and unbounded, read by a single reader
+              l3: "A source is split into exactly one part; reading several splits in parallel is not supported."
         - name: Metrics
           description: Allow transforms to gather simple metrics across bundles in a <tt>PTransform</tt>. Provide a mechanism to obtain both committed and attempted metrics. Semantically similar to using an additional output, but support partial results as the transform executes, and support both committed and attempted values. Will likely want to augment <tt>Metrics</tt> to be more useful for processing unbounded data by making them windowed.
           values:
@@ -353,6 +383,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "Partially"
+              l2: attempted metrics only
+              l3: "User metrics reported by the SDK harness surface as attempted values; committed values are not available."
         - name: Stateful Processing
           description: Allows fine-grained access to per-key, per-window persistent state. Necessary for certain use cases (e.g. high-volume windows which store large amounts of data, but typically only access small portions of it; complex state machines; etc.) that are not easily or efficiently addressed via <tt>Combine</tt> or <tt>GroupByKey</tt>+<tt>ParDo</tt>.
           values:
@@ -392,6 +426,10 @@ capability-matrix:
               l1: ""
               l2:
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: "User state is not wired to the harness."
     - description: Bounded Splittable DoFn Support Status
       anchor: what
       color-y: "fff"
@@ -440,6 +478,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Side Inputs
           description: ""
           values:
@@ -479,6 +521,10 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Splittable DoFn Initiated Checkpointing
           description: ""
           values:
@@ -518,6 +564,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Dynamic Splitting
           description: ""
           values:
@@ -557,6 +607,10 @@ capability-matrix:
               l1: "Yes"
               l2: Only with Python SDK
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Bundle Finalization
           description: ""
           values:
@@ -596,6 +650,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
     - description: Unbounded Splittable DoFn Support Status
       anchor: what
       color-y: "fff"
@@ -644,6 +702,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Side Inputs
           description: ""
           values:
@@ -683,6 +745,10 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Splittable DoFn Initiated Checkpointing
           description: ""
           values:
@@ -722,6 +788,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Dynamic Splitting
           description: ""
           values:
@@ -761,6 +831,10 @@ capability-matrix:
               l1: "No"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Bundle Finalization
           description: ""
           values:
@@ -800,6 +874,10 @@ capability-matrix:
               l1: "Yes"
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
     - description: Where in event time?
       anchor: where
       color-y: "fff"
@@ -848,6 +926,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
         - name: Fixed windows
           description: Fixed-size, timestamp-based windows. (Hourly, Daily, etc)
           values:
@@ -887,6 +969,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: "Windowing runs through Beam's ReduceFnRunner over Kafka Streams state and timers."
         - name: Sliding windows
           description: Possibly overlapping fixed-size timestamp-based windows (Every minute, use the last ten minutes of data.)
           values:
@@ -925,6 +1011,10 @@ capability-matrix:
             - class: python direct
               l1: "Yes"
               l2: supported
+              l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
               l3: ""
         - name: Session windows
           description: Based on bursts of activity separated by a gap size. Different per key.
@@ -965,6 +1055,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: "Sessions are merging windows, which the windowing implementation does not handle yet."
         - name: Custom windows
           description: All windows must implement <tt>BoundedWindow</tt>, which specifies a max timestamp. Each <tt>WindowFn</tt> assigns elements to an associated window.
           values:
@@ -1004,6 +1098,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: "Only the standard WindowFns, which travel as URNs the runner interprets directly."
         - name: Custom merging windows
           description: A custom <tt>WindowFn</tt> additionally specifies whether and how to merge windows.
           values:
@@ -1042,6 +1140,10 @@ capability-matrix:
             - class: python direct
               l1: "Yes"
               l2: supported
+              l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
               l3: ""
         - name: Timestamp control
           description: For a grouping transform, such as GBK or Combine, an OutputTimeFn specifies (1) how to combine input timestamps within a window and (2) how to merge aggregated timestamps when windows merge.
@@ -1082,6 +1184,10 @@ capability-matrix:
               l1: "Yes"
               l2: supported
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: "Timestamp combiners are applied by ReduceFnRunner."
 
     - description: When in processing time?
       anchor: when
@@ -1131,6 +1237,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: default trigger only
+              l3: ""
         - name: Event-time triggers
           description: Triggers that fire in response to event-time completeness signals, such as watermarks progressing.
           values:
@@ -1170,6 +1280,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: kafka-streams
+              l1: "Partially"
+              l2: the default trigger only
+              l3: "Panes fire when the watermark passes the end of the window; other event-time triggers are untested."
 
         - name: Processing-time triggers
           description: Triggers that fire in response to processing-time advancing.
@@ -1210,6 +1324,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: "Processing-time timers are not wired up."
 
         - name: Count triggers
           description: Triggers that fire after seeing at least N elements.
@@ -1249,6 +1367,10 @@ capability-matrix:
             - class: python direct
               l1: "Yes"
               l2: fully supported
+              l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
               l3: ""
 
         - name: Composite triggers
@@ -1290,6 +1412,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
 
         - name: Allowed lateness
           description: A way to bound the useful lifetime of a window (in event time), after which any unemitted results may be materialized, the window contents may be garbage collected, and any addtional late data that arrive for the window may be discarded.
@@ -1330,6 +1456,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: "Allowed lateness and late-data dropping are applied by ReduceFnRunner."
 
         - name: Timers
           description: A fine-grained mechanism for performing work at some point in the future, in either the event-time or processing-time domain. Useful for orchestrating delayed events, timeouts, etc in complex state per-key, per-window state machines.
@@ -1370,6 +1500,10 @@ capability-matrix:
               l1: "Yes"
               l2: "Partially"
               l3: ""
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: "User timers are not wired to the harness."
 
     - description: How do refinements relate?
       anchor: how
@@ -1419,6 +1553,10 @@ capability-matrix:
               l1: "Yes"
               l2: fully supported
               l3: ""
+            - class: kafka-streams
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
 
         - name: Accumulating
           description: Elements are accumulated in state across multiple pane firings for the same window.
@@ -1456,6 +1594,10 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: python direct
+              l1: "Yes"
+              l2: fully supported
+              l3: ""
+            - class: kafka-streams
               l1: "Yes"
               l2: fully supported
               l3: ""
@@ -1508,6 +1650,10 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Checkpoint
           description: APIs and semantics for saving a pipeline checkpoint are under discussion. This would be a runner-specific materialization of the pipeline state required to resume or duplicate the pipeline.
           values:
@@ -1547,6 +1693,10 @@ capability-matrix:
               l1:
               l2:
               l3:
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
         - name: Key-ordered delivery
           description: The runner offers guarantees for the order in which elements are passed in between operations. See <a href=''>per-key ordering semantics.</a>
           values:
@@ -1586,3 +1736,8 @@ capability-matrix:
               l1: "Unverified"
               l2:
               l3:
+
+            - class: kafka-streams
+              l1: "No"
+              l2: not implemented
+              l3: ""
