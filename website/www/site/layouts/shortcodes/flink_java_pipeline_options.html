@@ -123,11 +123,6 @@ Should be called before running the tests.
   <td>Default: <code>0</code></td>
 </tr>
 <tr>
-  <td><code>lazySourceSplitAssignmentMinSizeMbPerReader</code></td>
-  <td>Minimum estimated input size in MiB per source reader for lazy split assignment of bounded sources. The default of 0 always uses lazy assignment. A positive value selects static round-robin assignment for sources estimated below the threshold and lazy assignment for sources at or above it. Any negative value always uses static assignment.</td>
-  <td>Default: <code>0</code></td>
-</tr>
-<tr>
   <td><code>maxBundleSize</code></td>
   <td>The maximum number of elements in a bundle. Default values are 1000 for a streaming job and 1,000,000 for batch</td>
   <td>Default: <code>MaxBundleSizeFactory</code></td>
@@ -191,6 +186,11 @@ Should be called before running the tests.
   <td><code>shutdownSourcesAfterIdleMs</code></td>
   <td>Shuts down sources which have been idle for the configured time of milliseconds. Once a source has been shut down, checkpointing is not possible anymore. Shutting down the sources eventually leads to pipeline shutdown (=Flink job finishes) once all input has been processed. Unless explicitly set, this will default to Long.MAX_VALUE when checkpointing is enabled and to 0 when checkpointing is disabled. See https://issues.apache.org/jira/browse/FLINK-2491 for progress on this issue.</td>
   <td>Default: <code>-1</code></td>
+</tr>
+<tr>
+  <td><code>sourceStaticSplitThresholdMb</code></td>
+  <td>Static split assignment threshold in MiB per source reader for bounded sources in Flink DataStream mode. The default of 0 always uses lazy assignment. A positive value selects static round-robin assignment for sources with a known, positive estimate below the threshold and lazy assignment otherwise. Any negative value always uses static assignment.</td>
+  <td>Default: <code>0</code></td>
 </tr>
 <tr>
   <td><code>stateBackend</code></td>

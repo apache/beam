@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.translation.utils.SerdeUtils;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.flink.core.io.SimpleVersionedSerializer;
 
 /** Serializes source enumerator state and upgrades the map used by earlier runner versions. */
@@ -33,9 +34,9 @@ final class FlinkSourceEnumeratorStateSerializer<T>
   static final int LEGACY_MAP_VERSION = 0;
   static final int VERSION = 1;
 
-  private final FlinkSourceSplitAssignmentMode legacyAssignmentMode;
+  private final AssignmentMode legacyAssignmentMode;
 
-  FlinkSourceEnumeratorStateSerializer(FlinkSourceSplitAssignmentMode legacyAssignmentMode) {
+  FlinkSourceEnumeratorStateSerializer(AssignmentMode legacyAssignmentMode) {
     this.legacyAssignmentMode = legacyAssignmentMode;
   }
 

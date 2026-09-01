@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.flink.api.connector.source.SplitEnumerator;
@@ -111,8 +112,7 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
   @Override
   public FlinkSourceEnumeratorState<T> snapshotState(long checkpointId) throws Exception {
     if (delegate == null) {
-      return new FlinkSourceEnumeratorState<>(
-          FlinkSourceSplitAssignmentMode.UNDECIDED, new ArrayList<>());
+      return new FlinkSourceEnumeratorState<>(AssignmentMode.UNDECIDED, new ArrayList<>());
     }
     return delegate.snapshotState(checkpointId);
   }
@@ -127,7 +127,7 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
   private FlinkSourceEnumeratorState<T> selectAndSplit() throws Exception {
     long estimatedSizeBytes =
         FlinkSourceSplitUtils.estimateBoundedSourceSize(boundedSource, pipelineOptions);
-    FlinkSourceSplitAssignmentMode selectedMode = selectAssignmentMode(estimatedSizeBytes);
+    AssignmentMode selectedMode = selectAssignmentMode(estimatedSizeBytes);
     ArrayList<FlinkSourceSplit<T>> splits =
         FlinkSourceSplitUtils.splitBoundedSource(
             boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
@@ -139,22 +139,20 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
     return new FlinkSourceEnumeratorState<>(selectedMode, splits);
   }
 
-  private FlinkSourceSplitAssignmentMode selectAssignmentMode(long estimatedSizeBytes) {
+  private AssignmentMode selectAssignmentMode(long estimatedSizeBytes) {
     long thresholdMb =
-        pipelineOptions
-            .as(FlinkPipelineOptions.class)
-            .getLazySourceSplitAssignmentMinSizeMbPerReader();
+        pipelineOptions.as(FlinkPipelineOptions.class).getSourceStaticSplitThresholdMb();
     if (thresholdMb <= 0) {
       throw new IllegalArgumentException(
           "Size-based source assignment requires a positive threshold, but received "
               + thresholdMb
               + ".");
     }
-    if (estimatedSizeBytes < 0 || estimatedSizeBytes == Long.MAX_VALUE) {
+    if (estimatedSizeBytes <= 0 || estimatedSizeBytes == Long.MAX_VALUE) {
       LOG.info(
-          "Estimated size of bounded source {} is unknown. Using lazy split assignment.",
+          "Estimated size of bounded source {} is zero or unknown. Using lazy split assignment.",
           boundedSource);
-      return FlinkSourceSplitAssignmentMode.LAZY;
+      return AssignmentMode.LAZY;
     }
 
     int sourceParallelism = context.currentParallelism();
@@ -164,13 +162,12 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
     }
     long estimatedBytesPerReader = estimatedSizeBytes / sourceParallelism;
     long thresholdBytes = FlinkSourceSplitUtils.mebibytesToBytes(thresholdMb);
-    FlinkSourceSplitAssignmentMode selectedMode =
-        estimatedBytesPerReader >= thresholdBytes
-            ? FlinkSourceSplitAssignmentMode.LAZY
-            : FlinkSourceSplitAssignmentMode.STATIC;
+    AssignmentMode selectedMode =
+        estimatedBytesPerReader >= thresholdBytes ? AssignmentMode.LAZY : AssignmentMode.STATIC;
     LOG.info(
         "Using {} split assignment for bounded source {}: estimated size {} bytes, source "
-            + "parallelism {}, estimated bytes per reader {}, lazy assignment threshold {} bytes",
+            + "parallelism {}, estimated bytes per reader {}, static assignment threshold {} "
+            + "bytes",
         selectedMode,
         boundedSource,
         estimatedSizeBytes,
@@ -182,11 +179,11 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
 
   private SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> createDelegate(
       FlinkSourceEnumeratorState<T> initialState) {
-    if (initialState.getAssignmentMode() == FlinkSourceSplitAssignmentMode.LAZY) {
+    if (initialState.getAssignmentMode() == AssignmentMode.LAZY) {
       return new LazyFlinkSourceSplitEnumerator<>(
           context, boundedSource, pipelineOptions, numSplits, initialState);
     }
-    if (initialState.getAssignmentMode() == FlinkSourceSplitAssignmentMode.STATIC) {
+    if (initialState.getAssignmentMode() == AssignmentMode.STATIC) {
       return new FlinkSourceSplitEnumerator<>(
           context, boundedSource, pipelineOptions, numSplits, initialState);
     }

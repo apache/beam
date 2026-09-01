@@ -26,21 +26,27 @@ import java.util.List;
 public final class FlinkSourceEnumeratorState<T> implements Serializable {
   private static final long serialVersionUID = 1L;
 
-  private final FlinkSourceSplitAssignmentMode assignmentMode;
+  private final AssignmentMode assignmentMode;
   private final ArrayList<FlinkSourceSplit<T>> pendingSplits;
 
   /** Takes ownership of {@code pendingSplits}; the caller must not mutate it afterwards. */
   FlinkSourceEnumeratorState(
-      FlinkSourceSplitAssignmentMode assignmentMode, ArrayList<FlinkSourceSplit<T>> pendingSplits) {
+      AssignmentMode assignmentMode, ArrayList<FlinkSourceSplit<T>> pendingSplits) {
     this.assignmentMode = assignmentMode;
     this.pendingSplits = pendingSplits;
   }
 
-  FlinkSourceSplitAssignmentMode getAssignmentMode() {
+  AssignmentMode getAssignmentMode() {
     return assignmentMode;
   }
 
   List<FlinkSourceSplit<T>> getPendingSplits() {
     return Collections.unmodifiableList(pendingSplits);
+  }
+
+  enum AssignmentMode {
+    UNDECIDED,
+    LAZY,
+    STATIC
   }
 }

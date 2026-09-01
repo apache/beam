@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.function.Function;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.bounded.FlinkBoundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.impulse.BeamImpulseSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
@@ -103,7 +104,7 @@ public abstract class FlinkSource<T, OutputT>
       SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
     FlinkPipelineOptions options = serializablePipelineOptions.get().as(FlinkPipelineOptions.class);
     if (boundedness == Boundedness.BOUNDED) {
-      long thresholdMb = options.getLazySourceSplitAssignmentMinSizeMbPerReader();
+      long thresholdMb = options.getSourceStaticSplitThresholdMb();
       if (thresholdMb < 0) {
         return new FlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
       }
@@ -122,11 +123,11 @@ public abstract class FlinkSource<T, OutputT>
       FlinkSourceEnumeratorState<T> checkpoint)
       throws Exception {
     FlinkPipelineOptions options = serializablePipelineOptions.get().as(FlinkPipelineOptions.class);
-    if (checkpoint.getAssignmentMode() == FlinkSourceSplitAssignmentMode.LAZY) {
+    if (checkpoint.getAssignmentMode() == AssignmentMode.LAZY) {
       return new LazyFlinkSourceSplitEnumerator<>(
           enumContext, beamSource, options, numSplits, checkpoint);
     }
-    if (checkpoint.getAssignmentMode() == FlinkSourceSplitAssignmentMode.STATIC) {
+    if (checkpoint.getAssignmentMode() == AssignmentMode.STATIC) {
       return new FlinkSourceSplitEnumerator<>(
           enumContext, beamSource, options, numSplits, checkpoint);
     }
@@ -141,10 +142,8 @@ public abstract class FlinkSource<T, OutputT>
   @Override
   public SimpleVersionedSerializer<FlinkSourceEnumeratorState<T>>
       getEnumeratorCheckpointSerializer() {
-    FlinkSourceSplitAssignmentMode legacyAssignmentMode =
-        boundedness == Boundedness.BOUNDED
-            ? FlinkSourceSplitAssignmentMode.LAZY
-            : FlinkSourceSplitAssignmentMode.STATIC;
+    AssignmentMode legacyAssignmentMode =
+        boundedness == Boundedness.BOUNDED ? AssignmentMode.LAZY : AssignmentMode.STATIC;
     return new FlinkSourceEnumeratorStateSerializer<>(legacyAssignmentMode);
   }
 

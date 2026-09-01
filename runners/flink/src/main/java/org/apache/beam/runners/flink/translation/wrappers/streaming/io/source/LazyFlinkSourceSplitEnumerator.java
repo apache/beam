@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -69,7 +70,7 @@ public class LazyFlinkSourceSplitEnumerator<T>
     this.splitsInitialized = restoredState != null;
 
     if (restoredState != null) {
-      if (restoredState.getAssignmentMode() != FlinkSourceSplitAssignmentMode.LAZY) {
+      if (restoredState.getAssignmentMode() != AssignmentMode.LAZY) {
         throw new IllegalArgumentException(
             "Cannot restore the lazy source enumerator from "
                 + restoredState.getAssignmentMode()
@@ -137,10 +138,7 @@ public class LazyFlinkSourceSplitEnumerator<T>
   @Override
   public FlinkSourceEnumeratorState<T> snapshotState(long checkpointId) {
     LOG.info("Taking snapshot for checkpoint {}", checkpointId);
-    FlinkSourceSplitAssignmentMode mode =
-        splitsInitialized
-            ? FlinkSourceSplitAssignmentMode.LAZY
-            : FlinkSourceSplitAssignmentMode.UNDECIDED;
+    AssignmentMode mode = splitsInitialized ? AssignmentMode.LAZY : AssignmentMode.UNDECIDED;
     return new FlinkSourceEnumeratorState<>(mode, new ArrayList<>(pendingSplits));
   }
 

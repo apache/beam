@@ -104,7 +104,7 @@
 
 ## New Features / Improvements
 
-* [Flink Runner] Added opt-in static round-robin split assignment for small bounded sources via the new `lazySourceSplitAssignmentMinSizeMbPerReader` pipeline option. The default of 0 keeps the existing lazy pull-based assignment ([#39873](https://github.com/apache/beam/issues/39873)).
+* [Flink Runner] Added opt-in static round-robin split assignment for small bounded sources via the new `sourceStaticSplitThresholdMb` pipeline option. The default of 0 keeps the existing lazy pull-based assignment ([#39873](https://github.com/apache/beam/issues/39873)).
 * Added `GroupIntoBatches` transform and the standard
   `beam:coder:sharded_key:v1` coder to the Go SDK, along with
   `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,

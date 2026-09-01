@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import javax.annotation.Nullable;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.Source;
 import org.apache.beam.sdk.io.UnboundedSource;
@@ -72,7 +73,7 @@ public class FlinkSourceSplitEnumerator<T>
     this.splitsInitialized = restoredState != null;
 
     if (restoredState != null) {
-      if (restoredState.getAssignmentMode() != FlinkSourceSplitAssignmentMode.STATIC) {
+      if (restoredState.getAssignmentMode() != AssignmentMode.STATIC) {
         throw new IllegalArgumentException(
             "Cannot restore the static source enumerator from "
                 + restoredState.getAssignmentMode()
@@ -143,10 +144,7 @@ public class FlinkSourceSplitEnumerator<T>
     LOG.info("Taking snapshot for checkpoint {}", checkpointId);
     ArrayList<FlinkSourceSplit<T>> checkpointSplits = new ArrayList<>();
     pendingSplits.values().forEach(checkpointSplits::addAll);
-    FlinkSourceSplitAssignmentMode mode =
-        splitsInitialized
-            ? FlinkSourceSplitAssignmentMode.STATIC
-            : FlinkSourceSplitAssignmentMode.UNDECIDED;
+    AssignmentMode mode = splitsInitialized ? AssignmentMode.STATIC : AssignmentMode.UNDECIDED;
     return new FlinkSourceEnumeratorState<>(mode, checkpointSplits);
   }
 
