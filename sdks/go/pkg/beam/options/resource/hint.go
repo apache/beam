@@ -295,5 +295,5 @@ func (h CPUCountHint) MergeWithOuter(outer Hint) Hint {
 }
 
 func (h CPUCountHint) String() string {
-	return fmt.Sprintf("cpu_count=%v", humanize.Bytes(uint64(h.value)))
+	return fmt.Sprintf("cpu_count=%v", h.value)
 }

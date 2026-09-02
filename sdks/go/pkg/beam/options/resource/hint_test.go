@@ -143,6 +143,25 @@ func TestCPUCountHint_Payload(t *testing.T) {
 	}
 }
 
+func TestCPUCountHint_String(t *testing.T) {
+	tests := []struct {
+		value uint64
+		want  string
+	}{
+		{0, "cpu_count=0"},
+		{1, "cpu_count=1"},
+		{4, "cpu_count=4"},
+		{128, "cpu_count=128"},
+	}
+
+	for _, test := range tests {
+		h := CPUCountHint{value: test.value}
+		if got, want := h.String(), test.want; got != want {
+			t.Errorf("%v.String() = %v, want %v", h, got, want)
+		}
+	}
+}
+
 func TestParseCPUCount(t *testing.T) {
 	tests := []struct {
 		value   string
