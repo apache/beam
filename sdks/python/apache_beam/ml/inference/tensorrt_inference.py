@@ -19,6 +19,7 @@
 
 from __future__ import annotations
 
+import functools
 import logging
 import threading
 from collections.abc import Callable
@@ -49,6 +50,43 @@ except ModuleNotFoundError:
   LOGGER.warning(msg)
 
 
+@functools.lru_cache(maxsize=1)
+def _trt_major_version() -> int:
+  """Returns the major version of the installed TensorRT.
+
+  TensorRT 10 replaced the index based "binding" API with a name based
+  "tensor" API, so the major version selects which code path to take.
+
+  Cached rather than resolved at import time because the module is importable
+  without TensorRT, so that jobs can be submitted from a machine that does not
+  have it installed.
+  """
+  import tensorrt as trt
+  try:
+    return int(trt.__version__.split('.')[0])
+  except (AttributeError, IndexError, ValueError):
+    # Fall back to probing for an attribute that only exists from 10 onwards.
+    return 10 if hasattr(trt.ICudaEngine, 'num_io_tensors') else 8
+
+
+@functools.lru_cache(maxsize=1)
+def _import_cuda_driver():
+  """Imports the CUDA driver bindings.
+
+  ``cuda.bindings.driver`` is the module path used by cuda-python 12.8 and
+  later. It replaced the ``cuda.cuda`` alias, which was removed in
+  cuda-python 13.0, so only fall back to that for older installations.
+
+  Cached because this is called from _assign_or_fail, which runs on every
+  CUDA call.
+  """
+  try:
+    from cuda.bindings import driver as cuda
+  except ImportError:
+    from cuda import cuda
+  return cuda
+
+
 def _load_engine(engine_path):
   import tensorrt as trt
   file = FileSystems.open(engine_path, 'rb')
@@ -58,11 +96,25 @@ def _load_engine(engine_path):
   return engine
 
 
+def _network_creation_flags() -> int:
+  """Returns the ``create_network`` flags for the installed TensorRT.
+
+  Explicit batch is the only supported mode from TensorRT 10 onwards, where
+  the flag is first deprecated and then removed, so it is only passed to
+  TensorRT 8.x.
+  """
+  import tensorrt as trt
+  explicit_batch = getattr(
+      trt.NetworkDefinitionCreationFlag, 'EXPLICIT_BATCH', None)
+  if explicit_batch is None or _trt_major_version() >= 10:
+    return 0
+  return 1 << int(explicit_batch)
+
+
 def _load_onnx(onnx_path):
   import tensorrt as trt
   builder = trt.Builder(TRT_LOGGER)
-  network = builder.create_network(
-      flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+  network = builder.create_network(flags=_network_creation_flags())
   parser = trt.OnnxParser(network, TRT_LOGGER)
   with FileSystems.open(onnx_path) as f:
     if not parser.parse(f.read()):
@@ -85,7 +137,7 @@ def _build_engine(network, builder):
 
 def _assign_or_fail(args):
   """CUDA error checking."""
-  from cuda import cuda
+  cuda = _import_cuda_driver()
   err, ret = args[0], args[1:]
   if isinstance(err, cuda.CUresult):
     if err != cuda.CUresult.CUDA_SUCCESS:
@@ -111,7 +163,7 @@ class TensorRTEngine:
       engine: trt.ICudaEngine object that contains TensorRT engine
     """
     import tensorrt as trt
-    from cuda import cuda
+    cuda = _import_cuda_driver()
     self.engine = engine
     self.context = engine.create_execution_context()
     self.context_lock = threading.RLock()
@@ -120,34 +172,59 @@ class TensorRTEngine:
     self.gpu_allocations = []
     self.cpu_allocations = []
 
-    # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
-    # Clean up when fixed upstream.
-    try:
-      _ = np.bool
-    except AttributeError:
-      # numpy >= 1.24.0
-      np.bool = np.bool_  # type: ignore
-
     # Setup I/O bindings.
-    for i in range(self.engine.num_bindings):
-      name = self.engine.get_binding_name(i)
-      dtype = self.engine.get_binding_dtype(i)
-      shape = self.engine.get_binding_shape(i)
-      size = trt.volume(shape) * dtype.itemsize
-      allocation = _assign_or_fail(cuda.cuMemAlloc(size))
-      binding = {
-          'index': i,
-          'name': name,
-          'dtype': np.dtype(trt.nptype(dtype)),
-          'shape': list(shape),
-          'allocation': allocation,
-          'size': size
-      }
-      self.gpu_allocations.append(allocation)
-      if self.engine.binding_is_input(i):
-        self.inputs.append(binding)
-      else:
-        self.outputs.append(binding)
+    if _trt_major_version() >= 10:
+      # TensorRT 10 removed the index based binding API in favour of a name
+      # based tensor API. Device addresses are bound to the context once here
+      # because execute_async_v3 takes no allocation list at execution time.
+      for i in range(self.engine.num_io_tensors):
+        name = self.engine.get_tensor_name(i)
+        dtype = self.engine.get_tensor_dtype(name)
+        shape = self.engine.get_tensor_shape(name)
+        size = trt.volume(shape) * dtype.itemsize
+        allocation = _assign_or_fail(cuda.cuMemAlloc(size))
+        binding = {
+            'index': i,
+            'name': name,
+            'dtype': np.dtype(trt.nptype(dtype)),
+            'shape': list(shape),
+            'allocation': allocation,
+            'size': size
+        }
+        self.gpu_allocations.append(allocation)
+        self.context.set_tensor_address(name, int(allocation))
+        if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+          self.inputs.append(binding)
+        else:
+          self.outputs.append(binding)
+    else:
+      # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
+      # Clean up when the TensorRT 8.x path is dropped.
+      try:
+        _ = np.bool
+      except AttributeError:
+        # numpy >= 1.24.0
+        np.bool = np.bool_  # type: ignore
+
+      for i in range(self.engine.num_bindings):
+        name = self.engine.get_binding_name(i)
+        dtype = self.engine.get_binding_dtype(i)
+        shape = self.engine.get_binding_shape(i)
+        size = trt.volume(shape) * dtype.itemsize
+        allocation = _assign_or_fail(cuda.cuMemAlloc(size))
+        binding = {
+            'index': i,
+            'name': name,
+            'dtype': np.dtype(trt.nptype(dtype)),
+            'shape': list(shape),
+            'allocation': allocation,
+            'size': size
+        }
+        self.gpu_allocations.append(allocation)
+        if self.engine.binding_is_input(i):
+          self.inputs.append(binding)
+        else:
+          self.outputs.append(binding)
 
     assert self.context
     assert len(self.inputs) > 0
@@ -182,7 +259,7 @@ def _default_tensorRT_inference_fn(
     engine: TensorRTEngine,
     inference_args: Optional[dict[str,
                                   Any]] = None) -> Iterable[PredictionResult]:
-  from cuda import cuda
+  cuda = _import_cuda_driver()
   (
       engine,
       context,
@@ -195,17 +272,29 @@ def _default_tensorRT_inference_fn(
 
   # Process I/O and execute the network
   with context_lock:
+    # Host buffers are passed as explicit addresses rather than as arrays.
+    # A numpy array holding exactly one element is coerced to a scalar, which
+    # is then read as a null host pointer and fails with CUDA_ERROR_INVALID_
+    # VALUE. Single element outputs are common, for example the num_detections
+    # output of an object detection model.
+    # host_input must stay referenced until the stream is synchronized below,
+    # because the copy is asynchronous.
+    host_input = np.ascontiguousarray(batch)
     _assign_or_fail(
         cuda.cuMemcpyHtoDAsync(
             inputs[0]['allocation'],
-            np.ascontiguousarray(batch),
+            host_input.ctypes.data,
             inputs[0]['size'],
             stream))
-    context.execute_async_v2(gpu_allocations, stream)
+    if _trt_major_version() >= 10:
+      # Tensor addresses were bound when the engine was created.
+      context.execute_async_v3(stream)
+    else:
+      context.execute_async_v2(gpu_allocations, stream)
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
-              cpu_allocations[output],
+              cpu_allocations[output].ctypes.data,
               outputs[output]['allocation'],
               outputs[output]['size'],
               stream))
