@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.Arrays;
@@ -41,9 +42,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  *       Repeatedly.forever(a)}, since the repeated trigger never finishes.
  * </ul>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AfterEachStateMachine extends TriggerStateMachine {
 
   private AfterEachStateMachine(List<TriggerStateMachine> subTriggers) {
@@ -72,7 +70,7 @@ public class AfterEachStateMachine extends TriggerStateMachine {
   public void onElement(OnElementContext c) throws Exception {
     if (!c.trigger().isMerging()) {
       // If merges are not possible, we need only run the first unfinished subtrigger
-      c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
+      firstUnfinishedSubTrigger(c).invokeOnElement(c);
     } else {
       // If merges are possible, we need to run all subtriggers in parallel
       for (ExecutableTriggerStateMachine subTrigger : c.trigger().subTriggers()) {
@@ -119,13 +117,12 @@ public class AfterEachStateMachine extends TriggerStateMachine {
 
   @Override
   public boolean shouldFire(TriggerStateMachine.TriggerContext context) throws Exception {
-    ExecutableTriggerStateMachine firstUnfinished = context.trigger().firstUnfinishedSubTrigger();
-    return firstUnfinished.invokeShouldFire(context);
+    return firstUnfinishedSubTrigger(context).invokeShouldFire(context);
   }
 
   @Override
   public void onFire(TriggerStateMachine.TriggerContext context) throws Exception {
-    context.trigger().firstUnfinishedSubTrigger().invokeOnFire(context);
+    firstUnfinishedSubTrigger(context).invokeOnFire(context);
 
     // Reset all subtriggers if in a merging context; any may be revived by merging so they are
     // all run in parallel for each pending pane.
@@ -141,10 +138,23 @@ public class AfterEachStateMachine extends TriggerStateMachine {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("AfterEach.inOrder(");
-    Joiner.on(", ").appendTo(builder, subTriggers);
+    Joiner.on(", ").appendTo(builder, subTriggers());
     builder.append(")");
 
     return builder.toString();
+  }
+
+  /**
+   * Returns the subtrigger that this {@link AfterEachStateMachine} is currently executing.
+   *
+   * <p>A composite trigger is never invoked once all of its subtriggers are finished, so a null
+   * here means a caller has violated that invariant.
+   */
+  private ExecutableTriggerStateMachine firstUnfinishedSubTrigger(TriggerContext context) {
+    return checkStateNotNull(
+        context.trigger().firstUnfinishedSubTrigger(),
+        "%s invoked after all of its subtriggers finished",
+        this);
   }
 
   private void updateFinishedState(TriggerContext context) {

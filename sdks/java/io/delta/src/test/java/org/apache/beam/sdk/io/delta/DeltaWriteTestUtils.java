@@ -48,6 +48,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
@@ -367,5 +368,34 @@ final class DeltaWriteTestUtils {
           new File(new File(tablePath, "_delta_log"), String.format("%020d.json", expectedVersion));
       commitFile.setLastModified(timestamp);
     }
+  }
+
+  /**
+   * Sets up a Delta table with two commit versions containing test rows.
+   *
+   * <p>Version 0 is committed at timestamp 100000000000L with rows ["row-1", "row-2"]. Version 1 is
+   * committed at timestamp 200000000000L with row ["row-3"].
+   *
+   * @param engine the Delta Lake {@link Engine} instance to use
+   * @param tablePath the path of the Delta table to create
+   * @return the list of {@link Row} objects written [row1, row2, row3]
+   * @throws Exception if any error occurs during write or commit
+   */
+  static List<Row> setupTwoVersionTable(Engine engine, String tablePath) throws Exception {
+    Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row row1 = Row.withSchema(schema).addValues("row-1").build();
+    Row row2 = Row.withSchema(schema).addValues("row-2").build();
+    Row row3 = Row.withSchema(schema).addValues("row-3").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // Commit version 0
+    writeAppendCommit(
+        engine, tablePath, 0L, 100000000000L, deltaSchema, java.util.Arrays.asList(row1, row2));
+
+    // Commit version 1
+    writeAppendCommit(
+        engine, tablePath, 1L, 200000000000L, deltaSchema, java.util.Arrays.asList(row3));
+
+    return java.util.Arrays.asList(row1, row2, row3);
   }
 }

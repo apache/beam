@@ -519,8 +519,8 @@ class CommitDeltas
       // keeps committer state but regenerates the runId. We drop the pin if it's stale (if the
       // construction-time runId doesn't match the preserved state's pinnedRunId). Doing this lets
       // the new run re-pin onto the current live spec.
-      @Nullable
-      Integer currentSpecId = runId.equals(pinnedRunId.read()) ? pinnedSpecId.read() : null;
+      @Nullable Integer currentSpecId =
+          runId.equals(pinnedRunId.read()) ? pinnedSpecId.read() : null;
       for (WindowedCommit wc : committable) {
         CommitSummary summary;
         try {

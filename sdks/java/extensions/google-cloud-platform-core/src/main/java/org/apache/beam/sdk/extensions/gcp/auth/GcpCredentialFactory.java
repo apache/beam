@@ -57,8 +57,7 @@ public class GcpCredentialFactory implements CredentialFactory {
     GcpOptions gcpOptions = options.as(GcpOptions.class);
     @Nullable String impersonateServiceAccountArg = gcpOptions.getImpersonateServiceAccount();
 
-    @Nullable
-    List<String> impersonateServiceAccountChain =
+    @Nullable List<String> impersonateServiceAccountChain =
         impersonateServiceAccountArg == null
             ? null
             : Arrays.asList(impersonateServiceAccountArg.split(","));

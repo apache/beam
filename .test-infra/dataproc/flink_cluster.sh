@@ -183,6 +183,12 @@ function create() {
   start_tunnel
 }
 
+# Connects to an existing Flink cluster and opens an SSH tunnel.
+function tunnel() {
+  get_leader
+  start_tunnel
+}
+
 # Resizes an active Flink cluster.
 function resize() {
   if [[ -z "$FLINK_NUM_WORKERS" ]]; then

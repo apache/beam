@@ -382,8 +382,10 @@ public class PackageUtil implements Closeable {
 
     /** The file to stage. */
     public abstract String getSource();
+
     /** The SHA-256 hash of the source file. */
     public abstract String getSha256();
+
     /** Staged target for this file. */
     public abstract String getDestination();
   }

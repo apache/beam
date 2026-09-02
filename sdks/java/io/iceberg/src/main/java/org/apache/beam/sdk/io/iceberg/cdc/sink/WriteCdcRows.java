@@ -485,8 +485,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
     PCollection<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> keyed =
         assigned.get(AssignCdcKeys.KEYED);
     // getFailedRows() is null when error handling is disabled
-    @Nullable
-    PCollection<Row> failedRows =
+    @Nullable PCollection<Row> failedRows =
         getErrorHandlingEnabled() ? assigned.get(AssignCdcKeys.FAILED) : null;
 
     // Stage 2: create commit windows, group by (destination, shard) and split late rows to the

@@ -65,15 +65,23 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* Added CDC (change-data-capture) write support for Iceberg: apply a stream or batch of INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE changes to merge-on-read Iceberg V2/V3 tables via `IcebergIO.writeCdcRows` or Managed `ICEBERG_CDC` (Java) ([#X](https://github.com/apache/beam/issues/X)).
+* Added `schema_update_options` to `WriteToBigQuery` file loads, allowing BigQuery load jobs to add nullable fields or relax required fields when appending data (Python) ([#21141](https://github.com/apache/beam/issues/21141)).
+* BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part `project.catalog.namespace.table` identifiers (or a `TableReference` with a composite `catalog.namespace` dataset id). Previously such references were silently mis-parsed (Java) ([#39597](https://github.com/apache/beam/issues/39597)) .
+* SolaceIO now supports reading and writing binary and text content data payload (Java) ([#39875](https://github.com/apache/beam/issues/39875)).
+* ClickHouseIO: support writing `Decimal(P, S)` / `Decimal32/64/128/256` columns (Java) ([#39840](https://github.com/apache/beam/issues/39840)).
 
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java/Python) `Watch` can bound its deduplication state by event time, retiring an output key once the greatest emitted timestamp has moved more than the allowed lateness past it. Java adds `Watch.growthOf(...).withTimestampCursor()`. Python adds `allowed_lateness` for the existing `timestamp_cursor` option ([#18459](https://github.com/apache/beam/issues/18459)).
+* (Java) Spark Structured Streaming runner: stateful ParDo with state, timers, `@RequiresTimeSortedInput` and tagged outputs is now supported in batch mode ([#39779](https://github.com/apache/beam/issues/39779)).
+* (Python) Added support for Vertex AI Model Monitoring V2 in RunInference ([#39738](https://github.com/apache/beam/issues/39738)).
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* Portable Java SDK now encodes SchemaCoders in a portable way ([#34672](https://github.com/apache/beam/issues/34672)).
+  - Original custom Java coder encoding can still be obtained using [StreamingOptions.setUpdateCompatibilityVersion("2.76")](https://github.com/apache/beam/blob/2cf0930e7ae1aa389c26ce6639b584877a3e31d9/sdks/java/core/src/main/java/org/apache/beam/sdk/options/StreamingOptions.java#L47) ([#34672](https://github.com/apache/beam/issues/34672)).
+  - Fixes ([#36496](https://github.com/apache/beam/issues/36496)), ([#30276](https://github.com/apache/beam/issues/30276)), ([#29245](https://github.com/apache/beam/issues/29245)).
 
 ## Deprecations
 
@@ -81,7 +89,12 @@
 
 ## Bugfixes
 
-* Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Java) Restored binary compatibility for `CoderTranslatorRegistrar` implementations compiled against Beam 2.76 and earlier ([#38714](https://github.com/apache/beam/issues/38714)).
+* (Java) Fixed the Spark runner firing processing-time timers in reverse timestamp order ([#39824](https://github.com/apache/beam/issues/39824)).
+* (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
+* (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
+* (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
+* (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
 
 ## Security Fixes
 
@@ -92,18 +105,25 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.76.0] - 2026-08-??
+# [2.76.0] - 2026-08-31
+
+## Highlights
+
+* Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
+* (Java) Added per-element OpenTelemetry trace propagation across stages in the Dataflow Streaming Runner. Enable it with `--experiments=enable_otel_defaults,element_metadata_supported,disable_portable_worker`. Cloud Trace incurs additional cost. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry header propagation support for both reads and writes in KafkaIO and PubSubIO. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry tracing support for SpannerIO change streams ([#33176](https://github.com/apache/beam/issues/33176))
+* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
 
 ## I/Os
 
 * Upgraded Iceberg dependency to 1.11.0 (Java) ([#38925](https://github.com/apache/beam/issues/38925)).
 * Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
-* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
-* Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
 * Added a Delta Lake batch changelog source (CDC) ([#39492](https://github.com/apache/beam/issues/39492))
 
 ## New Features / Improvements
 
+* Added automatic caching of bounded, single-pane side-input views for classic Java Flink DataStream execution ([#39866](https://github.com/apache/beam/issues/39866)).
 * Added `GroupIntoBatches` transform and the standard
   `beam:coder:sharded_key:v1` coder to the Go SDK, along with
   `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,
@@ -124,9 +144,7 @@
 * (Python) Added `Watch`, a transform that polls a growing set of outputs for each input element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
   ([#21521](https://github.com/apache/beam/issues/21521)).
 * (Python) Added support to analyze core dumps created after python worker segmentation faults with `pystack` (or `gdb` if installed) using the `--profiler_agent=coredump` pipeline option. ([#39484](https://github.com/apache/beam/issues/39484)).
-* (Java) Added per-element OpenTelemetry trace propagation across stages in the Dataflow Streaming Runner. Enable it with `--experiments=enable_otel_defaults,element_metadata_supported,disable_portable_worker`. Cloud Trace incurs additional cost. ([#33176](https://github.com/apache/beam/issues/33176))
-* (Java) Added OpenTelemetry header propagation support for both reads and writes in KafkaIO and PubSubIO. ([#33176](https://github.com/apache/beam/issues/33176))
-* (Java) Added OpenTelemetry tracing support for SpannerIO change streams ([#33176](https://github.com/apache/beam/issues/33176))
+* (Python) Added `Sample.Any`, the Python equivalent of Java's `Sample.any`, which returns up to n arbitrary elements from a PCollection ([#18552](https://github.com/apache/beam/issues/18552)).
 
 ## Breaking Changes
 
@@ -185,7 +203,6 @@
 * (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
   use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
   However fixing forward is recommended.
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Bugfixes
 
@@ -197,6 +214,8 @@
 
 * (Java) Projects using the Flink runner with Flink 2.1 or later alongside libraries requiring `org.lz4:lz4-java` (e.g., Kafka clients) may encounter a Gradle capability conflict, because Flink 2.1+ ships `at.yawk.lz4:lz4-java` which declares the same capability. To resolve, add a `capabilitiesResolution` rule to your `build.gradle` that selects `at.yawk.lz4:lz4-java` ([#38947](https://github.com/apache/beam/issues/38947)).
 * (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39548)).
+* (Java) Pipelines using the Dataflow Runner and Java versions 17+ may experience spiky memory caused by a JVM upgrade in the runner image ([#39897](https://github.com/apache/beam/issues/39897).
 
 # [2.74.0] - 2026-06-02
 
@@ -211,6 +230,7 @@
 
 ## New Features / Improvements
 
+* (Java) Added an experimental Kafka Streams runner, which executes a Beam pipeline as an ordinary Kafka Streams application with no cluster to operate. It supports a subset of the model and is not built by default; pass `-Pwith-kafka-streams-runner` to include it ([#18479](https://github.com/apache/beam/issues/18479)).
 * Capability introduces an indicator for aggregations and timers firing during a pipeline drain, allowing users and sinks to recognize and appropriately handle potentially incomplete or partial data ([#36884](https://github.com/apache/beam/issues/36884)).
 * Added support for setting disk provisioned IOPS and throughput in Dataflow runner via `--diskProvisionedIops` and `--diskProvisionedThroughputMibps` pipeline options (Java/Go/Python) ([#38349](https://github.com/apache/beam/issues/38349)).
 * TriggerStateMachineRunner changes from BitSetCoder to SentinelBitSetCoder to
@@ -241,6 +261,8 @@
 ## Known Issues
 
 * (Python) Long-running Python pipelines might experience memory growth and periodic OOMs ([#39406](https://github.com/apache/beam/issues/39406)).
+* (Java) Pipelines with a moderate to heavy Cloud Storage read workload might experience a performance regression ([#39548](https://github.com/apache/beam/issues/39548)).
+* (Java) Pipelines using the Dataflow Runner and Java versions 17+ may experience spiky memory caused by a JVM upgrade in the runner image ([#39897](https://github.com/apache/beam/issues/39897).
 
 # [2.73.0] - 2026-04-29
 
