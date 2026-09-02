@@ -29,6 +29,11 @@ const {
   REVIEWERS_ACTION,
 } = require("./shared/constants");
 import { CheckStatus } from "./shared/checks";
+import { buildPrHistoryContext } from "./shared/gitHistory";
+import {
+  GeminiReviewerAdvisor,
+  ReviewerAdviceResult,
+} from "./shared/geminiReviewerAdvisor";
 
 /*
  * Returns true if the pr needs to be processed or false otherwise.
@@ -167,7 +172,9 @@ async function approvedBy(pull: any): Promise<string[]> {
 async function isAnyGithubReviewerCommitter(pull: any): Promise<boolean> {
   let reviewers: string[] = [];
   if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
-    reviewers = reviewers.concat(pull.requested_reviewers.map((r: any) => r.login));
+    reviewers = reviewers.concat(
+      pull.requested_reviewers.map((r: any) => r.login)
+    );
   }
   for (const reviewer of reviewers) {
     if (await github.checkIfCommitter(reviewer)) {
@@ -194,8 +201,8 @@ async function processPull(
       await github.addPrComment(
         pull.number,
         "Closing this PR because dependabot updates for container/** are not allowed due to generated files " +
-        "and excluded_paths is disabled due to dependabot/dependabot-core#14408. " +
-        "Once issue is resolved, please remove this step."
+          "and excluded_paths is disabled due to dependabot/dependabot-core#14408. " +
+          "Once issue is resolved, please remove this step."
       );
       await github.closePr(pull.number);
       return;
@@ -210,8 +217,10 @@ async function processPull(
   console.log(`Processing PR ${pull.number}`);
 
   // If reviewers are already assigned, we just need to check if we should assign a committer.
-  const hasReviewersAssignedForLabels = Object.keys(prState.reviewersAssignedForLabels).length > 0;
-  const hasGithubReviewers = pull.requested_reviewers && pull.requested_reviewers.length > 0;
+  const hasReviewersAssignedForLabels =
+    Object.keys(prState.reviewersAssignedForLabels).length > 0;
+  const hasGithubReviewers =
+    pull.requested_reviewers && pull.requested_reviewers.length > 0;
 
   if (hasReviewersAssignedForLabels || hasGithubReviewers) {
     if (prState.committerAssigned) {
@@ -237,7 +246,11 @@ async function processPull(
       // we can try to guess a label from the PR to assign a committer to.
       if (!labelOfReviewer) {
         let isGithubReviewer = false;
-        if (pull.requested_reviewers && pull.requested_reviewers.some((r: any) => r.login === approver)) isGithubReviewer = true;
+        if (
+          pull.requested_reviewers &&
+          pull.requested_reviewers.some((r: any) => r.login === approver)
+        )
+          isGithubReviewer = true;
 
         if (isGithubReviewer && pull.labels && pull.labels.length > 0) {
           const validLabels = reviewerConfig.getReviewersForAllLabels();
@@ -272,8 +285,7 @@ async function processPull(
         );
         const availableReviewers =
           reviewerConfig.getReviewersForLabel(labelOfReviewer);
-        const fallbackReviewers =
-          reviewerConfig.getFallbackReviewers();
+        const fallbackReviewers = reviewerConfig.getFallbackReviewers();
         const chosenCommitter = await reviewersState.assignNextCommitter(
           availableReviewers,
           fallbackReviewers
@@ -322,7 +334,85 @@ async function processPull(
   }
   prState.commentedAboutFailingChecks = false;
 
-  // Pick reviewers to assign. Store them in reviewerStateToUpdate and update the prState object with those reviewers (and their associated labels)
+  // Experimental LLM / Git History reviewer assigner is behind a feature flag (default: OFF)
+  const ENABLE_LLM_REVIEW_ASSIGNER =
+    process.env.ENABLE_LLM_REVIEW_ASSIGNER === "true";
+
+  if (ENABLE_LLM_REVIEW_ASSIGNER) {
+    let assignedViaAdvisor = false;
+    try {
+      const rawFiles = await github
+        .getGitHubClient()
+        .paginate(github.getGitHubClient().rest.pulls.listFiles, {
+          owner: REPO_OWNER,
+          repo: REPO,
+          pull_number: pull.number,
+        });
+
+      const prContext = buildPrHistoryContext(
+        pull.number,
+        pull.title,
+        pull.body || "",
+        pull.user.login,
+        rawFiles
+      );
+
+      const advisor = new GeminiReviewerAdvisor({
+        committerCheck: github.checkIfCommitter,
+        exclusionList: reviewerConfig.getAllExclusions(),
+      });
+
+      const advice: ReviewerAdviceResult = await advisor.adviseReviewers(
+        prContext
+      );
+
+      if (advice.selectedReviewers.length > 0) {
+        for (const reviewer of advice.selectedReviewers) {
+          prState.reviewersAssignedForLabels[reviewer.expertise] =
+            reviewer.username;
+        }
+        prState.alternateReviewers = advice.alternateReviewers.map(
+          (a) => a.username
+        );
+
+        console.log(
+          `Assigning reviewers with expertise for PR ${pull.number} via ${advice.source}`
+        );
+        await github.addPrComment(
+          pull.number,
+          commentStrings.assignReviewersWithExpertise(advice)
+        );
+
+        try {
+          await github.getGitHubClient().rest.pulls.requestReviewers({
+            owner: REPO_OWNER,
+            repo: REPO,
+            pull_number: pull.number,
+            reviewers: advice.selectedReviewers.map((r) => r.username),
+          });
+        } catch (reqErr) {
+          console.warn(
+            `Could not request reviewers via GitHub API for PR ${pull.number}: ${reqErr}`
+          );
+        }
+
+        github.nextActionReviewers(pull.number, pull.labels);
+        prState.nextAction = "Reviewers";
+        await stateClient.writePrState(pull.number, prState);
+        assignedViaAdvisor = true;
+      }
+    } catch (advisorErr) {
+      console.warn(
+        `Advisor selection failed for PR ${pull.number}: ${advisorErr}. Falling back to label rotation.`
+      );
+    }
+
+    if (assignedViaAdvisor) {
+      return;
+    }
+  }
+
+  // Default: Pick reviewers to assign using label rotation.
   let reviewerStateToUpdate: { [key: string]: typeof ReviewersForLabel } = {};
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(pull.labels, [pull.user.login]);

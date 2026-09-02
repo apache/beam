@@ -119,6 +119,20 @@ ${yaml.dump(this.config)}`;
     return labelObject?.exclusionList ?? [];
   }
 
+  // Returns all excluded reviewers configured across all labels.
+  getAllExclusions(): string[] {
+    const exclusions = new Set<string>();
+    const labelObjects = this.config.labels || [];
+    for (const labelObject of labelObjects) {
+      if (Array.isArray(labelObject.exclusionList)) {
+        for (const user of labelObject.exclusionList) {
+          exclusions.add(user);
+        }
+      }
+    }
+    return Array.from(exclusions);
+  }
+
   // Get fallback reviewers excluding the author.
   getFallbackReviewers(exclusionList: string[]): string[] {
     return this.excludeFromReviewers(

@@ -17,6 +17,7 @@
  */
 
 const { NO_MATCHING_LABEL } = require("./constants");
+import { ReviewerAdviceResult } from "./geminiReviewerAdvisor";
 
 export function allChecksPassed(reviewersToNotify: string[]): string {
   return `All checks have passed: @${reviewersToNotify.join(" ")}`;
@@ -26,9 +27,41 @@ export function assignCommitter(committer: string): string {
   return `R: @${committer} for final approval`;
 }
 
+export function assignReviewersWithExpertise(
+  advice: ReviewerAdviceResult
+): string {
+  let commentString = "### 🧭 Reviewer Assignment\n\n";
+
+  for (const reviewer of advice.selectedReviewers) {
+    const roleBadge =
+      reviewer.role === "primary"
+        ? "**Primary Reviewer**"
+        : "**Secondary Reviewer**";
+    commentString += `- R: @${reviewer.username} (${roleBadge})\n  *Expertise:* ${reviewer.expertise}\n\n`;
+  }
+
+  if (advice.alternateReviewers && advice.alternateReviewers.length > 0) {
+    const alts = advice.alternateReviewers
+      .map((r) => `@${r.username}`)
+      .join(", ");
+    commentString += `*Selected a minimal reviewer set to keep review focused. Backup expert(s): ${alts}*\n\n`;
+  }
+
+  commentString += `Note: If you would like to opt out of this review, comment \`assign to next reviewer\`.
+
+Available commands:
+- \`assign to next reviewer\` - reassign to an alternate reviewer
+- \`assign based on git history\` - assign reviewers based on git history and file churn analysis
+- \`stop reviewer notifications\` - opt out of the automated review tooling
+- \`remind me after tests pass\` - tag the comment author after tests pass
+- \`waiting on author\` - shift the attention set back to the author (any comment or push by the author will return the attention set to the reviewers)
+
+The PR bot will only process comments in the main thread (not review comments).`;
+  return commentString;
+}
+
 export function assignReviewer(labelToReviewerMapping: any): string {
-  let commentString =
-    "Assigning reviewers:\n\n";
+  let commentString = "Assigning reviewers:\n\n";
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];
