@@ -246,6 +246,21 @@ func (h acceleratorHint) String() string {
 	return fmt.Sprintf("accelerator=%v", h.value)
 }
 
+// ParseCPUCount converts a number in string form into a hint.
+// An invalid format will cause ParseCPUCount to panic.
+//
+// Hints are advisory only and runners may not respect them.
+//
+// See https://beam.apache.org/documentation/runtime/resource-hints/ for more information about
+// resource hints.
+func ParseCPUCount(v string) Hint {
+	b, err := strconv.ParseUint(v, 10, 64)
+	if err != nil {
+		panic(fmt.Sprintf("resource.ParseCPUCount: unable to parse %q: %v", v, err))
+	}
+	return CPUCount(uint64(b))
+}
+
 // CPUCount hints that this scope should be put in a machine with at least this many CPUs or vCPUs.
 //
 // Hints are advisory only and runners may not respect them.
