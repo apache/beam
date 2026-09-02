@@ -82,6 +82,36 @@ public class TableMetadataDriverTest implements Serializable {
       IcebergUtils.beamSchemaToIcebergSchema(
           Schema.builder().addInt64Field("id").addStringField("data").build());
 
+  private static final TableIdentifier TABLE_ID = TableIdentifier.of("default", "table");
+
+  private static final DynamicDestinations SINGLE_TABLE_DYNAMIC_DESTINATIONS =
+      DynamicDestinations.singleTable(TABLE_ID, BEAM_SCHEMA);
+
+  private static final DynamicDestinations DYNAMIC_DESTINATIONS =
+      new DynamicDestinations() {
+        @Override
+        public Schema getDataSchema() {
+          return BEAM_SCHEMA;
+        }
+
+        @Override
+        public Row getData(Row element) {
+          return element;
+        }
+
+        @Override
+        public IcebergDestination instantiateDestination(String destination) {
+          return IcebergDestination.builder()
+              .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
+              .build();
+        }
+
+        @Override
+        public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+          return element.getValue().getString("dest");
+        }
+      };
+
   @Before
   public void setUp() throws Exception {
     warehouseLocation = "file:" + tempFolder.newFolder().getAbsolutePath();
@@ -102,10 +132,7 @@ public class TableMetadataDriverTest implements Serializable {
 
   @Test
   public void testSingleTableExtractionAndSpecOutput() {
-    TableIdentifier tableId = TableIdentifier.of("default", "single_table");
-    Table realTable = getCatalog().createTable(tableId, ICEBERG_SCHEMA);
-
-    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
+    Table realTable = getCatalog().createTable(TABLE_ID, ICEBERG_SCHEMA);
 
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 5; i++) {
@@ -123,10 +150,10 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
                 .build());
 
-    String expectedTableIdString = IcebergUtils.tableIdentifierToString(tableId);
+    String expectedTableIdString = IcebergUtils.tableIdentifierToString(TABLE_ID);
 
     PAssert.that(specs)
         .satisfies(
@@ -159,31 +186,6 @@ public class TableMetadataDriverTest implements Serializable {
     catalog.createTable(tableB, ICEBERG_SCHEMA);
     catalog.createTable(tableC, ICEBERG_SCHEMA);
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     List<Row> rows =
         ImmutableList.of(
             Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.table_a").build(),
@@ -198,7 +200,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
     PAssert.that(specs)
@@ -226,31 +228,6 @@ public class TableMetadataDriverTest implements Serializable {
     catalog.createTable(table1, ICEBERG_SCHEMA);
     catalog.createTable(table2, ICEBERG_SCHEMA);
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     List<Row> rows = new ArrayList<>();
     for (int i = 0; i < 100; i++) {
       String dest = (i % 2 == 0) ? "default.t1" : "default.t2";
@@ -263,7 +240,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
     PAssert.that(specs)
@@ -290,31 +267,6 @@ public class TableMetadataDriverTest implements Serializable {
     catalog.createTable(table1, ICEBERG_SCHEMA);
     catalog.createTable(table2, ICEBERG_SCHEMA);
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.stream_t1").build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.stream_t2").build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "v3", "default.stream_t1").build();
@@ -334,7 +286,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .setRefreshInterval(Duration.standardSeconds(2))
                 .build());
 
@@ -360,31 +312,6 @@ public class TableMetadataDriverTest implements Serializable {
       catalog.createTable(TableIdentifier.of("default", "cap_table_" + i), ICEBERG_SCHEMA);
     }
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     List<Row> rows = new ArrayList<>();
     for (int i = 1; i <= 6; i++) {
       rows.add(
@@ -400,7 +327,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .setMaximumCacheSize(maxCacheSize)
                 .build());
 
@@ -422,31 +349,6 @@ public class TableMetadataDriverTest implements Serializable {
       catalog.createTable(TableIdentifier.of("default", "uncapped_table_" + i), ICEBERG_SCHEMA);
     }
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     List<Row> rows = new ArrayList<>();
     for (int i = 1; i <= 10; i++) {
       rows.add(
@@ -462,7 +364,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
     PAssert.that(specs)
@@ -482,31 +384,6 @@ public class TableMetadataDriverTest implements Serializable {
     TableIdentifier validTable = TableIdentifier.of("default", "existing_table");
     catalog.createTable(validTable, ICEBERG_SCHEMA);
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     List<Row> rows =
         ImmutableList.of(
             Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.existing_table").build(),
@@ -518,7 +395,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
     // Only the existing table is emitted; the non-existent table is skipped without failing bundle
@@ -539,31 +416,6 @@ public class TableMetadataDriverTest implements Serializable {
     TableIdentifier validTableId = TableIdentifier.of("default", "valid_dest_table");
     getCatalog().createTable(validTableId, ICEBERG_SCHEMA);
 
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
-
     List<Row> rows =
         ImmutableList.of(
             Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", null).build(),
@@ -580,7 +432,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
     PAssert.that(specs)
@@ -597,15 +449,12 @@ public class TableMetadataDriverTest implements Serializable {
 
   @Test
   public void testInvalidMaximumCacheSizeThrowsException() {
-    TableIdentifier tableId = TableIdentifier.of("default", "dummy_table");
-    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
-
     assertThrows(
         IllegalArgumentException.class,
         () ->
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
                 .setMaximumCacheSize(0)
                 .build());
 
@@ -614,22 +463,19 @@ public class TableMetadataDriverTest implements Serializable {
         () ->
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
                 .setMaximumCacheSize(-5)
                 .build());
   }
 
   @Test
   public void testInvalidRefreshIntervalThrowsException() {
-    TableIdentifier tableId = TableIdentifier.of("default", "dummy_table");
-    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
-
     assertThrows(
         IllegalArgumentException.class,
         () ->
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
                 .setRefreshInterval(Duration.ZERO)
                 .build());
 
@@ -638,7 +484,7 @@ public class TableMetadataDriverTest implements Serializable {
         () ->
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
                 .setRefreshInterval(Duration.standardSeconds(-5))
                 .build());
   }
@@ -651,31 +497,6 @@ public class TableMetadataDriverTest implements Serializable {
 
     catalog.createTable(tableW1, ICEBERG_SCHEMA);
     catalog.createTable(tableW2, ICEBERG_SCHEMA);
-
-    DynamicDestinations dynamicDestinations =
-        new DynamicDestinations() {
-          @Override
-          public Schema getDataSchema() {
-            return BEAM_SCHEMA;
-          }
-
-          @Override
-          public Row getData(Row element) {
-            return element;
-          }
-
-          @Override
-          public IcebergDestination instantiateDestination(String destination) {
-            return IcebergDestination.builder()
-                .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
-                .build();
-          }
-
-          @Override
-          public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
-            return element.getValue().getString("dest");
-          }
-        };
 
     Instant t1 = new Instant(1000);
     Instant t2 = new Instant(70000);
@@ -697,7 +518,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
     PAssert.that(specs)
@@ -713,10 +534,7 @@ public class TableMetadataDriverTest implements Serializable {
 
   @Test
   public void testEmptyInputProducesEmptyOutput() {
-    TableIdentifier tableId = TableIdentifier.of("default", "empty_input_table");
-    getCatalog().createTable(tableId, ICEBERG_SCHEMA);
-
-    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
+    getCatalog().createTable(TABLE_ID, ICEBERG_SCHEMA);
 
     PCollection<Row> input = pipeline.apply(Create.empty(RowCoder.of(BEAM_SCHEMA)));
 
@@ -724,7 +542,7 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(dynamicDestinations)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
                 .build());
 
     PAssert.that(specs).empty();
@@ -734,13 +552,10 @@ public class TableMetadataDriverTest implements Serializable {
 
   @Test
   public void testDisplayData() {
-    TableIdentifier tableId = TableIdentifier.of("default", "display_table");
-    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
-
     TableMetadataDriver driver =
         TableMetadataDriver.builder()
             .setCatalogConfig(catalogConfig)
-            .setDynamicDestinations(dynamicDestinations)
+            .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
             .setMaximumCacheSize(42)
             .setRefreshInterval(Duration.standardMinutes(10))
             .build();
@@ -766,11 +581,8 @@ public class TableMetadataDriverTest implements Serializable {
 
   @Test
   public void testViewAsMapIntegration() {
-    TableIdentifier tableId = TableIdentifier.of("default", "view_integration_table");
     PartitionSpec partitionSpec = PartitionSpec.builderFor(ICEBERG_SCHEMA).identity("data").build();
-    getCatalog().createTable(tableId, ICEBERG_SCHEMA, partitionSpec);
-
-    DynamicDestinations dynamicDestinations = DynamicDestinations.singleTable(tableId, BEAM_SCHEMA);
+    getCatalog().createTable(TABLE_ID, ICEBERG_SCHEMA, partitionSpec);
 
     List<Row> rows =
         ImmutableList.of(
@@ -781,9 +593,10 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
-            "CreateMetadataView", TableMetadataDriver.asView(catalogConfig, dynamicDestinations));
+            "CreateMetadataView",
+            TableMetadataDriver.asView(catalogConfig, SINGLE_TABLE_DYNAMIC_DESTINATIONS));
 
-    String expectedTableIdString = IcebergUtils.tableIdentifierToString(tableId);
+    String expectedTableIdString = IcebergUtils.tableIdentifierToString(TABLE_ID);
 
     PCollection<String> writtenFiles =
         input.apply(
