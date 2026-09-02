@@ -887,7 +887,7 @@ public class TableRowToStorageApiProto {
         if (unknownFields != null) {
           unknownFields.set(key, entry.getValue());
         }
-        if (ignoreUnknownValues) {
+        if (ignoreUnknownValues || entry.getValue() == null) {
           continue;
         } else {
           String prefix = schemaInformation.getFullName();
@@ -2086,5 +2086,46 @@ public class TableRowToStorageApiProto {
       default:
         return false;
     }
+  }
+
+  static boolean hasExtraFields(
+      com.google.api.services.bigquery.model.@Nullable TableSchema clientSchema,
+      com.google.api.services.bigquery.model.@Nullable TableSchema bqSchema) {
+    if (clientSchema == null || clientSchema.getFields() == null) {
+      return false;
+    }
+    if (bqSchema == null || bqSchema.getFields() == null) {
+      return false;
+    }
+    java.util.Map<String, com.google.api.services.bigquery.model.TableFieldSchema> bqFieldMap =
+        bqSchema.getFields().stream()
+            .collect(
+                java.util.stream.Collectors.toMap(
+                    com.google.api.services.bigquery.model.TableFieldSchema::getName,
+                    f -> f,
+                    (a, b) -> a));
+    for (com.google.api.services.bigquery.model.TableFieldSchema clientField :
+        clientSchema.getFields()) {
+      com.google.api.services.bigquery.model.TableFieldSchema bqField =
+          bqFieldMap.get(clientField.getName());
+      if (bqField == null) {
+        return true;
+      }
+      if ("RECORD".equalsIgnoreCase(clientField.getType())
+          || "STRUCT".equalsIgnoreCase(clientField.getType())) {
+        if (clientField.getFields() != null && bqField.getFields() != null) {
+          com.google.api.services.bigquery.model.TableSchema nestedClient =
+              new com.google.api.services.bigquery.model.TableSchema()
+                  .setFields(clientField.getFields());
+          com.google.api.services.bigquery.model.TableSchema nestedBq =
+              new com.google.api.services.bigquery.model.TableSchema()
+                  .setFields(bqField.getFields());
+          if (hasExtraFields(nestedClient, nestedBq)) {
+            return true;
+          }
+        }
+      }
+    }
+    return false;
   }
 }

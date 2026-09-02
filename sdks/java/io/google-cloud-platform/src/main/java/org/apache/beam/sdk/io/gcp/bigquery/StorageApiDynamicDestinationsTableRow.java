@@ -32,7 +32,6 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.util.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Suppliers;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -94,8 +93,29 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
           }
         };
 
+    TableSchema destSchema = getSchema(destination);
+    TableSchema schemaToUse = destSchema;
+
+    TableDestination tableDestination = getTable(destination);
+    TableReference tableReference =
+        tableDestination != null ? tableDestination.getTableReference() : null;
+
+    if (tableReference != null && datasetService != null) {
+      try {
+        TableSchema bqSchema = SCHEMA_CACHE.getSchema(tableReference, datasetService);
+        if (bqSchema != null) {
+          if (schemaToUse == null
+              || TableRowToStorageApiProto.hasExtraFields(schemaToUse, bqSchema)) {
+            schemaToUse = bqSchema;
+          }
+        }
+      } catch (Exception e) {
+        // Schema cache lookup is best-effort fallback for dynamic destinations.
+      }
+    }
+
     return schemaUpdateOptions.isEmpty()
-        ? getConverter.apply(getSchema(destination))
+        ? getConverter.apply(schemaToUse)
         : new SchemaUpgradingTableRowConverter(
             getConverter, options, datasetService, writeStreamService);
   }
@@ -200,9 +220,7 @@ public class StorageApiDynamicDestinationsTableRow<T, DestinationT extends @NonN
       } else {
         // Make sure we register this schema with the cache, unless there's already a more
         // up-to-date schema.
-        localTableSchema =
-            MoreObjects.firstNonNull(
-                SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema), localTableSchema);
+        SCHEMA_CACHE.putSchemaIfAbsent(tableReference, localTableSchema);
       }
       this.tableSchema = localTableSchema;
       this.protoTableSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(tableSchema);

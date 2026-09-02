@@ -31,6 +31,8 @@ from hamcrest.core import assert_that as hamcrest_assert
 from hamcrest.core.core.allof import all_of
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp.bigquery import StorageWriteToBigQuery
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.tests.bigquery_matcher import BigqueryFullResultMatcher
@@ -482,6 +484,104 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
               schema=self.ALL_TYPES_SCHEMA,
               use_at_least_once=False))
     hamcrest_assert(p, all_of(*bq_matchers))
+
+  def test_write_to_dynamic_destinations_with_dynamic_schema(self):
+    base_table_spec = '{}.dynamic_dest_dyn_schema_'.format(self.dataset_id)
+    spec_with_project = '{}:{}'.format(self.project, base_table_spec)
+    table_id_a = 'dynamic_dest_dyn_schema_users'
+    table_id_b = 'dynamic_dest_dyn_schema_scores'
+    table_a = base_table_spec + 'users'
+    table_b = base_table_spec + 'scores'
+
+    schema_a = "id:INTEGER,name:STRING"
+    schema_b = "id:INTEGER,score:INTEGER,active:BOOLEAN"
+
+    # Pre-create destination tables with their distinct specific schemas prior
+    # to pipeline execution to ensure tables only contain their specific fields.
+    self.bigquery_client.get_or_create_table(
+        project_id=self.project,
+        dataset_id=self.dataset_id,
+        table_id=table_id_a,
+        schema=bigquery_tools.get_table_schema_from_string(schema_a),
+        create_disposition='CREATE_IF_NEEDED',
+        write_disposition='WRITE_APPEND')
+    self.bigquery_client.get_or_create_table(
+        project_id=self.project,
+        dataset_id=self.dataset_id,
+        table_id=table_id_b,
+        schema=bigquery_tools.get_table_schema_from_string(schema_b),
+        create_disposition='CREATE_IF_NEEDED',
+        write_disposition='WRITE_APPEND')
+
+    elements_a = [
+        {
+            'id': 1, 'name': 'alice'
+        },
+        {
+            'id': 2, 'name': 'bob'
+        },
+    ]
+    elements_b = [
+        {
+            'id': 101, 'score': 95, 'active': True
+        },
+        {
+            'id': 102, 'score': 80, 'active': False
+        },
+    ]
+    elements = elements_a + elements_b
+
+    schema_map = {
+        spec_with_project + 'users': schema_a,
+        spec_with_project + 'scores': schema_b,
+    }
+
+    bq_matchers = [
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % table_a,
+            data=self.parse_expected_data(elements_a)),
+        BigqueryFullResultMatcher(
+            project=self.project,
+            query="SELECT * FROM %s" % table_b,
+            data=self.parse_expected_data(elements_b)),
+    ]
+
+    def get_destination(record):
+      if 'name' in record:
+        return spec_with_project + 'users'
+      return spec_with_project + 'scores'
+
+    def get_schema_raw(dest, side_map):
+      return side_map[dest]
+
+    get_schema = bigquery.dynamic_schema(
+        get_schema_raw,
+        union_schema="id:INTEGER,name:STRING,score:INTEGER,active:BOOLEAN")
+
+    with beam.Pipeline(argv=self.args) as p:
+      schema_pc = p | "CreateSchema" >> beam.Create([schema_map])
+      _ = (
+          p
+          | "CreateElements" >> beam.Create(elements)
+          | beam.io.WriteToBigQuery(
+              table=get_destination,
+              method=beam.io.WriteToBigQuery.Method.STORAGE_WRITE_API,
+              schema=get_schema,
+              schema_side_inputs=(beam.pvalue.AsSingleton(schema_pc), ),
+              use_at_least_once=False))
+    hamcrest_assert(p, all_of(*bq_matchers))
+
+    # Verify destination tables retained their specific schemas and were not
+    # created or altered to the union schema
+    fetched_table_a = self.bigquery_client.get_table(
+        self.project, self.dataset_id, table_id_a)
+    fetched_table_b = self.bigquery_client.get_table(
+        self.project, self.dataset_id, table_id_b)
+    self.assertEqual([f.name for f in fetched_table_a.schema.fields],
+                     ['id', 'name'])
+    self.assertEqual([f.name for f in fetched_table_b.schema.fields],
+                     ['id', 'score', 'active'])
 
   def test_write_to_dynamic_destinations_with_beam_rows(self):
     base_table_spec = '{}.dynamic_dest_'.format(self.dataset_id)

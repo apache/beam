@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors.Descriptor;
 import com.google.protobuf.Message;
 import java.io.IOException;
+import java.util.concurrent.ExecutionException;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.WriteStreamService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.SerializableBiFunction;
@@ -32,10 +35,22 @@ import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Storage API DynamicDestinations used when the input is a Beam Row. */
 class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Object>
     extends StorageApiDynamicDestinations<T, DestinationT> {
+  private static final Logger LOG =
+      LoggerFactory.getLogger(StorageApiDynamicDestinationsBeamRow.class);
+  private static final TableSchemaCache SCHEMA_CACHE =
+      new TableSchemaCache(Duration.standardSeconds(1));
+
+  static {
+    SCHEMA_CACHE.start();
+  }
+
   private final TableSchema tableSchema;
   private final SerializableFunction<T, Row> toRow;
   private final @Nullable
@@ -59,21 +74,58 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     this.usesCdc = usesCdc;
   }
 
+  static void clearSchemaCache() throws ExecutionException, InterruptedException {
+    SCHEMA_CACHE.clear();
+  }
+
   @Override
   public MessageConverter<T> getMessageConverter(
       DestinationT destination,
       PipelineOptions pipelineOptions,
-      DatasetService datasetService,
-      BigQueryServices.WriteStreamService writeStreamService)
+      @Nullable DatasetService datasetService,
+      @Nullable WriteStreamService writeStreamService)
       throws Exception {
-    return new BeamRowConverter();
+    TableSchema destinationProtoSchema = null;
+    com.google.api.services.bigquery.model.TableSchema destSchema = getSchema(destination);
+    com.google.api.services.bigquery.model.TableSchema schemaToUse = destSchema;
+
+    TableDestination tableDestination = getTable(destination);
+    TableReference tableReference =
+        tableDestination != null ? tableDestination.getTableReference() : null;
+
+    if (tableReference != null && datasetService != null) {
+      try {
+        com.google.api.services.bigquery.model.TableSchema bqSchema =
+            SCHEMA_CACHE.getSchema(tableReference, datasetService);
+        if (bqSchema != null) {
+          if (schemaToUse == null
+              || TableRowToStorageApiProto.hasExtraFields(schemaToUse, bqSchema)) {
+            schemaToUse = bqSchema;
+          }
+        }
+      } catch (Exception e) {
+        LOG.warn("Could not fetch schema from BigQuery for table {}", tableReference, e);
+      }
+    }
+
+    if (schemaToUse != null) {
+      destinationProtoSchema = TableRowToStorageApiProto.schemaToProtoTableSchema(schemaToUse);
+    }
+
+    if (destinationProtoSchema == null) {
+      destinationProtoSchema = this.tableSchema;
+    }
+
+    return new BeamRowConverter(destinationProtoSchema);
   }
 
   class BeamRowConverter implements MessageConverter<T> {
+    final TableSchema tableSchema;
     final Descriptor descriptor;
     final @Nullable Descriptor cdcDescriptor;
 
-    BeamRowConverter() throws Exception {
+    BeamRowConverter(TableSchema tableSchema) throws Exception {
+      this.tableSchema = tableSchema;
       this.descriptor =
           TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
       if (usesCdc) {
@@ -131,5 +183,4 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
       }
     }
   }
-  ;
 }

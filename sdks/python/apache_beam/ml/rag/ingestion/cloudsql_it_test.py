@@ -397,6 +397,9 @@ MYSQL_CONFIG = DatabaseTestConfig(
     os.environ.get('EXPANSION_JARS'),
     "EXPANSION_JARS environment var is not provided, "
     "indicating that jars have not been built")
+@unittest.skipUnless(
+    os.environ.get('ALLOYDB_PASSWORD'),
+    "ALLOYDB_PASSWORD environment var is not provided")
 class CloudSQLVectorWriterConfigTest(unittest.TestCase):
   def setUp(self):
     self.write_test_pipeline = TestPipeline(is_integration_test=True)
