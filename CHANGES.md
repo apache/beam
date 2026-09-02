@@ -65,6 +65,7 @@
 ## I/Os
 
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added CDC (change-data-capture) write support for Iceberg: apply a stream or batch of INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE changes to merge-on-read Iceberg V2/V3 tables via `IcebergIO.writeCdcRows` or Managed `ICEBERG_CDC` (Java) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
 
