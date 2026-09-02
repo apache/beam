@@ -717,19 +717,19 @@ final class FirestoreV1ReadFn {
       if (project == null) {
         project = c.getPipelineOptions().as(GcpOptions.class).getProject();
       }
-      project =
-          requireNonNull(
-              project,
-              "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions");
       String databaseId =
           configuredDatabaseId != null
               ? configuredDatabaseId
               : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
-      requireNonNull(
-          databaseId, "firestoreDb must be defined on FirestoreOptions of PipelineOptions");
       firestoreStub =
           firestoreStatefulComponentFactory.getFirestoreStub(
-              c.getPipelineOptions(), project, databaseId);
+              c.getPipelineOptions(),
+              requireNonNull(
+                  project,
+                  "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions"),
+              requireNonNull(
+                  databaseId,
+                  "firestoreDb must be defined on FirestoreOptions of PipelineOptions"));
     }
 
     /** {@inheritDoc} */
