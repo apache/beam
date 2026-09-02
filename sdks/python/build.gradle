@@ -107,16 +107,24 @@ tasks.register("prepareExpansionServicesForYamlDocs") {
 
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:snowflake:expansion-service:shadowJar"
 
   doLast {
     // Copy expansion service jar into cache path (.apache_beam/cache/jars/).
     copy {
       from project.tasks.findByPath(":sdks:java:extensions:schemaio-expansion-service:shadowJar")
       from project.tasks.findByPath(":sdks:java:extensions:sql:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:amazon-web-services2:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:debezium:expansion-service:shadowJar")
       from project.tasks.findByPath(":sdks:java:io:expansion-service:shadowJar")
       from project.tasks.findByPath(":sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:messaging-expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:snowflake:expansion-service:shadowJar")
       into "${System.getProperty('user.home')}/.apache_beam/cache/jars/"
     }
   }
