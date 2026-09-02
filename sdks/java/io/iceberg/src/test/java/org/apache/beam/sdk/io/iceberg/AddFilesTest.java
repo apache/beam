@@ -26,6 +26,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -61,6 +62,7 @@ import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
@@ -73,11 +75,13 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
+import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializableFunction;
+import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.junit.Before;
@@ -99,8 +103,8 @@ public class AddFilesTest {
 
   private HadoopCatalog catalog;
   private TableIdentifier tableId;
-  private final org.apache.iceberg.Schema icebergSchema =
-      new org.apache.iceberg.Schema(
+  private final Schema icebergSchema =
+      new Schema(
           Types.NestedField.required(1, "id", Types.IntegerType.get()),
           Types.NestedField.required(2, "name", Types.StringType.get()),
           Types.NestedField.required(3, "age", Types.IntegerType.get()));
@@ -518,6 +522,243 @@ public class AddFilesTest {
     pipeline.run().waitUntilFinish();
   }
 
+  /** Infrastructure failures must fail the bundle, not become silently-dropped error rows. */
+  @Test
+  public void testCatalogOutageFailsBundleInsteadOfDlq() throws Exception {
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    IcebergCatalogConfig unreachable =
+        IcebergCatalogConfig.builder()
+            .setCatalogProperties(ImmutableMap.of("type", "rest", "uri", "http://localhost:1"))
+            .build();
+    pipeline
+        .apply("Create Input", Create.of(file1))
+        .apply(new AddFiles(unreachable, tableId.toString(), null, null, null, null, null, null));
+    assertThrows(Exception.class, () -> pipeline.run().waitUntilFinish());
+  }
+
+  /** A file deleted between listing and registration is one error row, never a stuck bundle. */
+  @Test
+  public void testMissingFileWithExistingTableRoutesToDlq() {
+    catalog.createTable(tableId, icebergSchema);
+    String missing = root + "missing.parquet";
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(missing))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(missing, row.getString("file"));
+              assertThat(row.getString("error"), containsString("No files found"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).snapshots()));
+  }
+
+  @Test
+  public void testGarbageParquetWithExistingTableRoutesToDlq() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    File garbage = temp.newFile("garbage.parquet");
+    java.nio.file.Files.write(
+        garbage.toPath(), "not parquet".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+    String file = garbage.getAbsolutePath();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row row = Iterables.getOnlyElement(rows);
+              assertEquals(file, row.getString("file"));
+              assertNotNull(row.getString("error"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).snapshots()));
+  }
+
+  @Test
+  public void testStaleNameMappingRegeneratedAtCommit() throws Exception {
+    Table table = catalog.createTable(tableId, icebergSchema);
+    // A mapping generated against an older version of the schema (covers only "id"), carrying a
+    // user-added alias.
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            json("[ {'field-id': 1, 'names': ['id', 'ident']} ]"))
+        .commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    // Regenerated from the schema, with the user's alias carried over.
+    NameMapping expected =
+        NameMappingParser.fromJson(
+            json(
+                "[ {'field-id': 1, 'names': ['id', 'ident']},"
+                    + "  {'field-id': 2, 'names': ['name']},"
+                    + "  {'field-id': 3, 'names': ['age']} ]"));
+    assertEquals(expected.asMappedFields(), currentMapping().asMappedFields());
+  }
+
+  /**
+   * The stale mapping resolves every top-level name but is missing a field nested inside a {@code
+   * list<struct>}; only the recursive coverage walk can detect it.
+   */
+  @Test
+  public void testStaleNestedNameMappingRegeneratedAtCommit() throws Exception {
+    Schema tableSchema =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.StringType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()),
+            Types.NestedField.optional(
+                4,
+                "events",
+                Types.ListType.ofOptional(
+                    5,
+                    Types.StructType.of(
+                        Types.NestedField.optional(6, "a", Types.IntegerType.get()),
+                        Types.NestedField.optional(7, "b", Types.StringType.get())))));
+    Table table = catalog.createTable(tableId, tableSchema);
+    Schema staleView =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.StringType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()),
+            Types.NestedField.optional(
+                4,
+                "events",
+                Types.ListType.ofOptional(
+                    5,
+                    Types.StructType.of(
+                        Types.NestedField.optional(6, "a", Types.IntegerType.get())))));
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            NameMappingParser.toJson(MappingUtil.create(staleView)))
+        .commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(
+        MappingUtil.create(tableSchema).asMappedFields(), currentMapping().asMappedFields());
+  }
+
+  @Test
+  public void testMalformedNameMappingRegeneratedAtCommit() throws Exception {
+    Table table = catalog.createTable(tableId, icebergSchema);
+    // Duplicate names make NameMappingParser.fromJson throw eagerly.
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            json("[ {'field-id': 1, 'names': ['dup']}, {'field-id': 2, 'names': ['dup']} ]"))
+        .commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(
+        MappingUtil.create(icebergSchema).asMappedFields(), currentMapping().asMappedFields());
+  }
+
+  /** A mapping that already covers the schema is never rewritten, whatever custom names it has. */
+  @Test
+  public void testHealthyCustomizedMappingLeftUntouched() throws Exception {
+    Table table = catalog.createTable(tableId, icebergSchema);
+    String custom =
+        json(
+            "[ {'field-id': 1, 'names': ['id', 'ident']},"
+                + "  {'field-id': 2, 'names': ['name']},"
+                + "  {'field-id': 3, 'names': ['age']} ]");
+    table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, custom).commit();
+
+    String file1 = root + "data1.parquet";
+    DataWriter<Record> writer = createWriter(file1);
+    writer.write(record(1, "Mark", 20));
+    writer.close();
+
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(file1))
+            .apply(
+                new AddFiles(
+                    catalogConfig, tableId.toString(), null, null, null, null, null, null));
+    PAssert.that(output.get("errors")).empty();
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(
+        custom, catalog.loadTable(tableId).properties().get(TableProperties.DEFAULT_NAME_MAPPING));
+  }
+
+  /** Single-quoted JSON keeps test literals free of escape noise. */
+  private static String json(String singleQuoted) {
+    return singleQuoted.replace('\'', '"');
+  }
+
+  private NameMapping currentMapping() {
+    return NameMappingParser.fromJson(
+        catalog.loadTable(tableId).properties().get(TableProperties.DEFAULT_NAME_MAPPING));
+  }
+
+  @Test
+  public void testErrorMessageToleratesNullMessage() {
+    assertEquals("java.io.IOException", AddFiles.errorMessage(new IOException((String) null)));
+    assertEquals("boom", AddFiles.errorMessage(new IOException("boom")));
+  }
+
   @Test
   public void testGetPartitionFromMetrics() throws IOException, InterruptedException {
     PartitionSpec partitionSpec =
@@ -566,9 +807,10 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
+      ParquetMetadata footer = ParquetFooters.read(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema));
+              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
         Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
@@ -582,7 +824,7 @@ public class AddFilesTest {
         assertEquals(caze.expectedUpper.get(i), upper);
       }
 
-      String partitionPath = getPartitionFromMetrics(metrics, file, table);
+      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer);
       assertEquals(caze.expectedPartition, partitionPath);
     }
   }
@@ -631,9 +873,10 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
+      ParquetMetadata footer = ParquetFooters.read(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema));
+              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
       // check that lower/upper stats are still fetched correctly
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
@@ -650,7 +893,7 @@ public class AddFilesTest {
 
       assertThrows(
           AddFiles.UnknownPartitionException.class,
-          () -> getPartitionFromMetrics(metrics, file, table));
+          () -> getPartitionFromMetrics(metrics, file, table, footer));
     }
   }
 

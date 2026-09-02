@@ -273,6 +273,7 @@ public class KafkaIOTest {
             super.assign(assigned);
             assignedPartitions.set(ImmutableList.copyOf(assigned));
           }
+
           // Override offsetsForTimes() in order to look up the offsets by timestamp.
           @Override
           public synchronized Map<TopicPartition, OffsetAndTimestamp> offsetsForTimes(

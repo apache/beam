@@ -41,6 +41,7 @@ import logging
 import struct
 
 import apache_beam as beam
+from apache_beam import version as beam_version
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
@@ -57,6 +58,7 @@ FLUSH_COUNT = 1000
 MAX_ROW_BYTES = 5242880  # 5MB
 
 try:
+  from google.api_core.gapic_v1 import client_info as client_info_lib
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.batcher import MutationsBatcher
   from google.cloud.bigtable.row import Cell
@@ -139,7 +141,11 @@ class _BigTableWriteFn(beam.DoFn):
 
   def start_bundle(self):
     if self.table is None:
-      client = Client(project=self.beam_options['project_id'])
+      client = Client(
+          project=self.beam_options['project_id'],
+          client_info=client_info_lib.ClientInfo(
+              user_agent="apache-beam/%s (GPN:Beam)" %
+              beam_version.__version__))
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
     self.service_call_metric = self.start_service_call_metrics(

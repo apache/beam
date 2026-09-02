@@ -97,6 +97,23 @@ The above installation will not install all the extra dependencies for using fea
 - **Beam YAML Dataframe API**
   - Installation Command: `pip install 'apache-beam[dataframe]'`
   - Required for using [Beam Dataframe API](/documentation/dsls/dataframes/overview/)
+- **[Machine Learning (Beam ML)](/documentation/ml/about-ml)**
+  - Installation Command: `pip install 'apache-beam[<extra>]'`
+  - Required for machine learning frameworks and utilities:
+    - `ml_cpu` ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.html))
+    - `milvus` ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.rag.enrichment.milvus_search.html))
+    - `onnx` ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.onnx_inference.html))
+    - [**tensorflow**](/documentation/ml/about-ml#tensorflow) ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.tensorflow_inference.html))
+    - `tensorflow-hub` ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.embeddings.tensorflow_hub.html))
+    - [**tft**](/documentation/ml/preprocess-data#data-processing-transforms-that-use-tft) ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.transforms.tft.html))
+    - [**torch**](/documentation/ml/about-ml#pytorch) ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.pytorch_inference.html))
+    - `transformers` ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.huggingface_inference.html))
+    - [**vllm**](/documentation/ml/large-language-modeling) ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.vllm_inference.html))
+    - `xgboost` ([pydoc](https://beam.apache.org/releases/pydoc/current/apache_beam.ml.inference.xgboost_inference.html))
+- **Interactive Beam**
+  - Installation Command: `pip install 'apache-beam[interactive]'`
+  - Required for using [Beam Interactive Runner](https://github.com/apache/beam/blob/master/sdks/python/apache_beam/runners/interactive/README.md) in Jupyter notebooks
+  - To also install testing interactive notebook features, use `apache-beam[interactive,interactive_test]`.
 - **Tests**
   - Installation Command: `pip install 'apache-beam[test]'`
   - Required for developing Beam and running unit tests

@@ -66,7 +66,9 @@ public abstract class SerializableDeleteFile {
   @SchemaFieldNumber("4")
   public abstract long getFileSizeInBytes();
 
-  /** @deprecated Use {@link #getJsonPartition()} instead. */
+  /**
+   * @deprecated Use {@link #getJsonPartition()} instead.
+   */
   @SchemaFieldNumber("5")
   @Deprecated
   public abstract String getPartitionPath();

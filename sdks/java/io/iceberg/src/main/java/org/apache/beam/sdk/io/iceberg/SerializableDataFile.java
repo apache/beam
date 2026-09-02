@@ -76,7 +76,9 @@ public abstract class SerializableDataFile {
   @SchemaFieldNumber("3")
   public abstract long getFileSizeInBytes();
 
-  /** @deprecated Use {@link #getJsonPartition()} instead. */
+  /**
+   * @deprecated Use {@link #getJsonPartition()} instead.
+   */
   @SchemaFieldNumber("4")
   @Deprecated
   public abstract String getPartitionPath();
@@ -330,6 +332,7 @@ public abstract class SerializableDataFile {
         && getFileSizeInBytes() == that.getFileSizeInBytes()
         && getPartitionPath().equals(that.getPartitionPath())
         && getPartitionSpecId() == that.getPartitionSpecId()
+        && Objects.equals(getPartitionPath(), that.getPartitionPath())
         && Objects.equals(getJsonPartition(), that.getJsonPartition())
         && Objects.equals(getKeyMetadata(), that.getKeyMetadata())
         && Objects.equals(getSplitOffsets(), that.getSplitOffsets())
