@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -33,7 +34,7 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
-import org.apache.beam.sdk.transforms.windowing.AfterProcessingTime;
+import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
@@ -69,9 +70,9 @@ import org.slf4j.LoggerFactory;
  * up to {@code maximumCacheSize} tables are sampled into the broadcasted view, while remaining
  * destinations fall back to worker-local catalog loading.
  *
- * <p>For unbounded streaming pipelines in {@link GlobalWindows}, an {@link AfterProcessingTime}
- * trigger is automatically applied to fire deduplication and refresh table metadata at the
- * configured {@code refreshInterval} (defaulting to {@link #DEFAULT_REFRESH_INTERVAL}).
+ * <p>For unbounded streaming pipelines in {@link GlobalWindows}, {@link Deduplicate} is used to
+ * deduplicate table identifiers over the configured {@code refreshInterval} (defaulting to {@link
+ * #DEFAULT_REFRESH_INTERVAL}), allowing periodic refresh of table metadata when schemas evolve.
  */
 @Internal
 @AutoValue
@@ -196,25 +197,17 @@ public abstract class TableMetadataDriver
         input.isBounded() == PCollection.IsBounded.UNBOUNDED
             && input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows;
 
-    PCollection<String> triggeredTableIds;
+    PCollection<String> distinctTableIds;
     if (isUnboundedGlobal) {
       Duration customInterval = getRefreshInterval();
       Duration interval =
           checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
-      triggeredTableIds =
+      distinctTableIds =
           tableIds.apply(
-              "ApplyStreamingTrigger",
-              Window.<String>into(new GlobalWindows())
-                  .triggering(
-                      Repeatedly.forever(
-                          AfterProcessingTime.pastFirstElementInPane().plusDelayOf(interval)))
-                  .accumulatingFiredPanes());
+              "DeduplicateTableIds", Deduplicate.<String>values().withDuration(interval));
     } else {
-      triggeredTableIds = tableIds;
+      distinctTableIds = tableIds.apply("DistinctTableIds", Distinct.create());
     }
-
-    PCollection<String> distinctTableIds =
-        triggeredTableIds.apply("DistinctTableIds", Distinct.create());
 
     PCollection<String> cachedTableIds;
     Integer maxCacheSize = getMaximumCacheSize();
@@ -224,9 +217,19 @@ public abstract class TableMetadataDriver
       cachedTableIds = distinctTableIds;
     }
 
-    return cachedTableIds
-        .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        cachedTableIds
+            .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
+            .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
+
+    if (isUnboundedGlobal) {
+      return specs.apply(
+          "ApplyStreamingViewTrigger",
+          Window.<KV<String, SerializableTableSpec>>into(new GlobalWindows())
+              .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+              .accumulatingFiredPanes());
+    }
+    return specs;
   }
 
   @Override

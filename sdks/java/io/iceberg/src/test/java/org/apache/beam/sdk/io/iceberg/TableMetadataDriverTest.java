@@ -56,6 +56,7 @@ import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.types.Types;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -301,6 +302,81 @@ public class TableMetadataDriverTest implements Serializable {
               assertTrue(map.containsKey("default.stream_t2"));
               return null;
             });
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMetadataRefreshedAcrossIntervals() {
+    Catalog catalog = getCatalog();
+    TableIdentifier tableId = TableIdentifier.of("default", "evolving_table");
+    catalog.createTable(tableId, ICEBERG_SCHEMA);
+
+    Row row1 =
+        Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", "default.evolving_table").build();
+    Row row2 =
+        Row.withSchema(BEAM_SCHEMA)
+            .addValues(2L, "trigger_update", "default.evolving_table")
+            .build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(row1)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(row2)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input =
+        pipeline
+            .apply("StreamInput", stream)
+            .apply(
+                "EvolveSchemaOnTriggerRow",
+                ParDo.of(
+                    new DoFn<Row, Row>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+                        if ("trigger_update".equals(row.getString("data"))) {
+                          Table table =
+                              catalogConfig
+                                  .catalog()
+                                  .loadTable(
+                                      IcebergUtils.parseTableIdentifier("default.evolving_table"));
+                          table
+                              .updateSchema()
+                              .addColumn("new_col", Types.StringType.get())
+                              .commit();
+                        }
+                        out.output(row);
+                      }
+                    }))
+            .setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        input.apply(
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .setRefreshInterval(Duration.standardSeconds(2))
+                .build());
+
+    // Downstream consumer transform verifying that updated metadata is received
+    PCollection<String> consumerReceivedSchemas =
+        specs.apply(
+            "ConsumerTransform",
+            ParDo.of(
+                new DoFn<KV<String, SerializableTableSpec>, String>() {
+                  @ProcessElement
+                  public void processElement(
+                      @Element KV<String, SerializableTableSpec> element,
+                      OutputReceiver<String> out) {
+                    boolean hasNewCol = element.getValue().getSchema().findField("new_col") != null;
+                    out.output(hasNewCol ? "UPDATED_SCHEMA" : "INITIAL_SCHEMA");
+                  }
+                }));
+
+    PAssert.that(consumerReceivedSchemas).containsInAnyOrder("INITIAL_SCHEMA", "UPDATED_SCHEMA");
 
     pipeline.run();
   }
