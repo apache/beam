@@ -67,6 +67,7 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added `schema_update_options` to `WriteToBigQuery` file loads, allowing BigQuery load jobs to add nullable fields or relax required fields when appending data (Python) ([#21141](https://github.com/apache/beam/issues/21141)).
 * BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part `project.catalog.namespace.table` identifiers (or a `TableReference` with a composite `catalog.namespace` dataset id). Previously such references were silently mis-parsed (Java) ([#39597](https://github.com/apache/beam/issues/39597)) .
+* SolaceIO now supports reading and writing binary and text content data payload (Java) ([#39875](https://github.com/apache/beam/issues/39875)).
 * ClickHouseIO: support writing `Decimal(P, S)` / `Decimal32/64/128/256` columns (Java) ([#39840](https://github.com/apache/beam/issues/39840)).
 
 ## New Features / Improvements
@@ -94,6 +95,7 @@
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
+* (Go) Fixed GCS glob matching silently dropping objects when the glob pattern contains multi-byte characters ([#39969](https://github.com/apache/beam/issues/39969)).
 * (Python) Fixed `PickleCoder`/`_MemoizingPickleCoder.as_deterministic_coder()` raising `TypeError` instead of returning a working deterministic coder ([#28558](https://github.com/apache/beam/issues/28558)).
 
 ## Security Fixes
@@ -123,6 +125,8 @@
 
 ## New Features / Improvements
 
+* [Flink Runner] Added opt-in static round-robin split assignment for small bounded sources via the new `sourceStaticSplitThresholdMb` pipeline option. The default of 0 keeps the existing lazy pull-based assignment ([#39873](https://github.com/apache/beam/issues/39873)).
+* Added automatic caching of bounded, single-pane side-input views for classic Java Flink DataStream execution ([#39866](https://github.com/apache/beam/issues/39866)).
 * Added `GroupIntoBatches` transform and the standard
   `beam:coder:sharded_key:v1` coder to the Go SDK, along with
   `beam.Coder.IsDeterministic`, `beam.PCollection.WindowingStrategy`,

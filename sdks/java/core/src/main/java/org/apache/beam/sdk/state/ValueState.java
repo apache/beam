@@ -34,8 +34,7 @@ public interface ValueState<T> extends ReadableState<@Nullable T>, State {
    * <p>Note that {@code null} will be returned if the value has never been written.
    */
   @Override
-  @Nullable
-  T read();
+  @Nullable T read();
 
   @Override
   ValueState<T> readLater();

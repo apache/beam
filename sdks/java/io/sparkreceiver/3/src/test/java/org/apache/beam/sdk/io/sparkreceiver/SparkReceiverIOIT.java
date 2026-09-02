@@ -198,7 +198,10 @@ public class SparkReceiverIOIT {
   }
 
   private void writeToRabbitMq(final List<String> messages)
-      throws URISyntaxException, NoSuchAlgorithmException, KeyManagementException, IOException,
+      throws URISyntaxException,
+          NoSuchAlgorithmException,
+          KeyManagementException,
+          IOException,
           TimeoutException {
 
     final ConnectionFactory connectionFactory = new ConnectionFactory();

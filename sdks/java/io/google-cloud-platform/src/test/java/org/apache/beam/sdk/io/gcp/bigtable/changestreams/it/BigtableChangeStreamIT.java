@@ -150,8 +150,10 @@ public class BigtableChangeStreamIT {
     Instant startTime = Instant.now();
     Thread.sleep(500);
     String rowKey = "rowKeySetCell";
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutationEntry setCellEntry =
-        RowMutationEntry.create(rowKey).setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, "cell value 1");
+        RowMutationEntry.create(rowKey)
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, "cell value 1");
     mutationBatcher.add(setCellEntry);
     mutationBatcher.flush();
     Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
@@ -168,9 +170,10 @@ public class BigtableChangeStreamIT {
     Instant startTime = Instant.now();
     Thread.sleep(500);
     String rowKeyToDelete = "rowKeyToDelete";
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutationEntry setCellMutationToDelete =
         RowMutationEntry.create(rowKeyToDelete)
-            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, "cell value 1");
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, "cell value 1");
     RowMutationEntry deleteRowMutation = RowMutationEntry.create(rowKeyToDelete).deleteRow();
     mutationBatcher.add(setCellMutationToDelete);
     mutationBatcher.flush();
@@ -198,10 +201,11 @@ public class BigtableChangeStreamIT {
     Thread.sleep(500);
     String cellValue = "cell value 1";
     String rowKeyMultiFamily = "rowKeyMultiFamily";
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutationEntry setCells =
         RowMutationEntry.create(rowKeyMultiFamily)
-            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, cellValue)
-            .setCell(COLUMN_FAMILY2, COLUMN_QUALIFIER, cellValue);
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, cellValue)
+            .setCell(COLUMN_FAMILY2, COLUMN_QUALIFIER, nowMicros, cellValue);
     mutationBatcher.add(setCells);
     mutationBatcher.flush();
     RowMutationEntry deleteCF2 =
@@ -223,10 +227,11 @@ public class BigtableChangeStreamIT {
     Thread.sleep(500);
     String cellValue = "cell value 1";
     String rowKeyMultiCell = "rowKeyMultiCell";
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutationEntry setCells =
         RowMutationEntry.create(rowKeyMultiCell)
-            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, cellValue)
-            .setCell(COLUMN_FAMILY1, "CQ2", cellValue);
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, cellValue)
+            .setCell(COLUMN_FAMILY1, "CQ2", nowMicros, cellValue);
     mutationBatcher.add(setCells);
     mutationBatcher.flush();
     RowMutationEntry deleteCQ2 =
@@ -254,15 +259,18 @@ public class BigtableChangeStreamIT {
     Instant startTime = Instant.now();
     Thread.sleep(500);
     String rowKey = "rowKeyComplex";
+    long nowMicros = Instant.now().getMillis() * 1000L;
     // We'll delete this in the next mutation
     RowMutationEntry setCell =
-        RowMutationEntry.create(rowKey).setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, "cell value 1");
+        RowMutationEntry.create(rowKey)
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, "cell value 1");
     mutationBatcher.add(setCell);
     mutationBatcher.flush();
+    long complexNowMicros = Instant.now().getMillis() * 1000L;
     RowMutationEntry complexMutation =
         RowMutationEntry.create(rowKey)
-            .setCell(COLUMN_FAMILY1, "CQ2", "cell value 2")
-            .setCell(COLUMN_FAMILY1, "CQ3", "cell value 3")
+            .setCell(COLUMN_FAMILY1, "CQ2", complexNowMicros, "cell value 2")
+            .setCell(COLUMN_FAMILY1, "CQ3", complexNowMicros, "cell value 3")
             // need to set timestamp range to make change stream output match
             .deleteCells(
                 COLUMN_FAMILY1,
@@ -290,9 +298,10 @@ public class BigtableChangeStreamIT {
     Arrays.fill(chars, '\u200B'); // zero-width space
     String largeString = String.valueOf(chars);
     String rowKeyLargeCell = "rowKeyLargeCell";
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutationEntry setLargeCell =
         RowMutationEntry.create(rowKeyLargeCell)
-            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, largeString);
+            .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, largeString);
     mutationBatcher.add(setLargeCell);
     mutationBatcher.flush();
     Instant endTime = Instant.now().plus(Duration.standardSeconds(10));
@@ -316,9 +325,11 @@ public class BigtableChangeStreamIT {
     ImmutableList.Builder<RowMutationEntry> originalWrites = ImmutableList.builder();
     for (int i = 0; i < 100; ++i) {
       String rowKey = "rowKey" + i;
+      long nowMicros = Instant.now().getMillis() * 1000L;
       // SetCell.
       RowMutationEntry setLargeCell =
-          RowMutationEntry.create(rowKey).setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, largeString);
+          RowMutationEntry.create(rowKey)
+              .setCell(COLUMN_FAMILY1, COLUMN_QUALIFIER, nowMicros, largeString);
       // DeleteFamily.
       RowMutationEntry deleteFamily = RowMutationEntry.create(rowKey).deleteFamily(COLUMN_FAMILY1);
       // DeleteCells.

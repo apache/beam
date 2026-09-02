@@ -79,6 +79,7 @@ import org.slf4j.LoggerFactory;
 })
 public class MongoDbTable extends SchemaBaseBeamTable implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbTable.class);
+
   // Should match: mongodb://username:password@localhost:27017/database/collection
   @VisibleForTesting
   final Pattern locationPattern =
