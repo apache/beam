@@ -45,32 +45,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public class TableCache {
   static final Duration DEFAULT_REFRESH_INTERVAL = Duration.ofMinutes(2);
 
-  /**
-   * Upper bound on cached tables, so a high-cardinality destination template cannot grow the cache
-   * without limit.
-   *
-   * <p>Time-based expiry alone does not bound it: a streaming pipeline touches each of its
-   * destinations every commit window, so nothing is ever idle for the hour, and a template like
-   * {@code db.events_{customer_id}} then admits an entry per distinct value for as long as the
-   * pipeline runs. Each entry pins a {@link org.apache.iceberg.TableMetadata}, which holds every
-   * snapshot the table has ever kept — on a CDC table that is one per commit window per day until
-   * {@code expire_snapshots} runs.
-   *
-   * <p>1000 cannot regress any current user of this cache. The read source and its changelog
-   * scanner use exactly one table per source; the CDC sink's committer and setup use one per
-   * destination; the append sink is the only high-cardinality consumer, and it caps itself at 20
-   * concurrent writers per bundle ({@code
-   * WriteUngroupedRowsToFiles.DEFAULT_MAX_WRITERS_PER_BUNDLE}) with a per-destination {@code
-   * RecordWriterManager} whose own state would dominate long before this bound bites. The cost of
-   * exceeding it is a catalog reload, not a failure.
-   */
-  private static final long MAXIMUM_CACHED_TABLES = 1000;
-
   private static final Cache<CacheKey, CachedTable> TABLES =
-      CacheBuilder.newBuilder()
-          .maximumSize(MAXIMUM_CACHED_TABLES)
-          .expireAfterAccess(1, TimeUnit.HOURS)
-          .build();
+      CacheBuilder.newBuilder().expireAfterAccess(1, TimeUnit.HOURS).build();
 
   /** Returns the cached table, loading it from the catalog on a cache miss. */
   public static Table get(IcebergCatalogConfig catalogConfig, TableIdentifier identifier) {
