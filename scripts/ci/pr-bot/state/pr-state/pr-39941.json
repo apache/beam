@@ -1,6 +1,9 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "python": "shunping",
+    "java": "Abacn"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
