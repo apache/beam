@@ -42,8 +42,6 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SingleValueParser;
 import org.apache.iceberg.StructLike;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Serializable version of an Iceberg {@link DataFile}.
@@ -62,8 +60,6 @@ import org.slf4j.LoggerFactory;
 @AutoValue
 @Internal
 public abstract class SerializableDataFile {
-  private static final Logger LOG = LoggerFactory.getLogger(SerializableDataFile.class);
-
   public static Builder builder() {
     return new AutoValue_SerializableDataFile.Builder();
   }

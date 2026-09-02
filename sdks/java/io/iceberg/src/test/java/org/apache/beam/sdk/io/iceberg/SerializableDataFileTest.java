@@ -374,8 +374,8 @@ public class SerializableDataFileTest {
    * registered under a partition tuple it was never written with.
    *
    * <p>This is deliberately an assertion of the WRONG value. It is the known residual of the
-   * JSON-partition transport, logged by {@link SerializableDataFile#warnPartitionPathFallback}. A
-   * future per-field fallback would fix it, and this test is what would notice.
+   * JSON-partition transport's path fallback. A future per-field fallback would fix it, and this
+   * test is what would notice.
    */
   @Test
   public void nanInMultiFieldSpecDegradesTheOtherFieldsViaPathFallback() {
