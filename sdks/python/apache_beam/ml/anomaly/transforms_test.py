@@ -310,6 +310,35 @@ class TestAnomalyDetection(unittest.TestCase):
       else:
         assert_that(result, equal_to(expected, _unkeyed_result_is_equal_to))
 
+  @parameterized.expand([(False, ), (True, )])
+  def test_ensemble_preserves_model_state(self, keyed):
+    # Constant values make the scores independent of processing order. Each
+    # model must produce exactly two warmup predictions per key.
+    input = [beam.Row(x1=1, x2=4)] * 6
+    counts_by_key = [(0, 6)]
+    if keyed:
+      input = [(1, row) for row in input] + [(2, beam.Row(x1=100, x2=50))] * 3
+      counts_by_key = [(1, 6), (2, 3)]
+
+    detectors = [
+        ZScore(features=[feature], model_id=feature)
+        for feature in ('x1', 'x2')
+    ]
+    expected = [(key, model_id, label) for key, count in counts_by_key
+                for model_id in ('x1', 'x2')
+                for label in [-2, -2] + [0] * (count - 2)]
+
+    with TestPipeline() as p:
+      result = (
+          p | beam.Create(input)
+          | AnomalyDetection(EnsembleAnomalyDetector(detectors)))
+      if not keyed:
+        result = result | beam.WithKeys(0)
+      labels = result | beam.FlatMap(
+          lambda item: [(item[0], prediction.model_id, prediction.label)
+                        for prediction in item[1].predictions])
+      assert_that(labels, equal_to(expected))
+
 
 class FakeNumpyModel():
   def __init__(self):
