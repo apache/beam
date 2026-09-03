@@ -16,6 +16,7 @@
 #
 
 import logging
+import math
 import multiprocessing
 import random
 import time
@@ -89,6 +90,18 @@ class FakeTimer:
 
   def set(self, time):
     self.time = time
+
+
+class FakeEncodedBagState(FakeBagState):
+  def __init__(self, items, coder):
+    super().__init__([coder.encode(item) for item in items])
+    self.coder = coder
+
+  def add(self, item):
+    super().add(self.coder.encode(item))
+
+  def read(self):
+    return [self.coder.decode(item) for item in super().read()]
 
 
 @parameterized_class([
@@ -265,6 +278,81 @@ class AsyncTest(unittest.TestCase):
     self.assertEqual(first_state.items, [])
     self.assertEqual(second_state.items, [])
     self.assertEqual(dofn.getProcessed(), 2)
+
+  def test_nan_key_survives_state_roundtrip(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    state = FakeEncodedBagState([], async_dofn.TO_PROCESS.coder)
+    timer = FakeTimer(0)
+    async_dofn.process((float('nan'), 7), to_process=state, timer=timer)
+    self.wait_for_empty(async_dofn)
+
+    result = async_dofn.commit_finished_items(state, timer)
+    self.assertEqual(len(result), 1)
+    self.assertTrue(math.isnan(result[0][0]))
+    self.assertEqual(result[0][1], 7)
+    self.assertEqual(state.read(), [])
+    self.assertEqual(dofn.getProcessed(), 1)
+    self.assertEqual(
+        async_lib.AsyncWrapper._processing_elements[async_dofn._uuid], {})
+
+  def test_numeric_keys_remain_distinct_after_state_roundtrip(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    coder = async_dofn.TO_PROCESS.coder
+    elements = [(key, 7) for key in (-0.0, 0.0, 1, 1.0, True)]
+    states = [FakeEncodedBagState([], coder) for _ in elements]
+    timer = FakeTimer(0)
+    for element, state in zip(elements, states):
+      async_dofn.process(element, to_process=state, timer=timer)
+    self.wait_for_empty(async_dofn)
+
+    for element, state in reversed(list(zip(elements, states))):
+      result = async_dofn.commit_finished_items(state, timer)
+      self.assertEqual(len(result), 1)
+      # Python equality hides the distinctions between these encoded keys.
+      self.assertEqual(coder.encode(result[0]), coder.encode(element))
+      self.assertEqual(state.read(), [])
+    self.assertEqual(dofn.getProcessed(), len(elements))
+    self.assertEqual(
+        async_lib.AsyncWrapper._processing_elements[async_dofn._uuid], {})
+
+  def test_cancellation_uses_encoded_key_scope(self):
+    for key, other_key in ((float('nan'), 1.0), (-0.0, 0.0), (1, 1.0)):
+      with self.subTest(key=key, other_key=other_key):
+        async_dofn = async_lib.AsyncWrapper(
+            BasicDofn(), use_asyncio=self.use_asyncio)
+        async_dofn.setup()
+        first = (key, 'first')
+        orphan = (key, 'orphan')
+        other = (other_key, 'other')
+        first_future, orphan_future, other_future = Future(), Future(), Future()
+        first_future.set_result([first])
+        processing = async_lib.AsyncWrapper._processing_elements[
+            async_dofn._uuid]
+        for element, future in ((first, first_future), (orphan, orphan_future),
+                                (other, other_future)):
+          processing[async_dofn._element_id(element)] = (element, future)
+        coder = async_dofn.TO_PROCESS.coder
+        state = FakeEncodedBagState([first], coder)
+        timer = FakeTimer(0)
+
+        result = async_dofn.commit_finished_items(state, timer)
+        self.assertEqual([coder.encode(item) for item in result],
+                         [coder.encode(first)])
+        self.assertEqual(state.read(), [])
+        self.assertTrue(orphan_future.cancelled())
+        self.assertFalse(other_future.cancelled())
+        self.assertEqual(list(processing.values()), [(other, other_future)])
+
+        other_future.set_result([other])
+        other_state = FakeEncodedBagState([other], coder)
+        self.assertEqual(
+            async_dofn.commit_finished_items(other_state, timer), [other])
+        self.assertEqual(other_state.read(), [])
+        self.assertEqual(processing, {})
 
   def _check_ids_across_windows(self, first, second, id_fn=None):
     dofn = BasicDofn()

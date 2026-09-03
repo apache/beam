@@ -291,7 +291,10 @@ class AsyncWrapper(beam.DoFn):
         AsyncWrapper._items_in_buffer[self._uuid] -= 1
 
   def _element_id(self, element, window=beam.DoFn.WindowParam):
-    return (element[0], window, self._id_fn(element[1]))
+    # Encoded keys survive state decoding and distinguish numeric keys that
+    # compare equal in Python, such as signed zero or bool and int values.
+    encoded_key = self.TO_PROCESS.coder.key_coder().encode(element[0])
+    return (encoded_key, window, self._id_fn(element[1]))
 
   def schedule_if_room(
       self,
@@ -486,6 +489,7 @@ class AsyncWrapper(beam.DoFn):
           ' been set.')
     if self._verbose_logging:
       logging.info('procesing timer for key: %s', key)
+    encoded_key = self.TO_PROCESS.coder.key_coder().encode(key)
     # Runner state is scoped to a key and window. Leave work belonging to
     # other state cells alone when synchronizing the shared local map.
     with AsyncWrapper._lock:
@@ -496,7 +500,7 @@ class AsyncWrapper(beam.DoFn):
       }
       to_remove_ids = []
       for element_id, (element, future) in processing_elements.items():
-        if (element_id[:2] == (key, window) and
+        if (element_id[:2] == (encoded_key, window) and
             element_id not in to_process_local_ids):
           items_cancelled += 1
           future.cancel()
