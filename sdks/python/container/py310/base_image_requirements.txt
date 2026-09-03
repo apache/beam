@@ -64,7 +64,7 @@ google-auth-httplib2==0.2.1
 google-cloud-aiplatform==1.164.0
 google-cloud-bigquery==3.43.0
 google-cloud-bigquery-storage==2.40.0
-google-cloud-bigtable==2.41.0
+google-cloud-bigtable==2.42.0
 google-cloud-build==3.38.1
 google-cloud-core==2.6.1
 google-cloud-dataflow-client==0.13.0

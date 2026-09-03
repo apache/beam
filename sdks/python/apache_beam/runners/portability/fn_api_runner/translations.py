@@ -387,8 +387,8 @@ class TransformContext(object):
   _COMMON_CODER_URNS = set(
       value.urn for (key, value) in common_urns.coders.__dict__.items()
       if not key.startswith('_')
-      # Length prefix Rows rather than re-coding them.
-  ) - set([common_urns.coders.ROW.urn])
+      # Length prefix Rows and Schemas rather than re-coding them.
+  ) - set([common_urns.coders.ROW.urn, common_urns.coders.SCHEMA.urn])
 
   _REQUIRED_CODER_URNS = set([
       common_urns.coders.WINDOWED_VALUE.urn,

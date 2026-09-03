@@ -207,6 +207,8 @@ func GetPipelineResourceHints() resource.Hints {
 			h = resource.ParseMinRAM(val)
 		case "accelerator", "beam:resources:accelerator:v1":
 			h = resource.Accelerator(val)
+		case "cpu_count", "beam:resources:cpu_count:v1":
+			h = resource.ParseCPUCount(val)
 		default:
 			if strings.HasPrefix(name, "beam:resources:") {
 				h = stringHint{urn: name, value: val}

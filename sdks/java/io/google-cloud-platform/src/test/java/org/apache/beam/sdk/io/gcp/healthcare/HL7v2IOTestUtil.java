@@ -37,6 +37,7 @@ import org.joda.time.Instant;
 
 class HL7v2IOTestUtil {
   public static final long HL7V2_INDEXING_TIMEOUT_MINUTES = 10L;
+
   /** Google Cloud Healthcare Dataset in Apache Beam integration test project. */
   public static final String HEALTHCARE_DATASET_TEMPLATE =
       "projects/%s/locations/us-central1/datasets/apache-beam-integration-testing";
@@ -84,6 +85,7 @@ class HL7v2IOTestUtil {
           .collect(Collectors.toList());
 
   static final long NUM_ADT = 2;
+
   /** Clear all messages from the HL7v2 store. */
   static void deleteAllHL7v2Messages(HealthcareApiClient client, String hl7v2Store)
       throws IOException {
