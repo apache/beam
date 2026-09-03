@@ -20,6 +20,7 @@ package org.apache.beam.sdk.schemas.utils;
 import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -1540,7 +1541,7 @@ public class ByteBuddyUtils {
    * not be in the same order as the schema fields, reorders the parameters as necessary before
    * calling the constructor.
    */
-  static class StaticFactoryMethodInstruction extends InvokeUserCreateInstruction {
+  static final class StaticFactoryMethodInstruction extends InvokeUserCreateInstruction {
     private final Method creator;
 
     StaticFactoryMethodInstruction(
@@ -1567,6 +1568,11 @@ public class ByteBuddyUtils {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Extended by StaticFactoryMethodInstruction, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   static class InvokeUserCreateInstruction implements Implementation {
     protected final List<FieldValueTypeInformation> fields;
     protected final Class<?> targetClass;

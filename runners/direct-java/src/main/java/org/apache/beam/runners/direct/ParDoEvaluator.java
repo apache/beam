@@ -53,7 +53,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
+final class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   public interface DoFnRunnerFactory<InputT, OutputT> {
     PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(

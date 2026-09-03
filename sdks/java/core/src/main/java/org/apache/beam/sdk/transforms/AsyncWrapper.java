@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -67,6 +68,11 @@ import org.slf4j.LoggerFactory;
  * stateful. 2) Tagged output multi-outputs are unsupported. 3) StartBundle/finishBundle are invoked
  * per element so any batching or aggregation logic will not behave as expected.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class AsyncWrapper<K, InputT, OutputT> extends DoFn<KV<K, InputT>, OutputT> {
 
   private static final Logger LOG = LoggerFactory.getLogger(AsyncWrapper.class);

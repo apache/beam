@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -108,6 +109,11 @@ public class ProcessBundleBenchmark {
 
   /** Sets up the {@link ExecutionStateTracker} and an execution state. */
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Subclassed inside Beam, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class SdkHarness {
     @Param({"true", "false"})
     public String elementsEmbedding = "false";
@@ -220,6 +226,11 @@ public class ProcessBundleBenchmark {
   }
 
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Subclassed inside Beam, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class TrivialTransform extends SdkHarness {
     final BundleProcessor processor;
     final ExecutableProcessBundleDescriptor descriptor;
@@ -325,6 +336,11 @@ public class ProcessBundleBenchmark {
   }
 
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Subclassed inside Beam, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class StatefulTransform extends SdkHarness {
     final BundleProcessor processor;
     final ExecutableProcessBundleDescriptor descriptor;

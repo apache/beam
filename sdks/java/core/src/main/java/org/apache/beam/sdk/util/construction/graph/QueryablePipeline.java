@@ -19,6 +19,7 @@ package org.apache.beam.sdk.util.construction.graph;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.Collections;
@@ -56,6 +57,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.NetworkB
  * other.
  */
 @SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API for runner authors, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class QueryablePipeline {
   // TODO: Is it better to have the signatures here require nodes in almost all contexts, or should
   // they all take strings? Nodes gives some degree of type signalling that names might not, but
