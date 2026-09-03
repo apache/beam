@@ -178,6 +178,7 @@ public final class BeamReaderCache {
     private boolean started;
     private boolean inBatch;
     private boolean moved;
+    private boolean sentinelEmitted;
     private long positionEpoch;
     private byte @Nullable [] positionMark;
     private @Nullable CheckpointMark pendingMark;
@@ -217,6 +218,15 @@ public final class BeamReaderCache {
 
     public synchronized long positionEpoch() {
       return positionEpoch;
+    }
+
+    /** Whether the end of stream sentinel row was emitted for this reader. */
+    public synchronized boolean hasEmittedSentinel() {
+      return sentinelEmitted;
+    }
+
+    public synchronized void markSentinelEmitted() {
+      sentinelEmitted = true;
     }
 
     /** The coded mark of the current position, null for a fresh start. */

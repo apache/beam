@@ -24,6 +24,8 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -44,8 +46,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Reads one split of a Beam {@link UnboundedSource} for one micro-batch.
  *
- * <p>The batch ends at the record quota or at the deadline. The reader then writes its checkpoint
- * mark durably at the end epoch and stays in {@link BeamReaderCache} for the next batch. A failed
+ * <p>The batch ends at the record quota, at the deadline, or at the first empty poll once it holds
+ * data. The reader then writes its checkpoint mark durably at the end epoch and stays in {@link
+ * BeamReaderCache} for the next batch. An exhausted source whose watermark reached the end of the
+ * global window yields one sentinel row with an empty payload, the translators filter it. A failed
  * mark write fails the task. An attempt Spark killed or failed writes nothing and its reader is
  * dropped, the retry restores from the durable mark at the start epoch.
  *
@@ -112,6 +116,19 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
         recordsRead++;
         current = toRow();
         return true;
+      }
+      if (recordsRead > 0) {
+        // The data batch declares its watermark before any sentinel arrives in a later batch.
+        return endOfBatch(false);
+      }
+      if (!cached.hasEmittedSentinel()) {
+        Instant watermark = cached.reader().getWatermark();
+        if (watermark != null && !watermark.isBefore(GlobalWindow.INSTANCE.maxTimestamp())) {
+          cached.markSentinelEmitted();
+          recordsRead++;
+          current = sentinelRow();
+          return true;
+        }
       }
       if (backOff == null) {
         backOff = backOff(remaining);
@@ -205,5 +222,11 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
     byte[] payload = CoderHelpers.toByteArray(value, coder);
     // Spark stores TimestampType as microseconds.
     return new GenericInternalRow(new Object[] {payload, timestamp.getMillis() * 1000L});
+  }
+
+  /** Empty payload at the end of time, the cross package end of stream contract. */
+  private static InternalRow sentinelRow() {
+    return new GenericInternalRow(
+        new Object[] {new byte[0], BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis() * 1000L});
   }
 }
