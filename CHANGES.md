@@ -93,7 +93,7 @@
 ## Bugfixes
 
 * (Java) Fixed the Spark runner firing processing-time timers in reverse timestamp order ([#39824](https://github.com/apache/beam/issues/39824)).
-* (Python) State write failures reported by portable runners now fail the bundle instead of silently losing state updates.
+* (Python) State write failures reported by portable runners now fail the bundle instead of silently losing state updates ([#39992](https://github.com/apache/beam/pull/39992)).
 * (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
