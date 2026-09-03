@@ -749,14 +749,11 @@ class TriggerLoadJobs(beam.DoFn):
     if table_reference.projectId is None:
       table_reference.projectId = vp.RuntimeValueProvider.get_value(
           'project', str, '') or self.project
-    # Load jobs for a single destination are always triggered from the same
-    # worker. This means that we can generate a deterministic numbered job id,
-    # and not need to worry.
+    # Use the same destination identity as file grouping. Equivalent table
+    # references can form separate groups with different files but identical
+    # partition numbers, so normalizing the reference would collide job IDs.
     destination_hash = _bq_uuid(
-        '%s:%s.%s' % (
-            table_reference.projectId,
-            table_reference.datasetId,
-            table_reference.tableId))
+        bigquery_tools.get_hashable_destination(destination))
     job_name = '%s_%s_pane%s_partition%s' % (
         load_job_name_prefix, destination_hash, pane_info.index, partition_key)
     _LOGGER.info('Load job has %s files. Job name is %s.', len(files), job_name)
