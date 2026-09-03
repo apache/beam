@@ -86,8 +86,9 @@ public class StorageApiWriteRetryTest {
   private static final List<Integer> APPEND_SIZES = Collections.synchronizedList(new ArrayList<>());
 
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
     FakeDatasetService.setUp();
+    BigQueryIO.clearStaticCaches();
     APPEND_SIZES.clear();
     pipeline.getOptions().as(BigQueryOptions.class).setProject("project-id");
     pipeline.getOptions().as(DirectOptions.class).setTargetParallelism(1);
