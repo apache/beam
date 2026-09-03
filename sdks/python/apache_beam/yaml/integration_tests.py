@@ -82,6 +82,10 @@ from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
 
 try:
+  from google.cloud import firestore
+except ImportError:
+  firestore = None
+try:
   from google.cloud import secretmanager
 except ImportError:
   secretmanager = None
@@ -183,7 +187,8 @@ def temp_firestore_collection(
   Yields:
     dict: Keys ``PROJECT``, ``DATABASE``, and ``COLLECTION``.
   """
-  from google.cloud import firestore
+  if firestore is None:
+    raise RuntimeError("google-cloud-firestore is not installed.")
 
   client = firestore.Client(project=project, database=database)
   collection_id = f'{prefix}{uuid.uuid4().hex}'
