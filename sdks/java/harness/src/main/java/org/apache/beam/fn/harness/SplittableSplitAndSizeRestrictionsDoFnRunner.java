@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
@@ -78,6 +79,12 @@ import org.joda.time.Instant;
  * method.
  */
 @Internal
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public, so it cannot be made final despite @Internal."
+            + " Out-of-tree code such as a forked runner may already subclass it."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class SplittableSplitAndSizeRestrictionsDoFnRunner<
         InputT, RestrictionT extends @NonNull Object, PositionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Void, BoundedWindow> {

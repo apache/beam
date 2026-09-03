@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.synthetic.SyntheticOptions.fromJsonString;
 import static org.apache.beam.sdk.loadtests.JobFailure.handleFailure;
 
 import com.google.cloud.Timestamp;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
@@ -62,6 +63,11 @@ import org.slf4j.LoggerFactory;
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Abstract, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 abstract class LoadTest<OptionsT extends LoadTestOptions> {
 
   private static final Logger LOG = LoggerFactory.getLogger(LoadTest.class);

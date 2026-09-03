@@ -49,6 +49,7 @@ import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -77,6 +78,11 @@ import org.threeten.bp.Duration;
  *
  * <p>The class is thread-safe.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class BigtableResourceManager implements ResourceManager {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigtableResourceManager.class);

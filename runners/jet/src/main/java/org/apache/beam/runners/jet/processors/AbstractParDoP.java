@@ -325,7 +325,7 @@ abstract class AbstractParDoP<InputT, OutputT> implements Processor {
    * An output manager that stores the output in an ArrayList, one for each output ordinal, and a
    * way to drain to outbox ({@link #tryFlush()}).
    */
-  static class JetOutputManager implements WindowedValueMultiReceiver {
+  static final class JetOutputManager implements WindowedValueMultiReceiver {
 
     private final Outbox outbox;
     private final Map<TupleTag<?>, Coder<?>> outputCoders;

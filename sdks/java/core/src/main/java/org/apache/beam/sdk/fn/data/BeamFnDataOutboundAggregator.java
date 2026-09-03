@@ -20,6 +20,7 @@ package org.apache.beam.sdk.fn.data;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,6 +62,11 @@ import org.slf4j.LoggerFactory;
 // create another memory barrier. Also note that flush is always invoked when synchronizing on
 // flushLock when there is a periodic flushing thread.
 @NotThreadSafe
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Subclassed inside Beam, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class BeamFnDataOutboundAggregator {
 
   public static final String DATA_BUFFER_SIZE_LIMIT = "data_buffer_size_limit=";

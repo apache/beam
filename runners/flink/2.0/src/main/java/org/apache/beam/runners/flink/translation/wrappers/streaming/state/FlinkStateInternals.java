@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.state;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
@@ -103,6 +104,11 @@ import org.joda.time.Instant;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class FlinkStateInternals<K> implements StateInternals {
 
   private static final StateNamespace globalWindowNamespace =
@@ -1185,7 +1191,7 @@ public class FlinkStateInternals<K> implements StateInternals {
     }
   }
 
-  private class FlinkWatermarkHoldState implements WatermarkHoldState {
+  private final class FlinkWatermarkHoldState implements WatermarkHoldState {
 
     private final TimestampCombiner timestampCombiner;
     private final String namespaceString;

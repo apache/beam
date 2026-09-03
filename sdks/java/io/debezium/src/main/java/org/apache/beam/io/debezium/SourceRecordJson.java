@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.debezium;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,6 +61,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </pre>
  */
 @SuppressWarnings({"nullness"})
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class SourceRecordJson {
   private final @Nullable Struct value;
   private final @Nullable Event event;

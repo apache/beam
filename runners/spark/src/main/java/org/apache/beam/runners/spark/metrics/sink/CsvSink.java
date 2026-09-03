@@ -18,6 +18,7 @@
 package org.apache.beam.runners.spark.metrics.sink;
 
 import com.codahale.metrics.MetricRegistry;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Properties;
 import org.apache.beam.runners.spark.metrics.WithMetricsSupport;
 import org.apache.spark.SecurityManager;
@@ -36,6 +37,11 @@ import org.apache.spark.metrics.sink.Sink;
  * "spark.metrics.conf.*.sink.csv.unit"=seconds
  * }</pre>
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class CsvSink implements Sink {
 
   // Initialized reflectively as done by Spark's MetricsSystem
