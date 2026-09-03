@@ -19,6 +19,9 @@ package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
@@ -43,6 +46,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -268,9 +272,9 @@ public class PubsubSinkTest {
     assertEquals(1, outputBuilder.getPubsubMessagesCount());
 
     // Verify mockContext.addBundlePubsubMessages was called with the bundle from close()
-    org.mockito.ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
-        org.mockito.ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
-    org.mockito.Mockito.verify(mockContext).addBundlePubsubMessages(captor.capture());
+    ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
+        ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
+    verify(mockContext).addBundlePubsubMessages(captor.capture());
     Windmill.PubSubMessageBundle bundleLevel = captor.getValue();
     assertEquals("topic", bundleLevel.getTopic());
     assertEquals(1, bundleLevel.getMessagesCount());
@@ -307,7 +311,6 @@ public class PubsubSinkTest {
     writer.abort();
 
     assertEquals(0, outputBuilder.getPubsubMessagesCount());
-    org.mockito.Mockito.verify(mockContext, org.mockito.Mockito.never())
-        .addBundlePubsubMessages(org.mockito.ArgumentMatchers.any());
+    verify(mockContext, never()).addBundlePubsubMessages(any());
   }
 }

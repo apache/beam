@@ -18,6 +18,9 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.nio.charset.StandardCharsets;
@@ -41,6 +44,7 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -214,6 +218,12 @@ public class PubsubDynamicSinkTest {
     }
     assertEquals(1, bundlesByTopic.get("topic1").getMessagesCount());
     assertEquals(1, bundlesByTopic.get("topic2").getMessagesCount());
+    Pubsub.PubsubMessage pubsubMsg0 =
+        Pubsub.PubsubMessage.parseFrom(bundlesByTopic.get("topic1").getMessages(0).getData());
+    assertEquals(ByteString.copyFrom(payload0), pubsubMsg0.getData());
+    Pubsub.PubsubMessage pubsubMsg1 =
+        Pubsub.PubsubMessage.parseFrom(bundlesByTopic.get("topic2").getMessages(0).getData());
+    assertEquals(ByteString.copyFrom(payload1), pubsubMsg1.getData());
   }
 
   @Test
@@ -255,6 +265,10 @@ public class PubsubDynamicSinkTest {
     writer.finishKey("key1");
     assertEquals(1, outputBuilder.getPubsubMessagesCount());
     assertEquals("topic1", outputBuilder.getPubsubMessages(0).getTopic());
+    assertEquals(1, outputBuilder.getPubsubMessages(0).getMessagesCount());
+    Pubsub.PubsubMessage pubsubMsg0 =
+        Pubsub.PubsubMessage.parseFrom(outputBuilder.getPubsubMessages(0).getMessages(0).getData());
+    assertEquals(ByteString.copyFrom(payload0), pubsubMsg0.getData());
 
     // Messages added during finishBundle are flushed to bundle-level outputs in close()
     writer.add(
@@ -266,12 +280,15 @@ public class PubsubDynamicSinkTest {
     assertEquals(1, outputBuilder.getPubsubMessagesCount());
 
     // Verify mockContext.addBundlePubsubMessages was called with the bundle from close()
-    org.mockito.ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
-        org.mockito.ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
-    org.mockito.Mockito.verify(mockContext).addBundlePubsubMessages(captor.capture());
+    ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
+        ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
+    verify(mockContext).addBundlePubsubMessages(captor.capture());
     Windmill.PubSubMessageBundle bundleLevel = captor.getValue();
     assertEquals("topic2", bundleLevel.getTopic());
     assertEquals(1, bundleLevel.getMessagesCount());
+    Pubsub.PubsubMessage pubsubMsg1 =
+        Pubsub.PubsubMessage.parseFrom(bundleLevel.getMessages(0).getData());
+    assertEquals(ByteString.copyFrom(payload1), pubsubMsg1.getData());
   }
 
   @Test
@@ -308,7 +325,6 @@ public class PubsubDynamicSinkTest {
     writer.abort();
 
     assertEquals(0, outputBuilder.getPubsubMessagesCount());
-    org.mockito.Mockito.verify(mockContext, org.mockito.Mockito.never())
-        .addBundlePubsubMessages(org.mockito.ArgumentMatchers.any());
+    verify(mockContext, never()).addBundlePubsubMessages(any());
   }
 }

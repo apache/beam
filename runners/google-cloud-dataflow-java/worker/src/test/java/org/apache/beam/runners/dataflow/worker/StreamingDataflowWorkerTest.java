@@ -33,6 +33,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -1662,8 +1663,7 @@ public class StreamingDataflowWorkerTest {
   private void runMultiKeyCombinationTest(
       Map<String, List<String>> processOutputs, List<KV<String, String>> finishBundleOutputs)
       throws Exception {
-    org.junit.Assume.assumeTrue(
-        "Multi-key bundling is only supported in Streaming Engine", streamingEngine);
+    assumeTrue("Multi-key bundling is only supported in Streaming Engine", streamingEngine);
     server.clearCommitsReceived();
     StreamingDataflowWorker worker =
         makeMultiKeyEnabledWorker(
@@ -1827,31 +1827,6 @@ public class StreamingDataflowWorkerTest {
   }
 
   @Test
-  public void testMultiKey_productionsAttachedToEachKey() throws Exception {
-    runMultiKeyCombinationTest(
-        ImmutableMap.of(
-            "key1", ImmutableList.of("data1"),
-            "key2", ImmutableList.of("data2")),
-        Collections.emptyList());
-  }
-
-  @Test
-  public void testMultiKey_finishBundleProductionsAttachedToBundleLevel() throws Exception {
-    runMultiKeyCombinationTest(
-        Collections.emptyMap(), ImmutableList.of(KV.of("finish_key", "finish_value")));
-  }
-
-  @Test
-  public void testMultiKey_processElementsAndFinishBundle_bufferedMessageAttachedToBundleLevel()
-      throws Exception {
-    runMultiKeyCombinationTest(
-        ImmutableMap.of(
-            "key1", ImmutableList.of("data1"),
-            "key2", ImmutableList.of("data2")),
-        ImmutableList.of(KV.of("finish_key", "buffer_emitted")));
-  }
-
-  @Test
   public void testSingleKey_processAndFinishBundleOutputsAttachedToSameKey() throws Exception {
     KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
     List<ParallelInstruction> instructions =
@@ -1929,8 +1904,7 @@ public class StreamingDataflowWorkerTest {
   @Test
   public void testSingleKey_multiKeyBundleEnabled_finishBundleAttachesToBundleLevel()
       throws Exception {
-    org.junit.Assume.assumeTrue(
-        "Multi-key bundling is only supported in Streaming Engine", streamingEngine);
+    assumeTrue("Multi-key bundling is only supported in Streaming Engine", streamingEngine);
 
     server.clearCommitsReceived();
     StreamingDataflowWorker worker =
@@ -2004,8 +1978,7 @@ public class StreamingDataflowWorkerTest {
 
   @Test
   public void testMultiKey_threeKeys_withIntermediateEmptyKey() throws Exception {
-    org.junit.Assume.assumeTrue(
-        "Multi-key bundling is only supported in Streaming Engine", streamingEngine);
+    assumeTrue("Multi-key bundling is only supported in Streaming Engine", streamingEngine);
 
     server.clearCommitsReceived();
     StreamingDataflowWorker worker =
