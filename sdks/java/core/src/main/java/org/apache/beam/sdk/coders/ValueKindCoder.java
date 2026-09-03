@@ -29,8 +29,8 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Coder} for {@link ValueKind}, encoded in 1 byte as the matching {@link
- * Elements.ValueKind.Enum} number, so the wire format stays stable if the
- * enum is reordered and matches the portability representation.
+ * Elements.ValueKind.Enum} number, so the wire format stays stable if the enum is reordered and
+ * matches the portability representation.
  */
 public class ValueKindCoder extends AtomicCoder<ValueKind> {
 

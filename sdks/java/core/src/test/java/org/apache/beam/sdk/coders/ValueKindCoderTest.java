@@ -17,8 +17,6 @@
  */
 package org.apache.beam.sdk.coders;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 
 import java.util.Arrays;
