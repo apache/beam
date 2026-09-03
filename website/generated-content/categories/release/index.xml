@@ -50,7 +50,6 @@ compatible. Both coders can decode encoded bytes from the other coder
 &lt;li>(Python) Added &lt;code>Watch&lt;/code>, a transform that polls a growing set of outputs for each input element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
 (&lt;a href="https://github.com/apache/beam/issues/21521">#21521&lt;/a>).&lt;/li>
 &lt;li>(Python) Added support to analyze core dumps created after python worker segmentation faults with &lt;code>pystack&lt;/code> (or &lt;code>gdb&lt;/code> if installed) using the &lt;code>--profiler_agent=coredump&lt;/code> pipeline option. (&lt;a href="https://github.com/apache/beam/issues/39484">#39484&lt;/a>).&lt;/li>
-&lt;li>(Python) Added &lt;code>Sample.Any&lt;/code>, the Python equivalent of Java&amp;rsquo;s &lt;code>Sample.any&lt;/code>, which returns up to n arbitrary elements from a PCollection (&lt;a href="https://github.com/apache/beam/issues/18552">#18552&lt;/a>).&lt;/li>
 &lt;/ul>
 &lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
 &lt;ul>
@@ -73,11 +72,6 @@ the following use cases when a &lt;code>timestamptz&lt;/code> column is present:
 &lt;/li>
 &lt;li>
 &lt;p>(Java) Added &lt;code>DRAINING&lt;/code> and &lt;code>DRAINED&lt;/code> states to &lt;code>PipelineResult&lt;/code>, including runner state mappings and Dataflow update handling (&lt;a href="https://github.com/apache/beam/issues/39020">#39020&lt;/a>).&lt;/p>
-&lt;/li>
-&lt;li>
-&lt;p>(Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
-use pipeline option &lt;code>--exclude_infer_dataclass_field_type&lt;/code> (&lt;a href="https://github.com/apache/beam/issues/38797">#38797&lt;/a>).
-However fixing forward is recommended.&lt;/p>
 &lt;/li>
 &lt;li>
 &lt;p>(Java) IcebergIO and projects that use it must now be built with Java 17 or later as a result of Iceberg 1.11.0 upgrade (&lt;a href="https://github.com/apache/beam/issues/38925">#38925&lt;/a>).&lt;/p>
