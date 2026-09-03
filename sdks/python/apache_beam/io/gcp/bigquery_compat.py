@@ -25,16 +25,18 @@ client to modern ``google-cloud-bigquery``.
    This module is intended to be removed in a future Beam release once the
    apitools client dependency is completely removed.
 
-   *Future Removal Guidance*:
-   - Compatibility models (e.g. `_TableReferenceCompat`, `_DatasetReferenceCompat`,
-     `_TableSchemaCompat`) and monkey-patches will be dropped. Code using
-     `TableReference`, `DatasetReference`, etc. should import directly from
-     `google.cloud.bigquery`.
-   - Input normalization helpers (`_to_gcp_table_ref`, `_to_gcp_dataset_ref`,
-     `_to_gcp_schema`, `_extract_dict_labels`, `_to_table_schema`) that
-     convert string specs or dicts to modern `google.cloud.bigquery` instances
-     are actively used across pipeline code paths and should be preserved in
-     `bigquery_tools.py` when this compat module is excised.
+   **Future Removal Guidance**:
+
+   * Compatibility models (e.g. ``_TableReferenceCompat``,
+     ``_DatasetReferenceCompat``, ``_TableSchemaCompat``) and monkey-patches
+     will be dropped. Code using ``TableReference``, ``DatasetReference``,
+     etc. should import directly from ``google.cloud.bigquery``.
+   * Input normalization helpers (``_to_gcp_table_ref``,
+     ``_to_gcp_dataset_ref``, ``_to_gcp_schema``, ``_extract_dict_labels``,
+     ``_to_table_schema``) that convert string specs or dicts to modern
+     ``google.cloud.bigquery`` instances are actively used across pipeline
+     code paths and should be preserved in ``bigquery_tools.py`` when this
+     compat module is excised.
 """
 
 # pytype: skip-file
