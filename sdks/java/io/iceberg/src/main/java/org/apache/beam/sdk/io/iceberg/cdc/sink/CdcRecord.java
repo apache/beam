@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
+import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
@@ -74,13 +75,10 @@ final class CdcRecord {
 
   @Override
   public String toString() {
-    return "CdcRecord{"
-        + "data="
-        + data
-        + ", kind="
-        + kind
-        + ", sequenceNumber="
-        + sequenceNumber
-        + '}';
+    return MoreObjects.toStringHelper(CdcRecord.class)
+        .add("data", data)
+        .add("kind", kind)
+        .add("sequenceNumber", sequenceNumber)
+        .toString();
   }
 }
