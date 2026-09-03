@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.IcebergCdcWriteSchemaTransformProvider.IcebergCdcWriteSchemaTransform;
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.IcebergReadSchemaTransform;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.IcebergWriteSchemaTransform;
 import static org.apache.beam.sdk.schemas.transforms.SchemaTransformTranslation.SchemaTransformPayloadTranslator;
@@ -87,6 +88,19 @@ public class IcebergSchemaTransformTranslation {
     }
   }
 
+  static class IcebergCdcWriteSchemaTransformTranslator
+      extends SchemaTransformPayloadTranslator<IcebergCdcWriteSchemaTransform> {
+    @Override
+    public SchemaTransformProvider provider() {
+      return new IcebergCdcWriteSchemaTransformProvider();
+    }
+
+    @Override
+    public Row toConfigRow(IcebergCdcWriteSchemaTransform transform) {
+      return transform.getConfigurationRow();
+    }
+  }
+
   @AutoService(TransformPayloadTranslatorRegistrar.class)
   public static class WriteRegistrar implements TransformPayloadTranslatorRegistrar {
     @Override
@@ -97,6 +111,7 @@ public class IcebergSchemaTransformTranslation {
         getTransformPayloadTranslators() {
       return ImmutableMap.<Class<? extends PTransform>, TransformPayloadTranslator>builder()
           .put(IcebergWriteSchemaTransform.class, new IcebergWriteSchemaTransformTranslator())
+          .put(IcebergCdcWriteSchemaTransform.class, new IcebergCdcWriteSchemaTransformTranslator())
           .build();
     }
   }

@@ -109,6 +109,9 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:delta_lake_read:v1"];
     DELTA_LAKE_CDC_READ = 14 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:delta_lake_cdc_read:v1"];
+    // Applies a stream or batch of CDC row-level changes to Iceberg tables.
+    ICEBERG_CDC_WRITE = 15 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:iceberg_cdc_write:v1"];
   }
 }
 

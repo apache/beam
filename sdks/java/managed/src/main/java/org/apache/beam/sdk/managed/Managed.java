@@ -119,6 +119,7 @@ public class Managed {
   public static final Map<String, String> WRITE_TRANSFORMS =
       ImmutableMap.<String, String>builder()
           .put(ICEBERG, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_WRITE))
+          .put(ICEBERG_CDC, getUrn(ExternalTransforms.ManagedTransforms.Urns.ICEBERG_CDC_WRITE))
           .put(KAFKA, getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE))
           .put(BIGQUERY, getUrn(ExternalTransforms.ManagedTransforms.Urns.BIGQUERY_WRITE))
           .put(POSTGRES, getUrn(ExternalTransforms.ManagedTransforms.Urns.POSTGRES_WRITE))
@@ -163,6 +164,8 @@ public class Managed {
    *
    * <ul>
    *   <li>{@link Managed#ICEBERG} : Write to Apache Iceberg tables <a
+   *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
+   *   <li>{@link Managed#ICEBERG_CDC} : CDC Write to Apache Iceberg tables using <a
    *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/iceberg/IcebergIO.html">IcebergIO</a>
    *   <li>{@link Managed#KAFKA} : Write to Apache Kafka topics <a
    *       href="https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/io/kafka/KafkaIO.html">KafkaIO</a>
