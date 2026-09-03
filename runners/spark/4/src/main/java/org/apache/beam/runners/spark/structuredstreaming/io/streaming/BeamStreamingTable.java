@@ -28,28 +28,23 @@ import org.apache.spark.sql.connector.read.streaming.MicroBatchStream;
 import org.apache.spark.sql.types.StructType;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 
-/**
- * The {@link Table} returned by {@link BeamStreamingSource}. It only ever declares {@link
- * TableCapability#MICRO_BATCH_READ}, batch reads of an unbounded Beam source are handled elsewhere.
- */
+/** DataSourceV2 {@link Table} over a Beam unbounded source, micro-batch reads only. */
 public class BeamStreamingTable implements Table, SupportsRead {
 
-  private final CaseInsensitiveStringMap options;
+  private final BeamSourceSpec<?> spec;
 
-  BeamStreamingTable(CaseInsensitiveStringMap options) {
-    this.options = options;
+  BeamStreamingTable(BeamSourceSpec<?> spec) {
+    this.spec = spec;
   }
 
   @Override
   public String name() {
-    return "BeamUnboundedSource["
-        + options.getOrDefault(BeamStreamingSource.OPT_SOURCE_ID, "?")
-        + "]";
+    return "BeamUnboundedSource[" + spec.transformName() + "]";
   }
 
   @Override
   public StructType schema() {
-    return BeamStreamingSource.SCHEMA;
+    return UnboundedSourceDataset.SCHEMA;
   }
 
   @Override
@@ -58,43 +53,30 @@ public class BeamStreamingTable implements Table, SupportsRead {
   }
 
   @Override
-  public ScanBuilder newScanBuilder(CaseInsensitiveStringMap scanOptions) {
-    // Spark hands the full DataSourceV2 option map to both getTable and newScanBuilder. Prefer the
-    // scan options and fall back to the table properties for anything missing.
-    CaseInsensitiveStringMap merged = merge(options, scanOptions);
-    return () -> new BeamScan(merged);
+  public ScanBuilder newScanBuilder(CaseInsensitiveStringMap ignored) {
+    return () -> new BeamScan(spec);
   }
 
-  private static CaseInsensitiveStringMap merge(
-      CaseInsensitiveStringMap base, CaseInsensitiveStringMap override) {
-    java.util.Map<String, String> map = new java.util.HashMap<>(base.asCaseSensitiveMap());
-    map.putAll(override.asCaseSensitiveMap());
-    return new CaseInsensitiveStringMap(map);
-  }
-
-  /** The {@link Scan} of a Beam unbounded source, micro-batch only. */
   private static class BeamScan implements Scan {
-    private final CaseInsensitiveStringMap options;
+    private final BeamSourceSpec<?> spec;
 
-    BeamScan(CaseInsensitiveStringMap options) {
-      this.options = options;
+    BeamScan(BeamSourceSpec<?> spec) {
+      this.spec = spec;
     }
 
     @Override
     public StructType readSchema() {
-      return BeamStreamingSource.SCHEMA;
+      return UnboundedSourceDataset.SCHEMA;
     }
 
     @Override
     public String description() {
-      return "BeamUnboundedSource["
-          + options.getOrDefault(BeamStreamingSource.OPT_SOURCE_ID, "?")
-          + "]";
+      return "BeamUnboundedSource[" + spec.transformName() + "]";
     }
 
     @Override
     public MicroBatchStream toMicroBatchStream(String checkpointLocation) {
-      return new BeamMicroBatchStream(options, checkpointLocation);
+      return new BeamMicroBatchStream<>(spec, checkpointLocation);
     }
   }
 }

@@ -17,62 +17,52 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
-import java.util.Arrays;
+import java.io.Serializable;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.spark.broadcast.Broadcast;
-import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.util.SerializableConfiguration;
 
-/** One split of a Beam unbounded source for one micro-batch, from epoch start to epoch end. */
-public class BeamInputPartition<T> implements InputPartition {
+/** Everything the driver needs to plan micro-batches of one Beam {@link UnboundedSource}. */
+final class BeamSourceSpec<T> implements Serializable {
 
   private static final long serialVersionUID = 1L;
 
-  private final UnboundedSource<T, ?> split;
+  private final UnboundedSource<T, ?> source;
   private final Coder<WindowedValue<T>> coder;
   private final Broadcast<SerializablePipelineOptions> options;
   private final Broadcast<SerializableConfiguration> hadoopConf;
-  private final String checkpointLocation;
-  private final int splitId;
-  private final long startEpoch;
-  private final long endEpoch;
-  private final long maxRecords;
+  private final int desiredNumSplits;
+  private final long maxRecordsPerBatch;
   private final long maxBatchDurationMillis;
   private final long readerIdleTimeoutMillis;
-  private final String[] preferredLocations;
+  private final String transformName;
 
-  BeamInputPartition(
-      UnboundedSource<T, ?> split,
+  BeamSourceSpec(
+      UnboundedSource<T, ?> source,
       Coder<WindowedValue<T>> coder,
       Broadcast<SerializablePipelineOptions> options,
       Broadcast<SerializableConfiguration> hadoopConf,
-      String checkpointLocation,
-      int splitId,
-      long startEpoch,
-      long endEpoch,
-      long maxRecords,
+      int desiredNumSplits,
+      long maxRecordsPerBatch,
       long maxBatchDurationMillis,
       long readerIdleTimeoutMillis,
-      String[] preferredLocations) {
-    this.split = split;
+      String transformName) {
+    this.source = source;
     this.coder = coder;
     this.options = options;
     this.hadoopConf = hadoopConf;
-    this.checkpointLocation = checkpointLocation;
-    this.splitId = splitId;
-    this.startEpoch = startEpoch;
-    this.endEpoch = endEpoch;
-    this.maxRecords = maxRecords;
+    this.desiredNumSplits = desiredNumSplits;
+    this.maxRecordsPerBatch = maxRecordsPerBatch;
     this.maxBatchDurationMillis = maxBatchDurationMillis;
     this.readerIdleTimeoutMillis = readerIdleTimeoutMillis;
-    this.preferredLocations = preferredLocations.clone();
+    this.transformName = transformName;
   }
 
-  UnboundedSource<T, ?> split() {
-    return split;
+  UnboundedSource<T, ?> source() {
+    return source;
   }
 
   Coder<WindowedValue<T>> coder() {
@@ -87,25 +77,13 @@ public class BeamInputPartition<T> implements InputPartition {
     return hadoopConf;
   }
 
-  String checkpointLocation() {
-    return checkpointLocation;
+  int desiredNumSplits() {
+    return desiredNumSplits;
   }
 
-  int splitId() {
-    return splitId;
-  }
-
-  long startEpoch() {
-    return startEpoch;
-  }
-
-  long endEpoch() {
-    return endEpoch;
-  }
-
-  /** Records this split may emit in this micro-batch, below 1 means unlimited. */
-  long maxRecords() {
-    return maxRecords;
+  /** Records per micro-batch across all splits, below 1 means unlimited. */
+  long maxRecordsPerBatch() {
+    return maxRecordsPerBatch;
   }
 
   long maxBatchDurationMillis() {
@@ -116,23 +94,7 @@ public class BeamInputPartition<T> implements InputPartition {
     return readerIdleTimeoutMillis;
   }
 
-  @Override
-  public String[] preferredLocations() {
-    return preferredLocations.clone();
-  }
-
-  @Override
-  public String toString() {
-    return "BeamInputPartition{checkpointLocation="
-        + checkpointLocation
-        + ", split="
-        + splitId
-        + ", epochs="
-        + startEpoch
-        + ".."
-        + endEpoch
-        + ", locations="
-        + Arrays.toString(preferredLocations)
-        + "}";
+  String transformName() {
+    return transformName;
   }
 }

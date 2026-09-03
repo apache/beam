@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.connector.read.InputPartition;
 import org.apache.spark.sql.connector.read.PartitionReader;
@@ -29,6 +31,10 @@ public class BeamPartitionReaderFactory implements PartitionReaderFactory {
 
   @Override
   public PartitionReader<InternalRow> createReader(InputPartition partition) {
-    return new BeamPartitionReader<>((BeamInputPartition) partition);
+    try {
+      return new BeamPartitionReader<>((BeamInputPartition<?>) partition);
+    } catch (IOException e) {
+      throw new UncheckedIOException("Failed to open Beam reader for " + partition, e);
+    }
   }
 }

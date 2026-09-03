@@ -17,25 +17,17 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.spark.sql.connector.read.streaming.Offset;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * An opaque epoch counter used as the Spark streaming {@link Offset} of a Beam unbounded source.
+ * Opaque epoch counter used as the Spark {@link Offset} of a Beam unbounded source.
  *
- * <p>The offset carries no information about the position inside the wrapped Beam source. The
- * driver never reads from the source and never inspects its progress, it only needs a monotonically
- * increasing value so that Spark keeps planning micro-batches. The actual read position lives in
- * the executor side {@link BeamReaderCache} as a Beam {@code CheckpointMark}.
+ * <p>The read position lives in Beam checkpoint marks on the executors, see {@link
+ * BeamSourceCheckpoint}. Equality is the base class comparison of {@link #json()}.
  */
 public class BeamOffset extends Offset {
 
-  /** The offset every Beam unbounded stream starts at. */
   public static final BeamOffset ZERO = new BeamOffset(0L);
-
-  private static final Pattern EPOCH_PATTERN = Pattern.compile("-?\\d+");
 
   private final long epoch;
 
@@ -43,33 +35,21 @@ public class BeamOffset extends Offset {
     this.epoch = epoch;
   }
 
-  /** The epoch counter value. */
   public long epoch() {
     return epoch;
   }
 
   @Override
   public String json() {
-    return "{\"epoch\":" + epoch + "}";
+    return Long.toString(epoch);
   }
 
-  /** Parses the form produced by {@link #json()}, a bare number is also accepted. */
   public static BeamOffset fromJson(String json) {
-    Matcher matcher = EPOCH_PATTERN.matcher(json);
-    if (!matcher.find()) {
-      throw new IllegalArgumentException("Not a valid BeamOffset: " + json);
+    try {
+      return new BeamOffset(Long.parseLong(json.trim()));
+    } catch (NumberFormatException e) {
+      throw new IllegalArgumentException("Not a valid BeamOffset: " + json, e);
     }
-    return new BeamOffset(Long.parseLong(matcher.group()));
-  }
-
-  @Override
-  public boolean equals(@Nullable Object o) {
-    return o instanceof BeamOffset && ((BeamOffset) o).epoch == epoch;
-  }
-
-  @Override
-  public int hashCode() {
-    return Long.hashCode(epoch);
   }
 
   @Override

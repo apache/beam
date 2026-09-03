@@ -18,82 +18,80 @@
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
 import java.io.IOException;
-import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.io.streaming.BeamReaderCache.CachedReader;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Uninterruptibles;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.spark.TaskContext;
 import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.expressions.GenericInternalRow;
 import org.apache.spark.sql.connector.read.PartitionReader;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Reads one split of a Beam {@link UnboundedSource} for the duration of one Spark micro-batch.
+ * Reads one split of a Beam {@link UnboundedSource} for one micro-batch.
  *
- * <p>The batch ends as soon as either {@code maxRecordsPerBatch} elements were emitted (a limit
- * below 1 means unlimited) or {@code maxBatchDurationMillis} of wall clock time elapsed, whichever
- * comes first. When the source has no data available the reader polls with a short sleep until the
- * deadline, so an idle source produces an empty micro-batch rather than blocking the query.
+ * <p>The batch ends at the record quota or at the deadline. The reader then writes its checkpoint
+ * mark durably at the end epoch and stays in {@link BeamReaderCache} for the next batch. A failed
+ * mark write fails the task. An attempt Spark killed or failed writes nothing and its reader is
+ * dropped, the retry restores from the durable mark at the start epoch.
  *
- * <p>The underlying Beam reader is not closed at the end of the batch, it stays in {@link
- * BeamReaderCache} and the next micro-batch continues from the same position. See that class for
- * the failure recovery caveats.
- *
- * @param <T> the element type of the wrapped source
+ * @param <T> the element type of the split
  */
-@SuppressWarnings({
-  "nullness" // the current row is only read between a true next() and the following one
-})
 public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamPartitionReader.class);
 
-  /** Sleep between two unsuccessful advance attempts while the batch deadline has not passed. */
-  private static final long POLL_INTERVAL_MILLIS = 10L;
+  private static final Duration INITIAL_BACKOFF = Duration.millis(10);
 
-  private final String cacheKey;
+  private final String key;
+  private final UnboundedSource<T, ?> split;
+  private final Coder<WindowedValue<T>> coder;
+  private final BeamSourceCheckpoint checkpoint;
   private final CachedReader<T> cached;
-  private final Coder<WindowedValue<T>> windowedValueCoder;
-  private final String checkpointLocation;
-  private final String sourceId;
   private final int splitId;
   private final long endEpoch;
-  private final long maxRecordsPerBatch;
+  private final long maxRecords;
   private final long maxBatchDurationMillis;
 
   private long recordsRead;
   private long deadlineMillis = -1L;
+  private boolean batchEnded;
   private @Nullable InternalRow current;
 
-  BeamPartitionReader(BeamInputPartition partition) {
-    UnboundedSource<T, ?> source =
-        BeamStreamingSource.decode(partition.sourceB64(), "UnboundedSource split");
-    this.windowedValueCoder =
-        BeamStreamingSource.decode(partition.coderB64(), "WindowedValue coder");
-    SerializablePipelineOptions options =
-        BeamStreamingSource.decode(partition.pipelineOptionsB64(), "PipelineOptions");
-    this.checkpointLocation = partition.checkpointLocation();
-    this.sourceId = partition.sourceId();
+  BeamPartitionReader(BeamInputPartition<T> partition) throws IOException {
+    this.split = partition.split();
+    this.coder = partition.coder();
     this.splitId = partition.splitId();
     this.endEpoch = partition.endEpoch();
-    this.maxRecordsPerBatch = partition.maxRecordsPerBatch();
+    this.maxRecords = partition.maxRecords();
     this.maxBatchDurationMillis = partition.maxBatchDurationMillis();
-    this.cacheKey = BeamReaderCache.key(checkpointLocation, sourceId, splitId);
+    PipelineOptions options = partition.options().value().get();
+    Configuration conf = partition.hadoopConf().value().value();
+    this.checkpoint = new BeamSourceCheckpoint(partition.checkpointLocation(), conf);
+    this.key = BeamReaderCache.key(partition.checkpointLocation(), splitId);
     long startEpoch = partition.startEpoch();
     this.cached =
-        BeamReaderCache.getOrCreate(
-            cacheKey,
-            source,
-            options.get(),
-            () -> BeamCheckpointFiles.readMark(checkpointLocation, sourceId, splitId, startEpoch));
+        BeamReaderCache.acquire(
+            key,
+            startEpoch,
+            split,
+            options,
+            partition.readerIdleTimeoutMillis(),
+            () -> checkpoint.readMark(splitId, startEpoch));
   }
 
   @Override
@@ -101,81 +99,111 @@ public class BeamPartitionReader<T> implements PartitionReader<InternalRow> {
     if (deadlineMillis < 0) {
       deadlineMillis = System.currentTimeMillis() + maxBatchDurationMillis;
     }
+    BackOff backOff = null;
     while (true) {
-      if (maxRecordsPerBatch > 0 && recordsRead >= maxRecordsPerBatch) {
-        current = null;
-        return false;
+      if (maxRecords > 0 && recordsRead >= maxRecords) {
+        return endOfBatch(false);
       }
       long remaining = deadlineMillis - System.currentTimeMillis();
       if (remaining <= 0) {
-        current = null;
-        return false;
+        return endOfBatch(false);
       }
       if (cached.startOrAdvance()) {
         recordsRead++;
         current = toRow();
         return true;
       }
-      Uninterruptibles.sleepUninterruptibly(
-          Math.min(remaining, POLL_INTERVAL_MILLIS), java.util.concurrent.TimeUnit.MILLISECONDS);
+      if (backOff == null) {
+        backOff = backOff(remaining);
+      }
+      try {
+        if (!BackOffUtils.next(Sleeper.DEFAULT, backOff)) {
+          return endOfBatch(false);
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        return endOfBatch(true);
+      }
     }
   }
 
   @Override
   public InternalRow get() {
-    if (current == null) {
+    InternalRow row = current;
+    if (row == null) {
       throw new IllegalStateException("No current row, next() did not return true.");
     }
-    return current;
+    return row;
   }
 
-  /**
-   * Ends the micro-batch. The Beam reader deliberately stays open in {@link BeamReaderCache}, only
-   * its checkpoint mark is remembered, persisted for durable recovery, and finalized.
-   */
   @Override
-  public void close() {
+  public void close() throws IOException {
+    endBatch(attemptDiscarded());
     current = null;
-    try {
-      UnboundedSource.CheckpointMark mark = cached.reader().getCheckpointMark();
-      BeamReaderCache.rememberCheckpointMark(cacheKey, mark);
-      persistMark(mark);
-      mark.finalizeCheckpoint();
-    } catch (Exception e) {
-      LOG.warn("Failed to finalize the checkpoint mark of Beam reader {}.", cacheKey, e);
-    }
-    LOG.debug("Beam reader {} emitted {} record(s) in this micro-batch.", cacheKey, recordsRead);
+  }
+
+  private boolean endOfBatch(boolean discarded) throws IOException {
+    endBatch(discarded);
+    current = null;
+    return false;
   }
 
   /**
-   * Best effort persistence of {@code mark} under the checkpoint location. An IO failure only
-   * degrades recovery after a restart, the in memory path in {@link BeamReaderCache} still works,
-   * so the batch is never failed here.
+   * Ends the batch once. A discarded attempt drops the reader and writes nothing. A reader that was
+   * never started has not moved, its start mark is written forward, an empty file standing for a
+   * fresh start.
    */
-  private void persistMark(UnboundedSource.CheckpointMark mark) {
-    try {
-      BeamCheckpointFiles.writeMark(checkpointLocation, sourceId, splitId, endEpoch, mark);
-    } catch (Exception e) {
-      LOG.warn(
-          "Failed to persist the checkpoint mark of Beam reader {} at epoch {}, recovery after a "
-              + "restart will fall back to an older mark or to a fresh start.",
-          cacheKey,
-          endEpoch,
-          e);
+  private void endBatch(boolean discarded) throws IOException {
+    if (batchEnded) {
+      return;
     }
+    batchEnded = true;
+    if (discarded) {
+      LOG.info("Attempt for Beam reader {} was discarded, dropping the reader.", key);
+      BeamReaderCache.invalidate(key);
+      return;
+    }
+    if (!cached.started()) {
+      byte[] startMark = cached.positionMark();
+      byte[] codedMark = startMark == null ? new byte[0] : startMark;
+      checkpoint.writeMark(splitId, endEpoch, codedMark);
+      cached.endBatch(endEpoch, null, codedMark);
+      return;
+    }
+    CheckpointMark mark = cached.reader().getCheckpointMark();
+    byte[] codedMark = encodeMark(split, mark);
+    checkpoint.writeMark(splitId, endEpoch, codedMark);
+    cached.endBatch(endEpoch, mark, codedMark);
+    LOG.debug("Beam reader {} read {} record(s) up to epoch {}.", key, recordsRead, endEpoch);
+  }
+
+  private static boolean attemptDiscarded() {
+    TaskContext context = TaskContext.get();
+    return context != null && (context.isInterrupted() || context.isFailed());
+  }
+
+  private static <MarkT extends CheckpointMark> byte[] encodeMark(
+      UnboundedSource<?, MarkT> source, CheckpointMark mark) {
+    @SuppressWarnings("unchecked") // getCheckpointMark returns the source's own mark type
+    MarkT typed = (MarkT) mark;
+    return CoderHelpers.toByteArray(typed, source.getCheckpointMarkCoder());
+  }
+
+  private static BackOff backOff(long remainingMillis) {
+    Duration remaining = Duration.millis(remainingMillis);
+    return FluentBackoff.DEFAULT
+        .withInitialBackoff(INITIAL_BACKOFF)
+        .withMaxBackoff(remaining)
+        .withMaxCumulativeBackoff(remaining)
+        .backoff();
   }
 
   private InternalRow toRow() {
     Instant timestamp = cached.reader().getCurrentTimestamp();
-    WindowedValue<T> windowedValue =
+    WindowedValue<T> value =
         WindowedValues.timestampedValueInGlobalWindow(cached.reader().getCurrent(), timestamp);
-    byte[] payload;
-    try {
-      payload = CoderUtils.encodeToByteArray(windowedValueCoder, windowedValue);
-    } catch (CoderException e) {
-      throw new IllegalStateException("Failed to encode element read from a Beam source.", e);
-    }
-    // Spark stores TimestampType as microseconds since the epoch.
+    byte[] payload = CoderHelpers.toByteArray(value, coder);
+    // Spark stores TimestampType as microseconds.
     return new GenericInternalRow(new Object[] {payload, timestamp.getMillis() * 1000L});
   }
 }

@@ -17,61 +17,61 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.values.WindowedValue;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.spark.broadcast.Broadcast;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
+import org.apache.spark.sql.catalyst.streaming.StreamingRelationV2;
+import org.apache.spark.sql.catalyst.types.DataTypeUtils;
+import org.apache.spark.sql.classic.Dataset$;
+import org.apache.spark.sql.types.DataTypes;
+import org.apache.spark.sql.types.StructType;
+import org.apache.spark.sql.util.CaseInsensitiveStringMap;
+import org.apache.spark.util.SerializableConfiguration;
+import scala.Option;
+import scala.reflect.ClassTag;
 
 /**
  * Translator facing entry point turning a Beam {@link UnboundedSource} into a streaming Spark
  * {@link Dataset} of rows.
  *
- * <p>The returned dataset has exactly two columns, {@value #COL_PAYLOAD} of type {@code BINARY}
- * carrying the element encoded with the supplied {@code WindowedValue} coder, and {@value
- * #COL_EVENT_TS} of type {@code TIMESTAMP} carrying the event timestamp of that element.
+ * <p>The dataset has two columns, {@value #COL_PAYLOAD} of type {@code BINARY} holding the element
+ * encoded with the supplied {@code WindowedValue} coder, and {@value #COL_EVENT_TS} of type {@code
+ * TIMESTAMP} holding the event timestamp of that element.
  *
- * <p><b>The watermark is declared here and only here.</b> Spark 4 rejects a second {@code
- * withWatermark} declaration further down the plan, so this is the single declaration point for a
- * whole Beam pipeline. Downstream translators must never call {@code withWatermark} again, they
- * simply keep transforming the dataset. Both columns are still present in the returned dataset, the
- * event timestamp column has to survive at least until the first stateful operator for the
- * watermark to be meaningful.
+ * <p>The event time watermark is declared here and only here. Spark 4 rejects a second {@code
+ * withWatermark} further down the plan, so downstream translators must never call it again.
  */
 public final class UnboundedSourceDataset {
 
-  /** Name of the binary column holding the encoded {@code WindowedValue}. */
   public static final String COL_PAYLOAD = "payload";
 
-  /** Name of the timestamp column holding the Beam event timestamp. */
   public static final String COL_EVENT_TS = "eventTimestamp";
 
-  /** Upper bound on the number of splits requested from a source, keeps the POC predictable. */
-  private static final int MAX_DESIRED_SPLITS = 8;
+  public static final StructType SCHEMA =
+      new StructType()
+          .add(COL_PAYLOAD, DataTypes.BinaryType, false)
+          .add(COL_EVENT_TS, DataTypes.TimestampType, false);
 
-  /** Upper bound on the sanitized transform name inside a source id, see {@link #sourceId}. */
-  private static final int MAX_SANITIZED_NAME_LENGTH = 64;
+  private static final String SOURCE_NAME = "beam-unbounded";
 
   private UnboundedSourceDataset() {}
 
   /**
-   * Builds the streaming {@link Dataset} for {@code source}, with the event time watermark already
-   * applied.
+   * Builds the streaming {@link Dataset} for {@code source} with the event time watermark applied.
    *
    * @param session the active Spark session
    * @param source the Beam unbounded source to read
-   * @param windowedValueCoder the coder used to encode the {@value #COL_PAYLOAD} column, normally a
-   *     {@code WindowedValues.FullWindowedValueCoder}
+   * @param windowedValueCoder the coder of the {@value #COL_PAYLOAD} column
    * @param options the pipeline options, supplying the watermark delay and the micro-batch limits
-   * @param transformName the full name of the read transform, turned into the deterministic source
-   *     id keying the durable checkpoint state, see {@link #sourceId}
+   * @param transformName the full name of the read transform, used for naming only
    * @param <T> the element type of the source
    * @param <CheckpointMarkT> the checkpoint mark type of the source
    */
@@ -81,53 +81,41 @@ public final class UnboundedSourceDataset {
       Coder<WindowedValue<T>> windowedValueCoder,
       SparkStructuredStreamingPipelineOptions options,
       String transformName) {
-
-    Map<String, String> readerOptions = new HashMap<>();
-    readerOptions.put(BeamStreamingSource.OPT_SOURCE, BeamStreamingSource.encode(source));
-    readerOptions.put(
-        BeamStreamingSource.OPT_CODER, BeamStreamingSource.encode(windowedValueCoder));
-    readerOptions.put(
-        BeamStreamingSource.OPT_PIPELINE_OPTIONS,
-        BeamStreamingSource.encode(new SerializablePipelineOptions(options)));
-    readerOptions.put(BeamStreamingSource.OPT_SOURCE_ID, sourceId(transformName));
-    readerOptions.put(
-        BeamStreamingSource.OPT_NUM_SPLITS, Integer.toString(desiredNumSplits(session)));
-    readerOptions.put(
-        BeamStreamingSource.OPT_MAX_RECORDS, Long.toString(options.getMaxRecordsPerBatch()));
-    readerOptions.put(
-        BeamStreamingSource.OPT_MAX_BATCH_DURATION_MILLIS,
-        Long.toString(options.getMaxBatchDurationMillis()));
-
-    Dataset<Row> rows =
-        session.readStream().format(BeamStreamingSource.FORMAT).options(readerOptions).load();
-
-    // Exactly one watermark declaration per pipeline, see the class javadoc.
+    org.apache.spark.sql.classic.SparkSession classic =
+        (org.apache.spark.sql.classic.SparkSession) session;
+    Configuration hadoopConf = classic.sessionState().newHadoopConf();
+    BeamSourceSpec<T> spec =
+        new BeamSourceSpec<>(
+            source,
+            windowedValueCoder,
+            broadcast(
+                session,
+                new SerializablePipelineOptions(options),
+                SerializablePipelineOptions.class),
+            broadcast(
+                session,
+                new SerializableConfiguration(hadoopConf),
+                SerializableConfiguration.class),
+            session.sparkContext().defaultParallelism(),
+            options.getMaxRecordsPerBatch(),
+            Math.max(1L, options.getMaxBatchDurationMillis()),
+            options.getReaderIdleTimeoutMillis(),
+            transformName);
+    LogicalPlan plan =
+        new StreamingRelationV2(
+            Option.empty(),
+            SOURCE_NAME,
+            new BeamStreamingTable(spec),
+            CaseInsensitiveStringMap.empty(),
+            DataTypeUtils.toAttributes(SCHEMA),
+            Option.empty(),
+            Option.empty(),
+            Option.empty());
+    Dataset<Row> rows = Dataset$.MODULE$.ofRows(classic, plan);
     return rows.withWatermark(COL_EVENT_TS, options.getWatermarkDelayMillis() + " milliseconds");
   }
 
-  /**
-   * Derives the deterministic source id of a read transform from its full name.
-   *
-   * <p>The id keys the durable checkpoint state under the checkpoint location, so it must be
-   * filesystem safe and stable across JVMs. Characters outside {@code [A-Za-z0-9._-]} are replaced
-   * with {@code _}, the sanitized name is truncated to {@value #MAX_SANITIZED_NAME_LENGTH}
-   * characters, and an 8 hex character hash of the unsanitized name is appended to keep distinct
-   * transform names distinct. A pipeline restarted against the same checkpoint location must
-   * therefore keep the same transform names, the same requirement every Beam runner with durable
-   * state imposes.
-   */
-  public static String sourceId(String transformName) {
-    String sanitized = transformName.replaceAll("[^A-Za-z0-9._-]", "_");
-    if (sanitized.length() > MAX_SANITIZED_NAME_LENGTH) {
-      sanitized = sanitized.substring(0, MAX_SANITIZED_NAME_LENGTH);
-    }
-    String hash =
-        Hashing.murmur3_32_fixed().hashString(transformName, StandardCharsets.UTF_8).toString();
-    return sanitized + "-" + hash;
-  }
-
-  private static int desiredNumSplits(SparkSession session) {
-    int parallelism = session.sparkContext().defaultParallelism();
-    return Math.max(1, Math.min(MAX_DESIRED_SPLITS, parallelism));
+  private static <T> Broadcast<T> broadcast(SparkSession session, T value, Class<T> type) {
+    return session.sparkContext().broadcast(value, ClassTag.apply(type));
   }
 }

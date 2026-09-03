@@ -19,156 +19,254 @@ package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.TimeUnit;
-import java.util.function.Supplier;
+import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalListener;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Executor side cache of live Beam {@link UnboundedReader}s, keyed by (checkpoint location, source
- * id, split id).
+ * Executor side cache of live Beam {@link UnboundedReader}s keyed by checkpoint location and split.
  *
- * <p>A Spark micro-batch creates a fresh {@link BeamPartitionReader} every batch, but a Beam
- * unbounded reader is expensive to create and holds the read position. Keeping the reader alive
- * between micro-batches lets the next batch continue where the previous one stopped, mirroring
- * {@code org.apache.beam.runners.spark.io.MicrobatchSource} in the legacy runner.
+ * <p>An entry records the epoch its reader is positioned at and the mark taken there. A batch
+ * starting at that epoch reuses the reader and finalizes the pending mark, the start epoch of a
+ * batch is always committed by Spark. Any other start epoch, or a reader that moved without
+ * completing its batch, closes the entry without finalizing and restores the reader from the
+ * durable mark at the start epoch.
  *
- * <p><b>Durable recovery.</b> The {@code CheckpointMark} of every split is remembered in executor
- * memory after each micro-batch, and {@link BeamPartitionReader} additionally persists it under the
- * checkpoint location, see {@link BeamCheckpointFiles}. When a reader has to be created and no mark
- * is in memory, for example after an executor or driver restart or after the cache entry expired,
- * the caller supplied fallback restores the newest durable mark at or before the epoch the batch
- * starts at. Two caveats remain. The source is consumed with at least once semantics, a mark is
- * written when a batch finished reading rather than transactionally with Spark's commit, so a crash
- * between the two replays the last micro-batch. And persisting a mark is best effort, an IO failure
- * only degrades recovery to an older mark or to a fresh start, it never fails the batch.
+ * <p>A reader idle for longer than its idle timeout is closed without finalizing its mark, the
+ * source redelivers. The timeout must exceed the longest gap between two micro-batches of one
+ * split. Speculative execution can leave a losing attempt's mark finalized on another executor,
+ * this source is not safe under {@code spark.speculation} with sources whose reads are not
+ * deterministic.
  */
 public final class BeamReaderCache {
 
   private static final Logger LOG = LoggerFactory.getLogger(BeamReaderCache.class);
 
-  /** Readers idle for longer than this are closed, releasing the underlying source connections. */
-  private static final long READER_CACHE_INTERVAL_MILLIS = 10 * 60 * 1000L;
+  private static final ConcurrentMap<String, CachedReader<?>> READERS = new ConcurrentHashMap<>();
 
-  private static final RemovalListener<String, CachedReader<?>> CLOSE_ON_REMOVAL =
-      notification -> {
-        CachedReader<?> reader = notification.getValue();
-        String key = String.valueOf(notification.getKey());
-        if (reader != null) {
-          LOG.info("Evicting cached Beam reader {}.", key);
-          try {
-            reader.close();
-          } catch (IOException e) {
-            LOG.warn("Failed to close evicted Beam reader {}.", key, e);
-          }
-        }
-      };
-
-  private static final Cache<String, CachedReader<?>> READERS =
-      CacheBuilder.newBuilder()
-          .expireAfterAccess(READER_CACHE_INTERVAL_MILLIS, TimeUnit.MILLISECONDS)
-          .removalListener(CLOSE_ON_REMOVAL)
-          .build();
-
-  /** Last known checkpoint mark per key, used when a reader has to be recreated. */
-  private static final ConcurrentMap<String, CheckpointMark> MARKS = new ConcurrentHashMap<>();
+  /** One monitor per key, acquire serializes per split, not across splits. */
+  private static final ConcurrentMap<String, Object> LOCKS = new ConcurrentHashMap<>();
 
   private BeamReaderCache() {}
 
-  /** Builds the cache key of one split of one source of one streaming query. */
-  public static String key(String checkpointLocation, String sourceId, int splitId) {
-    return checkpointLocation + '|' + sourceId + '|' + splitId;
+  public static String key(String checkpointLocation, int splitId) {
+    return checkpointLocation + '|' + splitId;
+  }
+
+  /** Supplies the durable coded mark at the start epoch of a batch, null if there is none. */
+  @FunctionalInterface
+  interface MarkRestorer {
+    byte @Nullable [] restore() throws IOException;
   }
 
   /**
-   * Returns the cached reader for {@code key}, creating it from the last cached checkpoint mark if
-   * there is none.
+   * Returns the reader for {@code key} positioned at {@code startEpoch}, reusing the cached one if
+   * it is there, restoring from the durable mark otherwise. A zero length durable mark means a
+   * fresh start.
+   *
+   * @throws IllegalStateException if {@code startEpoch > 0} and no durable mark exists
    */
-  public static <T, CheckpointMarkT extends CheckpointMark> CachedReader<T> getOrCreate(
-      String key, UnboundedSource<T, CheckpointMarkT> source, PipelineOptions options) {
-    return getOrCreate(key, source, options, () -> null);
-  }
-
-  /**
-   * Returns the cached reader for {@code key}, creating it from the last cached checkpoint mark if
-   * there is none. The {@code durableMarkFallback} is consulted only when no mark is in memory
-   * either, it typically restores a mark persisted by {@link BeamCheckpointFiles} and may return
-   * {@code null} for a fresh start.
-   */
-  @SuppressWarnings({"unchecked", "nullness"}) // the mark type always matches the source
-  public static <T, CheckpointMarkT extends CheckpointMark> CachedReader<T> getOrCreate(
+  public static <T> CachedReader<T> acquire(
       String key,
-      UnboundedSource<T, CheckpointMarkT> source,
+      long startEpoch,
+      UnboundedSource<T, ?> source,
       PipelineOptions options,
-      Supplier<@Nullable CheckpointMark> durableMarkFallback) {
-    try {
-      return (CachedReader<T>)
-          READERS.get(
-              key,
-              () -> {
-                CheckpointMarkT mark = (CheckpointMarkT) MARKS.get(key);
-                if (mark == null) {
-                  mark = (CheckpointMarkT) durableMarkFallback.get();
-                }
-                LOG.info(
-                    "No cached Beam reader for {}, creating one at checkpoint mark {}.", key, mark);
-                return new CachedReader<>(source.createReader(options, mark));
-              });
-    } catch (Exception e) {
-      throw new IllegalStateException("Failed to get or create Beam unbounded reader " + key, e);
+      long idleTimeoutMillis,
+      MarkRestorer restorer)
+      throws IOException {
+    closeIdle();
+    synchronized (lock(key)) {
+      CachedReader<?> existing = READERS.get(key);
+      if (existing != null) {
+        if (existing.beginBatch(startEpoch)) {
+          existing.finalizePendingMark(key);
+          @SuppressWarnings("unchecked") // one source per key, its element type never changes
+          CachedReader<T> reused = (CachedReader<T>) existing;
+          return reused;
+        }
+        LOG.info(
+            "Cached Beam reader {} is at epoch {}, batch starts at {}, restoring from the durable"
+                + " mark.",
+            key,
+            existing.positionEpoch(),
+            startEpoch);
+        invalidate(key);
+      }
+      byte[] codedMark = restorer.restore();
+      if (codedMark == null && startEpoch > 0) {
+        throw new IllegalStateException(
+            "No durable checkpoint mark for Beam reader " + key + " at epoch " + startEpoch);
+      }
+      if (codedMark != null && codedMark.length == 0) {
+        codedMark = null;
+      }
+      LOG.info(
+          "Creating Beam reader {} at epoch {} ({} mark).",
+          key,
+          startEpoch,
+          codedMark == null ? "no" : "restored");
+      CachedReader<T> created =
+          new CachedReader<>(
+              createReader(source, options, codedMark), startEpoch, codedMark, idleTimeoutMillis);
+      created.beginBatch(startEpoch);
+      READERS.put(key, created);
+      return created;
     }
   }
 
-  /** Remembers the checkpoint mark of {@code key} so a recreated reader can resume from it. */
-  public static void rememberCheckpointMark(String key, @Nullable CheckpointMark mark) {
-    if (mark != null) {
-      MARKS.put(key, mark);
+  private static <T, MarkT extends CheckpointMark> UnboundedReader<T> createReader(
+      UnboundedSource<T, MarkT> source, PipelineOptions options, byte @Nullable [] codedMark)
+      throws IOException {
+    MarkT mark =
+        codedMark == null
+            ? null
+            : CoderHelpers.fromByteArray(codedMark, source.getCheckpointMarkCoder());
+    return source.createReader(options, mark);
+  }
+
+  /** Closes and forgets the reader of {@code key}, nothing is finalized. */
+  public static void invalidate(String key) {
+    synchronized (lock(key)) {
+      CachedReader<?> removed = READERS.remove(key);
+      if (removed != null) {
+        close(key, removed);
+      }
     }
   }
 
-  /** Closes and forgets every cached reader, intended for tests and for query shutdown. */
-  @VisibleForTesting
+  /** Closes and forgets every cached reader. */
   public static void invalidateAll() {
-    READERS.invalidateAll();
-    READERS.cleanUp();
-    MARKS.clear();
+    for (String key : READERS.keySet()) {
+      invalidate(key);
+    }
   }
 
-  /** A cached {@link UnboundedReader} that remembers whether it has been started already. */
+  private static void closeIdle() {
+    long now = System.currentTimeMillis();
+    for (Map.Entry<String, CachedReader<?>> entry : READERS.entrySet()) {
+      if (entry.getValue().isIdleSince(now)) {
+        LOG.info("Closing idle Beam reader {}.", entry.getKey());
+        invalidate(entry.getKey());
+      }
+    }
+  }
+
+  private static void close(String key, CachedReader<?> reader) {
+    try {
+      reader.close();
+    } catch (IOException | RuntimeException e) {
+      LOG.warn("Failed to close Beam reader {}.", key, e);
+    }
+  }
+
+  private static Object lock(String key) {
+    return LOCKS.computeIfAbsent(key, k -> new Object());
+  }
+
+  /** A live reader with the epoch it is positioned at and the coded mark taken there. */
   public static final class CachedReader<T> implements Closeable {
     private final UnboundedReader<T> reader;
+    private final long idleTimeoutMillis;
     private boolean started;
+    private boolean inBatch;
+    private boolean moved;
+    private long positionEpoch;
+    private byte @Nullable [] positionMark;
+    private @Nullable CheckpointMark pendingMark;
+    private long lastUsedMillis;
 
-    CachedReader(UnboundedReader<T> reader) {
+    CachedReader(
+        UnboundedReader<T> reader,
+        long positionEpoch,
+        byte @Nullable [] positionMark,
+        long idleTimeoutMillis) {
       this.reader = reader;
+      this.positionEpoch = positionEpoch;
+      this.positionMark = positionMark;
+      this.idleTimeoutMillis = idleTimeoutMillis;
+      this.lastUsedMillis = System.currentTimeMillis();
     }
 
-    /** The wrapped Beam reader. */
     public UnboundedReader<T> reader() {
       return reader;
     }
 
-    /**
-     * Starts the reader on first use and advances it afterwards, returning {@code true} if an
-     * element is available.
-     */
     public synchronized boolean startOrAdvance() throws IOException {
+      moved = true;
       if (!started) {
         started = true;
         return reader.start();
       }
       return reader.advance();
+    }
+
+    /**
+     * Whether {@link #startOrAdvance()} was called at least once, only then may a mark be taken.
+     */
+    public synchronized boolean started() {
+      return started;
+    }
+
+    public synchronized long positionEpoch() {
+      return positionEpoch;
+    }
+
+    /** The coded mark of the current position, null for a fresh start. */
+    synchronized byte @Nullable [] positionMark() {
+      return positionMark;
+    }
+
+    /**
+     * Claims the reader for a batch starting at {@code epoch}, false if it cannot continue there.
+     */
+    synchronized boolean beginBatch(long epoch) {
+      if (positionEpoch != epoch || moved) {
+        return false;
+      }
+      inBatch = true;
+      lastUsedMillis = System.currentTimeMillis();
+      return true;
+    }
+
+    /** Records a completed batch, the reader is positioned at {@code endEpoch} from now on. */
+    synchronized void endBatch(long endEpoch, @Nullable CheckpointMark mark, byte[] codedMark) {
+      positionEpoch = endEpoch;
+      positionMark = codedMark;
+      pendingMark = mark;
+      moved = false;
+      inBatch = false;
+      lastUsedMillis = System.currentTimeMillis();
+    }
+
+    synchronized boolean isIdleSince(long nowMillis) {
+      return !inBatch && nowMillis - lastUsedMillis > idleTimeoutMillis;
+    }
+
+    /** Finalizes the pending mark if any, a failure is logged. */
+    synchronized void finalizePendingMark(String key) {
+      CheckpointMark mark = pendingMark;
+      pendingMark = null;
+      if (mark == null) {
+        return;
+      }
+      LOG.debug("Finalizing checkpoint mark of Beam reader {} at epoch {}.", key, positionEpoch);
+      try {
+        mark.finalizeCheckpoint();
+      } catch (IOException | RuntimeException e) {
+        LOG.warn(
+            "Failed to finalize checkpoint mark of Beam reader {} at epoch {}.",
+            key,
+            positionEpoch,
+            e);
+      }
     }
 
     @Override
