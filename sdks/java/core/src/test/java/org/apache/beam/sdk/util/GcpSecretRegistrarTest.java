@@ -38,7 +38,7 @@ public class GcpSecretRegistrarTest {
         Lists.newArrayList(ServiceLoader.load(SecretRegistrar.class).iterator())) {
       if (registrar instanceof GcpSecretRegistrar) {
         Map<String, SecretRegistrar.SecretFactory> factories = registrar.getSecretFactories();
-        assertThat(factories.keySet(), hasItems("googlecloudsecretmanager", "gcpsecret"));
+        assertThat(factories.keySet(), hasItems("GoogleCloudSecretManager", "GcpSecret"));
         return;
       }
     }
@@ -53,7 +53,7 @@ public class GcpSecretRegistrarTest {
         Map<String, SecretRegistrar.SecretFactory> factories = registrar.getSecretFactories();
         assertThat(
             factories.keySet(),
-            hasItems("googlecloudhsmgeneratedsecretmanager", "gcphsmgeneratedsecret"));
+            hasItems("GoogleCloudHsmGeneratedSecretManager", "GcpHsmGeneratedSecret"));
         return;
       }
     }

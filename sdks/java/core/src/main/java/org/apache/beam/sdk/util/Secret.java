@@ -24,6 +24,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -40,18 +42,25 @@ import org.slf4j.LoggerFactory;
  */
 public abstract class Secret implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(Secret.class);
-  private static final Map<String, SecretRegistrar.SecretFactory> SECRET_FACTORIES =
-      loadSecretFactories();
 
-  private static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories() {
+  @VisibleForTesting static final Set<String> SUPPORTED_TYPES;
+  private static final Map<String, SecretRegistrar.SecretFactory> SECRET_FACTORIES;
+
+  static {
+    TreeSet<String> supportedTypes = new TreeSet<>();
+    Map<String, SecretRegistrar.SecretFactory> factories;
     try {
-      return loadSecretFactories(ReflectHelpers.loadServicesOrdered(SecretRegistrar.class));
+      factories =
+          loadSecretFactories(
+              ReflectHelpers.loadServicesOrdered(SecretRegistrar.class), supportedTypes);
     } catch (Throwable t) {
       // Top-level fail-safe: guarantee that static class initialization of Secret never fails
       // due to unforeseen classloader or registrar errors.
       LOG.error("Unexpected error loading SecretRegistrars; secret factories may be incomplete", t);
-      return Collections.emptyMap();
+      factories = Collections.emptyMap();
     }
+    SECRET_FACTORIES = factories;
+    SUPPORTED_TYPES = Collections.unmodifiableSet(supportedTypes);
   }
 
   /**
@@ -72,6 +81,12 @@ public abstract class Secret implements Serializable {
   @VisibleForTesting
   static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories(
       @Nullable Iterable<SecretRegistrar> registrars) {
+    return loadSecretFactories(registrars, new TreeSet<>());
+  }
+
+  @VisibleForTesting
+  static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories(
+      @Nullable Iterable<SecretRegistrar> registrars, Set<String> supportedTypes) {
     Map<String, SecretRegistrar.SecretFactory> factories = new HashMap<>();
     if (registrars == null) {
       return Collections.emptyMap();
@@ -112,7 +127,8 @@ public abstract class Secret implements Serializable {
             continue;
           }
 
-          String key = rawKey.toLowerCase();
+          String canonicalKey = rawKey.trim();
+          String key = canonicalKey.toLowerCase();
           SecretRegistrar.SecretFactory existing = factories.get(key);
           if (existing != null) {
             // First-wins strategy with warning: do not throw to prevent leaked test or duplicate
@@ -125,6 +141,7 @@ public abstract class Secret implements Serializable {
                 factory.getClass().getName());
           } else {
             factories.put(key, factory);
+            supportedTypes.add(canonicalKey);
           }
         }
       } catch (Throwable t) {
@@ -210,8 +227,7 @@ public abstract class Secret implements Serializable {
     if (factory == null) {
       throw new IllegalArgumentException(
           String.format(
-              "Invalid secret type %s, currently supported types: %s",
-              rawType, SECRET_FACTORIES.keySet()));
+              "Invalid secret type %s, currently supported types: %s", rawType, SUPPORTED_TYPES));
     }
 
     try {
@@ -259,7 +275,7 @@ public abstract class Secret implements Serializable {
       throw new IllegalArgumentException(
           String.format(
               "Unsupported secret manager: '%s'. Currently supported options: %s.",
-              smManager, SECRET_FACTORIES.keySet()));
+              smManager, SUPPORTED_TYPES));
     }
 
     if (specMap != null) {

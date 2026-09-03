@@ -28,7 +28,7 @@ public class GcpSecretRegistrar implements SecretRegistrar {
   @Override
   public Map<String, SecretFactory> getSecretFactories() {
     return ImmutableMap.of(
-        "googlecloudsecretmanager", GcpSecret::fromMap,
-        "gcpsecret", GcpSecret::fromMap);
+        "GoogleCloudSecretManager", GcpSecret::fromMap,
+        "GcpSecret", GcpSecret::fromMap);
   }
 }

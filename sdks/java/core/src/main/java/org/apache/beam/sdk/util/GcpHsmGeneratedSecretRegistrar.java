@@ -28,7 +28,7 @@ public class GcpHsmGeneratedSecretRegistrar implements SecretRegistrar {
   @Override
   public Map<String, SecretFactory> getSecretFactories() {
     return ImmutableMap.of(
-        "googlecloudhsmgeneratedsecretmanager", GcpHsmGeneratedSecret::fromMap,
-        "gcphsmgeneratedsecret", GcpHsmGeneratedSecret::fromMap);
+        "GoogleCloudHsmGeneratedSecretManager", GcpHsmGeneratedSecret::fromMap,
+        "GcpHsmGeneratedSecret", GcpHsmGeneratedSecret::fromMap);
   }
 }

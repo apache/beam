@@ -28,6 +28,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -84,6 +86,8 @@ public class SecretTest {
     Exception exception =
         assertThrows(IllegalArgumentException.class, () -> Secret.parseSecretOption(secretOption));
     assertTrue(exception.getMessage().contains("Invalid secret type unsupported"));
+    assertTrue(exception.getMessage().contains("GcpSecret"));
+    assertTrue(exception.getMessage().contains("GoogleCloudSecretManager"));
   }
 
   @Test
@@ -148,6 +152,14 @@ public class SecretTest {
             IllegalArgumentException.class, () -> Secret.fromJson("spec", "unsupported_provider"));
     assertTrue(
         exception.getMessage().contains("Unsupported secret manager: 'unsupported_provider'"));
+    assertTrue(exception.getMessage().contains("GoogleCloudSecretManager"));
+    assertTrue(exception.getMessage().contains("GcpSecret"));
+
+    // Case-insensitive secret manager lookup in fromJson
+    Secret secretGcpLower = Secret.fromJson(spec, "googlecloudsecretmanager");
+    assertTrue(secretGcpLower instanceof GcpSecret);
+    Secret secretShortLower = Secret.fromJson(spec, "gcpsecret");
+    assertTrue(secretShortLower instanceof GcpSecret);
   }
 
   @Test
@@ -300,10 +312,20 @@ public class SecretTest {
     SecretRegistrar registrar1 = () -> Collections.singletonMap("duplicate_key", factory1);
     SecretRegistrar registrar2 = () -> Collections.singletonMap("DUPLICATE_KEY", factory2);
 
+    Set<String> supportedTypes = new TreeSet<>();
     Map<String, SecretRegistrar.SecretFactory> factories =
-        Secret.loadSecretFactories(java.util.Arrays.asList(registrar1, registrar2));
+        Secret.loadSecretFactories(java.util.Arrays.asList(registrar1, registrar2), supportedTypes);
     assertEquals(1, factories.size());
     assertEquals(factory1, factories.get("duplicate_key"));
+    assertEquals(Collections.singleton("duplicate_key"), supportedTypes);
+  }
+
+  @Test
+  public void testSupportedTypesRetainsPascalCase() {
+    assertTrue(Secret.SUPPORTED_TYPES.contains("GoogleCloudSecretManager"));
+    assertTrue(Secret.SUPPORTED_TYPES.contains("GcpSecret"));
+    assertTrue(Secret.SUPPORTED_TYPES.contains("GoogleCloudHsmGeneratedSecretManager"));
+    assertTrue(Secret.SUPPORTED_TYPES.contains("GcpHsmGeneratedSecret"));
   }
 
   @Test
