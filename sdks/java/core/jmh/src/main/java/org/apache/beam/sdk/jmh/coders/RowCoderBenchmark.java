@@ -46,6 +46,12 @@ public class RowCoderBenchmark {
     @Param({"false", "true"})
     boolean staticEncoding;
 
+    @Param({"2", "1024"})
+    int fieldCount;
+
+    @Param({"false", "true"})
+    boolean nested;
+
     RowCoder coder;
     Row row;
     ByteArrayOutputStream output;
@@ -53,21 +59,59 @@ public class RowCoderBenchmark {
 
     @Setup(Level.Trial)
     public void setup() throws Exception {
-      Schema.Builder builder =
-          Schema.builder().addByteField("_pythonsdk_any_type_byte").addByteArrayField("payload");
-      if (staticEncoding) {
-        builder.setOptions(
-            Schema.Options.builder()
-                .setOption("beam:option:row:static_encoding", FieldType.BOOLEAN, true)
-                .build());
-      }
-      Schema schema = builder.build();
+      Schema schema = newSchema(fieldCount, nested, staticEncoding);
       coder = RowCoder.of(schema);
-      row = Row.withSchema(schema).addValues((byte) 5, new byte[] {1, 2, 3, 4}).build();
+      row = newRow(schema);
       output = new ByteArrayOutputStream(64);
       coder.encode(row, output);
       input = new ByteArrayInputStream(output.toByteArray());
+      if (!row.equals(coder.decode(input))) {
+        throw new IllegalStateException("Benchmark row did not round trip");
+      }
+      input.reset();
     }
+  }
+
+  // A nested case has fieldCount top-level fields, each containing a two-field row.
+  static Schema newSchema(int fieldCount, boolean nested, boolean staticEncoding) {
+    Schema.Builder builder = Schema.builder();
+    Schema nestedSchema = nested ? newSchema(2, false, staticEncoding) : null;
+    for (int i = 0; i < fieldCount; ++i) {
+      if (nested) {
+        builder.addRowField("field" + i, nestedSchema);
+      } else if (i % 2 == 0) {
+        builder.addByteField("field" + i);
+      } else {
+        builder.addByteArrayField("field" + i);
+      }
+    }
+    if (staticEncoding) {
+      builder.setOptions(
+          Schema.Options.builder()
+              .setOption("beam:option:row:static_encoding", FieldType.BOOLEAN, true)
+              .build());
+    }
+    return builder.build();
+  }
+
+  private static Row newRow(Schema schema) {
+    Row.Builder builder = Row.withSchema(schema);
+    for (Schema.Field field : schema.getFields()) {
+      switch (field.getType().getTypeName()) {
+        case ROW:
+          builder.addValue(newRow(field.getType().getRowSchema()));
+          break;
+        case BYTE:
+          builder.addValue((byte) 5);
+          break;
+        case BYTES:
+          builder.addValue(new byte[] {1, 2, 3, 4});
+          break;
+        default:
+          throw new IllegalArgumentException("Unexpected benchmark field: " + field);
+      }
+    }
+    return builder.build();
   }
 
   @Benchmark

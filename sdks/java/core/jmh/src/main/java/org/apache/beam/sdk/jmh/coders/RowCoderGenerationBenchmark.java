@@ -27,6 +27,9 @@ import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
+import org.openjdk.jmh.annotations.Scope;
+import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 
 @BenchmarkMode(Mode.SingleShotTime)
@@ -34,20 +37,27 @@ import org.openjdk.jmh.annotations.Warmup;
 @Warmup(iterations = 5)
 @Measurement(iterations = 10)
 public class RowCoderGenerationBenchmark {
-  @Benchmark
-  public Schema buildSchema() {
-    return newSchema();
+  @State(Scope.Thread)
+  public static class SchemaState {
+    @Param({"2", "1024"})
+    int fieldCount;
+
+    @Param({"false", "true"})
+    boolean nested;
+
+    Schema newSchema() {
+      // Each invocation creates fresh schema UUIDs so generation cannot hit the coder cache.
+      return RowCoderBenchmark.newSchema(fieldCount, nested, false);
+    }
   }
 
   @Benchmark
-  public Coder<Row> generate() {
-    return RowCoderGenerator.generate(newSchema());
+  public Schema buildSchema(SchemaState state) {
+    return state.newSchema();
   }
 
-  private static Schema newSchema() {
-    return Schema.builder()
-        .addByteField("_pythonsdk_any_type_byte")
-        .addByteArrayField("payload")
-        .build();
+  @Benchmark
+  public Coder<Row> generate(SchemaState state) {
+    return RowCoderGenerator.generate(state.newSchema());
   }
 }
