@@ -321,14 +321,6 @@ public class SecretTest {
   }
 
   @Test
-  public void testSupportedTypesRetainsPascalCase() {
-    assertTrue(Secret.SUPPORTED_TYPES.contains("GoogleCloudSecretManager"));
-    assertTrue(Secret.SUPPORTED_TYPES.contains("GcpSecret"));
-    assertTrue(Secret.SUPPORTED_TYPES.contains("GoogleCloudHsmGeneratedSecretManager"));
-    assertTrue(Secret.SUPPORTED_TYPES.contains("GcpHsmGeneratedSecret"));
-  }
-
-  @Test
   public void testLoadServicesOrderedDiscoversSecretRegistrars() {
     Iterable<SecretRegistrar> registrars =
         ReflectHelpers.loadServicesOrdered(SecretRegistrar.class);

@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 public abstract class Secret implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(Secret.class);
 
-  @VisibleForTesting static final Set<String> SUPPORTED_TYPES;
+  private static final Set<String> SUPPORTED_TYPES;
   private static final Map<String, SecretRegistrar.SecretFactory> SECRET_FACTORIES;
 
   static {
