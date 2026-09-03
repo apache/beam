@@ -48,12 +48,17 @@ from apache_beam.transforms import util
 from apache_beam.transforms.display import DisplayDataItem
 from apache_beam.transforms.window import GlobalWindows
 
-# Protect against environments where bigquery library is not available.
-# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from google.api_core.exceptions import GoogleAPICallError
+  from google.api_core.exceptions import NotFound
+except ImportError:
+  GoogleAPICallError = None
+  NotFound = None
+
 try:
   from apitools.base.py.exceptions import HttpError
 except ImportError:
-  pass
+  HttpError = None
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -94,15 +99,36 @@ def _add_destination_partitioning_load_parameters(
     return additional_parameters
 
   additional_parameters = dict(additional_parameters)
-  time_partitioning = getattr(destination_table, 'timePartitioning', None)
-  range_partitioning = getattr(destination_table, 'rangePartitioning', None)
+  time_partitioning = (
+      getattr(destination_table, 'timePartitioning', None) or
+      getattr(destination_table, 'time_partitioning', None))
+  range_partitioning = (
+      getattr(destination_table, 'rangePartitioning', None) or
+      getattr(destination_table, 'range_partitioning', None))
+
+  time_partitioning_cls = tuple(
+      cls for cls in (
+          getattr(bigquery_tools.bigquery, 'TimePartitioning', None),
+          getattr(
+              getattr(bigquery_tools, 'gcp_bigquery', None), 'TimePartitioning',
+              None), ) if cls is not None)
+  range_partitioning_cls = tuple(
+      cls for cls in (
+          getattr(bigquery_tools.bigquery, 'RangePartitioning', None),
+          getattr(
+              getattr(bigquery_tools, 'gcp_bigquery', None),
+              'RangePartitioning', None), ) if cls is not None)
 
   if ('timePartitioning' not in additional_parameters and
-      isinstance(time_partitioning, bigquery_tools.bigquery.TimePartitioning)):
+      'time_partitioning' not in additional_parameters and
+      time_partitioning is not None and
+      isinstance(time_partitioning, time_partitioning_cls)):
     additional_parameters['timePartitioning'] = time_partitioning
 
-  if ('rangePartitioning' not in additional_parameters and isinstance(
-      range_partitioning, bigquery_tools.bigquery.RangePartitioning)):
+  if ('rangePartitioning' not in additional_parameters and
+      'range_partitioning' not in additional_parameters and
+      range_partitioning is not None and
+      isinstance(range_partitioning, range_partitioning_cls)):
     additional_parameters['rangePartitioning'] = range_partitioning
 
   return additional_parameters
@@ -433,8 +459,10 @@ class UpdateDestinationSchema(beam.DoFn):
           project_id=table_reference.projectId,
           dataset_id=table_reference.datasetId,
           table_id=table_reference.tableId)
-    except HttpError as exn:
-      if exn.status_code == 404:
+    except Exception as exn:
+      if (getattr(exn, 'status_code', None) == 404 or
+          getattr(exn, 'code', None) == 404 or
+          (NotFound is not None and isinstance(exn, NotFound))):
         # Destination table does not exist, so no need to modify its schema
         # ahead of the copy jobs.
         return
@@ -445,7 +473,14 @@ class UpdateDestinationSchema(beam.DoFn):
         project=temp_table_load_job_reference.projectId,
         job_id=temp_table_load_job_reference.jobId,
         location=temp_table_load_job_reference.location)
-    temp_table_schema = temp_table_load_job.configuration.load.schema
+    temp_table_schema = (
+        getattr(
+            getattr(
+                getattr(temp_table_load_job, 'configuration', None),
+                'load',
+                None),
+            'schema',
+            None) or getattr(temp_table_load_job, 'schema', None))
 
     if bigquery_tools.check_schema_equal(temp_table_schema,
                                          destination_table.schema,
@@ -797,8 +832,13 @@ class TriggerLoadJobs(beam.DoFn):
         elif destination_table is not None:
           destination_schema = getattr(destination_table, 'schema', None)
           if isinstance(destination_schema,
-                        bigquery_tools.bigquery.TableSchema):
-            schema = bigquery_tools.table_schema_to_dict(destination_schema)
+                        (bigquery_tools.TableSchema, list, tuple)):
+            schema = bigquery_tools.get_dict_table_schema(destination_schema)
+            self.schema_cache[hashed_dest] = schema
+          elif destination_schema is not None and hasattr(
+              destination_schema,
+              'fields') and not hasattr(destination_schema, '_mock_children'):
+            schema = bigquery_tools.get_dict_table_schema(destination_schema)
             self.schema_cache[hashed_dest] = schema
           else:
             _LOGGER.warning(

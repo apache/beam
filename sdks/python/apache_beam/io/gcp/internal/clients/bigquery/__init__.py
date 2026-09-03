@@ -15,10 +15,26 @@
 # limitations under the License.
 #
 
-"""Common imports for generated bigquery client library."""
+"""Common imports for generated bigquery client library.
+
+.. deprecated::
+  The apitools-generated BigQuery client in
+  apache_beam.io.gcp.internal.clients.bigquery is deprecated and will be removed
+  in a future version. Use google-cloud-bigquery instead.
+"""
 # pylint:disable=wildcard-import
 
 import pkgutil
+import warnings
+
+from apache_beam.utils.annotations import BeamDeprecationWarning
+
+warnings.warn(
+    "The apitools-generated BigQuery client in "
+    "apache_beam.io.gcp.internal.clients.bigquery is deprecated and will be "
+    "removed in a future version. Use google-cloud-bigquery instead.",
+    BeamDeprecationWarning,
+    stacklevel=2)
 
 # Protect against environments where apitools library is not available.
 # pylint: disable=wrong-import-order, wrong-import-position
