@@ -769,7 +769,7 @@ public class SerializableMatchers implements Serializable {
    * is not likely to be a good encoding, so should be used only for tests, where data volume is
    * small and minor costs are not critical.
    */
-  private static class SerializableViaCoder<T> implements SerializableSupplier<T> {
+  private static final class SerializableViaCoder<T> implements SerializableSupplier<T> {
     /** Cached value that is not serialized. */
     private transient @Nullable T value;
 
@@ -806,7 +806,7 @@ public class SerializableMatchers implements Serializable {
    * Serializable}. This is not likely to be a good encoding, so should be used only for tests,
    * where data volume is small and minor costs are not critical.
    */
-  private static class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
+  private static final class SerializableArrayViaCoder<T> implements SerializableSupplier<T[]> {
     /** Cached value that is not serialized. */
     @SuppressFBWarnings("SE_TRANSIENT_FIELD_NOT_RESTORED")
     private transient T @Nullable [] value;

@@ -140,7 +140,7 @@ public class RabbitMqIO {
 
   private RabbitMqIO() {}
 
-  private static class ConnectionHandler {
+  private static final class ConnectionHandler {
 
     private final ConnectionFactory connectionFactory;
     private Connection connection;

@@ -17,12 +17,18 @@
  */
 package org.apache.beam.sdk.io.snowflake.data.text;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Subclassed inside Beam, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class SnowflakeBinary implements SnowflakeDataType, Serializable {
 
   public static final Long MAX_SIZE = 8388608L;

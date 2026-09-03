@@ -1277,7 +1277,8 @@ public class PAssert {
    * A partially applied {@link AssertRelation}, where one value is provided along with a coder to
    * serialize/deserialize them.
    */
-  private static class CheckRelationAgainstExpected<T> implements SerializableFunction<T, Void> {
+  private static final class CheckRelationAgainstExpected<T>
+      implements SerializableFunction<T, Void> {
     private final AssertRelation<T, T> relation;
     private final byte[] encodedExpected;
     private final Coder<T> coder;

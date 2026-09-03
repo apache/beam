@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.delta;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.delta.kernel.data.ArrayValue;
 import io.delta.kernel.data.ColumnVector;
 import io.delta.kernel.data.MapValue;
@@ -50,6 +51,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A serializable wrapper for Delta {@link Row} that implements the {@link Row} interface itself,
  * allowing worker nodes to access serialized Row objects using standard Delta Kernel APIs.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class SerializableRow implements Row, Serializable {
   private static final long serialVersionUID = 1L;
 

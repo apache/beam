@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
 import org.apache.beam.sdk.metrics.Counter;
@@ -39,6 +40,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Subclassed inside Beam, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 class RecordWriter {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriter.class);
   private final Counter activeIcebergWriters =

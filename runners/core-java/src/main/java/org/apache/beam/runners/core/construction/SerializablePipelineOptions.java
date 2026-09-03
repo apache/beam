@@ -19,6 +19,7 @@ package org.apache.beam.runners.core.construction;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
@@ -32,6 +33,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Holds a {@link PipelineOptions} in JSON serialized form and calls {@link
  * FileSystems#setDefaultPipelineOptions(PipelineOptions)} on construction or on deserialization.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class SerializablePipelineOptions implements Serializable {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()

@@ -55,7 +55,7 @@ public final class CoderProviders {
    * See {@link #fromStaticMethods} for a detailed description of the characteristics of this {@link
    * CoderProvider}.
    */
-  private static class CoderProviderFromStaticMethods extends CoderProvider {
+  private static final class CoderProviderFromStaticMethods extends CoderProvider {
 
     @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION") // TODO(#35312)
     @Override

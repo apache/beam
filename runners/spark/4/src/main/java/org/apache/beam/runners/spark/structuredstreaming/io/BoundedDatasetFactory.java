@@ -270,7 +270,7 @@ public class BoundedDatasetFactory {
   }
 
   /** A partition iterator on a partitioned Beam {@link BoundedSource}. */
-  private static class SourcePartitionIterator<T> extends AbstractIterator<WindowedValue<T>>
+  private static final class SourcePartitionIterator<T> extends AbstractIterator<WindowedValue<T>>
       implements Closeable {
     BoundedReader<T> reader;
     boolean started = false;

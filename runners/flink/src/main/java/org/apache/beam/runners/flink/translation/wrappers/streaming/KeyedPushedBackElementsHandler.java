@@ -34,7 +34,7 @@ import org.apache.flink.runtime.state.VoidNamespaceSerializer;
  * operation is keyed and pushed-back data needs to stay in the correct partition when they get
  * moved.
  */
-class KeyedPushedBackElementsHandler<K, T> implements PushedBackElementsHandler<T> {
+final class KeyedPushedBackElementsHandler<K, T> implements PushedBackElementsHandler<T> {
 
   static <K, T> KeyedPushedBackElementsHandler<K, T> create(
       KeySelector<T, K> keySelector,

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.data;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.beam.fn.harness.control.ExecutionStateSampler.ExecutionState;
@@ -53,6 +54,11 @@ import org.apache.beam.sdk.function.ThrowingRunnable;
  * // Note: this is used in ProcessBundleHandler.
  * </pre>
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class PTransformFunctionRegistry {
 
   private final ExecutionStateTracker stateTracker;
