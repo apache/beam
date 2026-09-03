@@ -35,10 +35,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Emits the canonical schema (see {@link FileSchemas}) of every readable Parquet file as JSON.
- * Unreadable or non-Parquet files contribute nothing.
+ * Emits one {@link CollectDistinctSchemas.SchemaGroup} of one file per readable Parquet file: its
+ * declared schema and its null-free columns. Unreadable or non-Parquet files contribute nothing.
  */
-class ReadFooterSchema extends DoFn<String, String> {
+class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> {
   private static final Logger LOG = LoggerFactory.getLogger(ReadFooterSchema.class);
 
   static final int DEFAULT_THREAD_POOL_SIZE = 10;
@@ -65,24 +65,21 @@ class ReadFooterSchema extends DoFn<String, String> {
     this.maxInFlightTasks = maxInFlightTasks;
   }
 
-  /**
-   * {@code schemaJson} is null when the file contributes no schema. Counters are updated when the
-   * result is delivered, on the processing thread: metrics touched from the executor are lost.
-   */
+  /** Counters are updated on the processing thread: metrics touched from the executor are lost. */
   private static class ReadResult {
-    final @Nullable String schemaJson;
+    final CollectDistinctSchemas.@Nullable SchemaGroup schema;
     final boolean footerError;
     final Instant timestamp;
     final BoundedWindow window;
     final PaneInfo paneInfo;
 
     ReadResult(
-        @Nullable String schemaJson,
+        CollectDistinctSchemas.@Nullable SchemaGroup schema,
         boolean footerError,
         Instant timestamp,
         BoundedWindow window,
         PaneInfo paneInfo) {
-      this.schemaJson = schemaJson;
+      this.schema = schema;
       this.footerError = footerError;
       this.timestamp = timestamp;
       this.window = window;
@@ -114,7 +111,7 @@ class ReadFooterSchema extends DoFn<String, String> {
       @Timestamp Instant timestamp,
       BoundedWindow window,
       PaneInfo paneInfo,
-      OutputReceiver<String> output)
+      OutputReceiver<CollectDistinctSchemas.SchemaGroup> output)
       throws Exception {
     numFilesRead.inc();
     Callable<ReadResult> task = createReadTask(filePath, timestamp, window, paneInfo);
@@ -128,24 +125,22 @@ class ReadFooterSchema extends DoFn<String, String> {
 
   private static void outputAtFinish(ReadResult result, FinishBundleContext context) {
     count(result);
-    if (result.schemaJson != null) {
-      context.output(result.schemaJson, result.timestamp, result.window);
+    if (result.schema != null) {
+      context.output(result.schema, result.timestamp, result.window);
     }
   }
 
-  private static void outputResult(ReadResult result, OutputReceiver<String> output) {
+  private static void outputResult(
+      ReadResult result, OutputReceiver<CollectDistinctSchemas.SchemaGroup> output) {
     count(result);
-    if (result.schemaJson != null) {
+    if (result.schema != null) {
       output.outputWindowedValue(
-          result.schemaJson,
-          result.timestamp,
-          Collections.singleton(result.window),
-          result.paneInfo);
+          result.schema, result.timestamp, Collections.singleton(result.window), result.paneInfo);
     }
   }
 
   private static void count(ReadResult result) {
-    if (result.schemaJson != null) {
+    if (result.schema != null) {
       numSchemasEmitted.inc();
     }
     if (result.footerError) {
@@ -167,8 +162,7 @@ class ReadFooterSchema extends DoFn<String, String> {
       }
       try {
         ParquetMetadata footer = ParquetFooters.read(filePath);
-        return new ReadResult(
-            FileSchemas.canonicalJson(footer), false, timestamp, window, paneInfo);
+        return new ReadResult(FileSchemas.schemaGroup(footer), false, timestamp, window, paneInfo);
       } catch (Exception e) {
         LOG.warn(
             "Could not read the footer of {}; the file will not contribute to schema inference: {}",
