@@ -21,10 +21,14 @@ import {
   isBotAuthor,
   resolveAuthorLogin,
   isLowPriorityFile,
+  isMechanicalCommit,
+  getSubsystemDirectories,
+  getSubsystemHistory,
   getRecentCommitsForFile,
   aggregateCandidates,
   buildPrHistoryContext,
   TouchedFileContext,
+  SubsystemContributor,
 } from "../shared/gitHistory";
 
 describe("gitHistory", () => {
@@ -64,6 +68,43 @@ describe("gitHistory", () => {
     });
   });
 
+  describe("isMechanicalCommit()", () => {
+    it("should identify mechanical commits like spotless and errorprone bumps", () => {
+      assert.strictEqual(
+        isMechanicalCommit("upgrade spotless to 7.2.1 (#39936)"),
+        true
+      );
+      assert.strictEqual(
+        isMechanicalCommit("[ErrorProne] enable JavaUtilDate checker"),
+        true
+      );
+      assert.strictEqual(
+        isMechanicalCommit("Bump github/codeql-action from 3.28 to 3.29"),
+        true
+      );
+      assert.strictEqual(
+        isMechanicalCommit("Reformat code with checkstyle"),
+        true
+      );
+      assert.strictEqual(isMechanicalCommit("Fix typo in doc"), true);
+    });
+
+    it("should not mark technical domain commits as mechanical", () => {
+      assert.strictEqual(
+        isMechanicalCommit("KafkaIO: Fix consumer poll deadlock"),
+        false
+      );
+      assert.strictEqual(
+        isMechanicalCommit("BigQueryIO: support storage write api in batch"),
+        false
+      );
+      assert.strictEqual(
+        isMechanicalCommit("Iceberg: add streaming partition writer logic"),
+        false
+      );
+    });
+  });
+
   describe("resolveAuthorLogin()", () => {
     it("should extract GitHub username from users.noreply.github.com email", () => {
       assert.strictEqual(
@@ -81,6 +122,17 @@ describe("gitHistory", () => {
       assert.strictEqual(
         resolveAuthorLogin("Kenn Knowles", "klk@google.com", known),
         "kennknowles"
+      );
+    });
+
+    it("should fall back to DEFAULT_KNOWN_LOGINS if not in explicit knownLogins", () => {
+      assert.strictEqual(
+        resolveAuthorLogin("Yi Hu", "yathu@google.com"),
+        "Abacn"
+      );
+      assert.strictEqual(
+        resolveAuthorLogin("Reuven Lax", "relax@google.com"),
+        "reuvenlax"
       );
     });
 
@@ -111,6 +163,22 @@ describe("gitHistory", () => {
     });
   });
 
+  describe("getSubsystemDirectories()", () => {
+    it("should extract unique enclosing directories from file list", () => {
+      const files = [
+        "sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg/WriteToPartitions.java",
+        "sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg/IcebergIO.java",
+        "README.md",
+      ];
+      const dirs = getSubsystemDirectories(files);
+      assert.strictEqual(dirs.length, 1);
+      assert.strictEqual(
+        dirs[0],
+        "sdks/java/io/iceberg/src/main/java/org/apache/beam/sdk/io/iceberg"
+      );
+    });
+  });
+
   describe("getRecentCommitsForFile()", () => {
     it("should read real commits from Beam git repository for KafkaIO.java", () => {
       const kafkaFile =
@@ -127,6 +195,7 @@ describe("gitHistory", () => {
       assert.strictEqual(firstCommit.hash.length, 40);
       assert.strictEqual(typeof firstCommit.authorName, "string");
       assert.strictEqual(typeof firstCommit.subject, "string");
+      assert.strictEqual(typeof firstCommit.isMechanical, "boolean");
     });
   });
 
@@ -147,6 +216,7 @@ describe("gitHistory", () => {
               authorLogin: "alice",
               date: "2026-08-01",
               subject: "Commit 1",
+              isMechanical: false,
             },
             {
               hash: "h2",
@@ -155,6 +225,7 @@ describe("gitHistory", () => {
               authorLogin: "bob",
               date: "2026-08-02",
               subject: "Commit 2",
+              isMechanical: false,
             },
             {
               hash: "h3",
@@ -163,6 +234,7 @@ describe("gitHistory", () => {
               authorLogin: "alice",
               date: "2026-08-03",
               subject: "Commit 3",
+              isMechanical: false,
             },
           ],
         },
@@ -180,6 +252,7 @@ describe("gitHistory", () => {
               authorLogin: "prauthor",
               date: "2026-08-04",
               subject: "Commit 4",
+              isMechanical: false,
             },
             {
               hash: "h5",
@@ -188,6 +261,7 @@ describe("gitHistory", () => {
               authorLogin: "bob",
               date: "2026-08-05",
               subject: "Commit 5",
+              isMechanical: false,
             },
           ],
         },
@@ -206,10 +280,62 @@ describe("gitHistory", () => {
       assert.strictEqual(candidates[0].commitCount, 2);
       assert.strictEqual(candidates[1].commitCount, 2);
     });
+
+    it("should prioritize subsystem domain contributors even with low file commits", () => {
+      const touchedFiles: TouchedFileContext[] = [
+        {
+          path: "iceberg/WriteToPartitions.java",
+          additions: 50,
+          deletions: 0,
+          changes: 50,
+          isNewFile: false,
+          recentCommits: [
+            {
+              hash: "c1",
+              authorName: "Claire",
+              authorEmail: "claire@example.com",
+              authorLogin: "claire",
+              date: "2026-08-20",
+              subject: "Update partition signature",
+              isMechanical: false,
+            },
+          ],
+        },
+      ];
+
+      const subsystemContributors: SubsystemContributor[] = [
+        {
+          login: "ahmed",
+          name: "Ahmed",
+          email: "ahmed@example.com",
+          commitCount: 50,
+          directory: "iceberg",
+        },
+        {
+          login: "claire",
+          name: "Claire",
+          email: "claire@example.com",
+          commitCount: 2,
+          directory: "iceberg",
+        },
+      ];
+
+      const candidates = aggregateCandidates(
+        touchedFiles,
+        "newcontributor",
+        subsystemContributors
+      );
+
+      assert.strictEqual(candidates.length, 2);
+      // Ahmed has 50 subsystem commits, Claire has 1 file commit + 2 subsystem commits
+      assert.strictEqual(candidates[0].login, "ahmed");
+      assert.strictEqual(candidates[0].isSubsystemAuthor, true);
+      assert.strictEqual(candidates[1].login, "claire");
+    });
   });
 
   describe("buildPrHistoryContext()", () => {
-    it("should build structured context from changed files", () => {
+    it("should build structured context from changed files including subsystems", () => {
       const kafkaFile =
         "sdks/java/io/kafka/src/main/java/org/apache/beam/sdk/io/kafka/KafkaIO.java";
       const context = buildPrHistoryContext(
@@ -243,6 +369,11 @@ describe("gitHistory", () => {
       assert.strictEqual(
         context.touchedFiles[0].recentCommits.length > 0,
         true
+      );
+      assert.strictEqual(
+        context.subsystems.length > 0,
+        true,
+        "Expected subsystems to be extracted"
       );
     });
   });

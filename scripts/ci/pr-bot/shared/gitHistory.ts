@@ -29,6 +29,7 @@ export interface CommitInfo {
   readonly authorLogin: string;
   readonly date: string;
   readonly subject: string;
+  readonly isMechanical: boolean;
 }
 
 /**
@@ -44,6 +45,25 @@ export interface TouchedFileContext {
 }
 
 /**
+ * Contributor summary for an enclosing subsystem or directory.
+ */
+export interface SubsystemContributor {
+  readonly login: string;
+  readonly name: string;
+  readonly email: string;
+  readonly commitCount: number;
+  readonly directory: string;
+}
+
+/**
+ * Summary of history and key contributors for a subsystem directory.
+ */
+export interface SubsystemHistoryContext {
+  readonly directory: string;
+  readonly topContributors: readonly SubsystemContributor[];
+}
+
+/**
  * Aggregated contributor profile derived from git history.
  */
 export interface CandidateContributor {
@@ -53,6 +73,8 @@ export interface CandidateContributor {
   readonly commitCount: number;
   readonly lastCommitDate: string;
   readonly touchedFilePaths: readonly string[];
+  readonly subsystemCommitCount: number;
+  readonly isSubsystemAuthor: boolean;
 }
 
 /**
@@ -64,7 +86,58 @@ export interface PrHistoryContext {
   readonly description: string;
   readonly author: string;
   readonly touchedFiles: readonly TouchedFileContext[];
+  readonly subsystems: readonly SubsystemHistoryContext[];
   readonly candidates: readonly CandidateContributor[];
+}
+
+/**
+ * Known contributor emails to GitHub logins mapping.
+ */
+export const DEFAULT_KNOWN_LOGINS: Readonly<Record<string, string>> = Object.freeze({
+  "yathu@google.com": "Abacn",
+  "huuyyi@gmail.com": "Abacn",
+  "relax@google.com": "reuvenlax",
+  "radoslaws@google.com": "radoslaws",
+  "dannymccormick@google.com": "damccorm",
+  "klk@google.com": "kennknowles",
+  "kenn@apache.org": "kennknowles",
+  "robertwb@gmail.com": "robertwb",
+  "robertwb@google.com": "robertwb",
+  "ahmedabualsaud@google.com": "ahmedabu98",
+  "clairem@spotify.com": "clairemcginty",
+  "michel@davit.fr": "mdavit",
+  "huxiangqian@gmail.com": "liferoad",
+  "shunping@google.com": "shunping",
+  "derrickaw@google.com": "derrickaw",
+  "chamikaramj@gmail.com": "chamikaramj",
+  "johnjcasey@google.com": "johnjcasey",
+  "jrmccluskey@users.noreply.github.com": "jrmccluskey",
+  "lostluck@users.noreply.github.com": "lostluck",
+  "elialiu760317@outlook.com": "Eliaaazzz",
+});
+
+/**
+ * Commit subject patterns representing mechanical maintenance, automated bumps, or linters.
+ */
+const MECHANICAL_COMMIT_PATTERNS: readonly RegExp[] = [
+  /\bspotless\b/i,
+  /\berror\s*prone\b/i,
+  /\bcheckstyle\b/i,
+  /^bump\s+/i,
+  /^upgrade\s+(?:spotless|gradle|dependencies|wrapper|errorprone)\b/i,
+  /^\w+:\s*bump\s+/i,
+  /\bformat(?:ting)?\s+(?:code|files?|java|python|go)\b/i,
+  /\btypo(?:s)?\b/i,
+];
+
+/**
+ * Determines whether a commit subject represents mechanical churn rather than domain logic.
+ *
+ * @param subject The git commit subject line.
+ * @returns True if the commit is mechanical/maintenance.
+ */
+export function isMechanicalCommit(subject: string): boolean {
+  return MECHANICAL_COMMIT_PATTERNS.some((pattern) => pattern.test(subject));
 }
 
 /**
@@ -148,8 +221,14 @@ export function resolveAuthorLogin(
   if (knownLogins[lowerEmail]) {
     return knownLogins[lowerEmail];
   }
+  if (DEFAULT_KNOWN_LOGINS[lowerEmail]) {
+    return DEFAULT_KNOWN_LOGINS[lowerEmail];
+  }
   if (knownLogins[lowerName]) {
     return knownLogins[lowerName];
+  }
+  if (DEFAULT_KNOWN_LOGINS[lowerName]) {
+    return DEFAULT_KNOWN_LOGINS[lowerName];
   }
 
   // GitHub noreply email format: [id+]login@users.noreply.github.com
@@ -207,7 +286,7 @@ export function getRepoRoot(): string {
  */
 export function getRecentCommitsForFile(
   filePath: string,
-  maxCommits: number = 10,
+  maxCommits: number = 30,
   workingDirectory?: string,
   knownLogins: Readonly<Record<string, string>> = {}
 ): readonly CommitInfo[] {
@@ -268,6 +347,7 @@ export function getRecentCommitsForFile(
       const [hash, authorName, authorEmail, date, ...subjectParts] = parts;
       const subject = subjectParts.join("\t");
       const login = resolveAuthorLogin(authorName, authorEmail, knownLogins);
+      const isMechanical = isMechanicalCommit(subject);
 
       if (!isBotAuthor(authorName, authorEmail, login)) {
         commits.push({
@@ -277,6 +357,7 @@ export function getRecentCommitsForFile(
           authorLogin: login,
           date,
           subject,
+          isMechanical,
         });
       }
     }
@@ -289,15 +370,152 @@ export function getRecentCommitsForFile(
 }
 
 /**
- * Aggregates candidate contributors across all touched files, counting their commits and files touched.
+ * Extracts enclosing subsystem or component directories for the touched files.
+ *
+ * @param filePaths Relative paths of touched files.
+ * @returns Deduplicated list of directory paths.
+ */
+export function getSubsystemDirectories(
+  filePaths: readonly string[]
+): readonly string[] {
+  const dirs = new Set<string>();
+
+  for (const filePath of filePaths) {
+    if (isLowPriorityFile(filePath)) {
+      continue;
+    }
+    const dir = path.dirname(filePath);
+    if (dir && dir !== "." && dir !== "/") {
+      dirs.add(dir);
+    }
+  }
+
+  return Object.freeze(Array.from(dirs));
+}
+
+/**
+ * Fetches multi-year contributor statistics for a list of subsystem directories.
+ *
+ * @param directories Array of relative directory paths.
+ * @param workingDirectory Base git directory.
+ * @param knownLogins Optional map of author names/emails to GitHub logins.
+ * @returns Array of subsystem history contexts.
+ */
+export function getSubsystemHistory(
+  directories: readonly string[],
+  workingDirectory?: string,
+  knownLogins: Readonly<Record<string, string>> = {}
+): readonly SubsystemHistoryContext[] {
+  const execOptions: childProcess.ExecFileSyncOptions = {
+    encoding: "utf8",
+    maxBuffer: 4 * 1024 * 1024,
+    cwd: workingDirectory ?? getRepoRoot(),
+  };
+
+  const results: SubsystemHistoryContext[] = [];
+
+  for (const dir of directories) {
+    try {
+      let rawOutput = childProcess.execFileSync(
+        "git",
+        [
+          "shortlog",
+          "-sne",
+          "--no-merges",
+          "--since=2 years ago",
+          "HEAD",
+          "--",
+          dir,
+        ],
+        execOptions
+      );
+      let stdout = rawOutput ? rawOutput.toString().trim() : "";
+
+      if (!stdout || stdout.split("\n").length < 3) {
+        const allTimeOutput = childProcess.execFileSync(
+          "git",
+          ["shortlog", "-sne", "--no-merges", "HEAD", "--", dir],
+          execOptions
+        );
+        const allTimeStr = allTimeOutput ? allTimeOutput.toString().trim() : "";
+        if (allTimeStr) {
+          stdout = allTimeStr;
+        } else {
+          const srcIdx = dir.indexOf("/src/");
+          if (srcIdx !== -1) {
+            const moduleDir = dir.substring(0, srcIdx);
+            if (moduleDir && moduleDir !== dir) {
+              const moduleOutput = childProcess.execFileSync(
+                "git",
+                [
+                  "shortlog",
+                  "-sne",
+                  "--no-merges",
+                  "--since=2 years ago",
+                  "HEAD",
+                  "--",
+                  moduleDir,
+                ],
+                execOptions
+              );
+              stdout = moduleOutput ? moduleOutput.toString().trim() : "";
+            }
+          }
+        }
+      }
+
+      if (!stdout) {
+        continue;
+      }
+
+      const contributors: SubsystemContributor[] = [];
+      const lines = stdout.split("\n");
+
+      for (const line of lines) {
+        const match = line.match(/^\s*(\d+)\s+([^<]+?)\s*<([^>]+)>/);
+        if (!match) {
+          continue;
+        }
+        const commitCount = parseInt(match[1], 10);
+        const name = match[2].trim();
+        const email = match[3].trim();
+        const login = resolveAuthorLogin(name, email, knownLogins);
+
+        if (!isBotAuthor(name, email, login)) {
+          contributors.push({
+            login: login || email,
+            name,
+            email,
+            commitCount,
+            directory: dir,
+          });
+        }
+      }
+
+      results.push({
+        directory: dir,
+        topContributors: Object.freeze(contributors),
+      });
+    } catch (error) {
+      console.warn(`Error reading subsystem history for ${dir}: ${error}`);
+    }
+  }
+
+  return Object.freeze(results);
+}
+
+/**
+ * Aggregates candidate contributors across touched files and enclosing subsystems.
  *
  * @param touchedFiles List of touched files with their commit history.
  * @param prAuthor GitHub username of the PR author.
- * @returns Array of candidate contributors sorted by commit count descending.
+ * @param subsystemContributors Optional list of subsystem contributors.
+ * @returns Array of candidate contributors sorted by domain relevance.
  */
 export function aggregateCandidates(
   touchedFiles: readonly TouchedFileContext[],
-  prAuthor: string
+  prAuthor: string,
+  subsystemContributors: readonly SubsystemContributor[] = []
 ): readonly CandidateContributor[] {
   const candidateMap = new Map<
     string,
@@ -308,11 +526,13 @@ export function aggregateCandidates(
       commitCount: number;
       lastCommitDate: string;
       touchedFilePaths: Set<string>;
+      subsystemCommitCount: number;
     }
   >();
 
   const normalizedPrAuthor = prAuthor.toLowerCase().trim();
 
+  // 1. Process commits touching specific files
   for (const file of touchedFiles) {
     for (const commit of file.recentCommits) {
       const candidateKey = commit.authorLogin
@@ -347,13 +567,53 @@ export function aggregateCandidates(
           commitCount: 1,
           lastCommitDate: commit.date,
           touchedFilePaths: touchedPaths,
+          subsystemCommitCount: 0,
         });
       }
     }
   }
 
+  // 2. Incorporate subsystem / directory contributors
+  let totalSubsystemCommits = 0;
+  for (const sub of subsystemContributors) {
+    totalSubsystemCommits += sub.commitCount;
+    const candidateKey = sub.login
+      ? sub.login.toLowerCase()
+      : sub.email.toLowerCase();
+
+    if (
+      sub.login.toLowerCase() === normalizedPrAuthor ||
+      sub.name.toLowerCase() === normalizedPrAuthor
+    ) {
+      continue;
+    }
+
+    const existing = candidateMap.get(candidateKey);
+    if (existing) {
+      existing.subsystemCommitCount += sub.commitCount;
+      if (!existing.login && sub.login) {
+        existing.login = sub.login;
+      }
+    } else {
+      candidateMap.set(candidateKey, {
+        login: sub.login || sub.email,
+        name: sub.name,
+        email: sub.email,
+        commitCount: 0,
+        lastCommitDate: "",
+        touchedFilePaths: new Set(),
+        subsystemCommitCount: sub.commitCount,
+      });
+    }
+  }
+
   const result: CandidateContributor[] = [];
   for (const val of candidateMap.values()) {
+    const isSubsystemAuthor =
+      val.subsystemCommitCount >= 5 ||
+      (totalSubsystemCommits > 0 &&
+        val.subsystemCommitCount / totalSubsystemCommits >= 0.15);
+
     result.push({
       login: val.login,
       name: val.name,
@@ -361,11 +621,22 @@ export function aggregateCandidates(
       commitCount: val.commitCount,
       lastCommitDate: val.lastCommitDate,
       touchedFilePaths: Object.freeze(Array.from(val.touchedFilePaths)),
+      subsystemCommitCount: val.subsystemCommitCount,
+      isSubsystemAuthor,
     });
   }
 
-  // Sort by commit count descending, then by most recent commit date descending
+  // Sort candidates by combined effective weight:
+  // (fileCommitCount * 3 + subsystemCommitCount * 1)
   result.sort((a, b) => {
+    const weightA = a.commitCount * 3 + a.subsystemCommitCount * 1;
+    const weightB = b.commitCount * 3 + b.subsystemCommitCount * 1;
+    if (weightB !== weightA) {
+      return weightB - weightA;
+    }
+    if (b.subsystemCommitCount !== a.subsystemCommitCount) {
+      return b.subsystemCommitCount - a.subsystemCommitCount;
+    }
     if (b.commitCount !== a.commitCount) {
       return b.commitCount - a.commitCount;
     }
@@ -406,7 +677,7 @@ export function buildPrHistoryContext(
   } = {}
 ): PrHistoryContext {
   const maxFiles = options.maxFiles ?? 15;
-  const commitsPerFile = options.commitsPerFile ?? 8;
+  const commitsPerFile = options.commitsPerFile ?? 30;
   const workingDirectory = options.workingDirectory;
   const knownLogins = options.knownLogins ?? {};
 
@@ -449,7 +720,28 @@ export function buildPrHistoryContext(
   }
 
   const frozenFiles = Object.freeze(touchedFileContexts);
-  const candidates = aggregateCandidates(frozenFiles, author);
+
+  // Extract subsystem history for enclosing directories
+  const subsystemDirs = getSubsystemDirectories(
+    selectedFiles.map((f) => f.filename)
+  );
+  const subsystems = getSubsystemHistory(
+    subsystemDirs,
+    workingDirectory,
+    knownLogins
+  );
+  const allSubsystemContributors: SubsystemContributor[] = [];
+  for (const sub of subsystems) {
+    for (const c of sub.topContributors) {
+      allSubsystemContributors.push(c);
+    }
+  }
+
+  const candidates = aggregateCandidates(
+    frozenFiles,
+    author,
+    Object.freeze(allSubsystemContributors)
+  );
 
   return {
     prNumber,
@@ -457,6 +749,7 @@ export function buildPrHistoryContext(
     description,
     author,
     touchedFiles: frozenFiles,
+    subsystems,
     candidates,
   };
 }

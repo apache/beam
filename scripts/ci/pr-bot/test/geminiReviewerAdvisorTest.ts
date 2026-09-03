@@ -66,6 +66,7 @@ describe("GeminiReviewerAdvisor", () => {
             authorLogin: "alice",
             date: "2026-08-15",
             subject: "Refactor KafkaIO reader watermark estimation",
+            isMechanical: false,
           },
           {
             hash: "h2",
@@ -74,6 +75,21 @@ describe("GeminiReviewerAdvisor", () => {
             authorLogin: "bob",
             date: "2026-07-10",
             subject: "Bump kafka clients version",
+            isMechanical: true,
+          },
+        ],
+      },
+    ],
+    subsystems: [
+      {
+        directory: "sdks/java/io/kafka",
+        topContributors: [
+          {
+            login: "alice",
+            name: "Alice",
+            email: "alice@example.com",
+            commitCount: 20,
+            directory: "sdks/java/io/kafka",
           },
         ],
       },
@@ -86,6 +102,8 @@ describe("GeminiReviewerAdvisor", () => {
         commitCount: 5,
         lastCommitDate: "2026-08-15",
         touchedFilePaths: ["sdks/java/io/kafka/KafkaIO.java"],
+        subsystemCommitCount: 20,
+        isSubsystemAuthor: true,
       },
       {
         login: "bob",
@@ -94,6 +112,8 @@ describe("GeminiReviewerAdvisor", () => {
         commitCount: 2,
         lastCommitDate: "2026-07-10",
         touchedFilePaths: ["sdks/java/io/kafka/KafkaIO.java"],
+        subsystemCommitCount: 2,
+        isSubsystemAuthor: false,
       },
     ],
   };

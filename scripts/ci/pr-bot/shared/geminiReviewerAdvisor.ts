@@ -335,10 +335,10 @@ export class GeminiReviewerAdvisor {
     const fileSummaries = context.touchedFiles.map((file) => {
       const commitSummaries = file.recentCommits
         .slice(0, 5)
-        .map(
-          (c) =>
-            `    - [${c.date}] ${c.authorLogin || c.authorName}: ${c.subject}`
-        )
+        .map((c) => {
+          const tag = c.isMechanical ? " [mechanical / formatting bump]" : "";
+          return `    - [${c.date}] ${c.authorLogin || c.authorName}${tag}: ${c.subject}`;
+        })
         .join("\n");
 
       return `- File: ${file.path} (+${file.additions}, -${
@@ -348,22 +348,39 @@ export class GeminiReviewerAdvisor {
       })\n  Recent Commits:\n${commitSummaries || "    (No recent commits)"}`;
     });
 
+    const subsystemSummaries = (context.subsystems || []).map((s) => {
+      const top = s.topContributors
+        .slice(0, 5)
+        .map((tc) => `@${tc.login} (${tc.commitCount} commits)`)
+        .join(", ");
+      return `- Directory: ${s.directory}\n  Key Contributors (2-3 year history): ${
+        top || "(none)"
+      }`;
+    });
+
     const candidateSummaries = context.candidates.map((c) => {
       const isCommitter = committers[c.login] ?? false;
-      return `- @${c.login} (${c.name}): ${
+      const subsystemDetails =
+        c.subsystemCommitCount > 0
+          ? `, ${c.subsystemCommitCount} commits across enclosing subsystem(s)`
+          : "";
+      const expertTag = c.isSubsystemAuthor
+        ? " [Subsystem Domain Expert]"
+        : "";
+      return `- @${c.login} (${c.name})${expertTag}: ${
         c.commitCount
-      } commits, last active ${
-        c.lastCommitDate
-      }, committer=${isCommitter}. Files touched: ${c.touchedFilePaths.join(
-        ", "
-      )}`;
+      } commits in touched files${subsystemDetails}, last active ${
+        c.lastCommitDate || "recently"
+      }, committer=${isCommitter}. Files touched: ${
+        c.touchedFilePaths.join(", ") || "(subsystem files)"
+      }`;
     });
 
     const exclusions =
       this.exclusionList.map((e) => `@${e}`).join(", ") || "(none)";
 
     return `You are the Apache Beam Code Review Assigner.
-Your goal is to choose a small, optimal set of expert reviewers for a pull request based on real git history and file churn.
+Your goal is to choose a small, optimal set of expert reviewers for a pull request based on real git history, multi-year subsystem ownership, and technical domain relevance.
 
 Pull Request Context:
 - PR Number: #${context.prNumber}
@@ -374,6 +391,9 @@ Pull Request Context:
 Files Changed:
 ${fileSummaries.join("\n\n")}
 
+Enclosing Subsystems & Key Historical Contributors:
+${subsystemSummaries.join("\n\n") || "(No subsystem directory history available)"}
+
 Candidate Contributors from Git History:
 ${candidateSummaries.join("\n") || "(No candidates found in history)"}
 
@@ -382,9 +402,10 @@ ${exclusions}, and the PR author (@${context.author}).
 
 Assignment Guidelines:
 1. REVIEWER SET MINIMIZATION: Choose ideally ONE primary reviewer who can cover the core changes or the most critical subsystem. Only choose two reviewers if the PR touches two completely distinct, major subsystems with no overlapping expert.
-2. TECHNICAL RELEVANCE OVER CHURN: Differentiate between deep architectural contributions (e.g. state management, threading, runners, IO connectors) versus mechanical changes (spotless formatting, dependency bumps, docs).
-3. EXPLICIT EXPERTISE JUSTIFICATION: For each selected reviewer, state their specific technical expertise relevant to this PR in 1-2 concise sentences (e.g., "Authored core KafkaIO watermark estimation logic; directly familiar with reader loop").
-4. ALTERNATES: Suggest 1-2 alternate reviewers in case the primary reviewer is busy or opts out.
+2. LONG-TERM DOMAIN EXPERTISE OVER TRANSIENT CHURN: Prioritize authors with significant historical commit volume in the subsystem or affected files over contributors who merely touched the file recently for mechanical maintenance (e.g. Spotless formatting bumps, dependency upgrades, typo fixes, or ErrorProne linter fixes). A contributor with dozens of commits across the subsystem is a vastly superior reviewer than someone with one recent formatting commit.
+3. COMMITTING AUTHORITY: Prefer Beam committers when available, as they can merge or authoritatively approve PRs.
+4. EXPLICIT EXPERTISE JUSTIFICATION: For each selected reviewer, state their specific technical expertise relevant to this PR in 1-2 concise sentences, mentioning their long-term subsystem ownership or relevant code contributions.
+5. ALTERNATES: Suggest 1-2 alternate reviewers in case the primary reviewer is busy or opts out.
 
 Output Format:
 Respond ONLY with a JSON object conforming to this schema:
@@ -430,6 +451,7 @@ Respond ONLY with a JSON object conforming to this schema:
     const coveredFilesMap = new Map<string, Set<string>>();
     const now = Date.now();
 
+    // 1. File-level score with 365-day recency decay and mechanical commit discounting
     for (const file of context.touchedFiles) {
       const fileWeight = Math.max(1, file.changes);
       for (const commit of file.recentCommits) {
@@ -440,8 +462,9 @@ Respond ONLY with a JSON object conforming to this schema:
 
         const commitTime = new Date(commit.date).getTime();
         const ageDays = Math.max(0, (now - commitTime) / (1000 * 60 * 60 * 24));
-        const recencyDecay = 1 / (1 + ageDays / 90);
-        const scoreInc = fileWeight * recencyDecay;
+        const recencyDecay = 1 / (1 + ageDays / 365);
+        const mechanicalFactor = commit.isMechanical ? 0.1 : 1.0;
+        const scoreInc = fileWeight * mechanicalFactor * recencyDecay;
 
         scores.set(login, (scores.get(login) ?? 0) + scoreInc);
 
@@ -449,6 +472,28 @@ Respond ONLY with a JSON object conforming to this schema:
           coveredFilesMap.set(login, new Set());
         }
         coveredFilesMap.get(login)!.add(file.path);
+      }
+    }
+
+    // 2. Incorporate multi-year subsystem domain history
+    for (const candidate of context.candidates) {
+      if (
+        candidate.subsystemCommitCount > 0 &&
+        !excluded.has(candidate.login.toLowerCase())
+      ) {
+        let ageDays = 180;
+        if (candidate.lastCommitDate) {
+          const lastTime = new Date(candidate.lastCommitDate).getTime();
+          ageDays = Math.max(0, (now - lastTime) / (1000 * 60 * 60 * 24));
+        }
+        const recencyDecay = 1 / (1 + ageDays / 365);
+        const subsystemScore =
+          candidate.subsystemCommitCount * 15 * recencyDecay;
+
+        scores.set(
+          candidate.login,
+          (scores.get(candidate.login) ?? 0) + subsystemScore
+        );
       }
     }
 
@@ -473,13 +518,21 @@ Respond ONLY with a JSON object conforming to this schema:
       (c) => c.login === primaryLogin
     );
 
+    const primaryExpertise = primaryCandidate?.isSubsystemAuthor
+      ? `Subsystem domain expert with ${
+          primaryCandidate.subsystemCommitCount
+        } commit(s) across enclosing subsystem and ${
+          primaryCandidate.commitCount
+        } touching modified file(s).`
+      : `Active contributor with ${
+          primaryCandidate?.commitCount ?? 1
+        } commit(s) touching modified files.`;
+
     const primaryRecommendation: ReviewerRecommendation = {
       username: primaryLogin,
       role: "primary",
       isCommitter: committers[primaryLogin] ?? false,
-      expertise: `Frequent contributor with ${
-        primaryCandidate?.commitCount ?? 1
-      } recent commit(s) touching modified files.`,
+      expertise: primaryExpertise,
       coveredFiles: Object.freeze(primaryCoveredFiles),
     };
 
@@ -487,11 +540,15 @@ Respond ONLY with a JSON object conforming to this schema:
     for (let i = 1; i < Math.min(sortedCandidates.length, 3); i++) {
       const altLogin = sortedCandidates[i];
       const altCandidate = context.candidates.find((c) => c.login === altLogin);
+      const altExpertise = altCandidate?.isSubsystemAuthor
+        ? `Subsystem domain contributor with ${altCandidate.subsystemCommitCount} commit(s) in enclosing subsystem.`
+        : `Contributor with ${
+            altCandidate?.commitCount ?? 1
+          } commit(s) in affected files.`;
+
       alternates.push({
         username: altLogin,
-        expertise: `Contributor with ${
-          altCandidate?.commitCount ?? 1
-        } recent commit(s) in affected files.`,
+        expertise: altExpertise,
       });
     }
 
@@ -499,7 +556,7 @@ Respond ONLY with a JSON object conforming to this schema:
       selectedReviewers: Object.freeze([primaryRecommendation]),
       alternateReviewers: Object.freeze(alternates),
       reasoning:
-        "Selected top contributor based on recency-decayed git commit churn.",
+        "Selected top contributor based on multi-year subsystem domain history and recency-decayed file churn.",
       source: "heuristic-fallback",
     };
   }
