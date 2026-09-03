@@ -128,7 +128,9 @@ async function assignToNewReviewers(
   console.log(`Assigning new reviewers for pr ${pull.number}`);
   await github.addPrComment(
     pull.number,
-    commentStrings.assignNewReviewer(prState.reviewersAssignedForLabels)
+    commentStrings.assignNewReviewer(prState.reviewersAssignedForLabels, {
+      labels: pull.labels,
+    })
   );
 
   await stateClient.writePrState(pull.number, prState);

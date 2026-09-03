@@ -16,7 +16,36 @@
  * limitations under the License.
  */
 
+import { Label } from "./githubUtils";
 const { NO_MATCHING_LABEL } = require("./constants");
+
+export interface AssignReviewerOptions {
+  labels?: (string | Label)[];
+  notices?: string[];
+}
+
+// Custom notices for specific labels
+const LABEL_NOTICES: Record<string, string> = {
+  core: "This pull request likely touches a core component (\"core\" label). Please review with scrutiny.",
+};
+
+function formatNotices(
+  labelToReviewerMapping: any,
+  options?: AssignReviewerOptions
+): string {
+  const notices = [...(options?.notices || [])];
+  const labels = [
+    ...(options?.labels || []),
+    ...Object.keys(labelToReviewerMapping),
+  ];
+  for (const label of labels) {
+    const name = (typeof label === "string" ? label : label.name).toLowerCase();
+    if (LABEL_NOTICES[name] && !notices.includes(LABEL_NOTICES[name])) {
+      notices.push(LABEL_NOTICES[name]);
+    }
+  }
+  return notices.length ? `\n${notices.join("\n\n")}\n` : "";
+}
 
 export function allChecksPassed(reviewersToNotify: string[]): string {
   return `All checks have passed: @${reviewersToNotify.join(" ")}`;
@@ -26,7 +55,10 @@ export function assignCommitter(committer: string): string {
   return `R: @${committer} for final approval`;
 }
 
-export function assignReviewer(labelToReviewerMapping: any): string {
+export function assignReviewer(
+  labelToReviewerMapping: any,
+  options?: AssignReviewerOptions
+): string {
   let commentString =
     "Assigning reviewers:\n\n";
 
@@ -38,6 +70,8 @@ export function assignReviewer(labelToReviewerMapping: any): string {
       commentString += `R: @${reviewer} for label ${label}.\n`;
     }
   }
+
+  commentString += formatNotices(labelToReviewerMapping, options);
 
   commentString += `
 
@@ -114,9 +148,12 @@ Users are removed if they haven't reviewed or completed a PR in the last 3 month
   return commentString;
 }
 
-export function assignNewReviewer(labelToReviewerMapping: {
-  [label: string]: string;
-}): string {
+export function assignNewReviewer(
+  labelToReviewerMapping: {
+    [label: string]: string;
+  },
+  options?: AssignReviewerOptions
+): string {
   let commentString =
     "Assigning new set of reviewers because Pr has gone too long without review. If you would like to opt out of this review, comment `assign to next reviewer`:\n\n";
 
@@ -128,6 +165,8 @@ export function assignNewReviewer(labelToReviewerMapping: {
       commentString += `R: @${reviewer} for label ${label}.\n`;
     }
   }
+
+  commentString += formatNotices(labelToReviewerMapping, options);
 
   commentString += `
 Available commands:
