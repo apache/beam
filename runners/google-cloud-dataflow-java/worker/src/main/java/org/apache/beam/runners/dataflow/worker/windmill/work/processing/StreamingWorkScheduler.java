@@ -404,6 +404,12 @@ public class StreamingWorkScheduler {
       commitMultiKeyWorkBatch(
           computationState, workBatch, workItemCommits, bundleOutputMessages, bundlePubsubMessages);
     } else {
+      checkState(
+          bundleOutputMessages.isEmpty(),
+          "bundleOutputMessages should be empty when calling commitSingleKeyWork");
+      checkState(
+          bundlePubsubMessages.isEmpty(),
+          "bundlePubsubMessages should be empty when calling commitSingleKeyWork");
       commitSingleKeyWork(computationState, workBatch.get(0), workItemCommits.get(0));
     }
   }

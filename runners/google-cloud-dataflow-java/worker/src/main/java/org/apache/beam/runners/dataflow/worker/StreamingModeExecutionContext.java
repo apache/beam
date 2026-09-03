@@ -710,6 +710,7 @@ public class StreamingModeExecutionContext
   }
 
   private void validateCommitRequestSize() {
+    // TODO: Validate size of outputs at MultiKeyWorkItemCommitRequest level.
     Windmill.WorkItemCommitRequest.Builder currentBuilder = getOutputBuilder();
     Work currentWork = getWork();
     long byteLimit = operationalLimits.getMaxWorkItemCommitBytes();
