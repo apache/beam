@@ -145,9 +145,9 @@ public class PartitionMetadataAdminDaoTest {
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(3, ((Collection<?>) statements.getValue()).size());
     Iterator<String> it = statements.getValue().iterator();
-    assertTrue(it.next().contains("DROP INDEX"));
-    assertTrue(it.next().contains("DROP INDEX"));
-    assertTrue(it.next().contains("DROP TABLE"));
+    assertTrue(it.next().contains("DROP INDEX IF EXISTS"));
+    assertTrue(it.next().contains("DROP INDEX IF EXISTS"));
+    assertTrue(it.next().contains("DROP TABLE IF EXISTS"));
   }
 
   @Test
@@ -158,7 +158,7 @@ public class PartitionMetadataAdminDaoTest {
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(1, ((Collection<?>) statements.getValue()).size());
     Iterator<String> it = statements.getValue().iterator();
-    assertTrue(it.next().contains("DROP TABLE"));
+    assertTrue(it.next().contains("DROP TABLE IF EXISTS"));
   }
 
   @Test
@@ -170,9 +170,9 @@ public class PartitionMetadataAdminDaoTest {
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(3, ((Collection<?>) statements.getValue()).size());
     Iterator<String> it = statements.getValue().iterator();
-    assertTrue(it.next().contains("DROP INDEX \""));
-    assertTrue(it.next().contains("DROP INDEX \""));
-    assertTrue(it.next().contains("DROP TABLE \""));
+    assertTrue(it.next().contains("DROP INDEX IF EXISTS \""));
+    assertTrue(it.next().contains("DROP INDEX IF EXISTS \""));
+    assertTrue(it.next().contains("DROP TABLE IF EXISTS \""));
   }
 
   @Test
@@ -183,7 +183,7 @@ public class PartitionMetadataAdminDaoTest {
         .updateDatabaseDdl(eq(INSTANCE_ID), eq(DATABASE_ID), statements.capture(), isNull());
     assertEquals(1, ((Collection<?>) statements.getValue()).size());
     Iterator<String> it = statements.getValue().iterator();
-    assertTrue(it.next().contains("DROP TABLE \""));
+    assertTrue(it.next().contains("DROP TABLE IF EXISTS \""));
   }
 
   @Test
