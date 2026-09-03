@@ -382,6 +382,245 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
+  public void testMetadataRefreshedAcrossIntervalsAsSideInput() {
+    Catalog catalog = getCatalog();
+    TableIdentifier tableId = TableIdentifier.of("default", "evolving_side_input_table");
+    catalog.createTable(tableId, ICEBERG_SCHEMA);
+
+    String tableIdStr = "default.evolving_side_input_table";
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", tableIdStr).build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "trigger_update", tableIdStr).build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "post_update_data", tableIdStr).build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(row1)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(row2)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(row3)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input =
+        pipeline
+            .apply("StreamInput", stream)
+            .apply(
+                "EvolveSchemaOnTriggerRow",
+                ParDo.of(
+                    new DoFn<Row, Row>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+                        if ("trigger_update".equals(row.getString("data"))) {
+                          Table table =
+                              catalogConfig
+                                  .catalog()
+                                  .loadTable(
+                                      IcebergUtils.parseTableIdentifier(
+                                          "default.evolving_side_input_table"));
+                          table
+                              .updateSchema()
+                              .addColumn("new_col", Types.StringType.get())
+                              .commit();
+                        }
+                        out.output(row);
+                      }
+                    }))
+            .setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView",
+            TableMetadataDriver.asView(
+                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        if ("trigger_update".equals(row.getString("data"))) {
+                          return;
+                        }
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        SerializableTableSpec spec = viewMap.get(row.getString("dest"));
+                        assertNotNull("Expected spec in side input view", spec);
+
+                        SideInputTable sideInputTable = new SideInputTable(spec);
+                        boolean hasNewCol = sideInputTable.schema().findField("new_col") != null;
+                        out.output(
+                            row.getString("data")
+                                + ":"
+                                + (hasNewCol ? "UPDATED_SCHEMA" : "INITIAL_SCHEMA"));
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved)
+        .containsInAnyOrder("initial_data:INITIAL_SCHEMA", "post_update_data:UPDATED_SCHEMA");
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMetadataRefreshedAcrossIntervalsAsSideInputWithMultipleTables() {
+    Catalog catalog = getCatalog();
+    TableIdentifier tableA = TableIdentifier.of("default", "multi_table_a");
+    TableIdentifier tableB = TableIdentifier.of("default", "multi_table_b");
+    catalog.createTable(tableA, ICEBERG_SCHEMA);
+    catalog.createTable(tableB, ICEBERG_SCHEMA);
+
+    String tableAStr = "default.multi_table_a";
+    String tableBStr = "default.multi_table_b";
+
+    Row rowSeedA = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_a", tableAStr).build();
+    Row rowSeedB = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_b", tableBStr).build();
+    Row rowA1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "a1", tableAStr).build();
+    Row rowB1 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "b1", tableBStr).build();
+    Row rowTriggerUpdateA =
+        Row.withSchema(BEAM_SCHEMA).addValues(3L, "trigger_update_a", tableAStr).build();
+    Row rowA2 = Row.withSchema(BEAM_SCHEMA).addValues(4L, "a2", tableAStr).build();
+    Row rowB2 = Row.withSchema(BEAM_SCHEMA).addValues(5L, "b2", tableBStr).build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(rowSeedA, rowSeedB)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowA1, rowB1)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowTriggerUpdateA)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowA2, rowB2)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input =
+        pipeline
+            .apply("StreamInput", stream)
+            .apply(
+                "EvolveSchemaOnTriggerRow",
+                ParDo.of(
+                    new DoFn<Row, Row>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+                        if ("trigger_update_a".equals(row.getString("data"))) {
+                          Table table =
+                              catalogConfig
+                                  .catalog()
+                                  .loadTable(
+                                      IcebergUtils.parseTableIdentifier("default.multi_table_a"));
+                          table
+                              .updateSchema()
+                              .addColumn("new_col_a", Types.StringType.get())
+                              .commit();
+                        }
+                        out.output(row);
+                      }
+                    }))
+            .setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView",
+            TableMetadataDriver.asView(
+                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        String data = row.getString("data");
+                        if ("seed_a".equals(data)
+                            || "seed_b".equals(data)
+                            || "trigger_update_a".equals(data)) {
+                          return;
+                        }
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        SerializableTableSpec spec = viewMap.get(row.getString("dest"));
+                        assertNotNull(
+                            "Expected table " + row.getString("dest") + " in side input view",
+                            spec);
+
+                        SideInputTable sideInputTable = new SideInputTable(spec);
+                        boolean hasNewColA = sideInputTable.schema().findField("new_col_a") != null;
+                        out.output(
+                            row.getString("data")
+                                + ":"
+                                + (hasNewColA ? "UPDATED_SCHEMA" : "INITIAL_SCHEMA"));
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved)
+        .containsInAnyOrder(
+            "a1:INITIAL_SCHEMA", "b1:INITIAL_SCHEMA", "a2:UPDATED_SCHEMA", "b2:INITIAL_SCHEMA");
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testMaximumCacheSizeInStreamingThrowsUnsupportedOperationException() {
+    pipeline.enableAbandonedNodeEnforcement(false);
+    Row row = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.test_table").build();
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(row)
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input = pipeline.apply("StreamInput", stream);
+
+    assertThrows(
+        UnsupportedOperationException.class,
+        () ->
+            input.apply(
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
+                    .setMaximumCacheSize(5)
+                    .build()));
+  }
+
+  @Test
+  public void testMalformedTableIdentifierSkippedWithoutFailingBundle() {
+    Row validRow = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.valid_table").build();
+    Row malformedRow =
+        Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.invalid..name///").build();
+
+    getCatalog().createTable(TableIdentifier.of("default", "valid_table"), ICEBERG_SCHEMA);
+
+    PCollection<Row> input =
+        pipeline.apply(Create.of(validRow, malformedRow)).setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        input.apply(
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .build());
+
+    PAssert.that(specs)
+        .satisfies(
+            elements -> {
+              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              assertEquals(1, list.size());
+              assertEquals("default.valid_table", list.get(0).getKey());
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
   public void testMaximumCacheSizeCap() {
     Catalog catalog = getCatalog();
     for (int i = 1; i <= 6; i++) {

@@ -20,20 +20,30 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.StateSpec;
+import org.apache.beam.sdk.state.StateSpecs;
+import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.DoFn.StateId;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.View;
+import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.AfterPane;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
@@ -91,6 +101,10 @@ public abstract class TableMetadataDriver
 
   public abstract @Nullable Duration getRefreshInterval();
 
+  /**
+   * Returns the number of parallel buckets/workers used to query the Iceberg catalog, or {@code
+   * null} for default.
+   */
   public abstract @Nullable Integer getPollingBuckets();
 
   public static Builder builder() {
@@ -109,6 +123,15 @@ public abstract class TableMetadataDriver
 
     public abstract Builder setRefreshInterval(@Nullable Duration refreshInterval);
 
+    /**
+     * Sets the number of parallel buckets (worker tasks) used to query the Iceberg catalog.
+     *
+     * <p>Defaults to {@link #DEFAULT_POLLING_BUCKETS} (1), which serializes all catalog lookups to
+     * avoid overwhelming catalog metastores (e.g. Hive Metastore, REST catalog). For pipelines
+     * writing to a large number of distinct dynamic tables (e.g. hundreds of tables per window),
+     * consider increasing this value (e.g. 5–10) to parallelize catalog lookups while still
+     * bounding load.
+     */
     public abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
 
     abstract TableMetadataDriver autoBuild();
@@ -205,8 +228,10 @@ public abstract class TableMetadataDriver
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
-        return input
-            .apply(
+        boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
+
+        PCollection<KV<String, SerializableTableSpec>> specs =
+            input.apply(
                 "GenerateTableMetadata",
                 TableMetadataDriver.builder()
                     .setCatalogConfig(catalogConfig)
@@ -214,8 +239,25 @@ public abstract class TableMetadataDriver
                     .setMaximumCacheSize(maximumCacheSize)
                     .setRefreshInterval(refreshInterval)
                     .setPollingBuckets(pollingBuckets)
-                    .build())
-            .apply("CreateTableMetadataView", View.asMap());
+                    .build());
+
+        if (isStreaming) {
+          return specs
+              .apply("KeyForGlobalCache", WithKeys.of((Void) null))
+              .setCoder(KvCoder.of(VoidCoder.of(), specs.getCoder()))
+              .apply("AccumulateCacheMap", ParDo.of(new AccumulateTableMetadataMapDoFn()))
+              .setCoder(MapCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()))
+              .apply(
+                  "StreamingCacheWindow",
+                  Window.<Map<String, SerializableTableSpec>>into(new GlobalWindows())
+                      .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
+                      .discardingFiredPanes())
+              .apply(
+                  "CreateMetadataSingletonView",
+                  Combine.globally(new MapMergerFn()).asSingletonView());
+        }
+
+        return specs.apply("CreateTableMetadataView", View.asMap());
       }
     };
   }
@@ -225,14 +267,13 @@ public abstract class TableMetadataDriver
     PCollection<String> tableIds =
         input
             .apply("ExtractTableIds", ParDo.of(new ExtractTableIdsDoFn(getDynamicDestinations())))
-            .setCoder(StringUtf8Coder.of());
+            .setCoder(StringUtf8Coder.of())
+            .apply("MetadataGlobalWindow", Window.into(new GlobalWindows()));
 
-    boolean isUnboundedGlobal =
-        input.isBounded() == PCollection.IsBounded.UNBOUNDED
-            && input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows;
+    boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
 
     PCollection<String> distinctTableIds;
-    if (isUnboundedGlobal) {
+    if (isStreaming) {
       Duration customInterval = getRefreshInterval();
       Duration interval =
           checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
@@ -246,6 +287,10 @@ public abstract class TableMetadataDriver
     PCollection<String> cachedTableIds;
     Integer maxCacheSize = getMaximumCacheSize();
     if (maxCacheSize != null) {
+      if (isStreaming) {
+        throw new UnsupportedOperationException(
+            "maximumCacheSize is currently not supported for unbounded streaming pipelines.");
+      }
       cachedTableIds = distinctTableIds.apply("CapCacheSize", Sample.any(maxCacheSize));
     } else {
       cachedTableIds = distinctTableIds;
@@ -263,12 +308,12 @@ public abstract class TableMetadataDriver
             .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
 
-    if (isUnboundedGlobal) {
+    if (isStreaming) {
       return specs.apply(
-          "ApplyStreamingViewTrigger",
+          "ApplyStreamingTrigger",
           Window.<KV<String, SerializableTableSpec>>into(new GlobalWindows())
               .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
-              .accumulatingFiredPanes());
+              .discardingFiredPanes());
     }
     return specs;
   }
@@ -326,8 +371,8 @@ public abstract class TableMetadataDriver
     @ProcessElement
     public void processElement(
         @Element String tableIdString, OutputReceiver<KV<String, SerializableTableSpec>> out) {
-      TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableIdString);
       try {
+        TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableIdString);
         Table table = catalogConfig.catalog().loadTable(tableId);
         SerializableTableSpec spec = SerializableTableSpec.fromTable(tableIdString, table);
         TABLES_POLLED_COUNTER.inc();
@@ -337,7 +382,57 @@ public abstract class TableMetadataDriver
             "Table '{}' does not exist in catalog. Skipping metadata emission for side-input view.",
             tableIdString);
         TABLES_SKIPPED_MISSING_COUNTER.inc();
+      } catch (IllegalArgumentException e) {
+        LOG.warn(
+            "Failed to parse table identifier '{}'. Skipping metadata emission for side-input view.",
+            tableIdString,
+            e);
+        TABLES_SKIPPED_MISSING_COUNTER.inc();
       }
+    }
+  }
+
+  static class AccumulateTableMetadataMapDoFn
+      extends DoFn<
+          KV<Void, KV<String, SerializableTableSpec>>, Map<String, SerializableTableSpec>> {
+    @StateId("tableCache")
+    private final StateSpec<MapState<String, SerializableTableSpec>> cacheStateSpec =
+        StateSpecs.map(StringUtf8Coder.of(), SerializableTableSpec.getCoder());
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<Void, KV<String, SerializableTableSpec>> element,
+        @StateId("tableCache") MapState<String, SerializableTableSpec> cacheState,
+        OutputReceiver<Map<String, SerializableTableSpec>> out) {
+      KV<String, SerializableTableSpec> kv = element.getValue();
+      cacheState.put(kv.getKey(), kv.getValue());
+
+      Map<String, SerializableTableSpec> mapSnapshot = new HashMap<>();
+      for (Map.Entry<String, SerializableTableSpec> entry : cacheState.entries().read()) {
+        mapSnapshot.put(entry.getKey(), entry.getValue());
+      }
+      out.output(Collections.unmodifiableMap(mapSnapshot));
+    }
+  }
+
+  static class MapMergerFn extends Combine.BinaryCombineFn<Map<String, SerializableTableSpec>> {
+    @Override
+    public Map<String, SerializableTableSpec> apply(
+        Map<String, SerializableTableSpec> left, Map<String, SerializableTableSpec> right) {
+      if (left == null || left.isEmpty()) {
+        return right != null ? right : Collections.emptyMap();
+      }
+      if (right == null || right.isEmpty()) {
+        return left;
+      }
+      Map<String, SerializableTableSpec> merged = new HashMap<>(left);
+      merged.putAll(right);
+      return Collections.unmodifiableMap(merged);
+    }
+
+    @Override
+    public Map<String, SerializableTableSpec> identity() {
+      return Collections.emptyMap();
     }
   }
 }
