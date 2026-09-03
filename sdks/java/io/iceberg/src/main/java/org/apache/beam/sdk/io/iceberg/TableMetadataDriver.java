@@ -31,6 +31,7 @@ import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Sample;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -80,6 +81,7 @@ public abstract class TableMetadataDriver
     extends PTransform<PCollection<Row>, PCollection<KV<String, SerializableTableSpec>>> {
 
   public static final Duration DEFAULT_REFRESH_INTERVAL = Duration.standardMinutes(5);
+  public static final int DEFAULT_POLLING_BUCKETS = 1;
 
   public abstract IcebergCatalogConfig getCatalogConfig();
 
@@ -88,6 +90,8 @@ public abstract class TableMetadataDriver
   public abstract @Nullable Integer getMaximumCacheSize();
 
   public abstract @Nullable Duration getRefreshInterval();
+
+  public abstract @Nullable Integer getPollingBuckets();
 
   public static Builder builder() {
     return new AutoValue_TableMetadataDriver.Builder();
@@ -105,6 +109,8 @@ public abstract class TableMetadataDriver
 
     public abstract Builder setRefreshInterval(@Nullable Duration refreshInterval);
 
+    public abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
+
     abstract TableMetadataDriver autoBuild();
 
     public TableMetadataDriver build() {
@@ -121,6 +127,11 @@ public abstract class TableMetadataDriver
             "refreshInterval must be positive, got %s",
             refreshInterval);
       }
+      Integer pollingBuckets = driver.getPollingBuckets();
+      if (pollingBuckets != null) {
+        Preconditions.checkArgument(
+            pollingBuckets > 0, "pollingBuckets must be greater than 0, got %s", pollingBuckets);
+      }
       return driver;
     }
   }
@@ -131,7 +142,7 @@ public abstract class TableMetadataDriver
    */
   public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
       asView(IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
-    return asView(catalogConfig, dynamicDestinations, null, null);
+    return asView(catalogConfig, dynamicDestinations, null, null, null);
   }
 
   /**
@@ -149,7 +160,7 @@ public abstract class TableMetadataDriver
           IcebergCatalogConfig catalogConfig,
           DynamicDestinations dynamicDestinations,
           @Nullable Integer maximumCacheSize) {
-    return asView(catalogConfig, dynamicDestinations, maximumCacheSize, null);
+    return asView(catalogConfig, dynamicDestinations, maximumCacheSize, null, null);
   }
 
   /**
@@ -169,6 +180,28 @@ public abstract class TableMetadataDriver
           DynamicDestinations dynamicDestinations,
           @Nullable Integer maximumCacheSize,
           @Nullable Duration refreshInterval) {
+    return asView(catalogConfig, dynamicDestinations, maximumCacheSize, refreshInterval, null);
+  }
+
+  /**
+   * Helper that applies {@link TableMetadataDriver} with an optional {@code maximumCacheSize}
+   * limit, custom {@code refreshInterval}, and custom {@code pollingBuckets}, creating a {@link
+   * PCollectionView} of {@link Map} of table identifier strings to {@link SerializableTableSpec}.
+   *
+   * @param catalogConfig the catalog configuration used to poll metadata.
+   * @param dynamicDestinations destination strategy extracting table IDs from rows.
+   * @param maximumCacheSize optional maximum distinct tables to poll and broadcast per window (null
+   *     for uncapped).
+   * @param refreshInterval optional refresh interval for streaming global window triggers.
+   * @param pollingBuckets optional number of parallel buckets/workers for catalog polling.
+   */
+  public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
+      asView(
+          IcebergCatalogConfig catalogConfig,
+          DynamicDestinations dynamicDestinations,
+          @Nullable Integer maximumCacheSize,
+          @Nullable Duration refreshInterval,
+          @Nullable Integer pollingBuckets) {
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
@@ -180,6 +213,7 @@ public abstract class TableMetadataDriver
                     .setDynamicDestinations(dynamicDestinations)
                     .setMaximumCacheSize(maximumCacheSize)
                     .setRefreshInterval(refreshInterval)
+                    .setPollingBuckets(pollingBuckets)
                     .build())
             .apply("CreateTableMetadataView", View.asMap());
       }
@@ -217,8 +251,15 @@ public abstract class TableMetadataDriver
       cachedTableIds = distinctTableIds;
     }
 
+    @Nullable Integer configuredBuckets = getPollingBuckets();
+    int pollingBuckets = configuredBuckets != null ? configuredBuckets : DEFAULT_POLLING_BUCKETS;
+    PCollection<String> pollingTableIds =
+        cachedTableIds.apply(
+            "ReshufflePollingBuckets",
+            Reshuffle.<String>viaRandomKey().withNumBuckets(pollingBuckets));
+
     PCollection<KV<String, SerializableTableSpec>> specs =
-        cachedTableIds
+        pollingTableIds
             .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
             .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
 
@@ -241,6 +282,9 @@ public abstract class TableMetadataDriver
     builder.addIfNotNull(
         DisplayData.item("refreshInterval", getRefreshInterval())
             .withLabel("Table Metadata Refresh Interval"));
+    builder.addIfNotNull(
+        DisplayData.item("pollingBuckets", getPollingBuckets())
+            .withLabel("Catalog Polling Buckets"));
   }
 
   static class ExtractTableIdsDoFn extends DoFn<Row, String> {

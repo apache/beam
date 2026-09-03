@@ -566,6 +566,65 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
+  public void testInvalidPollingBucketsThrowsException() {
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
+                .setPollingBuckets(0)
+                .build());
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
+                .setPollingBuckets(-2)
+                .build());
+  }
+
+  @Test
+  public void testConfigurablePollingBuckets() {
+    Catalog catalog = getCatalog();
+    TableIdentifier table1 = TableIdentifier.of("default", "bucket_t1");
+    TableIdentifier table2 = TableIdentifier.of("default", "bucket_t2");
+    catalog.createTable(table1, ICEBERG_SCHEMA);
+    catalog.createTable(table2, ICEBERG_SCHEMA);
+
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.bucket_t1").build(),
+            Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.bucket_t2").build());
+
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollection<KV<String, SerializableTableSpec>> specs =
+        input.apply(
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .setPollingBuckets(2)
+                .build());
+
+    PAssert.that(specs)
+        .satisfies(
+            elements -> {
+              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              assertEquals(2, list.size());
+              Map<String, SerializableTableSpec> map =
+                  list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
+              assertTrue(map.containsKey("default.bucket_t1"));
+              assertTrue(map.containsKey("default.bucket_t2"));
+              return null;
+            });
+
+    pipeline.run();
+  }
+
+  @Test
   public void testWindowPreservation() {
     Catalog catalog = getCatalog();
     TableIdentifier tableW1 = TableIdentifier.of("default", "table_w1");
@@ -634,6 +693,7 @@ public class TableMetadataDriverTest implements Serializable {
             .setDynamicDestinations(SINGLE_TABLE_DYNAMIC_DESTINATIONS)
             .setMaximumCacheSize(42)
             .setRefreshInterval(Duration.standardMinutes(10))
+            .setPollingBuckets(3)
             .build();
 
     DisplayData displayData = DisplayData.from(driver);
@@ -642,6 +702,7 @@ public class TableMetadataDriverTest implements Serializable {
     assertNotNull(displayData);
     boolean hasCacheSize = false;
     boolean hasRefreshInterval = false;
+    boolean hasPollingBuckets = false;
     for (DisplayData.Item item : items.values()) {
       if ("maximumCacheSize".equals(item.getKey())) {
         assertEquals(42L, item.getValue());
@@ -650,9 +711,14 @@ public class TableMetadataDriverTest implements Serializable {
       if ("refreshInterval".equals(item.getKey())) {
         hasRefreshInterval = true;
       }
+      if ("pollingBuckets".equals(item.getKey())) {
+        assertEquals(3L, item.getValue());
+        hasPollingBuckets = true;
+      }
     }
     assertTrue(hasCacheSize);
     assertTrue(hasRefreshInterval);
+    assertTrue(hasPollingBuckets);
   }
 
   @Test
