@@ -162,8 +162,7 @@ public abstract class FieldValueTypeInformation implements Serializable {
       String original, T member) {
     @Nullable SchemaFieldName fieldName = member.getAnnotation(SchemaFieldName.class);
     @Nullable SchemaCaseFormat caseFormatAnnotation = member.getAnnotation(SchemaCaseFormat.class);
-    @Nullable
-    SchemaCaseFormat classCaseFormatAnnotation =
+    @Nullable SchemaCaseFormat classCaseFormatAnnotation =
         member.getDeclaringClass().getAnnotation(SchemaCaseFormat.class);
     if (fieldName != null) {
       if (caseFormatAnnotation != null) {
@@ -184,8 +183,8 @@ public abstract class FieldValueTypeInformation implements Serializable {
 
   public static <T extends AnnotatedElement & Member> @Nullable String getFieldDescription(
       T member) {
-    @Nullable
-    SchemaFieldDescription fieldDescription = member.getAnnotation(SchemaFieldDescription.class);
+    @Nullable SchemaFieldDescription fieldDescription =
+        member.getAnnotation(SchemaFieldDescription.class);
     if (fieldDescription == null) {
       return null;
     }

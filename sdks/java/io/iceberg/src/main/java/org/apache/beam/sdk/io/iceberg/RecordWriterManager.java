@@ -86,6 +86,7 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -104,7 +105,6 @@ class RecordWriterManager implements AutoCloseable {
     final Cache<PartitionKey, RecordWriter> writers;
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
-    private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
     private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
@@ -115,9 +115,6 @@ class RecordWriterManager implements AutoCloseable {
       this.routingPartitionKey = new PartitionKey(spec, schema);
       this.wrapper = new InternalRecordWrapper(schema.asStruct());
       this.table = table;
-      for (PartitionField partitionField : spec.fields()) {
-        partitionFieldMap.put(partitionField.name(), partitionField);
-      }
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -127,7 +124,6 @@ class RecordWriterManager implements AutoCloseable {
               .expireAfterAccess(1, TimeUnit.MINUTES)
               .removalListener(
                   (RemovalNotification<PartitionKey, RecordWriter> removal) -> {
-                    final PartitionKey pk = Preconditions.checkStateNotNull(removal.getKey());
                     final RecordWriter recordWriter =
                         Preconditions.checkStateNotNull(removal.getValue());
                     try {
@@ -144,9 +140,9 @@ class RecordWriterManager implements AutoCloseable {
                       throw rethrow;
                     }
                     openWriters--;
-                    String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
+                    // Serialize against the file's own spec (looked up by its spec id)
                     dataFiles.add(
-                        SerializableDataFile.from(recordWriter.getDataFile(), partitionPath));
+                        SerializableDataFile.from(recordWriter.getDataFile(), table.specs()));
                   })
               .build();
     }

@@ -367,6 +367,7 @@ class MultiStepCombine<
 
   static final String DIRECT_MERGE_ACCUMULATORS_EXTRACT_OUTPUT_URN =
       "beam:directrunner:transforms:merge_accumulators_extract_output:v1";
+
   /**
    * A primitive {@link PTransform} that merges iterables of accumulators and extracts the output.
    *

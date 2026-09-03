@@ -20,6 +20,9 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/container/tools"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 func TestActivePidsRegistry(t *testing.T) {
@@ -48,13 +51,19 @@ func TestActivePidsRegistry(t *testing.T) {
 }
 
 func TestSetupProfilerConfig(t *testing.T) {
-	opts := &PipelineOptionsData{
-		Options: OptionsData{
-			ProfilerAgent: "coredump",
-			JobId:         "test-job",
+	st, err := structpb.NewStruct(map[string]interface{}{
+		"options": map[string]interface{}{
+			"profiler_agent": "coredump",
+			"jobId":          "test-job",
 		},
+	})
+	if err != nil {
+		t.Fatalf("Failed to create structpb: %v", err)
 	}
-	ctx := setupProfilerConfig(context.Background(), nil, opts)
+
+	po := tools.ParseOptionsFromProto(st, "")
+
+	ctx := setupProfilerConfig(context.Background(), &tools.Logger{}, po)
 	pcfg := getProfilerConfig(ctx)
 	if pcfg == nil {
 		t.Fatal("ProfilerConfig was nil")

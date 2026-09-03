@@ -25,27 +25,33 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import javax.annotation.Nullable;
+import java.util.function.Supplier;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.EvaluationContext;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   private final Future<?> pipelineExecution;
+  // Supplies the context of the translated pipeline, null until translation has completed.
+  private final Supplier<? extends @Nullable EvaluationContext> evaluationContext;
   private final MetricsAccumulator metrics;
-  private @Nullable final Runnable onTerminalState;
+  private final @Nullable Runnable onTerminalState;
   private PipelineResult.State state;
 
   SparkStructuredStreamingPipelineResult(
       Future<?> pipelineExecution,
+      Supplier<? extends @Nullable EvaluationContext> evaluationContext,
       MetricsAccumulator metrics,
-      @Nullable final Runnable onTerminalState) {
+      final @Nullable Runnable onTerminalState) {
     this.pipelineExecution = pipelineExecution;
+    this.evaluationContext = evaluationContext;
     this.metrics = metrics;
     this.onTerminalState = onTerminalState;
     // pipelineExecution is expected to have started executing eagerly.
@@ -113,6 +119,10 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
 
   @Override
   public PipelineResult.State cancel() throws IOException {
+    EvaluationContext ctx = evaluationContext.get();
+    if (ctx != null) {
+      ctx.stop();
+    }
     pipelineExecution.cancel(true);
     offerNewState(PipelineResult.State.CANCELLED);
     return state;
