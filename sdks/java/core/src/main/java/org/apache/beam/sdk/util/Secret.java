@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
@@ -43,20 +44,94 @@ public abstract class Secret implements Serializable {
       loadSecretFactories();
 
   private static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories() {
+    try {
+      return loadSecretFactories(ReflectHelpers.loadServicesOrdered(SecretRegistrar.class));
+    } catch (Throwable t) {
+      // Top-level fail-safe: guarantee that static class initialization of Secret never fails
+      // due to unforeseen classloader or registrar errors.
+      LOG.error("Unexpected error loading SecretRegistrars; secret factories may be incomplete", t);
+      return Collections.emptyMap();
+    }
+  }
+
+  /**
+   * Loads factories from the provided registrars into an immutable map.
+   *
+   * <p>Applies defensive checks:
+   *
+   * <ul>
+   *   <li>Sandboxes each registrar with a per-registrar try-catch so a rogue or broken registrar
+   *       cannot crash discovery.
+   *   <li>Guards against {@code null} return values from {@link
+   *       SecretRegistrar#getSecretFactories()}, {@code null} map entries, {@code null} or empty
+   *       keys, and {@code null} factory values.
+   *   <li>Applies a "first-wins with warning" strategy on duplicate keys to prevent classpath leaks
+   *       (such as duplicate test registrars) from throwing exceptions and breaking pipelines.
+   * </ul>
+   */
+  @VisibleForTesting
+  static Map<String, SecretRegistrar.SecretFactory> loadSecretFactories(
+      @Nullable Iterable<SecretRegistrar> registrars) {
     Map<String, SecretRegistrar.SecretFactory> factories = new HashMap<>();
-    for (SecretRegistrar registrar : ReflectHelpers.loadServicesOrdered(SecretRegistrar.class)) {
-      for (Map.Entry<String, SecretRegistrar.SecretFactory> entry :
-          registrar.getSecretFactories().entrySet()) {
-        String key = entry.getKey().toLowerCase();
-        if (factories.containsKey(key)) {
-          throw new IllegalStateException(
-              String.format(
-                  "Duplicate SecretRegistrar for secret manager name '%s': %s and %s",
-                  key,
-                  factories.get(key).getClass().getName(),
-                  entry.getValue().getClass().getName()));
+    if (registrars == null) {
+      return Collections.emptyMap();
+    }
+
+    for (SecretRegistrar registrar : registrars) {
+      if (registrar == null) {
+        continue;
+      }
+      try {
+        Map<String, SecretRegistrar.SecretFactory> registrarFactories =
+            registrar.getSecretFactories();
+        if (registrarFactories == null) {
+          LOG.warn(
+              "SecretRegistrar '{}' returned null from getSecretFactories(); ignoring",
+              registrar.getClass().getName());
+          continue;
         }
-        factories.put(key, entry.getValue());
+
+        for (Map.Entry<String, SecretRegistrar.SecretFactory> entry :
+            registrarFactories.entrySet()) {
+          if (entry == null) {
+            continue;
+          }
+          String rawKey = entry.getKey();
+          if (rawKey == null || rawKey.trim().isEmpty()) {
+            LOG.warn(
+                "SecretRegistrar '{}' registered a factory with a null or empty key; ignoring",
+                registrar.getClass().getName());
+            continue;
+          }
+          SecretRegistrar.SecretFactory factory = entry.getValue();
+          if (factory == null) {
+            LOG.warn(
+                "SecretRegistrar '{}' registered a null SecretFactory for key '{}'; ignoring",
+                registrar.getClass().getName(),
+                rawKey);
+            continue;
+          }
+
+          String key = rawKey.toLowerCase();
+          SecretRegistrar.SecretFactory existing = factories.get(key);
+          if (existing != null) {
+            // First-wins strategy with warning: do not throw to prevent leaked test or duplicate
+            // registrars on the classpath from crashing pipeline execution.
+            LOG.warn(
+                "Duplicate SecretFactory for secret manager name '{}': already registered by '{}', "
+                    + "ignoring duplicate from '{}'",
+                key,
+                existing.getClass().getName(),
+                factory.getClass().getName());
+          } else {
+            factories.put(key, factory);
+          }
+        }
+      } catch (Throwable t) {
+        LOG.warn(
+            "Failed to load secret factories from SecretRegistrar '{}'; skipping",
+            registrar.getClass().getName(),
+            t);
       }
     }
     return ImmutableMap.copyOf(factories);
