@@ -19,6 +19,12 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
@@ -30,6 +36,9 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
@@ -37,10 +46,16 @@ import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.SortOrder;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 
 /** Tests for {@link SerializableDeleteFile}. */
+@RunWith(JUnit4.class)
 public class SerializableDeleteFileTest {
   private static final org.apache.iceberg.Schema SCHEMA =
       new org.apache.iceberg.Schema(
@@ -85,7 +100,7 @@ public class SerializableDeleteFileTest {
             .build();
     setSequenceNumbers(deleteFile, 44L, 45L);
 
-    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, "category=A", true);
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, SPEC, true);
     DeleteFile reconstructed =
         serialized.createDeleteFile(
             singletonMap(SPEC.specId(), SPEC), singletonMap(0, SortOrder.unsorted()));
@@ -125,7 +140,7 @@ public class SerializableDeleteFileTest {
             .withRecordCount(2L)
             .build();
 
-    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, "category=A", true);
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, SPEC, true);
     DeleteFile reconstructed =
         serialized.createDeleteFile(singletonMap(SPEC.specId(), SPEC), singletonMap(7, sortOrder));
 
@@ -149,7 +164,7 @@ public class SerializableDeleteFileTest {
             .withReferencedDataFile("gs://bucket/data/category=A/data.parquet")
             .build();
 
-    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, "category=A", true);
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, SPEC, true);
     DeleteFile reconstructed =
         serialized.createDeleteFile(
             singletonMap(SPEC.specId(), SPEC), singletonMap(0, SortOrder.unsorted()));
@@ -160,9 +175,11 @@ public class SerializableDeleteFileTest {
     assertEquals("gs://bucket/data/category=A/data.parquet", reconstructed.referencedDataFile());
   }
 
+  /** Reconstruction fails clearly when the spec map or the sort-order map lacks the file's id. */
   @Test
-  public void testCreateDeleteFileFailsClearlyForMissingPartitionSpec() {
-    DeleteFile deleteFile =
+  public void testCreateDeleteFileFailsClearlyForMissingSpecOrSortOrder() {
+    // facet: missing partition spec.
+    DeleteFile positionDelete =
         FileMetadata.deleteFileBuilder(SPEC)
             .ofPositionDeletes()
             .withPath("gs://bucket/deletes/category=A/pos.parquet")
@@ -171,19 +188,17 @@ public class SerializableDeleteFileTest {
             .withFileSizeInBytes(256L)
             .withRecordCount(2L)
             .build();
-    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, "category=A", true);
-
-    IllegalStateException thrown =
+    SerializableDeleteFile serializedPosition =
+        SerializableDeleteFile.from(positionDelete, SPEC, true);
+    IllegalStateException missingSpec =
         assertThrows(
-            IllegalStateException.class, () -> serialized.createDeleteFile(emptyMap(), null));
+            IllegalStateException.class,
+            () -> serializedPosition.createDeleteFile(emptyMap(), null));
+    assertTrue(missingSpec.getMessage().contains("created with spec id '" + SPEC.specId() + "'"));
 
-    assertTrue(thrown.getMessage().contains("created with spec id '" + SPEC.specId() + "'"));
-  }
-
-  @Test
-  public void testCreateEqualityDeleteFileFailsClearlyForMissingSortOrder() {
+    // facet: missing sort order (equality delete).
     SortOrder sortOrder = SortOrder.builderFor(SCHEMA).asc("id").withOrderId(7).build();
-    DeleteFile deleteFile =
+    DeleteFile equalityDelete =
         FileMetadata.deleteFileBuilder(SPEC)
             .ofEqualityDeletes(1)
             .withSortOrder(sortOrder)
@@ -193,14 +208,242 @@ public class SerializableDeleteFileTest {
             .withFileSizeInBytes(256L)
             .withRecordCount(2L)
             .build();
-    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, "category=A", true);
-
-    IllegalStateException thrown =
+    SerializableDeleteFile serializedEquality =
+        SerializableDeleteFile.from(equalityDelete, SPEC, true);
+    IllegalStateException missingOrder =
         assertThrows(
             IllegalStateException.class,
-            () -> serialized.createDeleteFile(singletonMap(SPEC.specId(), SPEC), emptyMap()));
+            () ->
+                serializedEquality.createDeleteFile(singletonMap(SPEC.specId(), SPEC), emptyMap()));
+    assertTrue(missingOrder.getMessage().contains("sort order id '7'"));
+  }
 
-    assertTrue(thrown.getMessage().contains("sort order id '7'"));
+  /**
+   * A {@link DeleteFile} must be serialized with the EXACT spec it was written with: a mismatched
+   * spec id and a spec id absent from the map each fail loudly.
+   */
+  @Test
+  public void fromRejectsMismatchedOrUnknownSpec() {
+    // facet: single-spec overload, wrong spec.
+    DeleteFile unpartitioned =
+        FileMetadata.deleteFileBuilder(PartitionSpec.unpartitioned())
+            .ofPositionDeletes()
+            .withPath("gs://bucket/deletes/pos.parquet")
+            .withFormat(FileFormat.PARQUET)
+            .withFileSizeInBytes(1L)
+            .withRecordCount(1L)
+            .build();
+    PartitionSpec otherSpec =
+        PartitionSpec.builderFor(SCHEMA).identity("category").withSpecId(1).build();
+    IllegalArgumentException mismatch =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SerializableDeleteFile.from(unpartitioned, otherSpec));
+    assertThat(mismatch.getMessage(), containsString("does not match"));
+
+    // facet: spec-map overload, id missing from the map.
+    DeleteFile deleteFile = positionDeletes(SPEC, partition(SPEC, "A"));
+    IllegalStateException unknown =
+        assertThrows(
+            IllegalStateException.class,
+            () -> SerializableDeleteFile.from(deleteFile, emptyMap(), true));
+    assertThat(unknown.getMessage(), containsString("partition spec id '0'"));
+  }
+
+  /**
+   * All three delete-file kinds — equality, position, and a V3 deletion vector — round-trip through
+   * the schema coder with their partition tuples intact.
+   */
+  @Test
+  public void allDeleteFileKindsRoundTripThroughSchemaCoderWithPartition() throws Exception {
+    // facet: equality delete.
+    SortOrder sortOrder = SortOrder.builderFor(SCHEMA).asc("id").withOrderId(7).build();
+    DeleteFile equalityDelete =
+        FileMetadata.deleteFileBuilder(SPEC)
+            .ofEqualityDeletes(1, 2)
+            .withSortOrder(sortOrder)
+            .withPath("gs://bucket/deletes/category=A/eq.parquet")
+            .withFormat(FileFormat.PARQUET)
+            .withPartition(partition(SPEC, "A"))
+            .withFileSizeInBytes(256L)
+            .withRecordCount(2L)
+            .build();
+    DeleteFile equalityReconstructed =
+        encodeDecode(SerializableDeleteFile.from(equalityDelete, SPEC))
+            .createDeleteFile(singletonMap(SPEC.specId(), SPEC), singletonMap(7, sortOrder));
+    assertEquals(FileContent.EQUALITY_DELETES, equalityReconstructed.content());
+    assertEquals(equalityDelete.partition(), equalityReconstructed.partition());
+    assertEquals("category=A", SPEC.partitionToPath(equalityReconstructed.partition()));
+
+    // facet: position delete.
+    DeleteFile positionDelete = positionDeletes(SPEC, partition(SPEC, "A"));
+    DeleteFile positionReconstructed =
+        encodeDecode(SerializableDeleteFile.from(positionDelete, SPEC))
+            .createDeleteFile(singletonMap(SPEC.specId(), SPEC), null);
+    assertEquals(FileContent.POSITION_DELETES, positionReconstructed.content());
+    assertEquals(positionDelete.partition(), positionReconstructed.partition());
+    assertEquals("category=A", SPEC.partitionToPath(positionReconstructed.partition()));
+
+    // facet: V3 deletion vector (a Puffin blob with offset/size/referenced-data-file).
+    DeleteFile dv =
+        FileMetadata.deleteFileBuilder(SPEC)
+            .ofPositionDeletes()
+            .withPath("gs://bucket/deletes/category=A/dv.puffin")
+            .withFormat(FileFormat.PUFFIN)
+            .withPartition(partition(SPEC, "A"))
+            .withFileSizeInBytes(512L)
+            .withRecordCount(1L)
+            .withContentOffset(64L)
+            .withContentSizeInBytes(128L)
+            .withReferencedDataFile("gs://bucket/data/category=A/data.parquet")
+            .build();
+    DeleteFile dvReconstructed =
+        encodeDecode(SerializableDeleteFile.from(dv, SPEC))
+            .createDeleteFile(singletonMap(SPEC.specId(), SPEC), null);
+    assertEquals(FileFormat.PUFFIN, dvReconstructed.format());
+    assertEquals(Long.valueOf(64L), dvReconstructed.contentOffset());
+    assertEquals(Long.valueOf(128L), dvReconstructed.contentSizeInBytes());
+    assertEquals("gs://bucket/data/category=A/data.parquet", dvReconstructed.referencedDataFile());
+    assertEquals(dv.partition(), dvReconstructed.partition());
+    assertEquals("category=A", SPEC.partitionToPath(dvReconstructed.partition()));
+  }
+
+  /**
+   * An identity partition on a {@code timestamptz} column: {@link
+   * org.apache.iceberg.types.Conversions#fromPartitionString} has no case for TIMESTAMP at all, so
+   * the old partition-path round-trip blew up at reconstruct time. The JSON representation carries
+   * the raw micros and round-trips exactly.
+   */
+  @Test
+  public void timestampPartitionRoundTripsThroughJsonButNotThroughPartitionPath() {
+    org.apache.iceberg.Schema schema =
+        new org.apache.iceberg.Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "event_time", Types.TimestampType.withZone()));
+    PartitionSpec spec = PartitionSpec.builderFor(schema).identity("event_time").build();
+    long micros = 1_709_618_828_000_009L;
+    GenericRecord partition = GenericRecord.create(spec.partitionType());
+    partition.setField("event_time", micros);
+    DeleteFile deleteFile = positionDeletes(spec, partition);
+
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, spec);
+    DeleteFile reconstructed = serialized.createDeleteFile(singletonMap(spec.specId(), spec), null);
+
+    assertEquals(Long.valueOf(micros), reconstructed.partition().get(0, Long.class));
+    assertEquals(deleteFile.partition(), reconstructed.partition());
+
+    // The pre-change wire shape (partition path only) cannot reconstruct this partition at all.
+    SerializableDeleteFile legacy = withoutJsonPartition(serialized);
+    assertThrows(
+        UnsupportedOperationException.class,
+        () -> legacy.createDeleteFile(singletonMap(spec.specId(), spec), null));
+  }
+
+  /**
+   * {@code PartitionSpec.partitionToPath} URL-encodes each value but {@code DataFiles.fillFromPath}
+   * never decodes it, so a string partition containing {@code / }, {@code &} or {@code =} used to
+   * come back SILENTLY WRONG — the delete would be registered under a {@code (specId, partition)}
+   * that no data file lives in, and would simply never apply. The JSON representation is exact.
+   */
+  @Test
+  public void stringPartitionWithSpecialCharactersRoundTripsExactly() {
+    String value = "a/b c&d=e";
+    DeleteFile deleteFile = positionDeletes(SPEC, partition(SPEC, value));
+
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, SPEC);
+    DeleteFile reconstructed = serialized.createDeleteFile(singletonMap(SPEC.specId(), SPEC), null);
+
+    assertEquals(value, reconstructed.partition().get(0, CharSequence.class).toString());
+    assertEquals(deleteFile.partition(), reconstructed.partition());
+
+    // Prove the old representation was silently lossy rather than merely throwing.
+    DeleteFile viaLegacyPath =
+        withoutJsonPartition(serialized).createDeleteFile(singletonMap(SPEC.specId(), SPEC), null);
+    assertThat(
+        viaLegacyPath.partition().get(0, CharSequence.class).toString(), not(equalTo(value)));
+  }
+
+  /**
+   * A null partition value is rendered as the literal text {@code null} in a partition path, which
+   * {@code fromPartitionString} hands back as the four-character string "null" for a string column
+   * — again silently wrong. JSON omits the field and it decodes back to a real null.
+   */
+  @Test
+  public void nullPartitionValueRoundTripsAsNull() {
+    DeleteFile deleteFile = positionDeletes(SPEC, partition(SPEC, null));
+
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, SPEC);
+    DeleteFile reconstructed = serialized.createDeleteFile(singletonMap(SPEC.specId(), SPEC), null);
+
+    assertThat(reconstructed.partition().get(0, CharSequence.class), nullValue());
+    assertEquals(deleteFile.partition(), reconstructed.partition());
+
+    // The old path turns the null into the literal string "null".
+    DeleteFile viaLegacyPath =
+        withoutJsonPartition(serialized).createDeleteFile(singletonMap(SPEC.specId(), SPEC), null);
+    assertEquals("null", viaLegacyPath.partition().get(0, CharSequence.class).toString());
+  }
+
+  /**
+   * NaN / Infinity floating-point partition values don't round-trip through the JSON partition
+   * representation ({@code SingleValueParser.fromJson} rejects the non-standard {@code NaN} token).
+   * Reconstruct must fall back to the partition-path string, which handles them, rather than
+   * crash-looping the sink at commit time.
+   */
+  @Test
+  public void nanFloatPartitionReconstructsViaPathFallback() {
+    org.apache.iceberg.Schema schema =
+        new org.apache.iceberg.Schema(
+            Types.NestedField.required(1, "f", Types.FloatType.get()),
+            Types.NestedField.optional(2, "data", Types.StringType.get()));
+    PartitionSpec spec = PartitionSpec.builderFor(schema).identity("f").build();
+    GenericRecord partition = GenericRecord.create(spec.partitionType());
+    partition.setField("f", Float.NaN);
+    DeleteFile deleteFile = positionDeletes(spec, partition);
+
+    SerializableDeleteFile serialized = SerializableDeleteFile.from(deleteFile, spec);
+    // Must reconstruct without throwing (JSON decode of NaN fails -> partition-path fallback).
+    DeleteFile reconstructed = serialized.createDeleteFile(singletonMap(spec.specId(), spec), null);
+
+    Object value = reconstructed.partition().get(0, Object.class);
+    assertThat(value, instanceOf(Float.class));
+    assertTrue("partition value must round-trip as NaN", Float.isNaN((Float) value));
+  }
+
+  private static GenericRecord partition(PartitionSpec spec, @Nullable Object value) {
+    GenericRecord record = GenericRecord.create(spec.partitionType());
+    record.set(0, value);
+    return record;
+  }
+
+  private static DeleteFile positionDeletes(PartitionSpec spec, StructLike partition) {
+    return FileMetadata.deleteFileBuilder(spec)
+        .ofPositionDeletes()
+        .withPath("gs://bucket/deletes/pos.parquet")
+        .withFormat(FileFormat.PARQUET)
+        .withPartition(partition)
+        .withFileSizeInBytes(256L)
+        .withRecordCount(2L)
+        .build();
+  }
+
+  /** Rebuilds the element as a pre-jsonPartition release would have encoded it. */
+  private static SerializableDeleteFile withoutJsonPartition(SerializableDeleteFile file) {
+    return SerializableDeleteFile.builder()
+        .setContentType(file.getContentType())
+        .setLocation(file.getLocation())
+        .setFileFormat(file.getFileFormat())
+        .setRecordCount(file.getRecordCount())
+        .setFileSizeInBytes(file.getFileSizeInBytes())
+        .setPartitionPath(file.getPartitionPath())
+        .setPartitionSpecId(file.getPartitionSpecId())
+        .build();
+  }
+
+  private static SerializableDeleteFile encodeDecode(SerializableDeleteFile file) throws Exception {
+    SchemaCoder<SerializableDeleteFile> coder =
+        SchemaRegistry.createDefault().getSchemaCoder(SerializableDeleteFile.class);
+    return CoderUtils.decodeFromByteArray(coder, CoderUtils.encodeToByteArray(coder, file));
   }
 
   private static void setSequenceNumbers(
