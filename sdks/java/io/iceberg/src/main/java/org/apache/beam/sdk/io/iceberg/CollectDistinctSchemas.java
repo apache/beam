@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import com.google.auto.value.AutoValue;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -26,14 +27,21 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CoderRegistry;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.ListCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaCoder;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.beam.sdk.transforms.Combine;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -78,36 +86,42 @@ class CollectDistinctSchemas
    * A schema, how many files carry it, and the columns all of them proved free of nulls.
    * ReadFooterSchema emits one per file ({@code files} = 1); this combiner merges them.
    */
-  static final class SchemaGroup {
-    final String schemaJson;
-    final long files;
-    final List<String> nullFreeColumns;
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  abstract static class SchemaGroup {
+    private static @MonotonicNonNull SchemaCoder<SchemaGroup> coder;
 
-    SchemaGroup(String schemaJson, long files, List<String> nullFreeColumns) {
-      this.schemaJson = schemaJson;
-      this.files = files;
-      this.nullFreeColumns = nullFreeColumns;
+    static SchemaGroup of(String schemaJson, long files, List<String> nullFreeColumns) {
+      return new AutoValue_CollectDistinctSchemas_SchemaGroup(schemaJson, files, nullFreeColumns);
     }
 
-    @Override
-    public boolean equals(@Nullable Object other) {
-      if (!(other instanceof SchemaGroup)) {
-        return false;
+    static SchemaCoder<SchemaGroup> getCoder() {
+      if (coder == null) {
+        try {
+          coder = SchemaRegistry.createDefault().getSchemaCoder(SchemaGroup.class);
+        } catch (NoSuchSchemaException e) {
+          throw new RuntimeException(e);
+        }
       }
-      SchemaGroup that = (SchemaGroup) other;
-      return files == that.files
-          && schemaJson.equals(that.schemaJson)
-          && nullFreeColumns.equals(that.nullFreeColumns);
+      return coder;
     }
 
-    @Override
-    public int hashCode() {
-      return Objects.hash(schemaJson, files, nullFreeColumns);
-    }
+    @SchemaFieldNumber("0")
+    abstract String getSchemaJson();
+
+    @SchemaFieldNumber("1")
+    abstract long getFiles();
+
+    @SchemaFieldNumber("2")
+    abstract List<String> getNullFreeColumns();
 
     @Override
-    public String toString() {
-      return files + " file(s), null-free in " + nullFreeColumns + ", schema " + schemaJson;
+    public final String toString() {
+      return getFiles()
+          + " file(s), null-free in "
+          + getNullFreeColumns()
+          + ", schema "
+          + getSchemaJson();
     }
   }
 
@@ -118,7 +132,7 @@ class CollectDistinctSchemas
 
   @Override
   public Map<String, Group> addInput(Map<String, Group> accumulator, SchemaGroup file) {
-    add(accumulator, file.schemaJson, file.files, file.nullFreeColumns);
+    add(accumulator, file.getSchemaJson(), file.getFiles(), file.getNullFreeColumns());
     return accumulator;
   }
 
@@ -138,18 +152,18 @@ class CollectDistinctSchemas
     List<SchemaGroup> schemas = new ArrayList<>();
     for (Map.Entry<String, Group> entry : accumulator.entrySet()) {
       schemas.add(
-          new SchemaGroup(
+          SchemaGroup.of(
               entry.getKey(),
               entry.getValue().files,
               new ArrayList<>(entry.getValue().nullFreeColumns)));
     }
     schemas.sort(
         (a, b) -> {
-          int byCount = Long.compare(b.files, a.files);
+          int byCount = Long.compare(b.getFiles(), a.getFiles());
           if (byCount != 0) {
             return byCount;
           }
-          return a.schemaJson.compareTo(b.schemaJson);
+          return a.getSchemaJson().compareTo(b.getSchemaJson());
         });
     return schemas;
   }
@@ -167,33 +181,20 @@ class CollectDistinctSchemas
   }
 
   static Coder<SchemaGroup> groupCoder() {
-    return SchemaGroupCoder.INSTANCE;
+    return SchemaGroup.getCoder();
   }
 
   static Coder<List<SchemaGroup>> outputCoder() {
-    return ListCoder.of(SchemaGroupCoder.INSTANCE);
+    return ListCoder.of(SchemaGroup.getCoder());
   }
 
   private static final Coder<List<String>> COLUMNS_CODER = ListCoder.of(StringUtf8Coder.of());
 
-  /** Singletons with class equality, so repeated mentions compare equal; deterministic encoding. */
-  private static class GroupCoder extends CustomCoder<Group> {
+  /** Sorted columns, so the encoding is deterministic. */
+  private static class GroupCoder extends AtomicCoder<Group> {
     static final GroupCoder INSTANCE = new GroupCoder();
 
     private GroupCoder() {}
-
-    @Override
-    public void verifyDeterministic() {}
-
-    @Override
-    public boolean equals(@Nullable Object other) {
-      return other instanceof GroupCoder;
-    }
-
-    @Override
-    public int hashCode() {
-      return getClass().hashCode();
-    }
 
     @Override
     public void encode(Group value, OutputStream out) throws IOException {
@@ -205,39 +206,6 @@ class CollectDistinctSchemas
     public Group decode(InputStream in) throws IOException {
       long files = VarLongCoder.of().decode(in);
       return new Group(files, new TreeSet<>(COLUMNS_CODER.decode(in)));
-    }
-  }
-
-  private static class SchemaGroupCoder extends CustomCoder<SchemaGroup> {
-    static final SchemaGroupCoder INSTANCE = new SchemaGroupCoder();
-
-    private SchemaGroupCoder() {}
-
-    @Override
-    public void verifyDeterministic() {}
-
-    @Override
-    public boolean equals(@Nullable Object other) {
-      return other instanceof SchemaGroupCoder;
-    }
-
-    @Override
-    public int hashCode() {
-      return getClass().hashCode();
-    }
-
-    @Override
-    public void encode(SchemaGroup value, OutputStream out) throws IOException {
-      StringUtf8Coder.of().encode(value.schemaJson, out);
-      VarLongCoder.of().encode(value.files, out);
-      COLUMNS_CODER.encode(value.nullFreeColumns, out);
-    }
-
-    @Override
-    public SchemaGroup decode(InputStream in) throws IOException {
-      String schemaJson = StringUtf8Coder.of().decode(in);
-      long files = VarLongCoder.of().decode(in);
-      return new SchemaGroup(schemaJson, files, COLUMNS_CODER.decode(in));
     }
   }
 

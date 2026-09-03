@@ -62,7 +62,7 @@ final class FileSchemas {
   static CollectDistinctSchemas.SchemaGroup schemaGroup(ParquetMetadata footer) {
     Schema converted = ParquetSchemaUtil.convert(footer.getFileMetaData().getSchema());
     Schema tightened = tighten(converted, footer);
-    return new CollectDistinctSchemas.SchemaGroup(
+    return CollectDistinctSchemas.SchemaGroup.of(
         SchemaParser.toJson(canonical(converted)), 1, changedToRequired(converted, tightened));
   }
 
@@ -72,11 +72,12 @@ final class FileSchemas {
    * struct is null-free when any leaf under it is (a null struct nulls all its leaves). Nothing
    * under lists or maps is tightened: a zero count there would be valid evidence too, but mapping
    * physical chunk paths (writer-dependent names like {@code list.element}, {@code array}) onto the
-   * converted schema is not worth it. A file with no row groups has no rows and proves every
-   * column, matching how the pin check treats empty files.
+   * converted schema is not worth it. A file with no rows (no row groups, or only empty ones, as
+   * pyarrow writes an empty table) proves every column, matching how the pin check treats empty
+   * files.
    */
   static Schema tighten(Schema schema, ParquetMetadata footer) {
-    if (footer.getBlocks().isEmpty()) {
+    if (rowCount(footer) == 0) {
       return new Schema(tightenAll(schema.asStruct()).fields());
     }
     Set<List<String>> zeroNullLeaves = leafPathsWithZeroNullCounts(footer);
@@ -155,13 +156,26 @@ final class FileSchemas {
     }
   }
 
-  /** Leaf paths proven null-free in every row group (intersection over blocks). */
+  private static long rowCount(ParquetMetadata footer) {
+    long rows = 0;
+    for (BlockMetaData block : footer.getBlocks()) {
+      rows += block.getRowCount();
+    }
+    return rows;
+  }
+
+  /**
+   * Leaf paths proven null-free in every row group that has rows (intersection over blocks). An
+   * empty row group holds no nulls whatever its statistics say, so it constrains nothing.
+   */
   private static Set<List<String>> leafPathsWithZeroNullCounts(ParquetMetadata footer) {
     Set<List<String>> proven = null;
     for (BlockMetaData block : footer.getBlocks()) {
+      if (block.getRowCount() == 0) {
+        continue;
+      }
       Set<List<String>> provenHere = new HashSet<>();
       for (ColumnChunkMetaData chunk : block.getColumns()) {
-        // A zero-row row group proves trivially: zero rows hold zero nulls.
         Statistics<?> stats = chunk.getStatistics();
         if (stats != null && stats.isNumNullsSet() && stats.getNumNulls() == 0) {
           provenHere.add(Arrays.asList(chunk.getPath().toArray()));

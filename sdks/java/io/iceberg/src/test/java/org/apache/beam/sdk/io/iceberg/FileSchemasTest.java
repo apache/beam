@@ -25,16 +25,26 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.function.IntPredicate;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.parquet.column.ColumnDescriptor;
+import org.apache.parquet.column.EncodingStats;
+import org.apache.parquet.column.statistics.Statistics;
 import org.apache.parquet.example.data.Group;
 import org.apache.parquet.example.data.simple.SimpleGroupFactory;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.apache.parquet.hadoop.example.ExampleParquetWriter;
+import org.apache.parquet.hadoop.metadata.BlockMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
+import org.apache.parquet.hadoop.metadata.ColumnPath;
+import org.apache.parquet.hadoop.metadata.CompressionCodecName;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
@@ -188,8 +198,12 @@ public class FileSchemasTest {
 
   @Test
   public void testOneRowGroupWithNullsSpoilsTheProof() throws IOException {
-    Schema schema =
-        tightened(write(100, 4, true, new Nulls(r -> r == 60, r -> false, r -> false, r -> false)));
+    ParquetMetadata footer =
+        write(100, 4, true, new Nulls(r -> r == 60, r -> false, r -> false, r -> false));
+    assertTrue("expected several row groups", footer.getBlocks().size() > 1);
+
+    Schema schema = tightened(footer);
+
     assertFalse(isRequired(schema, "name"));
     assertTrue(isRequired(schema, "address.zip"));
   }
@@ -197,7 +211,28 @@ public class FileSchemasTest {
   /** With no rows nothing can violate a required column, so every column counts as proven. */
   @Test
   public void testZeroRowsProveEverything() throws IOException {
-    Schema schema = tightened(write(0, 1, true, Nulls.NONE));
+    ParquetMetadata footer = write(0, 1, true, Nulls.NONE);
+    assertEquals("parquet-mr writes no row group for zero rows", 0, footer.getBlocks().size());
+
+    Schema schema = tightened(footer);
+
+    assertTrue(isRequired(schema, "id"));
+    assertTrue(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address"));
+    assertTrue(isRequired(schema, "address.city"));
+    assertFalse(isRequired(schema, "tags"));
+  }
+
+  /**
+   * pyarrow writes an empty table as one row group with zero rows and no statistics. parquet-mr
+   * never produces that shape, so the footer is assembled by hand.
+   */
+  @Test
+  public void testEmptyRowGroupWithoutStatsProvesEverything() throws IOException {
+    ParquetMetadata footer = withBlocks(write(0, 1, true, Nulls.NONE), emptyBlockWithoutStats());
+
+    Schema schema = tightened(footer);
+
     assertTrue(isRequired(schema, "id"));
     assertTrue(isRequired(schema, "name"));
     assertTrue(isRequired(schema, "address"));
@@ -206,13 +241,67 @@ public class FileSchemasTest {
   }
 
   @Test
+  public void testEmptyRowGroupDoesNotSpoilTheProof() throws IOException {
+    ParquetMetadata written = write(10, 1, true, Nulls.NONE);
+    ParquetMetadata footer =
+        withBlocks(written, written.getBlocks().get(0), emptyBlockWithoutStats());
+
+    Schema schema = tightened(footer);
+
+    assertTrue(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address.city"));
+  }
+
+  @Test
+  public void testEmptyRowGroupDoesNotHideNullsElsewhere() throws IOException {
+    ParquetMetadata written =
+        write(10, 1, true, new Nulls(r -> r == 3, r -> false, r -> false, r -> false));
+    ParquetMetadata footer =
+        withBlocks(written, emptyBlockWithoutStats(), written.getBlocks().get(0));
+
+    Schema schema = tightened(footer);
+
+    assertFalse(isRequired(schema, "name"));
+    assertTrue(isRequired(schema, "address.city"));
+  }
+
+  private static ParquetMetadata withBlocks(ParquetMetadata footer, BlockMetaData... blocks) {
+    List<BlockMetaData> list = new ArrayList<>();
+    Collections.addAll(list, blocks);
+    return new ParquetMetadata(footer.getFileMetaData(), list);
+  }
+
+  /** One chunk per leaf of {@link #MIXED}, zero rows, statistics absent as a reader sees them. */
+  private static BlockMetaData emptyBlockWithoutStats() {
+    BlockMetaData block = new BlockMetaData();
+    block.setRowCount(0);
+    for (ColumnDescriptor column : MIXED.getColumns()) {
+      block.addColumn(
+          ColumnChunkMetaData.get(
+              ColumnPath.get(column.getPath()),
+              column.getPrimitiveType(),
+              CompressionCodecName.UNCOMPRESSED,
+              new EncodingStats.Builder().build(),
+              Collections.emptySet(),
+              Statistics.getBuilderForReading(column.getPrimitiveType()).build(),
+              0,
+              0,
+              0,
+              0,
+              0));
+    }
+    return block;
+  }
+
+  @Test
   public void testCanonicalWithNullFreeColumnsReportsChangedOnly() throws IOException {
     ParquetMetadata footer =
         write(10, 1, true, new Nulls(r -> false, r -> false, r -> false, r -> r == 4));
     CollectDistinctSchemas.SchemaGroup group = FileSchemas.schemaGroup(footer);
     // id is declared required already; zip has a null; the rest flipped
-    assertEquals(java.util.Arrays.asList("address", "address.city", "name"), group.nullFreeColumns);
-    Schema declared = SchemaParser.fromJson(group.schemaJson);
+    assertEquals(
+        java.util.Arrays.asList("address", "address.city", "name"), group.getNullFreeColumns());
+    Schema declared = SchemaParser.fromJson(group.getSchemaJson());
     assertFalse(isRequired(declared, "name"));
   }
 

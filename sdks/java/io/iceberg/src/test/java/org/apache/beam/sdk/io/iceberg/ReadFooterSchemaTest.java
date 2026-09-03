@@ -191,7 +191,7 @@ public class ReadFooterSchemaTest {
     PAssert.thatSingleton(out)
         .satisfies(
             group -> {
-              assertEquals(expected, group.nullFreeColumns);
+              assertEquals(expected, group.getNullFreeColumns());
               return null;
             });
   }
@@ -209,7 +209,7 @@ public class ReadFooterSchemaTest {
         .satisfies(
             actual -> {
               List<String> jsons = new ArrayList<>();
-              actual.forEach(group -> jsons.add(group.schemaJson));
+              actual.forEach(group -> jsons.add(group.getSchemaJson()));
               assertEquals(2, jsons.size());
               assertEquals(jsons.get(0), jsons.get(1));
               return null;
@@ -269,7 +269,7 @@ public class ReadFooterSchemaTest {
             actual -> {
               List<String> remaining = new ArrayList<>(expectedJson);
               for (CollectDistinctSchemas.SchemaGroup group : actual) {
-                String json = group.schemaJson;
+                String json = group.getSchemaJson();
                 Schema schema = SchemaParser.fromJson(json);
                 boolean matched = false;
                 for (int i = 0; i < remaining.size(); i++) {

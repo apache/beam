@@ -80,7 +80,7 @@ public class CollectDistinctSchemasTest {
         combine(group(ID_NAME, 1, NONE), group(NAME_ID, 1, NONE), group(ID_LONG_NAME, 1, NONE));
     assertEquals(3, out.size());
     for (SchemaGroup entry : out) {
-      assertEquals(1L, entry.files);
+      assertEquals(1L, entry.getFiles());
     }
   }
 
@@ -179,7 +179,7 @@ public class CollectDistinctSchemasTest {
   }
 
   private static SchemaGroup group(String json, long files, List<String> proven) {
-    return new SchemaGroup(json, files, proven);
+    return SchemaGroup.of(json, files, proven);
   }
 
   private static String json(Schema schema) {
