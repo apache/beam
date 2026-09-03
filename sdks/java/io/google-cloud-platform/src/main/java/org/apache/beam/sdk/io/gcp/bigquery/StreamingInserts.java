@@ -245,7 +245,7 @@ public class StreamingInserts<DestinationT, ElementT>
   }
 
   StreamingInserts<DestinationT, ElementT> withDeterministicRecordIdFn(
-      SerializableFunction<ElementT, String> deterministicRecordIdFn) {
+      @Nullable SerializableFunction<ElementT, String> deterministicRecordIdFn) {
     return new StreamingInserts<>(
         createDisposition,
         dynamicDestinations,
@@ -264,7 +264,7 @@ public class StreamingInserts<DestinationT, ElementT>
         kmsKey);
   }
 
-  StreamingInserts<DestinationT, ElementT> withKmsKey(String kmsKey) {
+  StreamingInserts<DestinationT, ElementT> withKmsKey(@Nullable String kmsKey) {
     return new StreamingInserts<>(
         createDisposition,
         dynamicDestinations,
