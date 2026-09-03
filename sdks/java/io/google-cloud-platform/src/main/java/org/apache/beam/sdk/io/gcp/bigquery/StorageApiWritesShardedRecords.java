@@ -608,15 +608,18 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         // rows.
         ProtoRows.Builder retryRows = ProtoRows.newBuilder();
         @Nullable List<org.joda.time.Instant> timestamps = Lists.newArrayList();
+        List<@Nullable TableRow> failsafeTableRows = Lists.newArrayList();
         for (int i = 0; i < failedContext.protoRows.getSerializedRowsCount(); ++i) {
           if (!failedRowIndices.contains(i)) {
             ByteString rowBytes = failedContext.protoRows.getSerializedRows(i);
             retryRows.addSerializedRows(rowBytes);
             timestamps.add(failedContext.timestamps.get(i));
+            failsafeTableRows.add(failedContext.failsafeTableRows.get(i));
           }
         }
         failedContext.protoRows = retryRows.build();
         failedContext.timestamps = timestamps;
+        failedContext.failsafeTableRows = failsafeTableRows;
         int retriedRows = failedContext.protoRows.getSerializedRowsCount();
         BigQuerySinkMetrics.appendRowsRowStatusCounter(
                 BigQuerySinkMetrics.RowStatus.RETRIED, errorCode, shortTableId)
