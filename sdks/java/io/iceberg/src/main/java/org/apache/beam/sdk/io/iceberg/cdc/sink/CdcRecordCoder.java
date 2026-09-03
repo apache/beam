@@ -21,10 +21,9 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.ValueKindCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
@@ -40,7 +39,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class CdcRecordCoder extends CustomCoder<CdcRecord> {
 
   private final RowCoder dataCoder;
-  private final VarIntCoder kindCoder = VarIntCoder.of();
+  private final ValueKindCoder kindCoder = ValueKindCoder.of();
   private final VarLongCoder seqCoder = VarLongCoder.of();
 
   private CdcRecordCoder(Schema dataSchema) {
@@ -58,46 +57,16 @@ final class CdcRecordCoder extends CustomCoder<CdcRecord> {
   @Override
   public void encode(CdcRecord value, OutputStream outStream) throws IOException {
     dataCoder.encode(value.getData(), outStream);
-    kindCoder.encode(kindToCode(value.getKind()), outStream);
+    kindCoder.encode(value.getKind(), outStream);
     seqCoder.encode(value.getSequenceNumber(), outStream);
   }
 
   @Override
   public CdcRecord decode(InputStream inStream) throws IOException {
     Row data = dataCoder.decode(inStream);
-    ValueKind kind = kindFromCode(kindCoder.decode(inStream));
+    ValueKind kind = kindCoder.decode(inStream);
     long seq = seqCoder.decode(inStream);
     return CdcRecord.of(data, kind, seq);
-  }
-
-  private static int kindToCode(ValueKind kind) {
-    switch (kind) {
-      case INSERT:
-        return 0;
-      case UPDATE_BEFORE:
-        return 1;
-      case UPDATE_AFTER:
-        return 2;
-      case DELETE:
-        return 3;
-      default:
-        throw new IllegalArgumentException("Unknown ValueKind: " + kind);
-    }
-  }
-
-  private static ValueKind kindFromCode(int code) throws CoderException {
-    switch (code) {
-      case 0:
-        return ValueKind.INSERT;
-      case 1:
-        return ValueKind.UPDATE_BEFORE;
-      case 2:
-        return ValueKind.UPDATE_AFTER;
-      case 3:
-        return ValueKind.DELETE;
-      default:
-        throw new CoderException("Unknown CdcRecord ValueKind code: " + code);
-    }
   }
 
   @Override
