@@ -65,23 +65,23 @@ final class CdcSinkTestUtils {
   /** An {@link IcebergCatalogConfig} resolving to the same warehouse as {@link #hadoopCatalog}. */
   static IcebergCatalogConfig catalogConfig(File warehouseDir) {
     return IcebergCatalogConfig.builder()
-      .setCatalogProperties(
-        ImmutableMap.of(
-          "type",
-          CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
-          "warehouse",
-          "file:" + warehouseDir.getAbsolutePath()))
-      .build();
+        .setCatalogProperties(
+            ImmutableMap.of(
+                "type",
+                CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
+                "warehouse",
+                "file:" + warehouseDir.getAbsolutePath()))
+        .build();
   }
 
   /** Creates a table with the given identifier field ids format version. */
   static Table createTable(
-    Catalog catalog,
-    TableIdentifier id,
-    Schema schema,
-    Set<Integer> identifierFieldIds,
-    int formatVersion,
-    PartitionSpec spec) {
+      Catalog catalog,
+      TableIdentifier id,
+      Schema schema,
+      Set<Integer> identifierFieldIds,
+      int formatVersion,
+      PartitionSpec spec) {
     Schema schemaWithIds = new Schema(schema.columns(), identifierFieldIds);
     Map<String, String> props = ImmutableMap.of("format-version", String.valueOf(formatVersion));
     return catalog.createTable(id, schemaWithIds, spec, props);
@@ -94,17 +94,17 @@ final class CdcSinkTestUtils {
    */
   static void createDestTables(Catalog catalog, String tableA, String tableB) {
     Schema destTableSchema =
-      new Schema(
-        Types.NestedField.required(1, "id", Types.IntegerType.get()),
-        Types.NestedField.optional(2, "dest", Types.StringType.get()));
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.optional(2, "dest", Types.StringType.get()));
     for (String name : ImmutableList.of(tableA, tableB)) {
       createTable(
-        catalog,
-        TableIdentifier.of("db", name),
-        destTableSchema,
-        ImmutableSet.of(1),
-        2,
-        PartitionSpec.unpartitioned());
+          catalog,
+          TableIdentifier.of("db", name),
+          destTableSchema,
+          ImmutableSet.of(1),
+          2,
+          PartitionSpec.unpartitioned());
     }
   }
 
@@ -113,20 +113,20 @@ final class CdcSinkTestUtils {
    * stores only sort order id 1, no id 0 (the id every sink equality delete carries).
    */
   static Table createSortedTable(
-    Catalog catalog,
-    TableIdentifier id,
-    Schema schema,
-    Set<Integer> identifierFieldIds,
-    int formatVersion,
-    PartitionSpec spec,
-    SortOrder sortOrder) {
+      Catalog catalog,
+      TableIdentifier id,
+      Schema schema,
+      Set<Integer> identifierFieldIds,
+      int formatVersion,
+      PartitionSpec spec,
+      SortOrder sortOrder) {
     Schema schemaWithIds = new Schema(schema.columns(), identifierFieldIds);
     return catalog
-      .buildTable(id, schemaWithIds)
-      .withPartitionSpec(spec)
-      .withSortOrder(sortOrder)
-      .withProperties(ImmutableMap.of("format-version", String.valueOf(formatVersion)))
-      .create();
+        .buildTable(id, schemaWithIds)
+        .withPartitionSpec(spec)
+        .withSortOrder(sortOrder)
+        .withProperties(ImmutableMap.of("format-version", String.valueOf(formatVersion)))
+        .create();
   }
 
   /**
@@ -134,18 +134,18 @@ final class CdcSinkTestUtils {
    * the current spec as the pinned spec.
    */
   static RecordDeltaTaskWriter deltaWriter(
-    Table table, Set<Integer> equalityFieldIds, boolean upsert, long targetFileSizeBytes) {
+      Table table, Set<Integer> equalityFieldIds, boolean upsert, long targetFileSizeBytes) {
     FileFormat dataFormat = RecordDeltaTaskWriter.dataFileFormat(table);
     FileFormat deleteFormat = RecordDeltaTaskWriter.deleteFileFormat(table, dataFormat);
     return RecordDeltaTaskWriter.create(
-      table,
-      table.spec(),
-      equalityFieldIds,
-      upsert,
-      targetFileSizeBytes,
-      OutputFileFactory.builderFor(table, 1, 1).build(),
-      dataFormat,
-      deleteFormat);
+        table,
+        table.spec(),
+        equalityFieldIds,
+        upsert,
+        targetFileSizeBytes,
+        OutputFileFactory.builderFor(table, 1, 1).build(),
+        dataFormat,
+        deleteFormat);
   }
 
   /** An {@link DoFn.OutputReceiver} appending to {@code out}, for driving a DoFn directly. */
@@ -183,11 +183,11 @@ final class CdcSinkTestUtils {
 
   private static ParDo.SingleOutput<KV<ValueKind, Row>, Row> kindsFn() {
     return ParDo.of(
-      new DoFn<KV<ValueKind, Row>, Row>() {
-        @ProcessElement
-        public void process(@Element KV<ValueKind, Row> e, OutputReceiver<Row> out) {
-          out.builder(e.getValue()).setValueKind(e.getKey()).output();
-        }
-      });
+        new DoFn<KV<ValueKind, Row>, Row>() {
+          @ProcessElement
+          public void process(@Element KV<ValueKind, Row> e, OutputReceiver<Row> out) {
+            out.builder(e.getValue()).setValueKind(e.getKey()).output();
+          }
+        });
   }
 }
