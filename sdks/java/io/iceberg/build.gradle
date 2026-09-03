@@ -49,6 +49,7 @@ dependencies {
     implementation library.java.avro
     implementation library.java.slf4j_api
     implementation library.java.joda_time
+    implementation library.java.guava
     implementation "org.apache.parquet:parquet-column:$parquet_version"
     implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
     implementation "org.apache.parquet:parquet-common:$parquet_version"
@@ -169,6 +170,17 @@ task integrationTest(type: Test) {
         "--project=${gcpProject}",
         "--tempLocation=${gcpTempLocation}",
     ])
+    // Warehouse (= catalog) used by the BigLake REST catalog tests; overridable for runs
+    // against a non-default project's catalog.
+    systemProperty "beam.iceberg.biglake.warehouse",
+        project.findProperty('biglakeWarehouse') ?: 'gs://managed-iceberg-biglake-its'
+    // Connection + storage root for BigQueryManagedTableCrossEngineIT.
+    if (project.findProperty('bqImtConnection') != null) {
+        systemProperty "beam.bq.imt.connection", project.findProperty('bqImtConnection')
+    }
+    if (project.findProperty('bqImtStorageUri') != null) {
+        systemProperty "beam.bq.imt.storageUri", project.findProperty('bqImtStorageUri')
+    }
 
     // Disable Gradle cache: these ITs interact with live service that should always be considered "out of date"
     outputs.upToDateWhen { false }

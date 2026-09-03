@@ -27,31 +27,20 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
-import org.apache.beam.sdk.io.Compression;
-import org.apache.beam.sdk.io.FileSystems;
-import org.apache.beam.sdk.io.fs.ResourceId;
-import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.BeamParquetInputFile;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -75,8 +64,6 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.iceberg.AppendFiles;
@@ -111,7 +98,6 @@ import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
-import org.apache.parquet.hadoop.ParquetFileReader;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
@@ -251,15 +237,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * <p><b>Asynchronous Bundle Processing:</b> Because file I/O, catalog lookups, and metadata
    * inference can be highly latency-bound, this DoFn implements an asynchronous processing pattern
    * to maximize throughput. By default, Beam processes elements in a bundle sequentially. To avoid
-   * bottlenecking the pipeline, we use an internal {@link ExecutorService} to process multiple
+   * bottlenecking the pipeline, we use an internal {@link BoundedAsyncTasks} to process multiple
    * files concurrently within a single DoFn instance.
    *
    * <p><b>Lifecycle & Thread Safety:</b>
    *
    * <ul>
    *   <li><b>{@link ProcessElement}:</b> Submits the heavy lifting (format inference, metrics
-   *       collection, and partition resolution) to a background thread pool and stores the
-   *       resulting {@link Future}.
+   *       collection, and partition resolution) to a background thread pool and emits results as
+   *       they complete.
    *   <li><b>{@link FinishBundle}:</b> Blocks and awaits the completion of all futures in the
    *       current bundle. It safely emits the successfully parsed {@link DataFile}s, or error rows,
    *       back to the runner on the main thread, as {@link MultiOutputReceiver} is not thread-safe.
@@ -274,8 +260,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable List<String> partitionFields;
     private final @Nullable List<String> sortFields;
     private final @Nullable Map<String, String> tableProps;
-    private transient @MonotonicNonNull ExecutorService executor;
-    private transient @MonotonicNonNull LinkedList<Future<ProcessResult>> activeTasks;
+    private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
     private transient volatile @MonotonicNonNull Table table;
 
     // Number of parallel threads processing incoming files
@@ -329,19 +314,21 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @Setup
     public void setup() {
-      executor = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
+      tasks = new BoundedAsyncTasks<>(THREAD_POOL_SIZE, MAX_IN_FLIGHT_TASKS);
+    }
+
+    /** Clears anything left behind if the runner reuses this instance after a failed bundle. */
+    @StartBundle
+    public void startBundle() {
+
+      checkStateNotNull(tasks).cancelAll();
     }
 
     @Teardown
     public void teardown() {
-      if (executor != null) {
-        executor.shutdownNow();
+      if (tasks != null) {
+        tasks.shutdown();
       }
-    }
-
-    @StartBundle
-    public void startBundle() {
-      activeTasks = Lists.newLinkedList();
     }
 
     @ProcessElement
@@ -351,28 +338,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         BoundedWindow window,
         PaneInfo paneInfo,
         MultiOutputReceiver output)
-        throws IOException, InterruptedException, ExecutionException {
-      LinkedList<Future<ProcessResult>> activeTasks = checkStateNotNull(this.activeTasks);
-
-      // start draining finished tasks, but don't block
-      Iterator<Future<ProcessResult>> iterator = activeTasks.iterator();
-      while (iterator.hasNext()) {
-        Future<ProcessResult> future = iterator.next();
-        if (future.isDone()) {
-          outputResult(future.get(), output);
-          iterator.remove();
-        }
-      }
-
-      // if we have too many active tasks, wait until some finish
-      while (activeTasks.size() >= MAX_IN_FLIGHT_TASKS) {
-        Future<ProcessResult> oldestTask = activeTasks.removeFirst();
-        outputResult(oldestTask.get(), output); // .get() blocks until the task completes
-      }
-
-      // create a new task for the current element and add to queue
+        throws Exception {
       Callable<ProcessResult> task = createProcessTask(filePath, timestamp, window, paneInfo);
-      activeTasks.add(checkStateNotNull(executor).submit(task));
+      checkStateNotNull(tasks).submit(task, result -> outputResult(result, output));
     }
 
     private void outputResult(ProcessResult result, MultiOutputReceiver output) {
@@ -398,18 +366,16 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     @FinishBundle
     public void finishBundle(FinishBundleContext context) throws Exception {
-      // Block and wait for threads to finish their work
-      int numErrors = 0;
-      for (Future<ProcessResult> future : checkStateNotNull(activeTasks)) {
-        ProcessResult result = future.get();
-        if (result.errorRow != null) {
-          context.output(ERRORS, result.errorRow, result.timestamp, result.window);
-          numErrors++;
-        } else if (result.dataFile != null) {
-          context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
-        }
+      checkStateNotNull(tasks).awaitAll(result -> outputAtFinish(result, context));
+    }
+
+    private static void outputAtFinish(ProcessResult result, FinishBundleContext context) {
+      if (result.errorRow != null) {
+        context.output(ERRORS, result.errorRow, result.timestamp, result.window);
+        numErrorFiles.inc();
+      } else if (result.dataFile != null) {
+        context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
       }
-      numErrorFiles.inc(numErrors);
     }
 
     private Callable<ProcessResult> createProcessTask(
@@ -420,29 +386,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         try {
           format = inferFormat(filePath);
         } catch (UnknownFormatException e) {
-          return new ProcessResult(
-              null,
-              Row.withSchema(ERROR_SCHEMA).addValues(filePath, UNKNOWN_FORMAT_ERROR).build(),
-              timestamp,
-              window,
-              paneInfo);
+          return errorResult(filePath, UNKNOWN_FORMAT_ERROR, timestamp, window, paneInfo);
         }
 
-        // Synchronize table initialization
+        // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
+        // per-file error rows here would silently drop in-flight files on a transient blip.
+        // Only conditions that are properties of the file go to the error output.
         if (table == null) {
           synchronized (this) {
             if (table == null) {
               try {
                 table = getOrCreateTable(filePath, format);
               } catch (FileNotFoundException e) {
-                return new ProcessResult(
-                    null,
-                    Row.withSchema(ERROR_SCHEMA)
-                        .addValues(filePath, checkStateNotNull(e.getMessage()))
-                        .build(),
-                    timestamp,
-                    window,
-                    paneInfo);
+                return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
               }
             }
           }
@@ -452,12 +408,17 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (table.spec().isPartitioned()
             && !Strings.isNullOrEmpty(prefix)
             && !filePath.startsWith(checkStateNotNull(prefix))) {
-          return new ProcessResult(
-              null,
-              Row.withSchema(ERROR_SCHEMA).addValues(filePath, PREFIX_ERROR).build(),
-              timestamp,
-              window,
-              paneInfo);
+          return errorResult(filePath, PREFIX_ERROR, timestamp, window, paneInfo);
+        }
+
+        // ---- Per-file phase: every failure below is one error row, never a failed bundle.
+        @Nullable ParquetMetadata parquetFooter = null;
+        if (format.equals(FileFormat.PARQUET)) {
+          try {
+            parquetFooter = ParquetFooters.read(filePath);
+          } catch (Exception e) {
+            return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+          }
         }
 
         InputFile inputFile = table.io().newInputFile(filePath);
@@ -469,16 +430,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   inputFile,
                   format,
                   MetricsConfig.forTable(table),
-                  MappingUtil.create(table.schema()));
+                  MappingUtil.create(table.schema()),
+                  parquetFooter);
         } catch (Exception e) {
-          return new ProcessResult(
-              null,
-              Row.withSchema(ERROR_SCHEMA)
-                  .addValues(filePath, checkStateNotNull(e.getMessage()))
-                  .build(),
-              timestamp,
-              window,
-              paneInfo);
+          return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
         }
 
         // Figure out which partition this DataFile should go to
@@ -492,30 +447,39 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         } else {
           try {
             // option 2: examine DataFile min/max statistics to determine partition
-            partitionPath = getPartitionFromMetrics(metrics, inputFile, table);
+            partitionPath = getPartitionFromMetrics(metrics, inputFile, table, parquetFooter);
           } catch (UnknownPartitionException e) {
-            return new ProcessResult(
-                null,
-                Row.withSchema(ERROR_SCHEMA)
-                    .addValues(filePath, UNKNOWN_PARTITION_ERROR + e.getMessage())
-                    .build(),
-                timestamp,
-                window,
-                paneInfo);
+            return errorResult(
+                filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
           }
         }
 
-        DataFile df =
-            DataFiles.builder(table.spec())
-                .withPath(filePath)
-                .withFormat(format)
-                .withMetrics(metrics)
-                .withFileSizeInBytes(inputFile.getLength())
-                .withPartitionPath(partitionPath)
-                .build();
-        return new ProcessResult(
-            SerializableDataFile.from(df, partitionPath), null, timestamp, window, paneInfo);
+        try {
+          DataFile df =
+              DataFiles.builder(table.spec())
+                  .withPath(filePath)
+                  .withFormat(format)
+                  .withMetrics(metrics)
+                  .withFileSizeInBytes(inputFile.getLength())
+                  .withPartitionPath(partitionPath)
+                  .build();
+          return new ProcessResult(
+              SerializableDataFile.from(df, table.spec()), null, timestamp, window, paneInfo);
+        } catch (Exception e) {
+          // getLength is a per-file read (e.g. the file was deleted mid-flight).
+          return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+        }
       };
+    }
+
+    private static ProcessResult errorResult(
+        String filePath, String message, Instant timestamp, BoundedWindow window, PaneInfo pane) {
+      return new ProcessResult(
+          null,
+          Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build(),
+          timestamp,
+          window,
+          pane);
     }
 
     static <W, T> T transformValue(Transform<W, T> transform, Type type, ByteBuffer bytes) {
@@ -563,10 +527,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         throws IOException {
       Preconditions.checkArgument(
           format.equals(FileFormat.PARQUET), "Table creation is only supported for Parquet files.");
-      try (ParquetFileReader reader = ParquetFileReader.open(getParquetInputFile(filePath))) {
-        MessageType messageType = reader.getFooter().getFileMetaData().getSchema();
-        return ParquetSchemaUtil.convert(messageType);
-      }
+      MessageType messageType = ParquetFooters.read(filePath).getFileMetaData().getSchema();
+      return ParquetSchemaUtil.convert(messageType);
     }
 
     private String getPartitionFromFilePath(String filePath) {
@@ -589,8 +551,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
      * partition may lead to it being incorrectly ignored by downstream queries.
      */
-    static String getPartitionFromMetrics(Metrics metrics, InputFile inputFile, Table table)
-        throws UnknownPartitionException, IOException, InterruptedException {
+    static String getPartitionFromMetrics(
+        Metrics metrics, InputFile inputFile, Table table, @Nullable ParquetMetadata preReadFooter)
+        throws UnknownPartitionException {
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
@@ -617,7 +580,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 inputFile,
                 inferFormat(inputFile.location()),
                 configWithPartitionFields,
-                MappingUtil.create(table.schema()));
+                MappingUtil.create(table.schema()),
+                preReadFooter);
       }
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
@@ -749,12 +713,23 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     }
 
     private static void ensureNameMappingPresent(Table table) {
-      if (table.properties().get(TableProperties.DEFAULT_NAME_MAPPING) == null) {
-        // Forces Name based resolution instead of position based resolution
-        NameMapping mapping = MappingUtil.create(table.schema());
-        String mappingJson = NameMappingParser.toJson(mapping);
-        table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
+      // Forces name-based resolution: zero-copy files typically don't carry
+      // field ids, so any schema column missing from the mapping is unreadable
+      // in registered files.
+      @Nullable NameMapping existing =
+          NameMappingUtils.parseOrNull(
+              table.properties().get(TableProperties.DEFAULT_NAME_MAPPING));
+      if (existing != null && NameMappingUtils.covers(existing, table.schema().asStruct())) {
+        return;
       }
+      if (existing != null) {
+        LOG.info(
+            "Name mapping of table {} does not cover its schema; regenerating it, preserving "
+                + "custom names where possible.",
+            table.name());
+      }
+      String mappingJson = NameMappingUtils.regenerate(table.schema(), existing);
+      table.updateProperties().set(TableProperties.DEFAULT_NAME_MAPPING, mappingJson).commit();
     }
 
     @ProcessElement
@@ -839,20 +814,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
   @SuppressWarnings("argument")
   public static Metrics getFileMetrics(
-      InputFile file, FileFormat format, MetricsConfig config, NameMapping mapping)
-      throws IOException {
+      InputFile file,
+      FileFormat format,
+      MetricsConfig config,
+      NameMapping mapping,
+      @Nullable ParquetMetadata preReadFooter) {
     switch (format) {
       case PARQUET:
-        try (ParquetFileReader reader =
-            ParquetFileReader.open(getParquetInputFile(file.location()))) {
-          ParquetMetadata footer = reader.getFooter();
-          MessageType originalMessageType = footer.getFileMetaData().getSchema();
-          if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
-            footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
-          }
-
-          return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
+        ParquetMetadata footer =
+            checkStateNotNull(preReadFooter, "Parquet metrics require the pre-read footer");
+        MessageType originalMessageType = footer.getFileMetaData().getSchema();
+        if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
+          footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
         }
+        return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
       case ORC:
         return OrcMetrics.fromInputFile(file, config, mapping);
       case AVRO:
@@ -860,6 +835,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       default:
         throw new UnsupportedOperationException("Unsupported format: " + format);
     }
+  }
+
+  /**
+   * Some exceptions carry a null message (bare EOFException, NPE); the error-routing path must
+   * never throw on one.
+   */
+  static String errorMessage(Throwable e) {
+    return e.getMessage() != null ? e.getMessage() : e.toString();
   }
 
   /** Tries to infer other file formats. Defaults to Parquet. */
@@ -885,15 +868,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         new FileMetaData(
             originalMessageType, oldFileMeta.getKeyValueMetaData(), oldFileMeta.getCreatedBy());
     return new ParquetMetadata(newFileMeta, footer.getBlocks());
-  }
-
-  static org.apache.parquet.io.InputFile getParquetInputFile(String filePath) throws IOException {
-    ResourceId resourceId =
-        Iterables.getOnlyElement(FileSystems.match(filePath).metadata()).resourceId();
-    Compression compression = Compression.detect(checkStateNotNull(resourceId.getFilename()));
-    SeekableByteChannel channel =
-        (SeekableByteChannel) compression.readDecompressed(FileSystems.open(resourceId));
-    return new BeamParquetInputFile(channel);
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}

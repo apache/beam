@@ -150,12 +150,15 @@ abstract class BigQueryStorageSourceBase<T> extends BoundedSource<T> {
     // an appropriate number of streams for the Session to produce reasonable throughput.
     // This is required when using the Read API Source V2.
     int streamCount = 0;
-    if (!bqOptions.getEnableStorageReadApiV2()) {
+    // numBytes is null for tables that don't report storage statistics, e.g. Lakehouse
+    // runtime catalog (BigLake metastore) tables. Let BQ read API decide number of streams
+    // by specifying streamCount == 0.
+    boolean isNumBytesMissing = targetTable != null && targetTable.getNumBytes() == null;
+    if (!bqOptions.getEnableStorageReadApiV2() && !isNumBytesMissing) {
       if (desiredBundleSizeBytes > 0) {
         long tableSizeBytes = (targetTable != null) ? targetTable.getNumBytes() : 0;
         streamCount = (int) Math.min(tableSizeBytes / desiredBundleSizeBytes, MAX_SPLIT_COUNT);
       }
-
       streamCount = Math.max(streamCount, MIN_SPLIT_COUNT);
     }
 

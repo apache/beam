@@ -65,7 +65,9 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
     }
   }
 
-  /** @deprecated This option will be removed in a future release. */
+  /**
+   * @deprecated This option will be removed in a future release.
+   */
   @JsonSerialize(using = GcsReadOptionsSerializer.class)
   @JsonDeserialize(using = GcsReadOptionsDeserializer.class)
   @Description(
@@ -75,7 +77,9 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   @Deprecated
   GoogleCloudStorageReadOptions getGoogleCloudStorageReadOptions();
 
-  /** @deprecated This option will be removed in a future release. */
+  /**
+   * @deprecated This option will be removed in a future release.
+   */
   @Deprecated
   void setGoogleCloudStorageReadOptions(GoogleCloudStorageReadOptions value);
 
@@ -117,8 +121,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
           + "information on the restrictions and performance implications of this value.\n\n"
           + "https://github.com/GoogleCloudPlatform/bigdata-interop/blob/master/util/src/main/java/"
           + "com/google/cloud/hadoop/util/AsyncWriteChannelOptions.java")
-  @Nullable
-  Integer getGcsUploadBufferSizeBytes();
+  @Nullable Integer getGcsUploadBufferSizeBytes();
 
   void setGcsUploadBufferSizeBytes(@Nullable Integer bytes);
 
@@ -159,20 +162,17 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
   void setGcsPerformanceMetrics(Boolean reportPerformanceMetrics);
 
   @Description("Read timeout for gcs http requests")
-  @Nullable
-  Integer getGcsHttpRequestReadTimeout();
+  @Nullable Integer getGcsHttpRequestReadTimeout();
 
   void setGcsHttpRequestReadTimeout(@Nullable Integer timeoutMs);
 
   @Description("Write timeout for gcs http requests.")
-  @Nullable
-  Integer getGcsHttpRequestWriteTimeout();
+  @Nullable Integer getGcsHttpRequestWriteTimeout();
 
   void setGcsHttpRequestWriteTimeout(@Nullable Integer timeoutMs);
 
   @Description("Batching limit for rewrite ops which will copy data.")
-  @Nullable
-  Integer getGcsRewriteDataOpBatchLimit();
+  @Nullable Integer getGcsRewriteDataOpBatchLimit();
 
   void setGcsRewriteDataOpBatchLimit(@Nullable Integer timeoutMs);
 
@@ -302,8 +302,7 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
 class GcsReadOptionsSerializer extends JsonSerializer<GoogleCloudStorageReadOptions> {
   static final GoogleCloudStorageReadOptions DEFAULT_OPTIONS =
-      GoogleCloudStorageReadOptions.DEFAULT
-          .toBuilder()
+      GoogleCloudStorageReadOptions.DEFAULT.toBuilder()
           .setFadvise(GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL)
           .build();
 

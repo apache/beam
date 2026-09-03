@@ -17,7 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
@@ -149,6 +150,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ListeningExecutorService;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -158,10 +160,7 @@ import org.slf4j.LoggerFactory;
  * An implementation of {@link BigQueryServices} that actually communicates with the cloud BigQuery
  * service.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20506)
-  "keyfor"
-})
+@SuppressWarnings({"keyfor"})
 public class BigQueryServicesImpl implements BigQueryServices {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryServicesImpl.class);
@@ -455,12 +454,17 @@ public class BigQueryServicesImpl implements BigQueryServices {
                   .withInitialBackoff(INITIAL_JOB_STATUS_POLL_BACKOFF)
                   .withMaxBackoff(Duration.standardMinutes(1))
                   .backoff());
-      return pollJob(jobRef, Sleeper.DEFAULT, backoff);
+      // JobService#pollJob is documented to return null when maxAttempts is exhausted, but the
+      // interface method is not annotated @Nullable (annotating it would ripple through every
+      // caller). Suppress narrowly here rather than at the class level.
+      @SuppressWarnings("nullness")
+      @NonNull Job job = pollJob(jobRef, Sleeper.DEFAULT, backoff);
+      return job;
     }
 
     @VisibleForTesting
-    @Nullable
-    Job pollJob(JobReference jobRef, Sleeper sleeper, BackOff backoff) throws InterruptedException {
+    @Nullable Job pollJob(JobReference jobRef, Sleeper sleeper, BackOff backoff)
+        throws InterruptedException {
       do {
         try {
           Job job =
@@ -506,6 +510,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public JobStatistics dryRunQuery(
         String projectId, JobConfigurationQuery queryConfig, @Nullable String location)
         throws InterruptedException, IOException {
+      @SuppressWarnings("nullness") // setLocation is not annotated, but does accept nulls
       JobReference jobRef = new JobReference().setLocation(location).setProjectId(projectId);
       Job job =
           new Job()
@@ -540,7 +545,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
      */
     @Override
     public Job getJob(JobReference jobRef) throws IOException, InterruptedException {
-      return getJob(jobRef, Sleeper.DEFAULT, createDefaultBackoff());
+      // JobService#getJob is documented to return null when the job is not found, but the
+      // interface method is not annotated @Nullable (annotating it would ripple through every
+      // caller). Suppress narrowly here rather than at the class level.
+      @SuppressWarnings("nullness")
+      @NonNull Job job = getJob(jobRef, Sleeper.DEFAULT, createDefaultBackoff());
+      return job;
     }
 
     @VisibleForTesting
@@ -672,8 +682,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    @Nullable
-    Table getTable(
+    @Nullable Table getTable(
         TableReference ref,
         List<String> selectedFields,
         TableMetadataView view,
@@ -747,8 +756,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
 
     @VisibleForTesting
-    @Nullable
-    Table tryCreateTable(Table table, BackOff backoff, Sleeper sleeper) throws IOException {
+    @Nullable Table tryCreateTable(Table table, BackOff backoff, Sleeper sleeper)
+        throws IOException {
       boolean retry = false;
       while (true) {
         try {
@@ -1048,8 +1057,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
              */
             if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
                 && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
+              String exceptionMessage = e.getMessage();
               if (ApiErrorExtractor.INSTANCE.badRequest(e)
-                  && e.getMessage().contains(NO_ROWS_PRESENT)) {
+                  && exceptionMessage != null
+                  && exceptionMessage.contains(NO_ROWS_PRESENT)) {
                 LOG.error(
                     "No rows present in the request error likely caused by BigQuery Insert"
                         + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
@@ -1101,12 +1112,14 @@ public class BigQueryServicesImpl implements BigQueryServices {
         boolean ignoreInsertIds,
         List<ValueInSingleWindow<TableRow>> successfulRows)
         throws IOException, InterruptedException {
-      checkNotNull(ref, "ref");
+      checkArgumentNotNull(ref, "ref");
+      BoundedExecutorService executor = this.executor;
       if (executor == null) {
-        this.executor =
+        executor =
             new BoundedExecutorService(
                 MoreExecutors.listeningDecorator(options.as(GcsOptions.class).getExecutorService()),
                 options.as(BigQueryOptions.class).getInsertBundleParallelism());
+        this.executor = executor;
       }
       if (insertIdList != null && rowList.size() != insertIdList.size()) {
         throw new AssertionError(
@@ -1288,7 +1301,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
                 // errorIndex) from the batch of rows which attempted insertion in this call.
                 // Not the entire set of rows in rowsToPublish.
                 if (retryIds != null) {
-                  retryIds.add(idsToPublish.get(errorIndex));
+                  // retryIds is non-null exactly when idsToPublish is non-null; see where both are
+                  // initialized above.
+                  retryIds.add(checkStateNotNull(idsToPublish).get(errorIndex));
                 }
               } else {
                 numFailedRows += 1;
@@ -1439,8 +1454,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
     public Table patchTableDescription(
         TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException {
-      Table table = new Table();
-      table.setDescription(tableDescription);
+      @SuppressWarnings("nullness") // setDescription is not annotated, but does accept nulls
+      Table table = new Table().setDescription(tableDescription);
 
       return executeWithRetries(
           client
@@ -1539,8 +1554,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
     @Override
     public @Nullable TableSchema getWriteStreamSchema(String writeStream) {
-      @Nullable
-      WriteStream stream =
+      @Nullable WriteStream stream =
           newWriteClient.getWriteStream(
               GetWriteStreamRequest.newBuilder()
                   .setView(WriteStreamView.FULL)
@@ -1877,7 +1891,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
             && metadata != null
             && metadata.containsKey(KEY_RETRY_INFO)) {
           LOG.info("BigQuery direct read quota exceeded, retrying.");
-          RetryInfo retryInfo = metadata.get(KEY_RETRY_INFO);
+          // containsKey() was just checked above, so the value must be present.
+          RetryInfo retryInfo = checkStateNotNull(metadata.get(KEY_RETRY_INFO));
           if (retryInfo.hasRetryDelay()) {
             long delay =
                 retryInfo.getRetryDelay().getSeconds() * 1000
@@ -1916,9 +1931,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
           settingsBuilder.getStubSettingsBuilder().createReadSessionSettings();
 
       createReadSessionSettings.setRetrySettings(
-          createReadSessionSettings
-              .getRetrySettings()
-              .toBuilder()
+          createReadSessionSettings.getRetrySettings().toBuilder()
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofHours(2))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofHours(2))
               .setTotalTimeout(org.threeten.bp.Duration.ofHours(2))
@@ -1929,9 +1942,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
               settingsBuilder.getStubSettingsBuilder().splitReadStreamSettings();
 
       splitReadStreamSettings.setRetrySettings(
-          splitReadStreamSettings
-              .getRetrySettings()
-              .toBuilder()
+          splitReadStreamSettings.getRetrySettings().toBuilder()
               .setInitialRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
               .setMaxRpcTimeout(org.threeten.bp.Duration.ofSeconds(30))
               .setTotalTimeout(org.threeten.bp.Duration.ofSeconds(30))
@@ -1989,7 +2000,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
       ServiceCallMetric serviceCallMetric = BigQueryUtils.readCallMetric(tableReference);
       try {
         BigQueryServerStream<ReadRowsResponse> response = readRows(request);
-        serviceCallMetric.call("ok");
+        if (serviceCallMetric != null) {
+          serviceCallMetric.call("ok");
+        }
         return response;
       } catch (ApiException e) {
         if (serviceCallMetric != null) {

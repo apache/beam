@@ -880,8 +880,7 @@ public class TableRowToStorageApiProto {
           BigQuerySchemaUtil.isProtoCompatible(key)
               ? key
               : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
-      @Nullable
-      FieldDescriptor fieldDescriptor =
+      @Nullable FieldDescriptor fieldDescriptor =
           (descriptor == null) ? null : descriptor.findFieldByName(protoFieldName);
 
       if (fieldDescriptor == null) {
@@ -976,8 +975,7 @@ public class TableRowToStorageApiProto {
               return (TableRow) unknownFields.computeIfAbsent(key, k -> nestedUnknown);
             };
 
-        @Nullable
-        Object value =
+        @Nullable Object value =
             messageValueFromFieldValue(
                 fieldSchemaInformation,
                 fieldDescriptor,
@@ -1080,7 +1078,6 @@ public class TableRowToStorageApiProto {
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
    */
-  @SuppressWarnings("nullness")
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
       @Nullable Descriptor descriptor,
@@ -1124,7 +1121,10 @@ public class TableRowToStorageApiProto {
       if (unknownFields != null) {
         List<TableCell> unknownValues = Lists.newArrayListWithExpectedSize(cells.size());
         for (int i = 0; i < cells.size(); ++i) {
-          unknownValues.add(new TableCell().setV(null));
+          // TableCell accepts a null value, but the API client is not annotated.
+          @SuppressWarnings("nullness")
+          TableCell nullCell = new TableCell().setV(null);
+          unknownValues.add(nullCell);
         }
         unknownFields.setF(unknownValues);
       }
@@ -1141,8 +1141,8 @@ public class TableRowToStorageApiProto {
                   return null;
                 }
                 TableRow localUnknownFields = Preconditions.checkStateNotNull(unknownFields);
-                @Nullable
-                TableRow nested = (TableRow) localUnknownFields.getF().get(finalIndex).getV();
+                @Nullable TableRow nested =
+                    (TableRow) localUnknownFields.getF().get(finalIndex).getV();
                 if (nested == null) {
                   nested = new TableRow();
                   localUnknownFields.getF().set(finalIndex, new TableCell().setV(nested));
@@ -1150,8 +1150,7 @@ public class TableRowToStorageApiProto {
                 return nested;
               };
 
-          @Nullable
-          Object value =
+          @Nullable Object value =
               messageValueFromFieldValue(
                   fieldSchemaInformation,
                   fieldDescriptor,
@@ -1186,7 +1185,10 @@ public class TableRowToStorageApiProto {
       // If there are unknown fields, copy them into the output.
       if (unknownFields != null) {
         for (int i = cellsToProcess; i < cells.size(); ++i) {
-          unknownFields.getF().set(i, new TableCell().setV(cells.get(i).get("v")));
+          // TableCell accepts a null value, but the API client is not annotated.
+          @SuppressWarnings("nullness")
+          TableCell unknownCell = new TableCell().setV(cells.get(i).get("v"));
+          unknownFields.getF().set(i, unknownCell);
         }
       }
 
@@ -1547,9 +1549,8 @@ public class TableRowToStorageApiProto {
 
   private static @Nullable Object messageValueFromFieldValue(
       SchemaInformation schemaInformation,
-      @Nullable
-          FieldDescriptor
-              fieldDescriptor, // Null in the case of recursively finding missing fields.
+      @Nullable FieldDescriptor
+          fieldDescriptor, // Null in the case of recursively finding missing fields.
       @Nullable Object bqValue,
       boolean ignoreUnknownValues,
       boolean allowMissingRequiredFields,
@@ -1674,8 +1675,7 @@ public class TableRowToStorageApiProto {
               .build();
 
     } else {
-      @Nullable
-      ThrowingBiFunction<String, Object, @Nullable Object> converter =
+      @Nullable ThrowingBiFunction<String, Object, @Nullable Object> converter =
           TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType());
       if (converter == null) {
         throw new RuntimeException("Unknown type " + schemaInformation.getType());

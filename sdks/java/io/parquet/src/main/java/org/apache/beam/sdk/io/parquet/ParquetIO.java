@@ -333,6 +333,7 @@ public class ParquetIO {
     public Read from(String filepattern) {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
+
     /** Enable the reading with projection. */
     public Read withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
@@ -468,8 +469,7 @@ public class ParquetIO {
           .apply(FileIO.matchAll())
           .apply(FileIO.readMatches())
           .apply(
-              parseFilesGenericRecords(getParseFn())
-                  .toBuilder()
+              parseFilesGenericRecords(getParseFn()).toBuilder()
                   .setCoder(getCoder())
                   .setConfiguration(getConfiguration())
                   .build());

@@ -715,9 +715,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
                 .collect(Collectors.toList()));
     RunnerApi.Components components = pipelineProto.getComponents();
     RunnerApi.PTransform expandedTransform =
-        components
-            .getTransformsOrThrow(expandedTransformId)
-            .toBuilder()
+        components.getTransformsOrThrow(expandedTransformId).toBuilder()
             .setUniqueName(expandedTransformId)
             .clearOutputs()
             .putAllOutputs(outputMap)
