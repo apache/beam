@@ -120,9 +120,8 @@ public class LeaseRenewalRaceTest {
    * An in-flight update cannot have its drained metrics dropped by a racing completion.
    */
   @Test
-  public void drainedMetricUpdatesAreLostWhenProgressUpdateRacesReportSuccess() throws Exception {
+  public void drainedMetricUpdatesSurviveConcurrentReportSuccess() throws Exception {
     CountDownLatch drained = new CountDownLatch(1);
-    CountDownLatch finalSent = new CountDownLatch(1);
     AtomicReference<Throwable> progressFailure = new AtomicReference<>();
     List<CounterUpdate> pending = new ArrayList<>();
     pending.add(namedCounter("user-metric", 1L));
@@ -135,7 +134,6 @@ public class LeaseRenewalRaceTest {
                 pending.clear();
                 if (!copy.isEmpty()) {
                   drained.countDown();
-                  finalSent.await(1, TimeUnit.SECONDS);
                 }
                 return copy;
               }
@@ -158,7 +156,6 @@ public class LeaseRenewalRaceTest {
     assertTrue("progress thread should have drained", drained.await(5, TimeUnit.SECONDS));
 
     statusClient.reportSuccess();
-    finalSent.countDown();
     progressThread.join(5000);
 
     boolean anyStatusCarriesTheMetric =

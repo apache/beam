@@ -27,7 +27,6 @@ import com.google.api.services.dataflow.model.HotKeyDetection;
 import com.google.api.services.dataflow.model.WorkItem;
 import com.google.api.services.dataflow.model.WorkItemServiceState;
 import java.util.concurrent.ScheduledExecutorService;
-import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
@@ -59,11 +58,9 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
 
   private HotKeyLogger hotKeyLogger;
 
-  @GuardedBy("executor")
   private boolean wasAskedToAbort = false;
 
-  @GuardedBy("executor")
-  private boolean leaseRenewalOnly = false;
+  private volatile boolean leaseRenewalOnly = false;
 
   public DataflowWorkProgressUpdater(
       WorkItemStatusClient workItemStatusClient,
@@ -118,25 +115,19 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
    * metrics, or progress.
    */
   public void setLeaseRenewalOnly(boolean leaseRenewalOnly) {
-    synchronized (executor) {
-      this.leaseRenewalOnly = leaseRenewalOnly;
-    }
+    this.leaseRenewalOnly = leaseRenewalOnly;
   }
 
   @VisibleForTesting
   public boolean isLeaseRenewalOnly() {
-    synchronized (executor) {
-      return leaseRenewalOnly;
-    }
+    return leaseRenewalOnly;
   }
 
   @Override
   protected void reportProgressHelper() throws Exception {
-    synchronized (executor) {
-      if (wasAskedToAbort) {
-        LOG.info("Service already asked to abort work item, not reporting ignored progress.");
-        return;
-      }
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return;
     }
     if (workItemStatusClient.isFinalStateSent()) {
       LOG.debug(
@@ -144,24 +135,14 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       return;
     }
 
-    boolean pingOnly;
-    synchronized (executor) {
-      pingOnly = leaseRenewalOnly;
-    }
-
-    if (pingOnly) {
+    if (leaseRenewalOnly && dynamicSplitResultToReport == null) {
       reportLeasePing();
       return;
     }
 
-    long leaseDurationMs;
-    synchronized (executor) {
-      leaseDurationMs = requestedLeaseDurationMs;
-    }
-
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
-            dynamicSplitResultToReport, Duration.millis(leaseDurationMs));
+            dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
 
     if (result != null) {
       handleServiceState(result);
@@ -172,21 +153,13 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
    * Reports a lightweight lease renewal heartbeat to the worker service without extracting counters
    * or progress.
    */
-  public void reportLeasePing() throws Exception {
-    synchronized (executor) {
-      if (wasAskedToAbort) {
-        return;
-      }
-    }
-    if (workItemStatusClient.isFinalStateSent()) {
+  @VisibleForTesting
+  void reportLeasePing() throws Exception {
+    if (wasAskedToAbort || workItemStatusClient.isFinalStateSent()) {
       return;
     }
-    long leaseDurationMs;
-    synchronized (executor) {
-      leaseDurationMs = requestedLeaseDurationMs;
-    }
     WorkItemServiceState result =
-        workItemStatusClient.reportLeasePing(Duration.millis(leaseDurationMs));
+        workItemStatusClient.reportLeasePing(Duration.millis(requestedLeaseDurationMs));
     if (result != null) {
       handleServiceState(result);
     }
@@ -196,9 +169,7 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     if (result.getCompleteWorkStatus() != null
         && result.getCompleteWorkStatus().getCode() != com.google.rpc.Code.OK.getNumber()) {
       LOG.info("Service asked worker to abort with status: {}", result.getCompleteWorkStatus());
-      synchronized (executor) {
-        wasAskedToAbort = true;
-      }
+      wasAskedToAbort = true;
       worker.abort();
       return;
     }
@@ -224,12 +195,10 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
     // Resets state after a successful progress report.
     dynamicSplitResultToReport = null;
 
-    synchronized (executor) {
-      progressReportIntervalMs =
-          nextProgressReportInterval(
-              fromCloudDuration(result.getReportStatusInterval()).getMillis(),
-              leaseRemainingTime(getLeaseExpirationTimestamp(result)));
-    }
+    progressReportIntervalMs =
+        nextProgressReportInterval(
+            fromCloudDuration(result.getReportStatusInterval()).getMillis(),
+            leaseRemainingTime(getLeaseExpirationTimestamp(result)));
 
     ApproximateSplitRequest suggestedStopPoint = result.getSplitRequest();
     if (suggestedStopPoint != null) {
