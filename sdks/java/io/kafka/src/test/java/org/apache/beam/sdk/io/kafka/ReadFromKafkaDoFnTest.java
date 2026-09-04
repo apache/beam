@@ -668,8 +668,7 @@ public class ReadFromKafkaDoFnTest {
       throws Exception {
     final BacklogRecordingTimestampPolicy timestampPolicy = new BacklogRecordingTimestampPolicy();
     final ReadFromKafkaDoFn<String, String> dofn =
-        makeIdlingDoFn(
-            numOfRecords, remainingBacklog, (tp, previousWatermark) -> timestampPolicy);
+        makeIdlingDoFn(numOfRecords, remainingBacklog, (tp, previousWatermark) -> timestampPolicy);
     final KafkaSourceDescriptor descriptor =
         KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
 
@@ -699,8 +698,7 @@ public class ReadFromKafkaDoFnTest {
 
   private Instant observeIdleWatermark(long remainingBacklog) throws Exception {
     final ReadFromKafkaDoFn<String, String> dofn =
-        makeIdlingDoFn(
-            3L, remainingBacklog, TimestampPolicyFactory.withCreateTime(IDLE_MAX_DELAY));
+        makeIdlingDoFn(3L, remainingBacklog, TimestampPolicyFactory.withCreateTime(IDLE_MAX_DELAY));
     final KafkaSourceDescriptor descriptor =
         KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
     final WatermarkEstimators.Manual watermarkEstimator =

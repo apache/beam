@@ -35,8 +35,8 @@ public abstract class TimestampPolicy<K, V> {
   public abstract static class PartitionContext {
     /**
      * Current backlog in messages (latest offset of the partition - offset of the next record to be
-     * processed). Both offsets are exclusive, so a backlog of zero means the reader has consumed the
-     * partition up to its latest known offset. Policies such as {@link
+     * processed). Both offsets are exclusive, so a backlog of zero means the reader has consumed
+     * the partition up to its latest known offset. Policies such as {@link
      * TimestampPolicyFactory.LogAppendTimePolicy} rely on that to advance the watermark of an idle
      * partition.
      */
