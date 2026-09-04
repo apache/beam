@@ -17,6 +17,7 @@
 
 # pytype: skip-file
 
+from apache_beam import version as beam_version
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
 from apache_beam.utils import retry
@@ -25,6 +26,7 @@ try:
   # pylint: disable=wrong-import-order, wrong-import-position
   # pylint: disable=ungrouped-imports
   import boto3
+  from botocore.config import Config
 
 except ImportError:
   boto3 = None
@@ -72,7 +74,9 @@ class Client(object):
         endpoint_url=endpoint_url,
         aws_access_key_id=access_key_id,
         aws_secret_access_key=secret_access_key,
-        aws_session_token=session_token)
+        aws_session_token=session_token,
+        config=Config(
+            user_agent_extra='apache-beam/%s' % beam_version.__version__))
 
     self._download_request = None
     self._download_stream = None
