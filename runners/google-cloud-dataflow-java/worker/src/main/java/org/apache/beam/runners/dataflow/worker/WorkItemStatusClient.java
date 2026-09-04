@@ -74,10 +74,18 @@ public class WorkItemStatusClient {
   private Long nextReportIndex;
 
   private transient String uniqueWorkId = null;
-  private boolean finalStateSent = false;
-  private boolean wasAskedToAbort = false;
+  private volatile boolean finalStateSent = false;
+  private volatile boolean wasAskedToAbort = false;
 
   private @Nullable BatchModeExecutionContext executionContext;
+
+  /** Lock guarding metric and counter extraction and commit. */
+  private final Object metricsLock = new Object();
+
+  /** Returns whether a final completion status (success or error) has already been sent. */
+  public boolean isFinalStateSent() {
+    return finalStateSent;
+  }
 
   /**
    * Construct a partly-initialized {@link WorkItemStatusClient}. Once the {@link
@@ -152,7 +160,7 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending a success completion status. */
-  public synchronized @Nullable WorkItemServiceState reportSuccess() throws IOException {
+  public @Nullable WorkItemServiceState reportSuccess() throws IOException {
     checkState(!finalStateSent, "cannot reportSuccess after sending a final state");
     checkState(worker != null, "setWorker should be called before reportSuccess");
     if (wasAskedToAbort) {
@@ -177,8 +185,20 @@ public class WorkItemStatusClient {
   }
 
   /** Return the {@link WorkItemServiceState} resulting from sending a progress update. */
-  public synchronized @Nullable WorkItemServiceState reportUpdate(
+  public @Nullable WorkItemServiceState reportUpdate(
       @Nullable DynamicSplitResult dynamicSplitResult, Duration requestedLeaseDuration)
+      throws Exception {
+    return reportUpdate(dynamicSplitResult, requestedLeaseDuration, true);
+  }
+
+  /**
+   * Return the {@link WorkItemServiceState} resulting from sending a progress update, optionally
+   * including counters and metrics.
+   */
+  public @Nullable WorkItemServiceState reportUpdate(
+      @Nullable DynamicSplitResult dynamicSplitResult,
+      Duration requestedLeaseDuration,
+      boolean includeCounters)
       throws Exception {
     checkState(worker != null, "setWorker should be called before reportUpdate");
     checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
@@ -188,11 +208,34 @@ public class WorkItemStatusClient {
       return null;
     }
 
-    WorkItemStatus status = createStatusUpdate(false);
+    WorkItemStatus status = createStatusUpdate(false, includeCounters);
     status.setRequestedLeaseDuration(TimeUtil.toCloudDuration(requestedLeaseDuration));
     populateProgress(status);
     populateSplitResult(status, dynamicSplitResult);
 
+    return execute(status);
+  }
+
+  /**
+   * Sends a lightweight lease renewal heartbeat without counter extraction or progress sampling.
+   *
+   * <p>This can be used during bundle finalization, teardown, or when the worker is otherwise busy,
+   * to keep the lease active on the Dataflow service without incurring serialization overhead.
+   */
+  public @Nullable WorkItemServiceState reportLeasePing(Duration requestedLeaseDuration)
+      throws Exception {
+    checkState(worker != null, "setWorker should be called before reportLeasePing");
+    if (finalStateSent) {
+      return null;
+    }
+    checkArgument(requestedLeaseDuration != null, "requestLeaseDuration must be non-null");
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
+
+    WorkItemStatus status = createStatusUpdate(false, false);
+    status.setRequestedLeaseDuration(TimeUtil.toCloudDuration(requestedLeaseDuration));
     return execute(status);
   }
 
@@ -218,6 +261,15 @@ public class WorkItemStatusClient {
 
   private synchronized @Nullable WorkItemServiceState execute(WorkItemStatus status)
       throws IOException {
+    if (finalStateSent && !Boolean.TRUE.equals(status.getCompleted())) {
+      LOG.info(
+          "Final state already sent for work item {}, skipping non-final status update.",
+          uniqueWorkId());
+      return null;
+    }
+    status.setReportIndex(
+        checkNotNull(nextReportIndex, "nextReportIndex should be non-null when sending an update"));
+
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       if (result.getCompleteWorkStatus() != null
@@ -227,13 +279,13 @@ public class WorkItemStatusClient {
         return result;
       }
       nextReportIndex = result.getNextReportIndex();
-      if (nextReportIndex == null && !status.getCompleted()) {
+      if (nextReportIndex == null && !Boolean.TRUE.equals(status.getCompleted())) {
         LOG.error("Missing next work index in {} when reporting {}.", result, status);
       }
       commitMetrics();
     }
 
-    if (status.getCompleted()) {
+    if (Boolean.TRUE.equals(status.getCompleted())) {
       checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
       finalStateSent = true;
     }
@@ -242,8 +294,7 @@ public class WorkItemStatusClient {
   }
 
   @VisibleForTesting
-  synchronized void populateSplitResult(
-      WorkItemStatus status, DynamicSplitResult dynamicSplitResult) {
+  void populateSplitResult(WorkItemStatus status, DynamicSplitResult dynamicSplitResult) {
     if (dynamicSplitResult instanceof NativeReader.DynamicSplitResultWithPosition) {
       NativeReader.DynamicSplitResultWithPosition asPosition =
           (NativeReader.DynamicSplitResultWithPosition) dynamicSplitResult;
@@ -260,7 +311,7 @@ public class WorkItemStatusClient {
   }
 
   @VisibleForTesting
-  synchronized void populateProgress(WorkItemStatus status) throws Exception {
+  void populateProgress(WorkItemStatus status) throws Exception {
     Progress progress = worker.getWorkerProgress();
     if (progress != null) {
       status.setReportedProgress(SourceTranslationUtils.readerProgressToCloudProgress(progress));
@@ -268,7 +319,7 @@ public class WorkItemStatusClient {
   }
 
   @VisibleForTesting
-  synchronized void populateMetricUpdates(WorkItemStatus status) {
+  void populateMetricUpdates(WorkItemStatus status) {
     List<MetricUpdate> updates = new ArrayList<>();
     if (executionContext != null && executionContext.getExecutionStateTracker() != null) {
       ExecutionStateTracker tracker = executionContext.getExecutionStateTracker();
@@ -291,14 +342,16 @@ public class WorkItemStatusClient {
     status.setMetricUpdates(updates);
   }
 
-  private synchronized WorkItemStatus createStatusUpdate(boolean isFinal) {
+  private WorkItemStatus createStatusUpdate(boolean isFinal) {
+    return createStatusUpdate(isFinal, true);
+  }
+
+  private WorkItemStatus createStatusUpdate(boolean isFinal, boolean includeCounters) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
     status.setCompleted(isFinal);
-    status.setReportIndex(
-        checkNotNull(nextReportIndex, "nextReportIndex should be non-null when sending an update"));
 
-    if (worker != null) {
+    if (worker != null && includeCounters) {
       populateMetricUpdates(status);
       populateCounterUpdates(status);
     }
@@ -309,7 +362,7 @@ public class WorkItemStatusClient {
   }
 
   @VisibleForTesting
-  synchronized void populateCounterUpdates(WorkItemStatus status) {
+  void populateCounterUpdates(WorkItemStatus status) {
     if (worker == null) {
       return;
     }
@@ -345,7 +398,7 @@ public class WorkItemStatusClient {
     status.setCounterUpdates(ImmutableList.copyOf(counterUpdatesMap.values()));
   }
 
-  private synchronized Iterable<CounterUpdate> extractCounters(@Nullable CounterSet counters) {
+  private Iterable<CounterUpdate> extractCounters(@Nullable CounterSet counters) {
     if (counters == null) {
       return Collections.emptyList();
     }
@@ -361,14 +414,16 @@ public class WorkItemStatusClient {
   }
 
   /**
-   * This and {@link #commitMetrics} need to be synchronized since we should not call {@link
-   * MetricsContainerImpl#getUpdates} on any object within an operation while also calling {@link
-   * MetricsContainerImpl#commitUpdates}.
+   * This and {@link #commitMetrics} synchronize on {@link #metricsLock} since we should not call
+   * {@link MetricsContainerImpl#getUpdates} on any object within an operation while also calling
+   * {@link MetricsContainerImpl#commitUpdates}.
    */
-  private synchronized Iterable<CounterUpdate> extractMetrics(boolean isFinalUpdate) {
-    return executionContext == null
-        ? Collections.emptyList()
-        : executionContext.extractMetricUpdates(isFinalUpdate);
+  private Iterable<CounterUpdate> extractMetrics(boolean isFinalUpdate) {
+    synchronized (metricsLock) {
+      return executionContext == null
+          ? Collections.emptyList()
+          : executionContext.extractMetricUpdates(isFinalUpdate);
+    }
   }
 
   public Iterable<CounterUpdate> extractMsecCounters(boolean isFinalUpdate) {
@@ -382,17 +437,19 @@ public class WorkItemStatusClient {
   }
 
   /**
-   * This and {@link #extractMetrics} need to be synchronized since we should not call {@link
-   * MetricsContainerImpl#getUpdates} on any object within an operation while also calling {@link
-   * MetricsContainerImpl#commitUpdates}.
+   * This and {@link #extractMetrics} synchronize on {@link #metricsLock} since we should not call
+   * {@link MetricsContainerImpl#getUpdates} on any object within an operation while also calling
+   * {@link MetricsContainerImpl#commitUpdates}.
    */
   @VisibleForTesting
-  synchronized void commitMetrics() {
-    if (executionContext == null) {
-      return;
-    }
+  void commitMetrics() {
+    synchronized (metricsLock) {
+      if (executionContext == null) {
+        return;
+      }
 
-    executionContext.commitMetricUpdates();
+      executionContext.commitMetricUpdates();
+    }
   }
 
   public BatchModeExecutionContext getExecutionContext() {

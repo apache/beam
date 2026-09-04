@@ -114,6 +114,11 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return;
     }
+    if (workItemStatusClient.isFinalStateSent()) {
+      LOG.debug(
+          "Final state already sent for work item {}, skipping progress report.", workString());
+      return;
+    }
     WorkItemServiceState result =
         workItemStatusClient.reportUpdate(
             dynamicSplitResultToReport, Duration.millis(requestedLeaseDurationMs));
@@ -161,6 +166,17 @@ public class DataflowWorkProgressUpdater extends WorkProgressUpdater {
                 SourceTranslationUtils.toDynamicSplitRequest(suggestedStopPoint));
       }
     }
+  }
+
+  /**
+   * Reports a lightweight lease renewal heartbeat to the worker service without extracting counters
+   * or progress.
+   */
+  public void reportLeasePing() throws Exception {
+    if (wasAskedToAbort || workItemStatusClient.isFinalStateSent()) {
+      return;
+    }
+    workItemStatusClient.reportLeasePing(Duration.millis(requestedLeaseDurationMs));
   }
 
   /** Returns the given work unit's lease expiration timestamp. */

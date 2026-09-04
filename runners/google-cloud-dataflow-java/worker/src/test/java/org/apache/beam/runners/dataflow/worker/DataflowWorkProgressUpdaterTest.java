@@ -291,6 +291,7 @@ public class DataflowWorkProgressUpdaterTest {
     // And nothing happened after that.
     verify(workItemStatusClient, Mockito.atLeastOnce()).uniqueWorkId();
     verify(workItemStatusClient, Mockito.atLeastOnce()).getExecutionContext();
+    verify(workItemStatusClient, Mockito.atLeastOnce()).isFinalStateSent();
     verifyNoMoreInteractions(workItemStatusClient);
   }
 
