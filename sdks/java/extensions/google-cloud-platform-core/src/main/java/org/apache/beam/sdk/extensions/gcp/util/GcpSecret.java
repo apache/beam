@@ -55,7 +55,7 @@ public class GcpSecret extends Secret {
   }
 
   /** Initialize GcpSecret from a map specification. */
-  public static GcpSecret fromMap(Map<String, String> specMap) {
+  static GcpSecret fromMap(Map<String, String> specMap) {
     Set<String> allowedKeys =
         new HashSet<>(Arrays.asList("version_name", "name", "project", "version"));
     Set<String> invalidKeys = new HashSet<>(specMap.keySet());
@@ -93,7 +93,7 @@ public class GcpSecret extends Secret {
    * Resolves the GCP project ID from the provided value, environment variables, or Application
    * Default Credentials.
    */
-  public static String resolveGcpProjectId(@Nullable String projectId, @Nullable String context) {
+  static String resolveGcpProjectId(@Nullable String projectId, @Nullable String context) {
     if (!Strings.isNullOrEmpty(projectId)) {
       return Preconditions.checkNotNull(projectId);
     }

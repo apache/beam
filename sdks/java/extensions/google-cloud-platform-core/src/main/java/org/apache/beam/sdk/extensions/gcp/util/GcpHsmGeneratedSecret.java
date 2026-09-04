@@ -73,7 +73,7 @@ public class GcpHsmGeneratedSecret extends Secret {
   }
 
   /** Initialize GcpHsmGeneratedSecret from a map specification. */
-  public static GcpHsmGeneratedSecret fromMap(Map<String, String> specMap) {
+  static GcpHsmGeneratedSecret fromMap(Map<String, String> specMap) {
     Set<String> allowedKeys =
         new HashSet<>(
             Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
