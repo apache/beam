@@ -26,6 +26,7 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
@@ -1098,5 +1099,105 @@ public class TableMetadataDriverTest implements Serializable {
     assertEquals(1, mergedAB.get("table").getSchemaId());
     assertEquals(1, mergedBA.get("table").getSchemaId());
     assertEquals(mergedAB, mergedBA);
+  }
+
+  static class ControllableTestClock implements TableMetadataDriver.Clock {
+    private static final AtomicLong CURRENT_TIME = new AtomicLong(0L);
+
+    public static void setTime(long millis) {
+      CURRENT_TIME.set(millis);
+    }
+
+    @Override
+    public long currentTimeMillis() {
+      return CURRENT_TIME.get();
+    }
+  }
+
+  @Test
+  public void testUnusedTablesEvictedFromStreamingCache() {
+    TableIdentifier tableIdA = TableIdentifier.of("default", "evict_table_a");
+    TableIdentifier tableIdB = TableIdentifier.of("default", "evict_table_b");
+    getCatalog().createTable(tableIdA, ICEBERG_SCHEMA);
+    getCatalog().createTable(tableIdB, ICEBERG_SCHEMA);
+
+    String tableAStr = IcebergUtils.tableIdentifierToString(tableIdA);
+    String tableBStr = IcebergUtils.tableIdentifierToString(tableIdB);
+
+    Duration refreshInterval = Duration.standardSeconds(5);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
+
+    Row rowSeedA = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_a", tableAStr).build();
+    Row rowSeedB = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_b", tableBStr).build();
+    Row rowA1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "a1", tableAStr).build();
+    Row rowB1 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "b1", tableBStr).build();
+    Row rowTriggerEvictA =
+        Row.withSchema(BEAM_SCHEMA).addValues(3L, "trigger_evict_a", tableAStr).build();
+    Row rowA2 = Row.withSchema(BEAM_SCHEMA).addValues(4L, "a2", tableAStr).build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(rowSeedA, rowSeedB)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowA1, rowB1)
+            .advanceProcessingTime(Duration.standardSeconds(6))
+            .addElements(rowTriggerEvictA)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowA2)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input =
+        pipeline
+            .apply("StreamInput", stream)
+            .apply(
+                "AdvanceClockOnTriggerRow",
+                ParDo.of(
+                    new DoFn<Row, Row>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+                        if ("trigger_evict_a".equals(row.getString("data"))) {
+                          ControllableTestClock.setTime(7000L);
+                        }
+                        out.output(row);
+                      }
+                    }))
+            .setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView",
+            TableMetadataDriver.asView(
+                catalogConfig, DYNAMIC_DESTINATIONS, null, refreshInterval, null, testClock));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        String data = row.getString("data");
+                        if ("seed_a".equals(data)
+                            || "seed_b".equals(data)
+                            || "trigger_evict_a".equals(data)) {
+                          return;
+                        }
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        boolean hasA = viewMap.containsKey(tableAStr);
+                        boolean hasB = viewMap.containsKey(tableBStr);
+                        out.output(data + ":hasA=" + hasA + ",hasB=" + hasB);
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved)
+        .containsInAnyOrder(
+            "a1:hasA=true,hasB=true", "b1:hasA=true,hasB=true", "a2:hasA=true,hasB=false");
+
+    pipeline.run();
   }
 }

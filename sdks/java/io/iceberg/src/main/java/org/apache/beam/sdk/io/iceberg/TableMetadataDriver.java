@@ -20,13 +20,17 @@ package org.apache.beam.sdk.io.iceberg;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -57,6 +61,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -93,6 +98,11 @@ public abstract class TableMetadataDriver
 
   public static final Duration DEFAULT_REFRESH_INTERVAL = Duration.standardMinutes(5);
   public static final int DEFAULT_POLLING_BUCKETS = 1;
+
+  @FunctionalInterface
+  public interface Clock extends Serializable {
+    long currentTimeMillis();
+  }
 
   public abstract IcebergCatalogConfig getCatalogConfig();
 
@@ -226,10 +236,29 @@ public abstract class TableMetadataDriver
           @Nullable Integer maximumCacheSize,
           @Nullable Duration refreshInterval,
           @Nullable Integer pollingBuckets) {
+    return asView(
+        catalogConfig,
+        dynamicDestinations,
+        maximumCacheSize,
+        refreshInterval,
+        pollingBuckets,
+        null);
+  }
+
+  @VisibleForTesting
+  static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>> asView(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Integer maximumCacheSize,
+      @Nullable Duration refreshInterval,
+      @Nullable Integer pollingBuckets,
+      @Nullable Clock clock) {
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
         boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
+
+        Duration interval = refreshInterval != null ? refreshInterval : DEFAULT_REFRESH_INTERVAL;
 
         PCollection<KV<String, SerializableTableSpec>> specs =
             input.apply(
@@ -238,15 +267,19 @@ public abstract class TableMetadataDriver
                     .setCatalogConfig(catalogConfig)
                     .setDynamicDestinations(dynamicDestinations)
                     .setMaximumCacheSize(maximumCacheSize)
-                    .setRefreshInterval(refreshInterval)
+                    .setRefreshInterval(interval)
                     .setPollingBuckets(pollingBuckets)
                     .build());
 
         if (isStreaming) {
+          AccumulateTableMetadataMapDoFn accumulateDoFn =
+              clock != null
+                  ? new AccumulateTableMetadataMapDoFn(interval, clock)
+                  : new AccumulateTableMetadataMapDoFn(interval);
           return specs
               .apply("KeyForGlobalCache", WithKeys.of((Void) null))
               .setCoder(KvCoder.of(VoidCoder.of(), specs.getCoder()))
-              .apply("AccumulateCacheMap", ParDo.of(new AccumulateTableMetadataMapDoFn()))
+              .apply("AccumulateCacheMap", ParDo.of(accumulateDoFn))
               .setCoder(MapCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()))
               .apply(
                   "StreamingCacheWindow",
@@ -413,15 +446,41 @@ public abstract class TableMetadataDriver
   static class AccumulateTableMetadataMapDoFn
       extends DoFn<
           KV<Void, KV<String, SerializableTableSpec>>, Map<String, SerializableTableSpec>> {
+    private static final Logger LOG = LoggerFactory.getLogger(AccumulateTableMetadataMapDoFn.class);
+    private static final Counter TABLES_EVICTED_COUNTER =
+        Metrics.counter(TableMetadataDriver.class, "tablesEvictedUnused");
+
     @StateId("tableCache")
     private final StateSpec<MapState<String, SerializableTableSpec>> cacheStateSpec =
         StateSpecs.map(StringUtf8Coder.of(), SerializableTableSpec.getCoder());
+
+    @StateId("lastSeen")
+    private final StateSpec<MapState<String, Long>> lastSeenStateSpec =
+        StateSpecs.map(StringUtf8Coder.of(), VarLongCoder.of());
+
+    private final Duration refreshInterval;
+    private final Clock clock;
+
+    AccumulateTableMetadataMapDoFn() {
+      this(DEFAULT_REFRESH_INTERVAL, System::currentTimeMillis);
+    }
+
+    AccumulateTableMetadataMapDoFn(Duration refreshInterval) {
+      this(refreshInterval, System::currentTimeMillis);
+    }
+
+    AccumulateTableMetadataMapDoFn(Duration refreshInterval, Clock clock) {
+      this.refreshInterval = refreshInterval != null ? refreshInterval : DEFAULT_REFRESH_INTERVAL;
+      this.clock = clock != null ? clock : System::currentTimeMillis;
+    }
 
     @ProcessElement
     public void processElement(
         @Element KV<Void, KV<String, SerializableTableSpec>> element,
         @StateId("tableCache") MapState<String, SerializableTableSpec> cacheState,
+        @StateId("lastSeen") MapState<String, Long> lastSeenState,
         OutputReceiver<Map<String, SerializableTableSpec>> out) {
+      long now = clock.currentTimeMillis();
       KV<String, SerializableTableSpec> kv = element.getValue();
       String tableId = kv.getKey();
       SerializableTableSpec newSpec = kv.getValue();
@@ -434,11 +493,39 @@ public abstract class TableMetadataDriver
               && newSpec.getSchemaId() >= existingSpec.getSchemaId())) {
         cacheState.put(tableId, newSpec);
       }
+      lastSeenState.put(tableId, now);
 
-      Map<String, SerializableTableSpec> mapSnapshot = new HashMap<>();
-      for (Map.Entry<String, SerializableTableSpec> entry : cacheState.entries().read()) {
-        mapSnapshot.put(entry.getKey(), entry.getValue());
+      Map<String, Long> lastSeenMap = new HashMap<>();
+      for (Map.Entry<String, Long> entry : lastSeenState.entries().read()) {
+        lastSeenMap.put(entry.getKey(), entry.getValue());
       }
+      lastSeenMap.put(tableId, now);
+
+      long expirationCutoff = now - refreshInterval.getMillis();
+      List<String> expiredTables = new ArrayList<>();
+      Map<String, SerializableTableSpec> mapSnapshot = new HashMap<>();
+
+      for (Map.Entry<String, SerializableTableSpec> entry : cacheState.entries().read()) {
+        String id = entry.getKey();
+        Long lastSeen = lastSeenMap.get(id);
+        if (lastSeen == null) {
+          lastSeen = now;
+          lastSeenState.put(id, now);
+        }
+        if (lastSeen < expirationCutoff) {
+          expiredTables.add(id);
+        } else {
+          mapSnapshot.put(id, entry.getValue());
+        }
+      }
+
+      for (String expired : expiredTables) {
+        cacheState.remove(expired);
+        lastSeenState.remove(expired);
+        TABLES_EVICTED_COUNTER.inc();
+        LOG.info("Evicted unused table '{}' from side-input metadata cache.", expired);
+      }
+
       out.output(Collections.unmodifiableMap(mapSnapshot));
     }
   }
