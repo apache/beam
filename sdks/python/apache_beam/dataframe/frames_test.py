@@ -402,6 +402,20 @@ class DeferredFrameTest(_AbstractFrameTest):
                                index=['r1', 'r2', 'r3'])
     self._run_test(lambda df: df.xs('r1'), df_null_int)
 
+  def test_dataframe_xs_non_empty_duplicate_proxy(self):
+    df_dups = pd.DataFrame({'a': [1, 2]}, index=['x', 'x'])
+    p = beam.Pipeline()
+    deferred = to_dataframe(p | beam.Create([{'a': 1}]), proxy=df_dups)
+    res = deferred.xs('x')
+    self.assertIsInstance(res, frames.DeferredSeries)
+    self.assertTrue(res._expr.proxy().empty)
+
+    s_dups = pd.Series(pd.Categorical(['a', 'b']), index=['x', 'x'], name='s')
+    deferred_s = to_dataframe(
+        p | 'CreateSeries' >> beam.Create(['a']), proxy=s_dups)
+    res_s = deferred_s.xs('x')
+    self.assertIsInstance(res_s, frame_base.DeferredBase)
+
   def test_set_column(self):
     def new_column(df):
       df['NewCol'] = df['Speed']
