@@ -22,6 +22,11 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.function.LongSupplier;
 import org.apache.beam.runners.spark.structuredstreaming.translation.helpers.CoderHelpers;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark;
@@ -40,11 +45,13 @@ import org.slf4j.LoggerFactory;
  * completing its batch, closes the entry without finalizing and restores the reader from the
  * durable mark at the start epoch.
  *
- * <p>A reader idle for longer than its idle timeout is closed without finalizing its mark, the
- * source redelivers. The timeout must exceed the longest gap between two micro-batches of one
- * split. Speculative execution can leave a losing attempt's mark finalized on another executor,
- * this source is not safe under {@code spark.speculation} with sources whose reads are not
- * deterministic.
+ * <p>A sweeper thread closes readers idle for longer than their idle timeout, finalizing marks
+ * whose epoch Spark committed, see {@link BeamSourceCheckpoint#readSparkCommittedEpoch()}, and
+ * dropping the others, the source redelivers. The timeout must exceed the longest gap between two
+ * micro-batches of one split. Under {@code spark.sql.streaming.asyncProgressTrackingEnabled} the
+ * commit log lags, idle readers then drop their marks. Speculative execution can leave a losing
+ * attempt's mark finalized on another executor, this source is not safe under {@code
+ * spark.speculation} with sources whose reads are not deterministic.
  */
 public final class BeamReaderCache {
 
@@ -54,6 +61,10 @@ public final class BeamReaderCache {
 
   /** One monitor per key, acquire serializes per split, not across splits. */
   private static final ConcurrentMap<String, Object> LOCKS = new ConcurrentHashMap<>();
+
+  private static final long SWEEP_INTERVAL_MILLIS = 10_000L;
+
+  private static final AtomicBoolean SWEEPER_STARTED = new AtomicBoolean();
 
   private BeamReaderCache() {}
 
@@ -70,7 +81,7 @@ public final class BeamReaderCache {
   /**
    * Returns the reader for {@code key} positioned at {@code startEpoch}, reusing the cached one if
    * it is there, restoring from the durable mark otherwise. A zero length durable mark means a
-   * fresh start.
+   * fresh start. {@code committedEpoch} supplies the epoch Spark last committed, -1 if unknown.
    *
    * @throws IllegalStateException if {@code startEpoch > 0} and no durable mark exists
    */
@@ -80,8 +91,10 @@ public final class BeamReaderCache {
       UnboundedSource<T, ?> source,
       PipelineOptions options,
       long idleTimeoutMillis,
+      LongSupplier committedEpoch,
       MarkRestorer restorer)
       throws IOException {
+    startSweeper();
     closeIdle();
     synchronized (lock(key)) {
       CachedReader<?> existing = READERS.get(key);
@@ -115,7 +128,11 @@ public final class BeamReaderCache {
           codedMark == null ? "no" : "restored");
       CachedReader<T> created =
           new CachedReader<>(
-              createReader(source, options, codedMark), startEpoch, codedMark, idleTimeoutMillis);
+              createReader(source, options, codedMark),
+              startEpoch,
+              codedMark,
+              idleTimeoutMillis,
+              committedEpoch);
       created.beginBatch(startEpoch);
       READERS.put(key, created);
       return created;
@@ -149,12 +166,49 @@ public final class BeamReaderCache {
     }
   }
 
+  @SuppressWarnings("FutureReturnValueIgnored") // the sweep runs until the JVM exits
+  private static void startSweeper() {
+    if (!SWEEPER_STARTED.compareAndSet(false, true)) {
+      return;
+    }
+    ScheduledExecutorService sweeper =
+        Executors.newSingleThreadScheduledExecutor(
+            runnable -> {
+              Thread thread = new Thread(runnable, "beam-reader-idle-sweep");
+              thread.setDaemon(true);
+              return thread;
+            });
+    sweeper.scheduleWithFixedDelay(
+        BeamReaderCache::sweep,
+        SWEEP_INTERVAL_MILLIS,
+        SWEEP_INTERVAL_MILLIS,
+        TimeUnit.MILLISECONDS);
+  }
+
+  private static void sweep() {
+    try {
+      closeIdle(System.currentTimeMillis());
+    } catch (RuntimeException e) {
+      LOG.warn("Idle sweep of Beam readers failed.", e);
+    }
+  }
+
   private static void closeIdle() {
-    long now = System.currentTimeMillis();
+    closeIdle(System.currentTimeMillis());
+  }
+
+  /** Closes every reader idle at {@code nowMillis}, finalizing marks of committed epochs. */
+  static void closeIdle(long nowMillis) {
     for (Map.Entry<String, CachedReader<?>> entry : READERS.entrySet()) {
-      if (entry.getValue().isIdleSince(now)) {
-        LOG.info("Closing idle Beam reader {}.", entry.getKey());
-        invalidate(entry.getKey());
+      String key = entry.getKey();
+      CachedReader<?> reader = entry.getValue();
+      synchronized (lock(key)) {
+        if (!reader.isIdleSince(nowMillis) || !READERS.remove(key, reader)) {
+          continue;
+        }
+        LOG.info("Closing idle Beam reader {}.", key);
+        reader.finalizeIfCommitted(key);
+        close(key, reader);
       }
     }
   }
@@ -175,6 +229,7 @@ public final class BeamReaderCache {
   public static final class CachedReader<T> implements Closeable {
     private final UnboundedReader<T> reader;
     private final long idleTimeoutMillis;
+    private final LongSupplier committedEpoch;
     private boolean started;
     private boolean inBatch;
     private boolean moved;
@@ -187,11 +242,13 @@ public final class BeamReaderCache {
         UnboundedReader<T> reader,
         long positionEpoch,
         byte @Nullable [] positionMark,
-        long idleTimeoutMillis) {
+        long idleTimeoutMillis,
+        LongSupplier committedEpoch) {
       this.reader = reader;
       this.positionEpoch = positionEpoch;
       this.positionMark = positionMark;
       this.idleTimeoutMillis = idleTimeoutMillis;
+      this.committedEpoch = committedEpoch;
       this.lastUsedMillis = System.currentTimeMillis();
     }
 
@@ -267,6 +324,24 @@ public final class BeamReaderCache {
             positionEpoch,
             e);
       }
+    }
+
+    /** Finalizes the pending mark if Spark committed its epoch, drops it otherwise. */
+    synchronized void finalizeIfCommitted(String key) {
+      if (pendingMark == null) {
+        return;
+      }
+      long committed = committedEpoch.getAsLong();
+      if (positionEpoch <= committed) {
+        finalizePendingMark(key);
+        return;
+      }
+      LOG.info(
+          "Dropping mark of Beam reader {} at epoch {}, Spark committed up to {}.",
+          key,
+          positionEpoch,
+          committed);
+      pendingMark = null;
     }
 
     @Override

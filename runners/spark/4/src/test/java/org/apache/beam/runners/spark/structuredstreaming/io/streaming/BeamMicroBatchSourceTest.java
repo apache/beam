@@ -52,11 +52,17 @@ import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
+import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamInputPartition;
+import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamMicroBatchStream;
+import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamOffset;
+import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamPartitionReader;
+import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamTable;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.CustomCoder;
-import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -73,10 +79,10 @@ import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.Encoders;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SparkSession;
+import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.catalyst.plans.logical.EventTimeWatermark;
 import org.apache.spark.sql.catalyst.plans.logical.LogicalPlan;
 import org.apache.spark.sql.connector.read.InputPartition;
-import org.apache.spark.sql.connector.read.streaming.MicroBatchStream;
 import org.apache.spark.sql.streaming.StreamingQuery;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
 import org.apache.spark.sql.streaming.Trigger;
@@ -84,6 +90,8 @@ import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.util.SerializableConfiguration;
 import org.joda.time.Instant;
 import org.junit.After;
+import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -96,10 +104,9 @@ import scala.reflect.ClassTag;
 /**
  * Tests for the Spark 4 DataSourceV2 micro-batch source wrapping a Beam {@link UnboundedSource}.
  *
- * <p>Termination note: the epoch offsets of this source never settle, {@code
- * StreamingQuery.processAllAvailable()} would therefore block forever. Every test here drives the
- * query with {@code Trigger.ProcessingTime(100)} and stops it explicitly once the expected result
- * arrived or the poll deadline expired.
+ * <p>The epoch offsets of this source never settle, so {@code processAllAvailable()} would block
+ * forever. Every query runs with {@code Trigger.ProcessingTime(100)} and is stopped explicitly once
+ * the expected result arrived or the poll deadline expired.
  */
 @Category(StreamingTest.class)
 @RunWith(JUnit4.class)
@@ -109,13 +116,13 @@ public class BeamMicroBatchSourceTest implements Serializable {
 
   @Rule public transient TemporaryFolder temp = new TemporaryFolder();
 
-  private static final AtomicInteger QUERY_COUNTER = new AtomicInteger();
+  private static final AtomicInteger TAGS = new AtomicInteger();
 
-  /** Rows collected per query name by {@link #startCollecting}, driver side. */
-  private static final Map<String, List<Row>> COLLECTED = new ConcurrentHashMap<>();
-
-  /** Rows per micro-batch per query name, see {@link #startCollectingBatches}, driver side. */
+  /** Rows per micro-batch per query name, driver side. */
   private static final Map<String, List<List<Row>>> BATCHES = new ConcurrentHashMap<>();
+
+  private static final Coder<WindowedValue<String>> CODER =
+      WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
 
   /** 2023-11-14T22:13:20Z, a plain modern timestamp with no rebase or DST subtleties. */
   private static final long BASE_MILLIS = 1_700_000_000_000L;
@@ -124,164 +131,127 @@ public class BeamMicroBatchSourceTest implements Serializable {
 
   private static final long POLL_TIMEOUT_MILLIS = 120_000L;
 
+  private static Broadcast<SerializablePipelineOptions> optionsBroadcast;
+  private static Broadcast<SerializableConfiguration> hadoopConfBroadcast;
+
+  private String tag;
+
+  @BeforeClass
+  public static void broadcastOnce() {
+    SparkSession session = SESSION.getSession();
+    Configuration conf =
+        ((org.apache.spark.sql.classic.SparkSession) session).sessionState().newHadoopConf();
+    optionsBroadcast =
+        session
+            .sparkContext()
+            .broadcast(
+                new SerializablePipelineOptions(PipelineOptionsFactory.create()),
+                ClassTag.apply(SerializablePipelineOptions.class));
+    hadoopConfBroadcast =
+        session
+            .sparkContext()
+            .broadcast(
+                new SerializableConfiguration(conf),
+                ClassTag.apply(SerializableConfiguration.class));
+  }
+
+  @Before
+  public void setUp() {
+    tag = "src" + TAGS.incrementAndGet();
+  }
+
   @After
   public void tearDown() {
     BeamReaderCache.invalidateAll();
-    COLLECTED.clear();
     BATCHES.clear();
-    ShardedListSource.FINALIZED.clear();
+    TestSource.forget(tag);
   }
 
-  /**
-   * THE TOP RISK OF THE POC: does Spark's {@code EventTimeWatermark} logical node survive a typed
-   * transformation producing a Beam typed dataset, so a later stateful operator can still see it?
-   *
-   * <p>Verdict, observed on Spark 4: it does. The node stays at the bottom of both the logical and
-   * the analyzed plan through one and through two typed maps, {@code DeserializeToObject /
-   * MapElements / SerializeFromObject} are simply stacked on top of it.
-   *
-   * <p>One nuance the translators must be aware of: the per attribute delay marker (rendered as
-   * {@code eventTimestamp#1-T1000ms} in the analyzed plan) only travels with the timestamp
-   * attribute itself. Once a typed map projects the timestamp column away, downstream attributes
-   * carry no marker. Operators that read the marker off an attribute, for example {@code
-   * groupBy(window(...))} or a stream to stream join, would therefore not see it. Operators that
-   * read the query wide watermark, which is what {@code transformWithState} in {@code
-   * TimeMode.EventTime} does, are unaffected, see {@link
-   * #testWatermarkIsTrackedAtRuntimeAfterTypedMap}.
-   */
+  /** The {@code EventTimeWatermark} node survives typed maps in the logical and analyzed plan. */
   @Test
   public void testEventTimeWatermarkSurvivesTypedMap() {
-    Dataset<Row> rows = rows(4, 1_000L);
+    Dataset<Row> rows = rows(1, 4, limited(1_000L, 200L));
     assertTrue("source dataset must be streaming", rows.isStreaming());
-
     assertWatermark("directly after withWatermark, logical plan", logical(rows));
     assertWatermark("directly after withWatermark, analyzed plan", analyzed(rows));
 
-    // A typed map producing a Beam-ish (opaque bytes) dataset, exactly what the read translator
-    // will do to turn rows into WindowedValue bytes.
     Dataset<byte[]> typed =
         rows.map((MapFunction<Row, byte[]>) row -> row.getAs(COL_PAYLOAD), Encoders.BINARY());
-
     assertWatermark("after a typed map, logical plan", logical(typed));
     assertWatermark("after a typed map, analyzed plan", analyzed(typed));
 
-    // And once more after a second typed stage, mimicking chained operators.
     Dataset<byte[]> chained =
         typed.map((MapFunction<byte[], byte[]>) bytes -> bytes, Encoders.BINARY());
-
     assertWatermark("after two chained typed maps, logical plan", logical(chained));
     assertWatermark("after two chained typed maps, analyzed plan", analyzed(chained));
   }
 
-  /**
-   * Runtime counterpart of the plan inspection above, the watermark must actually be tracked by the
-   * running query, not merely present as a plan node.
-   */
+  /** A running query tracks the event time watermark past a typed map. */
   @Test
   public void testWatermarkIsTrackedAtRuntimeAfterTypedMap() throws Exception {
-    Dataset<Row> rows = rows(8, 0L);
     Dataset<byte[]> typed =
-        rows.map((MapFunction<Row, byte[]>) row -> row.getAs(COL_PAYLOAD), Encoders.BINARY());
-
-    String queryName = "beam_wm_" + QUERY_COUNTER.incrementAndGet();
-    StreamingQuery query = startDiscarding(typed, queryName);
-    try {
-      String watermark = awaitWatermark(query);
-      assertNotNull("query never reported an event time watermark", watermark);
-      assertFalse(
-          "watermark never advanced past the epoch, it is not being tracked: " + watermark,
-          watermark.startsWith("1970-"));
-    } finally {
-      stopQuietly(query);
-    }
-  }
-
-  /** Reads a finite set of elements through the DSv2 source and checks payloads and timestamps. */
-  @Test
-  public void testReadsElementsFromUnboundedSource() throws Exception {
-    int count = 8;
-    Dataset<Row> rows = rows(count, 0L);
-
-    String queryName = "beam_read_" + QUERY_COUNTER.incrementAndGet();
-    StreamingQuery query = startCollecting(rows, queryName);
-    List<Row> collected;
-    try {
-      collected = awaitRows(queryName, count);
-    } finally {
-      stopQuietly(query);
-    }
-
-    assertEquals("unexpected number of rows", count, collected.size());
-
-    Coder<WindowedValue<String>> coder = coder();
-    List<String> values = new ArrayList<>();
-    for (Row row : collected) {
-      byte[] payload = row.getAs(COL_PAYLOAD);
-      Timestamp eventTs = row.getAs(COL_EVENT_TS);
-      WindowedValue<String> windowedValue = CoderUtils.decodeFromByteArray(coder, payload);
-      values.add(windowedValue.getValue());
-      assertEquals(
-          "eventTimestamp column must match the timestamp inside the encoded WindowedValue",
-          windowedValue.getTimestamp().getMillis(),
-          eventTs.getTime());
-      assertEquals(
-          "elements are read into the global window",
-          Collections.singletonList(GlobalWindow.INSTANCE),
-          new ArrayList<>(windowedValue.getWindows()));
-    }
-
-    Collections.sort(values);
-    List<String> expected = new ArrayList<>();
-    for (int i = 0; i < count; i++) {
-      expected.add(element(i));
-    }
-    assertEquals(expected, values);
-  }
-
-  /** The default record limit of -1 means unlimited, an available source drains in one batch. */
-  @Test
-  public void testUnlimitedRecordsPerBatchByDefault() throws Exception {
-    int count = 2500;
-    SparkStructuredStreamingPipelineOptions options =
-        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-    options.setWatermarkDelayMillis(0L);
-    options.setMaxBatchDurationMillis(5_000L);
-    Dataset<Row> rows =
-        UnboundedSourceDataset.of(
-            SESSION.getSession(), new ListSource(count), coder(), options, "Read(ListSource)");
-
-    String queryName = "beam_nolimit_" + QUERY_COUNTER.incrementAndGet();
-    List<Long> batchSizes = Collections.synchronizedList(new ArrayList<>());
+        rows(1, 8, limited(1_000L, 200L))
+            .map((MapFunction<Row, byte[]>) row -> row.getAs(COL_PAYLOAD), Encoders.BINARY());
     StreamingQuery query =
-        rows.writeStream()
-            .foreachBatch(
-                (VoidFunction2<Dataset<Row>, Long>)
-                    (batch, batchId) -> {
-                      long size = batch.count();
-                      if (size > 0) {
-                        batchSizes.add(size);
-                      }
-                    })
-            .queryName(queryName)
+        typed
+            .writeStream()
+            .format("noop")
+            .queryName(tag)
             .outputMode("append")
-            .option("checkpointLocation", temp.newFolder(queryName).getAbsolutePath())
+            .option("checkpointLocation", temp.newFolder(tag).getAbsolutePath())
             .trigger(Trigger.ProcessingTime(100))
             .start();
     try {
-      long deadline = System.currentTimeMillis() + POLL_TIMEOUT_MILLIS;
-      while (System.currentTimeMillis() < deadline && batchSizes.isEmpty()) {
-        Thread.sleep(100L);
-      }
+      String watermark = awaitWatermark(query);
+      assertNotNull("query never reported an event time watermark", watermark);
+      assertFalse("watermark stuck at the epoch: " + watermark, watermark.startsWith("1970-"));
     } finally {
       stopQuietly(query);
     }
-    assertEquals(
-        "without a limit all elements must arrive in the first non-empty micro-batch",
-        Collections.singletonList((long) count),
-        new ArrayList<>(batchSizes));
   }
 
-  /** The offset is an opaque, strictly increasing epoch counter, its JSON is the bare number. */
+  /** Payloads decode to the source elements and the timestamp column matches the element. */
+  @Test
+  public void testReadsElementsFromUnboundedSource() throws Exception {
+    int count = 8;
+    StreamingQuery query = start(rows(1, count, limited(1_000L, 200L)), tag, temp.newFolder(tag));
+    try {
+      await("all rows", () -> values(batches(tag)).size() >= count);
+    } finally {
+      stopQuietly(query);
+    }
+    List<String> values = new ArrayList<>();
+    for (List<Row> batch : batches(tag)) {
+      for (Row row : batch) {
+        WindowedValue<String> value = CoderUtils.decodeFromByteArray(CODER, row.getAs(COL_PAYLOAD));
+        values.add(value.getValue());
+        assertEquals(
+            value.getTimestamp().getMillis(), row.<Timestamp>getAs(COL_EVENT_TS).getTime());
+        assertEquals(
+            Collections.singletonList(GlobalWindow.INSTANCE), new ArrayList<>(value.getWindows()));
+        assertEquals(
+            BASE_MILLIS + TestSource.indexOf(value.getValue()) * INTERVAL_MILLIS,
+            value.getTimestamp().getMillis());
+      }
+    }
+    assertEquals(count, values.size());
+    assertEquals(TestSource.elements(tag, 1, count), new HashSet<>(values));
+  }
+
+  /** The default record limit is unlimited, an available source drains in one micro-batch. */
+  @Test
+  public void testUnlimitedRecordsPerBatchByDefault() throws Exception {
+    int count = 2500;
+    StreamingQuery query = start(rows(1, count, options(5_000L)), tag, temp.newFolder(tag));
+    try {
+      await("a non empty batch", () -> !nonEmptySizes(batches(tag)).isEmpty());
+    } finally {
+      stopQuietly(query);
+    }
+    assertEquals(Collections.singletonList(count), nonEmptySizes(batches(tag)));
+  }
+
+  /** The offset is an opaque epoch counter whose JSON is the bare number. */
   @Test
   public void testEpochOffsetRoundTrip() {
     BeamOffset offset = new BeamOffset(42L);
@@ -292,6 +262,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
     assertThrows(IllegalArgumentException.class, () -> BeamOffset.fromJson("x"));
   }
 
+  /** A deserialized offset moves the epoch counter past itself. */
   @Test
   public void testEpochFastForwardsPastDeserializedOffset() throws Exception {
     BeamMicroBatchStream<?> stream = newStream(temp.newFolder("ff-offset").getAbsolutePath());
@@ -300,6 +271,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
     assertTrue("latestOffset must move past the replayed epoch 7, got " + next, next.epoch() > 7L);
   }
 
+  /** A planned end offset moves the epoch counter past itself. */
   @Test
   public void testEpochFastForwardsPastPlannedOffsets() throws Exception {
     BeamMicroBatchStream<?> stream = newStream(temp.newFolder("ff-plan").getAbsolutePath());
@@ -310,92 +282,69 @@ public class BeamMicroBatchSourceTest implements Serializable {
     assertTrue("latestOffset must move past the planned epoch 9, got " + next, next.epoch() > 9L);
   }
 
-  /** The batch quota is divided over the splits, remainder first, every split gets at least one. */
+  /** The batch quota is divided over the splits and the remainder rotates with the epoch. */
   @Test
   public void testSplitQuotas() {
-    assertArrayEquals(new long[] {1, 1, 1, 1, 1, 1, 1, 1}, BeamMicroBatchStream.splitQuotas(3, 8));
-    assertArrayEquals(new long[] {4, 3, 3}, BeamMicroBatchStream.splitQuotas(10, 3));
-    assertArrayEquals(new long[] {5, 5}, BeamMicroBatchStream.splitQuotas(10, 2));
-    assertArrayEquals(new long[] {0, 0, 0}, BeamMicroBatchStream.splitQuotas(0, 3));
-    assertArrayEquals(new long[] {-1, -1, -1}, BeamMicroBatchStream.splitQuotas(-1, 3));
-    long[] many = BeamMicroBatchStream.splitQuotas(1, 200);
+    assertArrayEquals(
+        new long[] {1, 1, 1, 0, 0, 0, 0, 0}, BeamMicroBatchStream.splitQuotas(3, 8, 0));
+    assertArrayEquals(
+        new long[] {0, 0, 0, 0, 0, 1, 1, 1}, BeamMicroBatchStream.splitQuotas(3, 8, 3));
+    assertArrayEquals(new long[] {4, 3, 3}, BeamMicroBatchStream.splitQuotas(10, 3, 0));
+    assertArrayEquals(new long[] {3, 4, 3}, BeamMicroBatchStream.splitQuotas(10, 3, 2));
+    assertArrayEquals(new long[] {5, 5}, BeamMicroBatchStream.splitQuotas(10, 2, 0));
+    assertArrayEquals(new long[] {-1, -1, -1}, BeamMicroBatchStream.splitQuotas(0, 3, 0));
+    assertArrayEquals(new long[] {-1, -1, -1}, BeamMicroBatchStream.splitQuotas(-1, 3, 0));
+    long[] many = BeamMicroBatchStream.splitQuotas(1, 200, 0);
     assertEquals(200, many.length);
-    for (long quota : many) {
-      assertEquals(1L, quota);
-    }
+    assertEquals(1L, many[0]);
+    assertEquals(1L, Arrays.stream(many).sum());
   }
 
-  /** Rendezvous hashing: a joining executor only takes splits for itself, order does not matter. */
-  @Test
-  public void testSplitAssignmentIsStableWhenExecutorJoins() {
-    List<String> three = Arrays.asList("executor_a_1", "executor_b_2", "executor_c_3");
-    List<String> shuffled = Arrays.asList("executor_c_3", "executor_a_1", "executor_b_2");
-    List<String> four = new ArrayList<>(three);
-    four.add("executor_d_4");
-    int splits = 200;
-    int moved = 0;
-    for (int split = 0; split < splits; split++) {
-      String before = BeamMicroBatchStream.assign(split, three);
-      String after = BeamMicroBatchStream.assign(split, four);
-      assertTrue(three.contains(before));
-      assertEquals(before, BeamMicroBatchStream.assign(split, shuffled));
-      if (!after.equals(before)) {
-        assertEquals("split " + split + " moved to an old executor", "executor_d_4", after);
-        moved++;
-      }
-    }
-    assertTrue("the new executor took no split", moved > 0);
-    assertTrue("the new executor took every split", moved < splits);
-    assertEquals(
-        "executor_a_1", BeamMicroBatchStream.assign(7, Collections.singletonList("executor_a_1")));
-  }
-
-  /** The record limit of a micro-batch is a total over all splits, not a per split allowance. */
+  /** The record limit of a micro-batch is a total over all splits. */
   @Test
   public void testMaxRecordsPerBatchIsSharedAcrossSplits() throws Exception {
     int shards = 2;
     int count = 30;
-    long limit = 10L;
-    String queryName = "beam_shared_limit_" + QUERY_COUNTER.incrementAndGet();
-    Dataset<Row> rows = shardedRows(queryName, shards, count, limit);
-    StreamingQuery query = startCollectingBatches(rows, queryName, temp.newFolder(queryName));
+    StreamingQuery query =
+        start(rows(shards, count, limited(10L, 1_000L)), tag, temp.newFolder(tag));
     try {
-      await("all rows", () -> values(batches(queryName)).size() >= count);
+      await("all rows", () -> values(batches(tag)).size() >= count);
     } finally {
       stopQuietly(query);
     }
-
-    List<Integer> sizes = new ArrayList<>();
-    for (List<Row> batch : batches(queryName)) {
-      if (!batch.isEmpty()) {
-        sizes.add(batch.size());
-      }
-    }
+    List<Integer> sizes = nonEmptySizes(batches(tag));
     assertFalse("no rows arrived", sizes.isEmpty());
-    assertTrue("first batch exceeds the shared limit: " + sizes, sizes.get(0) <= limit);
-    for (int size : sizes) {
-      assertTrue("batch exceeds the shared limit: " + sizes, size <= limit);
-    }
-    List<String> values = values(batches(queryName));
-    assertEquals(count, values.size());
-    assertEquals(ShardedListSource.elements(shards, count), new HashSet<>(values));
+    assertTrue("batch exceeds the shared limit: " + sizes, Collections.max(sizes) <= 10);
+    assertEquals(TestSource.elements(tag, shards, count), new HashSet<>(values(batches(tag))));
   }
 
   /**
-   * A restart resumes every split from the durable mark of the last committed batch, replaying at
-   * most the one uncommitted batch.
+   * A limit below the split count emits at most the limit per batch and rotates over the splits.
    */
+  @Test
+  public void testQuotaBelowSplitCountRotates() throws Exception {
+    int shards = 4;
+    StreamingQuery query = start(rows(shards, 40, limited(1L, 1_000L)), tag, temp.newFolder(tag));
+    try {
+      await("every shard", () -> shardsOf(values(batches(tag))).size() == shards);
+    } finally {
+      stopQuietly(query);
+    }
+    List<Integer> sizes = nonEmptySizes(batches(tag));
+    assertTrue("batch exceeds the limit of 1: " + sizes, Collections.max(sizes) <= 1);
+  }
+
+  /** A restart resumes every split from the last committed mark, replaying at most one batch. */
   @Test
   public void testRestartResumesFromCommittedMark() throws Exception {
     int shards = 2;
     int count = 80;
     long limit = 4L;
     File checkpointDir = temp.newFolder("restart");
-    Set<String> all = ShardedListSource.elements(shards, count);
+    String first = tag + "_a";
+    String second = tag + "_b";
 
-    String first = "beam_restart_a_" + QUERY_COUNTER.incrementAndGet();
-    StreamingQuery query =
-        startCollectingBatches(shardedRows(first, shards, count, limit), first, checkpointDir);
+    StreamingQuery query = start(rows(shards, count, limited(limit, 1_000L)), first, checkpointDir);
     try {
       await("two commits", () -> committedBatchIds(checkpointDir).size() >= 2);
     } finally {
@@ -404,9 +353,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
     BeamReaderCache.invalidateAll();
     List<String> firstValues = values(batches(first));
 
-    String second = "beam_restart_b_" + QUERY_COUNTER.incrementAndGet();
-    query =
-        startCollectingBatches(shardedRows(second, shards, count, limit), second, checkpointDir);
+    Set<String> all = TestSource.elements(tag, shards, count);
+    query = start(rows(shards, count, limited(limit, 1_000L)), second, checkpointDir);
     try {
       await(
           "union of both runs",
@@ -424,17 +372,13 @@ public class BeamMicroBatchSourceTest implements Serializable {
     union.addAll(secondValues);
     assertEquals(all, union);
     assertTrue(
-        "more than the uncommitted batch replayed: "
-            + firstValues.size()
-            + " + "
-            + secondValues.size()
-            + " rows",
+        "more than one batch replayed: " + firstValues.size() + " + " + secondValues.size(),
         firstValues.size() + secondValues.size() <= count + limit);
     for (int shard = 0; shard < shards; shard++) {
       int min = Integer.MAX_VALUE;
       for (String value : secondValues) {
-        if (ShardedListSource.shardOf(value) == shard) {
-          min = Math.min(min, ShardedListSource.indexOf(value));
+        if (TestSource.shardOf(value) == shard) {
+          min = Math.min(min, TestSource.indexOf(value));
         }
       }
       assertTrue("run 2 delivered nothing for shard " + shard, min < Integer.MAX_VALUE);
@@ -442,174 +386,170 @@ public class BeamMicroBatchSourceTest implements Serializable {
     }
   }
 
-  /**
-   * Every finalized position of a split is at most the position in that split's mark at the end
-   * epoch of the highest committed batch, so no mark is finalized before Spark commits its batch.
-   */
+  /** No split finalizes a position beyond its mark at the end epoch of the last committed batch. */
   @Test
   public void testMarksAreFinalizedOnlyAfterSparkCommit() throws Exception {
-    int shards = 2;
-    // Never exhausted while the test runs, positions strictly increase with the epoch.
-    int count = 4_000;
     File checkpointDir = temp.newFolder("finalize");
-    String queryName = "beam_finalize_" + QUERY_COUNTER.incrementAndGet();
-    StreamingQuery query =
-        startCollectingBatches(shardedRows(queryName, shards, count, 4L), queryName, checkpointDir);
-    try {
-      await("three commits", () -> committedBatchIds(checkpointDir).size() >= 3);
-    } finally {
-      stopQuietly(query);
-    }
+    runUntilCommits(checkpointDir, 3);
 
-    long committedEpoch =
-        endEpoch(checkpointDir, Collections.max(committedBatchIds(checkpointDir)));
-    BeamSourceCheckpoint files = sourceCheckpoint(checkpointDir);
     int finalizations = 0;
-    for (int shard = 0; shard < shards; shard++) {
-      byte[] coded = files.readMark(shard, committedEpoch);
-      assertNotNull("no mark at committed epoch " + committedEpoch + " for split " + shard, coded);
-      int committedPosition =
-          CoderUtils.decodeFromByteArray(ShardedListSource.MARK_CODER, coded).next;
-      List<Integer> finalized = ShardedListSource.finalized(queryName, shard);
-      for (int position : finalized) {
-        assertTrue(
-            "split "
-                + shard
-                + " finalized position "
-                + position
-                + " beyond committed position "
-                + committedPosition,
-            position <= committedPosition);
-      }
+    for (int shard = 0; shard < 2; shard++) {
+      int committed = committedPosition(checkpointDir, shard);
+      List<Integer> finalized = TestSource.finalized(tag, shard);
+      assertTrue(
+          "shard " + shard + " finalized " + finalized + " beyond committed " + committed,
+          finalized.isEmpty() || Collections.max(finalized) <= committed);
       finalizations += finalized.size();
     }
     assertTrue("no mark was finalized", finalizations > 0);
   }
 
   /**
-   * Spark reports the commit of batch N-1 when it constructs batch N, so after a run the surviving
-   * marks of every split are at or above the end epoch of the batch before the last constructed
-   * one, the mark at the highest committed end epoch exists, and the mark of batch 0 is gone.
+   * After a run the mark at the last committed epoch exists, every surviving mark is at or above
+   * the end epoch of the batch before the last constructed one, and the mark of batch 0 is gone.
    */
   @Test
   public void testMarksBelowCommittedOffsetArePurged() throws Exception {
-    int shards = 2;
-    int count = 4_000;
     File checkpointDir = temp.newFolder("purge");
-    String queryName = "beam_purge_" + QUERY_COUNTER.incrementAndGet();
-    StreamingQuery query =
-        startCollectingBatches(shardedRows(queryName, shards, count, 4L), queryName, checkpointDir);
-    try {
-      await("three commits", () -> committedBatchIds(checkpointDir).size() >= 3);
-    } finally {
-      stopQuietly(query);
-    }
+    runUntilCommits(checkpointDir, 3);
 
     long lastConstructed = Collections.max(batchIds(new File(checkpointDir, "offsets")));
     long purgeFloor = endEpoch(checkpointDir, lastConstructed - 1);
-    long committedEpoch =
-        endEpoch(checkpointDir, Collections.max(committedBatchIds(checkpointDir)));
+    long committedEpoch = committedEpoch(checkpointDir);
     long firstEpoch = endEpoch(checkpointDir, 0);
     assertTrue(committedEpoch >= purgeFloor);
     assertTrue(purgeFloor > firstEpoch);
-    File sourceDir = new File(checkpointDir, "sources/0");
-    // The last purge runs asynchronously on the driver and may still be in flight after stop.
+    File sourceDir = sourceDir(checkpointDir);
     awaitQuietly(
         10_000L,
         () -> {
-          for (int shard = 0; shard < shards; shard++) {
-            for (long epoch : batchIds(new File(sourceDir, "marks/" + shard))) {
-              if (epoch < purgeFloor) {
-                return false;
-              }
+          for (int shard = 0; shard < 2; shard++) {
+            TreeSet<Long> epochs = markEpochs(sourceDir, shard);
+            if (epochs.isEmpty() || epochs.first() < purgeFloor) {
+              return false;
             }
           }
           return true;
         });
-    for (int shard = 0; shard < shards; shard++) {
-      Set<Long> remaining = batchIds(new File(sourceDir, "marks/" + shard));
+    for (int shard = 0; shard < 2; shard++) {
+      TreeSet<Long> remaining = markEpochs(sourceDir, shard);
       assertTrue(
-          "split "
+          "shard "
               + shard
               + " lost the mark at committed epoch "
               + committedEpoch
               + ": "
               + remaining,
           remaining.contains(committedEpoch));
-      for (long epoch : remaining) {
-        assertTrue(
-            "split " + shard + " kept mark " + epoch + " below purge floor " + purgeFloor,
-            epoch >= purgeFloor);
-      }
-      assertFalse("split " + shard + " kept the mark of batch 0", remaining.contains(firstEpoch));
+      assertTrue(
+          "shard " + shard + " kept marks below purge floor " + purgeFloor + ": " + remaining,
+          remaining.first() >= purgeFloor);
+      assertFalse("shard " + shard + " kept the mark of batch 0", remaining.contains(firstEpoch));
     }
   }
 
-  // ---------------------------------------------------------------------------------------------
-  // helpers
-  // ---------------------------------------------------------------------------------------------
+  /**
+   * After a stop an idle sweep finalizes exactly the marks of the last committed epoch, {@link
+   * BeamReaderCache#closeIdle(long)} is the one white box hook these tests use.
+   */
+  @Test
+  public void testStoppedQueryFinalizesLastCommittedMarks() throws Exception {
+    File checkpointDir = temp.newFolder("stopped");
+    runUntilCommits(checkpointDir, 3);
+    BeamReaderCache.closeIdle(Long.MAX_VALUE);
 
-  private Dataset<Row> rows(int count, long watermarkDelayMillis) {
-    SparkStructuredStreamingPipelineOptions options =
-        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-    options.setWatermarkDelayMillis(watermarkDelayMillis);
-    options.setMaxRecordsPerBatch(1000L);
-    options.setMaxBatchDurationMillis(200L);
-    return UnboundedSourceDataset.of(
-        SESSION.getSession(), new ListSource(count), coder(), options, "Read(ListSource)");
+    for (int shard = 0; shard < 2; shard++) {
+      int committed = committedPosition(checkpointDir, shard);
+      List<Integer> finalized = TestSource.finalized(tag, shard);
+      assertTrue(
+          "shard " + shard + " finalized " + finalized + ", committed " + committed,
+          finalized.contains(committed) && Collections.max(finalized) == committed);
+    }
   }
 
-  /** Builds the driver side stream through the table, with real broadcasts from the session. */
+  /** A retried batch restarts from the durable mark at its start and finalizes nothing. */
+  @Test
+  public void testRetriedBatchRestartsFromDurableMark() throws Exception {
+    String location = sourceDir(temp.newFolder("protocol")).getAbsolutePath();
+    assertEquals(shardZero(0, 1, 2), readBatch(partition(location, 0, 1)));
+    assertEquals(shardZero(0, 1, 2), readBatch(partition(location, 0, 1)));
+    assertEquals(Collections.emptyList(), TestSource.finalized(tag, 0));
+    assertEquals(2, TestSource.created(tag));
+  }
+
+  /** A start epoch above zero without a durable mark is an invariant violation. */
+  @Test
+  public void testMissingMarkThrows() throws Exception {
+    String location = sourceDir(temp.newFolder("protocol")).getAbsolutePath();
+    assertThrows(
+        IllegalStateException.class, () -> new BeamPartitionReader<>(partition(location, 5, 6)));
+    assertEquals(0, TestSource.created(tag));
+  }
+
+  /** A failed mark write fails the batch after its rows, the retry recreates the reader. */
+  @Test
+  public void testRetryAfterFailedMarkWriteRecreatesReader() throws Exception {
+    File location = sourceDir(temp.newFolder("protocol"));
+    assertTrue(location.getParentFile().mkdirs() && location.createNewFile());
+    String file = location.getAbsolutePath();
+    assertEquals(shardZero(0, 1, 2), drainUntilFailure(partition(file, 0, 1), IOException.class));
+    assertEquals(shardZero(0, 1, 2), drainUntilFailure(partition(file, 0, 1), IOException.class));
+    assertEquals(Collections.emptyList(), TestSource.finalized(tag, 0));
+    assertEquals(2, TestSource.created(tag));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // query helpers
+  // ---------------------------------------------------------------------------------------------
+
+  private static SparkStructuredStreamingPipelineOptions options(long maxBatchDurationMillis) {
+    SparkStructuredStreamingPipelineOptions options =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
+    options.setWatermarkDelayMillis(0L);
+    options.setMaxBatchDurationMillis(maxBatchDurationMillis);
+    return options;
+  }
+
+  private static SparkStructuredStreamingPipelineOptions limited(
+      long maxRecordsPerBatch, long maxBatchDurationMillis) {
+    SparkStructuredStreamingPipelineOptions options = options(maxBatchDurationMillis);
+    options.setMaxRecordsPerBatch(maxRecordsPerBatch);
+    return options;
+  }
+
+  private Dataset<Row> rows(
+      int shards, int count, SparkStructuredStreamingPipelineOptions options) {
+    return UnboundedSourceDataset.of(
+        SESSION.getSession(),
+        new TestSource(tag, shards, count),
+        CODER,
+        options,
+        "Read(TestSource)");
+  }
+
+  /** Builds the driver side stream through the table, with the session's broadcasts. */
   private static BeamMicroBatchStream<?> newStream(String checkpointLocation) {
-    SparkSession session = SESSION.getSession();
-    Broadcast<SerializablePipelineOptions> options =
-        session
-            .sparkContext()
-            .broadcast(
-                new SerializablePipelineOptions(PipelineOptionsFactory.create()),
-                ClassTag.apply(SerializablePipelineOptions.class));
-    Broadcast<SerializableConfiguration> hadoopConf =
-        session
-            .sparkContext()
-            .broadcast(
-                new SerializableConfiguration(new Configuration()),
-                ClassTag.apply(SerializableConfiguration.class));
-    BeamSourceSpec<String> spec =
-        new BeamSourceSpec<>(
-            new ListSource(4),
-            coder(),
-            options,
-            hadoopConf,
+    BeamTable<Long> table =
+        new BeamTable<>(
+            CountingSource.unbounded(),
+            WindowedValues.getFullCoder(VarLongCoder.of(), GlobalWindow.Coder.INSTANCE),
+            optionsBroadcast,
+            hadoopConfBroadcast,
             2,
             -1L,
             200L,
             600_000L,
-            "Read(ListSource)");
-    MicroBatchStream stream =
-        new BeamStreamingTable(spec)
+            "Read(CountingSource)");
+    return (BeamMicroBatchStream<?>)
+        table
             .newScanBuilder(CaseInsensitiveStringMap.empty())
             .build()
             .toMicroBatchStream(checkpointLocation);
-    return (BeamMicroBatchStream<?>) stream;
-  }
-
-  private Dataset<Row> shardedRows(String tag, int shards, int count, long maxRecordsPerBatch) {
-    SparkStructuredStreamingPipelineOptions options =
-        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
-    options.setWatermarkDelayMillis(0L);
-    options.setMaxRecordsPerBatch(maxRecordsPerBatch);
-    options.setMaxBatchDurationMillis(1_000L);
-    return UnboundedSourceDataset.of(
-        SESSION.getSession(),
-        new ShardedListSource(tag, shards, count),
-        coder(),
-        options,
-        "Read(ShardedListSource)");
   }
 
   /** Starts a query collecting every micro-batch as one list into {@link #BATCHES}. */
-  private static StreamingQuery startCollectingBatches(
-      Dataset<Row> dataset, String queryName, File checkpointDir) throws Exception {
+  private static StreamingQuery start(Dataset<Row> dataset, String queryName, File checkpointDir)
+      throws Exception {
     BATCHES.put(queryName, Collections.synchronizedList(new ArrayList<>()));
     return dataset
         .writeStream()
@@ -628,6 +568,24 @@ public class BeamMicroBatchSourceTest implements Serializable {
         .start();
   }
 
+  /** Runs two shards with a limit of 4 over a source that never drains until Spark committed. */
+  private void runUntilCommits(File checkpointDir, int commits) throws Exception {
+    StreamingQuery query = start(rows(2, 4_000, limited(4L, 1_000L)), tag, checkpointDir);
+    try {
+      await(commits + " commits", () -> committedBatchIds(checkpointDir).size() >= commits);
+    } finally {
+      stopQuietly(query);
+    }
+  }
+
+  private static void stopQuietly(StreamingQuery query) {
+    try {
+      query.stop();
+    } catch (Exception e) {
+      // Nothing useful to do while tearing a test query down.
+    }
+  }
+
   private static List<List<Row>> batches(String queryName) {
     List<List<Row>> batches = BATCHES.getOrDefault(queryName, Collections.emptyList());
     synchronized (batches) {
@@ -636,19 +594,39 @@ public class BeamMicroBatchSourceTest implements Serializable {
   }
 
   private static List<String> values(List<List<Row>> batches) {
-    Coder<WindowedValue<String>> coder = coder();
     List<String> values = new ArrayList<>();
     for (List<Row> batch : batches) {
       for (Row row : batch) {
-        byte[] payload = row.getAs(COL_PAYLOAD);
-        try {
-          values.add(CoderUtils.decodeFromByteArray(coder, payload).getValue());
-        } catch (IOException e) {
-          throw new IllegalStateException(e);
-        }
+        values.add(decode(row.getAs(COL_PAYLOAD)));
       }
     }
     return values;
+  }
+
+  private static String decode(byte[] payload) {
+    try {
+      return CoderUtils.decodeFromByteArray(CODER, payload).getValue();
+    } catch (IOException e) {
+      throw new IllegalStateException(e);
+    }
+  }
+
+  private static List<Integer> nonEmptySizes(List<List<Row>> batches) {
+    List<Integer> sizes = new ArrayList<>();
+    for (List<Row> batch : batches) {
+      if (!batch.isEmpty()) {
+        sizes.add(batch.size());
+      }
+    }
+    return sizes;
+  }
+
+  private static Set<Integer> shardsOf(List<String> values) {
+    Set<Integer> shards = new HashSet<>();
+    for (String value : values) {
+      shards.add(TestSource.shardOf(value));
+    }
+    return shards;
   }
 
   private static void await(String what, BooleanSupplier condition) throws Exception {
@@ -669,136 +647,13 @@ public class BeamMicroBatchSourceTest implements Serializable {
     return condition.getAsBoolean();
   }
 
-  /** Numeric file names in a Spark log directory, temp and hidden files excluded. */
-  private static Set<Long> batchIds(File dir) {
-    Set<Long> ids = new TreeSet<>();
-    String[] names = dir.list();
-    if (names == null) {
-      return ids;
-    }
-    for (String name : names) {
-      if (!name.startsWith(".") && !name.endsWith(".tmp")) {
-        try {
-          ids.add(Long.parseLong(name));
-        } catch (NumberFormatException e) {
-          // not a log entry
-        }
-      }
-    }
-    return ids;
-  }
-
-  private static Set<Long> committedBatchIds(File checkpointDir) {
-    return batchIds(new File(checkpointDir, "commits"));
-  }
-
-  /** The end epoch of a batch, the offset line of the single source in {@code offsets/<id>}. */
-  private static long endEpoch(File checkpointDir, long batchId) throws IOException {
-    File file = new File(new File(checkpointDir, "offsets"), Long.toString(batchId));
-    List<String> lines = new ArrayList<>();
-    for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
-      if (!line.trim().isEmpty()) {
-        lines.add(line.trim());
-      }
-    }
-    assertTrue("offset log entry too short: " + lines, lines.size() >= 3);
-    assertEquals("one source expected in " + lines, 3, lines.size());
-    return BeamOffset.fromJson(lines.get(2)).epoch();
-  }
-
-  private static BeamSourceCheckpoint sourceCheckpoint(File checkpointDir) {
-    return new BeamSourceCheckpoint(
-        new File(checkpointDir, "sources/0").getAbsolutePath(), new Configuration());
-  }
-
-  private static Coder<WindowedValue<String>> coder() {
-    return WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-  }
-
-  private static String element(int index) {
-    return "element-" + index;
-  }
-
-  private static long timestampMillis(int index) {
-    return BASE_MILLIS + index * INTERVAL_MILLIS;
-  }
-
-  /**
-   * Starts a query that throws its output away.
-   *
-   * <p>The {@code noop} sink is used on purpose: these tests observe the source through a {@code
-   * foreachBatch} or through the query's own progress, never through the sink, so there is no
-   * reason to buffer rows anywhere. That matches what the streaming evaluation context does for
-   * real pipelines.
-   */
-  private StreamingQuery startDiscarding(Dataset<?> dataset, String queryName) throws Exception {
-    return dataset
-        .writeStream()
-        .format("noop")
-        .queryName(queryName)
-        .outputMode("append")
-        .option("checkpointLocation", temp.newFolder(queryName).getAbsolutePath())
-        .trigger(Trigger.ProcessingTime(100))
-        .start();
-  }
-
-  /**
-   * Starts a query collecting every micro-batch into {@link #COLLECTED} under {@code queryName}.
-   */
-  private StreamingQuery startCollecting(Dataset<Row> dataset, String queryName) throws Exception {
-    COLLECTED.put(queryName, Collections.synchronizedList(new ArrayList<>()));
-    return dataset
-        .writeStream()
-        .foreachBatch(
-            (VoidFunction2<Dataset<Row>, Long>)
-                (batch, batchId) -> {
-                  // Exactly one action per micro-batch: any second action would re-execute the
-                  // batch and advance the Beam reader past records that were never collected.
-                  List<Row> target = COLLECTED.get(queryName);
-                  if (target != null) {
-                    target.addAll(batch.collectAsList());
-                  }
-                })
-        .queryName(queryName)
-        .outputMode("append")
-        .option("checkpointLocation", temp.newFolder(queryName).getAbsolutePath())
-        .trigger(Trigger.ProcessingTime(100))
-        .start();
-  }
-
-  private static void stopQuietly(StreamingQuery query) {
-    try {
-      query.stop();
-    } catch (Exception e) {
-      // Nothing useful to do while tearing a test query down.
-    }
-  }
-
-  /** Polls the collected batches until {@code expected} rows arrived or the deadline expires. */
-  private static List<Row> awaitRows(String queryName, int expected) throws Exception {
-    long deadline = System.currentTimeMillis() + POLL_TIMEOUT_MILLIS;
-    List<Row> rows = COLLECTED.getOrDefault(queryName, Collections.emptyList());
-    while (System.currentTimeMillis() < deadline) {
-      synchronized (rows) {
-        if (rows.size() >= expected) {
-          return new ArrayList<>(rows);
-        }
-      }
-      Thread.sleep(100L);
-    }
-    synchronized (rows) {
-      return new ArrayList<>(rows);
-    }
-  }
-
   /** Polls the query progress until it reports an event time watermark past the epoch. */
   private static @Nullable String awaitWatermark(StreamingQuery query) throws Exception {
     long deadline = System.currentTimeMillis() + POLL_TIMEOUT_MILLIS;
     String last = null;
     while (System.currentTimeMillis() < deadline) {
       for (StreamingQueryProgress progress : query.recentProgress()) {
-        Map<String, String> eventTime = progress.eventTime();
-        String watermark = eventTime.get("watermark");
+        String watermark = progress.eventTime().get("watermark");
         if (watermark != null) {
           last = watermark;
           if (!watermark.startsWith("1970-")) {
@@ -839,168 +694,177 @@ public class BeamMicroBatchSourceTest implements Serializable {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // a minimal in-memory UnboundedSource
+  // checkpoint helpers
   // ---------------------------------------------------------------------------------------------
 
-  /**
-   * A trivial single split {@link UnboundedSource} over a fixed number of synthetic elements with
-   * evenly spaced event timestamps. It is exhausted after the last element, further calls to {@code
-   * advance()} simply report that no data is available.
-   */
-  private static class ListSource extends UnboundedSource<String, ListSource.Mark> {
-    private static final long serialVersionUID = 1L;
+  private static File sourceDir(File checkpointDir) {
+    return new File(checkpointDir, "sources/0");
+  }
 
-    private final int count;
-
-    ListSource(int count) {
-      this.count = count;
+  /** Numeric file names in a Spark log directory, temp and hidden files excluded. */
+  private static TreeSet<Long> batchIds(File dir) {
+    TreeSet<Long> ids = new TreeSet<>();
+    String[] names = dir.list();
+    if (names == null) {
+      return ids;
     }
-
-    @Override
-    public List<ListSource> split(int desiredNumSplits, PipelineOptions options) {
-      return Arrays.asList(this);
-    }
-
-    @Override
-    public UnboundedReader<String> createReader(PipelineOptions options, @Nullable Mark mark) {
-      return new ListReader(this, mark == null ? 0 : mark.next);
-    }
-
-    @Override
-    public Coder<Mark> getCheckpointMarkCoder() {
-      return SerializableCoder.of(Mark.class);
-    }
-
-    @Override
-    public Coder<String> getOutputCoder() {
-      return StringUtf8Coder.of();
-    }
-
-    /** Position of the next element to read. */
-    static class Mark implements UnboundedSource.CheckpointMark, Serializable {
-      private static final long serialVersionUID = 1L;
-
-      private final int next;
-
-      Mark(int next) {
-        this.next = next;
-      }
-
-      @Override
-      public void finalizeCheckpoint() {}
-    }
-
-    private static class ListReader extends UnboundedReader<String> {
-      private final ListSource source;
-      private int next;
-      private int current = -1;
-
-      ListReader(ListSource source, int next) {
-        this.source = source;
-        this.next = next;
-      }
-
-      @Override
-      public boolean start() {
-        return advance();
-      }
-
-      @Override
-      public boolean advance() {
-        if (next < source.count) {
-          current = next++;
-          return true;
+    for (String name : names) {
+      if (!name.startsWith(".") && !name.endsWith(".tmp")) {
+        try {
+          ids.add(Long.parseLong(name));
+        } catch (NumberFormatException e) {
+          // not a log entry
         }
-        return false;
       }
-
-      @Override
-      public String getCurrent() throws NoSuchElementException {
-        if (current < 0) {
-          throw new NoSuchElementException();
-        }
-        return element(current);
-      }
-
-      @Override
-      public Instant getCurrentTimestamp() throws NoSuchElementException {
-        if (current < 0) {
-          throw new NoSuchElementException();
-        }
-        return new Instant(timestampMillis(current));
-      }
-
-      @Override
-      public Instant getWatermark() {
-        return current < 0
-            ? BoundedWindow.TIMESTAMP_MIN_VALUE
-            : new Instant(timestampMillis(current));
-      }
-
-      @Override
-      public CheckpointMark getCheckpointMark() {
-        return new Mark(next);
-      }
-
-      @Override
-      public UnboundedSource<String, ?> getCurrentSource() {
-        return source;
-      }
-
-      @Override
-      public void close() throws IOException {}
     }
+    return ids;
+  }
+
+  /** Epochs under {@code marks/<epoch>/} holding a mark file of {@code shard}. */
+  private static TreeSet<Long> markEpochs(File sourceDir, int shard) {
+    TreeSet<Long> epochs = new TreeSet<>();
+    for (long epoch : batchIds(new File(sourceDir, "marks"))) {
+      if (new File(sourceDir, "marks/" + epoch + "/" + shard).exists()) {
+        epochs.add(epoch);
+      }
+    }
+    return epochs;
+  }
+
+  private static TreeSet<Long> committedBatchIds(File checkpointDir) {
+    return batchIds(new File(checkpointDir, "commits"));
+  }
+
+  /** The end epoch of a batch, the offset line of the single source in {@code offsets/<id>}. */
+  private static long endEpoch(File checkpointDir, long batchId) throws IOException {
+    File file = new File(new File(checkpointDir, "offsets"), Long.toString(batchId));
+    List<String> lines = new ArrayList<>();
+    for (String line : Files.readAllLines(file.toPath(), StandardCharsets.UTF_8)) {
+      if (!line.trim().isEmpty()) {
+        lines.add(line.trim());
+      }
+    }
+    assertEquals("one source expected in " + lines, 3, lines.size());
+    return BeamOffset.fromJson(lines.get(2)).epoch();
+  }
+
+  private static long committedEpoch(File checkpointDir) throws IOException {
+    return endEpoch(checkpointDir, committedBatchIds(checkpointDir).last());
+  }
+
+  /** The position in the mark of {@code shard} at the end epoch of the last committed batch. */
+  private static int committedPosition(File checkpointDir, int shard) throws IOException {
+    long epoch = committedEpoch(checkpointDir);
+    BeamSourceCheckpoint checkpoint =
+        new BeamSourceCheckpoint(sourceDir(checkpointDir).getAbsolutePath(), new Configuration());
+    byte[] coded = checkpoint.readMark(shard, epoch);
+    assertNotNull("no mark at committed epoch " + epoch + " for shard " + shard, coded);
+    return CoderUtils.decodeFromByteArray(TestSource.MARK_CODER, coded).next;
   }
 
   // ---------------------------------------------------------------------------------------------
-  // a multi split in-memory UnboundedSource with finalization counting marks
+  // hand built partition helpers
+  // ---------------------------------------------------------------------------------------------
+
+  /** Split 0 of a single shard source of 100 elements from epoch {@code start} to {@code end}. */
+  private BeamInputPartition<String> partition(String location, long start, long end) {
+    TestSource split = new TestSource(tag, 1, 100).split(1, PipelineOptionsFactory.create()).get(0);
+    return new BeamInputPartition<>(
+        split,
+        CODER,
+        optionsBroadcast,
+        hadoopConfBroadcast,
+        location,
+        0,
+        start,
+        end,
+        3L,
+        30_000L,
+        600_000L);
+  }
+
+  private static List<String> readBatch(BeamInputPartition<String> partition) throws IOException {
+    List<String> values = new ArrayList<>();
+    drainInto(new BeamPartitionReader<>(partition), values);
+    return values;
+  }
+
+  private static void drainInto(BeamPartitionReader<String> reader, List<String> values)
+      throws IOException {
+    while (reader.next()) {
+      InternalRow row = reader.get();
+      values.add(decode(row.getBinary(0)));
+    }
+    reader.close();
+  }
+
+  /** Opens and drains a batch expected to fail, returns what it delivered before failing. */
+  private static List<String> drainUntilFailure(
+      BeamInputPartition<String> partition, Class<? extends Exception> failure) throws IOException {
+    BeamPartitionReader<String> reader = new BeamPartitionReader<>(partition);
+    List<String> values = new ArrayList<>();
+    assertThrows(failure, () -> drainInto(reader, values));
+    return values;
+  }
+
+  private List<String> shardZero(int... indexes) {
+    List<String> elements = new ArrayList<>();
+    for (int index : indexes) {
+      elements.add(TestSource.element(tag, 0, index));
+    }
+    return elements;
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // the shared in memory UnboundedSource
   // ---------------------------------------------------------------------------------------------
 
   /**
    * Splits into one sub source per shard, each over {@code count / shards} elements named {@code
-   * shard-N-element-M} with evenly spaced timestamps. Marks are not Java serializable, they carry
-   * the shard's read position and record it under {@code <tag>/<shard>} when finalized.
+   * <tag>-<shard>-<index>} with evenly spaced timestamps. Marks are not Java serializable, they
+   * record the position they finalize under {@code <tag>/<shard>}, readers are counted per tag.
    */
-  static class ShardedListSource extends UnboundedSource<String, ShardedListSource.ShardMark> {
+  static final class TestSource extends UnboundedSource<String, TestSource.Mark> {
     private static final long serialVersionUID = 1L;
 
-    static final Coder<ShardMark> MARK_CODER = new MarkCoder();
+    static final Coder<Mark> MARK_CODER = new MarkCoder();
 
-    /** Finalized positions keyed by {@code <tag>/<shard>}. */
-    static final ConcurrentMap<String, List<Integer>> FINALIZED = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, List<Integer>> FINALIZED = new ConcurrentHashMap<>();
+    private static final ConcurrentMap<String, AtomicInteger> CREATED = new ConcurrentHashMap<>();
 
     private final String tag;
     private final int shard;
     private final int shards;
     private final int perShard;
 
-    ShardedListSource(String tag, int shards, int count) {
+    TestSource(String tag, int shards, int count) {
       this(tag, -1, shards, count / shards);
     }
 
-    private ShardedListSource(String tag, int shard, int shards, int perShard) {
+    private TestSource(String tag, int shard, int shards, int perShard) {
       this.tag = tag;
       this.shard = shard;
       this.shards = shards;
       this.perShard = perShard;
     }
 
-    static Set<String> elements(int shards, int count) {
+    static Set<String> elements(String tag, int shards, int count) {
       Set<String> elements = new HashSet<>();
       for (int shard = 0; shard < shards; shard++) {
         for (int index = 0; index < count / shards; index++) {
-          elements.add(element(shard, index));
+          elements.add(element(tag, shard, index));
         }
       }
       return elements;
     }
 
-    static String element(int shard, int index) {
-      return "shard-" + shard + "-element-" + index;
+    static String element(String tag, int shard, int index) {
+      return tag + "-" + shard + "-" + index;
     }
 
     static int shardOf(String element) {
-      return Integer.parseInt(element.substring("shard-".length(), element.indexOf("-element-")));
+      String head = element.substring(0, element.lastIndexOf('-'));
+      return Integer.parseInt(head.substring(head.lastIndexOf('-') + 1));
     }
 
     static int indexOf(String element) {
@@ -1017,32 +881,43 @@ public class BeamMicroBatchSourceTest implements Serializable {
       }
     }
 
+    static int created(String tag) {
+      AtomicInteger created = CREATED.get(tag);
+      return created == null ? 0 : created.get();
+    }
+
+    static void forget(String tag) {
+      FINALIZED.keySet().removeIf(key -> key.startsWith(tag + "/"));
+      CREATED.remove(tag);
+    }
+
     private static String key(String tag, int shard) {
       return tag + "/" + shard;
     }
 
     @Override
-    public List<ShardedListSource> split(int desiredNumSplits, PipelineOptions options) {
+    public List<TestSource> split(int desiredNumSplits, PipelineOptions options) {
       if (shard >= 0) {
         return Collections.singletonList(this);
       }
-      List<ShardedListSource> splits = new ArrayList<>();
+      List<TestSource> splits = new ArrayList<>();
       for (int i = 0; i < shards; i++) {
-        splits.add(new ShardedListSource(tag, i, shards, perShard));
+        splits.add(new TestSource(tag, i, shards, perShard));
       }
       return splits;
     }
 
     @Override
-    public UnboundedReader<String> createReader(PipelineOptions options, @Nullable ShardMark mark) {
+    public UnboundedReader<String> createReader(PipelineOptions options, @Nullable Mark mark) {
       if (shard < 0) {
         throw new IllegalStateException("split before reading");
       }
-      return new ShardReader(this, mark == null ? 0 : mark.next);
+      CREATED.computeIfAbsent(tag, t -> new AtomicInteger()).incrementAndGet();
+      return new Reader(this, mark == null ? 0 : mark.next);
     }
 
     @Override
-    public Coder<ShardMark> getCheckpointMarkCoder() {
+    public Coder<Mark> getCheckpointMarkCoder() {
       return MARK_CODER;
     }
 
@@ -1052,44 +927,50 @@ public class BeamMicroBatchSourceTest implements Serializable {
     }
 
     /** Position of the next element of a shard, deliberately not {@link Serializable}. */
-    static final class ShardMark implements UnboundedSource.CheckpointMark {
-      private final String key;
+    static final class Mark implements UnboundedSource.CheckpointMark {
+      private final String tag;
+      private final int shard;
       final int next;
 
-      ShardMark(String key, int next) {
-        this.key = key;
+      Mark(String tag, int shard, int next) {
+        this.tag = tag;
+        this.shard = shard;
         this.next = next;
       }
 
       @Override
       public void finalizeCheckpoint() {
         FINALIZED
-            .computeIfAbsent(key, k -> Collections.synchronizedList(new ArrayList<>()))
+            .computeIfAbsent(key(tag, shard), k -> Collections.synchronizedList(new ArrayList<>()))
             .add(next);
       }
     }
 
-    private static final class MarkCoder extends CustomCoder<ShardMark> {
+    private static final class MarkCoder extends CustomCoder<Mark> {
       private static final long serialVersionUID = 1L;
 
       @Override
-      public void encode(ShardMark mark, OutputStream out) throws IOException {
-        StringUtf8Coder.of().encode(mark.key, out);
+      public void encode(Mark mark, OutputStream out) throws IOException {
+        StringUtf8Coder.of().encode(mark.tag, out);
+        VarIntCoder.of().encode(mark.shard, out);
         VarIntCoder.of().encode(mark.next, out);
       }
 
       @Override
-      public ShardMark decode(InputStream in) throws IOException {
-        return new ShardMark(StringUtf8Coder.of().decode(in), VarIntCoder.of().decode(in));
+      public Mark decode(InputStream in) throws IOException {
+        return new Mark(
+            StringUtf8Coder.of().decode(in),
+            VarIntCoder.of().decode(in),
+            VarIntCoder.of().decode(in));
       }
     }
 
-    private static final class ShardReader extends UnboundedReader<String> {
-      private final ShardedListSource source;
+    private static final class Reader extends UnboundedReader<String> {
+      private final TestSource source;
       private int next;
       private int current = -1;
 
-      ShardReader(ShardedListSource source, int next) {
+      Reader(TestSource source, int next) {
         this.source = source;
         this.next = next;
       }
@@ -1113,7 +994,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
         if (current < 0) {
           throw new NoSuchElementException();
         }
-        return element(source.shard, current);
+        return element(source.tag, source.shard, current);
       }
 
       @Override
@@ -1121,7 +1002,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
         if (current < 0) {
           throw new NoSuchElementException();
         }
-        return new Instant(timestampMillis(source.shard * source.perShard + current));
+        return new Instant(
+            BASE_MILLIS + (source.shard * source.perShard + current) * INTERVAL_MILLIS);
       }
 
       @Override
@@ -1131,7 +1013,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
 
       @Override
       public CheckpointMark getCheckpointMark() {
-        return new ShardMark(key(source.tag, source.shard), next);
+        return new Mark(source.tag, source.shard, next);
       }
 
       @Override

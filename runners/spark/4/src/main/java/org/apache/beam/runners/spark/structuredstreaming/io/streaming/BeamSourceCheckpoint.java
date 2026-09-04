@@ -17,12 +17,12 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.io.streaming;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.util.SerializableUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
@@ -41,9 +41,10 @@ import org.slf4j.LoggerFactory;
  * to {@code toMicroBatchStream}.
  *
  * <p>{@code <location>/splits} pins the split list, written once by the driver. {@code
- * <location>/marks/<splitId>/<epoch>} holds the coded checkpoint mark of a split at the end of the
- * batch ending at that epoch. All IO goes through Spark's {@link CheckpointFileManager}, writes are
- * atomic renames.
+ * <location>/marks/<epoch>/<splitId>} holds the coded checkpoint mark of a split at the end of the
+ * batch ending at that epoch. The epoch Spark last committed is read from Spark's own {@code
+ * commits} and {@code offsets} logs two levels up. All IO goes through Spark's {@link
+ * CheckpointFileManager}, writes are atomic renames.
  */
 public final class BeamSourceCheckpoint {
 
@@ -51,6 +52,9 @@ public final class BeamSourceCheckpoint {
 
   private static final String SPLITS_FILE = "splits";
   private static final String MARKS_DIR = "marks";
+  private static final String SPARK_COMMITS_DIR = "commits";
+  private static final String SPARK_OFFSETS_DIR = "offsets";
+  private static final String SERIALIZED_VOID_OFFSET = "-";
 
   /** A purge further than this above the last one lists the directory instead of probing epochs. */
   private static final long MAX_BLIND_PURGE_RANGE = 1_000L;
@@ -61,11 +65,8 @@ public final class BeamSourceCheckpoint {
   private final Path splitsPath;
   private final Path marksRoot;
 
-  /** Splits whose mark directory this instance already created. */
-  private final Set<Integer> preparedSplits = ConcurrentHashMap.newKeySet();
-
-  /** Per split, every mark epoch strictly below the value is known to be deleted. */
-  private final ConcurrentMap<Integer, Long> purgeFloors = new ConcurrentHashMap<>();
+  /** Every mark epoch strictly below the value is known to be deleted, -1 for unknown. */
+  private volatile long purgeFloor = -1L;
 
   public BeamSourceCheckpoint(String checkpointLocation, Configuration hadoopConf) {
     this.location = checkpointLocation;
@@ -101,11 +102,22 @@ public final class BeamSourceCheckpoint {
     LOG.info("Pinned {} split(s) at {}.", splits.size(), splitsPath);
   }
 
+  /** Creates the mark directory of {@code epoch}, the driver calls this once per batch. */
+  public void prepareEpoch(long epoch) throws IOException {
+    fm.mkdirs(epochDir(epoch));
+  }
+
+  /**
+   * Writes the mark, creating the epoch directory if a manager without parent creation needs it.
+   */
   public void writeMark(int splitId, long epoch, byte[] codedMark) throws IOException {
-    if (preparedSplits.add(splitId)) {
-      fm.mkdirs(marksDir(splitId));
+    Path path = markPath(splitId, epoch);
+    try {
+      write(path, codedMark, true);
+    } catch (FileNotFoundException e) {
+      fm.mkdirs(epochDir(epoch));
+      write(path, codedMark, true);
     }
-    write(markPath(splitId, epoch), codedMark, true);
   }
 
   /** The coded mark of a split at an epoch, or null if absent. */
@@ -118,42 +130,73 @@ public final class BeamSourceCheckpoint {
   }
 
   /**
-   * Deletes every mark of a split with an epoch strictly below {@code epoch}. Lists the directory
-   * once per split, later calls delete the range above the previous floor only. Idempotent.
+   * The end epoch of this source in the last batch Spark committed, or -1 if there is none or the
+   * logs cannot be read. The location is {@code <root>/sources/<index>}, the batch id is the
+   * highest entry of {@code <root>/commits} and its epoch is line {@code index} after the version
+   * and metadata lines of {@code <root>/offsets/<id>}.
    */
-  public void purgeMarksBelow(int splitId, long epoch) throws IOException {
-    Long floor = purgeFloors.get(splitId);
-    if (floor != null && epoch - floor > MAX_BLIND_PURGE_RANGE) {
-      floor = null;
-    }
-    if (floor == null) {
-      Path dir = marksDir(splitId);
-      if (!fm.exists(dir)) {
-        return;
+  public long readSparkCommittedEpoch() {
+    try {
+      Path sparkRoot = root.getParent().getParent();
+      int sourceIndex = Integer.parseInt(root.getName());
+      Path commits = new Path(sparkRoot, SPARK_COMMITS_DIR);
+      if (!fm.exists(commits)) {
+        return -1L;
       }
-      for (FileStatus status : fm.list(dir)) {
-        long existing = parseEpoch(status.getPath().getName());
-        if (existing >= 0 && existing < epoch) {
-          fm.delete(status.getPath());
+      long batchId = -1L;
+      for (FileStatus status : fm.list(commits)) {
+        batchId = Math.max(batchId, parseEpoch(status.getPath().getName()));
+      }
+      if (batchId < 0) {
+        return -1L;
+      }
+      Path offsets = new Path(new Path(sparkRoot, SPARK_OFFSETS_DIR), Long.toString(batchId));
+      List<String> lines =
+          Arrays.asList(new String(read(offsets), StandardCharsets.UTF_8).split("\n", -1));
+      String line = lines.get(2 + sourceIndex).trim();
+      return line.equals(SERIALIZED_VOID_OFFSET) ? -1L : Long.parseLong(line);
+    } catch (IOException | RuntimeException e) {
+      LOG.warn("Failed to read the epoch Spark committed for {}.", location, e);
+      return -1L;
+    }
+  }
+
+  /**
+   * Deletes the marks of every epoch strictly below {@code epoch}, one recursive delete per epoch
+   * directory. Lists the marks directory once, later calls delete the range above the previous
+   * floor only. Idempotent.
+   */
+  public void purgeMarksBelow(long epoch) throws IOException {
+    long floor = purgeFloor;
+    if (floor >= 0 && epoch - floor > MAX_BLIND_PURGE_RANGE) {
+      floor = -1L;
+    }
+    if (floor < 0) {
+      if (fm.exists(marksRoot)) {
+        for (FileStatus status : fm.list(marksRoot)) {
+          long existing = parseEpoch(status.getPath().getName());
+          if (existing >= 0 && existing < epoch) {
+            fm.delete(status.getPath());
+          }
         }
       }
-      purgeFloors.put(splitId, epoch);
+      purgeFloor = epoch;
       return;
     }
     for (long e = floor; e < epoch; e++) {
-      fm.delete(markPath(splitId, e));
+      fm.delete(epochDir(e));
     }
     if (epoch > floor) {
-      purgeFloors.put(splitId, epoch);
+      purgeFloor = epoch;
     }
   }
 
-  private Path marksDir(int splitId) {
-    return new Path(marksRoot, Integer.toString(splitId));
+  private Path epochDir(long epoch) {
+    return new Path(marksRoot, Long.toString(epoch));
   }
 
   private Path markPath(int splitId, long epoch) {
-    return new Path(marksDir(splitId), Long.toString(epoch));
+    return new Path(epochDir(epoch), Integer.toString(splitId));
   }
 
   private byte[] read(Path path) throws IOException {
@@ -173,7 +216,7 @@ public final class BeamSourceCheckpoint {
     }
   }
 
-  /** The epoch encoded in a mark file name, or -1 for anything else. */
+  /** The epoch encoded in a mark directory name, or -1 for anything else. */
   private static long parseEpoch(String name) {
     try {
       return Long.parseLong(name);
