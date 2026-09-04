@@ -528,6 +528,21 @@ public class WorkItemStatusClientTest {
   }
 
   @Test
+  public void reportLeasePingBeforeSetWorker() throws Exception {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("setWorker should be called before reportLeasePing");
+    statusClient.reportLeasePing(LEASE_DURATION);
+  }
+
+  @Test
+  public void reportLeasePingNullDuration() throws Exception {
+    statusClient.setWorker(worker, executionContext);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("requestLeaseDuration must be non-null");
+    statusClient.reportLeasePing(null);
+  }
+
+  @Test
   public void reportLeasePing() throws Exception {
     statusClient.setWorker(worker, executionContext);
     statusClient.reportLeasePing(LEASE_DURATION);

@@ -288,7 +288,7 @@ public class BatchDataflowWorker implements Closeable {
 
       DataflowWorkProgressUpdater progressUpdater =
           new DataflowWorkProgressUpdater(workItemStatusClient, workItem, worker, options);
-      executeWork(worker, progressUpdater, workItemStatusClient);
+      executeWorkAndReportSuccess(worker, progressUpdater, workItemStatusClient);
       return true;
     } catch (OutOfMemoryError oom) {
       throw oom;
@@ -332,7 +332,8 @@ public class BatchDataflowWorker implements Closeable {
    * WorkItemStatusClient#reportSuccess} completes, lease renewal heartbeats continue even if bundle
    * completion or status reporting encounters delays, preventing lease expiration.
    */
-  void executeWork(
+  @VisibleForTesting
+  void executeWorkAndReportSuccess(
       DataflowWorkExecutor worker,
       DataflowWorkProgressUpdater progressUpdater,
       WorkItemStatusClient workItemStatusClient)

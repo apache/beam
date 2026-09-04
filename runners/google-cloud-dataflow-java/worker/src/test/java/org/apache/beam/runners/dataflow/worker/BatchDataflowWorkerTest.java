@@ -171,13 +171,14 @@ public class BatchDataflowWorkerTest {
   }
 
   @Test
-  public void testExecuteWorkKeepsProgressUpdaterActiveUntilReportSuccess() throws Exception {
+  public void testExecuteWorkAndReportSuccessKeepsProgressUpdaterActiveUntilReportSuccess()
+      throws Exception {
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
             mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
     WorkItemStatusClient mockStatusClient = mock(WorkItemStatusClient.class);
 
-    worker.executeWork(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
+    worker.executeWorkAndReportSuccess(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
 
     InOrder inOrder = inOrder(mockProgressUpdater, mockWorkExecutor, mockStatusClient);
     inOrder.verify(mockProgressUpdater).startReportingProgress();
@@ -188,7 +189,8 @@ public class BatchDataflowWorkerTest {
   }
 
   @Test
-  public void testExecuteWorkStopsProgressUpdaterWhenWorkerFails() throws Exception {
+  public void testExecuteWorkAndReportSuccessStopsProgressUpdaterWhenWorkerFails()
+      throws Exception {
     doThrow(new WorkerException()).when(mockWorkExecutor).execute();
     BatchDataflowWorker worker =
         new BatchDataflowWorker(
@@ -196,7 +198,7 @@ public class BatchDataflowWorkerTest {
     WorkItemStatusClient mockStatusClient = mock(WorkItemStatusClient.class);
 
     try {
-      worker.executeWork(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
+      worker.executeWorkAndReportSuccess(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
     } catch (WorkerException e) {
       /* Expected - ignore. */
     }
@@ -209,7 +211,8 @@ public class BatchDataflowWorkerTest {
   }
 
   @Test
-  public void testExecuteWorkStopsProgressUpdaterWhenReportSuccessFails() throws Exception {
+  public void testExecuteWorkAndReportSuccessStopsProgressUpdaterWhenReportSuccessFails()
+      throws Exception {
     WorkItemStatusClient mockStatusClient = mock(WorkItemStatusClient.class);
     doThrow(new IOException("RPC failure")).when(mockStatusClient).reportSuccess();
     BatchDataflowWorker worker =
@@ -217,7 +220,7 @@ public class BatchDataflowWorkerTest {
             mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
 
     try {
-      worker.executeWork(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
+      worker.executeWorkAndReportSuccess(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
     } catch (IOException e) {
       /* Expected - ignore. */
     }

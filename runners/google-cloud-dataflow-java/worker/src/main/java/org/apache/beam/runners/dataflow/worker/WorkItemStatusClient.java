@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -224,11 +226,11 @@ public class WorkItemStatusClient {
    */
   public @Nullable WorkItemServiceState reportLeasePing(Duration requestedLeaseDuration)
       throws Exception {
-    checkState(worker != null, "setWorker should be called before reportLeasePing");
+    checkStateNotNull(worker, "setWorker should be called before reportLeasePing");
     if (finalStateSent) {
       return null;
     }
-    checkArgument(requestedLeaseDuration != null, "requestLeaseDuration must be non-null");
+    checkArgumentNotNull(requestedLeaseDuration, "requestLeaseDuration must be non-null");
     if (wasAskedToAbort) {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return null;
@@ -261,7 +263,7 @@ public class WorkItemStatusClient {
 
   private synchronized @Nullable WorkItemServiceState execute(WorkItemStatus status)
       throws IOException {
-    if (finalStateSent && !Boolean.TRUE.equals(status.getCompleted())) {
+    if (finalStateSent && !status.getCompleted()) {
       LOG.info(
           "Final state already sent for work item {}, skipping non-final status update.",
           uniqueWorkId());
@@ -279,13 +281,13 @@ public class WorkItemStatusClient {
         return result;
       }
       nextReportIndex = result.getNextReportIndex();
-      if (nextReportIndex == null && !Boolean.TRUE.equals(status.getCompleted())) {
+      if (nextReportIndex == null && !status.getCompleted()) {
         LOG.error("Missing next work index in {} when reporting {}.", result, status);
       }
       commitMetrics();
     }
 
-    if (Boolean.TRUE.equals(status.getCompleted())) {
+    if (status.getCompleted()) {
       checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
       finalStateSent = true;
     }
