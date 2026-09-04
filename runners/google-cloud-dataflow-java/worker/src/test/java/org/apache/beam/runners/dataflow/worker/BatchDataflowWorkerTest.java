@@ -23,6 +23,7 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
@@ -184,6 +185,7 @@ public class BatchDataflowWorkerTest {
     inOrder.verify(mockProgressUpdater).startReportingProgress();
     inOrder.verify(mockWorkExecutor).execute();
     inOrder.verify(mockProgressUpdater).reportUnreportedSplit();
+    inOrder.verify(mockProgressUpdater).setLeaseRenewalOnly(true);
     inOrder.verify(mockStatusClient).reportSuccess();
     inOrder.verify(mockProgressUpdater).stopReportingProgress();
   }
@@ -206,6 +208,7 @@ public class BatchDataflowWorkerTest {
     verify(mockProgressUpdater, times(1)).startReportingProgress();
     verify(mockWorkExecutor, times(1)).execute();
     verify(mockProgressUpdater, times(0)).reportUnreportedSplit();
+    verify(mockProgressUpdater, times(0)).setLeaseRenewalOnly(anyBoolean());
     verify(mockStatusClient, times(0)).reportSuccess();
     verify(mockProgressUpdater, times(1)).stopReportingProgress();
   }
@@ -228,6 +231,7 @@ public class BatchDataflowWorkerTest {
     verify(mockProgressUpdater, times(1)).startReportingProgress();
     verify(mockWorkExecutor, times(1)).execute();
     verify(mockProgressUpdater, times(1)).reportUnreportedSplit();
+    verify(mockProgressUpdater, times(1)).setLeaseRenewalOnly(true);
     verify(mockStatusClient, times(1)).reportSuccess();
     verify(mockProgressUpdater, times(1)).stopReportingProgress();
   }

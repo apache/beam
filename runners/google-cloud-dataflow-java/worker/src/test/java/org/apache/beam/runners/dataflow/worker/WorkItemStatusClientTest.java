@@ -248,9 +248,8 @@ public class WorkItemStatusClientTest {
     statusClient.setWorker(worker, executionContext);
     statusClient.reportSuccess();
 
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("reportUpdate");
-    statusClient.reportUpdate(null, LEASE_DURATION);
+    WorkItemServiceState result = statusClient.reportUpdate(null, LEASE_DURATION);
+    assertThat(result, nullValue());
   }
 
   @Test

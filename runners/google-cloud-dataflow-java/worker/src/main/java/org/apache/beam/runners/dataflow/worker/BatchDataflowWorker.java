@@ -344,6 +344,8 @@ public class BatchDataflowWorker implements Closeable {
       worker.execute();
       // Ensure any pending dynamic split is reported before sending the final success status.
       progressUpdater.reportUnreportedSplit();
+      // Switch progress reporting to lightweight lease renewal pings now that compute is complete.
+      progressUpdater.setLeaseRenewalOnly(true);
       // Report success while progress reporting (and lease renewal) is still active.
       workItemStatusClient.reportSuccess();
     } finally {

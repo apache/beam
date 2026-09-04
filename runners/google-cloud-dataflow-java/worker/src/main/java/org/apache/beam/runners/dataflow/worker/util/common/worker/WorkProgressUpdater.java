@@ -82,7 +82,7 @@ public abstract class WorkProgressUpdater {
   private long nextPeriodicCheckpointTimeMs;
 
   /** Executor used to schedule work progress updates. */
-  private final ScheduledExecutorService executor;
+  protected final ScheduledExecutorService executor;
 
   /** Clock used to either provide real system time or mocked to virtualize time for testing. */
   protected final Clock clock;
