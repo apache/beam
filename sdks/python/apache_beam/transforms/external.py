@@ -22,6 +22,7 @@ import contextlib
 import copy
 import functools
 import glob
+import json
 import logging
 import re
 import subprocess
@@ -256,6 +257,10 @@ class ExplicitSchemaTransformPayloadBuilder(SchemaTransformPayloadBuilder):
             key: dict_to_row_recursive(field_type.map_type.value_type, value)
             for key, value in py_value.items()
         }
+      elif (type_info == 'atomic_type' and
+            field_type.atomic_type == schema_pb2.STRING and
+            isinstance(py_value, (dict, list))):
+        return json.dumps(py_value)
       else:
         return py_value
 

@@ -361,7 +361,24 @@ public class KafkaReadSchemaTransformProviderTest {
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"
-                + "message_name: MyMessage");
+                + "message_name: MyMessage",
+            "topic: topic_6\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: AVRO\n"
+                + "schema:\n"
+                + "  type: record\n"
+                + "  name: my_record\n"
+                + "  fields:\n"
+                + "    - name: bool\n"
+                + "      type: boolean",
+            "topic: topic_7\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: JSON\n"
+                + "schema:\n"
+                + "  type: object\n"
+                + "  properties:\n"
+                + "    name:\n"
+                + "      type: string");
 
     for (String config : configs) {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand
