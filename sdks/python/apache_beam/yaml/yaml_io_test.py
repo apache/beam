@@ -1001,6 +1001,49 @@ class YamlDeltaTest(unittest.TestCase):
     self.assertIsInstance(transform, beam.managed.Read)
     self.assertEqual(transform._source, "delta_cdc")
 
+class YamlKafkaTest(unittest.TestCase):
+  def test_read_from_kafka_json_schema_expansion(self):
+    # Regression test for https://github.com/apache/beam/issues/35186.
+    # Verifies that ReadFromKafka expands with a nested JSON schema map without
+    # UnsupportedOperationException.
+    p = beam.Pipeline(
+        options=beam.options.pipeline_options.PipelineOptions(
+            pickle_library='cloudpickle'))
+    _ = p | YamlTransform(
+        '''
+        type: ReadFromKafka
+        config:
+          topic: my-topic
+          bootstrap_servers: kafka:9092
+          format: JSON
+          schema:
+            type: object
+            properties:
+              name:
+                type: string
+        ''')
+
+  def test_read_from_kafka_avro_schema_expansion(self):
+    # Verifies that ReadFromKafka expands with a nested AVRO schema map without
+    # UnsupportedOperationException.
+    p = beam.Pipeline(
+        options=beam.options.pipeline_options.PipelineOptions(
+            pickle_library='cloudpickle'))
+    _ = p | YamlTransform(
+        '''
+        type: ReadFromKafka
+        config:
+          topic: my-topic
+          bootstrap_servers: kafka:9092
+          format: AVRO
+          schema:
+            type: record
+            name: my_record
+            fields:
+              - name: bool
+                type: boolean
+        ''')
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

@@ -378,7 +378,24 @@ public class KafkaReadSchemaTransformProviderTest {
                 + "redistribute_num_keys: 10\n"
                 + "allow_duplicates: false\n"
                 + "offset_deduplication: true\n"
-                + "redistribute_by_record_key: true");
+                + "redistribute_by_record_key: true",
+            "topic: topic_7\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: AVRO\n"
+                + "schema:\n"
+                + "  type: record\n"
+                + "  name: my_record\n"
+                + "  fields:\n"
+                + "    - name: bool\n"
+                + "      type: boolean",
+            "topic: topic_7\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: JSON\n"
+                + "schema:\n"
+                + "  type: object\n"
+                + "  properties:\n"
+                + "    name:\n"
+                + "      type: string");
 
     for (String config : configs) {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand
