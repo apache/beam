@@ -657,6 +657,41 @@ def temp_postgres_database_with_secret_manager(
 
 
 @contextlib.contextmanager
+def cloudsql_postgres_fixture():
+  """Context manager to provide a PostgreSQL testcontainer database for testing."""
+  default_port = 5432
+  with PostgresContainer(port=default_port) as postgres_container:
+    try:
+      engine = sqlalchemy.create_engine(postgres_container.get_connection_url())
+      with engine.begin() as connection:
+        connection.execute(
+            sqlalchemy.text(
+                "CREATE TABLE tmp_table (id INTEGER, name VARCHAR(255), score FLOAT);"
+            ))
+
+      jdbc_url = (
+          f"jdbc:postgresql://{postgres_container.get_container_host_ip()}:"
+          f"{postgres_container.get_exposed_port(default_port)}/"
+          f"{postgres_container.dbname}?"
+          f"user={postgres_container.username}&"
+          f"password={postgres_container.password}")
+
+      yield {
+          'JDBC_URL': jdbc_url,
+          'DRIVER_CLASS_NAME': 'org.postgresql.Driver',
+          'USERNAME': postgres_container.username,
+          'PASSWORD': postgres_container.password,
+          'DATABASE': postgres_container.dbname,
+          'TABLE': 'tmp_table',
+      }
+    except (psycopg2.Error, Exception) as err:
+      logging.error(
+          "Error interacting with temporary Postgres DB in cloudsql_postgres_fixture: %s",
+          err)
+      raise err
+
+
+@contextlib.contextmanager
 def temp_sqlserver_database():
   """Context manager to provide a temporary SQL Server database for testing.
 
