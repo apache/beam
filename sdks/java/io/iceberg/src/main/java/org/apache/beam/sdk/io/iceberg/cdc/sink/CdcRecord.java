@@ -17,10 +17,10 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
-import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
