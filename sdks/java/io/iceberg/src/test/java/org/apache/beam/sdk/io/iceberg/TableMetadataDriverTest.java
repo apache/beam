@@ -1025,4 +1025,78 @@ public class TableMetadataDriverTest implements Serializable {
 
     pipeline.run();
   }
+
+  @Test
+  public void testMapMergerFnCommutativeAndTimestampAware() {
+    TableIdentifier tableIdA = TableIdentifier.of("default", "merge_table_a");
+    Table realTableA = getCatalog().createTable(tableIdA, ICEBERG_SCHEMA);
+    SerializableTableSpec specAOld =
+        SerializableTableSpec.fromTable(tableIdA, realTableA)
+            .toBuilder()
+            .setLastUpdatedMillis(1000L)
+            .build();
+    SerializableTableSpec specANew =
+        SerializableTableSpec.fromTable(tableIdA, realTableA)
+            .toBuilder()
+            .setLastUpdatedMillis(2000L)
+            .build();
+
+    TableIdentifier tableIdB = TableIdentifier.of("default", "merge_table_b");
+    Table realTableB = getCatalog().createTable(tableIdB, ICEBERG_SCHEMA);
+    SerializableTableSpec specB =
+        SerializableTableSpec.fromTable(tableIdB, realTableB)
+            .toBuilder()
+            .setLastUpdatedMillis(1500L)
+            .build();
+
+    TableMetadataDriver.MapMergerFn fn = new TableMetadataDriver.MapMergerFn();
+
+    Map<String, SerializableTableSpec> map1 = ImmutableMap.of("tableA", specAOld, "tableB", specB);
+    Map<String, SerializableTableSpec> map2 = ImmutableMap.of("tableA", specANew);
+
+    // Left has old, right has new: right wins for tableA
+    Map<String, SerializableTableSpec> merged1 = fn.apply(map1, map2);
+    assertEquals(2, merged1.size());
+    assertEquals(2000L, merged1.get("tableA").getLastUpdatedMillis());
+    assertEquals(1500L, merged1.get("tableB").getLastUpdatedMillis());
+
+    // Commutativity: left has new, right has old: left wins for tableA
+    Map<String, SerializableTableSpec> merged2 = fn.apply(map2, map1);
+    assertEquals(2, merged2.size());
+    assertEquals(2000L, merged2.get("tableA").getLastUpdatedMillis());
+    assertEquals(1500L, merged2.get("tableB").getLastUpdatedMillis());
+
+    // Identical results in both merge directions
+    assertEquals(merged1, merged2);
+  }
+
+  @Test
+  public void testMapMergerFnTieBreaksBySchemaIdCommutatively() {
+    TableIdentifier tableId = TableIdentifier.of("default", "tie_break_table");
+    Table realTable = getCatalog().createTable(tableId, ICEBERG_SCHEMA);
+    SerializableTableSpec specSchema0 =
+        SerializableTableSpec.fromTable(tableId, realTable)
+            .toBuilder()
+            .setLastUpdatedMillis(1000L)
+            .setSchemaId(0)
+            .build();
+    SerializableTableSpec specSchema1 =
+        SerializableTableSpec.fromTable(tableId, realTable)
+            .toBuilder()
+            .setLastUpdatedMillis(1000L)
+            .setSchemaId(1)
+            .build();
+
+    TableMetadataDriver.MapMergerFn fn = new TableMetadataDriver.MapMergerFn();
+
+    Map<String, SerializableTableSpec> mapA = ImmutableMap.of("table", specSchema0);
+    Map<String, SerializableTableSpec> mapB = ImmutableMap.of("table", specSchema1);
+
+    Map<String, SerializableTableSpec> mergedAB = fn.apply(mapA, mapB);
+    Map<String, SerializableTableSpec> mergedBA = fn.apply(mapB, mapA);
+
+    assertEquals(1, mergedAB.get("table").getSchemaId());
+    assertEquals(1, mergedBA.get("table").getSchemaId());
+    assertEquals(mergedAB, mergedBA);
+  }
 }

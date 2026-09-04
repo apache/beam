@@ -31,6 +31,7 @@ import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.state.MapState;
+import org.apache.beam.sdk.state.ReadableState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.transforms.Combine;
@@ -371,24 +372,41 @@ public abstract class TableMetadataDriver
     @ProcessElement
     public void processElement(
         @Element String tableIdString, OutputReceiver<KV<String, SerializableTableSpec>> out) {
+      TableIdentifier tableId;
       try {
-        TableIdentifier tableId = IcebergUtils.parseTableIdentifier(tableIdString);
-        Table table = catalogConfig.catalog().loadTable(tableId);
-        SerializableTableSpec spec = SerializableTableSpec.fromTable(tableIdString, table);
-        TABLES_POLLED_COUNTER.inc();
-        out.output(KV.of(tableIdString, spec));
-      } catch (NoSuchTableException e) {
-        LOG.info(
-            "Table '{}' does not exist in catalog. Skipping metadata emission for side-input view.",
-            tableIdString);
-        TABLES_SKIPPED_MISSING_COUNTER.inc();
+        tableId = IcebergUtils.parseTableIdentifier(tableIdString);
       } catch (IllegalArgumentException e) {
         LOG.warn(
             "Failed to parse table identifier '{}'. Skipping metadata emission for side-input view.",
             tableIdString,
             e);
         TABLES_SKIPPED_MISSING_COUNTER.inc();
+        return;
       }
+
+      Table table;
+      try {
+        table = catalogConfig.catalog().loadTable(tableId);
+      } catch (NoSuchTableException e) {
+        LOG.info(
+            "Table '{}' does not exist in catalog. Skipping metadata emission for side-input view.",
+            tableIdString);
+        TABLES_SKIPPED_MISSING_COUNTER.inc();
+        return;
+      }
+      SerializableTableSpec spec;
+      try {
+        spec = SerializableTableSpec.fromTable(tableIdString, table);
+      } catch (IllegalArgumentException e) {
+        LOG.warn(
+            "Failed to create SerializableTableSpec for table '{}'. Skipping metadata emission for side-input view.",
+            tableIdString,
+            e);
+        TABLES_SKIPPED_MISSING_COUNTER.inc();
+        return;
+      }
+      TABLES_POLLED_COUNTER.inc();
+      out.output(KV.of(tableIdString, spec));
     }
   }
 
@@ -405,7 +423,17 @@ public abstract class TableMetadataDriver
         @StateId("tableCache") MapState<String, SerializableTableSpec> cacheState,
         OutputReceiver<Map<String, SerializableTableSpec>> out) {
       KV<String, SerializableTableSpec> kv = element.getValue();
-      cacheState.put(kv.getKey(), kv.getValue());
+      String tableId = kv.getKey();
+      SerializableTableSpec newSpec = kv.getValue();
+
+      ReadableState<SerializableTableSpec> existingState = cacheState.get(tableId);
+      SerializableTableSpec existingSpec = existingState != null ? existingState.read() : null;
+      if (existingSpec == null
+          || newSpec.getLastUpdatedMillis() > existingSpec.getLastUpdatedMillis()
+          || (newSpec.getLastUpdatedMillis() == existingSpec.getLastUpdatedMillis()
+              && newSpec.getSchemaId() >= existingSpec.getSchemaId())) {
+        cacheState.put(tableId, newSpec);
+      }
 
       Map<String, SerializableTableSpec> mapSnapshot = new HashMap<>();
       for (Map.Entry<String, SerializableTableSpec> entry : cacheState.entries().read()) {
@@ -426,7 +454,21 @@ public abstract class TableMetadataDriver
         return left;
       }
       Map<String, SerializableTableSpec> merged = new HashMap<>(left);
-      merged.putAll(right);
+      for (Map.Entry<String, SerializableTableSpec> entry : right.entrySet()) {
+        String tableId = entry.getKey();
+        SerializableTableSpec rightSpec = entry.getValue();
+        SerializableTableSpec leftSpec = merged.get(tableId);
+        if (leftSpec == null) {
+          merged.put(tableId, rightSpec);
+        } else if (rightSpec.getLastUpdatedMillis() > leftSpec.getLastUpdatedMillis()) {
+          merged.put(tableId, rightSpec);
+        } else if (rightSpec.getLastUpdatedMillis() == leftSpec.getLastUpdatedMillis()) {
+          // Deterministic tie-breaker for strict commutativity
+          if (rightSpec.getSchemaId() > leftSpec.getSchemaId()) {
+            merged.put(tableId, rightSpec);
+          }
+        }
+      }
       return Collections.unmodifiableMap(merged);
     }
 
