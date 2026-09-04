@@ -513,7 +513,8 @@ if __name__ == '__main__':
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
-              'oracledb>=3.1.1'
+              'oracledb>=3.1.1',
+              'google-cloud-firestore>=2.0.0,<3',
           ],
           'gcp': [
               'cachetools>=3.1.0,<7',
