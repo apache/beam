@@ -350,10 +350,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         case PTransformTranslation.PAR_DO_TRANSFORM_URN:
           mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
           break;
-        case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-          mainOutputTag =
-              new TupleTag(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()));
-          break;
         default:
           throw new IllegalStateException(
               String.format("Unknown urn: %s", pTransform.getSpec().getUrn()));
@@ -444,17 +440,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
 
     this.startBundleArgumentProvider = new StartBundleArgumentProvider();
-    // Register the appropriate handlers.
-    switch (pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        addStartFunction.accept(this::startBundle);
-        break;
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        // startBundle should not be invoked
-      default:
-        // no-op
-    }
+    addStartFunction.accept(this::startBundle);
 
     String mainInput;
     try {
@@ -474,32 +460,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         break;
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        if (doFnSignature.processElement().observesWindow()
-            || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
-            || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
-            || (doFnSignature.newWatermarkEstimator() != null
-                && doFnSignature.newWatermarkEstimator().observesWindow())
-            || !sideInputMapping.isEmpty()) {
-          mainInputConsumer =
-              new SplittableFnDataReceiver() {
-                @Override
-                public void accept(WindowedValue input) throws Exception {
-                  processElementForWindowObservingSizedElementAndRestriction(input);
-                }
-              };
-          this.processContext = new WindowObservingProcessBundleContext();
-        } else {
-          mainInputConsumer =
-              new SplittableFnDataReceiver() {
-                @Override
-                public void accept(WindowedValue input) throws Exception {
-                  // TODO(BEAM-10303): Create a variant which is optimized to not observe the
-                  // windows.
-                  processElementForWindowObservingSizedElementAndRestriction(input);
-                }
-              };
-          this.processContext = new WindowObservingProcessBundleContext();
-        }
+        // TODO(BEAM-10303): Create a variant which is optimized to not observe the windows when
+        // neither the DoFn nor its side inputs observe them.
+        mainInputConsumer =
+            new SplittableFnDataReceiver() {
+              @Override
+              public void accept(WindowedValue input) throws Exception {
+                processElementForWindowObservingSizedElementAndRestriction(input);
+              }
+            };
+        this.processContext = new WindowObservingProcessBundleContext();
         break;
       default:
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
@@ -507,16 +477,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     addPCollectionConsumer.accept(pTransform.getInputsOrThrow(mainInput), mainInputConsumer);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
-    switch (pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        addFinishFunction.accept(this::finishBundle);
-        break;
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        // finishBundle should not be invoked
-      default:
-        // no-op
-    }
+    addFinishFunction.accept(this::finishBundle);
     addTearDownFunction.accept(this::tearDown);
 
     workCompletedShortId =
