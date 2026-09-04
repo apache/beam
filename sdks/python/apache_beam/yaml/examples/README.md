@@ -93,6 +93,11 @@ aggregations including sum, mean, count, etc.
 
 These examples leverage DF or other existing templates and convert them to yaml
 blueprints.
+- [Cloud SQL to BigQuery](transforms/blueprint/cloudsql_to_bigquery.yaml): Reading from Google Cloud SQL PostgreSQL database using Cloud SQL Socket Factory and writing to BigQuery.
+- [PostgreSQL to BigQuery](transforms/blueprint/postgres_to_bigquery.yaml): Reading from PostgreSQL database and writing to BigQuery.
+- [MySQL to BigQuery](transforms/blueprint/mysql_to_bigquery.yaml): Reading from MySQL database and writing to BigQuery.
+- [Spanner to BigQuery](transforms/blueprint/spanner_to_bigquery.yaml): Reading from Cloud Spanner database and writing to BigQuery.
+- [AlloyDB with Iceberg](transforms/blueprint/iceberg_to_alloydb.yaml): Reading from Apache Iceberg and writing to AlloyDB.
 
 ### Element-wise
 
