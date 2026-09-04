@@ -82,10 +82,10 @@ public class CdcRecordCoderTest {
     RowCoder.of(DATA_SCHEMA).encode(row, rowOnly);
     int rowLen = rowOnly.toByteArray().length;
 
-    assertPinnedKindCode(row, ValueKind.INSERT, rowLen, 0);
-    assertPinnedKindCode(row, ValueKind.UPDATE_BEFORE, rowLen, 1);
-    assertPinnedKindCode(row, ValueKind.UPDATE_AFTER, rowLen, 2);
-    assertPinnedKindCode(row, ValueKind.DELETE, rowLen, 3);
+    assertPinnedKindCode(row, ValueKind.INSERT, rowLen, 1);
+    assertPinnedKindCode(row, ValueKind.UPDATE_BEFORE, rowLen, 2);
+    assertPinnedKindCode(row, ValueKind.UPDATE_AFTER, rowLen, 3);
+    assertPinnedKindCode(row, ValueKind.DELETE, rowLen, 4);
   }
 
   private static void assertPinnedKindCode(Row row, ValueKind kind, int rowLen, int expectedCode)
@@ -103,7 +103,7 @@ public class CdcRecordCoderTest {
     ByteArrayOutputStream out = new ByteArrayOutputStream();
     RowCoder.of(DATA_SCHEMA)
         .encode(Row.withSchema(DATA_SCHEMA).addValues(1, "a", "x").build(), out);
-    VarIntCoder.of().encode(4, out);
+    VarIntCoder.of().encode(5, out);
     VarLongCoder.of().encode(1L, out);
 
     CdcRecordCoder coder = CdcRecordCoder.of(DATA_SCHEMA);
