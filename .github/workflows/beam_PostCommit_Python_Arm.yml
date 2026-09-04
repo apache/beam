@@ -54,8 +54,9 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: [self-hosted, ubuntu-24.04, main]
-    # Python ARM PostCommit uses prebuilt Snapshots SDK images, so it no longer
-    # spends hours on multiarch container builds. Keep headroom for the IT suite.
+    # Skip local multiarch SDK container builds. ARM workers use the default
+    # Dataflow image plus an aarch64 wheel from this checkout. Keep headroom
+    # for the IT suite and qemu wheel build.
     timeout-minutes: 180
     strategy:
       fail-fast: false
@@ -94,6 +95,9 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      # aarch64 wheels are built with cibuildwheel on this x86 runner.
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+        name: Set up QEMU
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
@@ -106,11 +110,10 @@ jobs:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitArmIT
           arguments: |
             -PuseWheelDistribution \
+            -PcibwArchs=aarch64 \
             -PpythonVersion=${{ matrix.python_version }} \
             -PusePrebuiltSdkContainer \
         env:
-          # Use multiarch images published by Publish Beam SDK Snapshots.
-          SDK_CONTAINER_IMAGE: gcr.io/apache-beam-testing/beam-sdk/beam_python${{ matrix.python_version }}_sdk:latest
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7

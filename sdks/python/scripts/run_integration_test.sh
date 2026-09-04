@@ -248,12 +248,11 @@ if [[ -z $PIPELINE_OPTS ]]; then
   if [[ "$ARCH" == "ARM" ]]; then
     opts+=("--machine_type=t2a-standard-1")
 
-    # Prefer an explicit image (e.g. Snapshots latest) when provided so CI can
-    # skip rebuilding multiarch SDK containers. Otherwise use the image built
-    # and pushed by the caller under MULTIARCH_TAG.
+    # Default to the Dataflow SDK container for this version. Official images
+    # are multi-arch, so ARM workers do not need a custom image.
     if [[ -n "${SDK_CONTAINER_IMAGE:-}" ]]; then
       opts+=("--sdk_container_image=$SDK_CONTAINER_IMAGE")
-    else
+    elif [[ -n "${MULTIARCH_TAG:-}" ]]; then
       IMAGE_NAME="beam_python${PY_VERSION}_sdk"
       opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
     fi
