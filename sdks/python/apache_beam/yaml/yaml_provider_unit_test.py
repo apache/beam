@@ -377,3 +377,47 @@ class YamlProvidersCreateTest(unittest.TestCase):
               [('a', None), ('element', 1)],
               [('a', 2), ('element', None)],
           ]))
+
+
+class YamlProvidersAssertEqualTest(unittest.TestCase):
+  def test_assert_equal_nested_mapping(self):
+    # Issue #35790: elements with nested dictionaries / MapFields
+    with beam.Pipeline() as p:
+      input_data = [
+          beam.Row(
+              key='row1',
+              column_families={
+                  'cf1': {
+                      'cq1': [beam.Row(value='value1', timestamp_micros=5000)],
+                      'cq2': [beam.Row(value='value2', timestamp_micros=1000)]
+                  }
+              })
+      ]
+      pcoll = p | beam.Create(input_data)
+      _ = pcoll | YamlProviders.AssertEqual(
+          elements=[{
+              'key': 'row1',
+              'column_families': {
+                  'cf1': {
+                      'cq1': [{
+                          'value': 'value1', 'timestamp_micros': 5000
+                      }],
+                      'cq2': [{
+                          'value': 'value2', 'timestamp_micros': 1000
+                      }]
+                  }
+              }
+          }])
+
+  def test_assert_equal_nested_rows(self):
+    with beam.Pipeline() as p:
+      input_data = [beam.Row(key='row1', nested=beam.Row(sub=beam.Row(val=42)))]
+      pcoll = p | beam.Create(input_data)
+      _ = pcoll | YamlProviders.AssertEqual(
+          elements=[{
+              'key': 'row1', 'nested': {
+                  'sub': {
+                      'val': 42
+                  }
+              }
+          }])
