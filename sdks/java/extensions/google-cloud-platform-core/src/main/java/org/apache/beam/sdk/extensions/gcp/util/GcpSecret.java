@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.util;
 
 import com.google.cloud.secretmanager.v1.AccessSecretVersionResponse;
 import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -54,7 +55,7 @@ public class GcpSecret extends Secret {
   }
 
   /** Initialize GcpSecret from a map specification. */
-  static GcpSecret fromMap(Map<String, String> specMap) {
+  public static GcpSecret fromMap(Map<String, String> specMap) {
     Set<String> allowedKeys =
         new HashSet<>(Arrays.asList("version_name", "name", "project", "version"));
     Set<String> invalidKeys = new HashSet<>(specMap.keySet());
@@ -92,7 +93,7 @@ public class GcpSecret extends Secret {
    * Resolves the GCP project ID from the provided value, environment variables, or Application
    * Default Credentials.
    */
-  static String resolveGcpProjectId(@Nullable String projectId, @Nullable String context) {
+  public static String resolveGcpProjectId(@Nullable String projectId, @Nullable String context) {
     if (!Strings.isNullOrEmpty(projectId)) {
       return Preconditions.checkNotNull(projectId);
     }

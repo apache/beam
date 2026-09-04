@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
+package org.apache.beam.sdk.extensions.gcp.util;
 
 import com.google.api.gax.rpc.AlreadyExistsException;
 import com.google.api.gax.rpc.NotFoundException;
@@ -43,15 +43,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.sdk.util.Secret;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A {@link org.apache.beam.sdk.util.Secret} manager implementation that generates a secret using
- * entropy from a GCP HSM key and stores it in Google Cloud Secret Manager. If the secret already
- * exists, it will be retrieved.
+ * A {@link Secret} manager implementation that generates a secret using entropy from a GCP HSM key
+ * and stores it in Google Cloud Secret Manager. If the secret already exists, it will be retrieved.
  */
 public class GcpHsmGeneratedSecret extends Secret {
   private static final Logger LOG = LoggerFactory.getLogger(GcpHsmGeneratedSecret.class);
@@ -73,7 +73,7 @@ public class GcpHsmGeneratedSecret extends Secret {
   }
 
   /** Initialize GcpHsmGeneratedSecret from a map specification. */
-  static GcpHsmGeneratedSecret fromMap(Map<String, String> specMap) {
+  public static GcpHsmGeneratedSecret fromMap(Map<String, String> specMap) {
     Set<String> allowedKeys =
         new HashSet<>(
             Arrays.asList("project_id", "location_id", "key_ring_id", "key_id", "job_name"));
