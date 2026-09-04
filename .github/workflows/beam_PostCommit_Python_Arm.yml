@@ -56,7 +56,7 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, main]
     # Python ARM PostCommit uses prebuilt Snapshots SDK images, so it no longer
     # spends hours on multiarch container builds. Keep headroom for the IT suite.
-    timeout-minutes: 180
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       matrix:
@@ -105,12 +105,9 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitArmIT
           arguments: |
-            -PuseWheelDistribution \
             -PpythonVersion=${{ matrix.python_version }} \
             -PusePrebuiltSdkContainer \
         env:
-          # Use multiarch images published by Publish Beam SDK Snapshots.
-          SDK_CONTAINER_IMAGE: gcr.io/apache-beam-testing/beam-sdk/beam_python${{ matrix.python_version }}_sdk:latest
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7

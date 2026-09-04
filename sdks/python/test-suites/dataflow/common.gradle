@@ -145,20 +145,22 @@ task postCommitIT {
 
 task postCommitArmIT {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
-  dependsOn 'initializeForDataflowJob'
   // When -PusePrebuiltSdkContainer is set, skip building/pushing a multiarch
-  // SDK image and use SDK_CONTAINER_IMAGE from the environment instead (e.g.
-  // gcr.io/apache-beam-testing/beam-sdk/beam_python3.x_sdk:latest from Snapshots).
+  // SDK image and use SDK_CONTAINER_IMAGE from the environment instead.
   def usePrebuiltSdkContainer = project.rootProject.hasProperty(['usePrebuiltSdkContainer'])
-  if (!usePrebuiltSdkContainer) {
+  if (usePrebuiltSdkContainer) {
+    dependsOn 'installGcpTest'
+  } else {
+    dependsOn 'initializeForDataflowJob'
     dependsOn ":sdks:python:container:py${pyversion}:docker"
   }
 
   doLast {
     def testOpts = basicPytestOpts + ["--numprocesses=8", "--dist=loadfile"]
+    def sdkLocation = usePrebuiltSdkContainer ? 'container' : project.ext.sdkLocation
     def argMap = [
         "test_opts": testOpts,
-        "sdk_location": project.ext.sdkLocation,
+        "sdk_location": sdkLocation,
         "suite": "postCommitIT-df${pythonVersionSuffix}",
         "collect": "it_postcommit",
         "py_version": project.ext.pythonVersion,
@@ -167,6 +169,10 @@ task postCommitArmIT {
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
+      if (usePrebuiltSdkContainer) {
+        environment 'SDK_CONTAINER_IMAGE',
+          "gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:${project.sdk_version}"
+      }
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }
