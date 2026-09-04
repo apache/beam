@@ -278,8 +278,10 @@ public class StatefulStreamingParDoEvaluatorTest implements Serializable {
         CreateStream.of(coder, batchDuration(p)).advanceWatermarkForNextBatch(instant);
 
     sparseStream =
-        sparseStream.nextBatch(
-            TimestampedValue.of(KV.of(sparseKey, 0), instant.plus(Duration.millis(1000L))));
+        sparseStream
+            .nextBatch(
+                TimestampedValue.of(KV.of(sparseKey, 0), instant.plus(Duration.millis(1000L))))
+            .advanceNextBatchWatermarkToInfinity();
 
     final PCollection<KV<Integer, Integer>> sparsePCollection =
         p.apply("Create Sparse Key Stream", sparseStream);
