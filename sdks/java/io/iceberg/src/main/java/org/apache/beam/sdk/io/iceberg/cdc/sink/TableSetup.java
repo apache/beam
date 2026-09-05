@@ -702,8 +702,7 @@ final class TableSetup implements Serializable {
     }
 
     /** The partition-block sharding plan, or {@code null} to shard by plain primary-key hash. */
-    @Nullable
-    PartitionShardPlan partitionShardPlan() {
+    @Nullable PartitionShardPlan partitionShardPlan() {
       return partitionShardPlan;
     }
   }
