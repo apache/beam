@@ -31,6 +31,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * {@link PTransform} and {@link Combine.CombineFn} for computing the latest element in a {@link
@@ -50,9 +51,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
  *
  * <p>For elements with the same timestamp, the element chosen for output is arbitrary.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Latest {
   // Do not instantiate
   private Latest() {}
@@ -88,25 +86,37 @@ public class Latest {
   /**
    * A {@link Combine.CombineFn} that computes the latest element from a set of inputs.
    *
+   * <p>The accumulator holds a {@literal null} value until the first input arrives, so combining an
+   * empty input yields {@literal null}. {@code T} must therefore be instantiated at a nullable type
+   * for the output to be sound, which the declaration cannot say without changing the public
+   * signature of {@link Latest#combineFn()}.
+   *
    * @param <T> Type of input element.
    * @see Latest
    */
   @VisibleForTesting
-  static class LatestFn<T> extends Combine.CombineFn<TimestampedValue<T>, TimestampedValue<T>, T> {
+  static class LatestFn<T>
+      extends Combine.CombineFn<TimestampedValue<T>, TimestampedValue<@Nullable T>, T> {
     /** Construct a new {@link LatestFn} instance. */
     public LatestFn() {}
 
     @Override
-    public TimestampedValue<T> createAccumulator() {
+    public TimestampedValue<@Nullable T> createAccumulator() {
       return TimestampedValue.atMinimumTimestamp(null);
     }
 
     @Override
-    public TimestampedValue<T> addInput(
-        TimestampedValue<T> accumulator, TimestampedValue<T> input) {
+    public TimestampedValue<@Nullable T> addInput(
+        TimestampedValue<@Nullable T> accumulator, TimestampedValue<T> input) {
       checkNotNull(accumulator, "accumulator must be non-null");
       checkNotNull(input, "input must be non-null");
 
+      return latest(accumulator, input);
+    }
+
+    /** Returns whichever argument is later, preferring a non-null value when they are equal. */
+    private static <T> TimestampedValue<@Nullable T> latest(
+        TimestampedValue<@Nullable T> accumulator, TimestampedValue<@Nullable T> input) {
       if (input.getTimestamp().isBefore(accumulator.getTimestamp())) {
         return accumulator;
       } else if (input.getTimestamp().isAfter(accumulator.getTimestamp())) {
@@ -117,13 +127,15 @@ public class Latest {
     }
 
     @Override
-    public Coder<TimestampedValue<T>> getAccumulatorCoder(
+    @SuppressWarnings("nullness") // accumulated values may be null
+    public Coder<TimestampedValue<@Nullable T>> getAccumulatorCoder(
         CoderRegistry registry, Coder<TimestampedValue<T>> inputCoder)
         throws CannotProvideCoderException {
       return NullableCoder.of(inputCoder);
     }
 
     @Override
+    @SuppressWarnings("nullness") // the output is null when the input is empty
     public Coder<T> getDefaultOutputCoder(
         CoderRegistry registry, Coder<TimestampedValue<T>> inputCoder)
         throws CannotProvideCoderException {
@@ -138,24 +150,28 @@ public class Latest {
     }
 
     @Override
-    public TimestampedValue<T> mergeAccumulators(Iterable<TimestampedValue<T>> accumulators) {
+    public TimestampedValue<@Nullable T> mergeAccumulators(
+        Iterable<TimestampedValue<@Nullable T>> accumulators) {
       checkNotNull(accumulators, "accumulators must be non-null");
 
-      Iterator<TimestampedValue<T>> iter = accumulators.iterator();
+      Iterator<TimestampedValue<@Nullable T>> iter = accumulators.iterator();
       if (!iter.hasNext()) {
         return createAccumulator();
       }
 
-      TimestampedValue<T> merged = iter.next();
+      TimestampedValue<@Nullable T> merged = iter.next();
       while (iter.hasNext()) {
-        merged = addInput(merged, iter.next());
+        TimestampedValue<@Nullable T> next = iter.next();
+        checkNotNull(next, "input must be non-null");
+        merged = latest(merged, next);
       }
 
       return merged;
     }
 
     @Override
-    public T extractOutput(TimestampedValue<T> accumulator) {
+    @SuppressWarnings("nullness") // the output is null until the first input arrives
+    public T extractOutput(TimestampedValue<@Nullable T> accumulator) {
       return accumulator.getValue();
     }
   }
