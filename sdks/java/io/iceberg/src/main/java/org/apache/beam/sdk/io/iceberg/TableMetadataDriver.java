@@ -29,6 +29,7 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
@@ -43,10 +44,12 @@ import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.Distinct;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.StateId;
+import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.Sample;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.WithKeys;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -74,27 +77,31 @@ import org.slf4j.LoggerFactory;
 
 /**
  * A driver transform that extracts table identifiers from incoming {@link Row}s, deduplicates them
- * per window, optionally bounds the cache size up to {@code maximumCacheSize}, loads their
- * declarative metadata from the Iceberg catalog, and emits {@link KV} pairs of table identifier
- * strings to {@link SerializableTableSpec}. This is intended to be used in Beam pipelines that may
- * utilize a large number of workers to handle Iceberg writes, where having every worker thread
- * query for table metadata results in an excessive amount of requests and a high level of
- * redundancy.
+ * per window, optionally bounds the cache size up to {@code maximumCacheSize} (batch pipelines
+ * only), loads their declarative metadata from the Iceberg catalog, and emits {@link KV} pairs of
+ * table identifier strings to {@link SerializableTableSpec} (or {@code null} if the table does not
+ * exist or fails to load). This is intended to be used in Beam pipelines that may utilize a large
+ * number of workers to handle Iceberg writes, where having every worker thread query for table
+ * metadata results in an excessive amount of requests and a high level of redundancy.
  *
  * <p>Can also be materialized into a broadcasted {@link PCollectionView} via {@link
  * #asView(IcebergCatalogConfig, DynamicDestinations)}. By default, the cache size is uncapped. If
  * {@code maximumCacheSize} is configured and the number of distinct tables in a window exceeds it,
  * up to {@code maximumCacheSize} tables are sampled into the broadcasted view, while remaining
- * destinations fall back to worker-local catalog loading.
+ * destinations fall back to worker-local catalog loading. Note that {@code maximumCacheSize} is
+ * currently supported for bounded batch pipelines only.
  *
  * <p>For unbounded streaming pipelines in {@link GlobalWindows}, {@link Deduplicate} is used to
  * deduplicate table identifiers over the configured {@code refreshInterval} (defaulting to {@link
  * #DEFAULT_REFRESH_INTERVAL}), allowing periodic refresh of table metadata when schemas evolve.
+ * Missing table signals ({@code null} specs) trigger side-input view materialization without
+ * caching the missing tables, ensuring downstream consumers are never blocked waiting for the side
+ * input.
  */
 @Internal
 @AutoValue
 public abstract class TableMetadataDriver
-    extends PTransform<PCollection<Row>, PCollection<KV<String, SerializableTableSpec>>> {
+    extends PTransform<PCollection<Row>, PCollection<KV<String, @Nullable SerializableTableSpec>>> {
 
   public static final Duration DEFAULT_REFRESH_INTERVAL = Duration.standardMinutes(5);
   public static final int DEFAULT_POLLING_BUCKETS = 1;
@@ -253,6 +260,25 @@ public abstract class TableMetadataDriver
       @Nullable Duration refreshInterval,
       @Nullable Integer pollingBuckets,
       @Nullable Clock clock) {
+    return asView(
+        catalogConfig,
+        dynamicDestinations,
+        maximumCacheSize,
+        refreshInterval,
+        pollingBuckets,
+        null,
+        clock);
+  }
+
+  @VisibleForTesting
+  static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>> asView(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Integer maximumCacheSize,
+      @Nullable Duration refreshInterval,
+      @Nullable Integer pollingBuckets,
+      @Nullable Duration cacheTtl,
+      @Nullable Clock clock) {
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
@@ -260,7 +286,7 @@ public abstract class TableMetadataDriver
 
         Duration interval = refreshInterval != null ? refreshInterval : DEFAULT_REFRESH_INTERVAL;
 
-        PCollection<KV<String, SerializableTableSpec>> specs =
+        PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
             input.apply(
                 "GenerateTableMetadata",
                 TableMetadataDriver.builder()
@@ -274,8 +300,8 @@ public abstract class TableMetadataDriver
         if (isStreaming) {
           AccumulateTableMetadataMapDoFn accumulateDoFn =
               clock != null
-                  ? new AccumulateTableMetadataMapDoFn(interval, clock)
-                  : new AccumulateTableMetadataMapDoFn(interval);
+                  ? new AccumulateTableMetadataMapDoFn(interval, cacheTtl, clock)
+                  : new AccumulateTableMetadataMapDoFn(interval, cacheTtl);
           return specs
               .apply("KeyForGlobalCache", WithKeys.of((Void) null))
               .setCoder(KvCoder.of(VoidCoder.of(), specs.getCoder()))
@@ -291,13 +317,19 @@ public abstract class TableMetadataDriver
                   Combine.globally(new MapMergerFn()).asSingletonView());
         }
 
-        return specs.apply("CreateTableMetadataView", View.asMap());
+        return specs
+            .apply(
+                "FilterValidSpecsForView",
+                Filter.by(
+                    (SerializableFunction<KV<String, @Nullable SerializableTableSpec>, Boolean>)
+                        kv -> kv.getValue() != null))
+            .apply("CreateTableMetadataView", View.asMap());
       }
     };
   }
 
   @Override
-  public PCollection<KV<String, SerializableTableSpec>> expand(PCollection<Row> input) {
+  public PCollection<KV<String, @Nullable SerializableTableSpec>> expand(PCollection<Row> input) {
     PCollection<String> tableIds =
         input
             .apply("ExtractTableIds", ParDo.of(new ExtractTableIdsDoFn(getDynamicDestinations())))
@@ -337,15 +369,17 @@ public abstract class TableMetadataDriver
             "ReshufflePollingBuckets",
             Reshuffle.<String>viaRandomKey().withNumBuckets(pollingBuckets));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         pollingTableIds
             .apply("PollTableMetadata", ParDo.of(new CatalogPollingDoFn(getCatalogConfig())))
-            .setCoder(KvCoder.of(StringUtf8Coder.of(), SerializableTableSpec.getCoder()));
+            .setCoder(
+                KvCoder.of(
+                    StringUtf8Coder.of(), NullableCoder.of(SerializableTableSpec.getCoder())));
 
     if (isStreaming) {
       return specs.apply(
           "ApplyStreamingTrigger",
-          Window.<KV<String, SerializableTableSpec>>into(new GlobalWindows())
+          Window.<KV<String, @Nullable SerializableTableSpec>>into(new GlobalWindows())
               .triggering(Repeatedly.forever(AfterPane.elementCountAtLeast(1)))
               .discardingFiredPanes());
     }
@@ -389,12 +423,17 @@ public abstract class TableMetadataDriver
     }
   }
 
-  static class CatalogPollingDoFn extends DoFn<String, KV<String, SerializableTableSpec>> {
+  static class CatalogPollingDoFn
+      extends DoFn<String, KV<String, @Nullable SerializableTableSpec>> {
     private static final Logger LOG = LoggerFactory.getLogger(CatalogPollingDoFn.class);
     private static final Counter TABLES_POLLED_COUNTER =
         Metrics.counter(TableMetadataDriver.class, "tablesPolled");
     private static final Counter TABLES_SKIPPED_MISSING_COUNTER =
         Metrics.counter(TableMetadataDriver.class, "tablesSkippedMissing");
+    private static final Counter TABLES_PARSE_FAILED_COUNTER =
+        Metrics.counter(TableMetadataDriver.class, "tablesParseFailed");
+    private static final Counter TABLES_SPEC_CREATION_FAILED_COUNTER =
+        Metrics.counter(TableMetadataDriver.class, "tablesSpecCreationFailed");
 
     private final IcebergCatalogConfig catalogConfig;
 
@@ -404,16 +443,18 @@ public abstract class TableMetadataDriver
 
     @ProcessElement
     public void processElement(
-        @Element String tableIdString, OutputReceiver<KV<String, SerializableTableSpec>> out) {
+        @Element String tableIdString,
+        OutputReceiver<KV<String, @Nullable SerializableTableSpec>> out) {
       TableIdentifier tableId;
       try {
         tableId = IcebergUtils.parseTableIdentifier(tableIdString);
       } catch (IllegalArgumentException e) {
         LOG.warn(
-            "Failed to parse table identifier '{}'. Skipping metadata emission for side-input view.",
+            "Failed to parse table identifier '{}'. Emitting empty metadata signal for side-input view.",
             tableIdString,
             e);
-        TABLES_SKIPPED_MISSING_COUNTER.inc();
+        TABLES_PARSE_FAILED_COUNTER.inc();
+        out.output(KV.of(tableIdString, null));
         return;
       }
 
@@ -422,9 +463,10 @@ public abstract class TableMetadataDriver
         table = catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
         LOG.info(
-            "Table '{}' does not exist in catalog. Skipping metadata emission for side-input view.",
+            "Table '{}' does not exist in catalog. Emitting empty metadata signal for side-input view.",
             tableIdString);
         TABLES_SKIPPED_MISSING_COUNTER.inc();
+        out.output(KV.of(tableIdString, null));
         return;
       }
       SerializableTableSpec spec;
@@ -432,10 +474,11 @@ public abstract class TableMetadataDriver
         spec = SerializableTableSpec.fromTable(tableIdString, table);
       } catch (IllegalArgumentException e) {
         LOG.warn(
-            "Failed to create SerializableTableSpec for table '{}'. Skipping metadata emission for side-input view.",
+            "Failed to create SerializableTableSpec for table '{}'. Emitting empty metadata signal for side-input view.",
             tableIdString,
             e);
-        TABLES_SKIPPED_MISSING_COUNTER.inc();
+        TABLES_SPEC_CREATION_FAILED_COUNTER.inc();
+        out.output(KV.of(tableIdString, null));
         return;
       }
       TABLES_POLLED_COUNTER.inc();
@@ -445,10 +488,12 @@ public abstract class TableMetadataDriver
 
   static class AccumulateTableMetadataMapDoFn
       extends DoFn<
-          KV<Void, KV<String, SerializableTableSpec>>, Map<String, SerializableTableSpec>> {
+          KV<Void, KV<String, @Nullable SerializableTableSpec>>,
+          Map<String, SerializableTableSpec>> {
     private static final Logger LOG = LoggerFactory.getLogger(AccumulateTableMetadataMapDoFn.class);
     private static final Counter TABLES_EVICTED_COUNTER =
         Metrics.counter(TableMetadataDriver.class, "tablesEvictedUnused");
+    static final int DEFAULT_TTL_MULTIPLIER = 3;
 
     @StateId("tableCache")
     private final StateSpec<MapState<String, SerializableTableSpec>> cacheStateSpec =
@@ -459,49 +504,66 @@ public abstract class TableMetadataDriver
         StateSpecs.map(StringUtf8Coder.of(), VarLongCoder.of());
 
     private final Duration refreshInterval;
+    private final Duration cacheTtl;
     private final Clock clock;
 
     AccumulateTableMetadataMapDoFn() {
-      this(DEFAULT_REFRESH_INTERVAL, System::currentTimeMillis);
+      this(DEFAULT_REFRESH_INTERVAL, null, System::currentTimeMillis);
     }
 
     AccumulateTableMetadataMapDoFn(Duration refreshInterval) {
-      this(refreshInterval, System::currentTimeMillis);
+      this(refreshInterval, null, System::currentTimeMillis);
     }
 
     AccumulateTableMetadataMapDoFn(Duration refreshInterval, Clock clock) {
+      this(refreshInterval, null, clock);
+    }
+
+    AccumulateTableMetadataMapDoFn(Duration refreshInterval, @Nullable Duration cacheTtl) {
+      this(refreshInterval, cacheTtl, System::currentTimeMillis);
+    }
+
+    AccumulateTableMetadataMapDoFn(
+        Duration refreshInterval, @Nullable Duration cacheTtl, Clock clock) {
       this.refreshInterval = refreshInterval != null ? refreshInterval : DEFAULT_REFRESH_INTERVAL;
+      this.cacheTtl =
+          cacheTtl != null ? cacheTtl : this.refreshInterval.multipliedBy(DEFAULT_TTL_MULTIPLIER);
       this.clock = clock != null ? clock : System::currentTimeMillis;
     }
 
     @ProcessElement
     public void processElement(
-        @Element KV<Void, KV<String, SerializableTableSpec>> element,
+        @Element KV<Void, KV<String, @Nullable SerializableTableSpec>> element,
         @StateId("tableCache") MapState<String, SerializableTableSpec> cacheState,
         @StateId("lastSeen") MapState<String, Long> lastSeenState,
         OutputReceiver<Map<String, SerializableTableSpec>> out) {
       long now = clock.currentTimeMillis();
-      KV<String, SerializableTableSpec> kv = element.getValue();
+      KV<String, @Nullable SerializableTableSpec> kv = element.getValue();
       String tableId = kv.getKey();
-      SerializableTableSpec newSpec = kv.getValue();
+      @Nullable SerializableTableSpec newSpec = kv.getValue();
 
-      ReadableState<SerializableTableSpec> existingState = cacheState.get(tableId);
-      SerializableTableSpec existingSpec = existingState != null ? existingState.read() : null;
-      if (existingSpec == null
-          || newSpec.getLastUpdatedMillis() > existingSpec.getLastUpdatedMillis()
-          || (newSpec.getLastUpdatedMillis() == existingSpec.getLastUpdatedMillis()
-              && newSpec.getSchemaId() >= existingSpec.getSchemaId())) {
-        cacheState.put(tableId, newSpec);
+      if (newSpec != null) {
+        ReadableState<SerializableTableSpec> existingState = cacheState.get(tableId);
+        SerializableTableSpec existingSpec = existingState != null ? existingState.read() : null;
+        if (existingSpec == null || isNewer(newSpec, existingSpec)) {
+          cacheState.put(tableId, newSpec);
+        }
+        lastSeenState.put(tableId, now);
+      } else {
+        // Explicit missing table signal: immediately invalidate any cached entry
+        cacheState.remove(tableId);
+        lastSeenState.remove(tableId);
       }
-      lastSeenState.put(tableId, now);
 
       Map<String, Long> lastSeenMap = new HashMap<>();
       for (Map.Entry<String, Long> entry : lastSeenState.entries().read()) {
         lastSeenMap.put(entry.getKey(), entry.getValue());
       }
-      lastSeenMap.put(tableId, now);
+      if (newSpec != null) {
+        lastSeenMap.put(tableId, now);
+      }
 
-      long expirationCutoff = now - refreshInterval.getMillis();
+      long expirationCutoff = now - cacheTtl.getMillis();
       List<String> expiredTables = new ArrayList<>();
       Map<String, SerializableTableSpec> mapSnapshot = new HashMap<>();
 
@@ -530,6 +592,22 @@ public abstract class TableMetadataDriver
     }
   }
 
+  static boolean isNewer(SerializableTableSpec candidate, SerializableTableSpec current) {
+    if (candidate.getLastUpdatedMillis() != current.getLastUpdatedMillis()) {
+      return candidate.getLastUpdatedMillis() > current.getLastUpdatedMillis();
+    }
+    if (candidate.getSchemaId() != current.getSchemaId()) {
+      return candidate.getSchemaId() > current.getSchemaId();
+    }
+    if (candidate.getSpecId() != current.getSpecId()) {
+      return candidate.getSpecId() > current.getSpecId();
+    }
+    if (candidate.getOrderId() != current.getOrderId()) {
+      return candidate.getOrderId() > current.getOrderId();
+    }
+    return candidate.getLocation().compareTo(current.getLocation()) > 0;
+  }
+
   static class MapMergerFn extends Combine.BinaryCombineFn<Map<String, SerializableTableSpec>> {
     @Override
     public Map<String, SerializableTableSpec> apply(
@@ -545,15 +623,8 @@ public abstract class TableMetadataDriver
         String tableId = entry.getKey();
         SerializableTableSpec rightSpec = entry.getValue();
         SerializableTableSpec leftSpec = merged.get(tableId);
-        if (leftSpec == null) {
+        if (leftSpec == null || isNewer(rightSpec, leftSpec)) {
           merged.put(tableId, rightSpec);
-        } else if (rightSpec.getLastUpdatedMillis() > leftSpec.getLastUpdatedMillis()) {
-          merged.put(tableId, rightSpec);
-        } else if (rightSpec.getLastUpdatedMillis() == leftSpec.getLastUpdatedMillis()) {
-          // Deterministic tie-breaker for strict commutativity
-          if (rightSpec.getSchemaId() > leftSpec.getSchemaId()) {
-            merged.put(tableId, rightSpec);
-          }
         }
       }
       return Collections.unmodifiableMap(merged);

@@ -17,13 +17,16 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -58,6 +61,7 @@ import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -148,7 +152,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -160,9 +164,10 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(1, list.size());
-              KV<String, SerializableTableSpec> kv = list.get(0);
+              KV<String, @Nullable SerializableTableSpec> kv = list.get(0);
               assertEquals(expectedTableIdString, kv.getKey());
               SerializableTableSpec spec = kv.getValue();
               assertNotNull(spec);
@@ -198,7 +203,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -208,7 +213,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(3, list.size());
               Map<String, SerializableTableSpec> map =
                   list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
@@ -238,7 +244,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -248,7 +254,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(2, list.size());
               Map<String, SerializableTableSpec> map =
                   list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
@@ -284,7 +291,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply("StreamInput", stream);
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -295,7 +302,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(2, list.size());
               Map<String, SerializableTableSpec> map =
                   list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
@@ -354,7 +362,7 @@ public class TableMetadataDriverTest implements Serializable {
                     }))
             .setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -367,12 +375,13 @@ public class TableMetadataDriverTest implements Serializable {
         specs.apply(
             "ConsumerTransform",
             ParDo.of(
-                new DoFn<KV<String, SerializableTableSpec>, String>() {
+                new DoFn<KV<String, @Nullable SerializableTableSpec>, String>() {
                   @ProcessElement
                   public void processElement(
-                      @Element KV<String, SerializableTableSpec> element,
+                      @Element KV<String, @Nullable SerializableTableSpec> element,
                       OutputReceiver<String> out) {
-                    boolean hasNewCol = element.getValue().getSchema().findField("new_col") != null;
+                    SerializableTableSpec spec = checkNotNull(element.getValue());
+                    boolean hasNewCol = spec.getSchema().findField("new_col") != null;
                     out.output(hasNewCol ? "UPDATED_SCHEMA" : "INITIAL_SCHEMA");
                   }
                 }));
@@ -569,6 +578,118 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
+  public void testStreamingNonExistentTableEmitsEmptyMapWithoutBlockingConsumer() {
+    Row row =
+        Row.withSchema(BEAM_SCHEMA)
+            .addValues(1L, "v1", "default.non_existent_streaming_table")
+            .build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(row)
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input = pipeline.apply("StreamInput", stream);
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView",
+            TableMetadataDriver.asView(
+                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        assertNotNull("View map should not be null", viewMap);
+                        assertTrue(
+                            "View map should be empty when all polled tables do not exist",
+                            viewMap.isEmpty());
+                        out.output("CONSUMER_UNBLOCKED_EMPTY_MAP");
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved).containsInAnyOrder("CONSUMER_UNBLOCKED_EMPTY_MAP");
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testStreamingMixedExistingAndNonExistentTables() {
+    Catalog catalog = getCatalog();
+    TableIdentifier validTable = TableIdentifier.of("default", "mixed_valid_table");
+    catalog.createTable(validTable, ICEBERG_SCHEMA);
+
+    Row seedValidRow =
+        Row.withSchema(BEAM_SCHEMA)
+            .addValues(0L, "seed_valid", "default.mixed_valid_table")
+            .build();
+    Row seedMissingRow =
+        Row.withSchema(BEAM_SCHEMA)
+            .addValues(0L, "seed_missing", "default.mixed_missing_table")
+            .build();
+    Row validRow =
+        Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.mixed_valid_table").build();
+    Row missingRow =
+        Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.mixed_missing_table").build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(seedValidRow, seedMissingRow)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(validRow, missingRow)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input = pipeline.apply("StreamInput", stream);
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView",
+            TableMetadataDriver.asView(
+                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        String data = row.getString("data");
+                        if ("seed_valid".equals(data) || "seed_missing".equals(data)) {
+                          return;
+                        }
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        assertNotNull(viewMap);
+                        String dest = row.getString("dest");
+                        if ("default.mixed_valid_table".equals(dest)) {
+                          assertNotNull(viewMap.get(dest));
+                          out.output("VALID_TABLE_FOUND");
+                        } else {
+                          assertTrue(!viewMap.containsKey(dest));
+                          out.output("MISSING_TABLE_NOT_FOUND");
+                        }
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved)
+        .containsInAnyOrder("VALID_TABLE_FOUND", "MISSING_TABLE_NOT_FOUND");
+
+    pipeline.run();
+  }
+
+  @Test
   public void testMaximumCacheSizeInStreamingThrowsUnsupportedOperationException() {
     pipeline.enableAbandonedNodeEnforcement(false);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.test_table").build();
@@ -602,7 +723,7 @@ public class TableMetadataDriverTest implements Serializable {
     PCollection<Row> input =
         pipeline.apply(Create.of(validRow, malformedRow)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -612,9 +733,13 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
-              assertEquals(1, list.size());
-              assertEquals("default.valid_table", list.get(0).getKey());
+              Map<String, @Nullable SerializableTableSpec> map = new HashMap<>();
+              for (KV<String, @Nullable SerializableTableSpec> elem : elements) {
+                map.put(elem.getKey(), elem.getValue());
+              }
+              assertEquals(2, map.size());
+              assertNotNull(map.get("default.valid_table"));
+              assertNull(map.get("default.invalid..name///"));
               return null;
             });
 
@@ -639,7 +764,7 @@ public class TableMetadataDriverTest implements Serializable {
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
     int maxCacheSize = 3;
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -650,7 +775,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(maxCacheSize, list.size());
               return null;
             });
@@ -676,7 +802,7 @@ public class TableMetadataDriverTest implements Serializable {
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
     // Without setting maximumCacheSize, all 10 distinct tables are emitted
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -686,7 +812,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(10, list.size());
               return null;
             });
@@ -707,20 +834,24 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .build());
 
-    // Only the existing table is emitted; the non-existent table is skipped without failing bundle
+    // Both existing and missing table entries are emitted; missing table has null spec
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
-              assertEquals(1, list.size());
-              assertEquals("default.existing_table", list.get(0).getKey());
+              Map<String, @Nullable SerializableTableSpec> map = new HashMap<>();
+              for (KV<String, @Nullable SerializableTableSpec> elem : elements) {
+                map.put(elem.getKey(), elem.getValue());
+              }
+              assertEquals(2, map.size());
+              assertNotNull(map.get("default.existing_table"));
+              assertNull(map.get("default.non_existent_table"));
               return null;
             });
 
@@ -744,7 +875,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -754,7 +885,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(1, list.size());
               assertEquals("default.valid_dest_table", list.get(0).getKey());
               return null;
@@ -841,7 +973,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -852,7 +984,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(2, list.size());
               Map<String, SerializableTableSpec> map =
                   list.stream().collect(ImmutableMap.toImmutableMap(KV::getKey, KV::getValue));
@@ -889,7 +1022,7 @@ public class TableMetadataDriverTest implements Serializable {
             .setCoder(RowCoder.of(BEAM_SCHEMA))
             .apply(Window.into(FixedWindows.of(Duration.standardMinutes(1))));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -899,7 +1032,8 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(specs)
         .satisfies(
             elements -> {
-              List<KV<String, SerializableTableSpec>> list = ImmutableList.copyOf(elements);
+              List<KV<String, @Nullable SerializableTableSpec>> list =
+                  ImmutableList.copyOf(elements);
               assertEquals(2, list.size());
               return null;
             });
@@ -913,7 +1047,7 @@ public class TableMetadataDriverTest implements Serializable {
 
     PCollection<Row> input = pipeline.apply(Create.empty(RowCoder.of(BEAM_SCHEMA)));
 
-    PCollection<KV<String, SerializableTableSpec>> specs =
+    PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
         input.apply(
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
@@ -1159,7 +1293,7 @@ public class TableMetadataDriverTest implements Serializable {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
                         if ("trigger_evict_a".equals(row.getString("data"))) {
-                          ControllableTestClock.setTime(7000L);
+                          ControllableTestClock.setTime(20000L);
                         }
                         out.output(row);
                       }
@@ -1197,6 +1331,110 @@ public class TableMetadataDriverTest implements Serializable {
     PAssert.that(consumerObserved)
         .containsInAnyOrder(
             "a1:hasA=true,hasB=true", "b1:hasA=true,hasB=true", "a2:hasA=true,hasB=false");
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testBatchAllNonExistentTablesEmitsEmptyMapWithoutBlockingConsumer() {
+    List<Row> rows =
+        ImmutableList.of(
+            Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.missing_1").build(),
+            Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "default.missing_2").build());
+
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView", TableMetadataDriver.asView(catalogConfig, DYNAMIC_DESTINATIONS));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        out.output("size=" + viewMap.size());
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved).containsInAnyOrder("size=0", "size=0");
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testStreamingDroppedTableImmediatelyInvalidatedInCache() {
+    TableIdentifier tableId = TableIdentifier.of("default", "dropped_table");
+    getCatalog().createTable(tableId, ICEBERG_SCHEMA);
+    String tableStr = IcebergUtils.tableIdentifierToString(tableId);
+
+    Duration refreshInterval = Duration.standardSeconds(2);
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial", tableStr).build();
+    Row rowDrop = Row.withSchema(BEAM_SCHEMA).addValues(2L, "trigger_drop", tableStr).build();
+    Row rowPostDrop = Row.withSchema(BEAM_SCHEMA).addValues(3L, "post_drop", tableStr).build();
+
+    TestStream<Row> stream =
+        TestStream.create(RowCoder.of(BEAM_SCHEMA))
+            .advanceWatermarkTo(new Instant(0))
+            .addElements(row1)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowDrop)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowPostDrop)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .advanceWatermarkToInfinity();
+
+    PCollection<Row> input =
+        pipeline
+            .apply("StreamInput", stream)
+            .apply(
+                "DropTableOnTriggerRow",
+                ParDo.of(
+                    new DoFn<Row, Row>() {
+                      @ProcessElement
+                      public void processElement(@Element Row row, OutputReceiver<Row> out) {
+                        if ("trigger_drop".equals(row.getString("data"))) {
+                          catalogConfig
+                              .catalog()
+                              .dropTable(
+                                  IcebergUtils.parseTableIdentifier("default.dropped_table"));
+                        }
+                        out.output(row);
+                      }
+                    }))
+            .setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply(
+            "CreateMetadataView",
+            TableMetadataDriver.asView(catalogConfig, DYNAMIC_DESTINATIONS, null, refreshInterval));
+
+    PCollection<String> consumerObserved =
+        input.apply(
+            "ConsumeSideInput",
+            ParDo.of(
+                    new DoFn<Row, String>() {
+                      @ProcessElement
+                      public void processElement(
+                          @Element Row row, OutputReceiver<String> out, ProcessContext c) {
+                        String data = row.getString("data");
+                        if ("trigger_drop".equals(data)) {
+                          return;
+                        }
+                        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+                        out.output(data + ":hasTable=" + viewMap.containsKey(tableStr));
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(consumerObserved)
+        .containsInAnyOrder("initial:hasTable=true", "post_drop:hasTable=false");
 
     pipeline.run();
   }
