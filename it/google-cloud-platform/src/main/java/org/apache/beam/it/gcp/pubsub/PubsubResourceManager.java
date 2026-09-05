@@ -283,7 +283,11 @@ public final class PubsubResourceManager implements ResourceManager {
             ProjectName.newBuilder().setProject(projectId).build(),
             Schema.newBuilder().setType(schemaType).setDefinition(schemaDefinition).build(),
             "schema-" + testId + "-" + schemaTopic.getTopic());
-    createdSchemas.add(SchemaName.parse(schema.getName()));
+    SchemaName schemaName = SchemaName.parse(schema.getName());
+    if (schemaName == null) {
+      throw new IllegalStateException("Failed to parse schema name: " + schema.getName());
+    }
+    createdSchemas.add(schemaName);
     topicAdminClient.updateTopic(
         UpdateTopicRequest.newBuilder()
             .setUpdateMask(FieldMask.newBuilder().addPaths("schema_settings"))

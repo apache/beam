@@ -188,6 +188,11 @@ Should be called before running the tests.
   <td>Default: <code>-1</code></td>
 </tr>
 <tr>
+  <td><code>sourceStaticSplitThresholdMb</code></td>
+  <td>Static split assignment threshold in MiB per source reader for bounded sources in Flink DataStream mode. The default of 0 always uses lazy assignment. A positive value selects static round-robin assignment for sources with a known, positive estimate below the threshold and lazy assignment otherwise. Any negative value always uses static assignment.</td>
+  <td>Default: <code>0</code></td>
+</tr>
+<tr>
   <td><code>stateBackend</code></td>
   <td>State backend to store Beam's state. Use 'rocksdb' or 'hashmap' (same as 'filesystem').</td>
   <td></td>

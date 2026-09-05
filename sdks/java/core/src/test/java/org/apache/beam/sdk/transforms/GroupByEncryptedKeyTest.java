@@ -59,7 +59,7 @@ public class GroupByEncryptedKeyTest implements Serializable {
 
   @Rule public transient TestPipeline p = TestPipeline.create();
 
-  private static class FakeSecret implements Secret {
+  private static class FakeSecret extends Secret {
     private final byte[] secret =
         "YUt3STJQbXFZRnQycDV0TktDeUJTNXFZV0hoSHNHWmM".getBytes(Charset.defaultCharset());
 

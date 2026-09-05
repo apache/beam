@@ -353,6 +353,7 @@ public class CombineRunnersTest {
             valueInGlobalWindow(KV.of("B", 5)),
             valueInGlobalWindow(KV.of("C", 7))));
   }
+
   /**
    * Create a Combine Grouped Values function that is given lists of values that are grouped by key
    * and validates that the lists are properly combined.

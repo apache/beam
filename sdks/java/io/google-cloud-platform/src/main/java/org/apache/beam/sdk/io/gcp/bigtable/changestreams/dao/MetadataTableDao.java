@@ -308,6 +308,7 @@ public class MetadataTableDao {
    * @param newPartition the new partition
    */
   public void writeNewPartition(NewPartition newPartition) {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     ByteString rowKey = convertPartitionToNewPartitionRowKey(newPartition.getPartition());
     ByteStringRange parentPartition =
         newPartition.getChangeStreamContinuationTokens().get(0).getPartition();
@@ -316,10 +317,12 @@ public class MetadataTableDao {
             .setCell(
                 MetadataTableAdminDao.CF_INITIAL_TOKEN,
                 ByteStringRange.serializeToByteString(parentPartition),
+                nowMicros,
                 newPartition.getChangeStreamContinuationTokens().get(0).toByteString())
             .setCell(
                 MetadataTableAdminDao.CF_PARENT_LOW_WATERMARKS,
                 ByteStringRange.serializeToByteString(parentPartition),
+                nowMicros,
                 newPartition.getLowWatermark().getMillis())
             .deleteCells(
                 MetadataTableAdminDao.CF_SHOULD_DELETE,
@@ -349,13 +352,15 @@ public class MetadataTableDao {
    * @param newPartition mark for deletion.
    */
   public void markNewPartitionForDeletion(NewPartition newPartition) {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     ByteString rowKey = convertPartitionToNewPartitionRowKey(newPartition.getPartition());
     RowMutation rowMutation = RowMutation.create(tableId, rowKey);
     for (ChangeStreamContinuationToken token : newPartition.getChangeStreamContinuationTokens()) {
       rowMutation.setCell(
           MetadataTableAdminDao.CF_SHOULD_DELETE,
           ByteStringRange.serializeToByteString(token.getPartition()),
-          1);
+          nowMicros,
+          1L);
     }
     mutateRowWithHardTimeout(rowMutation);
   }
@@ -503,16 +508,19 @@ public class MetadataTableDao {
    */
   private void writeToMdTableWatermarkHelper(
       ByteString rowKey, Instant watermark, @Nullable ChangeStreamContinuationToken currentToken) {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutation rowMutation =
         RowMutation.create(tableId, rowKey)
             .setCell(
                 MetadataTableAdminDao.CF_WATERMARK,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
                 watermark.getMillis());
     if (currentToken != null) {
       rowMutation.setCell(
           MetadataTableAdminDao.CF_CONTINUATION_TOKEN,
           MetadataTableAdminDao.QUALIFIER_DEFAULT,
+          nowMicros,
           currentToken.getToken());
     }
     mutateRowWithHardTimeout(rowMutation);
@@ -591,6 +599,7 @@ public class MetadataTableDao {
    * @return true if releasing the lock was successful.
    */
   public boolean releaseStreamPartitionLockForDeletion(ByteStringRange partition, String uuid) {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     ByteString rowKey = convertPartitionToStreamPartitionRowKey(partition);
     Filter lockCellFilter =
         FILTERS
@@ -602,7 +611,10 @@ public class MetadataTableDao {
         Mutation.create()
             .deleteCells(MetadataTableAdminDao.CF_LOCK, MetadataTableAdminDao.QUALIFIER_DEFAULT)
             .setCell(
-                MetadataTableAdminDao.CF_SHOULD_DELETE, MetadataTableAdminDao.QUALIFIER_DEFAULT, 1);
+                MetadataTableAdminDao.CF_SHOULD_DELETE,
+                MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
+                1L);
     ConditionalRowMutation rowMutation =
         ConditionalRowMutation.create(tableId, rowKey).condition(lockCellFilter).then(deleteCell);
     return dataClient.checkAndMutateRow(rowMutation);
@@ -669,16 +681,19 @@ public class MetadataTableDao {
       return true;
     }
 
+    long nowMicros = Instant.now().getMillis() * 1000L;
     // Record all the initial metadata.
     Mutation mutation =
         Mutation.create()
             .setCell(
                 MetadataTableAdminDao.CF_LOCK,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
                 partitionRecord.getUuid())
             .setCell(
                 MetadataTableAdminDao.CF_WATERMARK,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
+                nowMicros,
                 partitionRecord.getParentLowWatermark().getMillis())
             .deleteCells(
                 MetadataTableAdminDao.CF_SHOULD_DELETE, MetadataTableAdminDao.QUALIFIER_DEFAULT);
@@ -689,6 +704,7 @@ public class MetadataTableDao {
         mutation.setCell(
             MetadataTableAdminDao.CF_INITIAL_TOKEN,
             ByteStringRange.serializeToByteString(token.getPartition()),
+            nowMicros,
             token.toByteString());
       }
     }
@@ -726,12 +742,14 @@ public class MetadataTableDao {
    * the existing metadata table is compatible with current beam connector code.
    */
   public void writeDetectNewPartitionVersion() {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutation rowMutation =
         RowMutation.create(tableId, getFullDetectNewPartition())
             .setCell(
                 MetadataTableAdminDao.CF_VERSION,
                 MetadataTableAdminDao.QUALIFIER_DEFAULT,
-                MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
+                nowMicros,
+                (long) MetadataTableAdminDao.CURRENT_METADATA_TABLE_VERSION);
     mutateRowWithHardTimeout(rowMutation);
   }
 
@@ -779,12 +797,14 @@ public class MetadataTableDao {
    */
   public void writeDetectNewPartitionMissingPartitions(
       HashMap<ByteStringRange, Instant> missingPartitionDurations) {
+    long nowMicros = Instant.now().getMillis() * 1000L;
     byte[] serializedMissingPartition = SerializationUtils.serialize(missingPartitionDurations);
     RowMutation rowMutation =
         RowMutation.create(tableId, getFullDetectNewPartition())
             .setCell(
                 MetadataTableAdminDao.CF_MISSING_PARTITIONS,
                 ByteString.copyFromUtf8(MetadataTableAdminDao.QUALIFIER_DEFAULT),
+                nowMicros,
                 ByteString.copyFrom(serializedMissingPartition));
     mutateRowWithHardTimeout(rowMutation);
   }

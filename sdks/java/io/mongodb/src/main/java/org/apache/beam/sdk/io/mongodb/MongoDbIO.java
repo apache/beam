@@ -27,6 +27,7 @@ import com.mongodb.MongoBulkWriteException;
 import com.mongodb.MongoClientSettings;
 import com.mongodb.MongoClientSettings.Builder;
 import com.mongodb.MongoCommandException;
+import com.mongodb.MongoDriverInformation;
 import com.mongodb.client.AggregateIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -66,11 +67,9 @@ import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.bson.BsonDocument;
 import org.bson.BsonInt32;
-import org.bson.BsonObjectId;
 import org.bson.BsonString;
 import org.bson.Document;
 import org.bson.conversions.Bson;
-import org.bson.types.ObjectId;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
@@ -144,6 +143,9 @@ import org.slf4j.LoggerFactory;
 public class MongoDbIO {
 
   private static final Logger LOG = LoggerFactory.getLogger(MongoDbIO.class);
+
+  private static final MongoDriverInformation DRIVER_INFO =
+      MongoDriverInformation.builder().driverName("Apache Beam").build();
 
   public static final String ERROR_MSG_QUERY_FN =
       " class is not supported. "
@@ -427,7 +429,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      try (MongoClient mongoClient = MongoClients.create(settings)) {
+      try (MongoClient mongoClient = MongoClients.create(settings, DRIVER_INFO)) {
         return getDocumentCount(mongoClient, database, collection);
       } catch (Exception e) {
         return -1;
@@ -459,7 +461,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      try (MongoClient mongoClient = MongoClients.create(settings)) {
+      try (MongoClient mongoClient = MongoClients.create(settings, DRIVER_INFO)) {
         try {
           return getEstimatedSizeBytes(mongoClient, database, collection);
         } catch (MongoCommandException exception) {
@@ -496,7 +498,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      try (MongoClient mongoClient = MongoClients.create(settings)) {
+      try (MongoClient mongoClient = MongoClients.create(settings, DRIVER_INFO)) {
         MongoDatabase mongoDatabase = mongoClient.getDatabase(database);
 
         List<Document> splitKeys;
@@ -602,44 +604,49 @@ public class MongoDbIO {
     @VisibleForTesting
     static List<String> splitKeysToFilters(List<Document> splitKeys) {
       ArrayList<String> filters = new ArrayList<>();
-      String lowestBound = null; // lower boundary (previous split in the iteration)
+      Object lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
-        String splitKey = splitKeys.get(i).get("_id").toString();
-        String rangeFilter;
+        Object splitKey = splitKeys.get(i).get("_id");
         if (i == 0) {
           // this is the first split in the list, the filter defines
           // the range from the beginning up to this split
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$lte:ObjectId(\"%s\")}}", splitKey);
-          filters.add(String.format("%s ]}", rangeFilter));
+          filters.add(rangeFilter(null, splitKey));
           // If there is only one split, also generate a range from the split to the end
           if (splitKeys.size() == 1) {
-            rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}", splitKey);
-            filters.add(String.format("%s ]}", rangeFilter));
+            filters.add(rangeFilter(splitKey, null));
           }
         } else if (i == splitKeys.size() - 1) {
           // this is the last split in the list, the filters define
           // the range from the previous split to the current split and also
           // the current split to the end
-          rangeFilter =
-              String.format(
-                  "{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")," + "$lte:ObjectId(\"%s\")}}",
-                  lowestBound, splitKey);
-          filters.add(String.format("%s ]}", rangeFilter));
-          rangeFilter = String.format("{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")}}", splitKey);
-          filters.add(String.format("%s ]}", rangeFilter));
+          filters.add(rangeFilter(lowestBound, splitKey));
+          filters.add(rangeFilter(splitKey, null));
         } else {
           // we are between two splits
-          rangeFilter =
-              String.format(
-                  "{ $and: [ {\"_id\":{$gt:ObjectId(\"%s\")," + "$lte:ObjectId(\"%s\")}}",
-                  lowestBound, splitKey);
-          filters.add(String.format("%s ]}", rangeFilter));
+          filters.add(rangeFilter(lowestBound, splitKey));
         }
 
         lowestBound = splitKey;
       }
 
       return filters;
+    }
+
+    /**
+     * Builds a JSON range filter on {@code _id} with the given bounds. Bounds are serialized with
+     * their actual BSON types (as extended JSON) so that ids that are not ObjectIds, such as
+     * application-defined string ids, are preserved.
+     */
+    private static String rangeFilter(
+        @Nullable Object greaterThan, @Nullable Object lessThanOrEqualTo) {
+      Document range = new Document();
+      if (greaterThan != null) {
+        range.append("$gt", greaterThan);
+      }
+      if (lessThanOrEqualTo != null) {
+        range.append("$lte", lessThanOrEqualTo);
+      }
+      return new Document("$and", Collections.singletonList(new Document("_id", range))).toJson();
     }
 
     /**
@@ -670,9 +677,11 @@ public class MongoDbIO {
     @VisibleForTesting
     static List<BsonDocument> splitKeysToMatch(List<Document> splitKeys) {
       List<Bson> aggregates = new ArrayList<>();
-      ObjectId lowestBound = null; // lower boundary (previous split in the iteration)
+      Object lowestBound = null; // lower boundary (previous split in the iteration)
       for (int i = 0; i < splitKeys.size(); i++) {
-        ObjectId splitKey = splitKeys.get(i).getObjectId("_id");
+        // Keep the raw value so that ids that are not ObjectIds, such as application-defined
+        // string ids, are preserved.
+        Object splitKey = splitKeys.get(i).get("_id");
         if (i == 0) {
           aggregates.add(Aggregates.match(Filters.lte("_id", splitKey)));
           if (splitKeys.size() == 1) {
@@ -683,22 +692,20 @@ public class MongoDbIO {
           // the range from the previous split to the current split and also
           // the current split to the end
           // Create a custom BSON document with multiple conditions on the same field
-          BsonDocument rangeFilter =
-              new BsonDocument(
+          Document rangeFilter =
+              new Document(
                   "_id",
-                  new BsonDocument(
-                          "$gt", new BsonObjectId(Preconditions.checkStateNotNull(lowestBound)))
-                      .append("$lte", new BsonObjectId(splitKey)));
+                  new Document("$gt", Preconditions.checkStateNotNull(lowestBound))
+                      .append("$lte", splitKey));
           aggregates.add(Aggregates.match(rangeFilter));
           aggregates.add(Aggregates.match(Filters.gt("_id", splitKey)));
         } else {
           // Create a custom BSON document with multiple conditions on the same field
-          BsonDocument rangeFilter =
-              new BsonDocument(
+          Document rangeFilter =
+              new Document(
                   "_id",
-                  new BsonDocument(
-                          "$gt", new BsonObjectId(Preconditions.checkStateNotNull(lowestBound)))
-                      .append("$lte", new BsonObjectId(splitKey)));
+                  new Document("$gt", Preconditions.checkStateNotNull(lowestBound))
+                      .append("$lte", splitKey));
           aggregates.add(Aggregates.match(rangeFilter));
         }
 
@@ -812,7 +819,7 @@ public class MongoDbIO {
                   spec.ignoreSSLCertificate())
               .applyConnectionString(new ConnectionString(uri))
               .build();
-      return MongoClients.create(settings);
+      return MongoClients.create(settings, DRIVER_INFO);
     }
   }
 
@@ -1012,7 +1019,7 @@ public class MongoDbIO {
                     spec.ignoreSSLCertificate())
                 .applyConnectionString(new ConnectionString(uri))
                 .build();
-        client = MongoClients.create(settings);
+        client = MongoClients.create(settings, DRIVER_INFO);
       }
 
       @StartBundle

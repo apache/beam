@@ -82,4 +82,12 @@ public final class ExecutableWork {
   public Work.KeyGroup getKeyGroup() {
     return work().getKeyGroup();
   }
+
+  /**
+   * Returns true if multi-key batching is disabled for this work item (e.g. after a prior batch
+   * commit size validation failure).
+   */
+  public boolean isMultiKeyBatchingDisabled() {
+    return work().isMultiKeyBatchingDisabled();
+  }
 }

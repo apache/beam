@@ -42,7 +42,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -433,15 +432,8 @@ public class RecordWriterManagerTest {
     DataFile datafile = writer.getDataFile();
     assertEquals(2L, datafile.recordCount());
 
-    Map<String, PartitionField> partitionFieldMap = new HashMap<>();
-    for (PartitionField partitionField : PARTITION_SPEC.fields()) {
-      partitionFieldMap.put(partitionField.name(), partitionField);
-    }
-
-    String partitionPath =
-        RecordWriterManager.getPartitionDataPath(partitionKey.toPath(), partitionFieldMap);
     DataFile roundTripDataFile =
-        SerializableDataFile.from(datafile, partitionPath)
+        SerializableDataFile.from(datafile, PARTITION_SPEC)
             .createDataFile(ImmutableMap.of(PARTITION_SPEC.specId(), PARTITION_SPEC));
 
     checkDataFileEquality(datafile, roundTripDataFile);
@@ -477,14 +469,8 @@ public class RecordWriterManagerTest {
     writer.close();
 
     // fetch data file and its serializable version
-    Map<String, PartitionField> partitionFieldMap = new HashMap<>();
-    for (PartitionField partitionField : PARTITION_SPEC.fields()) {
-      partitionFieldMap.put(partitionField.name(), partitionField);
-    }
-    String partitionPath =
-        RecordWriterManager.getPartitionDataPath(partitionKey.toPath(), partitionFieldMap);
     DataFile datafile = writer.getDataFile();
-    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, partitionPath);
+    SerializableDataFile serializableDataFile = SerializableDataFile.from(datafile, PARTITION_SPEC);
 
     assertEquals(2L, datafile.recordCount());
     assertEquals(serializableDataFile.getPartitionSpecId(), datafile.specId());
@@ -645,7 +631,7 @@ public class RecordWriterManagerTest {
       expectedPartitions.add(name + "=" + URLEncoder.encode(val, UTF_8.toString()));
     }
     String expectedPartitionPath = String.join("/", expectedPartitions);
-    assertEquals(expectedPartitionPath, dataFile.getPartitionPath());
+    assertEquals(expectedPartitionPath, spec.partitionToPath(dataFile.partition(spec)));
     assertThat(dataFile.getPath(), containsString(expectedPartitionPath));
   }
 
@@ -698,9 +684,10 @@ public class RecordWriterManagerTest {
     assertEquals(1, files.size());
     SerializableDataFile dataFile = files.get(0);
     assertEquals(1, dataFile.getRecordCount());
+    String partitionPath = spec.partitionToPath(dataFile.partition(spec));
     for (Schema.Field field : bucketSchema.getFields()) {
       String expectedPartition = field.getName() + "_bucket";
-      assertThat(dataFile.getPartitionPath(), containsString(expectedPartition));
+      assertThat(partitionPath, containsString(expectedPartition));
       assertThat(dataFile.getPath(), containsString(expectedPartition));
     }
   }
@@ -792,6 +779,7 @@ public class RecordWriterManagerTest {
         serializableDataFile.createDataFile(
             catalogConfig.catalog().loadTable(dest.getValue().getTableIdentifier()).specs());
     assertThat(dataFile.path().toString(), containsString(expectedPartition));
+    assertEquals(expectedPartition, spec.partitionToPath(dataFile.partition()));
   }
 
   @Rule public ExpectedException thrown = ExpectedException.none();
