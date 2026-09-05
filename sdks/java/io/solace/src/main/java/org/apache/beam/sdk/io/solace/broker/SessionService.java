@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.JCSMPProperties;
 import java.io.Serializable;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.SolaceIO.SubmissionMode;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
@@ -139,6 +140,16 @@ public abstract class SessionService implements Serializable {
    * implementation has to be thread-safe for production use-cases.
    */
   public abstract Queue<PublishResult> getPublishedResultsQueue();
+
+  /**
+   * Returns the {@link AtomicInteger} tracking the number of in-flight publish operations.
+   *
+   * <p>The counter is incremented when a publish is sent and decremented when the asynchronous
+   * Solace ACK callback completes. This allows the writer to wait for all pending publishes to
+   * complete before emitting results in {@code @FinishBundle}, preventing data loss in batch
+   * pipelines.
+   */
+  public abstract AtomicInteger getPendingPublishCount();
 
   /**
    * Override this method and provide your specific properties, including all those related to
