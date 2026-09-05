@@ -143,7 +143,7 @@ public class DeltaIO {
           conf.set(entry.getKey(), entry.getValue());
         }
       }
-      Engine engine = DefaultEngine.create(conf);
+      Engine engine = BeamEngine.withBeamFileSystemClient(DefaultEngine.create(conf));
       Table table = Table.forPath(engine, path);
       Snapshot snapshot;
       Long versionVal = getVersion();
