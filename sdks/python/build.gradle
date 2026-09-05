@@ -222,12 +222,13 @@ def platform_identifiers_map = [
 ]
 
 platform_identifiers_map.each { platform, idsuffix ->
-  def archs = 'auto'
+  def archs = project.rootProject.findProperty('cibwArchs') ?: 'auto'
   // note: A fix for arm64 platform in gradle environment. For some reason the
   // task fails with "Invalid archs option {<Architecture.arm64: 'arm64'>}."
   // even though os.arch is 'aarch64'
   // Running cibuildwheel command directly in shell it succeeded, however
-  if (platform == 'linux' && 'aarch64'.equalsIgnoreCase(System.getProperty("os.arch"))) {
+  if (archs == 'auto' && platform == 'linux' &&
+      'aarch64'.equalsIgnoreCase(System.getProperty("os.arch"))) {
     archs = 'aarch64'
   }
   getVersionsAsList('python_versions').each { it ->

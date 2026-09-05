@@ -50,8 +50,12 @@ task initializeForDataflowJob{
     dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
 
     doLast {
+      def cibwArchs = project.rootProject.findProperty('cibwArchs')
+      def wheelInclude = cibwArchs == 'aarch64' ?
+          "**/apache_beam-*cp${pythonVersionNumber}*aarch64*.whl" :
+          "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
       def collection = project.fileTree(project.project(':sdks:python').buildDir){
-          include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+          include wheelInclude
       }
       // sdkLocation ext is set at execution time
       String packageFilename = collection.singleFile.toString()
@@ -147,8 +151,8 @@ task postCommitArmIT {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
   // When -PusePrebuiltSdkContainer is set, skip building/pushing a multiarch
-  // SDK image and use SDK_CONTAINER_IMAGE from the environment instead (e.g.
-  // gcr.io/apache-beam-testing/beam-sdk/beam_python3.x_sdk:latest from Snapshots).
+  // SDK image. Dataflow then uses the default image for this SDK version
+  // unless SDK_CONTAINER_IMAGE is set.
   def usePrebuiltSdkContainer = project.rootProject.hasProperty(['usePrebuiltSdkContainer'])
   if (!usePrebuiltSdkContainer) {
     dependsOn ":sdks:python:container:py${pyversion}:docker"
