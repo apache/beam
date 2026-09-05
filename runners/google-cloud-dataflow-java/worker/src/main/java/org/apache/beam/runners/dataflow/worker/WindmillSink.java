@@ -350,8 +350,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
       return (long) key.size() + value.size() + metadata.size() + id.size() + offsetSize;
     }
 
-    @Override
-    public void close() throws IOException {
+    private void flush(boolean bundleLevel) {
       try {
         outputBuilder.setDestinationStreamId(destinationName);
 
@@ -359,17 +358,39 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           outputBuilder.addBundles(keyedOutput.build());
         }
         if (outputBuilder.getBundlesCount() > 0) {
-          context.getOutputBuilder().addOutputMessages(outputBuilder.build());
+          Windmill.OutputMessageBundle bundle = outputBuilder.build();
+          if (bundleLevel) {
+            context.addBundleOutputMessages(bundle);
+          } else {
+            context.getOutputBuilder().addOutputMessages(bundle);
+          }
         }
       } finally {
         outputBuilder.clear();
+        productionMap.clear();
       }
-      productionMap.clear();
+    }
+
+    @Override
+    public void finishKey(@Nullable Object key) throws IOException {
+      if (context.multiKeyBundleEnabled()) {
+        flush(/* bundleLevel= */ false);
+      }
+    }
+
+    @Override
+    public void close() throws IOException {
+      if (context.multiKeyBundleEnabled()) {
+        flush(/* bundleLevel= */ true);
+      } else {
+        flush(/* bundleLevel= */ false);
+      }
     }
 
     @Override
     public void abort() throws IOException {
-      close();
+      outputBuilder.clear();
+      productionMap.clear();
     }
   }
 
