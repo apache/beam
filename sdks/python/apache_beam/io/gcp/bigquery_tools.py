@@ -59,6 +59,7 @@ from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.metric import Metrics
 from apache_beam.options import value_provider
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.transforms import DoFn
 from apache_beam.typehints.row_type import RowTypeConstraint
@@ -346,6 +347,13 @@ def _build_dataset_encryption_config(kms_key):
   return bigquery.EncryptionConfiguration(kmsKeyName=kms_key)
 
 
+def _quota_project_id_from_options(pipeline_options):
+  """Returns --quota_project_id from pipeline options, if any."""
+  if pipeline_options is None:
+    return None
+  return pipeline_options.view_as(GoogleCloudOptions).quota_project_id
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -354,8 +362,10 @@ class BigQueryWrapper(object):
   In addition, it offers various functions used both in sources and sinks
   (e.g., find and create tables, query a table, etc.).
 
-  Note that client parameter in constructor is only for testing purposes and
-  should not be used in production code.
+  Note that the client and gcp_client parameters in the constructor are only
+  for testing purposes and should not be used in production code. Production
+  code should pass pipeline_options (and optionally quota_project_id) so that
+  every client is built here with the right quota attribution.
   """
 
   # If updating following names, also update the corresponding pydocs in
@@ -365,16 +375,29 @@ class BigQueryWrapper(object):
 
   HISTOGRAM_METRIC_LOGGER = MetricLogger()
 
-  def __init__(self, client=None, temp_dataset_id=None, temp_table_ref=None):
-    self.client = client or BigQueryWrapper._bigquery_client(PipelineOptions())
-    self.gcp_bq_client = client or gcp_bigquery.Client(
-        client_info=ClientInfo(
-            user_agent="apache-beam-%s" % apache_beam.__version__))
+  def __init__(
+      self,
+      client=None,
+      temp_dataset_id=None,
+      temp_table_ref=None,
+      quota_project_id=None,
+      *,
+      gcp_client=None,
+      pipeline_options=None):
+    self.quota_project_id = (
+        quota_project_id or _quota_project_id_from_options(pipeline_options))
+    self.client = client or BigQueryWrapper._bigquery_client(
+        pipeline_options or PipelineOptions(),
+        quota_project_id=self.quota_project_id)
+    # Test-only overrides. `client` also stands in for the google-cloud-bigquery
+    # client, which several tests rely on; pass `gcp_client` as well as `client`
+    # to override only that one.
+    self._gcp_bq_client = gcp_client or client
 
     self._unique_row_id = 0
     # For testing scenarios where we pass in a client we do not want a
     # randomized prefix for row IDs.
-    self._row_id_prefix = '' if client else uuid.uuid4()
+    self._row_id_prefix = '' if (client or gcp_client) else uuid.uuid4()
     self._latency_histogram_metric = Metrics.histogram(
         self.__class__,
         'latency_histogram_ms',
@@ -400,6 +423,17 @@ class BigQueryWrapper(object):
       self.temp_dataset_id = temp_dataset_id or self._get_temp_dataset()
 
     self.created_temp_dataset = False
+
+  @property
+  def gcp_bq_client(self):
+    """The google-cloud-bigquery client, created on first use.
+
+    Only the streaming insert path needs it, so it is not built eagerly.
+    """
+    if self._gcp_bq_client is None:
+      self._gcp_bq_client = BigQueryWrapper._gcp_bigquery_client(
+          quota_project_id=self.quota_project_id)
+    return self._gcp_bq_client
 
   @property
   def unique_row_id(self):
@@ -1414,18 +1448,59 @@ class BigQueryWrapper(object):
 
   @staticmethod
   def from_pipeline_options(pipeline_options: PipelineOptions):
-    return BigQueryWrapper(
-        client=BigQueryWrapper._bigquery_client(pipeline_options))
+    """Create a BigQueryWrapper from pipeline options.
+
+    Args:
+      pipeline_options: Pipeline options containing GCP configuration.
+        The quota_project_id is read from GoogleCloudOptions if set.
+    """
+    return BigQueryWrapper(pipeline_options=pipeline_options)
 
   @staticmethod
-  def _bigquery_client(pipeline_options: PipelineOptions):
+  def _bigquery_client(
+      pipeline_options: PipelineOptions, quota_project_id: str = None):
+    """Create a BigQuery API client from pipeline options.
+
+    Args:
+      pipeline_options: Pipeline options for credentials.
+      quota_project_id: Optional quota project ID. If not provided, will be
+        extracted from pipeline_options.
+    """
+    credentials = auth.get_service_credentials(pipeline_options)
+    # Use explicit quota_project_id if provided, otherwise get from options
+    quota_project_id = quota_project_id or _quota_project_id_from_options(
+        pipeline_options)
+    if quota_project_id:
+      credentials = auth.with_quota_project(credentials, quota_project_id)
     return bigquery.BigqueryV2(
         http=get_new_http(),
-        credentials=auth.get_service_credentials(pipeline_options),
+        credentials=credentials,
         response_encoding='utf8',
         additional_http_headers={
             "user-agent": "apache-beam-%s" % apache_beam.__version__
         })
+
+  @staticmethod
+  def _gcp_bigquery_client(quota_project_id: str = None):
+    """Create a google-cloud-bigquery Client with optional quota project.
+
+    Raises:
+      Exception: If a quota project was requested but could not be applied.
+        Falling back to the default credentials would silently bill a
+        different project than the one the user asked for.
+    """
+    credentials = None
+
+    if quota_project_id:
+      # Get default credentials and apply quota project
+      import google.auth
+      credentials, _ = google.auth.default()
+      credentials = auth.with_quota_project(credentials, quota_project_id)
+
+    return gcp_bigquery.Client(
+        credentials=credentials,
+        client_info=ClientInfo(
+            user_agent="apache-beam-%s" % apache_beam.__version__))
 
 
 class RowAsDictJsonCoder(coders.Coder):
