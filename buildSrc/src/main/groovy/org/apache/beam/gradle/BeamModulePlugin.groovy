@@ -803,6 +803,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_common_protos                   : "com.google.api.grpc:grpc-google-common-protos", // google_cloud_platform_libraries_bom sets version
         grpc_grpclb                                 : "io.grpc:grpc-grpclb", // google_cloud_platform_libraries_bom sets version
+        grpc_inprocess                              : "io.grpc:grpc-inprocess", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf                               : "io.grpc:grpc-protobuf", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite", // google_cloud_platform_libraries_bom sets version
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version

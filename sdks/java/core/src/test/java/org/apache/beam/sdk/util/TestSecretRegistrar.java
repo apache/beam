@@ -18,17 +18,17 @@
 package org.apache.beam.sdk.util;
 
 import com.google.auto.service.AutoService;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 
-/** {@link AutoService} registrar for the {@link GcpHsmGeneratedSecret}. */
+/** Test {@link SecretRegistrar} for unit and cross-language tests. */
 @AutoService(SecretRegistrar.class)
-public class GcpHsmGeneratedSecretRegistrar implements SecretRegistrar {
+public class TestSecretRegistrar implements SecretRegistrar {
 
   @Override
   public Map<String, SecretFactory> getSecretFactories() {
     return ImmutableMap.of(
-        "GoogleCloudHsmGeneratedSecretManager", GcpHsmGeneratedSecret::fromMap,
-        "GcpHsmGeneratedSecret", GcpHsmGeneratedSecret::fromMap);
+        "TestSecret", spec -> new RawSecret(spec.get("secret").getBytes(StandardCharsets.UTF_8)));
   }
 }

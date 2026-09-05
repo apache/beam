@@ -37,7 +37,10 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation library.java.vendored_grpc_1_69_0
 
+    testImplementation platform(library.java.google_cloud_platform_libraries_bom)
     testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+    testImplementation library.java.grpc_inprocess
+    testRuntimeOnly library.java.grpc_netty_shaded
     testImplementation library.java.guava_testlib
     testImplementation library.java.junit
     testImplementation library.java.hamcrest
