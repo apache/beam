@@ -58,7 +58,10 @@ abstract class CdcWriteConfig implements Serializable {
 
   /**
    * If set, the change kind is read from this string column instead of the element's native {@link
-   * ValueKind}. The column is stripped from the data row and never written to Iceberg.
+   * ValueKind}. Values expected to be one of {@code INSERT}, {@code UPDATE_BEFORE}, {@code
+   * UPDATE_AFTER}, or {@code DELETE}. If the column contains different values, use {@link
+   * #getChangeTypeMap()} to set mapping from those custom values to the expected ones. The column
+   * is stripped from the data row and never written to Iceberg.
    */
   abstract @Nullable String getChangeTypeColumn();
 
@@ -95,7 +98,8 @@ abstract class CdcWriteConfig implements Serializable {
   /**
    * If {@code true}, {@code UPDATE_BEFORE} records are dropped and {@code INSERT}/{@code
    * UPDATE_AFTER} are applied as upserts (equality-delete-then-insert on the primary key). Defaults
-   * to {@code false}.
+   * to {@code false}, which will expect the source to provide the before-image in order to
+   * correctly apply updates.
    */
   abstract boolean getUpsert();
 
@@ -119,7 +123,7 @@ abstract class CdcWriteConfig implements Serializable {
   abstract @Nullable Map<String, String> getSnapshotProperties();
 
   /**
-   * If {@code true}, a poison record (unknown change type, missing/null sequence number, null
+   * If {@code true}, an invalid record (unknown change type, missing/null sequence number, null
    * equality value, an unresolvable destination) is diverted to the sink's failed-rows output
    * instead of failing the pipeline. Defaults to {@code false} (fail-fast).
    */

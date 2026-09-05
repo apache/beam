@@ -69,7 +69,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *   <li><b>Opens with INSERT</b>: the key was born this window, so no earlier commit holds it and
  *       no delete is written, even if the key dies again before the window ends.
  *   <li><b>Opens with anything else</b>: an earlier commit may hold the key, so a delete is written
- *       once an UPDATE_BEFORE or DELETE appears. A block of only UPDATE_AFTERs writes none.
+ *       once an UPDATE_BEFORE or DELETE appears. A block of only UPDATE_AFTERs writes no deletes.
  *   <li><b>Upsert mode</b>: always creates a delete.
  *   <li><b>Ends with INSERT or UPDATE_AFTER</b>: the final row is written. Otherwise, the key is
  *       gone and nothing is written.
@@ -138,17 +138,15 @@ abstract class RecordDeltaTaskWriter {
     this.deleteSchema = deleteSchema;
     List<Types.NestedField> pkFields = deleteSchema.columns();
     this.pkPos = new int[pkFields.size()];
+    // pk should only be in top-level columns
     List<Types.NestedField> allFields = schema.columns();
+    Map<Integer, Integer> positionById = Maps.newHashMapWithExpectedSize(allFields.size());
+    for (int j = 0; j < allFields.size(); j++) {
+      positionById.put(allFields.get(j).fieldId(), j);
+    }
     for (int i = 0; i < pkFields.size(); i++) {
-      int fieldId = pkFields.get(i).fieldId();
-      int pos = -1;
-      for (int j = 0; j < allFields.size(); j++) {
-        if (allFields.get(j).fieldId() == fieldId) {
-          pos = j;
-          break;
-        }
-      }
-      if (pos < 0) {
+      @Nullable Integer pos = positionById.get(pkFields.get(i).fieldId());
+      if (pos == null) {
         throw new IllegalStateException(
             "Equality field "
                 + pkFields.get(i).name()
@@ -241,19 +239,35 @@ abstract class RecordDeltaTaskWriter {
     return result.build();
   }
 
-  /** Closes every file and deletes it: a failed group must leave nothing behind. */
+  /**
+   * Closes every file and deletes it: a failed group must leave nothing behind. A close failure
+   * does not stop the deletes; it is rethrown once they are done.
+   */
   public void abort() throws IOException {
-    close();
+    @Nullable Exception closeFailure = null;
+    try {
+      close();
+    } catch (IOException | RuntimeException e) {
+      closeFailure = e;
+    }
     List<String> locations = new ArrayList<>();
     for (PartitionDeltaWriter writer : partitionWriters) {
-      for (DataFile file : writer.dataFiles()) {
-        locations.add(file.location());
-      }
-      for (DeleteFile file : writer.deleteFiles()) {
-        locations.add(file.location());
-      }
+      locations.addAll(writer.fileLocations());
     }
-    Tasks.foreach(locations).throwFailureWhenFinished().noRetry().run(io::deleteFile);
+    try {
+      Tasks.foreach(locations).throwFailureWhenFinished().noRetry().run(io::deleteFile);
+    } catch (RuntimeException deleteFailure) {
+      if (closeFailure != null) {
+        deleteFailure.addSuppressed(closeFailure);
+      }
+      throw deleteFailure;
+    }
+    if (closeFailure instanceof IOException) {
+      throw (IOException) closeFailure;
+    }
+    if (closeFailure != null) {
+      throw (RuntimeException) closeFailure;
+    }
   }
 
   private void close() throws IOException {
@@ -294,6 +308,8 @@ abstract class RecordDeltaTaskWriter {
     private final @Nullable PartitionKey partition;
     private @Nullable RollingDataWriter<Record> dataWriter;
     private @Nullable RollingEqualityDeleteWriter<Record> deleteWriter;
+    private boolean dataClosed;
+    private boolean deleteClosed;
 
     PartitionDeltaWriter(@Nullable PartitionKey partition) {
       this.partition = partition;
@@ -321,12 +337,40 @@ abstract class RecordDeltaTaskWriter {
       try {
         if (dataWriter != null) {
           dataWriter.close();
+          dataClosed = true;
         }
       } finally {
         if (deleteWriter != null) {
           deleteWriter.close();
+          deleteClosed = true;
         }
       }
+    }
+
+    /** Completed files, plus the open file of a writer whose close failed. */
+    List<String> fileLocations() {
+      List<String> locations = new ArrayList<>();
+      @Nullable RollingDataWriter<Record> data = dataWriter;
+      if (data != null) {
+        if (dataClosed) {
+          for (DataFile file : data.result().dataFiles()) {
+            locations.add(file.location());
+          }
+        } else {
+          locations.add(data.currentFilePath().toString());
+        }
+      }
+      @Nullable RollingEqualityDeleteWriter<Record> deletes = deleteWriter;
+      if (deletes != null) {
+        if (deleteClosed) {
+          for (DeleteFile file : deletes.result().deleteFiles()) {
+            locations.add(file.location());
+          }
+        } else {
+          locations.add(deletes.currentFilePath().toString());
+        }
+      }
+      return locations;
     }
 
     List<DataFile> dataFiles() {

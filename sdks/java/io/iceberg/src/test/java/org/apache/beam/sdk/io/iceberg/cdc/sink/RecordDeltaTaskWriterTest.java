@@ -32,17 +32,26 @@ import static org.junit.Assert.assertThrows;
 
 import java.io.File;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.io.iceberg.SerializableDataFile;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
 import org.apache.iceberg.ContentFile;
 import org.apache.iceberg.DataFile;
@@ -61,6 +70,11 @@ import org.apache.iceberg.data.IcebergGenerics;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.io.FileIO;
+import org.apache.iceberg.io.InputFile;
+import org.apache.iceberg.io.OutputFile;
+import org.apache.iceberg.io.OutputFileFactory;
+import org.apache.iceberg.io.PositionOutputStream;
 import org.apache.iceberg.io.WriteResult;
 import org.apache.iceberg.parquet.Parquet;
 import org.apache.iceberg.transforms.Transforms;
@@ -637,6 +651,195 @@ public class RecordDeltaTaskWriterTest {
     assertThat(readRows(t), empty());
   }
 
+  // A composite key: the equality delete carries both key columns, and only records agreeing on
+  // both collapse into one block.
+  @Test
+  public void compositeKeyProjectsEveryKeyColumnAndCollapsesPerKey() throws Exception {
+    Schema schema =
+        new Schema(
+            Types.NestedField.required(1, "tenant", Types.StringType.get()),
+            Types.NestedField.required(2, "id", Types.LongType.get()),
+            Types.NestedField.optional(3, "name", Types.StringType.get()),
+            Types.NestedField.optional(4, "data", Types.StringType.get()));
+    Table t = table(schema, ImmutableSet.of(1, 2));
+    RecordDeltaTaskWriter a =
+        CdcSinkTestUtils.deltaWriter(t, ImmutableSet.of(1, 2), false, TARGET_FILE_SIZE);
+    writeKeyed(a, record(t, "a", 1L, "old", "x"), 0L, ValueKind.INSERT, "a", 1L);
+    writeKeyed(a, record(t, "b", 1L, "c", "w"), 0L, ValueKind.INSERT, "b", 1L);
+    CdcSinkTestUtils.commitRowDelta(t, a.complete());
+
+    RecordDeltaTaskWriter w =
+        CdcSinkTestUtils.deltaWriter(t, ImmutableSet.of(1, 2), false, TARGET_FILE_SIZE);
+    writeKeyed(w, record(t, "a", 1L, "old", "x"), 1L, ValueKind.UPDATE_BEFORE, "a", 1L);
+    writeKeyed(w, record(t, "a", 1L, "new", "y"), 1L, ValueKind.UPDATE_AFTER, "a", 1L);
+    writeKeyed(w, record(t, "a", 2L, "b", "z"), 1L, ValueKind.INSERT, "a", 2L);
+    writeKeyed(w, record(t, "b", 1L, "c", "w"), 1L, ValueKind.DELETE, "b", 1L);
+    WriteResult r = w.complete();
+
+    assertThat(r.dataFiles(), arrayWithSize(1));
+    assertThat(rowStrings(t, r.dataFiles()[0].location()), contains("a:1:new:y", "a:2:b:z"));
+    DeleteFile del = singleEqualityDelete(r, 1, 2);
+    assertThat(rowStrings(t, del.location()), containsInAnyOrder("a:1:null:null", "b:1:null:null"));
+
+    CdcSinkTestUtils.commitRowDelta(t, r);
+    assertThat(readRows(t, schema), contains("a:1:new:y", "a:2:b:z"));
+  }
+
+  // Non-integer key types round-trip through the PK-only delete file and match on read.
+  @Test
+  public void keyTypesRoundTripThroughEqualityDeletes() throws Exception {
+    Schema schema =
+        new Schema(
+            Types.NestedField.required(1, "k_long", Types.LongType.get()),
+            Types.NestedField.required(2, "k_str", Types.StringType.get()),
+            Types.NestedField.required(3, "k_date", Types.DateType.get()),
+            Types.NestedField.required(4, "k_ts", Types.TimestampType.withZone()),
+            Types.NestedField.required(5, "k_dec", Types.DecimalType.of(10, 2)),
+            Types.NestedField.required(6, "k_uuid", Types.UUIDType.get()),
+            Types.NestedField.optional(7, "payload", Types.StringType.get()));
+    ImmutableSet<Integer> keyIds = ImmutableSet.of(1, 2, 3, 4, 5, 6);
+    Object[] key = {
+      7L,
+      "seven",
+      LocalDate.of(2026, 9, 3),
+      OffsetDateTime.of(2026, 9, 3, 12, 30, 0, 0, ZoneOffset.UTC),
+      new BigDecimal("12.34"),
+      UUID.randomUUID()
+    };
+    Table t = table(schema, keyIds);
+    RecordDeltaTaskWriter a = CdcSinkTestUtils.deltaWriter(t, keyIds, false, TARGET_FILE_SIZE);
+    writeKeyed(a, record(t, concat(key, "old")), 0L, ValueKind.INSERT, key);
+    CdcSinkTestUtils.commitRowDelta(t, a.complete());
+
+    RecordDeltaTaskWriter w = CdcSinkTestUtils.deltaWriter(t, keyIds, false, TARGET_FILE_SIZE);
+    writeKeyed(w, record(t, concat(key, "old")), 1L, ValueKind.UPDATE_BEFORE, key);
+    writeKeyed(w, record(t, concat(key, "new")), 1L, ValueKind.UPDATE_AFTER, key);
+    WriteResult r = w.complete();
+
+    DeleteFile del = singleEqualityDelete(r, 1, 2, 3, 4, 5, 6);
+    Record deleteRow = Iterables.getOnlyElement(readParquetRows(t, del.location(), schema));
+    for (int i = 0; i < key.length; i++) {
+      assertThat(schema.columns().get(i).name(), deleteRow.get(i), equalTo(key[i]));
+    }
+    assertThat(deleteRow.getField("payload"), nullValue());
+
+    CdcSinkTestUtils.commitRowDelta(t, r);
+    List<Record> rows = ImmutableList.copyOf(IcebergGenerics.read(t).build());
+    assertThat(Iterables.getOnlyElement(rows).getField("payload"), equalTo("new"));
+  }
+
+  // The key column is projected by field id, not by position: here it is the last column.
+  @Test
+  public void keyNotInFirstPositionIsProjectedByFieldId() throws Exception {
+    Schema schema =
+        new Schema(
+            Types.NestedField.optional(1, "name", Types.StringType.get()),
+            Types.NestedField.optional(2, "data", Types.StringType.get()),
+            Types.NestedField.required(3, "id", Types.IntegerType.get()));
+    Table t = table(schema, ImmutableSet.of(3));
+    RecordDeltaTaskWriter a =
+        CdcSinkTestUtils.deltaWriter(t, ImmutableSet.of(3), false, TARGET_FILE_SIZE);
+    writeKeyed(a, record(t, "n1", "d1", 7), 0L, ValueKind.INSERT, 7);
+    CdcSinkTestUtils.commitRowDelta(t, a.complete());
+
+    RecordDeltaTaskWriter w =
+        CdcSinkTestUtils.deltaWriter(t, ImmutableSet.of(3), false, TARGET_FILE_SIZE);
+    writeKeyed(w, record(t, "n1", "d1", 7), 1L, ValueKind.UPDATE_BEFORE, 7);
+    writeKeyed(w, record(t, "n2", "d2", 7), 1L, ValueKind.UPDATE_AFTER, 7);
+    WriteResult r = w.complete();
+
+    assertThat(rowStrings(t, r.dataFiles()[0].location()), contains("n2:d2:7"));
+    DeleteFile del = singleEqualityDelete(r, 3);
+    assertThat(rowStrings(t, del.location()), contains("null:null:7"));
+
+    CdcSinkTestUtils.commitRowDelta(t, r);
+    assertThat(readRows(t, schema), contains("n2:d2:7"));
+  }
+
+  private Table table(Schema schema, ImmutableSet<Integer> identifierFieldIds) {
+    return CdcSinkTestUtils.createTable(
+        catalog,
+        TableIdentifier.of("db", "k" + System.nanoTime()),
+        schema,
+        identifierFieldIds,
+        2,
+        PartitionSpec.unpartitioned());
+  }
+
+  private static Record record(Table t, Object... values) {
+    GenericRecord r = GenericRecord.create(t.schema());
+    for (int i = 0; i < values.length; i++) {
+      r.set(i, values[i]);
+    }
+    return r;
+  }
+
+  private static Object[] concat(Object[] head, Object tail) {
+    Object[] all = new Object[head.length + 1];
+    System.arraycopy(head, 0, all, 0, head.length);
+    all[head.length] = tail;
+    return all;
+  }
+
+  /** Writes one change whose sort-key pk prefix encodes the given key values. */
+  private static void writeKeyed(
+      RecordDeltaTaskWriter w, Record rec, long seq, ValueKind kind, Object... key) {
+    w.write(CdcSortKey.encode(pkBytes(key), seq, kind), rec, kind);
+  }
+
+  /** Length-prefixed string forms: distinct key tuples get distinct, sortable bytes. */
+  private static byte[] pkBytes(Object... key) {
+    List<byte[]> parts = new ArrayList<>();
+    int size = 0;
+    for (Object value : key) {
+      byte[] part = String.valueOf(value).getBytes(StandardCharsets.UTF_8);
+      parts.add(part);
+      size += 4 + part.length;
+    }
+    ByteBuffer buf = ByteBuffer.allocate(size);
+    for (byte[] part : parts) {
+      buf.putInt(part.length).put(part);
+    }
+    return buf.array();
+  }
+
+  private static DeleteFile singleEqualityDelete(WriteResult r, Integer... equalityFieldIds) {
+    assertThat(r.deleteFiles(), arrayWithSize(1));
+    DeleteFile del = r.deleteFiles()[0];
+    assertThat(del.content(), equalTo(FileContent.EQUALITY_DELETES));
+    assertThat(del.equalityFieldIds(), contains(equalityFieldIds));
+    return del;
+  }
+
+  /** A file's rows as colon-joined field values in table column order. */
+  private static List<String> rowStrings(Table t, String location) throws IOException {
+    List<String> rows = new ArrayList<>();
+    for (Record r : readParquetRows(t, location, t.schema())) {
+      rows.add(joined(r, t.schema()));
+    }
+    return rows;
+  }
+
+  /** The table's current rows as sorted colon-joined strings in column order. */
+  private static List<String> readRows(Table t, Schema schema) throws IOException {
+    List<String> rows = new ArrayList<>();
+    try (CloseableIterable<Record> reader = IcebergGenerics.read(t).build()) {
+      for (Record r : reader) {
+        rows.add(joined(r, schema));
+      }
+    }
+    Collections.sort(rows);
+    return rows;
+  }
+
+  private static String joined(Record r, Schema schema) {
+    List<String> values = new ArrayList<>();
+    for (Types.NestedField column : schema.columns()) {
+      values.add(String.valueOf(r.getField(column.name())));
+    }
+    return String.join(":", values);
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Format versions, formats, abort, sort order ids
   // ---------------------------------------------------------------------------------------------
@@ -691,6 +894,34 @@ public class RecordDeltaTaskWriterTest {
 
     assertThat(dataFilesUnder(warehouseDir), not(empty()));
     w.abort();
+    assertThat(dataFilesUnder(warehouseDir), empty());
+  }
+
+  // abort() still deletes every file when closing one of them fails, and surfaces that failure.
+  @Test
+  public void abortDeletesFilesEvenWhenCloseFails() throws Exception {
+    Table t = v2Table();
+    t.updateProperties().set(TableProperties.DEFAULT_FILE_FORMAT, "avro").commit();
+    CloseFailingFileIO io = new CloseFailingFileIO(t.io());
+    FileFormat format = RecordDeltaTaskWriter.dataFileFormat(t);
+    RecordDeltaTaskWriter w =
+        RecordDeltaTaskWriter.create(
+            t,
+            t.spec(),
+            ImmutableSet.of(1),
+            true,
+            TARGET_FILE_SIZE,
+            OutputFileFactory.builderFor(t, 1, 1).ioSupplier(() -> io).build(),
+            format,
+            RecordDeltaTaskWriter.deleteFileFormat(t, format));
+    // The second key flushes the first block, opening the delete file (fails on close) and the
+    // data file (closes fine).
+    write(w, rec(t, 1, "a", "x"), 1L, ValueKind.INSERT);
+    write(w, rec(t, 2, "b", "y"), 1L, ValueKind.INSERT);
+    assertThat(dataFilesUnder(warehouseDir), not(empty()));
+
+    Exception failure = assertThrows(Exception.class, w::abort);
+    assertThat(Throwables.getRootCause(failure).getMessage(), containsString("simulated"));
     assertThat(dataFilesUnder(warehouseDir), empty());
   }
 
@@ -763,6 +994,86 @@ public class RecordDeltaTaskWriterTest {
       return walk.filter(Files::isRegularFile)
           .filter(p -> p.toString().contains(dataSegment))
           .collect(Collectors.toList());
+    }
+  }
+
+  /** Delegates to a real {@link FileIO}; the first file it creates fails on close after writing. */
+  private static final class CloseFailingFileIO implements FileIO {
+    private final FileIO delegate;
+    private boolean armed = true;
+
+    CloseFailingFileIO(FileIO delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public InputFile newInputFile(String path) {
+      return delegate.newInputFile(path);
+    }
+
+    @Override
+    public void deleteFile(String path) {
+      delegate.deleteFile(path);
+    }
+
+    @Override
+    public OutputFile newOutputFile(String path) {
+      OutputFile file = delegate.newOutputFile(path);
+      if (!armed) {
+        return file;
+      }
+      armed = false;
+      return new OutputFile() {
+        @Override
+        public PositionOutputStream create() {
+          return failingOnClose(file.create());
+        }
+
+        @Override
+        public PositionOutputStream createOrOverwrite() {
+          return failingOnClose(file.createOrOverwrite());
+        }
+
+        @Override
+        public String location() {
+          return file.location();
+        }
+
+        @Override
+        public InputFile toInputFile() {
+          return file.toInputFile();
+        }
+      };
+    }
+
+    private static PositionOutputStream failingOnClose(PositionOutputStream out) {
+      return new PositionOutputStream() {
+        @Override
+        public long getPos() throws IOException {
+          return out.getPos();
+        }
+
+        @Override
+        public void write(int b) throws IOException {
+          out.write(b);
+        }
+
+        @Override
+        public void write(byte[] b, int off, int len) throws IOException {
+          out.write(b, off, len);
+        }
+
+        @Override
+        public void flush() throws IOException {
+          out.flush();
+        }
+
+        @Override
+        public void close() throws IOException {
+          out.close();
+          throw new IOException("simulated close failure");
+        }
+      };
     }
   }
 }
