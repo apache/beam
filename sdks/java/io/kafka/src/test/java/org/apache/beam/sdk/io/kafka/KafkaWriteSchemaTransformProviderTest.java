@@ -268,7 +268,16 @@ public class KafkaWriteSchemaTransformProviderTest {
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"
-                + "message_name: MyMessage");
+                + "message_name: MyMessage",
+            "topic: topic_4\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: AVRO\n"
+                + "schema:\n"
+                + "  type: record\n"
+                + "  name: my_record\n"
+                + "  fields:\n"
+                + "    - name: str\n"
+                + "      type: string");
 
     for (String config : configs) {
       // Kafka Write SchemaTransform gets built in ManagedSchemaTransformProvider's expand

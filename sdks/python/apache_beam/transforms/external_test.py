@@ -45,6 +45,7 @@ from apache_beam.testing.util import equal_to
 from apache_beam.transforms import external
 from apache_beam.transforms.external import MANAGED_SCHEMA_TRANSFORM_IDENTIFIER
 from apache_beam.transforms.external import AnnotationBasedPayloadBuilder
+from apache_beam.transforms.external import ExplicitSchemaTransformPayloadBuilder
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
 from apache_beam.transforms.external import JavaClassLookupPayloadBuilder
 from apache_beam.transforms.external import JavaExternalTransform
@@ -523,6 +524,32 @@ class SchemaTransformPayloadBuilderTest(unittest.TestCase):
     self.assertEqual(123, schema_transform_config.int_field)
     self.assertEqual('bbb', schema_transform_config.object_field.str_sub_field)
     self.assertEqual(456, schema_transform_config.object_field.int_sub_field)
+
+  def test_explicit_payload_builder_with_dict_and_list_to_string_field(self):
+    schema = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name='str_field',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+            schema_pb2.Field(
+                name='list_field',
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+        ])
+
+    payload_builder = ExplicitSchemaTransformPayloadBuilder(
+        identifier='dummy_id',
+        schema_proto=schema,
+        str_field={'foo': 'bar'},
+        list_field=[1, 2, 'baz'])
+    payload = payload_builder.build()
+
+    self.assertEqual('dummy_id', payload.identifier)
+
+    coder = RowCoder(payload.configuration_schema)
+    config = coder.decode(payload.configuration_row)
+
+    self.assertEqual('{"foo": "bar"}', config.str_field)
+    self.assertEqual('[1, 2, "baz"]', config.list_field)
 
 
 class SchemaAwareExternalTransformTest(unittest.TestCase):
