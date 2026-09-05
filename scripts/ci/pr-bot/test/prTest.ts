@@ -41,5 +41,12 @@ describe("Pr", function () {
       };
       assert.equal("", testPr.getLabelForReviewer("testReviewer4"));
     });
+
+    it("should preserve alternateReviewers when initialized", function () {
+      let testPr = new Pr({
+        alternateReviewers: ["backup1", "backup2"],
+      });
+      assert.deepStrictEqual(testPr.alternateReviewers, ["backup1", "backup2"]);
+    });
   });
 });
