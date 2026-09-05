@@ -28,6 +28,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -83,6 +86,8 @@ public class SecretTest {
     Exception exception =
         assertThrows(IllegalArgumentException.class, () -> Secret.parseSecretOption(secretOption));
     assertTrue(exception.getMessage().contains("Invalid secret type unsupported"));
+    assertTrue(exception.getMessage().contains("GcpSecret"));
+    assertTrue(exception.getMessage().contains("GoogleCloudSecretManager"));
   }
 
   @Test
@@ -147,6 +152,14 @@ public class SecretTest {
             IllegalArgumentException.class, () -> Secret.fromJson("spec", "unsupported_provider"));
     assertTrue(
         exception.getMessage().contains("Unsupported secret manager: 'unsupported_provider'"));
+    assertTrue(exception.getMessage().contains("GoogleCloudSecretManager"));
+    assertTrue(exception.getMessage().contains("GcpSecret"));
+
+    // Case-insensitive secret manager lookup in fromJson
+    Secret secretGcpLower = Secret.fromJson(spec, "googlecloudsecretmanager");
+    assertTrue(secretGcpLower instanceof GcpSecret);
+    Secret secretShortLower = Secret.fromJson(spec, "gcpsecret");
+    assertTrue(secretShortLower instanceof GcpSecret);
   }
 
   @Test
@@ -244,5 +257,81 @@ public class SecretTest {
     GcpHsmGeneratedSecret hsm = new GcpHsmGeneratedSecret("p", "l", "r", "k", "j");
     GcpHsmGeneratedSecret deserializedHsm = SerializableUtils.clone(hsm);
     assertEquals(hsm, deserializedHsm);
+  }
+
+  @Test
+  public void testLoadSecretFactoriesNullList() {
+    Map<String, SecretRegistrar.SecretFactory> factories = Secret.loadSecretFactories(null);
+    assertTrue(factories.isEmpty());
+  }
+
+  @Test
+  public void testLoadSecretFactoriesHandlesNullRegistrarAndNullFactories() {
+    SecretRegistrar nullFactoriesRegistrar = () -> null;
+    Map<String, SecretRegistrar.SecretFactory> factories =
+        Secret.loadSecretFactories(java.util.Arrays.asList(null, nullFactoriesRegistrar));
+    assertTrue(factories.isEmpty());
+  }
+
+  @Test
+  public void testLoadSecretFactoriesHandlesThrowingRegistrar() {
+    SecretRegistrar throwingRegistrar =
+        () -> {
+          throw new RuntimeException("Simulated failure in registrar");
+        };
+    SecretRegistrar validRegistrar =
+        () -> Collections.singletonMap("valid", spec -> new RawSecret("test"));
+
+    Map<String, SecretRegistrar.SecretFactory> factories =
+        Secret.loadSecretFactories(java.util.Arrays.asList(throwingRegistrar, validRegistrar));
+    assertEquals(1, factories.size());
+    assertTrue(factories.containsKey("valid"));
+  }
+
+  @Test
+  public void testLoadSecretFactoriesHandlesMalformedEntries() {
+    Map<String, SecretRegistrar.SecretFactory> malformedMap = new HashMap<>();
+    malformedMap.put(null, spec -> new RawSecret("val"));
+    malformedMap.put("", spec -> new RawSecret("val"));
+    malformedMap.put("   ", spec -> new RawSecret("val"));
+    malformedMap.put("null_factory", null);
+    malformedMap.put("good", spec -> new RawSecret("good_val"));
+
+    SecretRegistrar registrar = () -> malformedMap;
+    Map<String, SecretRegistrar.SecretFactory> factories =
+        Secret.loadSecretFactories(Collections.singletonList(registrar));
+    assertEquals(1, factories.size());
+    assertTrue(factories.containsKey("good"));
+  }
+
+  @Test
+  public void testLoadSecretFactoriesDuplicateKeysFirstWins() {
+    SecretRegistrar.SecretFactory factory1 = spec -> new RawSecret("first");
+    SecretRegistrar.SecretFactory factory2 = spec -> new RawSecret("second");
+
+    SecretRegistrar registrar1 = () -> Collections.singletonMap("duplicate_key", factory1);
+    SecretRegistrar registrar2 = () -> Collections.singletonMap("DUPLICATE_KEY", factory2);
+
+    Set<String> supportedTypes = new TreeSet<>();
+    Map<String, SecretRegistrar.SecretFactory> factories =
+        Secret.loadSecretFactories(java.util.Arrays.asList(registrar1, registrar2), supportedTypes);
+    assertEquals(1, factories.size());
+    assertEquals(factory1, factories.get("duplicate_key"));
+    assertEquals(Collections.singleton("duplicate_key"), supportedTypes);
+  }
+
+  @Test
+  public void testLoadServicesOrderedDiscoversSecretRegistrars() {
+    Iterable<SecretRegistrar> registrars =
+        ReflectHelpers.loadServicesOrdered(SecretRegistrar.class);
+    org.junit.Assert.assertNotNull(registrars);
+    boolean foundGcp = false;
+    for (SecretRegistrar registrar : registrars) {
+      if (registrar instanceof GcpSecretRegistrar) {
+        foundGcp = true;
+        break;
+      }
+    }
+    assertTrue("Expected GcpSecretRegistrar to be discovered", foundGcp);
   }
 }

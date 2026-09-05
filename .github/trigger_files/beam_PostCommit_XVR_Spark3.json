@@ -1,3 +1,4 @@
 {
-  "trigger-2026-07-08": "portable_runner expand_sdf opt-in 2"
+  "trigger-2026-07-08": "portable_runner expand_sdf opt-in 2",
+  "https://github.com/apache/beam/pull/39990": "removing dead code from FnApiDoFnRunner"
 }

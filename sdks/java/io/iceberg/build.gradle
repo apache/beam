@@ -50,7 +50,6 @@ dependencies {
     implementation library.java.avro
     implementation library.java.slf4j_api
     implementation library.java.joda_time
-    implementation library.java.guava
     implementation "org.apache.parquet:parquet-column:$parquet_version"
     implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
     implementation "org.apache.parquet:parquet-common:$parquet_version"
