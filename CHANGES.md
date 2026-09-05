@@ -198,6 +198,15 @@
 
 ## Breaking Changes
 
+* (Java) Beam SQL now names the transforms a query expands into after the operations fused into them
+  (`Filter;Project`) instead of after the relational node class and a JVM-global counter
+  (`BeamCalcRel_57`). The old counter was JVM-global, so the old names differed between runs of the
+  same query. The new names do not, but two stages with the same provenance are still told apart by
+  an occurrence suffix (`Filter;Project #2`) numbered within the query, so reshaping a plan can
+  renumber the stages of that query. Since Dataflow matches streaming pipelines for update by step
+  name, a running streaming pipeline must either be drained or be started with
+  `--experiments=legacy-sql-transform-names` to keep the old names. That experiment exists only to
+  carry running pipelines over this change and is expected to be removed two releases from now.
 * (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
   use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
   However fixing forward is recommended.

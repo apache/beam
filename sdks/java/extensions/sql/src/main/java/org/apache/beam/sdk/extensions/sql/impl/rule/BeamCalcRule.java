@@ -69,6 +69,7 @@ public class BeamCalcRule extends ConverterRule {
     return new BeamCalcRel(
         calc.getCluster(),
         calc.getTraitSet().replace(BeamLogicalConvention.INSTANCE),
+        calc.getHints(),
         RelOptRule.convert(input, input.getTraitSet().replace(BeamLogicalConvention.INSTANCE)),
         calc.getProgram());
   }
