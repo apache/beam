@@ -899,7 +899,8 @@ class _MemoizingPickleCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(_nonhashable_dumps, pickler.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
-    return FastPrimitivesCoder(self, requires_deterministic=step_label)
+    return _update_compatible_deterministic_fast_primitives_coder(
+        self, step_label)
 
   def to_type_hint(self):
     return Any
@@ -914,7 +915,8 @@ class PickleCoder(_PickleCoderBase):
         lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
-    return FastPrimitivesCoder(self, requires_deterministic=step_label)
+    return _update_compatible_deterministic_fast_primitives_coder(
+        self, step_label)
 
   def to_type_hint(self):
     return Any
