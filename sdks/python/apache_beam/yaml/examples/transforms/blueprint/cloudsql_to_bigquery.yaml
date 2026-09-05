@@ -15,35 +15,30 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This is an example of a Beam YAML pipeline that reads from a PostgreSQL database
-# and writes to BigQuery.
+# This is an example of a Beam YAML pipeline that reads from a Google Cloud SQL
+# PostgreSQL database using the Cloud SQL JDBC Socket Factory and writes to BigQuery.
 
 pipeline:
   type: composite
   transforms:
-    # Step 1: Reading data from Postgres
+    # Step 1: Reading data from Cloud SQL Postgres
     - type: ReadFromPostgres
-      name: ReadFromPostgres
+      name: ReadFromCloudSqlPostgres
       config:
-        url: "jdbc:postgresql://localhost:12345/shipment?user=user&password=postgres123"
+        url: "jdbc:postgresql:///shipment?cloudSqlInstance=my-project:us-central1:my-instance&socketFactory=com.google.cloud.sql.postgres.SocketFactory"
         query: "SELECT * FROM shipments"
         driver_class_name: "org.postgresql.Driver"
+        username: "my-username"
+        password: "my-password"
     # Step 2: Write records out to BigQuery
     - type: WriteToBigQuery
       name: WriteShipments
-      input: ReadFromPostgres
+      input: ReadFromCloudSqlPostgres
       config:
         table: "apache-beam-testing.yaml_test.shipments"
         create_disposition: "CREATE_NEVER"
         write_disposition: "WRITE_APPEND"
-        error_handling:
-          output: "deadLetterQueue"
         num_streams: 1
-    # Step 3: Write the failed messages to BQ to a dead letter queue JSON file
-    - type: WriteToJson
-      input: WriteShipments.deadLetterQueue
-      config:
-        path: "gs://my-bucket/yaml-123/writingToBigQueryErrors.json"
 
 options:
   temp_location: "gs://apache-beam-testing/temp"
