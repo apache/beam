@@ -19,6 +19,7 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.sdk.util.ByteBuddyUtils.getClassLoadingStrategy;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Type;
@@ -69,6 +70,11 @@ public class ConvertHelpers {
   private static final Object lock = new Object();
 
   /** Return value after converting a schema. */
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Public API, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class ConvertedSchemaInformation<T> implements Serializable {
     // If the output type is a composite type, this is the schema coder.
     public final @Nullable SchemaCoder<T> outputSchemaCoder;
