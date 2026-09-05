@@ -25,6 +25,7 @@ import static org.apache.iceberg.util.DateTimeUtil.dateFromDays;
 import static org.apache.iceberg.util.DateTimeUtil.timestampFromMicros;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
 import java.time.LocalDate;
@@ -62,6 +63,8 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SortDirection;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IcebergGenerics;
@@ -692,5 +695,65 @@ public class IcebergWriteSchemaTransformProviderTest {
     assertEquals("orc", table.properties().get("write.format.default"));
     assertEquals("5", table.properties().get("commit.retry.num-retries"));
     assertEquals("134217728", table.properties().get("read.split.target-size"));
+  }
+
+  @Test
+  public void testDynamicWriteCreateTableWithTableProperties() {
+    String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Schema schema = Schema.builder().addStringField("str").addInt32Field("int").build();
+
+    String customDataPath = warehouse.location + "/custom_data_path";
+
+    Map<String, Object> config =
+        ImmutableMap.of(
+            "table",
+            identifier,
+            "catalog_properties",
+            ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location),
+            "table_properties",
+            ImmutableMap.of(
+                "write.data.path",
+                customDataPath,
+                "write.parquet.bloom-filter-enabled.column.int",
+                "true"),
+            "sort_fields",
+            Collections.singletonList("str desc"),
+            "partition_fields",
+            Collections.singletonList("int"));
+
+    List<Row> rows = new ArrayList<>();
+    for (int i = 0; i < 10; i++) {
+      Row row = Row.withSchema(schema).addValues("str_" + i, i).build();
+      rows.add(row);
+    }
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+
+    PartitionSpec spec = table.spec();
+    assertTrue(spec.isPartitioned());
+    assertEquals(1, spec.fields().size());
+    assertEquals("int", spec.fields().get(0).name());
+
+    SortOrder sortOrder = table.sortOrder();
+    assertTrue(sortOrder.isSorted());
+    assertEquals(1, sortOrder.fields().size());
+    assertEquals(SortDirection.DESC, sortOrder.fields().get(0).direction());
+
+    assertEquals(customDataPath, table.properties().get("write.data.path"));
+    assertEquals("true", table.properties().get("write.parquet.bloom-filter-enabled.column.int"));
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertEquals(10, writtenRecords.size());
   }
 }

@@ -18,6 +18,8 @@
 package org.apache.beam.runners.spark.util;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.inOrder;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -36,6 +38,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
@@ -109,6 +112,23 @@ public class TimerUtilsTest {
 
     // Verify that fireTimer was not called
     verify(mockIterator, never()).fireTimer(any());
+  }
+
+  @Test
+  public void testTriggerExpiredTimersFiresInTimestampOrder() {
+    // An even older expired timer, listed after the newer one.
+    TimerInternals.TimerData olderExpiredTimer = mock(TimerInternals.TimerData.class);
+    when(olderExpiredTimer.getTimestamp())
+        .thenReturn(NOW.minus(ALLOWED_LATENESS.plus(Duration.standardMinutes(2))));
+    when(olderExpiredTimer.getDomain()).thenReturn(TimeDomain.EVENT_TIME);
+    when(mockTimerInternals.getTimers()).thenReturn(Arrays.asList(expiredTimer, olderExpiredTimer));
+
+    TimerUtils.triggerExpiredTimers(mockTimerInternals, mockWindowingStrategy, mockIterator);
+
+    // Expired timers fire in timestamp order.
+    InOrder inOrder = inOrder(mockIterator);
+    inOrder.verify(mockIterator).fireTimer(olderExpiredTimer);
+    inOrder.verify(mockIterator).fireTimer(expiredTimer);
   }
 
   @Test

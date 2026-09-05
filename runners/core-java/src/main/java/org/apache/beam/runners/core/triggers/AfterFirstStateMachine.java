@@ -28,9 +28,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * Create a composite {@link TriggerStateMachine} that fires once after at least one of its
  * sub-triggers have fired.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AfterFirstStateMachine extends TriggerStateMachine {
 
   AfterFirstStateMachine(List<TriggerStateMachine> subTriggers) {
@@ -114,7 +111,7 @@ public class AfterFirstStateMachine extends TriggerStateMachine {
   @Override
   public String toString() {
     StringBuilder builder = new StringBuilder("AfterFirst.of(");
-    Joiner.on(", ").appendTo(builder, subTriggers);
+    Joiner.on(", ").appendTo(builder, subTriggers());
     builder.append(")");
 
     return builder.toString();

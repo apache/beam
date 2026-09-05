@@ -43,9 +43,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *     .apply(Min.<String>integersPerKey());
  * }</pre>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Min {
 
   private Min() {
@@ -228,7 +225,7 @@ public class Min {
     }
 
     @Override
-    public T identity() {
+    public @Nullable T identity() {
       return identity;
     }
 

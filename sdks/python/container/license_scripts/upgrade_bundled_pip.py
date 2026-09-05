@@ -21,6 +21,10 @@ Upgrade the pip wheel bundled in ensurepip for Python 3.12+.
 The script is executed within Docker after the image pip has been upgraded.
 upgrade_ensurepip expects setuptools to be bundled as well, but Python 3.12+
 only ships pip in ensurepip/_bundled.
+
+After downloading, removes other pip-* files from _bundled so only the wheel
+matching the installed pip version remains. Worker harness startup (boot.go)
+creates a venv via ensurepip, so that wheel must be present.
 """
 
 import subprocess
@@ -34,8 +38,8 @@ def main():
   ep_path = Path(ensurepip.__file__)
   wheel_dir = ep_path.parent / '_bundled'
   pip_version = subprocess.check_output(
-      [sys.executable, '-m', 'pip', '--version'],
-      text=True).split()[1]
+      [sys.executable, '-m', 'pip', '--version'], text=True).split()[1]
+  expected_wheel_name = 'pip-{}-py3-none-any.whl'.format(pip_version)
   subprocess.check_call([
       sys.executable,
       '-m',
@@ -46,6 +50,13 @@ def main():
       str(wheel_dir),
       '--no-deps',
   ])
+  for path in wheel_dir.glob('pip-*'):
+    if path.name != expected_wheel_name:
+      path.unlink()
+  if not (wheel_dir / expected_wheel_name).is_file():
+    sys.exit(
+        'ensurepip bundled pip wheel missing after install: {}'.format(
+            wheel_dir / expected_wheel_name))
   lines = ep_path.read_text().splitlines()
   pip_line = None
   for idx, line in enumerate(lines):

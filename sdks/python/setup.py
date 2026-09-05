@@ -416,7 +416,7 @@ if __name__ == '__main__':
       },
       ext_modules=extensions,
       install_requires=[
-          'cryptography>=39.0.0,<49.0.0',
+          'cryptography>=39.0.0,<51.0.0',
           'fastavro>=0.23.6,<2',
           'fasteners>=0.3,<1.0',
           'grpcio>=1.33.1,<2,!=1.48.0,!=1.59.*,!=1.60.*,!=1.61.*,!=1.62.0,!=1.62.1,!=1.66.*,!=1.67.*,!=1.68.*,!=1.69.*,!=1.70.*',  # pylint: disable=line-too-long
@@ -531,7 +531,9 @@ if __name__ == '__main__':
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
-              'google-cloud-bigtable>=2.19.0,<3',
+              # 2.42.0 improves MutationsBatcher error handling: it surfaces
+              # errors raised during async flushes instead of swallowing them.
+              'google-cloud-bigtable>=2.42.0,<3',
               'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality

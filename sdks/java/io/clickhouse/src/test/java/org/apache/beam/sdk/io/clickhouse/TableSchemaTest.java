@@ -20,10 +20,13 @@ package org.apache.beam.sdk.io.clickhouse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertThrows;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
@@ -91,6 +94,88 @@ public class TableSchemaTest {
   public void testParseDateTime64GarbagePrecisionFailsToParse() {
     IllegalArgumentException e =
         assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(abc)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimal() {
+    assertEquals(ColumnType.decimal(10, 2), ColumnType.parse("Decimal(10, 2)"));
+  }
+
+  @Test
+  public void testParseDecimalPrecisionOnlyDefaultsToScale0() {
+    assertEquals(ColumnType.decimal(5, 0), ColumnType.parse("Decimal(5)"));
+  }
+
+  @Test
+  public void testParseBareDecimalDefaultsToPrecision10Scale0() {
+    assertEquals(ColumnType.decimal(10, 0), ColumnType.parse("Decimal"));
+  }
+
+  @Test
+  public void testParseDecimal32() {
+    assertEquals(ColumnType.decimal(9, 2), ColumnType.parse("Decimal32(2)"));
+  }
+
+  @Test
+  public void testParseDecimal64() {
+    assertEquals(ColumnType.decimal(18, 4), ColumnType.parse("Decimal64(4)"));
+  }
+
+  @Test
+  public void testParseDecimal128() {
+    assertEquals(ColumnType.decimal(38, 20), ColumnType.parse("Decimal128(20)"));
+  }
+
+  @Test
+  public void testParseDecimal256() {
+    assertEquals(ColumnType.decimal(76, 40), ColumnType.parse("Decimal256(40)"));
+  }
+
+  @Test
+  public void testParseNullableDecimal() {
+    assertEquals(
+        ColumnType.decimal(10, 2).withNullable(true), ColumnType.parse("Nullable(Decimal(10, 2))"));
+  }
+
+  @Test
+  public void testParseArrayOfDecimal() {
+    assertEquals(
+        ColumnType.array(ColumnType.decimal(38, 10)), ColumnType.parse("Array(Decimal(38, 10))"));
+  }
+
+  @Test
+  public void testParseDecimalPrecisionAboveMaxFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(77, 2)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalZeroPrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(0)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalScaleAbovePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(9, 10)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalNegativeScaleFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(9, -1)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalGarbagePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(abc)"));
     assertEquals("failed to parse", e.getMessage());
   }
 
@@ -239,6 +324,16 @@ public class TableSchemaTest {
   }
 
   @Test
+  public void testParseDefaultExpressionDecimal() {
+    assertEquals(
+        new BigDecimal("1.23"),
+        ColumnType.parseDefaultExpression(ColumnType.decimal(9, 2), "1.23"));
+    assertEquals(
+        new BigDecimal("-1.23"),
+        ColumnType.parseDefaultExpression(ColumnType.decimal(9, 2), "-1.23"));
+  }
+
+  @Test
   public void testEquivalentSchema() {
     TableSchema tableSchema =
         TableSchema.of(
@@ -298,6 +393,63 @@ public class TableSchemaTest {
   @Test(expected = IllegalArgumentException.class)
   public void testDateTime64RejectsPrecisionAboveNine() {
     ColumnType.dateTime64(10);
+  }
+
+  @Test
+  public void testEquivalentSchemaDecimal() {
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(10, 2)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.of("d", Schema.FieldType.logicalType(FixedPrecisionNumeric.of(10, 2))));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaNullableDecimal() {
+    TableSchema tableSchema =
+        TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(38, 10).withNullable(true)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.nullable(
+                "d", Schema.FieldType.logicalType(FixedPrecisionNumeric.of(38, 10))));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testMappedDecimalRejectsPrecisionOverflowAtRowConstruction() {
+    // The mapped FixedPrecisionNumeric type rejects most over-precision values at Row
+    // construction, well before the writer's own range check: building a Row with more digits
+    // than the column declares must fail loudly.
+    Schema schema =
+        TableSchema.getEquivalentSchema(
+            TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(5, 0))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Row.withSchema(schema).addValue(new BigDecimal("999999")).build());
+
+    Row row = Row.withSchema(schema).addValue(new BigDecimal("99999")).build();
+    assertEquals(new BigDecimal("99999"), row.getValue("d"));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsZeroPrecision() {
+    ColumnType.decimal(0, 0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsPrecisionAboveSeventySix() {
+    ColumnType.decimal(77, 0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsNegativeScale() {
+    ColumnType.decimal(10, -1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsScaleAbovePrecision() {
+    ColumnType.decimal(10, 11);
   }
 
   @Test

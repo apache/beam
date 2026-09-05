@@ -91,8 +91,7 @@ public interface KafkaToPubsubOptions extends PipelineOptions {
 
   @Description(
       "Additional kafka consumer configs to be applied to Kafka Consumer (e.g. key1=value1;key2=value2).")
-  @Nullable
-  String getKafkaConsumerConfig();
+  @Nullable String getKafkaConsumerConfig();
 
   void setKafkaConsumerConfig(String kafkaConfig);
 }
