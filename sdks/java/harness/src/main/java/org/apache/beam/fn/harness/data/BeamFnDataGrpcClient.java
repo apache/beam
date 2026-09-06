@@ -142,10 +142,10 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
     return multiplexerCache.computeIfAbsent(
         key,
         k -> {
+          ManagedChannel channel = channelFactory.apply(apiServiceDescriptor);
           OutboundObserverFactory.BasicFactory<Elements, Elements> baseOutboundObserverFactory =
               inboundObserver -> {
-                BeamFnDataGrpc.BeamFnDataStub stub =
-                    BeamFnDataGrpc.newStub(channelFactory.apply(apiServiceDescriptor));
+                BeamFnDataGrpc.BeamFnDataStub stub = BeamFnDataGrpc.newStub(channel);
                 if (dataStreamId != null && !dataStreamId.isEmpty()) {
                   Metadata headers = new Metadata();
                   headers.put(
@@ -156,7 +156,7 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
                 return stub.data(inboundObserver);
               };
           return new BeamFnDataGrpcMultiplexer(
-              apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory);
+              apiServiceDescriptor, outboundObserverFactory, baseOutboundObserverFactory, channel);
         });
   }
 }
