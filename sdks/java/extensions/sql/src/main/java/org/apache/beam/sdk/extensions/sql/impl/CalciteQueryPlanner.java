@@ -31,6 +31,7 @@ import org.apache.beam.sdk.extensions.sql.impl.rel.BeamLogicalConvention;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.extensions.sql.impl.udf.BeamBuiltinFunctionProvider;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.calcite.v1_40_0.com.google.common.collect.Table;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.config.CalciteConnectionConfig;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalciteSchema;
@@ -64,6 +65,8 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlP
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParser;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.parser.SqlParserImplFactory;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.util.SqlOperatorTables;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlConformance;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.validate.SqlConformanceEnum;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql2rel.SqlToRelConverter;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.FrameworkConfig;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.Frameworks;
@@ -120,12 +123,20 @@ public class CalciteQueryPlanner implements QueryPlanner {
 
   public FrameworkConfig defaultConfig(JdbcConnection connection, Collection<RuleSet> ruleSets) {
     final CalciteConnectionConfig config = connection.config();
+    // Resolve the parser conformance. Calcite's Avatica JDBC connect path silently drops the
+    // {@code conformance} connection property (it is not in the driver's registered property set),
+    // so {@code config.conformance()} is always DEFAULT here even when callers set it via
+    // {@code BeamSqlPipelineOptions.calciteConnectionProperties}. We therefore read that map
+    // directly from the connection's pipeline options and let it override. This keeps the behavior
+    // opt-in: with no {@code conformance} property the connection's own (DEFAULT) value is used, so
+    // existing Beam SQL behavior is unchanged.
+    final SqlConformance conformance = resolveConformance(connection, config);
     final SqlParser.ConfigBuilder parserConfig =
         SqlParser.configBuilder()
             .setQuotedCasing(config.quotedCasing())
             .setUnquotedCasing(config.unquotedCasing())
             .setQuoting(config.quoting())
-            .setConformance(config.conformance())
+            .setConformance(conformance)
             .setCaseSensitive(config.caseSensitive());
     final SqlParserImplFactory parserFactory =
         config.parserFactory(SqlParserImplFactory.class, null);
@@ -171,6 +182,43 @@ public class CalciteQueryPlanner implements QueryPlanner {
         .build();
   }
 
+  /**
+   * Resolves the {@link SqlConformance} for the parser. Prefers an explicit {@code conformance}
+   * entry in {@link BeamSqlPipelineOptions#getCalciteConnectionProperties()} (looked up
+   * case-insensitively, value matched against {@link SqlConformanceEnum}); otherwise falls back to
+   * the connection's own conformance. This is the bridge for {@code conformance=BABEL}, which the
+   * Avatica JDBC connect path drops, enabling Spark-SQL spellings (e.g. the {@code !=} operator)
+   * the default conformance rejects. Returns the connection default on any unrecognized value.
+   */
+  private static SqlConformance resolveConformance(
+      JdbcConnection connection, CalciteConnectionConfig config) {
+    PipelineOptions options = connection.getPipelineOptions();
+    if (options == null) {
+      return config.conformance();
+    }
+    BeamSqlPipelineOptions sqlOptions = options.as(BeamSqlPipelineOptions.class);
+    Map<String, String> props = sqlOptions.getCalciteConnectionProperties();
+    if (props == null) {
+      return config.conformance();
+    }
+    String value = null;
+    for (Map.Entry<String, String> e : props.entrySet()) {
+      if ("conformance".equalsIgnoreCase(e.getKey())) {
+        value = e.getValue();
+        break;
+      }
+    }
+    if (value == null) {
+      return config.conformance();
+    }
+    try {
+      return SqlConformanceEnum.valueOf(value.trim().toUpperCase());
+    } catch (IllegalArgumentException ex) {
+      LOG.warn("Unrecognized calcite conformance '{}', using {}", value, config.conformance());
+      return config.conformance();
+    }
+  }
+
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
   @Override
   public SqlNode parse(String sqlStatement) throws ParseException {
@@ -183,6 +231,29 @@ public class CalciteQueryPlanner implements QueryPlanner {
       planner.close();
     }
     return parsed;
+  }
+
+  @Override
+  public RelNode parseToRel(String sqlStatement, QueryParameters queryParameters)
+      throws ParseException, SqlConversionException {
+    Preconditions.checkArgument(
+        queryParameters.getKind() == Kind.NONE,
+        "Beam SQL Calcite dialect does not yet support query parameters.");
+    try {
+      SqlNode parsed = planner.parse(sqlStatement);
+      TableResolutionUtils.setupCustomTableResolution(connection, parsed);
+      SqlNode validated = planner.validate(parsed);
+      // root of original logical plan
+      RelRoot root = planner.rel(validated);
+      return root.rel;
+    } catch (RelConversionException e) {
+      throw new SqlConversionException(
+          String.format("Unable to convert query %s", sqlStatement), e);
+    } catch (SqlParseException | ValidationException e) {
+      throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
+    } finally {
+      planner.close();
+    }
   }
 
   /**

@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -38,6 +39,18 @@ public interface QueryPlanner {
   /** It parses and validate the input query, then convert into a {@link BeamRelNode} tree. */
   BeamRelNode convertToBeamRel(String sqlStatement, QueryParameters queryParameters)
       throws ParseException, SqlConversionException;
+
+  /**
+   * Parses and validates {@code sqlStatement} and returns the logical {@link RelNode} (standard
+   * Calcite convention), WITHOUT converting to Beam physical rels. This lets callers rewrite the
+   * logical plan (e.g. inject custom rels) before {@link #convertToBeamRel(String,
+   * QueryParameters)}.
+   */
+  default RelNode parseToRel(String sqlStatement, QueryParameters queryParameters)
+      throws ParseException, SqlConversionException {
+    throw new UnsupportedOperationException(
+        "parseToRel is not implemented by " + getClass().getName());
+  }
 
   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
   SqlNode parse(String sqlStatement) throws ParseException;

@@ -1,0 +1,26 @@
+diff a/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/BeamSqlEnv.java b/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/BeamSqlEnv.java	(rejected hunks)
+@@ -135,6 +135,24 @@ public class BeamSqlEnv {
+     return planner.convertToBeamRel(relNode, QueryParameters.ofNone());
+   }
+ 
++  /**
++   * Parses and validates {@code query} and returns the logical {@link RelNode} (Calcite convention)
++   * without Beam conversion, so callers can rewrite the plan before {@link
++   * #convertToBeamRel(RelNode)}.
++   */
++  public RelNode parseLogicalPlan(String query) throws ParseException {
++    return planner.parseToRel(query, QueryParameters.ofNone());
++  }
++
++  /**
++   * Registers a Calcite {@link Function} under {@code name} in the live (current) session schema,
++   * so that subsequent SQL parsing/validation resolves {@code name(...)}. Mirrors how user-defined
++   * functions are added at build time.
++   */
++  public void registerSchemaFunction(String name, Function function) {
++    connection.getCurrentSchemaPlus().add(name, function);
++  }
++
+   public org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperatorTable
+       getOperatorTable() {
+     return planner.getOperatorTable();
