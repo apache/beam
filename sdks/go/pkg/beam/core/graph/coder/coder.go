@@ -142,6 +142,10 @@ func validateDecoder(t reflect.Type, decode any) error {
 
 // NewCustomCoder creates a coder for the supplied parameters defining a
 // particular encoding strategy.
+//
+// encode and decode must be functions matching one of the signatures documented
+// on RegisterCoder. NewCustomCoder returns an error if either function fails
+// signature validation.
 func NewCustomCoder(id string, t reflect.Type, encode, decode any) (*CustomCoder, error) {
 	if err := validateEncoder(t, encode); err != nil {
 		return nil, errors.WithContext(err, "NewCustomCoder")

@@ -44,6 +44,31 @@ var (
 // over to check if element types implement them.
 //
 // Repeated registrations of the same type overrides prior ones.
+//
+// The enc and dec arguments must be functions matching one of the following
+// signatures, where T is the user type registered (the concrete type
+// represented by t, or an interface implemented by encoded values):
+//
+// Supported encoder signatures:
+//
+//	func(T) []byte
+//	func(reflect.Type, T) []byte
+//	func(T) ([]byte, error)
+//	func(reflect.Type, T) ([]byte, error)
+//
+// Supported decoder signatures:
+//
+//	func([]byte) T
+//	func(reflect.Type, []byte) T
+//	func([]byte) (T, error)
+//	func(reflect.Type, []byte) (T, error)
+//
+// The optional leading reflect.Type parameter is set to the concrete element
+// type at coder construction time; it lets a single (enc, dec) pair serve
+// multiple types (for example, when t is an interface).
+//
+// Passing a function that does not match one of these signatures will cause
+// RegisterCoder to panic.
 func RegisterCoder(t reflect.Type, enc, dec any) {
 	if _, err := NewCustomCoder(t.String(), t, enc, dec); err != nil {
 		panic(errors.Wrapf(err, "RegisterCoder failed for type %v", t))
