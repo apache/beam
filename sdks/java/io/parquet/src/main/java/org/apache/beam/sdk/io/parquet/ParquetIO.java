@@ -135,23 +135,24 @@ import org.slf4j.LoggerFactory;
  * <p>ParquetIO leverages splittable reading by using Splittable DoFn. It initially splits the files
  * into the blocks of 64MB and may dynamically split further for higher read efficiency.
  *
- * <p>Reading with projection can be enabled with the projection schema as following. Splittable
- * reading is enabled when reading with projection. The projection_schema contains only the column
- * that we would like to read and encoder_schema contains the schema to encode the output with the
- * unwanted columns changed to nullable. Partial reading provide decrease of reading time due to
- * partial processing of the data and partial encoding. The decrease in the reading time depends on
- * the relative position of the columns. Memory allocation is optimised depending on the encoding
- * schema. Note that the improvement is not as significant comparing to the proportion of the data
- * requested, since the processing time saved is only the time to read the unwanted columns, the
- * reader will still go over the data set according to the encoding schema since data for each
- * column in a row is stored interleaved.
+ * <p>Reading with projection can be configured directly on the underlying Parquet reader via the
+ * upstream {@link AvroReadSupport} API and passed to {@link Read#withConfiguration(Configuration)}.
+ * Splittable reading is enabled when reading with projection. Partial reading decreases reading
+ * time due to partial processing and partial encoding; the improvement depends on the relative
+ * position of the columns because data for each column in a row is stored interleaved.
  *
  * <pre>{@code
+ * Configuration conf = new Configuration();
+ * AvroReadSupport.setAvroReadSchema(conf, SCHEMA);
+ * AvroReadSupport.setRequestedProjection(conf, PROJECTION_SCHEMA);
+ *
  * PCollection<GenericRecord> records =
- *   pipeline
- *     .apply(
- *       ParquetIO.read(SCHEMA).from("/foo/bar").withProjection(Projection_schema,Encoder_Schema));
+ *   pipeline.apply(ParquetIO.read(SCHEMA).from("/foo/bar").withConfiguration(conf));
  * }</pre>
+ *
+ * <p>The {@link Read#withProjection(Schema, Schema)} and {@link ReadFiles#withProjection(Schema,
+ * Schema)} helpers are deprecated in favor of the approach shown above; see their Javadoc for
+ * details.
  *
  * <h3>Reading records of an unknown schema</h3>
  *
@@ -334,7 +335,18 @@ public class ParquetIO {
       return from(ValueProvider.StaticValueProvider.of(filepattern));
     }
 
-    /** Enable the reading with projection. */
+    /**
+     * Enable the reading with projection.
+     *
+     * @deprecated The {@code encoderSchema} parameter is redundant and this wrapper duplicates
+     *     functionality already available upstream. Configure projection on a Hadoop {@link
+     *     Configuration} using {@link AvroReadSupport#setRequestedProjection(Configuration, Schema)
+     *     AvroReadSupport.setRequestedProjection} and {@link
+     *     AvroReadSupport#setAvroReadSchema(Configuration, Schema)
+     *     AvroReadSupport.setAvroReadSchema}, then pass it to {@link
+     *     #withConfiguration(Configuration)}.
+     */
+    @Deprecated
     public Read withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
           .setProjectionSchema(projectionSchema)
@@ -641,6 +653,18 @@ public class ParquetIO {
       return toBuilder().setAvroDataModel(model).build();
     }
 
+    /**
+     * Enable the reading with projection.
+     *
+     * @deprecated The {@code encoderSchema} parameter is redundant and this wrapper duplicates
+     *     functionality already available upstream. Configure projection on a Hadoop {@link
+     *     Configuration} using {@link AvroReadSupport#setRequestedProjection(Configuration, Schema)
+     *     AvroReadSupport.setRequestedProjection} and {@link
+     *     AvroReadSupport#setAvroReadSchema(Configuration, Schema)
+     *     AvroReadSupport.setAvroReadSchema}, then pass it to {@link
+     *     #withConfiguration(Configuration)}.
+     */
+    @Deprecated
     public ReadFiles withProjection(Schema projectionSchema, Schema encoderSchema) {
       return toBuilder()
           .setProjectionSchema(projectionSchema)
