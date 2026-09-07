@@ -23,6 +23,7 @@ import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
 import io.opentelemetry.api.OpenTelemetry;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -77,6 +78,63 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     this.allowedTableNames = allowedTableNames == null ? new HashSet<>() : allowedTableNames;
   }
 
+  /**
+   * Reads Spanner schema information without running a Beam pipeline.
+   *
+   * <p>Used by SchemaTransforms during expansion (including cross-language expansion services that
+   * do not ship DirectRunner).
+   */
+  public static SpannerSchema getSpannerSchema(
+      SpannerConfig config, Dialect dialect, Set<String> allowedTableNames) {
+    try (SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(config)) {
+      return getSpannerSchema(spannerAccessor.getDatabaseClient(), dialect, allowedTableNames);
+    }
+  }
+
+  static SpannerSchema getSpannerSchema(
+      DatabaseClient databaseClient, Dialect dialect, Set<String> allowedTableNames) {
+    Set<String> allowed = allowedTableNames == null ? Collections.emptySet() : allowedTableNames;
+    SpannerSchema.Builder builder = SpannerSchema.builder(dialect);
+    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
+      ResultSet resultSet = readTableInfo(tx, dialect);
+
+      while (resultSet.next()) {
+        String tableName = resultSet.getString(0);
+        String columnName = resultSet.getString(1);
+        String type = resultSet.getString(2);
+        long cellsMutated = resultSet.getLong(3);
+        if (!isTableAllowed(allowed, tableName)) {
+          continue;
+        }
+        builder.addColumn(tableName, columnName, type, cellsMutated);
+      }
+
+      resultSet = readPrimaryKeyInfo(tx, dialect);
+      while (resultSet.next()) {
+        String tableName = resultSet.getString(0);
+        String columnName = resultSet.getString(1);
+        String ordering = resultSet.getString(2);
+        if (!isTableAllowed(allowed, tableName)) {
+          continue;
+        }
+        builder.addKeyPart(tableName, columnName, "DESC".equalsIgnoreCase(ordering));
+      }
+    }
+    return builder.build();
+  }
+
+  private static boolean isTableAllowed(Set<String> allowedTableNames, String tableName) {
+    if (allowedTableNames.isEmpty()) {
+      return true;
+    }
+    for (String allowed : allowedTableNames) {
+      if (allowed.equalsIgnoreCase(tableName)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @Setup
   public void setup(PipelineOptions options) throws Exception {
     OpenTelemetry otel = options.as(SdkHarnessOptions.class).getOpenTelemetry();
@@ -90,38 +148,12 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   @ProcessElement
   public void processElement(ProcessContext c) throws Exception {
-    Dialect dialect = c.sideInput(dialectView);
-    SpannerSchema.Builder builder = SpannerSchema.builder(dialect);
-    DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
-    try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
-      ResultSet resultSet = readTableInfo(tx, dialect);
-
-      while (resultSet.next()) {
-        String tableName = resultSet.getString(0);
-        String columnName = resultSet.getString(1);
-        String type = resultSet.getString(2);
-        long cellsMutated = resultSet.getLong(3);
-        if (allowedTableNames.size() > 0 && !allowedTableNames.contains(tableName)) {
-          // If we want to filter out table names, and the current table name is not part
-          // of the allowed names, we exclude it.
-          continue;
-        }
-        builder.addColumn(tableName, columnName, type, cellsMutated);
-      }
-
-      resultSet = readPrimaryKeyInfo(tx, dialect);
-      while (resultSet.next()) {
-        String tableName = resultSet.getString(0);
-        String columnName = resultSet.getString(1);
-        String ordering = resultSet.getString(2);
-
-        builder.addKeyPart(tableName, columnName, "DESC".equalsIgnoreCase(ordering));
-      }
-    }
-    c.output(builder.build());
+    c.output(
+        getSpannerSchema(
+            spannerAccessor.getDatabaseClient(), c.sideInput(dialectView), allowedTableNames));
   }
 
-  private ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
+  private static ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
     // retrieve schema information for all tables, as well as aggregating the
     // number of indexes that cover each column. this will be used to estimate
     // the number of cells (table column plus indexes) mutated in an upsert operation
@@ -174,7 +206,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     return tx.executeQuery(Statement.of(statement));
   }
 
-  private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect) {
+  private static ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect) {
     String statement = "";
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:
