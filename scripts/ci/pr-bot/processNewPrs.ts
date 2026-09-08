@@ -341,7 +341,9 @@ async function processPull(
   console.log(`Assigning reviewers for PR ${pull.number}`);
   await github.addPrComment(
     pull.number,
-    commentStrings.assignReviewer(prState.reviewersAssignedForLabels)
+    commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
+      labels: pull.labels,
+    })
   );
 
   github.nextActionReviewers(pull.number, pull.labels);
