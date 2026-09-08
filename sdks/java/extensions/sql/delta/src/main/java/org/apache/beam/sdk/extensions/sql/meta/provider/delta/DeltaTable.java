@@ -28,7 +28,6 @@ import java.util.Map;
 import org.apache.beam.sdk.extensions.sql.TableUtils;
 import org.apache.beam.sdk.extensions.sql.meta.BeamSqlTableFilter;
 import org.apache.beam.sdk.extensions.sql.meta.DefaultTableFilter;
-import org.apache.beam.sdk.extensions.sql.meta.ProjectSupport;
 import org.apache.beam.sdk.extensions.sql.meta.SchemaBaseBeamTable;
 import org.apache.beam.sdk.extensions.sql.meta.Table;
 import org.apache.beam.sdk.managed.Managed;
@@ -174,14 +173,6 @@ class DeltaTable extends SchemaBaseBeamTable {
   @Override
   public PCollection.IsBounded isBounded() {
     return PCollection.IsBounded.BOUNDED;
-  }
-
-  @Override
-  public ProjectSupport supportsProjects() {
-    // TODO: Support project pushdown / column pruning when supported by DeltaIO /
-    // Managed Delta
-    // Lake source.
-    return ProjectSupport.NONE;
   }
 
   @Override
