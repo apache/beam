@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.extensions.gcp.transforms;
 
 import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.CryptoKeyName;
@@ -34,10 +34,15 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.gcp.util.GcpHsmGeneratedSecret;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.util.GcpHsmGeneratedSecret;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.junit.AfterClass;
@@ -50,7 +55,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration test for GroupByKey transforms and some other transforms which use GBK. */
 @RunWith(JUnit4.class)
-public class GroupByKeyIT {
+public class GcpGroupByKeyIT {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static final String PROJECT_ID = "apache-beam-testing";

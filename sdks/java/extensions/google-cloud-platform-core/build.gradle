@@ -59,6 +59,12 @@ dependencies {
   implementation library.java.jackson_core
   implementation library.java.jackson_databind
   permitUnusedDeclared library.java.jackson_databind // BEAM-11761
+  implementation library.java.google_cloud_kms
+  implementation library.java.proto_google_cloud_kms_v1
+  implementation library.java.google_cloud_tink
+  implementation library.java.google_cloud_secret_manager
+  implementation library.java.proto_google_cloud_secret_manager_v1
+  implementation library.java.protobuf_java
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14

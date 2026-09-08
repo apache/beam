@@ -39,7 +39,13 @@ from apache_beam.transforms import fully_qualified_named_transform
 from apache_beam.transforms import ptransform
 from apache_beam.transforms.environments import PyPIArtifactRegistry
 from apache_beam.transforms.external import ImplicitSchemaPayloadBuilder
+from apache_beam.utils import secret as beam_secret
 from apache_beam.utils import thread_pool_executor
+
+# Register TestSecret for cross-language GBEK validation tests.
+beam_secret._SECRET_TYPE_TO_SECRET_MANAGER["testsecret"] = "TestSecretManager"
+beam_secret._SECRET_CLASSES["testsecretmanager"] = (
+    lambda secret: beam_secret.RawSecret(secret.encode("utf-8")))
 
 # This script provides an expansion service and example ptransforms for running
 # external transform test cases. See external_test.py for details.
