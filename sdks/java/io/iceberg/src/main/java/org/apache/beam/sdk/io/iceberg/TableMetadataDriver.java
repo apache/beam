@@ -299,9 +299,7 @@ public abstract class TableMetadataDriver
 
         if (isStreaming) {
           AccumulateTableMetadataMapDoFn accumulateDoFn =
-              clock != null
-                  ? new AccumulateTableMetadataMapDoFn(interval, cacheTtl, clock)
-                  : new AccumulateTableMetadataMapDoFn(interval, cacheTtl);
+              new AccumulateTableMetadataMapDoFn(interval, cacheTtl, clock);
           return specs
               .apply("KeyForGlobalCache", WithKeys.of((Void) null))
               .setCoder(KvCoder.of(VoidCoder.of(), specs.getCoder()))
@@ -507,24 +505,8 @@ public abstract class TableMetadataDriver
     private final Duration cacheTtl;
     private final Clock clock;
 
-    AccumulateTableMetadataMapDoFn() {
-      this(DEFAULT_REFRESH_INTERVAL, null, System::currentTimeMillis);
-    }
-
-    AccumulateTableMetadataMapDoFn(Duration refreshInterval) {
-      this(refreshInterval, null, System::currentTimeMillis);
-    }
-
-    AccumulateTableMetadataMapDoFn(Duration refreshInterval, Clock clock) {
-      this(refreshInterval, null, clock);
-    }
-
-    AccumulateTableMetadataMapDoFn(Duration refreshInterval, @Nullable Duration cacheTtl) {
-      this(refreshInterval, cacheTtl, System::currentTimeMillis);
-    }
-
     AccumulateTableMetadataMapDoFn(
-        Duration refreshInterval, @Nullable Duration cacheTtl, Clock clock) {
+        Duration refreshInterval, @Nullable Duration cacheTtl, @Nullable Clock clock) {
       this.refreshInterval = refreshInterval != null ? refreshInterval : DEFAULT_REFRESH_INTERVAL;
       this.cacheTtl =
           cacheTtl != null ? cacheTtl : this.refreshInterval.multipliedBy(DEFAULT_TTL_MULTIPLIER);
