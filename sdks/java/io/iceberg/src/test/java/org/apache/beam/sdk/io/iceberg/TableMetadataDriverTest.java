@@ -442,8 +442,12 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.asView(
-                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .setRefreshInterval(Duration.standardSeconds(2))
+                .build()
+                .asView());
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -537,8 +541,12 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.asView(
-                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .setRefreshInterval(Duration.standardSeconds(2))
+                .build()
+                .asView());
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -595,8 +603,12 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.asView(
-                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .setRefreshInterval(Duration.standardSeconds(2))
+                .build()
+                .asView());
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -654,8 +666,12 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.asView(
-                catalogConfig, DYNAMIC_DESTINATIONS, null, Duration.standardSeconds(2)));
+            TableMetadataDriver.builder()
+                .setCatalogConfig(catalogConfig)
+                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                .setRefreshInterval(Duration.standardSeconds(2))
+                .build()
+                .asView());
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -1304,7 +1320,12 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             "CreateMetadataView",
             TableMetadataDriver.asView(
-                catalogConfig, DYNAMIC_DESTINATIONS, null, refreshInterval, null, testClock));
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                    .setRefreshInterval(refreshInterval)
+                    .build(),
+                testClock));
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -1364,6 +1385,41 @@ public class TableMetadataDriverTest implements Serializable {
 
     PAssert.that(consumerObserved).containsInAnyOrder("size=0", "size=0");
 
+    pipeline.run();
+  }
+
+  @Test
+  public void testAsViewWithDriverInstance() {
+    TableIdentifier tableId = TableIdentifier.of("default", "as_view_driver_test");
+    getCatalog().createTable(tableId, ICEBERG_SCHEMA);
+    String tableStr = IcebergUtils.tableIdentifierToString(tableId);
+
+    List<Row> rows =
+        ImmutableList.of(Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", tableStr).build());
+    PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
+
+    TableMetadataDriver driver =
+        TableMetadataDriver.builder()
+            .setCatalogConfig(catalogConfig)
+            .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+            .build();
+
+    PCollectionView<Map<String, SerializableTableSpec>> metadataView =
+        input.apply("CreateMetadataView", driver.asView());
+
+    PCollection<Boolean> hasTable =
+        input.apply(
+            "CheckSideInput",
+            ParDo.of(
+                    new DoFn<Row, Boolean>() {
+                      @ProcessElement
+                      public void processElement(OutputReceiver<Boolean> out, ProcessContext c) {
+                        out.output(c.sideInput(metadataView).containsKey(tableStr));
+                      }
+                    })
+                .withSideInputs(metadataView));
+
+    PAssert.that(hasTable).containsInAnyOrder(true);
     pipeline.run();
   }
 
@@ -1428,7 +1484,12 @@ public class TableMetadataDriverTest implements Serializable {
         input.apply(
             "CreateMetadataView",
             TableMetadataDriver.asView(
-                catalogConfig, DYNAMIC_DESTINATIONS, null, refreshInterval, null, testClock));
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                    .setRefreshInterval(refreshInterval)
+                    .build(),
+                testClock));
 
     PCollection<String> consumerObserved =
         input.apply(

@@ -178,124 +178,48 @@ public abstract class TableMetadataDriver
   }
 
   /**
-   * Helper that applies {@link TableMetadataDriver} and creates an uncapped {@link PCollectionView}
-   * of {@link Map} of table identifier strings to {@link SerializableTableSpec}.
+   * Helper that applies this {@link TableMetadataDriver} and creates a {@link PCollectionView} of
+   * {@link Map} of table identifier strings to {@link SerializableTableSpec}.
+   */
+  public PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
+      asView() {
+    return asView(this, null, null);
+  }
+
+  /**
+   * Helper that applies {@link TableMetadataDriver} with default configuration and creates an
+   * uncapped {@link PCollectionView} of {@link Map} of table identifier strings to {@link
+   * SerializableTableSpec}.
    */
   public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
       asView(IcebergCatalogConfig catalogConfig, DynamicDestinations dynamicDestinations) {
-    return asView(catalogConfig, dynamicDestinations, null, null, null);
-  }
-
-  /**
-   * Helper that applies {@link TableMetadataDriver} with an optional {@code maximumCacheSize} limit
-   * and creates a {@link PCollectionView} of {@link Map} of table identifier strings to {@link
-   * SerializableTableSpec}.
-   *
-   * @param catalogConfig the catalog configuration used to poll metadata.
-   * @param dynamicDestinations destination strategy extracting table IDs from rows.
-   * @param maximumCacheSize optional maximum distinct tables to poll and broadcast per window (null
-   *     for uncapped).
-   */
-  public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
-      asView(
-          IcebergCatalogConfig catalogConfig,
-          DynamicDestinations dynamicDestinations,
-          @Nullable Integer maximumCacheSize) {
-    return asView(catalogConfig, dynamicDestinations, maximumCacheSize, null, null);
-  }
-
-  /**
-   * Helper that applies {@link TableMetadataDriver} with an optional {@code maximumCacheSize} limit
-   * and custom {@code refreshInterval}, creating a {@link PCollectionView} of {@link Map} of table
-   * identifier strings to {@link SerializableTableSpec}.
-   *
-   * @param catalogConfig the catalog configuration used to poll metadata.
-   * @param dynamicDestinations destination strategy extracting table IDs from rows.
-   * @param maximumCacheSize optional maximum distinct tables to poll and broadcast per window (null
-   *     for uncapped).
-   * @param refreshInterval optional refresh interval for streaming global window triggers.
-   */
-  public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
-      asView(
-          IcebergCatalogConfig catalogConfig,
-          DynamicDestinations dynamicDestinations,
-          @Nullable Integer maximumCacheSize,
-          @Nullable Duration refreshInterval) {
-    return asView(catalogConfig, dynamicDestinations, maximumCacheSize, refreshInterval, null);
-  }
-
-  /**
-   * Helper that applies {@link TableMetadataDriver} with an optional {@code maximumCacheSize}
-   * limit, custom {@code refreshInterval}, and custom {@code pollingBuckets}, creating a {@link
-   * PCollectionView} of {@link Map} of table identifier strings to {@link SerializableTableSpec}.
-   *
-   * @param catalogConfig the catalog configuration used to poll metadata.
-   * @param dynamicDestinations destination strategy extracting table IDs from rows.
-   * @param maximumCacheSize optional maximum distinct tables to poll and broadcast per window (null
-   *     for uncapped).
-   * @param refreshInterval optional refresh interval for streaming global window triggers.
-   * @param pollingBuckets optional number of parallel buckets/workers for catalog polling.
-   */
-  public static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>
-      asView(
-          IcebergCatalogConfig catalogConfig,
-          DynamicDestinations dynamicDestinations,
-          @Nullable Integer maximumCacheSize,
-          @Nullable Duration refreshInterval,
-          @Nullable Integer pollingBuckets) {
-    return asView(
-        catalogConfig,
-        dynamicDestinations,
-        maximumCacheSize,
-        refreshInterval,
-        pollingBuckets,
-        null);
+    return builder()
+        .setCatalogConfig(catalogConfig)
+        .setDynamicDestinations(dynamicDestinations)
+        .build()
+        .asView();
   }
 
   @VisibleForTesting
   static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>> asView(
-      IcebergCatalogConfig catalogConfig,
-      DynamicDestinations dynamicDestinations,
-      @Nullable Integer maximumCacheSize,
-      @Nullable Duration refreshInterval,
-      @Nullable Integer pollingBuckets,
-      @Nullable Clock clock) {
-    return asView(
-        catalogConfig,
-        dynamicDestinations,
-        maximumCacheSize,
-        refreshInterval,
-        pollingBuckets,
-        null,
-        clock);
+      TableMetadataDriver driver, @Nullable Clock clock) {
+    return asView(driver, null, clock);
   }
 
   @VisibleForTesting
   static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>> asView(
-      IcebergCatalogConfig catalogConfig,
-      DynamicDestinations dynamicDestinations,
-      @Nullable Integer maximumCacheSize,
-      @Nullable Duration refreshInterval,
-      @Nullable Integer pollingBuckets,
-      @Nullable Duration cacheTtl,
-      @Nullable Clock clock) {
+      TableMetadataDriver driver, @Nullable Duration cacheTtl, @Nullable Clock clock) {
+    Preconditions.checkNotNull(driver, "driver must not be null");
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
         boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
 
-        Duration interval = refreshInterval != null ? refreshInterval : DEFAULT_REFRESH_INTERVAL;
+        Duration customInterval = driver.getRefreshInterval();
+        Duration interval = customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL;
 
         PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
-            input.apply(
-                "GenerateTableMetadata",
-                TableMetadataDriver.builder()
-                    .setCatalogConfig(catalogConfig)
-                    .setDynamicDestinations(dynamicDestinations)
-                    .setMaximumCacheSize(maximumCacheSize)
-                    .setRefreshInterval(interval)
-                    .setPollingBuckets(pollingBuckets)
-                    .build());
+            input.apply("GenerateTableMetadata", driver);
 
         if (isStreaming) {
           AccumulateTableMetadataMapDoFn accumulateDoFn =
