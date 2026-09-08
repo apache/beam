@@ -18,9 +18,11 @@
 
 const github = require("./githubUtils");
 const commentStrings = require("./commentStrings");
-const { BOT_NAME } = require("./constants");
+const { BOT_NAME, REPO_OWNER, REPO } = require("./constants");
 const { StateClient } = require("./persistentState");
 const { ReviewerConfig } = require("./reviewerConfig");
+const { buildPrHistoryContext } = require("./gitHistory");
+const { GeminiReviewerAdvisor } = require("./geminiReviewerAdvisor");
 
 // Reads the comment and processes the command if one is contained in it.
 // Returns true if it runs a command, false otherwise.
@@ -41,7 +43,7 @@ export async function processCommand(
   commentText = commentText.toLowerCase();
 
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Notifications stopped, only "allow assign set of reviewers"
     if (commentText.indexOf("assign set of reviewers") > -1) {
       await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
@@ -51,6 +53,16 @@ export async function processCommand(
   } else {
     if (commentText.indexOf("r: @") > -1) {
       await manuallyAssignedToReviewer(pullNumber, stateClient);
+    } else if (
+      commentText.indexOf("assign based on git history") > -1 ||
+      commentText.indexOf("assign based on history") > -1
+    ) {
+      await assignBasedOnGitHistory(
+        payload,
+        pullNumber,
+        stateClient,
+        reviewerConfig
+      );
     } else if (commentText.indexOf("assign to next reviewer") > -1) {
       await assignToNextReviewer(
         payload,
@@ -86,6 +98,42 @@ async function assignToNextReviewer(
   reviewerConfig: typeof ReviewerConfig
 ) {
   let prState = await stateClient.getPrState(pullNumber);
+
+  // If the PR has alternate reviewers from the advisor, assign the next one
+  if (prState.alternateReviewers && prState.alternateReviewers.length > 0) {
+    const nextReviewer = prState.alternateReviewers.shift();
+    let labelOfReviewer = prState.getLabelForReviewer(payload.sender.login);
+    if (labelOfReviewer) {
+      prState.reviewersAssignedForLabels[labelOfReviewer] = nextReviewer;
+    } else {
+      prState.reviewersAssignedForLabels["expert"] = nextReviewer;
+    }
+
+    console.log(`Reassigning reviewer to alternate expert ${nextReviewer}`);
+    await github.addPrComment(
+      pullNumber,
+      `Reassigning reviewer to backup expert @${nextReviewer} per request.`
+    );
+    try {
+      await github.getGitHubClient().rest.pulls.requestReviewers({
+        owner: REPO_OWNER,
+        repo: REPO,
+        pull_number: pullNumber,
+        reviewers: [nextReviewer],
+      });
+    } catch (e) {
+      console.warn(`Failed to request reviewer via GitHub API: ${e}`);
+    }
+
+    const existingLabels =
+      payload.issue?.labels || payload.pull_request?.labels;
+    await github.nextActionReviewers(pullNumber, existingLabels);
+    prState.nextAction = "Reviewers";
+
+    await stateClient.writePrState(pullNumber, prState);
+    return;
+  }
+
   let labelOfReviewer = prState.getLabelForReviewer(payload.sender.login);
   if (labelOfReviewer) {
     let reviewersState = await stateClient.getReviewersForLabelState(
@@ -185,7 +233,7 @@ async function assignReviewerSet(
   reviewerConfig: typeof ReviewerConfig
 ) {
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Restore notifications, and clear any existing reviewer set to
     // allow new reviewers to be assigned.
     prState.stopReviewerNotifications = false;
@@ -240,6 +288,87 @@ async function assignReviewerSet(
     await stateClient.writeReviewersForLabelState(
       label,
       reviewerStateToUpdate[label]
+    );
+  }
+}
+
+async function assignBasedOnGitHistory(
+  payload: any,
+  pullNumber: number,
+  stateClient: typeof StateClient,
+  reviewerConfig: typeof ReviewerConfig
+) {
+  let prState = await stateClient.getPrState(pullNumber);
+  const client = github.getGitHubClient();
+
+  const pullResponse = await client.rest.pulls.get({
+    owner: REPO_OWNER,
+    repo: REPO,
+    pull_number: pullNumber,
+  });
+  const pull = pullResponse.data;
+
+  const rawFiles = await client.paginate(client.rest.pulls.listFiles, {
+    owner: REPO_OWNER,
+    repo: REPO,
+    pull_number: pullNumber,
+  });
+
+  const prContext = buildPrHistoryContext(
+    pullNumber,
+    pull.title,
+    pull.body || "",
+    pull.user.login,
+    rawFiles
+  );
+
+  const advisor = new GeminiReviewerAdvisor({
+    committerCheck: github.checkIfCommitter,
+    exclusionList: reviewerConfig.getAllExclusions(),
+  });
+
+  const advice = await advisor.adviseReviewers(prContext);
+
+  if (advice.selectedReviewers.length > 0) {
+    prState.reviewersAssignedForLabels = {};
+    for (const reviewer of advice.selectedReviewers) {
+      prState.reviewersAssignedForLabels[reviewer.expertise] =
+        reviewer.username;
+    }
+    prState.alternateReviewers = advice.alternateReviewers.map(
+      (a: any) => a.username
+    );
+
+    console.log(
+      `Assigning reviewers with expertise for PR ${pullNumber} via ${advice.source} per user command`
+    );
+    await github.addPrComment(
+      pullNumber,
+      commentStrings.assignReviewersWithExpertise(advice)
+    );
+
+    try {
+      await client.rest.pulls.requestReviewers({
+        owner: REPO_OWNER,
+        repo: REPO,
+        pull_number: pullNumber,
+        reviewers: advice.selectedReviewers.map((r: any) => r.username),
+      });
+    } catch (reqErr) {
+      console.warn(
+        `Could not request reviewers via GitHub API for PR ${pullNumber}: ${reqErr}`
+      );
+    }
+
+    const existingLabels =
+      payload.issue?.labels || payload.pull_request?.labels;
+    await github.nextActionReviewers(pullNumber, existingLabels);
+    prState.nextAction = "Reviewers";
+    await stateClient.writePrState(pullNumber, prState);
+  } else {
+    await github.addPrComment(
+      pullNumber,
+      "Unable to determine reviewers based on git history. Please assign reviewers manually using `R: @username`."
     );
   }
 }

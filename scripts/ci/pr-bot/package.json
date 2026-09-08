@@ -11,7 +11,9 @@
     "processPrUpdate": "npm run build && node lib/processPrUpdate.js",
     "gatherMetrics": "npm run build && node lib/gatherMetrics.js",
     "updateReviewers": "npm run build && node lib/updateReviewers.js",
-    "findPrsNeedingAttention": "npm run build && node lib/findPrsNeedingAttention.js"
+    "findPrsNeedingAttention": "npm run build && node lib/findPrsNeedingAttention.js",
+    "review-advisor": "npm run build && node lib/cli.js",
+    "dryRun": "npm run build && node lib/cli.js"
   },
   "dependencies": {
     "@actions/exec": "^1.1.0",

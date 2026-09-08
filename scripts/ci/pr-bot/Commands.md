@@ -30,3 +30,4 @@ All commands are case insensitive.
 | `remind me after tests pass` | This will comment after all checks complete and tag the person who commented the command. |
 | `waiting on author` | This shifts the attention set to the author. The author can shift the attention set back to the reviewer by commenting anywhere or pushing. |
 | `assign set of reviewers` | If the bot has not yet assigned a set of reviewers to the PR, this command will trigger that happening. |
+| `assign based on git history` | (Experimental) Analyzes git commit history and file churn for touched files to assign expert reviewers and backups with rationale. |
