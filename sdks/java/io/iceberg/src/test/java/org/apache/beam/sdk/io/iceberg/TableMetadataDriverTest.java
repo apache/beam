@@ -1181,24 +1181,14 @@ public class TableMetadataDriverTest implements Serializable {
   public void testMapMergerFnCommutativeAndTimestampAware() {
     TableIdentifier tableIdA = TableIdentifier.of("default", "merge_table_a");
     Table realTableA = getCatalog().createTable(tableIdA, ICEBERG_SCHEMA);
-    SerializableTableSpec specAOld =
-        SerializableTableSpec.fromTable(tableIdA, realTableA)
-            .toBuilder()
-            .setLastUpdatedMillis(1000L)
-            .build();
-    SerializableTableSpec specANew =
-        SerializableTableSpec.fromTable(tableIdA, realTableA)
-            .toBuilder()
-            .setLastUpdatedMillis(2000L)
-            .build();
+    SerializableTableSpec baseA = SerializableTableSpec.fromTable(tableIdA, realTableA);
+    SerializableTableSpec specAOld = baseA.toBuilder().setLastUpdatedMillis(1000L).build();
+    SerializableTableSpec specANew = baseA.toBuilder().setLastUpdatedMillis(2000L).build();
 
     TableIdentifier tableIdB = TableIdentifier.of("default", "merge_table_b");
     Table realTableB = getCatalog().createTable(tableIdB, ICEBERG_SCHEMA);
-    SerializableTableSpec specB =
-        SerializableTableSpec.fromTable(tableIdB, realTableB)
-            .toBuilder()
-            .setLastUpdatedMillis(1500L)
-            .build();
+    SerializableTableSpec baseB = SerializableTableSpec.fromTable(tableIdB, realTableB);
+    SerializableTableSpec specB = baseB.toBuilder().setLastUpdatedMillis(1500L).build();
 
     TableMetadataDriver.MapMergerFn fn = new TableMetadataDriver.MapMergerFn();
 
@@ -1225,18 +1215,11 @@ public class TableMetadataDriverTest implements Serializable {
   public void testMapMergerFnTieBreaksBySchemaIdCommutatively() {
     TableIdentifier tableId = TableIdentifier.of("default", "tie_break_table");
     Table realTable = getCatalog().createTable(tableId, ICEBERG_SCHEMA);
+    SerializableTableSpec baseSpec = SerializableTableSpec.fromTable(tableId, realTable);
     SerializableTableSpec specSchema0 =
-        SerializableTableSpec.fromTable(tableId, realTable)
-            .toBuilder()
-            .setLastUpdatedMillis(1000L)
-            .setSchemaId(0)
-            .build();
+        baseSpec.toBuilder().setLastUpdatedMillis(1000L).setSchemaId(0).build();
     SerializableTableSpec specSchema1 =
-        SerializableTableSpec.fromTable(tableId, realTable)
-            .toBuilder()
-            .setLastUpdatedMillis(1000L)
-            .setSchemaId(1)
-            .build();
+        baseSpec.toBuilder().setLastUpdatedMillis(1000L).setSchemaId(1).build();
 
     TableMetadataDriver.MapMergerFn fn = new TableMetadataDriver.MapMergerFn();
 
