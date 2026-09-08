@@ -104,8 +104,9 @@ public class BigtableConfigTranslatorTest {
     assertNotNull(fromBigtableOptions.getAttemptTimeout());
     assertNotNull(fromBigtableOptions.getOperationTimeout());
 
-    assertEquals(org.joda.time.Duration.millis(100), fromBigtableOptions.getAttemptTimeout());
-    assertEquals(org.joda.time.Duration.millis(1000), fromBigtableOptions.getOperationTimeout());
+    assertEquals(org.joda.time.Duration.millis(100), fromBigtableOptions.getAttemptTimeout().get());
+    assertEquals(
+        org.joda.time.Duration.millis(1000), fromBigtableOptions.getOperationTimeout().get());
   }
 
   @Test
@@ -145,8 +146,9 @@ public class BigtableConfigTranslatorTest {
     assertNotNull(fromBigtableOptions.getMaxOutstandingElements());
     assertNotNull(fromBigtableOptions.getMaxOutstandingBytes());
 
-    assertEquals(org.joda.time.Duration.millis(200), fromBigtableOptions.getAttemptTimeout());
-    assertEquals(org.joda.time.Duration.millis(2000), fromBigtableOptions.getOperationTimeout());
+    assertEquals(org.joda.time.Duration.millis(200), fromBigtableOptions.getAttemptTimeout().get());
+    assertEquals(
+        org.joda.time.Duration.millis(2000), fromBigtableOptions.getOperationTimeout().get());
     assertEquals(20, (long) fromBigtableOptions.getMaxBytesPerBatch());
     assertEquals(100, (long) fromBigtableOptions.getMaxElementsPerBatch());
     assertEquals(5 * 100, (long) fromBigtableOptions.getMaxOutstandingElements());
