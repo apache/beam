@@ -1368,15 +1368,22 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testStreamingDroppedTableImmediatelyInvalidatedInCache() {
+  public void testStreamingMissingTableSignalDoesNotEvictBeforeExpirationCutoff() {
     TableIdentifier tableId = TableIdentifier.of("default", "dropped_table");
     getCatalog().createTable(tableId, ICEBERG_SCHEMA);
     String tableStr = IcebergUtils.tableIdentifierToString(tableId);
 
     Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
+
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial", tableStr).build();
     Row rowDrop = Row.withSchema(BEAM_SCHEMA).addValues(2L, "trigger_drop", tableStr).build();
     Row rowPostDrop = Row.withSchema(BEAM_SCHEMA).addValues(3L, "post_drop", tableStr).build();
+    Row rowTriggerEvict =
+        Row.withSchema(BEAM_SCHEMA).addValues(4L, "trigger_evict", tableStr).build();
+    Row rowAfterCutoff =
+        Row.withSchema(BEAM_SCHEMA).addValues(5L, "after_cutoff", tableStr).build();
 
     TestStream<Row> stream =
         TestStream.create(RowCoder.of(BEAM_SCHEMA))
@@ -1385,8 +1392,11 @@ public class TableMetadataDriverTest implements Serializable {
             .advanceProcessingTime(Duration.standardSeconds(3))
             .addElements(rowDrop)
             .advanceProcessingTime(Duration.standardSeconds(3))
-            .advanceProcessingTime(Duration.standardSeconds(3))
             .addElements(rowPostDrop)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowTriggerEvict)
+            .advanceProcessingTime(Duration.standardSeconds(3))
+            .addElements(rowAfterCutoff)
             .advanceProcessingTime(Duration.standardSeconds(3))
             .advanceWatermarkToInfinity();
 
@@ -1394,16 +1404,20 @@ public class TableMetadataDriverTest implements Serializable {
         pipeline
             .apply("StreamInput", stream)
             .apply(
-                "DropTableOnTriggerRow",
+                "ControlClockAndCatalogOnTriggerRows",
                 ParDo.of(
                     new DoFn<Row, Row>() {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
-                        if ("trigger_drop".equals(row.getString("data"))) {
+                        String data = row.getString("data");
+                        if ("trigger_drop".equals(data)) {
+                          ControllableTestClock.setTime(2000L);
                           catalogConfig
                               .catalog()
                               .dropTable(
                                   IcebergUtils.parseTableIdentifier("default.dropped_table"));
+                        } else if ("trigger_evict".equals(data)) {
+                          ControllableTestClock.setTime(20000L);
                         }
                         out.output(row);
                       }
@@ -1413,7 +1427,8 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.asView(catalogConfig, DYNAMIC_DESTINATIONS, null, refreshInterval));
+            TableMetadataDriver.asView(
+                catalogConfig, DYNAMIC_DESTINATIONS, null, refreshInterval, null, testClock));
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -1424,7 +1439,7 @@ public class TableMetadataDriverTest implements Serializable {
                       public void processElement(
                           @Element Row row, OutputReceiver<String> out, ProcessContext c) {
                         String data = row.getString("data");
-                        if ("trigger_drop".equals(data)) {
+                        if ("trigger_drop".equals(data) || "trigger_evict".equals(data)) {
                           return;
                         }
                         Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
@@ -1434,7 +1449,8 @@ public class TableMetadataDriverTest implements Serializable {
                 .withSideInputs(metadataView));
 
     PAssert.that(consumerObserved)
-        .containsInAnyOrder("initial:hasTable=true", "post_drop:hasTable=false");
+        .containsInAnyOrder(
+            "initial:hasTable=true", "post_drop:hasTable=true", "after_cutoff:hasTable=false");
 
     pipeline.run();
   }

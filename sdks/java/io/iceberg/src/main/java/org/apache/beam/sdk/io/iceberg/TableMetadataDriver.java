@@ -549,18 +549,13 @@ public abstract class TableMetadataDriver
           cacheState.put(tableId, newSpec);
         }
         lastSeenState.put(tableId, now);
-      } else {
-        // Explicit missing table signal: immediately invalidate any cached entry
-        cacheState.remove(tableId);
-        lastSeenState.remove(tableId);
       }
 
+      // Populate a local map with the state for constant-time lookups during
+      // cache entry expiration.
       Map<String, Long> lastSeenMap = new HashMap<>();
       for (Map.Entry<String, Long> entry : lastSeenState.entries().read()) {
         lastSeenMap.put(entry.getKey(), entry.getValue());
-      }
-      if (newSpec != null) {
-        lastSeenMap.put(tableId, now);
       }
 
       long expirationCutoff = now - cacheTtl.getMillis();
