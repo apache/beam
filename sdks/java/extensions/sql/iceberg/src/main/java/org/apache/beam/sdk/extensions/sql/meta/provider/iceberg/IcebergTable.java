@@ -52,7 +52,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-class IcebergTable extends SchemaBaseBeamTable {
+final class IcebergTable extends SchemaBaseBeamTable {
   private static final Logger LOG = LoggerFactory.getLogger(IcebergTable.class);
   @VisibleForTesting static final String CATALOG_PROPERTIES_FIELD = "catalog_properties";
   @VisibleForTesting static final String HADOOP_CONFIG_PROPERTIES_FIELD = "config_properties";

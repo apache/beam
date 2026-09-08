@@ -194,7 +194,7 @@ public final class Cache {
         KvCoder.of(requestTCoder, responseTCoder));
   }
 
-  private static class UsingRedis<RequestT, ResponseT> {
+  private static final class UsingRedis<RequestT, ResponseT> {
     private final Coder<RequestT> requestTCoder;
     private final Coder<@Nullable ResponseT> responseTCoder;
     private final RedisClient client;

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -473,6 +474,12 @@ public class PCollectionViews {
    * <p>{@link SingletonViewFn} is meant to be removed in the future and replaced with this class.
    */
   @Internal
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Public, so it cannot be made final despite @Internal."
+              + " Out-of-tree code such as a forked runner may already subclass it."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T>
       implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
@@ -574,6 +581,12 @@ public class PCollectionViews {
    * @deprecated See {@link SingletonViewFn2}.
    */
   @Deprecated
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Public, so it cannot be made final despite @Internal."
+              + " Out-of-tree code such as a forked runner may already subclass it."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T>
       implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;

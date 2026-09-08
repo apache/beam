@@ -57,8 +57,12 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
 @SuppressFBWarnings(
-    value = "IS2_INCONSISTENT_SYNC",
-    justification = "Some access on purpose are left unsynchronized")
+    value = {"IS2_INCONSISTENT_SYNC", "CT_CONSTRUCTOR_THROW"},
+    justification =
+        "Some access on purpose are left unsynchronized."
+            + " Public, so it cannot be made final despite @Internal."
+            + " Out-of-tree code such as a forked runner may already subclass it."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class BoundedTrieData implements Serializable {
 
   private static final int DEFAULT_BOUND = 100; // Default maximum size of the trie

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.splunk;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.security.KeyStore;
 import java.security.KeyStoreException;
@@ -30,6 +31,11 @@ import org.checkerframework.checker.initialization.qual.UnknownInitialization;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A Custom X509TrustManager that trusts a user provided CA and default CA's. */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class CustomX509TrustManager implements X509TrustManager {
 
   private final @Nullable X509TrustManager defaultTrustManager;

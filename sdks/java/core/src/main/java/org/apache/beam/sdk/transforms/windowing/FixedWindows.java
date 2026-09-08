@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Objects;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -35,6 +36,11 @@ import org.joda.time.Instant;
  *   Window.<Integer>into(FixedWindows.of(Duration.standardMinutes(10))));
  * }</pre>
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class FixedWindows extends PartitioningWindowFn<Object, IntervalWindow> {
 
   /** Size of this window. */

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.util;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.Reader;
 import java.nio.channels.Channels;
@@ -38,6 +39,12 @@ import org.slf4j.LoggerFactory;
 
 /** A sharded file where the file names are simply provided. */
 @Internal
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public, so it cannot be made final despite @Internal."
+            + " Out-of-tree code such as a forked runner may already subclass it."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class ExplicitShardedFile implements ShardedFile {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExplicitShardedFile.class);

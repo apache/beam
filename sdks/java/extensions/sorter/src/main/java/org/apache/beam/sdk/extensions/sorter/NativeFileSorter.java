@@ -48,7 +48,7 @@ import org.slf4j.LoggerFactory;
  * External Sorter based on <a
  * href="https://github.com/lemire/externalsortinginjava">lemire/externalsortinginjava</a>.
  */
-class NativeFileSorter {
+final class NativeFileSorter {
 
   private static final Logger LOG = LoggerFactory.getLogger(NativeFileSorter.class);
 

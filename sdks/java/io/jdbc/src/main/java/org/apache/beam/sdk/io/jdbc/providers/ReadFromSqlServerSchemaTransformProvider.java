@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.io.jdbc.JdbcUtil.MSSQL;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
 import java.util.List;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
@@ -78,6 +79,11 @@ public class ReadFromSqlServerSchemaTransformProvider extends JdbcReadSchemaTran
     return new SqlServerReadSchemaTransform(configuration);
   }
 
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Public API, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class SqlServerReadSchemaTransform extends JdbcReadSchemaTransform {
     public SqlServerReadSchemaTransform(JdbcReadSchemaTransformConfiguration config) {
       super(config, MSSQL);

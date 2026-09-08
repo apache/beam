@@ -53,7 +53,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
-class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
+final class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   public interface DoFnRunnerFactory<InputT, OutputT> {
     PushbackSideInputDoFnRunner<InputT, OutputT> createRunner(

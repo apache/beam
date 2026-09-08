@@ -207,7 +207,7 @@ public class WindowGroupP<K, V> extends AbstractProcessor {
     }
   }
 
-  private class KeyManager {
+  private final class KeyManager {
 
     private final InMemoryTimerInternals timerInternals;
     private final InMemoryStateInternalsImpl stateInternals;

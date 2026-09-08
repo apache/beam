@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -34,6 +35,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Splits a bounded Beam source and assigns one split for each reader request. */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class LazyFlinkSourceSplitEnumerator<T>
     implements SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> {
   private static final Logger LOG = LoggerFactory.getLogger(LazyFlinkSourceSplitEnumerator.class);

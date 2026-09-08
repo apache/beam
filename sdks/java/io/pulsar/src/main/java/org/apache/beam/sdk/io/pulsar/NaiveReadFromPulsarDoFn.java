@@ -280,7 +280,7 @@ public class NaiveReadFromPulsarDoFn<T> extends DoFn<PulsarSourceDescriptor, T> 
     return new GrowableOffsetRangeTracker(restriction.getFrom(), offsetEstimator);
   }
 
-  private static class PulsarLatestOffsetEstimator
+  private static final class PulsarLatestOffsetEstimator
       implements GrowableOffsetRangeTracker.RangeEndEstimator {
 
     private final @Nullable Supplier<Message<byte[]>> memoizedBacklog;
