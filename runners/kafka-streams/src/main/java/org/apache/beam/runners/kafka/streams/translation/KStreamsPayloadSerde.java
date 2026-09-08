@@ -36,9 +36,9 @@ import org.apache.kafka.common.serialization.Serializer;
  *
  * <p>The wire form is the {@link KafkaStreamsPayload} protobuf message — protobuf gives compatible
  * schema evolution and compact varint encoding. The data variant carries the {@link WindowedValue}
- * encoded with the {@link Coder} supplied for the topic's PCollection; the watermark variant
- * carries the coder-independent watermark report. A {@link KStreamsPayloadSerde} is therefore
- * parameterized by the data {@link Coder} (different topics carry different element types).
+ * encoded with the {@link Coder} supplied for the topic's PCollection; the watermark and flush
+ * variants are coder-independent. A {@link KStreamsPayloadSerde} is therefore parameterized by the
+ * data {@link Coder} (different topics carry different element types).
  *
  * <p>The serde assumes non-null payloads: the topics it is used on (repartition and watermark
  * fan-out) are not log-compacted, so no tombstone (null-valued) records occur.
@@ -77,6 +77,12 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
         proto.setData(
             KafkaStreamsPayload.DataPayload.newBuilder()
                 .setValue(ByteString.copyFrom(encoded.toByteArray())));
+      } else if (payload.isFlush()) {
+        FlushPayload flush = payload.asFlush();
+        proto.setFlush(
+            KafkaStreamsPayload.FlushPayload.newBuilder()
+                .setSourcePartition(flush.getSourcePartition())
+                .setTotalPartitions(flush.getTotalSourcePartitions()));
       } else {
         WatermarkPayload watermark = payload.asWatermark();
         proto.setWatermark(
@@ -113,6 +119,9 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
               watermark.getTransformId(),
               watermark.getSourcePartition(),
               watermark.getTotalPartitions());
+        case FLUSH:
+          KafkaStreamsPayload.FlushPayload flush = proto.getFlush();
+          return KStreamsPayload.flush(flush.getSourcePartition(), flush.getTotalPartitions());
         case PAYLOAD_NOT_SET:
         default:
           throw new SerializationException(

@@ -24,10 +24,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Precondit
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Envelope for every record value passed between the runner's processors. It is either a {@link
- * #isData() data} element wrapping a {@link WindowedValue}, or a {@link #isWatermark() watermark}
- * report carrying an event time plus the partition fields the downstream {@link WatermarkManager}
- * needs.
+ * Envelope for every record value passed between the runner's processors. It is a {@link #isData()
+ * data} element wrapping a {@link WindowedValue}, a {@link #isWatermark() watermark} report
+ * carrying an event time plus the partition fields the downstream {@link WatermarkManager} needs,
+ * or a {@link #isFlush() flush} marker asking the receiving stage to close its bundle.
  *
  * <p>One channel therefore carries both Beam data and the watermark coordination Kafka Streams has
  * no notion of. Across topic boundaries it is encoded by {@link KStreamsPayloadSerde}.
@@ -38,7 +38,8 @@ public final class KStreamsPayload<T> {
 
   private enum Kind {
     DATA,
-    WATERMARK
+    WATERMARK,
+    FLUSH
   }
 
   private final Kind kind;
@@ -92,12 +93,35 @@ public final class KStreamsPayload<T> {
         Kind.WATERMARK, null, watermarkMillis, transformId, sourcePartition, totalSourcePartitions);
   }
 
+  /**
+   * Returns a flush marker: a request to close the open bundle and flush its output, carrying the
+   * partition of the producing transform that emitted it and how many partitions that transform
+   * has. Those two fields are what let the marker be addressed to a slice of the downstream
+   * partitions rather than broadcast to all of them; see {@link FlushPayload}.
+   */
+  public static <T> KStreamsPayload<T> flush(int sourcePartition, int totalSourcePartitions) {
+    Preconditions.checkArgument(
+        totalSourcePartitions > 0,
+        "totalSourcePartitions must be positive: %s",
+        totalSourcePartitions);
+    Preconditions.checkArgument(
+        sourcePartition >= 0 && sourcePartition < totalSourcePartitions,
+        "sourcePartition %s out of range for totalSourcePartitions %s",
+        sourcePartition,
+        totalSourcePartitions);
+    return new KStreamsPayload<>(Kind.FLUSH, null, 0L, "", sourcePartition, totalSourcePartitions);
+  }
+
   public boolean isData() {
     return kind == Kind.DATA;
   }
 
   public boolean isWatermark() {
     return kind == Kind.WATERMARK;
+  }
+
+  public boolean isFlush() {
+    return kind == Kind.FLUSH;
   }
 
   /**
@@ -119,6 +143,28 @@ public final class KStreamsPayload<T> {
   public WatermarkPayload asWatermark() {
     Preconditions.checkState(isWatermark(), "Payload is not a watermark: kind=%s", kind);
     return new WatermarkView();
+  }
+
+  /**
+   * Narrows this payload to its {@link FlushPayload} view. Caller must check {@link #isFlush()}
+   * first; calling this on any other payload throws.
+   */
+  public FlushPayload asFlush() {
+    Preconditions.checkState(isFlush(), "Payload is not a flush marker: kind=%s", kind);
+    return new FlushView();
+  }
+
+  /** {@link FlushPayload} view backed by this payload's fields. */
+  private final class FlushView implements FlushPayload {
+    @Override
+    public int getSourcePartition() {
+      return sourcePartition;
+    }
+
+    @Override
+    public int getTotalSourcePartitions() {
+      return totalSourcePartitions;
+    }
   }
 
   /** {@link WatermarkPayload} view backed by this payload's fields. */
@@ -172,6 +218,10 @@ public final class KStreamsPayload<T> {
     MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this).add("kind", kind);
     if (kind == Kind.DATA) {
       helper.add("data", data);
+    } else if (kind == Kind.FLUSH) {
+      helper
+          .add("sourcePartition", sourcePartition)
+          .add("totalSourcePartitions", totalSourcePartitions);
     } else {
       helper
           .add("watermarkMillis", watermarkMillis)

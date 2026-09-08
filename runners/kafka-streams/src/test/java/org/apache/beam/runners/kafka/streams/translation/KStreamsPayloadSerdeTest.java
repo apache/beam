@@ -48,6 +48,44 @@ public class KStreamsPayloadSerdeTest {
   }
 
   @Test
+  public void roundTripsFlushPayload() {
+    KStreamsPayload<Integer> payload = KStreamsPayload.flush(3, 8);
+    KStreamsPayload<Integer> out = roundTrip(payload);
+    assertThat(out.isFlush(), is(true));
+    assertThat(out.isData(), is(false));
+    assertThat(out.isWatermark(), is(false));
+    assertThat(out.asFlush().getSourcePartition(), is(3));
+    assertThat(out.asFlush().getTotalSourcePartitions(), is(8));
+    assertThat(out, is(payload));
+  }
+
+  @Test
+  public void aFlushPayloadSurvivesTheFirstAndLastPartition() {
+    // Partition 0 and the last partition are the boundary cases of the range check, and the last
+    // one also happens to be the only partition that emits a flush when fanning in.
+    assertThat(roundTrip(KStreamsPayload.flush(0, 1)).asFlush().getSourcePartition(), is(0));
+    KStreamsPayload<Integer> last = roundTrip(KStreamsPayload.flush(7, 8));
+    assertThat(last.asFlush().getSourcePartition(), is(7));
+    assertThat(last.asFlush().getTotalSourcePartitions(), is(8));
+  }
+
+  @Test
+  public void aFlushPayloadRejectsAPartitionOutsideItsRange() {
+    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(8, 8));
+    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(-1, 8));
+    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(0, 0));
+  }
+
+  @Test
+  public void aFlushPayloadIsNotAWatermarkOrData() {
+    KStreamsPayload<Integer> flush = KStreamsPayload.flush(0, 1);
+    assertThrows(IllegalStateException.class, flush::asWatermark);
+    assertThrows(IllegalStateException.class, flush::getData);
+    KStreamsPayload<Integer> data = KStreamsPayload.data(WindowedValues.valueInGlobalWindow(1));
+    assertThrows(IllegalStateException.class, data::asFlush);
+  }
+
+  @Test
   public void roundTripsDataPayload() {
     KStreamsPayload<Integer> payload = KStreamsPayload.data(WindowedValues.valueInGlobalWindow(42));
     KStreamsPayload<Integer> out = roundTrip(payload);
