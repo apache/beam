@@ -87,8 +87,8 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:direct:xlang:transformServicePythonUsingJava
           arguments: |
-            -PtestJavaVersion=17
-            -Pjava17Home=$JAVA_HOME_17_X64
+            -PtestJavaVersion=17 \
+            -Pjava17Home=$JAVA_HOME_17_X64 \
             -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
