@@ -50,8 +50,12 @@ task initializeForDataflowJob{
     dependsOn ":sdks:python:bdistPy${pythonVersionNumber}linux"
 
     doLast {
+      def cibwArchs = project.rootProject.findProperty('cibwArchs')
+      def wheelInclude = cibwArchs == 'aarch64' ?
+        "**/apache_beam-*cp${pythonVersionNumber}*aarch64*.whl" :
+        "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
       def collection = project.fileTree(project.project(':sdks:python').buildDir){
-          include "**/apache_beam-*cp${pythonVersionNumber}*manylinux*.whl"
+        include wheelInclude
       }
       // sdkLocation ext is set at execution time
       String packageFilename = collection.singleFile.toString()

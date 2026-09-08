@@ -253,7 +253,7 @@ if [[ -z $PIPELINE_OPTS ]]; then
     # and pushed by the caller under MULTIARCH_TAG.
     if [[ -n "${SDK_CONTAINER_IMAGE:-}" ]]; then
       opts+=("--sdk_container_image=$SDK_CONTAINER_IMAGE")
-    else
+    elif [[ -n "${MULTIARCH_TAG:-}" ]]; then
       IMAGE_NAME="beam_python${PY_VERSION}_sdk"
       opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
     fi
