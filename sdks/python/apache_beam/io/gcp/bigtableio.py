@@ -62,13 +62,38 @@ try:
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.batcher import MutationsBatcher
   from google.cloud.bigtable.row import Cell
+  from google.cloud.bigtable.row import DirectRow
   from google.cloud.bigtable.row import PartialRowData
 
 except ImportError:
+  DirectRow = None
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
 __all__ = ['WriteToBigTable', 'ReadFromBigtable']
+
+
+def _restore_direct_row_pb_mutations(row):
+  # google-cloud-bigtable >= 2.44.0 stores mutations on `_mutations`.
+  # Older MutationsBatcher reads `_pb_mutations`. Fill that attribute so
+  # pickle and worker batching both see protobuf mutations.
+  if hasattr(row, '_pb_mutations'):
+    return
+  mutations = getattr(row, '_mutations', None)
+  if mutations is None:
+    return
+  row._pb_mutations = [
+    mut._to_pb() if hasattr(mut, '_to_pb') else mut for mut in mutations
+  ]
+
+
+def _direct_row_getstate(self):
+  _restore_direct_row_pb_mutations(self)
+  return self.__dict__
+
+
+if DirectRow is not None:
+  DirectRow.__getstate__ = _direct_row_getstate
 
 
 class _BigTableWriteFn(beam.DoFn):
@@ -168,6 +193,7 @@ class _BigTableWriteFn(beam.DoFn):
     #                     'field1',
     #                     'value1',
     #                     timestamp=datetime.now())
+    _restore_direct_row_pb_mutations(row)
     self.batcher.mutate(row)
 
   def finish_bundle(self):
