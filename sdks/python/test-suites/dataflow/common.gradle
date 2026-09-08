@@ -151,8 +151,8 @@ task postCommitArmIT {
   def pyversion = "${project.ext.pythonVersion.replace('.', '')}"
   dependsOn 'initializeForDataflowJob'
   // When -PusePrebuiltSdkContainer is set, skip building/pushing a multiarch
-  // SDK image. Dataflow then uses the default image for this SDK version
-  // unless SDK_CONTAINER_IMAGE is set.
+  // SDK image and use the apache-beam-testing Snapshots image tagged with
+  // sdk_version (not :latest).
   def usePrebuiltSdkContainer = project.rootProject.hasProperty(['usePrebuiltSdkContainer'])
   if (!usePrebuiltSdkContainer) {
     dependsOn ":sdks:python:container:py${pyversion}:docker"
@@ -171,6 +171,10 @@ task postCommitArmIT {
     def cmdArgs = mapToArgString(argMap)
     exec {
       executable 'sh'
+      if (usePrebuiltSdkContainer) {
+        environment 'SDK_CONTAINER_IMAGE',
+            "gcr.io/apache-beam-testing/beam-sdk/beam_python${project.ext.pythonVersion}_sdk:${project.sdk_version}"
+      }
       args '-c', ". ${envdir}/bin/activate && ${runScriptsDir}/run_integration_test.sh $cmdArgs"
     }
   }

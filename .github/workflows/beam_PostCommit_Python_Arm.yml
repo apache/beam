@@ -54,9 +54,10 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: [self-hosted, ubuntu-24.04, main]
-    # Skip local multiarch SDK container builds. ARM workers use the default
-    # Dataflow image plus an aarch64 wheel from this checkout. Keep headroom
-    # for the IT suite and qemu wheel build.
+    # Skip local multiarch SDK container builds. ARM workers use the
+    # apache-beam-testing Snapshots image tagged with sdk_version, plus an
+    # aarch64 wheel from this checkout. Keep headroom for the IT suite and
+    # qemu wheel build.
     timeout-minutes: 180
     strategy:
       fail-fast: false

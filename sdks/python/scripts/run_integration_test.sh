@@ -248,8 +248,8 @@ if [[ -z $PIPELINE_OPTS ]]; then
   if [[ "$ARCH" == "ARM" ]]; then
     opts+=("--machine_type=t2a-standard-1")
 
-    # Default to the Dataflow SDK container for this version. Official images
-    # are multi-arch, so ARM workers do not need a custom image.
+    # Use SDK_CONTAINER_IMAGE when set (e.g. Snapshots tagged with sdk_version).
+    # Otherwise use the image built and pushed by the caller under MULTIARCH_TAG.
     if [[ -n "${SDK_CONTAINER_IMAGE:-}" ]]; then
       opts+=("--sdk_container_image=$SDK_CONTAINER_IMAGE")
     elif [[ -n "${MULTIARCH_TAG:-}" ]]; then
