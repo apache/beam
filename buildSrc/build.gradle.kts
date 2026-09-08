@@ -32,7 +32,7 @@ val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 plugins {
   `java-gradle-plugin`
   groovy
-  id("com.diffplug.spotless") version "7.2.1"
+  id("com.diffplug.spotless") version "8.10.2"
 }
 
 // Define the set of repositories required to fetch and enable plugins.
