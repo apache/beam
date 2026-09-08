@@ -535,7 +535,6 @@ if __name__ == '__main__':
               # errors raised during async flushes instead of swallowing them.
               'google-cloud-bigtable>=2.42.0,<3',
               'google-cloud-build>=3.35.0,<4',
-              'google-cloud-firestore>=2.0.0,<3',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
               'google-cloud-dlp>=3.0.0,<4',
@@ -557,6 +556,10 @@ if __name__ == '__main__':
               'keyrings.google-artifactregistry-auth',
               'orjson>=3.9.7,<4',
               'regex>=2020.6.8',
+          ],
+          # GCP packages used only by tests/ITs (not native Python IO).
+          'gcp_test': [
+              'google-cloud-firestore>=2.0.0,<3',
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
