@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -74,10 +76,15 @@ public class WorkItemStatusClient {
   private Long nextReportIndex;
 
   private transient String uniqueWorkId = null;
-  private boolean finalStateSent = false;
-  private boolean wasAskedToAbort = false;
+  private volatile boolean finalStateSent = false;
+  private volatile boolean wasAskedToAbort = false;
 
   private @Nullable BatchModeExecutionContext executionContext;
+
+  /** Returns whether a final completion status (success or error) has already been sent. */
+  public boolean isFinalStateSent() {
+    return finalStateSent;
+  }
 
   /**
    * Construct a partly-initialized {@link WorkItemStatusClient}. Once the {@link
@@ -180,19 +187,59 @@ public class WorkItemStatusClient {
   public synchronized @Nullable WorkItemServiceState reportUpdate(
       @Nullable DynamicSplitResult dynamicSplitResult, Duration requestedLeaseDuration)
       throws Exception {
+    return reportUpdate(dynamicSplitResult, requestedLeaseDuration, true);
+  }
+
+  /**
+   * Return the {@link WorkItemServiceState} resulting from sending a progress update, optionally
+   * including counters and metrics.
+   */
+  public synchronized @Nullable WorkItemServiceState reportUpdate(
+      @Nullable DynamicSplitResult dynamicSplitResult,
+      Duration requestedLeaseDuration,
+      boolean includeCounters)
+      throws Exception {
     checkState(worker != null, "setWorker should be called before reportUpdate");
-    checkState(!finalStateSent, "cannot reportUpdates after sending a final state");
     checkArgument(requestedLeaseDuration != null, "requestLeaseDuration must be non-null");
+    if (finalStateSent) {
+      LOG.debug(
+          "Final state already sent for work item {}, skipping progress update.", uniqueWorkId());
+      return null;
+    }
     if (wasAskedToAbort) {
       LOG.info("Service already asked to abort work item, not reporting ignored progress.");
       return null;
     }
 
-    WorkItemStatus status = createStatusUpdate(false);
+    WorkItemStatus status = createStatusUpdate(false, includeCounters);
     status.setRequestedLeaseDuration(TimeUtil.toCloudDuration(requestedLeaseDuration));
     populateProgress(status);
     populateSplitResult(status, dynamicSplitResult);
 
+    return execute(status);
+  }
+
+  /**
+   * Sends a lightweight lease renewal heartbeat without counter extraction or progress sampling.
+   *
+   * <p>This can be used during bundle finalization, teardown, or when the worker is otherwise busy,
+   * to keep the lease active on the Dataflow service without incurring serialization overhead.
+   */
+  public synchronized @Nullable WorkItemServiceState reportLeasePing(
+      Duration requestedLeaseDuration) throws Exception {
+    checkStateNotNull(worker, "setWorker should be called before reportLeasePing");
+    checkArgumentNotNull(requestedLeaseDuration, "requestLeaseDuration must be non-null");
+    if (finalStateSent) {
+      LOG.debug("Final state already sent for work item {}, skipping lease ping.", uniqueWorkId());
+      return null;
+    }
+    if (wasAskedToAbort) {
+      LOG.info("Service already asked to abort work item, not reporting ignored progress.");
+      return null;
+    }
+
+    WorkItemStatus status = createStatusUpdate(false, false);
+    status.setRequestedLeaseDuration(TimeUtil.toCloudDuration(requestedLeaseDuration));
     return execute(status);
   }
 
@@ -218,6 +265,15 @@ public class WorkItemStatusClient {
 
   private synchronized @Nullable WorkItemServiceState execute(WorkItemStatus status)
       throws IOException {
+    if (finalStateSent && !status.getCompleted()) {
+      LOG.debug(
+          "Final state already sent for work item {}, skipping non-final status update.",
+          uniqueWorkId());
+      return null;
+    }
+    status.setReportIndex(
+        checkNotNull(nextReportIndex, "nextReportIndex should be non-null when sending an update"));
+
     WorkItemServiceState result = workUnitClient.reportWorkItemStatus(status);
     if (result != null) {
       if (result.getCompleteWorkStatus() != null
@@ -230,7 +286,9 @@ public class WorkItemStatusClient {
       if (nextReportIndex == null && !status.getCompleted()) {
         LOG.error("Missing next work index in {} when reporting {}.", result, status);
       }
-      commitMetrics();
+      if (status.getMetricUpdates() != null || status.getCounterUpdates() != null) {
+        commitMetrics();
+      }
     }
 
     if (status.getCompleted()) {
@@ -292,13 +350,15 @@ public class WorkItemStatusClient {
   }
 
   private synchronized WorkItemStatus createStatusUpdate(boolean isFinal) {
+    return createStatusUpdate(isFinal, true);
+  }
+
+  private synchronized WorkItemStatus createStatusUpdate(boolean isFinal, boolean includeCounters) {
     WorkItemStatus status = new WorkItemStatus();
     status.setWorkItemId(Long.toString(workItem.getId()));
     status.setCompleted(isFinal);
-    status.setReportIndex(
-        checkNotNull(nextReportIndex, "nextReportIndex should be non-null when sending an update"));
 
-    if (worker != null) {
+    if (worker != null && includeCounters) {
       populateMetricUpdates(status);
       populateCounterUpdates(status);
     }

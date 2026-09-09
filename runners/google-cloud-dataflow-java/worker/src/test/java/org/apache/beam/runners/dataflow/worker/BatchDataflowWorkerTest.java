@@ -23,7 +23,9 @@ import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -54,6 +56,7 @@ import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.mockito.hamcrest.MockitoHamcrest;
@@ -166,6 +169,71 @@ public class BatchDataflowWorkerTest {
     SourceSplitResponse splitResponse = new SourceSplitResponse();
     splitResponse.setShards(ImmutableList.of(new SourceSplitShard(), new SourceSplitShard()));
     assertThat(DataflowApiUtils.computeSerializedSizeBytes(splitResponse), greaterThan(0L));
+  }
+
+  @Test
+  public void testExecuteWorkAndReportSuccessKeepsProgressUpdaterActiveUntilReportSuccess()
+      throws Exception {
+    BatchDataflowWorker worker =
+        new BatchDataflowWorker(
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
+    WorkItemStatusClient mockStatusClient = mock(WorkItemStatusClient.class);
+
+    worker.executeWorkAndReportSuccess(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
+
+    InOrder inOrder = inOrder(mockProgressUpdater, mockWorkExecutor, mockStatusClient);
+    inOrder.verify(mockProgressUpdater).startReportingProgress();
+    inOrder.verify(mockWorkExecutor).execute();
+    inOrder.verify(mockProgressUpdater).reportUnreportedSplit();
+    inOrder.verify(mockProgressUpdater).setLeaseRenewalOnly(true);
+    inOrder.verify(mockStatusClient).reportSuccess();
+    inOrder.verify(mockProgressUpdater).stopReportingProgress();
+  }
+
+  @Test
+  public void testExecuteWorkAndReportSuccessStopsProgressUpdaterWhenWorkerFails()
+      throws Exception {
+    doThrow(new WorkerException()).when(mockWorkExecutor).execute();
+    BatchDataflowWorker worker =
+        new BatchDataflowWorker(
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
+    WorkItemStatusClient mockStatusClient = mock(WorkItemStatusClient.class);
+
+    try {
+      worker.executeWorkAndReportSuccess(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
+    } catch (WorkerException e) {
+      /* Expected - ignore. */
+    }
+
+    verify(mockProgressUpdater, times(1)).startReportingProgress();
+    verify(mockWorkExecutor, times(1)).execute();
+    verify(mockProgressUpdater, times(0)).reportUnreportedSplit();
+    verify(mockProgressUpdater, times(0)).setLeaseRenewalOnly(anyBoolean());
+    verify(mockStatusClient, times(0)).reportSuccess();
+    verify(mockProgressUpdater, times(1)).stopReportingProgress();
+  }
+
+  @Test
+  public void testExecuteWorkAndReportSuccessStopsProgressUpdaterWhenReportSuccessFails()
+      throws Exception {
+    WorkItemStatusClient mockStatusClient = mock(WorkItemStatusClient.class);
+    doThrow(new IOException("RPC failure")).when(mockStatusClient).reportSuccess();
+    BatchDataflowWorker worker =
+        new BatchDataflowWorker(
+            mockWorkUnitClient, IntrinsicMapTaskExecutorFactory.defaultFactory(), options);
+
+    try {
+      worker.executeWorkAndReportSuccess(mockWorkExecutor, mockProgressUpdater, mockStatusClient);
+    } catch (IOException e) {
+      /* Expected - ignore. */
+    }
+
+    verify(mockProgressUpdater, times(1)).startReportingProgress();
+    verify(mockWorkExecutor, times(1)).execute();
+    verify(mockProgressUpdater, times(1)).reportUnreportedSplit();
+    verify(mockProgressUpdater, times(1)).setLeaseRenewalOnly(true);
+    verify(mockStatusClient, times(1)).reportSuccess();
+    verify(mockProgressUpdater, times(1)).stopReportingProgress();
   }
 
   private static class WorkerException extends Exception {}
