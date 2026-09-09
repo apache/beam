@@ -337,24 +337,57 @@ class _TableSchemaCompat(list):
       self.extend(value)
 
 
-TableReference = apitools_bigquery.TableReference
-DatasetReference = apitools_bigquery.DatasetReference
-TableFieldSchema = apitools_bigquery.TableFieldSchema
-TableSchema = apitools_bigquery.TableSchema
-TableRow = apitools_bigquery.TableRow
-TableCell = apitools_bigquery.TableCell
-Table = apitools_bigquery.Table
-Dataset = apitools_bigquery.Dataset
-Job = apitools_bigquery.Job
-JobConfiguration = apitools_bigquery.JobConfiguration
-JobConfigurationLoad = apitools_bigquery.JobConfigurationLoad
-JobConfigurationQuery = apitools_bigquery.JobConfigurationQuery
-JobConfigurationExtract = apitools_bigquery.JobConfigurationExtract
-JobConfigurationTableCopy = apitools_bigquery.JobConfigurationTableCopy
-JobStatistics = apitools_bigquery.JobStatistics
-JobStatistics2 = apitools_bigquery.JobStatistics2
-JobStatistics4 = apitools_bigquery.JobStatistics4
-ErrorProto = apitools_bigquery.ErrorProto
+class _TableCellCompat(object):
+  def __init__(self, v=None):
+    self.v = v
+
+
+class _TableRowCompat(object):
+  def __init__(self, f=None):
+    self.f = f or []
+
+
+# Check if an underlying type is available because the internal client silently
+# passes on an import error if any dependencies (mainly apitools) are missing.
+if apitools_bigquery is not None and hasattr(apitools_bigquery,
+                                             "TableReference"):
+  TableReference = apitools_bigquery.TableReference
+  DatasetReference = apitools_bigquery.DatasetReference
+  TableFieldSchema = apitools_bigquery.TableFieldSchema
+  TableSchema = apitools_bigquery.TableSchema
+  TableRow = apitools_bigquery.TableRow
+  TableCell = apitools_bigquery.TableCell
+  Table = apitools_bigquery.Table
+  Dataset = apitools_bigquery.Dataset
+  Job = apitools_bigquery.Job
+  JobConfiguration = apitools_bigquery.JobConfiguration
+  JobConfigurationLoad = apitools_bigquery.JobConfigurationLoad
+  JobConfigurationQuery = apitools_bigquery.JobConfigurationQuery
+  JobConfigurationExtract = apitools_bigquery.JobConfigurationExtract
+  JobConfigurationTableCopy = apitools_bigquery.JobConfigurationTableCopy
+  JobStatistics = apitools_bigquery.JobStatistics
+  JobStatistics2 = apitools_bigquery.JobStatistics2
+  JobStatistics4 = apitools_bigquery.JobStatistics4
+  ErrorProto = apitools_bigquery.ErrorProto
+else:
+  TableReference = _TableReferenceCompat
+  DatasetReference = _DatasetReferenceCompat
+  TableFieldSchema = _TableFieldSchemaCompat
+  TableSchema = _TableSchemaCompat
+  TableRow = _TableRowCompat
+  TableCell = _TableCellCompat
+  Table = None
+  Dataset = None
+  Job = None
+  JobConfiguration = None
+  JobConfigurationLoad = None
+  JobConfigurationQuery = None
+  JobConfigurationExtract = None
+  JobConfigurationTableCopy = None
+  JobStatistics = None
+  JobStatistics2 = None
+  JobStatistics4 = None
+  ErrorProto = None
 
 
 class JobReference(object):

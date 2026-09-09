@@ -33,7 +33,13 @@ import unittest
 from unittest import mock
 
 import apache_beam as beam
-from apache_beam.io.gcp import bigquery_compat
+
+try:
+  from apache_beam.io.gcp import bigquery_compat
+  from apache_beam.io.gcp.internal.clients import bigquery as apitools_bigquery
+except ImportError:
+  bigquery_compat = None
+  apitools_bigquery = None
 
 try:
   from apitools.base.py.exceptions import HttpError
@@ -45,15 +51,8 @@ try:
 except ImportError:
   gcp_bigquery = None
 
-try:
-  from apache_beam.io.gcp.internal.clients import bigquery as apitools_bigquery
-except ImportError:
-  apitools_bigquery = None
 
-
-@unittest.skipIf(
-    HttpError is None or gcp_bigquery is None,
-    'GCP dependencies are not installed')
+@unittest.skipIf(bigquery_compat is None, 'GCP dependencies are not installed')
 class TestJobReferenceCompatibility(unittest.TestCase):
   def test_init_camel_case(self):
     ref = bigquery_compat.JobReference(
