@@ -119,7 +119,7 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
         "AddTimestamps", ParDo.of(new AddTimestampsDoFn<>(fn, allowedTimestampSkew)));
   }
 
-  private static class AddTimestampsDoFn<T> extends DoFn<T, T> {
+  private static class AddTimestampsDoFn<T> extends OutputWithTimestampDoFn<T, T> {
     private final SerializableFunction<T, Instant> fn;
     private final Duration allowedTimestampSkew;
 
@@ -128,12 +128,17 @@ public class WithTimestamps<T> extends PTransform<PCollection<T>, PCollection<T>
       this.allowedTimestampSkew = allowedTimestampSkew;
     }
 
-    @ProcessElement
-    public void processElement(@Element T element, OutputReceiver<T> r) {
+    @Override
+    T getOutput(T element) {
+      return element;
+    }
+
+    @Override
+    Instant getTimestamp(T element) {
       Instant timestamp = fn.apply(element);
       checkNotNull(
           timestamp, "Timestamps for WithTimestamps cannot be null. Timestamp provided by %s.", fn);
-      r.outputWithTimestamp(element, timestamp);
+      return timestamp;
     }
 
     @Override
