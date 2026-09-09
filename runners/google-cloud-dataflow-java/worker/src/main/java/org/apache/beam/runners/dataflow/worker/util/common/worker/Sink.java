@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker.util.common.worker;
 
 import java.io.IOException;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Abstract base class for Sinks.
@@ -35,6 +36,9 @@ public abstract class Sink<T> {
   public interface SinkWriter<ElemT> extends AutoCloseable {
     /** Adds a value to the sink. Returns the size in bytes of the data written. */
     public long add(ElemT value) throws IOException;
+
+    /** Called when all elements for a specific key have been processed. */
+    public void finishKey(@Nullable Object key) throws IOException;
 
     /**
      * {@inheritDoc}
