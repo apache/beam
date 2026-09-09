@@ -27,6 +27,7 @@ import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -251,6 +252,7 @@ class RecordWriterManager implements AutoCloseable {
   private final long maxFileSize;
   private final int maxNumWriters;
   private final @Nullable Map<String, String> writeProperties;
+  private volatile @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs;
   @VisibleForTesting int openWriters = 0;
 
   @VisibleForTesting
@@ -263,7 +265,7 @@ class RecordWriterManager implements AutoCloseable {
 
   RecordWriterManager(
       IcebergCatalogConfig catalogConfig, String filePrefix, long maxFileSize, int maxNumWriters) {
-    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, null);
+    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, null, null);
   }
 
   RecordWriterManager(
@@ -272,11 +274,27 @@ class RecordWriterManager implements AutoCloseable {
       long maxFileSize,
       int maxNumWriters,
       @Nullable Map<String, String> writeProperties) {
+    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, writeProperties, null);
+  }
+
+  RecordWriterManager(
+      IcebergCatalogConfig catalogConfig,
+      String filePrefix,
+      long maxFileSize,
+      int maxNumWriters,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
     this.catalogConfig = catalogConfig;
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
     this.writeProperties = writeProperties;
+    this.sideInputTableSpecs = sideInputTableSpecs;
+  }
+
+  @VisibleForTesting
+  void setSideInputTableSpecs(@Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
+    this.sideInputTableSpecs = sideInputTableSpecs;
   }
 
   /**
@@ -291,10 +309,27 @@ class RecordWriterManager implements AutoCloseable {
    * using the Iceberg API.
    */
   @VisibleForTesting
-  Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+  Table getOrCreateTable(
+      IcebergDestination destination,
+      Schema dataSchema,
+      @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
     TableIdentifier identifier = destination.getTableIdentifier();
+    String tableIdString = IcebergUtils.tableIdentifierToString(identifier);
+    if (sideInputTableSpecs != null && sideInputTableSpecs.containsKey(tableIdString)) {
+      SerializableTableSpec spec = sideInputTableSpecs.get(tableIdString);
+      if (spec != null) {
+        Map<String, String> catalogProperties = catalogConfig.getCatalogProperties();
+        return new SideInputTable(
+            spec, catalogProperties != null ? catalogProperties : Collections.emptyMap());
+      }
+    }
     return TableCache.getAndRefreshIfStale(
         catalogConfig, identifier, () -> loadOrCreateTable(destination, dataSchema));
+  }
+
+  @VisibleForTesting
+  Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    return getOrCreateTable(destination, dataSchema, this.sideInputTableSpecs);
   }
 
   private Table loadOrCreateTable(IcebergDestination destination, Schema dataSchema) {
@@ -352,6 +387,23 @@ class RecordWriterManager implements AutoCloseable {
         return catalog.loadTable(identifier);
       }
     }
+  }
+
+  /**
+   * Fetches the appropriate {@link RecordWriter} for this destination and partition and writes the
+   * record, optionally updating the side-input table specs map.
+   *
+   * <p>If the {@link RecordWriterManager} is saturated (i.e. has hit the maximum limit of open
+   * writers), the record is rejected and {@code false} is returned.
+   */
+  public boolean write(
+      WindowedValue<IcebergDestination> icebergDestination,
+      Row row,
+      @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
+    if (sideInputTableSpecs != null) {
+      this.sideInputTableSpecs = sideInputTableSpecs;
+    }
+    return write(icebergDestination, row);
   }
 
   /**

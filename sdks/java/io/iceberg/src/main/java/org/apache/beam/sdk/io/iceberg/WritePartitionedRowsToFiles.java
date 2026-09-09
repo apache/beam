@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.io.iceberg.AssignDestinationsAndPartitions.PAR
 import static org.apache.beam.sdk.io.iceberg.RecordWriterManager.getPartitionDataPath;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.iceberg.DataFiles;
@@ -61,16 +63,27 @@ class WritePartitionedRowsToFiles
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
   private final @Nullable Map<String, String> writeProperties;
+  private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
   WritePartitionedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       String filePrefix,
       @Nullable Map<String, String> writeProperties) {
+    this(catalogConfig, dynamicDestinations, filePrefix, writeProperties, null);
+  }
+
+  WritePartitionedRowsToFiles(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      String filePrefix,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
     this.writeProperties = writeProperties;
+    this.metadataView = metadataView;
   }
 
   @Override
@@ -81,10 +94,19 @@ class WritePartitionedRowsToFiles
                         ((KvCoder<Row, Iterable<Row>>) input.getCoder()).getValueCoder())
                     .getElemCoder())
             .getSchema();
-    return input.apply(
+    ParDo.SingleOutput<KV<Row, Iterable<Row>>, FileWriteResult> parDo =
         ParDo.of(
             new WriteDoFn(
-                catalogConfig, dynamicDestinations, filePrefix, dataSchema, writeProperties)));
+                catalogConfig,
+                dynamicDestinations,
+                filePrefix,
+                dataSchema,
+                writeProperties,
+                metadataView));
+    if (metadataView != null) {
+      parDo = parDo.withSideInputs(metadataView);
+    }
+    return input.apply(parDo);
   }
 
   private static class WriteDoFn extends DoFn<KV<Row, Iterable<Row>>, FileWriteResult> {
@@ -94,6 +116,7 @@ class WritePartitionedRowsToFiles
     private final String filePrefix;
     private final Schema dataSchema;
     private final @Nullable Map<String, String> writeProperties;
+    private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
     private transient @MonotonicNonNull Map<TableIdentifier, Integer> specIds;
     private transient @MonotonicNonNull Map<TableIdentifier, Map<String, PartitionField>>
         partitionFieldMaps;
@@ -104,11 +127,22 @@ class WritePartitionedRowsToFiles
         String filePrefix,
         Schema dataSchema,
         @Nullable Map<String, String> writeProperties) {
+      this(catalogConfig, dynamicDestinations, filePrefix, dataSchema, writeProperties, null);
+    }
+
+    WriteDoFn(
+        IcebergCatalogConfig catalogConfig,
+        DynamicDestinations dynamicDestinations,
+        String filePrefix,
+        Schema dataSchema,
+        @Nullable Map<String, String> writeProperties,
+        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.dataSchema = dataSchema;
       this.writeProperties = writeProperties;
+      this.metadataView = metadataView;
     }
 
     @Setup
@@ -119,13 +153,17 @@ class WritePartitionedRowsToFiles
 
     @ProcessElement
     public void processElement(
-        @Element KV<Row, Iterable<Row>> element, OutputReceiver<FileWriteResult> out)
+        ProcessContext c,
+        @Element KV<Row, Iterable<Row>> element,
+        OutputReceiver<FileWriteResult> out)
         throws Exception {
       String tableIdentifier = checkStateNotNull(element.getKey().getString(DESTINATION));
       String partitionPath = checkStateNotNull(element.getKey().getString(PARTITION));
 
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
-      Table table = getOrCreateTable(destination, dataSchema);
+      Map<String, SerializableTableSpec> sideInputs =
+          metadataView != null ? c.sideInput(metadataView) : null;
+      Table table = getOrCreateTable(destination, dataSchema, sideInputs);
       partitionPath =
           getPartitionDataPath(
               partitionPath, getPartitionFieldMap(destination.getTableIdentifier(), table));
@@ -176,12 +214,28 @@ class WritePartitionedRowsToFiles
       return partitionFieldMap;
     }
 
-    Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+    Table getOrCreateTable(
+        IcebergDestination destination,
+        Schema dataSchema,
+        @Nullable Map<String, SerializableTableSpec> sideInputTableSpecs) {
       TableIdentifier identifier = destination.getTableIdentifier();
+      String tableIdString = IcebergUtils.tableIdentifierToString(identifier);
+      if (sideInputTableSpecs != null && sideInputTableSpecs.containsKey(tableIdString)) {
+        SerializableTableSpec spec = sideInputTableSpecs.get(tableIdString);
+        if (spec != null) {
+          Map<String, String> catalogProperties = catalogConfig.getCatalogProperties();
+          return new SideInputTable(
+              spec, catalogProperties != null ? catalogProperties : Collections.emptyMap());
+        }
+      }
       return TableCache.getAndRefreshIfStale(
           catalogConfig,
           identifier,
           () -> loadOrCreateTable(catalogConfig.catalog(), destination, dataSchema));
+    }
+
+    Table getOrCreateTable(IcebergDestination destination, Schema dataSchema) {
+      return getOrCreateTable(destination, dataSchema, null);
     }
 
     private Table loadOrCreateTable(
@@ -207,7 +261,7 @@ class WritePartitionedRowsToFiles
             LOG.info("Created new namespace '{}'.", namespace);
           } catch (AlreadyExistsException ignored) {
             // race condition: another worker already created this namespace
-            LOG.info("Namespace `{}` already exists.", namespace);
+            LOG.info("Namespace '{}' already exists.", namespace);
           }
         }
       }

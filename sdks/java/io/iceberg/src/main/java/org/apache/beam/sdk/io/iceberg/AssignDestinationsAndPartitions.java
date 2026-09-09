@@ -30,11 +30,13 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -51,6 +53,7 @@ class AssignDestinationsAndPartitions
 
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
+  private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
   static final String DESTINATION = "destination";
   static final String PARTITION = "partition";
@@ -63,14 +66,27 @@ class AssignDestinationsAndPartitions
 
   public AssignDestinationsAndPartitions(
       DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
+    this(dynamicDestinations, catalogConfig, null);
+  }
+
+  public AssignDestinationsAndPartitions(
+      DynamicDestinations dynamicDestinations,
+      IcebergCatalogConfig catalogConfig,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
+    this.metadataView = metadataView;
   }
 
   @Override
   public PCollection<KV<Row, Row>> expand(PCollection<Row> input) {
+    ParDo.SingleOutput<Row, KV<Row, Row>> parDo =
+        ParDo.of(new AssignDoFn(dynamicDestinations, catalogConfig, metadataView));
+    if (metadataView != null) {
+      parDo = parDo.withSideInputs(metadataView);
+    }
     return input
-        .apply(ParDo.of(new AssignDoFn(dynamicDestinations, catalogConfig)))
+        .apply(parDo)
         .setCoder(
             KvCoder.of(
                 RowCoder.of(OUTPUT_SCHEMA), RowCoder.of(dynamicDestinations.getDataSchema())));
@@ -83,13 +99,23 @@ class AssignDestinationsAndPartitions
     private transient @MonotonicNonNull Map<String, PartitionKey> partitionKeys;
     private transient @MonotonicNonNull Map<String, BeamRowWrapper> wrappers;
     private transient @MonotonicNonNull Map<String, Instant> lastRefreshTimes;
+    private transient @MonotonicNonNull Map<String, Integer> cachedSpecIds;
 
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
+    private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
     AssignDoFn(DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
+      this(dynamicDestinations, catalogConfig, null);
+    }
+
+    AssignDoFn(
+        DynamicDestinations dynamicDestinations,
+        IcebergCatalogConfig catalogConfig,
+        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
       this.dynamicDestinations = dynamicDestinations;
       this.catalogConfig = catalogConfig;
+      this.metadataView = metadataView;
     }
 
     @Setup
@@ -97,10 +123,12 @@ class AssignDestinationsAndPartitions
       this.wrappers = new HashMap<>();
       this.partitionKeys = new HashMap<>();
       this.lastRefreshTimes = new HashMap<>();
+      this.cachedSpecIds = new HashMap<>();
     }
 
     @ProcessElement
     public void processElement(
+        ProcessContext c,
         @Element Row element,
         BoundedWindow window,
         PaneInfo paneInfo,
@@ -111,58 +139,83 @@ class AssignDestinationsAndPartitions
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
 
+      String canonicalTableId;
+      try {
+        canonicalTableId =
+            IcebergUtils.tableIdentifierToString(
+                IcebergUtils.parseTableIdentifier(tableIdentifier));
+      } catch (Exception e) {
+        canonicalTableId = tableIdentifier.trim();
+      }
+
+      SerializableTableSpec tableSpec = null;
+      if (metadataView != null) {
+        Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
+        if (viewMap != null) {
+          tableSpec = viewMap.get(canonicalTableId);
+          if (tableSpec == null) {
+            tableSpec = viewMap.get(tableIdentifier);
+          }
+        }
+      }
+
       Row data = dynamicDestinations.getData(element);
 
       @Nullable PartitionKey partitionKey = checkStateNotNull(partitionKeys).get(tableIdentifier);
-
       @Nullable BeamRowWrapper wrapper = checkStateNotNull(wrappers).get(tableIdentifier);
-
       @Nullable Instant lastRefresh = checkStateNotNull(lastRefreshTimes).get(tableIdentifier);
+      @Nullable Integer cachedSpecId = checkStateNotNull(cachedSpecIds).get(tableIdentifier);
 
       Instant now = Instant.now();
+
+      boolean specChanged =
+          tableSpec != null
+              && (cachedSpecId == null || !cachedSpecId.equals(tableSpec.getSpecId()));
 
       boolean shouldRefresh =
           partitionKey == null
               || wrapper == null
-              || lastRefresh == null
-              || now.isAfter(lastRefresh.plus(REFRESH_INTERVAL));
+              || specChanged
+              || (tableSpec == null
+                  && (lastRefresh == null || now.isAfter(lastRefresh.plus(REFRESH_INTERVAL))));
 
       if (shouldRefresh) {
 
         PartitionSpec spec = PartitionSpec.unpartitioned();
-
         Schema schema = IcebergUtils.beamSchemaToIcebergSchema(data.getSchema());
 
         @Nullable IcebergTableCreateConfig createConfig =
             dynamicDestinations.instantiateDestination(tableIdentifier).getTableCreateConfig();
 
         if (createConfig != null && createConfig.getPartitionFields() != null) {
-
           spec =
               PartitionUtils.toPartitionSpec(createConfig.getPartitionFields(), data.getSchema());
-
+        } else if (tableSpec != null) {
+          spec = tableSpec.getPartitionSpec();
+          if (data.getSchema().getFieldCount() == tableSpec.getSchema().columns().size()) {
+            schema = tableSpec.getSchema();
+          }
+          checkStateNotNull(cachedSpecIds).put(tableIdentifier, tableSpec.getSpecId());
         } else {
-
           try {
             // see if table already exists with a spec
-            spec =
+            Table table =
                 TableCache.getAndRefreshIfStale(
-                        catalogConfig, IcebergUtils.parseTableIdentifier(tableIdentifier))
-                    .spec();
-
+                    catalogConfig, IcebergUtils.parseTableIdentifier(tableIdentifier));
+            spec = table.spec();
+            if (data.getSchema().getFieldCount() == table.schema().columns().size()) {
+              schema = table.schema();
+            }
           } catch (NoSuchTableException ignored) {
             // no partition to apply
           }
         }
 
         partitionKey = new PartitionKey(spec, schema);
-
         wrapper = new BeamRowWrapper(data.getSchema(), schema.asStruct());
 
         checkStateNotNull(partitionKeys).put(tableIdentifier, partitionKey);
-
         checkStateNotNull(wrappers).put(tableIdentifier, wrapper);
-
         checkStateNotNull(lastRefreshTimes).put(tableIdentifier, now);
       }
 
