@@ -19,8 +19,9 @@
 plugins { id 'org.apache.beam.module' }
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.extensions.openlineage',
-  // matches sdks/java/io/iceberg, which this module inspects at test time
-  requireJavaVersion: JavaVersion.VERSION_11,
+  // matches sdks/java/io/iceberg, which this module inspects at test time and which
+  // requires Java 17 since iceberg ended Java 11 support in 1.11.0
+  requireJavaVersion: JavaVersion.VERSION_17,
 )
 
 description = "Apache Beam :: SDKs :: Java :: Extensions :: OpenLineage"
@@ -41,14 +42,14 @@ dependencies {
   compileOnly project(path: ":sdks:java:io:google-cloud-platform")
   compileOnly project(path: ":sdks:java:io:iceberg")
   // keep in sync with iceberg_version in sdks/java/io/iceberg/build.gradle
-  compileOnly "org.apache.iceberg:iceberg-api:1.10.0"
+  compileOnly "org.apache.iceberg:iceberg-api:1.11.0"
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation project(path: ":sdks:java:io:google-cloud-platform")
   testImplementation project(path: ":sdks:java:io:iceberg")
   testImplementation project(path: ":sdks:java:managed")
-  testImplementation "org.apache.iceberg:iceberg-api:1.10.0"
-  testImplementation "org.apache.iceberg:iceberg-core:1.10.0"
+  testImplementation "org.apache.iceberg:iceberg-api:1.11.0"
+  testImplementation "org.apache.iceberg:iceberg-core:1.11.0"
   testImplementation library.java.hadoop_common
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")
 }
