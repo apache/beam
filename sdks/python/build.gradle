@@ -157,8 +157,8 @@ tasks.register("yamlIntegrationTests") {
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
 
   doLast {
@@ -177,8 +177,8 @@ tasks.register("postCommitYamlIntegrationTests") {
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:snowflake:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"

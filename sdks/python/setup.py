@@ -557,6 +557,10 @@ if __name__ == '__main__':
               'orjson>=3.9.7,<4',
               'regex>=2020.6.8',
           ],
+          # GCP packages used only by tests/ITs (not native Python IO).
+          'gcp_test': [
+              'google-cloud-firestore>=2.0.0,<3',
+          ],
           'interactive': [
               'facets-overview>=1.1.0,<2',
               'google-cloud-dataproc>=5.0.0,<6',
