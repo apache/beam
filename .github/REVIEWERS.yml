@@ -52,11 +52,25 @@ labels:
       - johnjcasey
       - Dippatel98
       - sjvanrossum
+  - name: delta
+    reviewers:
+      - ahmedabu98
+      - chamikaramj
+    exclusionList: []
+  - name: iceberg
+    reviewers:
+      - ahmedabu98
+      - chamikaramj
+    exclusionList: []
+  - name: yaml
+    reviewers:
+      - derrickaw
   - name: Build
     reviewers:
       - Abacn
+      - Amar3tto
       - damccorm
-      - liferoad
+      - derrickaw
     exclusionList: []
   - name: website
     reviewers:
