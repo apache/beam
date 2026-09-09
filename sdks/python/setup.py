@@ -531,9 +531,9 @@ if __name__ == '__main__':
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
-              # 2.42.0 improves MutationsBatcher error handling: it surfaces
-              # errors raised during async flushes instead of swallowing them.
-              'google-cloud-bigtable>=2.42.0,<3',
+              # 2.44.0 changed DirectRow mutation storage; native WriteToBigTable
+              # requires this version on both driver and workers.
+              'google-cloud-bigtable>=2.44.0,<3',
               'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
