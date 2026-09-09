@@ -396,6 +396,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
+  dependsOn(":sdks:java:extensions:sql:delta:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")

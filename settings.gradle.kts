@@ -397,5 +397,8 @@ include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
 include("sdks:java:extensions:sql:iceberg")
 findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
+include("sdks:java:extensions:sql:delta")
+findProject(":sdks:java:extensions:sql:delta")?.name = "delta"
 include("examples:java:iceberg")
 findProject(":examples:java:iceberg")?.name = "iceberg"
+
