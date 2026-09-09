@@ -1,8 +1,8 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "go": "shunping",
-    "build": "damccorm",
+    "go": "jrmccluskey",
+    "build": "Abacn",
     "spanner": "nielm"
   },
   "nextAction": "Reviewers",
