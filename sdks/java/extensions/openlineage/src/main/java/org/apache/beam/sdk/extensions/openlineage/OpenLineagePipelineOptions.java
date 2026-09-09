@@ -50,16 +50,14 @@ public interface OpenLineagePipelineOptions extends PipelineOptions {
   @Description(
       "OpenLineage job namespace. Overrides the job.namespace from openlineage.yml. "
           + "Defaults to \"beam_jobs\" when not configured anywhere.")
-  @Nullable
-  String getOpenLineageNamespace();
+  @Nullable String getOpenLineageNamespace();
 
   void setOpenLineageNamespace(@Nullable String namespace);
 
   @Description(
       "OpenLineage job name. Overrides the job.name from openlineage.yml. Defaults to the "
           + "Beam application name when not configured anywhere.")
-  @Nullable
-  String getOpenLineageJobName();
+  @Nullable String getOpenLineageJobName();
 
   void setOpenLineageJobName(@Nullable String jobName);
 
@@ -68,8 +66,7 @@ public interface OpenLineagePipelineOptions extends PipelineOptions {
           + "submission and stores it here so that all worker JVMs share it. When absent, a "
           + "deterministic UUID is derived from the job identity so independent JVMs still "
           + "agree.")
-  @Nullable
-  String getOpenLineageRunId();
+  @Nullable String getOpenLineageRunId();
 
   void setOpenLineageRunId(@Nullable String runId);
 
@@ -77,8 +74,7 @@ public interface OpenLineagePipelineOptions extends PipelineOptions {
       "Interval in seconds between RUNNING lifecycle events while the pipeline executes, "
           + "matching the Flink integration's openlineage.trackingIntervalInSeconds. Defaults "
           + "to 60. Set openLineageDisableTracking to turn periodic events off.")
-  @Nullable
-  Integer getOpenLineageTrackingIntervalInSeconds();
+  @Nullable Integer getOpenLineageTrackingIntervalInSeconds();
 
   void setOpenLineageTrackingIntervalInSeconds(@Nullable Integer seconds);
 
@@ -102,23 +98,20 @@ public interface OpenLineagePipelineOptions extends PipelineOptions {
   @Description(
       "Parent job name for the parent run facet, matching spark.openlineage.parentJobName. "
           + "The facet is attached only when parent run id, job name and namespace are all set.")
-  @Nullable
-  String getOpenLineageParentJobName();
+  @Nullable String getOpenLineageParentJobName();
 
   void setOpenLineageParentJobName(@Nullable String parentJobName);
 
   @Description(
       "Parent job namespace for the parent run facet, matching "
           + "spark.openlineage.parentJobNamespace.")
-  @Nullable
-  String getOpenLineageParentJobNamespace();
+  @Nullable String getOpenLineageParentJobNamespace();
 
   void setOpenLineageParentJobNamespace(@Nullable String parentJobNamespace);
 
   @Description(
       "Parent run id (UUID) for the parent run facet, matching spark.openlineage.parentRunId.")
-  @Nullable
-  String getOpenLineageParentRunId();
+  @Nullable String getOpenLineageParentRunId();
 
   void setOpenLineageParentRunId(@Nullable String parentRunId);
 }
