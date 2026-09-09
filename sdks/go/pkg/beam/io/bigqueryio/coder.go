@@ -57,7 +57,7 @@ func encodeQueryParameters(params []bigquery.QueryParameter) ([]byte, error) {
 	if params == nil {
 		return []byte{}, nil
 	}
-	// validate each element to tell which paramaeter is unsupported.
+	// validate each element to tell which parameter is unsupported.
 	for _, p := range params {
 		if err := gob.NewEncoder(io.Discard).Encode([]bigquery.QueryParameter{p}); err != nil {
 			return nil, errors.Errorf(
