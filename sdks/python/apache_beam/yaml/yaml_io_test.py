@@ -983,6 +983,25 @@ class YamlDicomSearchTest(unittest.TestCase):
                   '''))
 
 
+class YamlDeltaTest(unittest.TestCase):
+  def test_read_from_delta(self):
+    from apache_beam.yaml.yaml_io import read_from_delta
+    transform = read_from_delta(
+        table="my_table", version=5, timestamp="2026-01-01T00:00:00Z")
+    self.assertIsInstance(transform, beam.managed.Read)
+    self.assertEqual(transform._source, "delta")
+
+  def test_read_from_delta_cdc(self):
+    from apache_beam.yaml.yaml_io import read_from_delta_cdc
+    transform = read_from_delta_cdc(
+        table="my_table",
+        start_version=0,
+        end_version=10,
+        include_metadata_columns=["_change_type"])
+    self.assertIsInstance(transform, beam.managed.Read)
+    self.assertEqual(transform._source, "delta_cdc")
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
