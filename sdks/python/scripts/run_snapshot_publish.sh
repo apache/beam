@@ -38,7 +38,7 @@ for file in "apache[-_]beam-$VERSION*.tar.gz"; do
 done
 
 # Upload to gcs bucket
-gsutil cp $SNAPSHOT $BUCKET/$VERSION/
+gcloud storage cp $SNAPSHOT $BUCKET/$VERSION/
 
 # Upload requirements.txt to gcs.
-gsutil cp requirements.txt $DEP_SNAPSHOT_ROOT/$DEP_SNAPSHOT_FILE_NAME
+gcloud storage cp requirements.txt $DEP_SNAPSHOT_ROOT/$DEP_SNAPSHOT_FILE_NAME

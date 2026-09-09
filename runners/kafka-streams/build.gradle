@@ -1,0 +1,201 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+import groovy.json.JsonOutput
+import java.time.Duration
+
+plugins { id 'org.apache.beam.module' }
+
+// An extension property rather than a local, so the job server module can pin the same version
+// instead of repeating it. Both have to pin: applyJavaNature forces every version in library.java,
+// which includes an older kafka-clients, and a module that does not override it links against that
+// one at runtime.
+ext.kafka_version = '3.9.0'
+
+applyJavaNature(
+    automaticModuleName: 'org.apache.beam.runners.kafka.streams',
+)
+
+description = "Apache Beam :: Runners :: Kafka Streams"
+
+evaluationDependsOn(":sdks:java:core")
+evaluationDependsOn(":runners:core-java")
+
+configurations {
+  validatesRunner
+}
+
+configurations.configureEach {
+  resolutionStrategy.eachDependency { details ->
+    if (details.requested.group == "org.apache.kafka") {
+      details.useVersion(kafka_version)
+      details.because("Kafka Streams runner is developed against Kafka ${kafka_version}.")
+    }
+  }
+}
+
+dependencies {
+  compileOnly project(":sdks:java:build-tools")
+  permitUnusedDeclared project(":sdks:java:build-tools")
+
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":runners:kafka-streams:proto", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(path: ":model:fn-execution", configuration: "shadow")
+  implementation project(path: ":model:job-management", configuration: "shadow")
+  implementation project(":runners:core-java")
+  permitUnusedDeclared project(":runners:core-java")
+  implementation project(":runners:java-fn-execution")
+  implementation project(":runners:java-job-service")
+  implementation project(":runners:portability:java")
+  implementation project(path: ":sdks:java:extensions:google-cloud-platform-core")
+  implementation library.java.args4j
+  implementation library.java.joda_time
+  implementation library.java.slf4j_api
+  implementation library.java.vendored_grpc_1_69_0
+  implementation library.java.vendored_guava_32_1_2_jre
+  implementation "org.apache.kafka:kafka-clients:$kafka_version"
+  implementation "org.apache.kafka:kafka-streams:$kafka_version"
+  permitUnusedDeclared "org.apache.kafka:kafka-clients:$kafka_version"
+
+  testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(":sdks:java:harness")
+  testImplementation library.java.hamcrest
+  testImplementation library.java.junit
+  testImplementation library.java.mockito_core
+  testImplementation "org.apache.kafka:kafka-streams-test-utils:$kafka_version"
+  testImplementation library.java.testcontainers_kafka
+
+  // Beam's @ValidatesRunner suite: the test classes come from the SDK core test jar; the runner
+  // (TestKafkaStreamsRunner) and its TopologyTestDriver harness come from this module's test
+  // output and test runtime classpath.
+  validatesRunner project(path: ":sdks:java:core", configuration: "shadowTest")
+  validatesRunner project(project.path)
+  validatesRunner sourceSets.test.output
+  validatesRunner sourceSets.test.runtimeClasspath
+}
+
+
+// Starts the job server a portable pipeline is submitted to. Pass driver arguments with
+// -PjobServerArgs="--job-port=8099,--artifact-port=8098".
+tasks.register("runJobServer", JavaExec) {
+  group = "Application"
+  description = "Runs the Kafka Streams job server."
+  mainClass = "org.apache.beam.runners.kafka.streams.KafkaStreamsJobServerDriver"
+  classpath = sourceSets.main.runtimeClasspath
+  args = project.hasProperty("jobServerArgs") ? project.property("jobServerArgs").split(",") : []
+}
+
+// The broker integration test drives the production runner against a real Kafka in Docker, so it
+// is not part of the default build. Run it with :runners:kafka-streams:brokerIntegrationTest.
+test {
+  filter {
+    excludeTestsMatching 'org.apache.beam.runners.kafka.streams.*IT'
+  }
+}
+
+tasks.register("brokerIntegrationTest", Test) {
+  group = "Verification"
+  description = "Runs the Kafka Streams runner against a real broker (requires Docker)."
+  outputs.upToDateWhen { false }
+  testClassesDirs = sourceSets.test.output.classesDirs
+  classpath = sourceSets.test.runtimeClasspath
+  filter {
+    includeTestsMatching 'org.apache.beam.runners.kafka.streams.*IT'
+  }
+  // A container start plus a streaming run is well past the default per-test expectations.
+  timeout = Duration.ofMinutes(15)
+}
+
+// Known-failing @ValidatesRunner tests, excluded until the feature they need lands.
+def sickbayTests = [
+  // Merging (session) windows are not supported yet: ReduceFnRunner drives them through a merging
+  // window set that moves per-window state as windows merge, which this first windowing pass does
+  // not implement. Non-merging windows (fixed, sliding), the default trigger and timestamp
+  // combiners do work, for both GroupByKey and Combine. Lands with the follow-up windowing PR.
+  'org.apache.beam.sdk.transforms.GroupByKeyTest$WindowTests.testGroupByKeyMergingWindows',
+  'org.apache.beam.sdk.transforms.CombineTest$WindowingTests.testSessionsCombine',
+  // A DoFn whose @StartBundle throws never gets to report its error: SdkHarnessClient.newBundle
+  // sends the ProcessBundleRequest and then blocks in GrpcDataService.createOutboundAggregator
+  // waiting for the SDK harness to open its data stream, which a bundle that failed during setup
+  // never does — so the run blocks for the data service's three-minute timeout instead of
+  // surfacing the user's exception. This is shared java-fn-execution behaviour rather than
+  // anything specific to this runner; the Flink runner sickbays all of LifecycleTests and the
+  // Prism runner sickbays each of its three error tests. The @ProcessElement and @FinishBundle
+  // variants do pass here, because by then the data stream is established.
+  // Tracked by https://github.com/apache/beam/issues/39452.
+  'org.apache.beam.sdk.transforms.ParDoTest$LifecycleTests.testParDoWithErrorInStartBatch',
+]
+
+tasks.register("validatesRunner", Test) {
+  group = "Verification"
+  description = "Runs the subset of Beam's ValidatesRunner suite the Kafka Streams runner supports."
+  // Never consider up-to-date; the suite is the correctness gate.
+  outputs.upToDateWhen { false }
+  systemProperty "beamTestPipelineOptions",
+      JsonOutput.toJson(["--runner=org.apache.beam.runners.kafka.streams.TestKafkaStreamsRunner"])
+  classpath = configurations.validatesRunner
+  testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs)
+  maxParallelForks 2
+  useJUnit {
+    includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
+    // Environment / harness features that need a properly configured external environment.
+    excludeCategories 'org.apache.beam.sdk.testing.UsesExternalService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSdkHarnessEnvironment'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesJavaExpansionService'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesPythonExpansionService'
+    // Features the runner does not support yet.
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSideInputs'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStatefulParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimersInParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTimerMap'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesLoopingTimer'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesProcessingTimeTimers'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedPCollections'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCustomWindowMerging'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMetricsPusher'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesCommittedMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSystemMetrics'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesOrderedListState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMultimapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesMapState'
+    excludeCategories 'org.apache.beam.sdk.testing.UsesSetState'
+    excludeCategories 'org.apache.beam.sdk.testing.FlattenWithHeterogeneousCoders'
+    excludeCategories 'org.apache.beam.sdk.testing.LargeKeys$Above100MB'
+  }
+  filter {
+    // The suites enabled so far, extended class by class as runner support grows. An explicit
+    // include list is needed because feature gaps like windowing beyond the global window have no
+    // JUnit category to exclude.
+    includeTestsMatching 'org.apache.beam.sdk.transforms.CreateTest'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.FlattenTest'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.GroupByKeyTest*'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.ParDoTest*'
+    includeTestsMatching 'org.apache.beam.sdk.transforms.CombineTest*'
+    for (String test : sickbayTests) {
+      excludeTestsMatching test
+    }
+    failOnNoMatchingTests = false
+  }
+}

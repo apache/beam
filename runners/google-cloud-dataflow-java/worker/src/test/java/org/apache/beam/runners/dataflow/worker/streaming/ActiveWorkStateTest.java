@@ -20,10 +20,11 @@ package org.apache.beam.runners.dataflow.worker.streaming;
 import static com.google.common.truth.Truth.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -34,6 +35,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import org.apache.beam.runners.dataflow.worker.streaming.ActiveWorkState.ActivateWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
@@ -42,6 +44,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.work.budget.GetWorkBudge
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -64,7 +67,7 @@ public class ActiveWorkStateTest {
     return ShardedKey.create(ByteString.copyFromUtf8(str), shardKey);
   }
 
-  private static ExecutableWork createWork(Windmill.WorkItem workItem) {
+  private static ExecutableWork createWork(Windmill.WorkItem workItem, Supplier<Instant> clock) {
     return ExecutableWork.create(
         Work.create(
             workItem,
@@ -72,20 +75,13 @@ public class ActiveWorkStateTest {
             Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
             createWorkProcessingContext(),
             false,
-            Instant::now),
+            clock,
+            ImmutableList.of()),
         (work, handle) -> {});
   }
 
-  private static ExecutableWork expiredWork(Windmill.WorkItem workItem) {
-    return ExecutableWork.create(
-        Work.create(
-            workItem,
-            workItem.getSerializedSize(),
-            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build(),
-            createWorkProcessingContext(),
-            false,
-            () -> Instant.EPOCH),
-        (work, handle) -> {});
+  private static ExecutableWork createWork(Windmill.WorkItem workItem) {
+    return createWork(workItem, Instant::now);
   }
 
   private static Work.ProcessingContext createWorkProcessingContext() {
@@ -315,25 +311,23 @@ public class ActiveWorkStateTest {
   }
 
   @Test
-  public void testInvalidateStuckCommits() {
-    Map<ShardedKey, WorkId> invalidatedCommits = new HashMap<>();
+  public void testHasStuckCommits() {
     ShardedKey shardedKey1 = shardedKey("someKey", 1L);
     ShardedKey shardedKey2 = shardedKey("anotherKey", 2L);
 
-    ExecutableWork stuckWork1 = expiredWork(createWorkItem(1L, 1L, shardedKey1));
-    stuckWork1.work().setState(Work.State.COMMITTING);
-    ExecutableWork stuckWork2 = expiredWork(createWorkItem(2L, 1L, shardedKey2));
-    stuckWork2.work().setState(Work.State.COMMITTING);
+    Instant now = Instant.now();
+    ExecutableWork stuckWork1 = createWork(createWorkItem(1L, 1L, shardedKey1), () -> now);
+    ExecutableWork unstuckWork2 = createWork(createWorkItem(2L, 1L, shardedKey2), () -> now);
 
     activeWorkState.activateWorkForKey(stuckWork1);
-    activeWorkState.activateWorkForKey(stuckWork2);
+    activeWorkState.activateWorkForKey(unstuckWork2);
 
-    activeWorkState.invalidateStuckCommits(Instant.now(), invalidatedCommits::put);
+    stuckWork1.work().setState(Work.State.COMMITTING);
+    unstuckWork2.work().setState(Work.State.PROCESSING);
 
-    assertThat(invalidatedCommits).containsEntry(shardedKey1, stuckWork1.id());
-    assertThat(invalidatedCommits).containsEntry(shardedKey2, stuckWork2.id());
-    verify(computationStateCache).invalidate(shardedKey1.key(), shardedKey1.shardingKey());
-    verify(computationStateCache).invalidate(shardedKey2.key(), shardedKey2.shardingKey());
+    assertThat(activeWorkState.hasStuckCommits(now.minus(Duration.millis(1)))).isFalse();
+    assertThat(activeWorkState.hasStuckCommits(now)).isFalse();
+    assertThat(activeWorkState.hasStuckCommits(now.plus(Duration.millis(1)))).isTrue();
   }
 
   @Test
@@ -563,6 +557,31 @@ public class ActiveWorkStateTest {
               .work()
               .isFailed());
     }
+  }
+
+  @Test
+  public void testGetActiveWork() {
+    ShardedKey shardedKey = shardedKey("someKey", 1L);
+    ExecutableWork work = createWork(createWorkItem(1L, 1L, shardedKey));
+
+    // Initially empty
+    assertNull(activeWorkState.getActiveWork(shardedKey, work.id()));
+
+    // Activate work
+    activeWorkState.activateWorkForKey(work);
+
+    // Should find it now
+    ExecutableWork activeWork = activeWorkState.getActiveWork(shardedKey, work.id());
+    assertNotNull(activeWork);
+    assertSame(work, activeWork);
+
+    // Should not find it with different workId
+    assertNull(activeWorkState.getActiveWork(shardedKey, workId(2L, 1L)));
+    assertNull(activeWorkState.getActiveWork(shardedKey, workId(1L, 2L)));
+
+    // Should not find it with different shardedKey
+    ShardedKey otherShardedKey = shardedKey("otherKey", 2L);
+    assertNull(activeWorkState.getActiveWork(otherShardedKey, work.id()));
   }
 
   private static ExecutableWork firstValue(Map<WorkId, ExecutableWork> map) {

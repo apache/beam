@@ -93,6 +93,8 @@ from typing import Callable
 from typing import Iterable
 from typing import Optional
 
+from typing_extensions import override
+
 from apache_beam import coders
 from apache_beam.coders.coders import BooleanCoder
 from apache_beam.coders.coders import Coder
@@ -994,3 +996,141 @@ class ReadFromUnboundedSource(PTransform):
 
   def _infer_output_coder(self, input_type=None, input_coder=None):
     return self._source.default_output_coder()
+
+
+# ------------------------------------------------------------------------------
+# Internal in-memory counting source, shared by Beam's own tests and examples.
+# ------------------------------------------------------------------------------
+
+# Realistic event-time base away from the Unix epoch.
+_EVENT_TIME_BASE = Timestamp(1729987200)  # 2024-10-27T00:00:00Z
+
+
+class _CountingCheckpointMark(CheckpointMark):
+  def __init__(self, last_index, finalize_log=None):
+    self.last_index = last_index
+    self._finalize_log = finalize_log
+
+  @override
+  def finalize_checkpoint(self):
+    if self._finalize_log is not None:
+      self._finalize_log.append(self.last_index)
+
+  def __eq__(self, other):
+    return (
+        isinstance(other, _CountingCheckpointMark) and
+        other.last_index == self.last_index)
+
+  def __hash__(self):
+    return hash(self.last_index)
+
+  def __repr__(self):
+    return '_CountingCheckpointMark(last_index=%r)' % (self.last_index, )
+
+
+class _CountingReader(UnboundedReader):
+  def __init__(
+      self, count, start_index, finalize_log=None, modulus=1, residue=0):
+    self._count = count
+    self._next = start_index
+    self._modulus = modulus
+    self._residue = residue
+    self._current = None
+    self._exhausted = False
+    self._finalize_log = finalize_log
+    self.closed = False
+
+  def _read_next(self):
+    while self._next < self._count:
+      index = self._next
+      self._next += 1
+      if index % self._modulus == self._residue:
+        self._current = index
+        return True
+    self._exhausted = True
+    return False
+
+  @override
+  def start(self):
+    return self._read_next()
+
+  @override
+  def advance(self):
+    return self._read_next()
+
+  @override
+  def get_current(self):
+    return self._current
+
+  @override
+  def get_current_timestamp(self):
+    return _EVENT_TIME_BASE + self._current
+
+  @override
+  def get_watermark(self):
+    if self._exhausted:
+      return MAX_TIMESTAMP
+    if self._current is None:
+      return MIN_TIMESTAMP
+    return _EVENT_TIME_BASE + self._current
+
+  @override
+  def get_checkpoint_mark(self):
+    last = self._current if self._current is not None else self._next - 1
+    return _CountingCheckpointMark(last, finalize_log=self._finalize_log)
+
+  @override
+  def close(self):
+    self.closed = True
+
+
+class UnboundedCountingSource(UnboundedSource):
+  """In-memory counting source for Beam's own tests and examples.
+
+  Internal: not part of the public ``UnboundedSource`` API. Emits integers
+  ``0..count-1`` with event time ``_EVENT_TIME_BASE + index``, self-terminates
+  at EOF, resumes from ``last_index + 1``, and optionally splits into
+  independent even/odd sub-sources.
+  """
+  def __init__(
+      self,
+      count,
+      finalize_log=None,
+      is_splittable=False,
+      modulus=1,
+      residue=0):
+    self._count = count
+    self._finalize_log = finalize_log
+    self._is_splittable = is_splittable
+    self._modulus = modulus
+    self._residue = residue
+    self.last_reader = None
+
+  @override
+  def split(self, desired_num_splits, options=None):
+    if not self._is_splittable or desired_num_splits < 2:
+      return [self]
+    # Split into independent even/odd sub-sources (each non-splittable).
+    return [
+        UnboundedCountingSource(
+            self._count,
+            finalize_log=self._finalize_log,
+            modulus=2,
+            residue=residue) for residue in (0, 1)
+    ]
+
+  @override
+  def create_reader(self, options, checkpoint_mark):
+    start_index = (
+        0 if checkpoint_mark is None else checkpoint_mark.last_index + 1)
+    self.last_reader = _CountingReader(
+        self._count,
+        start_index,
+        finalize_log=self._finalize_log,
+        modulus=self._modulus,
+        residue=self._residue)
+    return self.last_reader
+
+  @override
+  def get_checkpoint_mark_coder(self):
+    return coders.PickleCoder()

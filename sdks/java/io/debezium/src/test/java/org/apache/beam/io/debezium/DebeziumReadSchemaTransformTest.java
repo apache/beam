@@ -18,6 +18,7 @@
 package org.apache.beam.io.debezium;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
 import io.debezium.DebeziumException;
@@ -60,7 +61,7 @@ public class DebeziumReadSchemaTransformTest {
   @ClassRule
   public static final MySQLContainer<?> MY_SQL_CONTAINER =
       new MySQLContainer<>(
-              DockerImageName.parse("debezium/example-mysql:1.4")
+              DockerImageName.parse("quay.io/debezium/example-mysql:3.5.2.Final")
                   .asCompatibleSubstituteFor("mysql"))
           .withPassword("debezium")
           .withUsername("mysqluser")
@@ -118,6 +119,17 @@ public class DebeziumReadSchemaTransformTest {
                 .build());
   }
 
+  // Since Debezium 3.5 connection failures surface as a RetriableException wrapping the
+  // DebeziumException instead of a top-level DebeziumException.
+  private static DebeziumException findDebeziumException(Throwable thrown) {
+    Throwable cause = thrown;
+    while (cause != null && !(cause instanceof DebeziumException)) {
+      cause = cause.getCause();
+    }
+    assertNotNull("Expected DebeziumException in cause chain", cause);
+    return (DebeziumException) cause;
+  }
+
   @Test
   public void testNoProblem() {
     Pipeline readPipeline = Pipeline.create();
@@ -142,9 +154,9 @@ public class DebeziumReadSchemaTransformTest {
   @Test
   public void testWrongUser() {
     Pipeline readPipeline = Pipeline.create();
-    DebeziumException ex =
+    Exception thrown =
         assertThrows(
-            DebeziumException.class,
+            Exception.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(
@@ -156,6 +168,7 @@ public class DebeziumReadSchemaTransformTest {
                           "localhost"))
                   .get("output");
             });
+    DebeziumException ex = findDebeziumException(thrown);
     assertThat(ex.getCause().getMessage(), Matchers.containsString("password"));
     assertThat(ex.getCause().getMessage(), Matchers.containsString("wrongUser"));
   }
@@ -163,9 +176,9 @@ public class DebeziumReadSchemaTransformTest {
   @Test
   public void testWrongPassword() {
     Pipeline readPipeline = Pipeline.create();
-    DebeziumException ex =
+    Exception thrown =
         assertThrows(
-            DebeziumException.class,
+            Exception.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(
@@ -177,6 +190,7 @@ public class DebeziumReadSchemaTransformTest {
                           "localhost"))
                   .get("output");
             });
+    DebeziumException ex = findDebeziumException(thrown);
     assertThat(ex.getCause().getMessage(), Matchers.containsString("password"));
     assertThat(ex.getCause().getMessage(), Matchers.containsString(userName));
   }
@@ -184,14 +198,15 @@ public class DebeziumReadSchemaTransformTest {
   @Test
   public void testWrongPort() {
     Pipeline readPipeline = Pipeline.create();
-    DebeziumException ex =
+    Exception thrown =
         assertThrows(
-            DebeziumException.class,
+            Exception.class,
             () -> {
               PCollectionRowTuple.empty(readPipeline)
                   .apply(makePtransform(userName, password, database, 12345, "localhost"))
                   .get("output");
             });
+    DebeziumException ex = findDebeziumException(thrown);
     Throwable lowestCause = ex.getCause();
     while (lowestCause.getCause() != null) {
       lowestCause = lowestCause.getCause();

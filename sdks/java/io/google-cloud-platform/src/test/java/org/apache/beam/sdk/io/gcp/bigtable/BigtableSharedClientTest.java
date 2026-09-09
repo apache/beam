@@ -237,8 +237,7 @@ public class BigtableSharedClientTest {
       builder
           .stubSettings()
           .setTransportChannelProvider(
-              oldTransport
-                  .toBuilder()
+              oldTransport.toBuilder()
                   .setChannelPoolSettings(ChannelPoolSettings.staticallySized(1))
                   .build());
       // Make sure to disable builtin metrics

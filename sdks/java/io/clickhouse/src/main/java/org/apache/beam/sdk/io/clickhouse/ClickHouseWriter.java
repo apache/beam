@@ -21,6 +21,9 @@ import com.clickhouse.data.ClickHouseOutputStream;
 import com.clickhouse.data.ClickHousePipedOutputStream;
 import com.clickhouse.data.format.BinaryStreamUtils;
 import java.io.IOException;
+import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.math.RoundingMode;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.List;
@@ -43,6 +46,37 @@ public class ClickHouseWriter {
   private static final long[] POW10 = {
     1L, 10L, 100L, 1_000L, 10_000L, 100_000L, 1_000_000L, 10_000_000L, 100_000_000L, 1_000_000_000L
   };
+
+  // 10^0 through 10^76 — the exclusive bound on a Decimal's unscaled value at each precision.
+  // Precision is validated in [1, 76] by ColumnType.decimal.
+  private static final BigInteger[] DECIMAL_BOUNDS = new BigInteger[77];
+
+  static {
+    for (int i = 0; i < DECIMAL_BOUNDS.length; i++) {
+      DECIMAL_BOUNDS[i] = BigInteger.TEN.pow(i);
+    }
+  }
+
+  /**
+   * Truncates a value to a {@code Decimal(precision, scale)} column's scale and checks it against
+   * the column's declared range.
+   *
+   * <p>Excess fractional digits are discarded toward zero, matching ClickHouse's own behavior and
+   * the truncation {@link BinaryStreamUtils#writeDecimal} would otherwise apply. The result is then
+   * bounded by the declared precision: {@code writeDecimal} only range-checks against the backing
+   * storage width (32/64/128/256 bits, selected from the precision), which is wider than the
+   * declared type, and ClickHouse's RowBinary reader does not re-check. Without this, a value such
+   * as {@code 100000} would be stored in a {@code Decimal(5, 0)} column whose declared maximum is
+   * {@code 99999}.
+   */
+  static BigDecimal truncateAndCheckDecimal(BigDecimal value, int precision, int scale) {
+    BigDecimal truncated = value.setScale(scale, RoundingMode.DOWN);
+    if (truncated.unscaledValue().abs().compareTo(DECIMAL_BOUNDS[precision]) >= 0) {
+      throw new IllegalArgumentException(
+          "value " + value + " is out of range for Decimal(" + precision + ", " + scale + ")");
+    }
+    return truncated;
+  }
 
   /**
    * Encodes a timestamp into ClickHouse's {@code DateTime64(precision)} representation: a signed
@@ -176,6 +210,19 @@ public class ClickHouseWriter {
             Preconditions.checkNotNull(
                 columnType.precision(), "DateTime64 column is missing precision");
         BinaryStreamUtils.writeInt64(stream, encodeDateTime64(value, precision));
+        break;
+
+      case DECIMAL:
+        int decimalPrecision =
+            Preconditions.checkNotNull(columnType.precision(), "Decimal column missing precision");
+        int decimalScale =
+            Preconditions.checkNotNull(columnType.scale(), "Decimal column missing scale");
+        // Truncate to the column scale and bound by the declared precision first; writeDecimal
+        // then picks the 32/64/128/256-bit little-endian storage width from the precision and
+        // writes the value as 10^-scale ticks.
+        BigDecimal decimalValue =
+            truncateAndCheckDecimal((BigDecimal) value, decimalPrecision, decimalScale);
+        BinaryStreamUtils.writeDecimal(stream, decimalValue, decimalPrecision, decimalScale);
         break;
 
       case ARRAY:

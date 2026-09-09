@@ -215,14 +215,12 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       public void finalizeCheckpoint() {}
 
       @VisibleForTesting
-      @Nullable
-      List<TimestampedValue<T>> getResidualElements() {
+      @Nullable List<TimestampedValue<T>> getResidualElements() {
         return residualElements;
       }
 
       @VisibleForTesting
-      @Nullable
-      BoundedSource<T> getResidualSource() {
+      @Nullable BoundedSource<T> getResidualSource() {
         return residualSource;
       }
     }
@@ -234,6 +232,7 @@ public class UnboundedReadFromBoundedSource<T> extends PTransform<PBegin, PColle
       private final Coder<List<TimestampedValue<T>>> elemsCoder;
       // The coder from the BoundedReader for coding each element
       private final Coder<T> elemCoder;
+
       // The nullable and serializable coder for the BoundedSource.
       @SuppressWarnings("rawtypes")
       private final Coder<BoundedSource> sourceCoder;

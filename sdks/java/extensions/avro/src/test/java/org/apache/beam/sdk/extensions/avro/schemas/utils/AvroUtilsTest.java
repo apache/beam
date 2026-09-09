@@ -1077,7 +1077,9 @@ public class AvroUtilsTest {
 
     org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(beamSchema);
     GenericRecord expectedRecord =
-        new GenericRecordBuilder(avroSchema).set("local_date", localDate.toEpochDay()).build();
+        new GenericRecordBuilder(avroSchema)
+            .set("local_date", (int) localDate.toEpochDay())
+            .build();
 
     assertEquals(expectedRecord, AvroUtils.toGenericRecord(rowData, avroSchema));
   }

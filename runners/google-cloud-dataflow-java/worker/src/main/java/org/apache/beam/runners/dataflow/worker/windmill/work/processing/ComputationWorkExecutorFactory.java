@@ -31,6 +31,7 @@ import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
 import org.apache.beam.runners.dataflow.worker.HotKeyLogger;
 import org.apache.beam.runners.dataflow.worker.IntrinsicMapTaskExecutorFactory;
+import org.apache.beam.runners.dataflow.worker.MultiKeyBundleOptions;
 import org.apache.beam.runners.dataflow.worker.ReaderCache;
 import org.apache.beam.runners.dataflow.worker.ReaderRegistry;
 import org.apache.beam.runners.dataflow.worker.SinkRegistry;
@@ -49,11 +50,13 @@ import org.apache.beam.runners.dataflow.worker.streaming.ComputationState;
 import org.apache.beam.runners.dataflow.worker.streaming.ComputationWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.streaming.StageInfo;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfigHandle;
+import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.MapTaskExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ReadOperation;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.fn.IdGenerator;
@@ -84,6 +87,9 @@ final class ComputationWorkExecutorFactory {
   private final SinkRegistry sinkRegistry;
   private final DataflowExecutionStateSampler sampler;
   private final CounterSet pendingDeltaCounters;
+  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
+  private final StreamingCounters streamingCounters;
+  private final FailureTracker failureTracker;
 
   /**
    * Function which converts map tasks to their network representation for execution.
@@ -100,7 +106,7 @@ final class ComputationWorkExecutorFactory {
   private final StreamingGlobalConfigHandle globalConfigHandle;
   private final boolean throwExceptionOnLargeOutput;
   private final HotKeyLogger hotKeyLogger;
-  private final SideInputStateFetcherFactory sideInputStateFetcherFactory;
+  private final MultiKeyBundleOptions multiKeyBundleOptions;
 
   ComputationWorkExecutorFactory(
       DataflowWorkerHarnessOptions options,
@@ -108,11 +114,13 @@ final class ComputationWorkExecutorFactory {
       ReaderCache readerCache,
       Function<String, WindmillStateCache.ForComputation> stateCacheFactory,
       DataflowExecutionStateSampler sampler,
-      CounterSet pendingDeltaCounters,
+      StreamingCounters streamingCounters,
+      FailureTracker failureTracker,
       IdGenerator idGenerator,
       StreamingGlobalConfigHandle globalConfigHandle,
       HotKeyLogger hotKeyLogger,
-      SideInputStateFetcherFactory sideInputStateFetcherFactory) {
+      SideInputStateFetcherFactory sideInputStateFetcherFactory,
+      MultiKeyBundleOptions multiKeyBundleOptions) {
     this.options = options;
     this.mapTaskExecutorFactory = mapTaskExecutorFactory;
     this.readerCache = readerCache;
@@ -122,7 +130,9 @@ final class ComputationWorkExecutorFactory {
     this.readerRegistry = ReaderRegistry.defaultRegistry();
     this.sinkRegistry = SinkRegistry.defaultRegistry();
     this.sampler = sampler;
-    this.pendingDeltaCounters = pendingDeltaCounters;
+    this.streamingCounters = streamingCounters;
+    this.failureTracker = failureTracker;
+    this.pendingDeltaCounters = streamingCounters.pendingDeltaCounters();
     this.mapTaskToNetwork = new MapTaskToNetworkFunction(idGenerator);
     this.maxSinkBytes =
         hasExperiment(options, DISABLE_SINK_BYTE_LIMIT_EXPERIMENT)
@@ -132,6 +142,7 @@ final class ComputationWorkExecutorFactory {
         hasExperiment(options, THROW_EXCEPTIONS_ON_LARGE_OUTPUT_EXPERIMENT);
     this.hotKeyLogger = hotKeyLogger;
     this.sideInputStateFetcherFactory = sideInputStateFetcherFactory;
+    this.multiKeyBundleOptions = multiKeyBundleOptions;
   }
 
   private static Nodes.ParallelInstructionNode extractReadNode(
@@ -286,7 +297,11 @@ final class ComputationWorkExecutorFactory {
         hotKeyLogger,
         hotKeyLoggingEnabled,
         stepName,
+        stageInfo.systemName(),
+        streamingCounters,
+        failureTracker,
         computationState.sourceBytesProcessCounterName(),
+        multiKeyBundleOptions,
         sideInputStateFetcherFactory);
   }
 

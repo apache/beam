@@ -46,6 +46,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -63,6 +65,8 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

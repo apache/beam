@@ -22,6 +22,7 @@ import static org.apache.beam.sdk.values.TypeDescriptors.iterables;
 import static org.apache.beam.sdk.values.TypeDescriptors.kvs;
 import static org.apache.beam.sdk.values.TypeDescriptors.rows;
 
+import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -46,18 +47,21 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
   private final @Nullable Duration triggeringFrequency;
   private final String filePrefix;
   private final boolean autoSharding;
+  private final @Nullable Map<String, String> writeProperties;
 
   WriteToPartitions(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       @Nullable Duration triggeringFrequency,
-      boolean autoSharding) {
+      boolean autoSharding,
+      @Nullable Map<String, String> writeProperties) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
     this.autoSharding = autoSharding;
+    this.writeProperties = writeProperties;
   }
 
   private PCollection<KV<Row, Iterable<Row>>> groupByPartition(PCollection<KV<Row, Row>> input) {
@@ -95,7 +99,8 @@ class WriteToPartitions extends PTransform<PCollection<KV<Row, Row>>, IcebergWri
 
     PCollection<FileWriteResult> writtenFiles =
         groupedRows.apply(
-            new WritePartitionedRowsToFiles(catalogConfig, dynamicDestinations, filePrefix));
+            new WritePartitionedRowsToFiles(
+                catalogConfig, dynamicDestinations, filePrefix, writeProperties));
 
     if (IcebergUtils.isUnbounded(input) && triggeringFrequency != null) {
       writtenFiles =

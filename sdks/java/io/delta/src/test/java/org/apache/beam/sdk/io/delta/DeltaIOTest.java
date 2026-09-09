@@ -17,6 +17,9 @@
  */
 package org.apache.beam.sdk.io.delta;
 
+import io.delta.kernel.Table;
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.engine.Engine;
 import io.delta.kernel.types.ArrayType;
 import io.delta.kernel.types.BinaryType;
 import io.delta.kernel.types.BooleanType;
@@ -33,7 +36,9 @@ import io.delta.kernel.types.TimestampType;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
@@ -48,12 +53,16 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.joda.time.Instant;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -102,6 +111,107 @@ public class DeltaIOTest {
   }
 
   @Test
+  public void testReadRowsBothVersionAndTimestampThrows() {
+    org.apache.beam.sdk.Pipeline p = org.apache.beam.sdk.Pipeline.create();
+    IllegalArgumentException exception =
+        Assert.assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                p.apply(
+                    DeltaIO.readRows()
+                        .from("/path/to/table")
+                        .withVersion(0L)
+                        .withTimestamp("2026-05-20T15:43:26Z")));
+    Assert.assertTrue(exception.getMessage().contains("Cannot set both version and timestamp."));
+  }
+
+  @Test
+  public void testReadRowsAtVersion() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-read-version");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
+
+    // Read at version 0
+    PCollection<Row> outputV0 =
+        readPipeline.apply(DeltaIO.readRows().from(tableDir.getAbsolutePath()).withVersion(0L));
+
+    PAssert.that(outputV0).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadRowsAtTimestamp() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-read-timestamp");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
+
+    // Read at timestamp between version 0 and version 1
+    String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    PCollection<Row> outputV0 =
+        readPipeline.apply(
+            DeltaIO.readRows().from(tableDir.getAbsolutePath()).withTimestamp(timestampV0));
+
+    PAssert.that(outputV0).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testManagedDeltaReadWithVersion() throws Exception {
+    File tableDir = tempFolder.newFolder("managed-delta-table-version");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
+
+    // Read version 0 using Managed
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(
+                        ImmutableMap.of("table", tableDir.getAbsolutePath(), "version", 0L)))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testManagedDeltaReadWithTimestamp() throws Exception {
+    File tableDir = tempFolder.newFolder("managed-delta-table-timestamp");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
+
+    // Read timestamp after version 0 using Managed
+    String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    PCollection<Row> output =
+        readPipeline
+            .apply(
+                Managed.read(Managed.DELTA_LAKE)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table", tableDir.getAbsolutePath(), "timestamp", timestampV0)))
+            .getSinglePCollection();
+
+    PAssert.that(output).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
   public void testPrintScanStateSchema() throws Exception {
     File tableDir = tempFolder.newFolder("delta-table-schema");
     File logDir = new File(tableDir, "_delta_log");
@@ -121,9 +231,6 @@ public class DeltaIOTest {
     io.delta.kernel.Table table = io.delta.kernel.Table.forPath(engine, tableDir.getAbsolutePath());
     io.delta.kernel.Snapshot snapshot = table.getLatestSnapshot(engine);
     io.delta.kernel.Scan scan = snapshot.getScanBuilder().build();
-
-    io.delta.kernel.data.Row scanState = scan.getScanState(engine);
-    System.err.println("SCAN STATE SCHEMA: " + scanState.getSchema().toString());
 
     try (io.delta.kernel.utils.CloseableIterator<io.delta.kernel.data.FilteredColumnarBatch>
         scanFiles = scan.getScanFiles(engine)) {
@@ -300,53 +407,8 @@ public class DeltaIOTest {
 
     writePipeline.run().waitUntilFinish();
 
-    System.out.println("FILES IN TABLE DIR:");
-    for (File f : tableDir.listFiles()) {
-      System.out.println(
-          " - " + f.getName() + " (size=" + f.length() + ", isDir=" + f.isDirectory() + ")");
-      if (f.isDirectory()) {
-        for (File sub : f.listFiles()) {
-          System.out.println("   - " + sub.getName() + " (size=" + sub.length() + ")");
-        }
-      }
-    }
-
     File parquetFile = new File(tableDir, "part-00000.parquet");
     byte[] fileBytes = Files.readAllBytes(parquetFile.toPath());
-    System.out.println("PARQUET FILE LENGTH: " + fileBytes.length);
-    if (fileBytes.length >= 8) {
-      System.out.println(
-          "PARQUET FIRST 4 BYTES: "
-              + fileBytes[0]
-              + ", "
-              + fileBytes[1]
-              + ", "
-              + fileBytes[2]
-              + ", "
-              + fileBytes[3]
-              + " ('"
-              + (char) fileBytes[0]
-              + (char) fileBytes[1]
-              + (char) fileBytes[2]
-              + (char) fileBytes[3]
-              + "')");
-      int len = fileBytes.length;
-      System.out.println(
-          "PARQUET LAST 4 BYTES: "
-              + fileBytes[len - 4]
-              + ", "
-              + fileBytes[len - 3]
-              + ", "
-              + fileBytes[len - 2]
-              + ", "
-              + fileBytes[len - 1]
-              + " ('"
-              + (char) fileBytes[len - 4]
-              + (char) fileBytes[len - 3]
-              + (char) fileBytes[len - 2]
-              + (char) fileBytes[len - 1]
-              + "')");
-    }
 
     // 2. Create the Delta log
     File logDir = new File(tableDir, "_delta_log");
@@ -392,28 +454,19 @@ public class DeltaIOTest {
   @Test
   public void testManagedDeltaRead() throws Exception {
     File tableDir = tempFolder.newFolder("managed-delta-table");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
 
-    // 1. Write a Parquet file to simulate a Delta table
     Schema schema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
     Row row = Row.withSchema(schema).addValues("test-name").build();
-    writeParquetFile(new File(tableDir, "part-00000.parquet"), row);
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
 
-    // 2. Create the Delta log
-    File logDir = new File(tableDir, "_delta_log");
-    logDir.mkdirs();
-    File commitFile = new File(logDir, "00000000000000000000.json");
-
-    File parquetFile = new File(tableDir, "part-00000.parquet");
-    byte[] fileBytes = Files.readAllBytes(parquetFile.toPath());
-
-    String commitContent =
-        "{\"protocol\":{\"minReaderVersion\":1,\"minWriterVersion\":2}}\n"
-            + "{\"metaData\":{\"id\":\"test-id\",\"format\":{\"provider\":\"parquet\",\"options\":{}},\"schemaString\":\"{\\\"type\\\":\\\"struct\\\",\\\"fields\\\":[{\\\"name\\\":\\\"name\\\",\\\"type\\\":\\\"string\\\",\\\"nullable\\\":true,\\\"metadata\\\":{}}]}\",\"partitionColumns\":[],\"configuration\":{},\"createdAt\":123456789}}\n"
-            + "{\"add\":{\"path\":\"part-00000.parquet\",\"partitionValues\":{},\"size\":"
-            + fileBytes.length
-            + ",\"modificationTime\":123456789,\"dataChange\":true}}";
-
-    Files.write(commitFile.toPath(), commitContent.getBytes(StandardCharsets.UTF_8));
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        123456789L,
+        deltaSchema,
+        Collections.singletonList(row));
 
     // 3. Read it using Managed
     PCollection<Row> output =
@@ -494,6 +547,26 @@ public class DeltaIOTest {
             .addField("array", Schema.FieldType.iterable(Schema.FieldType.STRING))
             .addField("map", Schema.FieldType.map(Schema.FieldType.STRING, Schema.FieldType.INT32))
             .addField("struct", Schema.FieldType.row(nestedSchema))
+            .build();
+
+    Schema actualSchema = DeltaIO.ReadRows.convertToBeamSchema(deltaSchema);
+    org.junit.Assert.assertEquals(expectedSchema, actualSchema);
+  }
+
+  @Test
+  public void testConvertToBeamSchemaPreservesNullability() {
+    StructType deltaSchema =
+        new StructType(
+            java.util.Arrays.asList(
+                new StructField("nullable_string", StringType.STRING, true),
+                new StructField("non_nullable_integer", IntegerType.INTEGER, false)));
+
+    Schema expectedSchema =
+        Schema.builder()
+            .addField(
+                Schema.Field.of("nullable_string", Schema.FieldType.STRING).withNullable(true))
+            .addField(
+                Schema.Field.of("non_nullable_integer", Schema.FieldType.INT32).withNullable(false))
             .build();
 
     Schema actualSchema = DeltaIO.ReadRows.convertToBeamSchema(deltaSchema);
@@ -808,6 +881,940 @@ public class DeltaIOTest {
       } catch (java.util.NoSuchElementException e) {
         // expected
       }
+    }
+  }
+
+  @Test
+  public void testReadChanges() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table using ReadChanges
+    PCollection<Row> output =
+        readPipeline.apply(
+            DeltaIO.readChanges().from(tableDir.getAbsolutePath()).withStartVersion(0L));
+
+    PCollection<String> formattedOutput =
+        output.apply("Format ValueKind and Row", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "INSERT:row-1",
+            "INSERT:row-2",
+            "UPDATE_BEFORE:row-1",
+            "UPDATE_AFTER:row-1-updated",
+            "DELETE:row-2");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesAndNormalReadWithCDCAndAppend() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-cdc-and-append");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc and append parquet files for Version 1 (commit with cdc and add actions)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-3", "insert", 1L, new Instant(123456789000L))
+            .build();
+
+    Row appendRow = Row.withSchema(tableSchema).addValues("row-3").build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(appendRow),
+        null,
+        java.util.Arrays.asList(cdcRow),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table using ReadChanges
+    PCollection<Row> outputCDC =
+        readPipeline.apply(
+            "Read Changes",
+            DeltaIO.readChanges().from(tableDir.getAbsolutePath()).withStartVersion(0L));
+
+    PCollection<String> formattedOutputCDC =
+        outputCDC.apply("Format CDC Row", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedOutputCDC)
+        .containsInAnyOrder("INSERT:row-1", "INSERT:row-2", "INSERT:row-3");
+
+    // 4. Read latest snapshot using normal read via writePipeline
+    PCollection<Row> outputNormal =
+        writePipeline.apply("Read Normal", DeltaIO.readRows().from(tableDir.getAbsolutePath()));
+
+    PCollection<String> formattedOutputNormal =
+        outputNormal.apply("Format Normal Row", ParDo.of(new FormatRowName()));
+
+    PAssert.that(formattedOutputNormal).containsInAnyOrder("row-1", "row-2", "row-3");
+
+    readPipeline.run().waitUntilFinish();
+    writePipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithSchemaTransformProvider() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-provider");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table using DeltaCdcReadSchemaTransformProvider
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    PCollection<String> formattedOutput =
+        output.apply("Format ValueKind and Row", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "INSERT:row-1",
+            "INSERT:row-2",
+            "UPDATE_BEFORE:row-1",
+            "UPDATE_AFTER:row-1-updated",
+            "DELETE:row-2");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithMetadataColumns() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-metadata");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table using DeltaCdcReadSchemaTransformProvider requesting metadata
+    // columns
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .setIncludeMetadataColumns(
+                java.util.Arrays.asList(
+                    DeltaIO.CHANGE_TYPE_COLUMN,
+                    DeltaIO.COMMIT_VERSION_COLUMN,
+                    DeltaIO.COMMIT_TIMESTAMP_COLUMN))
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row with Metadata", ParDo.of(new FormatRowWithMetadata()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "row-1:insert:v0:t100000000000",
+            "row-2:insert:v0:t100000000000",
+            "row-1:update_preimage:v1:t123456789000",
+            "row-1-updated:update_postimage:v1:t123456789000",
+            "row-2:delete:v1:t123456789000");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithMissingMetadataColumns() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-missing-metadata");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions), but OMIT version and
+    // timestamp columns!
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING);
+
+    Row cdcRow1 = Row.withSchema(cdcWriteSchema).addValues("row-1", "update_preimage").build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema).addValues("row-1-updated", "update_postimage").build();
+    Row cdcRow3 = Row.withSchema(cdcWriteSchema).addValues("row-2", "delete").build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table requesting metadata columns
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .setIncludeMetadataColumns(
+                java.util.Arrays.asList(
+                    DeltaIO.CHANGE_TYPE_COLUMN,
+                    DeltaIO.COMMIT_VERSION_COLUMN,
+                    DeltaIO.COMMIT_TIMESTAMP_COLUMN))
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row with Metadata", ParDo.of(new FormatRowWithMetadata()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "row-1:insert:v0:t100000000000",
+            "row-2:insert:v0:t100000000000",
+            "row-1:update_preimage:v1:t200000000000",
+            "row-1-updated:update_postimage:v1:t200000000000",
+            "row-2:delete:v1:t200000000000");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithSubsetOfMetadataColumns() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-subset-metadata");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1));
+
+    // 2. Read CDF data from table requesting ONLY _change_type
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .setIncludeMetadataColumns(
+                java.util.Collections.singletonList(DeltaIO.CHANGE_TYPE_COLUMN))
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    // Verify schema does not contain version or timestamp
+    org.junit.Assert.assertTrue(output.getSchema().hasField(DeltaIO.CHANGE_TYPE_COLUMN));
+    org.junit.Assert.assertFalse(output.getSchema().hasField(DeltaIO.COMMIT_VERSION_COLUMN));
+    org.junit.Assert.assertFalse(output.getSchema().hasField(DeltaIO.COMMIT_TIMESTAMP_COLUMN));
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row", ParDo.of(new FormatRowSubsetMetadata()));
+
+    PAssert.that(formattedOutput).containsInAnyOrder("row-1:insert");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithCommitVersionMetadataColumn() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-version-metadata");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1));
+
+    // 2. Read CDF data from table requesting ONLY _commit_version
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .setIncludeMetadataColumns(
+                java.util.Collections.singletonList(DeltaIO.COMMIT_VERSION_COLUMN))
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    // Verify schema contains version but not change type or timestamp
+    org.junit.Assert.assertFalse(output.getSchema().hasField(DeltaIO.CHANGE_TYPE_COLUMN));
+    org.junit.Assert.assertTrue(output.getSchema().hasField(DeltaIO.COMMIT_VERSION_COLUMN));
+    org.junit.Assert.assertFalse(output.getSchema().hasField(DeltaIO.COMMIT_TIMESTAMP_COLUMN));
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row", ParDo.of(new FormatRowVersionMetadata()));
+
+    PAssert.that(formattedOutput).containsInAnyOrder("row-1:0");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithCommitTimestampMetadataColumn() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-timestamp-metadata");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1));
+
+    // 2. Read CDF data from table requesting ONLY _commit_timestamp
+    DeltaCdcReadSchemaTransformProvider.Configuration config =
+        DeltaCdcReadSchemaTransformProvider.Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setStartVersion(0L)
+            .setIncludeMetadataColumns(
+                java.util.Collections.singletonList(DeltaIO.COMMIT_TIMESTAMP_COLUMN))
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaCdcReadSchemaTransformProvider().from(config))
+            .get(DeltaCdcReadSchemaTransformProvider.OUTPUT_TAG);
+
+    // Verify schema contains timestamp but not change type or version
+    org.junit.Assert.assertFalse(output.getSchema().hasField(DeltaIO.CHANGE_TYPE_COLUMN));
+    org.junit.Assert.assertFalse(output.getSchema().hasField(DeltaIO.COMMIT_VERSION_COLUMN));
+    org.junit.Assert.assertTrue(output.getSchema().hasField(DeltaIO.COMMIT_TIMESTAMP_COLUMN));
+
+    PCollection<String> formattedOutput =
+        output.apply("Format Row", ParDo.of(new FormatRowTimestampMetadata()));
+
+    PAssert.that(formattedOutput).containsInAnyOrder("row-1:100000000000");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesWithManaged() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-managed");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write cdc parquet file for Version 1 (commit with cdc actions)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(123456789000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(123456789000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Read CDF data from table using Managed.read(Managed.DELTA_LAKE_CDC)
+    Map<String, Object> config = new HashMap<>();
+    config.put("table", tableDir.getAbsolutePath());
+    config.put("start_version", 0L);
+
+    PCollection<Row> output =
+        readPipeline
+            .apply(Managed.read(Managed.DELTA_LAKE_CDC).withConfig(config))
+            .getSinglePCollection();
+
+    PCollection<String> formattedOutput =
+        output.apply("Format ValueKind and Row", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedOutput)
+        .containsInAnyOrder(
+            "INSERT:row-1",
+            "INSERT:row-2",
+            "UPDATE_BEFORE:row-1",
+            "UPDATE_AFTER:row-1-updated",
+            "DELETE:row-2");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesRanges() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-ranges");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write parquet files for Version 1 (commit with updates and deletes)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(200000000000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(200000000000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(200000000000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Write parquet files for Version 2 (insert-only commit)
+    Row tableRow3 = Row.withSchema(tableSchema).addValues("row-3").build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        2L,
+        300000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow3));
+
+    // Test 1: Read changes between start version 0 and end version 2
+    PCollection<Row> outputVersions =
+        readPipeline.apply(
+            "Read Changes Version Range",
+            DeltaIO.readChanges()
+                .from(tableDir.getAbsolutePath())
+                .withStartVersion(0L)
+                .withEndVersion(2L));
+
+    PCollection<String> formattedVersions =
+        outputVersions.apply("Format Version Output", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedVersions)
+        .containsInAnyOrder(
+            "INSERT:row-1",
+            "INSERT:row-2",
+            "UPDATE_BEFORE:row-1",
+            "UPDATE_AFTER:row-1-updated",
+            "DELETE:row-2",
+            "INSERT:row-3");
+
+    // Test 2: Read changes between start timestamp (after version 0) and end timestamp (after
+    // version 2)
+    String startTimestamp = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    String endTimestamp = java.time.Instant.ofEpochMilli(350000000000L).toString();
+
+    PCollection<Row> outputTimestamps =
+        filteringPipeline.apply(
+            "Read Changes Timestamp Range",
+            DeltaIO.readChanges()
+                .from(tableDir.getAbsolutePath())
+                .withStartTimestamp(startTimestamp)
+                .withEndTimestamp(endTimestamp));
+
+    PCollection<String> formattedTimestamps =
+        outputTimestamps.apply("Format Timestamp Output", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedTimestamps)
+        .containsInAnyOrder(
+            "UPDATE_BEFORE:row-1", "UPDATE_AFTER:row-1-updated", "DELETE:row-2", "INSERT:row-3");
+
+    readPipeline.run().waitUntilFinish();
+    filteringPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadChangesPartialRange() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-changes-partial-range");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    Schema tableSchema = Schema.builder().addField("name", Schema.FieldType.STRING).build();
+    StructType deltaSchema = new StructType().add("name", StringType.STRING);
+
+    // 1. Write parquet files for Version 0 (insert-only commit)
+    Row tableRow1 = Row.withSchema(tableSchema).addValues("row-1").build();
+    Row tableRow2 = Row.withSchema(tableSchema).addValues("row-2").build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        0L,
+        100000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow1, tableRow2));
+
+    // 2. Write parquet files for Version 1 (commit with updates and deletes)
+    Schema cdcWriteSchema =
+        Schema.builder()
+            .addField("name", Schema.FieldType.STRING)
+            .addField(DeltaIO.CHANGE_TYPE_COLUMN, Schema.FieldType.STRING)
+            .addField(DeltaIO.COMMIT_VERSION_COLUMN, Schema.FieldType.INT64)
+            .addField(DeltaIO.COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME)
+            .build();
+    StructType cdcWriteDeltaSchema =
+        new StructType()
+            .add("name", StringType.STRING)
+            .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
+            .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
+            .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+    Row cdcRow1 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1", "update_preimage", 1L, new Instant(200000000000L))
+            .build();
+    Row cdcRow2 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "update_postimage", 1L, new Instant(200000000000L))
+            .build();
+    Row cdcRow3 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-2", "delete", 1L, new Instant(200000000000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        1L,
+        200000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow1, cdcRow2, cdcRow3),
+        cdcWriteDeltaSchema);
+
+    // 3. Write parquet files for Version 2 (insert-only commit)
+    Row tableRow3 = Row.withSchema(tableSchema).addValues("row-3").build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        2L,
+        300000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow3));
+
+    // 4. Write parquet files for Version 3 (commit with updates and deletes)
+    Row cdcRow4 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-3", "update_preimage", 3L, new Instant(400000000000L))
+            .build();
+    Row cdcRow5 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-3-updated", "update_postimage", 3L, new Instant(400000000000L))
+            .build();
+    Row cdcRow6 =
+        Row.withSchema(cdcWriteSchema)
+            .addValues("row-1-updated", "delete", 3L, new Instant(400000000000L))
+            .build();
+
+    DeltaWriteTestUtils.writeCdcCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        3L,
+        400000000000L,
+        deltaSchema,
+        null,
+        null,
+        java.util.Arrays.asList(cdcRow4, cdcRow5, cdcRow6),
+        cdcWriteDeltaSchema);
+
+    // 5. Write parquet files for Version 4 (insert-only commit)
+    Row tableRow4 = Row.withSchema(tableSchema).addValues("row-4").build();
+    DeltaWriteTestUtils.writeAppendCommit(
+        engine,
+        tableDir.getAbsolutePath(),
+        4L,
+        500000000000L,
+        deltaSchema,
+        java.util.Arrays.asList(tableRow4));
+
+    // Read changes between start version 1 and end version 3
+    PCollection<Row> outputVersions =
+        readPipeline.apply(
+            "Read Changes Partial Version Range",
+            DeltaIO.readChanges()
+                .from(tableDir.getAbsolutePath())
+                .withStartVersion(1L)
+                .withEndVersion(3L));
+
+    PCollection<String> formattedVersions =
+        outputVersions.apply("Format Version Output", ParDo.of(new FormatValueKindAndRow()));
+
+    PAssert.that(formattedVersions)
+        .containsInAnyOrder(
+            "UPDATE_BEFORE:row-1",
+            "UPDATE_AFTER:row-1-updated",
+            "DELETE:row-2",
+            "INSERT:row-3",
+            "UPDATE_BEFORE:row-3",
+            "UPDATE_AFTER:row-3-updated",
+            "DELETE:row-1-updated");
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testS3SchemeRegistrationWithAnonymousCredentials() {
+    org.apache.hadoop.conf.Configuration conf = new org.apache.hadoop.conf.Configuration();
+    conf.set("fs.s3.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem");
+    conf.set("fs.AbstractFileSystem.s3a.impl", "org.apache.hadoop.fs.s3a.S3A");
+    conf.set(
+        "fs.s3a.aws.credentials.provider",
+        "org.apache.hadoop.fs.s3a.AnonymousAWSCredentialsProvider");
+
+    Engine engine = DefaultEngine.create(conf);
+    Table table = Table.forPath(engine, "s3://fake-bucket/table");
+    Exception e = Assert.assertThrows(Exception.class, () -> table.getLatestSnapshot(engine));
+    String msg = e.toString();
+    Assert.assertFalse(
+        "Should not throw UnsupportedFileSystemException. Error was: " + msg,
+        msg.contains("UnsupportedFileSystemException") || msg.contains("No FileSystem for scheme"));
+  }
+
+  private static final class FormatValueKindAndRow extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(valueKind.name() + ":" + row.getString("name"));
+    }
+  }
+
+  private static final class FormatRowWithMetadata extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<String> out) {
+      out.output(
+          String.format(
+              "%s:%s:v%d:t%d",
+              row.getString("name"),
+              row.getString(DeltaIO.CHANGE_TYPE_COLUMN),
+              row.getInt64(DeltaIO.COMMIT_VERSION_COLUMN),
+              row.getDateTime(DeltaIO.COMMIT_TIMESTAMP_COLUMN).getMillis()));
+    }
+  }
+
+  private static final class FormatRowSubsetMetadata extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<String> out) {
+      out.output(row.getString("name") + ":" + row.getString(DeltaIO.CHANGE_TYPE_COLUMN));
+    }
+  }
+
+  private static final class FormatRowName extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<String> out) {
+      out.output(row.getString("name"));
+    }
+  }
+
+  private static final class FormatRowVersionMetadata extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<String> out) {
+      out.output(row.getString("name") + ":" + row.getInt64(DeltaIO.COMMIT_VERSION_COLUMN));
+    }
+  }
+
+  private static final class FormatRowTimestampMetadata extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(@Element Row row, OutputReceiver<String> out) {
+      out.output(
+          row.getString("name")
+              + ":"
+              + row.getDateTime(DeltaIO.COMMIT_TIMESTAMP_COLUMN).getMillis());
     }
   }
 }

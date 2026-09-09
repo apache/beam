@@ -65,6 +65,7 @@ configurations.runtimeClasspath {
   resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
   resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
   resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-aws:3.3.6'
 }
 
 shadowJar {

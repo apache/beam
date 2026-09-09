@@ -277,7 +277,8 @@ public class SplittableParDoViaKeyedWorkItems {
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
     private transient @Nullable SideInputReader sideInputReader;
-    private transient @Nullable SplittableProcessElementInvoker<
+    private transient @Nullable
+        SplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
         processElementInvoker;
 
@@ -469,8 +470,9 @@ public class SplittableParDoViaKeyedWorkItems {
         restrictionState.readLater();
         watermarkEstimatorState.readLater();
         WindowedValue<InputT> read = elementState.read();
+        RestrictionT restriction = restrictionState.read();
         if (timer.causedByDrain() == CausedByDrain.CAUSED_BY_DRAIN) {
-          read =
+          WindowedValue<InputT> drainRead =
               WindowedValues.of(
                   read.getValue(),
                   read.getTimestamp(),
@@ -481,8 +483,73 @@ public class SplittableParDoViaKeyedWorkItems {
                   CausedByDrain.CAUSED_BY_DRAIN,
                   read.getOpenTelemetryContext(),
                   read.getValueKind());
+          RestrictionTracker.TruncateResult<RestrictionT> truncateResult =
+              invoker.invokeTruncateRestriction(
+                  new BaseArgumentProvider<InputT, OutputT>() {
+                    @Override
+                    public InputT element(DoFn<InputT, OutputT> doFn) {
+                      return drainRead.getValue();
+                    }
+
+                    @Override
+                    public Object restriction() {
+                      return restriction;
+                    }
+
+                    @Override
+                    public RestrictionTracker<?, ?> restrictionTracker() {
+                      return invoker.invokeNewTracker(this);
+                    }
+
+                    @Override
+                    public Instant timestamp(DoFn<InputT, OutputT> doFn) {
+                      return drainRead.getTimestamp();
+                    }
+
+                    @Override
+                    public PipelineOptions pipelineOptions() {
+                      return c.getPipelineOptions();
+                    }
+
+                    @Override
+                    public PaneInfo paneInfo(DoFn<InputT, OutputT> doFn) {
+                      return drainRead.getPaneInfo();
+                    }
+
+                    @Override
+                    public BoundedWindow window() {
+                      return Iterables.getOnlyElement(drainRead.getWindows());
+                    }
+
+                    @Override
+                    public Object sideInput(String tagId) {
+                      PCollectionView<?> view = sideInputMapping.get(tagId);
+                      if (view == null) {
+                        throw new IllegalArgumentException(
+                            "calling getSideInput() with unknown view");
+                      }
+                      return sideInputReader.get(
+                          view, view.getWindowMappingFn().getSideInputWindow(window()));
+                    }
+
+                    @Override
+                    public String getErrorContext() {
+                      return ProcessFn.class.getSimpleName() + ".invokeTruncateRestriction";
+                    }
+                  });
+          if (truncateResult == null) {
+            elementState.clear();
+            restrictionState.clear();
+            watermarkEstimatorState.clear();
+            holdState.clear();
+            return;
+          }
+          RestrictionT truncatedRestriction = truncateResult.getTruncatedRestriction();
+          elementAndRestriction = KV.of(drainRead, truncatedRestriction);
+          restrictionState.write(truncatedRestriction);
+        } else {
+          elementAndRestriction = KV.of(read, restriction);
         }
-        elementAndRestriction = KV.of(read, restrictionState.read());
         watermarkEstimatorStateT = watermarkEstimatorState.read();
       }
 

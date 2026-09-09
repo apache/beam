@@ -44,7 +44,7 @@ abstract class FileWriteResult {
   @SchemaIgnore
   public TableIdentifier getTableIdentifier() {
     if (cachedTableIdentifier == null) {
-      cachedTableIdentifier = TableIdentifier.parse(getTableIdentifierString());
+      cachedTableIdentifier = IcebergUtils.parseTableIdentifier(getTableIdentifierString());
     }
     return cachedTableIdentifier;
   }
@@ -70,7 +70,7 @@ abstract class FileWriteResult {
 
     @SchemaIgnore
     public Builder setTableIdentifier(TableIdentifier tableId) {
-      return setTableIdentifierString(tableId.toString());
+      return setTableIdentifierString(IcebergUtils.tableIdentifierToString(tableId));
     }
 
     public abstract FileWriteResult build();

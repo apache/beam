@@ -54,7 +54,11 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: [self-hosted, ubuntu-24.04, main]
-    timeout-minutes: 480
+    # Skip local multiarch SDK container builds. ARM workers use the
+    # apache-beam-testing Snapshots image tagged with sdk_version, plus an
+    # aarch64 wheel from this checkout. Keep headroom for the IT suite and
+    # qemu wheel build.
+    timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
@@ -67,6 +71,8 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         uses: jlumbroso/free-disk-space@v1.3.1
       - name: Setup repository
@@ -90,33 +96,25 @@ jobs:
           credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
-      - name: GCloud Docker credential helper
-        run: |
-          gcloud auth configure-docker us.gcr.io
+      # aarch64 wheels are built with cibuildwheel on this x86 runner.
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8
+        name: Set up QEMU
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
-      - name: Generate TAG unique variable based on timestamp
-        id: set_tag
-        run: echo "TAG=$(date +'%Y%m%d-%H%M%S%N')" >> $GITHUB_OUTPUT
       - name: run PostCommit Python ${{ matrix.python_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitArmIT
           arguments: |
             -PuseWheelDistribution \
+            -PcibwArchs=aarch64 \
             -PpythonVersion=${{ matrix.python_version }} \
-            -Pcontainer-architecture-list=arm64,amd64 \
-            -Pdocker-repository-root=us.gcr.io/apache-beam-testing/github-actions \
-            -Pdocker-tag=${{ steps.set_tag.outputs.TAG }} \
-            -Ppush-containers \
+            -PusePrebuiltSdkContainer \
         env:
-          MULTIARCH_TAG: ${{ steps.set_tag.outputs.TAG }}
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7

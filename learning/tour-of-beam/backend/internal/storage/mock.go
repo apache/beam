@@ -19,7 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"os"
 	"path"
 	"runtime"
 	"strings"
@@ -42,7 +42,7 @@ func (d *Mock) GetContentTree(_ context.Context, sdk tob.Sdk) (ct tob.ContentTre
 	if sdk == tob.SDK_SCIO {
 		return ct, errors.New("empty sdk tree")
 	}
-	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_content_tree.json"))
+	content, _ := os.ReadFile(path.Join(getSamplesPath(), "get_content_tree.json"))
 	_ = json.Unmarshal(content, &ct)
 	return ct, nil
 }
@@ -55,7 +55,7 @@ func (d *Mock) GetUnitContent(_ context.Context, sdk tob.Sdk, unitId string) (u 
 	if strings.HasPrefix(unitId, "unknown_") {
 		return u, tob.ErrNoUnit
 	}
-	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_unit_content.json"))
+	content, _ := os.ReadFile(path.Join(getSamplesPath(), "get_unit_content.json"))
 	err = json.Unmarshal(content, &u)
 	return u, err
 }
@@ -74,7 +74,7 @@ func (d *Mock) SaveUser(ctx context.Context, uid string) error {
 }
 
 func (d *Mock) GetUserProgress(_ context.Context, sdk tob.Sdk, userId string) (sp *tob.SdkProgress, err error) {
-	content, _ := ioutil.ReadFile(path.Join(getSamplesPath(), "get_user_progress.json"))
+	content, _ := os.ReadFile(path.Join(getSamplesPath(), "get_user_progress.json"))
 	_ = json.Unmarshal(content, &sp)
 	return sp, nil
 }

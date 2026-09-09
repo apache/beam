@@ -291,7 +291,10 @@ class PrismJobServer(job_server.SubprocessJobServer):
           except ValueError:
             url_read = urlopen(url)
           with open(cached_file + '.tmp', 'wb') as zip_write:
-            shutil.copyfileobj(url_read, zip_write, length=1 << 20)
+            shutil.copyfileobj(
+                typing.cast(typing.BinaryIO, url_read),
+                zip_write,
+                length=1 << 20)
 
           _rename_if_different(cached_file + '.tmp', cached_file)
         except URLError as e:

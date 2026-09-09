@@ -19,7 +19,7 @@
 # configuration in /sdks/standard_expansion_services.yaml.
 # Refer to gen_xlang_wrappers.py for more info.
 #
-# Last updated on: 2026-06-11
+# Last updated on: 2026-08-15
 
 - default_service: sdks:java:io:expansion-service:shadowJar
   description: ''
@@ -150,6 +150,138 @@
   identifier: beam:schematransform:org.apache.beam:mongodb_write:v1
   name: MongodbWrite
 - default_service: sdks:java:io:expansion-service:shadowJar
+  description: Reads records from an Amazon Kinesis stream and outputs Beam Rows
+    with `data` (bytes) plus stream metadata fields.
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: AWS access key id.
+    name: aws_access_key
+    nullable: false
+    type: str
+  - description: AWS secret access key.
+    name: aws_secret_key
+    nullable: false
+    type: str
+  - description: 'Where to start reading in the stream: LATEST, TRIM_HORIZON, or AT_TIMESTAMP.'
+    name: initial_position_in_stream
+    nullable: true
+    type: str
+  - description: Epoch millis timestamp used when initial_position_in_stream is AT_TIMESTAMP.
+    name: initial_timestamp_in_stream
+    nullable: true
+    type: int64
+  - description: Maximum number of records to hold in memory per shard.
+    name: max_capacity_per_shard
+    nullable: true
+    type: int64
+  - description: Maximum number of records to read. When set, the resulting PCollection
+      is bounded.
+    name: max_num_records
+    nullable: true
+    type: int64
+  - description: Maximum read time in milliseconds. When set, the resulting PCollection
+      is bounded.
+    name: max_read_time
+    nullable: true
+    type: int64
+  - description: Fixed delay between GetRecords calls in milliseconds.
+    name: rate_limit
+    nullable: true
+    type: int64
+  - description: AWS region, for example us-east-1.
+    name: region
+    nullable: false
+    type: str
+  - description: Max records returned by a single GetRecords call (1-10000).
+    name: request_records_limit
+    nullable: true
+    type: int64
+  - description: Optional custom Kinesis service endpoint URI.
+    name: service_endpoint
+    nullable: true
+    type: str
+  - description: Kinesis stream name to read from.
+    name: stream_name
+    nullable: false
+    type: str
+  - description: Threshold duration in milliseconds after which a shard is considered
+      up to date.
+    name: up_to_date_threshold
+    nullable: true
+    type: int64
+  - description: Whether to verify TLS certificates. Defaults to true. Never disable
+      in production.
+    name: verify_certificate
+    nullable: true
+    type: boolean
+  - description: Idle duration threshold in milliseconds for ARRIVAL_TIME watermark
+      policy.
+    name: watermark_idle_duration_threshold
+    nullable: true
+    type: int64
+  - description: 'Watermark policy: ARRIVAL_TIME or PROCESSING_TIME.'
+    name: watermark_policy
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:kinesis_read:v1
+  name: KinesisRead
+- default_service: sdks:java:io:expansion-service:shadowJar
+  description: Writes Beam Rows to an Amazon Kinesis stream. Each input row must include
+    a `data` (bytes) field, or a `payload` string/bytes field. Optional per-row `partition_key`
+    overrides the configured default partition key.
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: Enable KPL-compatible record aggregation.
+    name: aggregation_enabled
+    nullable: true
+    type: boolean
+  - description: Max time in milliseconds to buffer records when aggregation is enabled.
+    name: aggregation_max_buffered_time
+    nullable: true
+    type: int64
+  - description: Max aggregated record size in bytes when aggregation is enabled.
+    name: aggregation_max_bytes
+    nullable: true
+    type: int64
+  - description: Shard map refresh interval in minutes when aggregation is enabled.
+    name: aggregation_shard_refresh_interval
+    nullable: true
+    type: int64
+  - description: AWS access key id.
+    name: aws_access_key
+    nullable: false
+    type: str
+  - description: AWS secret access key.
+    name: aws_secret_key
+    nullable: false
+    type: str
+  - description: Default partition key used when the input row does not contain a
+      partition_key field.
+    name: partition_key
+    nullable: false
+    type: str
+  - description: AWS region, for example us-east-1.
+    name: region
+    nullable: false
+    type: str
+  - description: Optional custom Kinesis service endpoint URI.
+    name: service_endpoint
+    nullable: true
+    type: str
+  - description: Kinesis stream name to write to.
+    name: stream_name
+    nullable: false
+    type: str
+  - description: Whether to verify TLS certificates. Defaults to true. Never disable
+      in production.
+    name: verify_certificate
+    nullable: true
+    type: boolean
+  identifier: beam:schematransform:org.apache.beam:kinesis_write:v1
+  name: KinesisWrite
+- default_service: sdks:java:io:expansion-service:shadowJar
   description: ''
   destinations:
     python: apache_beam/io
@@ -214,6 +346,107 @@
     type: str
   identifier: beam:schematransform:org.apache.beam:tfrecord_write:v1
   name: TfrecordWrite
+- default_service: sdks:java:io:messaging-expansion-service:shadowJar
+  description: 'Reads messages from a JMS broker and outputs each message as a single
+    `payload` (string) field.
+
+
+    By default the read is unbounded (streaming): it keeps consuming messages from
+    the specified queue or topic until the pipeline is stopped. Setting `maxNumRecords`
+    and/or `maxReadTimeSeconds` bounds the read, producing a bounded (batch) PCollection.'
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: 'The JMS acknowledge mode: CLIENT_ACKNOWLEDGE, CLIENT_ACKNOWLEDGE_UNSAFE,
+      or INDIVIDUAL_ACKNOWLEDGE.'
+    name: acknowledge_mode
+    nullable: true
+    type: str
+  - description: Close timeout for the JMS connection in seconds.
+    name: close_timeout_seconds
+    nullable: true
+    type: int64
+  - description: 'Configuration options to set up the JMS connection.
+
+      Note: if connection factory class name is set, spin up a persistent expansion
+      service with the provider client JAR on the classpath:
+
+      java -cp <expansion-service-jar>:<provider-client-jar>
+
+      org.apache.beam.sdk.expansion.service.ExpansionService <port>
+
+      and pass expansion_service=''localhost:<port>'' to the transform. Currently,
+      only ActiveMQ (org.apache.activemq.ActiveMQConnectionFactory) is embedded into
+      the expansion service'
+    name: connection_configuration
+    nullable: false
+    type: Row(connection_factory_class_name=typing.Optional[str], password=typing.Optional[str],
+      server_uri=<class 'str'>, username=typing.Optional[str])
+  - description: The proprietary integer code for individual message acknowledgment
+      when using INDIVIDUAL_ACKNOWLEDGE.
+    name: individual_acknowledge_mode_code
+    nullable: true
+    type: int32
+  - description: The max number of records to receive. Setting this will result in
+      a bounded PCollection.
+    name: max_num_records
+    nullable: true
+    type: int64
+  - description: The maximum time for this source to read messages. Setting this will
+      result in a bounded PCollection.
+    name: max_read_time_seconds
+    nullable: true
+    type: int64
+  - description: The JMS queue to read from. Exclusively one of queue or topic must
+      be specified.
+    name: queue
+    nullable: true
+    type: str
+  - description: The JMS topic to read from. Exclusively one of queue or topic must
+      be specified.
+    name: topic
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:jms_read:v1
+  name: ReadFromJms
+- default_service: sdks:java:io:messaging-expansion-service:shadowJar
+  description: 'Publishes messages to a JMS broker. Expects an input PCollection of
+    rows with a `payload` (string) or `bytes` field, each of which is published as
+    one JMS TextMessage.
+
+
+    Works with both bounded (batch) and unbounded (streaming) input PCollections.'
+  destinations:
+    python: apache_beam/io
+  fields:
+  - description: 'Configuration options to set up the JMS connection.
+
+      Note: if connection factory class name is set, spin up a persistent expansion
+      service with the provider client JAR on the classpath:
+
+      java -cp <expansion-service-jar>:<provider-client-jar>
+
+      org.apache.beam.sdk.expansion.service.ExpansionService <port>
+
+      and pass expansion_service=''localhost:<port>'' to the transform. Currently,
+      only ActiveMQ (org.apache.activemq.ActiveMQConnectionFactory) is embedded into
+      the expansion service'
+    name: connection_configuration
+    nullable: false
+    type: Row(connection_factory_class_name=typing.Optional[str], password=typing.Optional[str],
+      server_uri=<class 'str'>, username=typing.Optional[str])
+  - description: The JMS queue to write to. Exclusively one of queue or topic must
+      be specified.
+    name: queue
+    nullable: true
+    type: str
+  - description: The JMS topic to write to. Exclusively one of queue or topic must
+      be specified.
+    name: topic
+    nullable: true
+    type: str
+  identifier: beam:schematransform:org.apache.beam:jms_write:v1
+  name: WriteToJms
 - default_service: sdks:java:io:messaging-expansion-service:shadowJar
   description: 'Reads messages from an MQTT broker and outputs each payload as a single
     `bytes` field.

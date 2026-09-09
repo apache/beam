@@ -34,8 +34,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.Queue;
+import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Function;
@@ -45,18 +47,39 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSortedSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Queues;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Utilities for working with with {@link Class Classes} and {@link Method Methods}. */
 @SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public class ReflectHelpers {
+  private static final Logger LOG = LoggerFactory.getLogger(ReflectHelpers.class);
 
   private static final Joiner COMMA_SEPARATOR = Joiner.on(", ");
+
+  /**
+   * Returns the simple name of the given class, or a fallback simple name derived from the class
+   * name if {@link Class#getSimpleName()} throws an exception (such as an {@link
+   * IllegalAccessError} on Java 17+ for non-public inner classes).
+   */
+  public static String getSimpleName(Class<?> clazz) {
+    try {
+      return clazz.getSimpleName();
+    } catch (Throwable t) {
+      if (clazz.isArray()) {
+        return getSimpleName(clazz.getComponentType()) + "[]";
+      }
+      String name = clazz.getName();
+      int idx = Math.max(name.lastIndexOf('.'), name.lastIndexOf('$'));
+      return idx != -1 ? name.substring(idx + 1) : name;
+    }
+  }
 
   /** Returns a string representation of the signature of a {@link Method}. */
   public static String formatMethod(Method input) {
     String parameterTypes =
         FluentIterable.from(asList(input.getParameterTypes()))
-            .transform(Class::getSimpleName)
+            .transform(ReflectHelpers::getSimpleName)
             .join(COMMA_SEPARATOR);
     return String.format("%s(%s)", input.getName(), parameterTypes);
   }
@@ -100,7 +123,7 @@ public class ReflectHelpers {
   }
 
   private static void formatClass(StringBuilder builder, Class<?> clazz) {
-    builder.append(clazz.getSimpleName());
+    builder.append(getSimpleName(clazz));
   }
 
   private static void formatTypeVariable(StringBuilder builder, TypeVariable<?> t) {
@@ -188,16 +211,40 @@ public class ReflectHelpers {
    * Returns instances of all implementations of the specified {@code iface}. Instances are sorted
    * by their class' name to ensure deterministic execution.
    *
+   * <p>Safely handles malformed service providers: if a provider fails to load (e.g. throwing
+   * {@link ServiceConfigurationError}, {@link LinkageError}, or other exceptions), it will be
+   * logged as a warning and skipped so that other valid implementations continue to load.
+   *
    * @param iface The interface to load implementations of
    * @param classLoader The class loader to use
    * @param <T> The type of {@code iface}
    * @return An iterable of instances of T, ordered by their class' canonical name
    */
   public static <T> Iterable<T> loadServicesOrdered(Class<T> iface, ClassLoader classLoader) {
-    ServiceLoader<T> loader = ServiceLoader.load(iface, classLoader);
     ImmutableSortedSet.Builder<T> builder =
         new ImmutableSortedSet.Builder<>(ObjectsClassComparator.INSTANCE);
-    builder.addAll(loader);
+    try {
+      ServiceLoader<T> loader = ServiceLoader.load(iface, classLoader);
+      Iterator<T> iterator = loader.iterator();
+      while (true) {
+        T service;
+        try {
+          if (!iterator.hasNext()) {
+            break;
+          }
+          service = iterator.next();
+        } catch (ServiceConfigurationError | LinkageError | Exception e) {
+          // A single broken provider on the classpath shouldn't abort discovery of valid ones.
+          LOG.warn("Failed to load a service implementation of {}; skipping", iface.getName(), e);
+          continue;
+        }
+        if (service != null) {
+          builder.add(service);
+        }
+      }
+    } catch (Throwable t) {
+      LOG.warn("Failed to discover services for {}", iface.getName(), t);
+    }
     return builder.build();
   }
 

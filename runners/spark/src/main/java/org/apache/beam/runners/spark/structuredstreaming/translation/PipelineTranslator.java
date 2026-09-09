@@ -25,6 +25,7 @@ import static org.apache.beam.sdk.values.PCollection.IsBounded.UNBOUNDED;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -128,7 +129,20 @@ public abstract class PipelineTranslator {
     TranslatingVisitor translator = new TranslatingVisitor(session, options, dependencies.results);
     pipeline.traverseTopologically(translator);
 
-    return new EvaluationContext(translator.leaves, session);
+    return createEvaluationContext(translator.leaves, session, options);
+  }
+
+  /**
+   * Creates the {@link EvaluationContext} for the translated pipeline.
+   *
+   * <p>Subclasses may override this to return a specialized context, e.g. to evaluate streaming
+   * pipelines.
+   */
+  protected EvaluationContext createEvaluationContext(
+      Collection<? extends EvaluationContext.NamedDataset<?>> leaves,
+      SparkSession session,
+      SparkCommonPipelineOptions options) {
+    return new EvaluationContext(leaves, session);
   }
 
   /**
@@ -311,12 +325,14 @@ public abstract class PipelineTranslator {
       TranslationResult<?, T> result = getResult(pCollection);
       result.dataset = dataset;
 
-      if (cache && result.usages() > 1) {
+      // Caching and lineage breaking are batch-only optimizations, streaming datasets must pass
+      // through untouched.
+      if (cache && result.usages() > 1 && !dataset.isStreaming()) {
         LOG.info("Dataset {} will be cached for reuse.", result.name);
         dataset.persist(storageLevel); // use NONE to disable
       }
 
-      if (result.estimatePlanComplexity() > PLAN_COMPLEXITY_THRESHOLD) {
+      if (!dataset.isStreaming() && result.estimatePlanComplexity() > PLAN_COMPLEXITY_THRESHOLD) {
         // Break linage of dataset to limit planning overhead for complex query plans.
         LOG.info("Breaking linage of dataset {} to limit complexity of query plan.", result.name);
         result.dataset = sparkSession.createDataset(dataset.rdd(), dataset.encoder());

@@ -84,6 +84,39 @@ public class ArrowConversionTest {
   }
 
   @Test
+  public void toArrowSchema_convertsSimpleBeamSchema() {
+    Schema beamSchema =
+        Schema.builder()
+            .addByteField("int8")
+            .addInt16Field("int16")
+            .addInt32Field("int32")
+            .addInt64Field("int64")
+            .addFloatField("float32")
+            .addDoubleField("float64")
+            .addNullableField("string", FieldType.STRING)
+            .addBooleanField("boolean")
+            .addByteArrayField("bytes")
+            .addDateTimeField("timestamp")
+            .build();
+
+    org.apache.arrow.vector.types.pojo.Schema expected =
+        new org.apache.arrow.vector.types.pojo.Schema(
+            ImmutableList.of(
+                field("int8", new ArrowType.Int(8, true)),
+                field("int16", new ArrowType.Int(16, true)),
+                field("int32", new ArrowType.Int(32, true)),
+                field("int64", new ArrowType.Int(64, true)),
+                field("float32", new ArrowType.FloatingPoint(FloatingPointPrecision.SINGLE)),
+                field("float64", new ArrowType.FloatingPoint(FloatingPointPrecision.DOUBLE)),
+                field("string", true, ArrowType.Utf8.INSTANCE),
+                field("boolean", ArrowType.Bool.INSTANCE),
+                field("bytes", ArrowType.Binary.INSTANCE),
+                field("timestamp", new ArrowType.Timestamp(TimeUnit.MILLISECOND, "UTC"))));
+
+    assertThat(ArrowConversion.ArrowSchemaTranslator.toArrowSchema(beamSchema), equalTo(expected));
+  }
+
+  @Test
   public void rowIterator() {
     org.apache.arrow.vector.types.pojo.Schema schema =
         new org.apache.arrow.vector.types.pojo.Schema(

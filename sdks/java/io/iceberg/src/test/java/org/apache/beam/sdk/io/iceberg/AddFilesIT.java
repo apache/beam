@@ -68,6 +68,7 @@ import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.Filter;
 import org.apache.beam.sdk.transforms.JsonToRow;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
@@ -101,7 +102,12 @@ import org.slf4j.LoggerFactory;
 public class AddFilesIT {
   private static final Logger LOG = LoggerFactory.getLogger(AddFilesIT.class);
 
-  private static final String WAREHOUSE = "gs://managed-iceberg-biglake-its";
+  // Bucket-backed BigLake catalogs are named after their bucket. Overridable for local runs
+  // against a different project's catalog: -Dbeam.iceberg.biglake.warehouse=gs://my-bucket
+  private static final String CATALOG_NAME =
+      System.getProperty("beam.iceberg.biglake.warehouse", "gs://managed-iceberg-biglake-its")
+          .replace("gs://", "");
+  private static final String WAREHOUSE = "gs://" + CATALOG_NAME;
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   @Rule public TestName testName = new TestName();
@@ -125,12 +131,11 @@ public class AddFilesIT {
           "warehouse", WAREHOUSE,
           "header.x-goog-user-project", PROJECT,
           "rest.auth.type", "google",
-          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-          "rest-metrics-reporting-enabled", "false");
+          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO");
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
-  private final String namespace = getClass().getSimpleName();
+  private final String namespace = getClass().getSimpleName() + "_" + System.currentTimeMillis();
   private String srcTableName;
   private String destTableName;
   private TableIdentifier srcTableId;
@@ -246,10 +251,13 @@ public class AddFilesIT {
     // first create a source iceberg table
     catalog.createTable(srcTableId, beamSchemaToIcebergSchema(ROW_SCHEMA), SPEC);
 
-    String filter = format("%s/%s/data/", namespace, srcTableName);
+    // BigLake may write under {namespace}/{table}/{id}/data/... rather than the Hive-style
+    // {namespace}/{table}/data/... layout, so match the table prefix and a /data/ segment.
+    String tablePrefix = format("%s/%s/", namespace, srcTableName);
 
     // build AddFiles pipeline and let it run in the background
-    PipelineResult addFilesPipeline = startAddFilesListener(filter);
+    PipelineResult addFilesPipeline =
+        startAddFilesListener(name -> name.contains(tablePrefix) && name.contains("/data/"));
 
     // before writing, confirm the destination table still does not exist
     assertFalse(catalog.tableExists(destTableId));
@@ -299,7 +307,7 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ false);
   }
 
   /**
@@ -400,11 +408,20 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ false);
   }
 
   @Test
   public void testBatchParquetImport() throws IOException {
+    testBatchParquetImport(false);
+  }
+
+  @Test
+  public void testBatchParquetImportToUIT() throws IOException {
+    testBatchParquetImport(true);
+  }
+
+  private void testBatchParquetImport(boolean isUIT) throws IOException {
     // start with a table that does not exist
 
     String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
@@ -445,6 +462,11 @@ public class AddFilesIT {
     // before adding, confirm the destination table still does not exist
     assertFalse(catalog.tableExists(destTableId));
 
+    Map<String, String> tableProps = new HashMap<>(TABLE_PROPS);
+    if (isUIT) {
+      tableProps.put("gcp.biglake.bigquery-dml.enabled", "true");
+    }
+
     // run batch AddFiles
     Pipeline p = Pipeline.create();
     PCollectionRowTuple tuple =
@@ -454,9 +476,9 @@ public class AddFilesIT {
                     IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
-                    PARTITION_FIELDS,
+                    isUIT ? null : PARTITION_FIELDS,
                     null,
-                    TABLE_PROPS,
+                    tableProps,
                     null,
                     null));
     PAssert.that(tuple.get("errors")).empty();
@@ -471,11 +493,11 @@ public class AddFilesIT {
     LOG.info(
         "Destination table has registered all source files ({} files).", writtenFilePaths.size());
 
-    // check all records are there
-    checkRecordsInDestinationTable();
+    // check all records are there.
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
   }
 
-  private void checkRecordsInDestinationTable() {
+  private void checkRecordsInDestinationTable(boolean alsoCheckWithBigQueryIO) {
     Pipeline s = Pipeline.create();
     PCollection<Row> destRows =
         s.apply(
@@ -485,7 +507,41 @@ public class AddFilesIT {
                             "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
             .getSinglePCollection();
     PAssert.that(destRows).containsInAnyOrder(TEST_ROWS);
+
+    if (alsoCheckWithBigQueryIO) {
+      // Cross-engine check: the same rows must be readable with BigQueryIO via the 4-part
+      // project.catalog.namespace.table reference. Rows are compared on a canonical string
+      // because BigQuery widens int32 (age) to INT64, so whole-row equality does not hold.
+      PCollection<String> bqRows =
+          s.apply(
+                  "read with BigQueryIO",
+                  Managed.read(Managed.BIGQUERY)
+                      .withConfig(
+                          ImmutableMap.of(
+                              "table",
+                              format(
+                                  "%s.%s.%s.%s",
+                                  PROJECT,
+                                  CATALOG_NAME,
+                                  destTableId.namespace(),
+                                  destTableId.name()))))
+              .getSinglePCollection()
+              .apply(
+                  "canonicalize bq rows",
+                  MapElements.into(strings()).via(AddFilesIT::canonicalRecord));
+      PAssert.that(bqRows)
+          .containsInAnyOrder(
+              TEST_ROWS.stream().map(AddFilesIT::canonicalRecord).collect(Collectors.toList()));
+    }
     s.run().waitUntilFinish();
+  }
+
+  private static String canonicalRecord(Row row) {
+    return String.valueOf((Object) row.getValue("id"))
+        + "|"
+        + row.getValue("name")
+        + "|"
+        + String.valueOf((Object) row.getValue("age"));
   }
 
   private boolean checkTableHasRegisteredParquetFiles(List<String> parquetFiles) {
@@ -503,6 +559,11 @@ public class AddFilesIT {
   }
 
   private PipelineResult startAddFilesListener(String filter) throws InterruptedException {
+    return startAddFilesListener(name -> name.contains(filter));
+  }
+
+  private PipelineResult startAddFilesListener(
+      SerializableFunction<String, Boolean> objectNameFilter) throws InterruptedException {
     DirectOptions options = TestPipeline.testingPipelineOptions().as(DirectOptions.class);
     options.setBlockOnRun(false);
     Pipeline p = Pipeline.create(options);
@@ -510,7 +571,7 @@ public class AddFilesIT {
     PCollectionRowTuple tuple =
         p.apply(PubsubIO.readStrings().fromTopic(notificationsTopic))
             .apply(JsonToRow.withSchema(NOTIFICATION_SCHEMA))
-            .apply(Filter.by(row -> row.getString("name").contains(filter)))
+            .apply(Filter.by(row -> objectNameFilter.apply(row.getString("name"))))
             .apply(
                 MapElements.into(strings())
                     .via(

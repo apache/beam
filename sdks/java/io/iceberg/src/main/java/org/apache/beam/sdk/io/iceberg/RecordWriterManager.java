@@ -86,6 +86,7 @@ import org.slf4j.LoggerFactory;
  */
 class RecordWriterManager implements AutoCloseable {
   private static final Logger LOG = LoggerFactory.getLogger(RecordWriterManager.class);
+
   /**
    * Represents the state of one Iceberg table destination. Creates one {@link RecordWriter} per
    * partition and manages them in a {@link Cache}.
@@ -104,7 +105,6 @@ class RecordWriterManager implements AutoCloseable {
     final Cache<PartitionKey, RecordWriter> writers;
     private final List<SerializableDataFile> dataFiles = Lists.newArrayList();
     @VisibleForTesting final Map<PartitionKey, Integer> writerCounts = Maps.newHashMap();
-    private final Map<String, PartitionField> partitionFieldMap = Maps.newHashMap();
     private final List<Exception> exceptions = Lists.newArrayList();
     private final InternalRecordWrapper wrapper; // wrapper that facilitates partitioning
 
@@ -115,9 +115,6 @@ class RecordWriterManager implements AutoCloseable {
       this.routingPartitionKey = new PartitionKey(spec, schema);
       this.wrapper = new InternalRecordWrapper(schema.asStruct());
       this.table = table;
-      for (PartitionField partitionField : spec.fields()) {
-        partitionFieldMap.put(partitionField.name(), partitionField);
-      }
 
       // build a cache of RecordWriters.
       // writers will expire after 1 min of idle time.
@@ -127,7 +124,6 @@ class RecordWriterManager implements AutoCloseable {
               .expireAfterAccess(1, TimeUnit.MINUTES)
               .removalListener(
                   (RemovalNotification<PartitionKey, RecordWriter> removal) -> {
-                    final PartitionKey pk = Preconditions.checkStateNotNull(removal.getKey());
                     final RecordWriter recordWriter =
                         Preconditions.checkStateNotNull(removal.getValue());
                     try {
@@ -144,9 +140,9 @@ class RecordWriterManager implements AutoCloseable {
                       throw rethrow;
                     }
                     openWriters--;
-                    String partitionPath = getPartitionDataPath(pk.toPath(), partitionFieldMap);
+                    // Serialize against the file's own spec (looked up by its spec id)
                     dataFiles.add(
-                        SerializableDataFile.from(recordWriter.getDataFile(), partitionPath));
+                        SerializableDataFile.from(recordWriter.getDataFile(), table.specs()));
                   })
               .build();
     }
@@ -202,7 +198,8 @@ class RecordWriterManager implements AutoCloseable {
                 table,
                 icebergDestination.getFileFormat(),
                 filePrefix + "_" + stateToken + "_" + recordIndex,
-                partitionKey);
+                partitionKey,
+                writeProperties);
         openWriters++;
         return writer;
       } catch (IOException e) {
@@ -253,6 +250,7 @@ class RecordWriterManager implements AutoCloseable {
   private final String filePrefix;
   private final long maxFileSize;
   private final int maxNumWriters;
+  private final @Nullable Map<String, String> writeProperties;
   @VisibleForTesting int openWriters = 0;
 
   @VisibleForTesting
@@ -265,10 +263,20 @@ class RecordWriterManager implements AutoCloseable {
 
   RecordWriterManager(
       IcebergCatalogConfig catalogConfig, String filePrefix, long maxFileSize, int maxNumWriters) {
+    this(catalogConfig, filePrefix, maxFileSize, maxNumWriters, null);
+  }
+
+  RecordWriterManager(
+      IcebergCatalogConfig catalogConfig,
+      String filePrefix,
+      long maxFileSize,
+      int maxNumWriters,
+      @Nullable Map<String, String> writeProperties) {
     this.catalogConfig = catalogConfig;
     this.filePrefix = filePrefix;
     this.maxFileSize = maxFileSize;
     this.maxNumWriters = maxNumWriters;
+    this.writeProperties = writeProperties;
   }
 
   /**

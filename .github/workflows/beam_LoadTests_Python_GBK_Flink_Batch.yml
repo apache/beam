@@ -71,6 +71,8 @@ jobs:
         job_phrase: ["Run Load Tests Python GBK Flink Batch"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -149,5 +151,5 @@ jobs:
         if: always()
         run: |
           ${{ github.workspace }}/.test-infra/dataproc/flink_cluster.sh delete
-
+        
         # TODO(https://github.com/apache/beam/issues/20146) Re-enable auto builds after these tests pass.

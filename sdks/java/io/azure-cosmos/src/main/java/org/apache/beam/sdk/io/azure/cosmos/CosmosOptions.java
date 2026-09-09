@@ -40,15 +40,13 @@ public interface CosmosOptions extends AzureOptions {
 
   /** The Azure Cosmos service endpoint used by the Cosmos client. */
   @Description("Sets the cosmos service endpoint")
-  @Nullable
-  String getCosmosServiceEndpoint();
+  @Nullable String getCosmosServiceEndpoint();
 
   void setCosmosServiceEndpoint(String endpoint);
 
   /** The Azure Cosmos key used to perform authentication for accessing resource. */
   @Description("Sets the cosmos service endpoint")
-  @Nullable
-  String getCosmosKey();
+  @Nullable String getCosmosKey();
 
   void setCosmosKey(String key);
 

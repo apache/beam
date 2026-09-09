@@ -190,7 +190,7 @@ public class PartitionUtilsTest {
             .withRecordCount(2L)
             .withFirstRowId(99L)
             .build();
-    setFileSequenceNumber(file, 42L);
+    setDataSequenceNumber(file, 42L);
 
     Map<Integer, ?> constants = PartitionUtils.constantsMap(spec, file, null);
 
@@ -202,7 +202,7 @@ public class PartitionUtilsTest {
   }
 
   @Test
-  public void testConstantsMapUsesExplicitSequenceNumberWhenFileSequenceIsUnavailable() {
+  public void testConstantsMapUsesExplicitSequenceNumberWhenDataSequenceIsUnavailable() {
     org.apache.iceberg.Schema icebergSchema =
         new org.apache.iceberg.Schema(
             Types.NestedField.required(1, "id", Types.IntegerType.get()),
@@ -223,12 +223,12 @@ public class PartitionUtilsTest {
     assertEquals("B", constants.get(2));
   }
 
-  private static void setFileSequenceNumber(DataFile dataFile, long fileSequenceNumber)
+  private static void setDataSequenceNumber(DataFile dataFile, long dataSequenceNumber)
       throws Exception {
-    Method method = dataFile.getClass().getMethod("setFileSequenceNumber", Long.class);
+    Method method = dataFile.getClass().getMethod("setDataSequenceNumber", Long.class);
     method.setAccessible(true);
     try {
-      method.invoke(dataFile, fileSequenceNumber);
+      method.invoke(dataFile, dataSequenceNumber);
     } catch (InvocationTargetException e) {
       throw (Exception) e.getCause();
     }

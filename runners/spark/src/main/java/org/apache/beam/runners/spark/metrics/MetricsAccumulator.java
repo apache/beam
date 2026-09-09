@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.runners.spark.SparkPipelineOptions;
@@ -82,6 +83,10 @@ public class MetricsAccumulator {
     }
   }
 
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Spark merges only the accumulator instance the driver registered. A copy would collect metrics that nothing reports.")
   public static MetricsContainerStepMapAccumulator getInstance() {
     if (instance == null) {
       throw new IllegalStateException("Metrics accumulator has not been instantiated");

@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.request
 """
 This Python script is used for upgrading the GCP-BOM in BeamModulePlugin.
 Specifically, it
@@ -41,6 +42,59 @@ versions managed by gcp-cloud-bom
 """
 
 # To format: yapf --style sdks/python/setup.cfg --in-place scripts/tools/bomupgrader.py
+
+
+def get_latest_bom():
+  url = "https://repo1.maven.org/maven2/com/google/cloud/libraries-bom/maven-metadata.xml"
+  with urllib.request.urlopen(url, timeout=15) as response:
+    xml = response.read().decode('utf-8')
+  match = re.search(r'<release>([^<]+)</release>', xml)
+  if match:
+    return match.group(1)
+  raise RuntimeError("Could not find latest release in Maven metadata")
+
+
+def get_current_bom():
+  path = "buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy"
+  with open(path) as f:
+    content = f.read()
+  match = re.search(
+      r'google_cloud_platform_libraries_bom\s*:\s*[\"\']com\.google\.cloud:libraries-bom:([0-9.]+)[\"\']',
+      content)
+  if match:
+    return match.group(1)
+  raise RuntimeError(
+      "Could not find current libraries-bom in BeamModulePlugin.groovy")
+
+
+def to_tuple(version_str):
+  parts = []
+  for part in version_str.split('.'):
+    match = re.match(r'^(\d+)', part)
+    parts.append(int(match.group(1)) if match else 0)
+  return tuple(parts)
+
+
+def check_bom():
+  latest = get_latest_bom()
+  current = get_current_bom()
+  print(f"Latest libraries-bom version: {latest}")
+  print(f"Current libraries-bom version: {current}")
+
+  should_upgrade = to_tuple(latest) > to_tuple(current)
+
+  github_output = os.getenv('GITHUB_OUTPUT')
+  if github_output:
+    with open(github_output, 'a') as f:
+      f.write(f"should_upgrade={str(should_upgrade).lower()}\n")
+      f.write(f"latest_version={latest}\n")
+      f.write(f"current_version={current}\n")
+
+  if should_upgrade:
+    print("A newer version of libraries-bom is available. Upgrade needed.")
+  else:
+    print("libraries-bom is up-to-date.")
+  return should_upgrade, latest
 
 
 class BeamModulePluginProcessor:
@@ -313,7 +367,16 @@ configurations.implementation.canBeResolved = true
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   if len(sys.argv) < 2:
-    print("Usage: python scripts/tools/bomupgrader.py target_version")
+    print("Usage: python scripts/tools/bomupgrader.py [--check | latest | target_version]")
     exit(1)
-  processor = BeamModulePluginProcessor(sys.argv[1])
-  processor.run()
+
+  arg = sys.argv[1]
+  if arg in ['--check', '--check-only']:
+    check_bom()
+  else:
+    if arg in ['latest', '--latest']:
+      _, target_ver = check_bom()
+    else:
+      target_ver = arg
+    processor = BeamModulePluginProcessor(target_ver)
+    processor.run()

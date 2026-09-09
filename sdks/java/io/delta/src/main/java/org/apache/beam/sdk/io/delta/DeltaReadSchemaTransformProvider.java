@@ -114,11 +114,13 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
     @SchemaFieldDescription("Identifier of the Delta Lake table.")
     abstract String getTable();
 
-    @SchemaFieldDescription("Version of the Delta Lake table to read.")
+    @SchemaFieldDescription(
+        "Version of the Delta Lake table to read. Cannot be set if timestamp is set.")
     @Nullable
     abstract Long getVersion();
 
-    @SchemaFieldDescription("Timestamp of the Delta Lake table to read.")
+    @SchemaFieldDescription(
+        "Timestamp of the Delta Lake table to read (in UTC ISO 8601 format, e.g. 2026-05-20T15:43:26Z). Cannot be set if version is set.")
     @Nullable
     abstract String getTimestamp();
 
@@ -130,11 +132,11 @@ public class DeltaReadSchemaTransformProvider extends TypedSchemaTransformProvid
     abstract static class Builder {
       abstract Builder setTable(String table);
 
-      abstract Builder setVersion(@Nullable Long version);
+      abstract Builder setVersion(Long version);
 
-      abstract Builder setTimestamp(@Nullable String timestamp);
+      abstract Builder setTimestamp(String timestamp);
 
-      abstract Builder setHadoopConfig(@Nullable Map<String, String> hadoopConfig);
+      abstract Builder setHadoopConfig(Map<String, String> hadoopConfig);
 
       abstract Configuration build();
     }

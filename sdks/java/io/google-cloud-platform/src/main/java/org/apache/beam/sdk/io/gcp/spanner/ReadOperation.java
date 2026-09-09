@@ -123,14 +123,14 @@ public abstract class ReadOperation implements Serializable {
   private static final Pattern queryPattern =
       Pattern.compile(
           "SELECT\\s+.+FROM\\s+\\[?(?<table>[^\\s\\[\\]]+)\\]?", Pattern.CASE_INSENSITIVE);
+
   /**
    * Get table name associated with this operation.
    *
    * <p>Currently only supports explicitly set table, and limited cases of set query. Return null
    * for unsupported cases.
    */
-  @Nullable
-  String tryGetTableName() {
+  @Nullable String tryGetTableName() {
     if (!Strings.isNullOrEmpty(getTable())) {
       return getTable();
     } else if (getQuery() != null) {

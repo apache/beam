@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.Queue;
-import java.util.function.BiConsumer;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
@@ -39,7 +38,6 @@ import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -86,6 +84,11 @@ public final class ActiveWorkState {
 
   static ActiveWorkState create(WindmillStateCache.ForComputation computationStateCache) {
     return new ActiveWorkState(new HashMap<>(), computationStateCache);
+  }
+
+  synchronized @Nullable ExecutableWork getActiveWork(ShardedKey shardedKey, WorkId workId) {
+    LinkedHashMap<WorkId, ExecutableWork> workQueue = activeWork.get(shardedKey.shardingKey());
+    return workQueue == null ? null : workQueue.get(workId);
   }
 
   @VisibleForTesting
@@ -261,46 +264,28 @@ public final class ActiveWorkState {
     return nextWork;
   }
 
-  /**
-   * Invalidates all {@link Work} that is in the {@link Work.State#COMMITTING} state which started
-   * before the stuckCommitDeadline.
-   */
-  synchronized void invalidateStuckCommits(
-      Instant stuckCommitDeadline, BiConsumer<ShardedKey, WorkId> shardedKeyAndWorkTokenConsumer) {
-    for (Entry<ShardedKey, WorkId> shardedKeyAndWorkId :
-        getStuckCommitsAt(stuckCommitDeadline).entrySet()) {
-      ShardedKey shardedKey = shardedKeyAndWorkId.getKey();
-      WorkId workId = shardedKeyAndWorkId.getValue();
-      computationStateCache.invalidate(shardedKey.key(), shardedKey.shardingKey());
-      shardedKeyAndWorkTokenConsumer.accept(shardedKey, workId);
-    }
-  }
-
   private static @Nullable ExecutableWork firstValue(Map<WorkId, ExecutableWork> map) {
     Iterator<Entry<WorkId, ExecutableWork>> iterator = map.entrySet().iterator();
     return iterator.hasNext() ? iterator.next().getValue() : null;
   }
 
-  private synchronized ImmutableMap<ShardedKey, WorkId> getStuckCommitsAt(
-      Instant stuckCommitDeadline) {
-    // Determine the stuck commit keys but complete them outside the loop iterating over
-    // activeWork as completeWork may delete the entry from activeWork.
-    ImmutableMap.Builder<ShardedKey, WorkId> stuckCommits = ImmutableMap.builder();
+  /**
+   * Returns true if there is any {@link Work} in the {@link Work.State#COMMITTING} state which
+   * started before the stuckCommitDeadline.
+   */
+  synchronized boolean hasStuckCommits(Instant stuckCommitDeadline) {
     for (Entry<Long, LinkedHashMap<WorkId, ExecutableWork>> entry : activeWork.entrySet()) {
       @Nullable ExecutableWork executableWork = firstValue(entry.getValue());
-      if (executableWork != null) {
-        Work work = executableWork.work();
-        if (work.isStuckCommittingAt(stuckCommitDeadline)) {
-          LOG.error(
-              "Detected key {} stuck in COMMITTING state since {}, completing it with error.",
-              work.getShardedKey(),
-              work.getStateStartTime());
-          stuckCommits.put(work.getShardedKey(), work.id());
-        }
+      if (executableWork != null
+          && executableWork.work().isStuckCommittingAt(stuckCommitDeadline)) {
+        LOG.warn(
+            "Detected key {} stuck in COMMITTING state since {}",
+            executableWork.work().getShardedKey(),
+            executableWork.work().getStateStartTime());
+        return true;
       }
     }
-
-    return stuckCommits.build();
+    return false;
   }
 
   /**

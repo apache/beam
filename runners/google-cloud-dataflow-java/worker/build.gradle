@@ -154,6 +154,22 @@ applyJavaNature(
 /******************************************************************************/
 // Configure the worker root project
 
+tasks.withType(Test).configureEach {
+  // WindmillStateTestUtils.assertNoReference walks every object reachable from the Windmill
+  // state cache (Guava Cache / ConcurrentHashMap) to ensure no per-work-item WindmillStateReader
+  // leaks into the global cache. It uses reflection (Field.setAccessible) into JDK internals
+  // (e.g. Integer.value, AtomicReferenceArray.array, ReentrantLock.sync, ReferenceQueue.head),
+  // which requires --add-opens on Java 17+.
+  jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang.ref=ALL-UNNAMED',
+          '--add-opens=java.base/java.lang.reflect=ALL-UNNAMED',
+          '--add-opens=java.base/java.io=ALL-UNNAMED',
+          '--add-opens=java.base/java.util=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.atomic=ALL-UNNAMED',
+          '--add-opens=java.base/java.util.concurrent.locks=ALL-UNNAMED'
+}
+
 configurations {
     sourceFile
 
@@ -213,6 +229,8 @@ dependencies {
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.opentelemetry_context
+    testImplementation library.java.opentelemetry_sdk_testing
+    implementation library.java.opentelemetry_api
     implementation library.java.slf4j_api
     implementation library.java.vendored_grpc_1_69_0
     implementation library.java.error_prone_annotations

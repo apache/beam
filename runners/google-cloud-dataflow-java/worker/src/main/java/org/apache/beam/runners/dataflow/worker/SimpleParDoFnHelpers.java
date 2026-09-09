@@ -190,9 +190,10 @@ class SimpleParDoFnHelpers<InputT, OutputT, W extends BoundedWindow> {
               // doesn't today.)
               OutputReceiver undeclaredReceiver = new OutputReceiver();
 
+              boolean isStreaming = options.as(StreamingOptions.class).isStreaming();
               ElementCounter outputCounter =
-                  new DataflowOutputCounter(
-                      outputName, counterFactory, stepContext.getNameContext());
+                  DataflowOutputCounter.create(
+                      outputName, counterFactory, stepContext.getNameContext(), isStreaming);
               undeclaredReceiver.addOutputCounter(outputCounter);
               undeclaredOutputs.put(tag, undeclaredReceiver);
               receiver = undeclaredReceiver;

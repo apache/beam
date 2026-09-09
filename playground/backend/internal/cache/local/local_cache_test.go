@@ -61,7 +61,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 	preparedItemsMap[preparedId] = make(map[cache.SubKey]interface{})
 	preparedItemsMap[preparedId][preparedSubKey] = value
 	preparedExpMap := make(map[uuid.UUID]time.Time)
-	preparedExpMap[preparedId] = time.Now().Add(time.Millisecond)
+	preparedExpMap[preparedId] = time.Now().Add(time.Minute)
 	endedExpMap := make(map[uuid.UUID]time.Time)
 	endedExpMap[preparedId] = time.Now().Add(-time.Millisecond)
 	type fields struct {
@@ -147,7 +147,7 @@ func TestLocalCache_GetValue(t *testing.T) {
 func TestLocalCache_SetValue(t *testing.T) {
 	preparedId, _ := uuid.NewUUID()
 	preparedExpMap := make(map[uuid.UUID]time.Time)
-	preparedExpMap[preparedId] = time.Now().Add(time.Millisecond)
+	preparedExpMap[preparedId] = time.Now().Add(time.Minute)
 	type fields struct {
 		cleanupInterval     time.Duration
 		items               map[uuid.UUID]map[cache.SubKey]interface{}
@@ -525,16 +525,13 @@ func TestLocalCache_startGC(t *testing.T) {
 	ignoreOpenCensus := goleak.IgnoreTopFunction("go.opencensus.io/stats/view.(*worker).start")
 	defer goleak.VerifyNone(t, ignoreOpenCensus)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
 	preparedId, _ := uuid.NewUUID()
 	preparedItemsMap := make(map[uuid.UUID]map[cache.SubKey]interface{})
 	preparedItemsMap[preparedId] = make(map[cache.SubKey]interface{})
 	preparedItemsMap[preparedId][cache.CompileOutput] = "TEST_VALUE1"
 	preparedItemsMap[preparedId][cache.RunOutput] = "TEST_VALUE2"
 	preparedExpMap := make(map[uuid.UUID]time.Time)
-	preparedExpMap[preparedId] = time.Now().Add(time.Microsecond)
+	preparedExpMap[preparedId] = time.Now().Add(-time.Millisecond)
 	type fields struct {
 		cleanupInterval     time.Duration
 		items               map[uuid.UUID]map[cache.SubKey]interface{}
@@ -559,21 +556,45 @@ func TestLocalCache_startGC(t *testing.T) {
 			fields: fields{
 				cleanupInterval:     time.Microsecond,
 				items:               nil,
-				pipelinesExpiration: preparedExpMap,
+				pipelinesExpiration: nil,
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
 			lc := &Cache{
 				cleanupInterval:     tt.fields.cleanupInterval,
 				items:               tt.fields.items,
 				pipelinesExpiration: tt.fields.pipelinesExpiration,
 			}
-			go lc.startGC(ctx)
-			time.Sleep(time.Millisecond)
-			if len(tt.fields.items) != 0 {
-				t.Errorf("Pipeline: %s not deleted in time.", preparedId)
+			done := make(chan struct{})
+			go func() {
+				lc.startGC(ctx)
+				close(done)
+			}()
+			if lc.items == nil {
+				select {
+				case <-done:
+				case <-time.After(time.Second):
+					t.Fatal("startGC did not stop for nil cache items")
+				}
+				return
+			}
+			deadline := time.Now().Add(time.Second)
+			for {
+				lc.mu.RLock()
+				itemsCount := len(lc.items)
+				lc.mu.RUnlock()
+				if itemsCount == 0 {
+					break
+				}
+				if time.Now().After(deadline) {
+					t.Fatalf("Pipeline: %s not deleted in time.", preparedId)
+				}
+				time.Sleep(time.Millisecond)
 			}
 		})
 	}

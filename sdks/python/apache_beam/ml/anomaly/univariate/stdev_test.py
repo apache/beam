@@ -66,13 +66,13 @@ class LandmarkStdevTest(unittest.TestCase):
 
   def test_accuracy_fuzz(self):
     seed = int(time.time())
-    random.seed(seed)
+    rng = random.Random(seed)
     print("Random seed: %d" % seed)
 
     for _ in range(10):
       numbers = []
       for _ in range(5000):
-        numbers.append(random.randint(0, 1000))
+        numbers.append(rng.randint(0, 1000))
 
       t1 = IncLandmarkStdevTracker()
       t2 = SimpleSlidingStdevTracker(len(numbers))
@@ -135,13 +135,13 @@ class SlidingStdevTest(unittest.TestCase):
 
   def test_accuracy_fuzz(self):
     seed = int(time.time())
-    random.seed(seed)
+    rng = random.Random(seed)
     print("Random seed: %d" % seed)
 
     for _ in range(10):
       numbers = []
       for _ in range(5000):
-        numbers.append(random.randint(0, 1000))
+        numbers.append(rng.randint(0, 1000))
 
       t1 = IncSlidingStdevTracker(100)
       t2 = SimpleSlidingStdevTracker(100)

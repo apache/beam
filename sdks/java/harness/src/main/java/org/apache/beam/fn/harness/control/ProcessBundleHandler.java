@@ -767,6 +767,7 @@ public class ProcessBundleHandler {
   /** Shutdown the bundles, running the tearDown() functions. */
   public void shutdown() throws Exception {
     bundleProcessorCache.shutdown();
+    beamFnDataClient.close();
   }
 
   @VisibleForTesting
@@ -1072,13 +1073,13 @@ public class ProcessBundleHandler {
           metricsEnvironmentStateForBundle,
           stateTracker,
           beamFnStateClient,
-          /*inboundEndpointApiServiceDescriptors=*/ new ArrayList<>(),
-          /*inboundDataEndpoints=*/ new ArrayList<>(),
-          /*timerEndpoints=*/ new ArrayList<>(),
+          /* inboundEndpointApiServiceDescriptors= */ new ArrayList<>(),
+          /* inboundDataEndpoints= */ new ArrayList<>(),
+          /* timerEndpoints= */ new ArrayList<>(),
           bundleFinalizationCallbackRegistrations,
-          /*channelRoots=*/ new ArrayList<>(),
+          /* channelRoots= */ new ArrayList<>(),
           // We rely on the stable iteration order of outboundAggregators, thus using LinkedHashMap.
-          /*outboundAggregators=*/ new LinkedHashMap<>(),
+          /* outboundAggregators= */ new LinkedHashMap<>(),
           runnerCapabilities,
           new ReentrantLock());
     }

@@ -489,7 +489,7 @@ class AsyncTest(unittest.TestCase):
       self.assertEqual(bag_states['key' + str(i)].items, [])
 
   @staticmethod
-  def _run_reset_state_concurrent_teardown(use_asyncio):
+  def _run_reset_state_concurrent_teardown(use_asyncio, reset_started):
     dofn = BasicDofn(sleep_time=0.5)
     async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=use_asyncio)
     async_dofn.setup()
@@ -502,15 +502,26 @@ class AsyncTest(unittest.TestCase):
 
     # Verify that calling reset_state() while background tasks are actively running
     # completes cleanly without causing lock-ordering deadlocks.
+    reset_started.set()
     async_lib.AsyncWrapper.reset_state()
 
   def test_reset_state_concurrent_teardown(self):
     # Verify concurrent teardown safety in a separate process to prevent any potential
     # regressions from freezing the main pytest process at exit.
+    reset_started = multiprocessing.Event()
     p = multiprocessing.Process(
         target=AsyncTest._run_reset_state_concurrent_teardown,
-        args=(self.use_asyncio, ))
+        args=(self.use_asyncio, reset_started))
     p.start()
+
+    # Python 3.14 uses forkserver by default on POSIX. Wait for child startup
+    # before measuring reset_state() so import and process startup time cannot
+    # be mistaken for a teardown deadlock.
+    if not reset_started.wait(timeout=30.0):
+      p.terminate()
+      p.join()
+      self.fail("child process did not reach reset_state() before timeout")
+
     p.join(timeout=10.0)
 
     if p.is_alive():

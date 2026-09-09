@@ -116,7 +116,9 @@ class ScanSource extends BoundedSource<Row> {
 
   @Override
   public Coder<Row> getOutputCoder() {
-    return RowCoder.of(IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
+    return RowCoder.of(
+        IcebergUtils.icebergSchemaToBeamSchema(
+            scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion()));
   }
 
   @Override

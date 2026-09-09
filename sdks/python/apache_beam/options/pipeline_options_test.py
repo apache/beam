@@ -569,6 +569,22 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['extra_packages'], None)
 
+  def test_files_to_stage(self):
+    options = PipelineOptions([
+        '--file_to_stage',
+        'abc',
+        '--files_to_stage',
+        'def',
+        '--files_to_stage',
+        'ghi'
+    ])
+    self.assertEqual(
+        sorted(options.get_all_options()['files_to_stage']),
+        ['abc', 'def', 'ghi'])
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['files_to_stage'], None)
+
   def test_dataflow_job_file(self):
     options = PipelineOptions(['--dataflow_job_file', 'abc'])
     self.assertEqual(options.get_all_options()['dataflow_job_file'], 'abc')
@@ -685,6 +701,15 @@ class PipelineOptionsTest(unittest.TestCase):
     errors = validator.validate()
     self.assertTrue(
         any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+  def test_profiling_agent_coredump_adds_core_pattern(self):
+    options = PipelineOptions(['--profiler_agent=coredump'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    debug_options = options.view_as(DebugOptions)
+    self.assertEqual(
+        debug_options.lookup_experiment('core_pattern'),
+        '/tmp/beam_coredump.%e.%p')
 
   def test_profile_location_defaulting_and_opt_out(self):
     options = PipelineOptions(

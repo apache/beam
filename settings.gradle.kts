@@ -39,7 +39,7 @@ pluginManagement {
 
 plugins {
     id("com.gradle.develocity") version "3.19"
-    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.7.0"
+    id("com.gradle.common-custom-user-data-gradle-plugin") version "2.8.0"
 }
 
 // JENKINS_HOME and BUILD_ID set automatically during Jenkins execution
@@ -122,6 +122,7 @@ include(":it:conditions")
 include(":it:datadog")
 include(":it:elasticsearch")
 include(":it:google-cloud-platform")
+include(":it:iceberg")
 include(":it:jdbc")
 include(":it:kafka")
 include(":it:testcontainers")
@@ -156,6 +157,18 @@ include(":runners:google-cloud-dataflow-java:examples-streaming")
 include(":runners:java-fn-execution")
 include(":runners:java-job-service")
 include(":runners:jet")
+// The Kafka Streams runner is opt-in, and is left out of the build unless it is asked for with
+// -Pwith-kafka-streams-runner. It is being developed in the open so that others can build it and
+// work on it, but it is not ready to be released: bundles are not yet closed after a bounded time
+// (https://github.com/apache/beam/issues/39633), among other things. Keeping it out of the default
+// build means it reaches nobody who did not ask for it, and the flag can be dropped when the runner
+// is stable enough - or the runner can be dropped, without either affecting users.
+if (startParameter.projectProperties.containsKey("with-kafka-streams-runner")) {
+    include(":runners:kafka-streams")
+    include(":runners:kafka-streams:proto")
+    include(":runners:kafka-streams:job-server")
+    include(":runners:kafka-streams:measurement")
+}
 include(":runners:local-java")
 include(":runners:portability:java")
 include(":runners:prism")
@@ -222,6 +235,7 @@ include(":sdks:java:harness:jmh")
 include(":sdks:java:io:amazon-web-services2")
 include(":sdks:java:io:amazon-web-services2:expansion-service")
 include(":sdks:java:io:amqp")
+include(":sdks:java:io:arrow-flight")
 include(":sdks:java:io:azure")
 include(":sdks:java:io:azure-cosmos")
 include(":sdks:java:io:cassandra")
@@ -285,6 +299,7 @@ include(":sdks:java:maven-archetypes:gcp-bom-examples")
 include(":sdks:java:maven-archetypes:starter")
 include(":sdks:java:ml:inference:remote")
 include(":sdks:java:ml:inference:openai")
+include(":sdks:java:ml:inference:gemini")
 include(":sdks:java:testing:nexmark")
 include(":sdks:java:testing:expansion-service")
 include(":sdks:java:testing:jpms-tests")
@@ -365,20 +380,8 @@ project(":beam-test-gha").projectDir = file(".github")
 include("beam-validate-runner")
 project(":beam-validate-runner").projectDir = file(".test-infra/validate-runner")
 include("com.google.api.gax.batching")
-include("sdks:java:io:kafka:kafka-390")
-findProject(":sdks:java:io:kafka:kafka-390")?.name = "kafka-390"
-include("sdks:java:io:kafka:kafka-312")
-findProject(":sdks:java:io:kafka:kafka-312")?.name = "kafka-312"
-include("sdks:java:io:kafka:kafka-282")
-findProject(":sdks:java:io:kafka:kafka-282")?.name = "kafka-282"
-include("sdks:java:io:kafka:kafka-251")
-findProject(":sdks:java:io:kafka:kafka-251")?.name = "kafka-251"
-include("sdks:java:io:kafka:kafka-241")
-findProject(":sdks:java:io:kafka:kafka-241")?.name = "kafka-241"
-include("sdks:java:io:kafka:kafka-231")
-findProject(":sdks:java:io:kafka:kafka-231")?.name = "kafka-231"
-include("sdks:java:io:kafka:kafka-201")
-findProject(":sdks:java:io:kafka:kafka-201")?.name = "kafka-201"
+include("sdks:java:io:kafka:kafka-392")
+findProject(":sdks:java:io:kafka:kafka-392")?.name = "kafka-392"
 include("sdks:java:managed")
 findProject(":sdks:java:managed")?.name = "managed"
 include("sdks:java:io:iceberg")

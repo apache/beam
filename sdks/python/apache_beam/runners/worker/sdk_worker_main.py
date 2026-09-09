@@ -50,6 +50,7 @@ from apache_beam.utils import profiler
 _LOGGER = logging.getLogger(__name__)
 _ENABLE_GOOGLE_CLOUD_PROFILER = 'enable_google_cloud_profiler'
 _FN_LOG_HANDLER = None
+_STAGED_DIRECTORY = 'staged'
 
 
 def _import_beam_plugins(plugins):
@@ -57,17 +58,22 @@ def _import_beam_plugins(plugins):
     try:
       importlib.import_module(plugin)
       _LOGGER.debug('Imported beam-plugin %s', plugin)
-    except ImportError:
+    except ImportError as exc:
+      if '.' not in plugin:
+        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+        continue
+
       try:
         _LOGGER.debug((
             "Looks like %s is not a module. "
-            "Trying to import it assuming it's a class"),
+            "Trying to import it assuming it's a class."),
                       plugin)
         module, _ = plugin.rsplit('.', 1)
         importlib.import_module(module)
         _LOGGER.debug('Imported %s for beam-plugin %s', module, plugin)
-      except ImportError as exc:
-        _LOGGER.warning('Failed to import beam-plugin %s', plugin, exc_info=exc)
+      except ImportError as fallback_exc:
+        _LOGGER.warning(
+            'Failed to import beam-plugin %s', plugin, exc_info=fallback_exc)
 
 
 def create_harness(environment, dry_run=False):
@@ -131,6 +137,12 @@ def create_harness(environment, dry_run=False):
       environment.get('RUNNER_CAPABILITIES', '').split())
 
   _LOGGER.info('semi_persistent_directory: %s', semi_persistent_directory)
+  experiments = sdk_pipeline_options.view_as(DebugOptions).experiments or []
+  if 'no_staged_dir_in_sys_path' not in experiments and semi_persistent_directory:
+    staged_dir = os.path.join(semi_persistent_directory, _STAGED_DIRECTORY)
+    if os.path.isdir(staged_dir) and staged_dir not in sys.path:
+      sys.path.append(staged_dir)
+
   _worker_id = environment.get('WORKER_ID', None)
 
   try:

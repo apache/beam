@@ -154,7 +154,7 @@ class PartitionUtils {
    * {@link ContentScanTask}s.
    */
   public static Map<Integer, ?> constantsMap(
-      PartitionSpec spec, ContentFile<?> file, @Nullable Long fileSequenceNumber) {
+      PartitionSpec spec, ContentFile<?> file, @Nullable Long dataSequenceNumber) {
     Preconditions.checkState(
         spec.specId() == file.specId(),
         "File spec ID (%s) does not match PartitionSpec ID (%s)",
@@ -172,13 +172,13 @@ class PartitionUtils {
           convertConstant(Types.LongType.get(), file.firstRowId()));
     }
 
-    // When reconstructing a DataFile, we lose the ability to attach its fileSequenceNumber,
+    // When reconstructing a DataFile, we lose the ability to attach its dataSequenceNumber,
     // so we pipe it along the util methods to include it here.
-    fileSequenceNumber =
-        fileSequenceNumber != null ? fileSequenceNumber : file.fileSequenceNumber();
+    dataSequenceNumber =
+        dataSequenceNumber != null ? dataSequenceNumber : file.dataSequenceNumber();
     idToConstant.put(
         MetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER.fieldId(),
-        convertConstant(Types.LongType.get(), fileSequenceNumber));
+        convertConstant(Types.LongType.get(), dataSequenceNumber));
 
     // add _file
     idToConstant.put(

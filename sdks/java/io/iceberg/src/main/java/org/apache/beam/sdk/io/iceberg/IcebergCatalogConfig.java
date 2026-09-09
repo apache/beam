@@ -155,7 +155,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
       Schema tableSchema,
       @Nullable List<String> partitionFields,
       @Nullable Map<String, String> properties) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(tableSchema);
     PartitionSpec icebergSpec = PartitionUtils.toPartitionSpec(partitionFields, tableSchema);
     try {
@@ -178,7 +178,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public @Nullable IcebergTableInfo loadTable(String tableIdentifier) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     try {
       Table table = catalog().loadTable(icebergIdentifier);
       return new IcebergTableInfo(tableIdentifier, table);
@@ -270,7 +270,7 @@ public abstract class IcebergCatalogConfig implements Serializable {
   }
 
   public boolean dropTable(String tableIdentifier) {
-    TableIdentifier icebergIdentifier = TableIdentifier.parse(tableIdentifier);
+    TableIdentifier icebergIdentifier = IcebergUtils.parseTableIdentifier(tableIdentifier);
     return catalog().dropTable(icebergIdentifier);
   }
 

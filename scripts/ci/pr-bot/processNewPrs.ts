@@ -182,6 +182,26 @@ async function processPull(
   reviewerConfig: typeof ReviewerConfig,
   stateClient: typeof PersistentState
 ) {
+  if (pull.user.login === "dependabot[bot]") {
+    const files = await github.getPrFiles(pull.number);
+    const touchesContainer = files.some((file: string) =>
+      file.startsWith("sdks/python/container/")
+    );
+    if (touchesContainer) {
+      console.log(
+        `Closing PR ${pull.number} because it is a dependabot PR touching container/`
+      );
+      await github.addPrComment(
+        pull.number,
+        "Closing this PR because dependabot updates for container/** are not allowed due to generated files " +
+        "and excluded_paths is disabled due to dependabot/dependabot-core#14408. " +
+        "Once issue is resolved, please remove this step."
+      );
+      await github.closePr(pull.number);
+      return;
+    }
+  }
+
   let prState = await stateClient.getPrState(pull.number);
   if (!needsProcessed(pull, prState)) {
     return;
@@ -321,7 +341,9 @@ async function processPull(
   console.log(`Assigning reviewers for PR ${pull.number}`);
   await github.addPrComment(
     pull.number,
-    commentStrings.assignReviewer(prState.reviewersAssignedForLabels)
+    commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
+      labels: pull.labels,
+    })
   );
 
   github.nextActionReviewers(pull.number, pull.labels);

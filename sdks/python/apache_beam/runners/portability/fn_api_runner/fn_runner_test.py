@@ -46,6 +46,7 @@ import apache_beam as beam
 from apache_beam.coders import coders
 from apache_beam.coders.coders import StrUtf8Coder
 from apache_beam.io import restriction_trackers
+from apache_beam.io.unbounded_source import UnboundedCountingSource
 from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricKey
@@ -1170,6 +1171,25 @@ class FnApiRunnerTest(unittest.TestCase):
       actual = (p | beam.Create([10]) | beam.ParDo(SimpleSDF()))
       assert_that(actual, equal_to(range(5)))
 
+  def test_unbounded_source_read(self):
+    """Reads a self-terminating UnboundedSource end to end.
+
+    Exercises the runner-API round trip and the EOF ``MAX_TIMESTAMP`` watermark
+    propagation that lets the downstream window fire.
+    """
+    with self.create_pipeline() as p:
+      out = p | beam.io.Read(UnboundedCountingSource(5))
+      self.assertFalse(out.is_bounded)
+      assert_that(out, equal_to([0, 1, 2, 3, 4]), label='assert_elements')
+      windowed = (
+          out
+          | beam.WindowInto(window.FixedWindows(100))
+          | beam.Map(lambda v: ('all', v))
+          | beam.GroupByKey()
+          | beam.MapTuple(lambda _key, values: sorted(values)))
+      assert_that(
+          windowed, equal_to([[0, 1, 2, 3, 4]]), label='assert_windowed')
+
   def test_group_by_key(self):
     with self.create_pipeline() as p:
       res = (
@@ -2038,6 +2058,9 @@ class FnApiRunnerTestWithMultiWorkers(FnApiRunnerTest):
   def test_sdf_with_watermark_tracking(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
+  def test_unbounded_source_read(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
   def test_sdf_with_dofn_as_watermark_estimator(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
@@ -2069,6 +2092,9 @@ class FnApiRunnerTestWithGrpcAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_unbounded_source_read(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):
@@ -2113,6 +2139,9 @@ class FnApiRunnerTestWithBundleRepeatAndMultiWorkers(FnApiRunnerTest):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_watermark_tracking(self):
+    raise unittest.SkipTest("This test is for a single worker only.")
+
+  def test_unbounded_source_read(self):
     raise unittest.SkipTest("This test is for a single worker only.")
 
   def test_sdf_with_dofn_as_watermark_estimator(self):

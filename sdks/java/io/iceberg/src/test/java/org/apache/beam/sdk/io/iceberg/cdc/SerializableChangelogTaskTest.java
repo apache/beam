@@ -81,7 +81,7 @@ public class SerializableChangelogTaskTest {
     SerializableChangelogTask task =
         SerializableChangelogTask.builder()
             .setType(SerializableChangelogTask.Type.ADDED_ROWS)
-            .setDataFile(SerializableDataFile.from(DATA_FILE, "", false))
+            .setDataFile(SerializableDataFile.from(DATA_FILE, PartitionSpec.unpartitioned(), false))
             .setSpecId(SPEC.specId())
             .setOperation(ChangelogOperation.INSERT)
             .setOrdinal(7)

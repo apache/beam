@@ -151,7 +151,9 @@ public class SqsIO {
         .build();
   }
 
-  /** @deprecated Use {@link #writeBatches()} for more configuration options. */
+  /**
+   * @deprecated Use {@link #writeBatches()} for more configuration options.
+   */
   @Deprecated
   public static Write write() {
     return new AutoValue_SqsIO_Write.Builder()

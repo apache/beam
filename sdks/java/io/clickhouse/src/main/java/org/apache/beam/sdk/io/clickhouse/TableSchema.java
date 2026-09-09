@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.clickhouse;
 import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.io.StringReader;
+import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +28,10 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
 import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -96,6 +99,14 @@ public abstract class TableSchema implements Serializable {
         } else {
           return NANOS_INSTANT_TYPE;
         }
+
+      case DECIMAL:
+        int decimalPrecision =
+            Preconditions.checkNotNull(columnType.precision(), "Decimal column missing precision");
+        int decimalScale =
+            Preconditions.checkNotNull(columnType.scale(), "Decimal column missing scale");
+        return Schema.FieldType.logicalType(
+            FixedPrecisionNumeric.of(decimalPrecision, decimalScale));
 
       case STRING:
         return Schema.FieldType.STRING;
@@ -185,6 +196,7 @@ public abstract class TableSchema implements Serializable {
     DATE,
     DATETIME,
     DATETIME64,
+    DECIMAL,
     ENUM8,
     ENUM16,
     FIXEDSTRING,
@@ -260,8 +272,17 @@ public abstract class TableSchema implements Serializable {
 
     public abstract @Nullable Map<String, ColumnType> tupleTypes();
 
-    /** Sub-second precision (0–9) of {@code DateTime64}. {@code null} for other types. */
+    /**
+     * Sub-second precision (0–9) of {@code DateTime64}, or total number of decimal digits (1–76) of
+     * {@code Decimal}. {@code null} for other types.
+     */
     public abstract @Nullable Integer precision();
+
+    /**
+     * Number of fractional decimal digits (0–precision) of {@code Decimal}. {@code null} for other
+     * types.
+     */
+    public abstract @Nullable Integer scale();
 
     public ColumnType withNullable(boolean nullable) {
       return toBuilder().nullable(nullable).build();
@@ -300,6 +321,40 @@ public abstract class TableSchema implements Serializable {
           .typeName(TypeName.DATETIME64)
           .nullable(false)
           .precision(precision)
+          .build();
+    }
+
+    /** Default {@code Decimal} precision in ClickHouse when none is specified. */
+    public static final int DEFAULT_DECIMAL_PRECISION = 10;
+
+    /** Default {@code Decimal} scale in ClickHouse when none is specified. */
+    public static final int DEFAULT_DECIMAL_SCALE = 0;
+
+    /**
+     * Returns a {@code Decimal(precision, scale)} type.
+     *
+     * <p>ClickHouse stores {@code Decimal} values as integers of a width chosen from the declared
+     * precision: 32 bits for precision 1–9, 64 for 10–18, 128 for 19–38 and 256 for 39–76. The
+     * width aliases {@code Decimal32(S)}, {@code Decimal64(S)}, {@code Decimal128(S)} and {@code
+     * Decimal256(S)} correspond to precisions 9, 18, 38 and 76.
+     *
+     * @param precision total number of decimal digits, in {@code [1, 76]}
+     * @param scale number of fractional decimal digits, in {@code [0, precision]}
+     */
+    public static ColumnType decimal(int precision, int scale) {
+      if (precision < 1 || precision > 76) {
+        throw new IllegalArgumentException(
+            "Decimal precision must be in [1, 76], got " + precision);
+      }
+      if (scale < 0 || scale > precision) {
+        throw new IllegalArgumentException(
+            "Decimal scale must be in [0, " + precision + "], got " + scale);
+      }
+      return ColumnType.builder()
+          .typeName(TypeName.DECIMAL)
+          .nullable(false)
+          .precision(precision)
+          .scale(scale)
           .build();
     }
 
@@ -390,6 +445,8 @@ public abstract class TableSchema implements Serializable {
           return Long.valueOf(value);
         case BOOL:
           return Boolean.valueOf(value);
+        case DECIMAL:
+          return new BigDecimal(value);
         default:
           throw new UnsupportedOperationException("Unsupported type: " + columnType);
       }
@@ -417,6 +474,8 @@ public abstract class TableSchema implements Serializable {
       public abstract Builder tupleTypes(Map<String, ColumnType> tupleElements);
 
       public abstract Builder precision(@Nullable Integer precision);
+
+      public abstract Builder scale(@Nullable Integer scale);
 
       public abstract ColumnType build();
     }

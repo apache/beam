@@ -93,7 +93,7 @@ $ go run wordcount.go --runner=dataflow --project=<YOUR_GCP_PROJECT> --region=<Y
 The output is a GCS file in this case:
 
 ```bash
-$ gsutil cat <YOUR_GCS_LOCATION>/output* | head
+$ gcloud storage cat <YOUR_GCS_LOCATION>/output* | head
 Blanket: 1
 blot: 1
 Kneeling: 3

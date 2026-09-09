@@ -158,6 +158,11 @@ public class IcebergWriteSchemaTransformProvider
             + "during high-throughput writes. Only available with 'hash' distribution mode.")
     public abstract @Nullable Boolean getAutosharding();
 
+    @SchemaFieldDescription(
+        "Properties applied to the underlying file writer (e.g. Parquet write properties like "
+            + "'write.parquet.bloom-filter-enabled.column.<col>').")
+    public abstract @Nullable Map<String, String> getWriteProperties();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -187,6 +192,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setDistributionMode(String mode);
 
       public abstract Builder setAutosharding(Boolean autosharding);
+
+      public abstract Builder setWriteProperties(Map<String, String> writeProperties);
 
       public abstract Configuration build();
     }
@@ -277,6 +284,11 @@ public class IcebergWriteSchemaTransformProvider
       @Nullable Boolean autoSharding = configuration.getAutosharding();
       if (autoSharding != null && autoSharding) {
         writeTransform = writeTransform.withAutosharding();
+      }
+
+      @Nullable Map<String, String> writeProperties = configuration.getWriteProperties();
+      if (writeProperties != null && !writeProperties.isEmpty()) {
+        writeTransform = writeTransform.withWriteProperties(writeProperties);
       }
 
       // TODO: support dynamic destinations

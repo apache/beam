@@ -79,6 +79,8 @@ jobs:
         job_phrase: ["Run Yaml_Xlang_Direct PreCommit"]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -93,7 +95,7 @@ jobs:
       - name: run PreCommit Yaml Xlang Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=p310_ml_test,yaml
+          gradle-command: :sdks:python:yamlIntegrationTests -PbeamPythonExtra=p310_ml_test,yaml,gcp_test
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
         if: failure()

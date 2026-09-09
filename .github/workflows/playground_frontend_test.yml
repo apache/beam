@@ -46,6 +46,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
 
       - name: 'Cache Flutter Dependencies'
         uses: actions/cache@v6

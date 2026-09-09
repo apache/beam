@@ -1703,6 +1703,22 @@ class TestGetYieldedType(unittest.TestCase):
         typehints.Union[int, str],
         typehints.get_yielded_type(
             typehints.Union[typehints.List[int], typehints.List[str]]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typehints.Union[typehints.Iterator[int], typehints.Iterator[str]]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typehints.Union[typehints.Tuple[int, int],
+                            typehints.Tuple[str, str]]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(typing.Iterable[int] | typing.Iterable[str]))
+    self.assertEqual(
+        typehints.Union[int, str],
+        typehints.get_yielded_type(
+            typing.Union[typing.Iterator[int], typing.Iterator[str]]))
 
   def test_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
@@ -1711,6 +1727,8 @@ class TestGetYieldedType(unittest.TestCase):
   def test_union_not_iterable(self):
     with self.assertRaisesRegex(ValueError, r'not iterable'):
       typehints.get_yielded_type(typehints.Union[int, typehints.List[int]])
+    with self.assertRaisesRegex(ValueError, r'not iterable'):
+      typehints.get_yielded_type(int | typing.List[str])
 
 
 class TestCoerceToKvType(TypeHintTestCase):

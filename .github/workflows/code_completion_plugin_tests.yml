@@ -60,6 +60,7 @@ jobs:
         uses: actions/checkout@v7
         with:
           path: main
+          persist-credentials: false
 
       # Check out intellij community repository for tests
       - name: Fetch intellij-community Sources
@@ -67,10 +68,11 @@ jobs:
         with:
           repository: JetBrains/intellij-community
           path: intellij
+          persist-credentials: false
 
       # Setup Java environment for the next steps
       - name: Setup Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '11'

@@ -1164,10 +1164,16 @@ At the end of the release, go to the GitHub milestones page and mark the recentl
 #### Update the Java BOM
 
 Google releases a BOM that pins compatible versions of their Java libraries.
-After the release, try updating the BOM to the latest version.
+After the release, an automated upgrade BOM PR is created or can be triggered manually.
 
-To do so, create a draft PR and run test suites following the instructions at
-https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md.
+A PR should have already been created (and possibly merged) by github-actions bot, you should verify that this was done correctly
+by looking at open PRs from that bot - https://github.com/apache/beam/pulls/app%2Fgithub-actions
+
+If a PR has not been merged, drive it to completion.
+If no PR was created, triage any failures in https://github.com/apache/beam/actions/workflows/beam_Upgrade_GCP_BOM.yml and manually update the BOM,
+following https://github.com/apache/beam/blob/master/contributor-docs/java-dependency-upgrades.md or simply trigger the workflow again.
+
+##### Troubleshooting
 
 Triage the test failures and rerun any tests that seem potentially unrelated to the upgrade.
 If there are no test failures due to the BOM upgrade, request review and merge the PR as normal.

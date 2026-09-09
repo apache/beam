@@ -78,7 +78,8 @@ public class ProcessBundleDescriptorsTest implements Serializable {
     // Add another stateful stage with a non-standard key coder
     Pipeline p = Pipeline.create();
     Coder<Void> keycoder = VoidCoder.of();
-    assertThat(ModelCoderRegistrar.isKnownCoder(keycoder), is(false));
+    ModelCoderRegistrar coderRegistrar = new ModelCoderRegistrar();
+    assertThat(coderRegistrar.isKnownCoder(keycoder, p.getOptions()), is(false));
     p.apply("impulse", Impulse.create())
         .apply(
             "create",
@@ -165,7 +166,8 @@ public class ProcessBundleDescriptorsTest implements Serializable {
   public void testLengthPrefixingOfInputCoderExecutableStage() throws Exception {
     Pipeline p = Pipeline.create();
     Coder<Void> voidCoder = VoidCoder.of();
-    assertThat(ModelCoderRegistrar.isKnownCoder(voidCoder), is(false));
+    ModelCoderRegistrar coderRegistrar = new ModelCoderRegistrar();
+    assertThat(coderRegistrar.isKnownCoder(voidCoder, p.getOptions()), is(false));
     p.apply("impulse", Impulse.create())
         .apply(
             ParDo.of(

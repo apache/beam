@@ -361,8 +361,7 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
 
   def with_no_batching(
       self
-  ) -> """ModelHandler[Union[
-    ExampleT, Iterable[ExampleT]], PostProcessT, ModelT, PostProcessT]""":
+  ) -> 'ModelHandler[Union[ExampleT, Iterable[ExampleT]], PredictionT, ModelT]':
     """Returns a new ModelHandler which does not require batching
     of inputs so that RunInference will skip this step.  RunInference will
     expect the input to be pre-batched and passed in as an Iterable of records.
@@ -574,7 +573,7 @@ class _ModelHandlerManager:
     # Map key for a model to a unique tag that will persist for the life of
     # that model in memory. A new tag will be generated if a model is swapped
     # out of memory and reloaded.
-    self._tag_map: dict[str, str] = OrderedDict()
+    self._tag_map: OrderedDict[str, str] = OrderedDict()
     # Map a tag to a multiprocessshared model object for that tag. Each entry
     # of this map should last as long as the corresponding entry in _tag_map.
     self._proxy_map: dict[str, multi_process_shared.MultiProcessShared] = {}
@@ -1386,6 +1385,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       model_identifier: Optional[str] = None,
       use_model_manager: bool = False,
       model_manager_args: Optional[dict[str, Any]] = None,
+      monitoring_transform: Optional[beam.PTransform] = None,
       **kwargs):
     """
     A transform that takes a PCollection of examples (or features) for use
@@ -1416,6 +1416,9 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           the same tag for different models will lead to non-deterministic
           results, so exercise caution when using this parameter. This only
           impacts models which are already being shared across processes.
+        monitoring_transform: A PTransform that receives a copy of the
+          un-postprocessed PCollection of PredictionResult objects produced
+          directly by inference.
     """
     self._model_handler = model_handler
     self._inference_args = inference_args
@@ -1428,6 +1431,7 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
     self._watch_model_pattern = watch_model_pattern
     self._use_model_manager = use_model_manager
     self._model_manager_args = model_manager_args
+    self._monitoring_transform = monitoring_transform
     self._kwargs = kwargs
     # Generate a random tag to use for shared.py and multi_process_shared.py to
     # allow us to effectively disambiguate in multi-model settings. Only use
@@ -1438,12 +1442,16 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       self._model_tag = uuid.uuid4().hex
 
   def annotations(self):
+    extra = {}
+    if self._monitoring_transform is not None:
+      extra['monitoring_transform'] = str(self._monitoring_transform)
     return {
         'model_handler': str(self._model_handler),
         'model_handler_type': (
             f'{self._model_handler.__class__.__module__}'
             f'.{self._model_handler.__class__.__qualname__}'),
         'model_identifier': self._model_tag,
+        **extra,
         **super().annotations()
     }
 
@@ -1585,6 +1593,13 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
           batched_elements_pcoll
           | 'BeamML_RunInference' >> run_inference_pardo)
 
+    if self._monitoring_transform is not None:
+      with results.pipeline.transform_annotations(model_identifier=''):
+        _ = (
+            results
+            | 'BeamML_RunInference_MonitoringOutlet' >>
+            self._monitoring_transform)
+
     results, bad_postprocessed = self._apply_fns(
       results, postprocess_fns, 'BeamML_RunInference_Postprocess')
 
@@ -1593,6 +1608,18 @@ class RunInference(beam.PTransform[beam.PCollection[Union[ExampleT,
       return results, dlq
 
     return results
+
+  def with_monitoring_transform(
+      self, monitoring_transform: beam.PTransform) -> 'RunInference':
+    """Allows attaching a monitoring PTransform that receives a copy of the
+    un-postprocessed PCollection of prediction objects (such as PredictionResult)
+    emitted by the underlying model inference step.
+
+    Args:
+      monitoring_transform: A PTransform accepting PCollection[PredictionT].
+    """
+    self._monitoring_transform = monitoring_transform
+    return self
 
   def with_exception_handling(
       self,

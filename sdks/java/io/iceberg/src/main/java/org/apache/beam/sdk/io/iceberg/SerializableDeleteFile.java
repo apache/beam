@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -37,11 +38,14 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileMetadata;
 import org.apache.iceberg.Metrics;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SingleValueParser;
 import org.apache.iceberg.SortOrder;
+import org.apache.iceberg.StructLike;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
+@Internal
 public abstract class SerializableDeleteFile {
   public static SerializableDeleteFile.Builder builder() {
     return new AutoValue_SerializableDeleteFile.Builder();
@@ -62,7 +66,11 @@ public abstract class SerializableDeleteFile {
   @SchemaFieldNumber("4")
   public abstract long getFileSizeInBytes();
 
+  /**
+   * @deprecated Use {@link #getJsonPartition()} instead.
+   */
   @SchemaFieldNumber("5")
+  @Deprecated
   public abstract String getPartitionPath();
 
   @SchemaFieldNumber("6")
@@ -113,6 +121,9 @@ public abstract class SerializableDeleteFile {
   @SchemaFieldNumber("21")
   public abstract @Nullable Long getFileSequenceNumber();
 
+  @SchemaFieldNumber("22")
+  abstract @Nullable String getJsonPartition();
+
   @AutoValue.Builder
   abstract static class Builder {
     abstract Builder setContentType(FileContent content);
@@ -126,6 +137,8 @@ public abstract class SerializableDeleteFile {
     abstract Builder setFileSizeInBytes(long fileSizeInBytes);
 
     abstract Builder setPartitionPath(String partitionPath);
+
+    abstract Builder setJsonPartition(String jsonPartition);
 
     abstract Builder setPartitionSpecId(int partitionSpec);
 
@@ -163,7 +176,47 @@ public abstract class SerializableDeleteFile {
   }
 
   public static SerializableDeleteFile from(
-      DeleteFile deleteFile, String partitionPath, boolean includeMetrics) {
+      DeleteFile deleteFile, Map<Integer, PartitionSpec> specs) {
+    return from(deleteFile, specs, true);
+  }
+
+  /**
+   * Creates a {@link SerializableDeleteFile}, resolving the file's {@link PartitionSpec} by its own
+   * spec id.
+   *
+   * <p>Delete files reached from a scan task may carry a spec id that differs from the spec of the
+   * data file they apply to, so the lookup has to be per delete file rather than against a single
+   * "current" spec.
+   */
+  public static SerializableDeleteFile from(
+      DeleteFile deleteFile, Map<Integer, PartitionSpec> specs, boolean includeMetrics) {
+    return from(
+        deleteFile,
+        checkStateNotNull(
+            specs.get(deleteFile.specId()),
+            "Could not create a SerializableDeleteFile because DeleteFile is written using a partition spec id '%s' that is not found in the provided specs: %s",
+            deleteFile.specId(),
+            specs.keySet()),
+        includeMetrics);
+  }
+
+  public static SerializableDeleteFile from(DeleteFile deleteFile, PartitionSpec spec) {
+    return from(deleteFile, spec, true);
+  }
+
+  public static SerializableDeleteFile from(
+      DeleteFile deleteFile, PartitionSpec spec, boolean includeMetrics) {
+    if (spec.specId() != deleteFile.specId()) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Cannot serialize DeleteFile: its partition spec id %s does not match the provided "
+                  + "spec id %s.",
+              deleteFile.specId(), spec.specId()));
+    }
+    // jsonPartition is the primary (handles evolved specs, special characters).
+    // partitionPath is the fallback for values that don't round-trip through JSON.
+    String jsonPartition = SingleValueParser.toJson(spec.partitionType(), deleteFile.partition());
+    String partitionPath = spec.partitionToPath(deleteFile.partition());
 
     SerializableDeleteFile.Builder builder =
         SerializableDeleteFile.builder()
@@ -171,6 +224,7 @@ public abstract class SerializableDeleteFile {
             .setFileFormat(deleteFile.format().name())
             .setFileSizeInBytes(deleteFile.fileSizeInBytes())
             .setPartitionPath(partitionPath)
+            .setJsonPartition(jsonPartition)
             .setPartitionSpecId(deleteFile.specId())
             .setRecordCount(deleteFile.recordCount())
             .setColumnSizes(deleteFile.columnSizes())
@@ -228,7 +282,21 @@ public abstract class SerializableDeleteFile {
             .withMetrics(metrics)
             .withSplitOffsets(getSplitOffsets())
             .withEncryptionKeyMetadata(getKeyMetadata())
-            .withPartitionPath(getPartitionPath());
+            .withReferencedDataFile(getReferencedDataFile());
+
+    @Nullable String jsonPartition = getJsonPartition();
+    if (jsonPartition != null) {
+      try {
+        deleteFileBuilder = deleteFileBuilder.withPartition(partition(partitionSpec));
+      } catch (RuntimeException e) {
+        // Some partition values (e.g. NaN / Infinity floating-point) don't round-trip through the
+        // JSON representation; fall back to the partition-path string
+        deleteFileBuilder = deleteFileBuilder.withPartitionPath(getPartitionPath());
+      }
+    } else {
+      // Elements decoded from a pre-jsonPartition release carry only the partition path.
+      deleteFileBuilder = deleteFileBuilder.withPartitionPath(getPartitionPath());
+    }
 
     switch (getContentType()) {
       case POSITION_DELETES:
@@ -260,15 +328,20 @@ public abstract class SerializableDeleteFile {
             "Unexpected content type for DeleteFile: " + getContentType());
     }
 
-    // needed for puffin files
+    // contentOffset / contentSizeInBytes really are Puffin-only: build() rejects a non-null value
+    // for either on any other format, and requires both (plus referencedDataFile) on Puffin.
     if (getFileFormat().equalsIgnoreCase(FileFormat.PUFFIN.name())) {
       deleteFileBuilder =
           deleteFileBuilder
               .withContentOffset(checkStateNotNull(getContentOffset()))
-              .withContentSizeInBytes(checkStateNotNull(getContentSizeInBytes()))
-              .withReferencedDataFile(checkStateNotNull(getReferencedDataFile()));
+              .withContentSizeInBytes(checkStateNotNull(getContentSizeInBytes()));
     }
     return deleteFileBuilder.build();
+  }
+
+  private StructLike partition(PartitionSpec spec) {
+    return (StructLike)
+        SingleValueParser.fromJson(spec.partitionType(), checkStateNotNull(getJsonPartition()));
   }
 
   @Override
@@ -287,6 +360,7 @@ public abstract class SerializableDeleteFile {
         && getFileSizeInBytes() == that.getFileSizeInBytes()
         && getPartitionPath().equals(that.getPartitionPath())
         && getPartitionSpecId() == that.getPartitionSpecId()
+        && Objects.equals(getJsonPartition(), that.getJsonPartition())
         && Objects.equals(getSortOrderId(), that.getSortOrderId())
         && Objects.equals(getEqualityFieldIds(), that.getEqualityFieldIds())
         && Objects.equals(getKeyMetadata(), that.getKeyMetadata())
@@ -314,6 +388,7 @@ public abstract class SerializableDeleteFile {
             getRecordCount(),
             getFileSizeInBytes(),
             getPartitionPath(),
+            getJsonPartition(),
             getPartitionSpecId(),
             getSortOrderId(),
             getEqualityFieldIds(),

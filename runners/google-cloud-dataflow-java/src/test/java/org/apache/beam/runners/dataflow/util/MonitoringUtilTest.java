@@ -100,9 +100,9 @@ public class MonitoringUtilTest {
 
     // Non-trivially mapped cases
     assertEquals(State.STOPPED, MonitoringUtil.toState("JOB_STATE_PAUSED"));
-    assertEquals(State.RUNNING, MonitoringUtil.toState("JOB_STATE_DRAINING"));
+    assertEquals(State.DRAINING, MonitoringUtil.toState("JOB_STATE_DRAINING"));
     assertEquals(State.RUNNING, MonitoringUtil.toState("JOB_STATE_PAUSING"));
-    assertEquals(State.DONE, MonitoringUtil.toState("JOB_STATE_DRAINED"));
+    assertEquals(State.DRAINED, MonitoringUtil.toState("JOB_STATE_DRAINED"));
   }
 
   @Test

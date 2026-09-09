@@ -83,7 +83,8 @@ abstract class AppendClientInfo {
     abstract Builder setStreamName(@Nullable String name);
 
     abstract AppendClientInfo build();
-  };
+  }
+  ;
 
   abstract Builder toBuilder();
 

@@ -48,6 +48,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
@@ -103,7 +104,8 @@ def read_from_bigquery(
     table: Optional[str] = None,
     query: Optional[str] = None,
     row_restriction: Optional[str] = None,
-    fields: Optional[Iterable[str]] = None):
+    fields: Optional[Iterable[str]] = None,
+    schema: Optional[Any] = None):
   """Reads data from BigQuery.
 
   Exactly one of table or query must be set.
@@ -121,18 +123,27 @@ def read_from_bigquery(
       specified field is a nested field, all the sub-fields in the field will be
       selected. The output field order is unrelated to the order of fields
       given here.
+    schema (dict): Required when query is set. A BigQuery schema describing
+      the query result columns, e.g.
+      ``{'fields': [{'name': 'col', 'type': 'STRING', 'mode': 'NULLABLE'}]}``.
+      Not applicable when reading from a table (schema is auto-derived).
   """
   if query is None:
     assert table is not None
   else:
     assert table is None and row_restriction is None and fields is None
+    if schema is None:
+      raise ValueError(
+          "When using 'query' in ReadFromBigQuery YAML transform, "
+          "'schema' is required to define the output row structure.")
   return ReadFromBigQuery(
       query=query,
       table=table,
       row_restriction=row_restriction,
       selected_fields=fields,
       method='DIRECT_READ',
-      output_type='BEAM_ROW')
+      output_type='BEAM_ROW',
+      query_output_schema=schema)
 
 
 def write_to_bigquery(
@@ -899,3 +910,131 @@ def match_all(
           path=str(x.path), size_in_bytes=int(x.size_in_bytes),
           last_updated_in_seconds=float(x.last_updated_in_seconds)
           if x.last_updated_in_seconds is not None else None))
+
+
+_DICOM_SEARCH_OUTPUT_SCHEMA = RowTypeConstraint.from_fields([
+    ('result', str),
+    ('status', str),
+    ('input', str),
+])
+
+
+def _dicom_search_result_to_row(result):
+  if not result.get('success'):
+    raise RuntimeError(
+        'DicomSearch failed with status: %s' % (result.get('status'), ))
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_output_row(result):
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_error_row(result):
+  inp = result.get('input') or {}
+  if isinstance(inp, Mapping):
+    element = beam.Row(**dict(inp))
+  else:
+    element = inp
+  return beam.Row(
+      element=element,
+      msg='DicomSearch failed with status: %s' % (result.get('status'), ),
+      stack='')
+
+
+@beam.ptransform_fn
+def dicom_search(
+    pcoll, *, buffer_size: int = 8, max_workers: int = 5, error_handling=None):
+  """Searches a Google Cloud Healthcare DICOM store using QIDO-RS.
+
+  This transform takes an input PCollection of Rows describing QIDO search
+  requests and returns Rows with the search results encoded as JSON.
+
+  Each input Row must include:
+
+    - project_id (str): GCP project containing the DICOM store.
+    - region (str): Region where the DICOM store resides.
+    - dataset_id (str): Dataset containing the DICOM store.
+    - dicom_store_id (str): DICOM store id.
+    - search_type (str): One of ``studies``, ``series``, or ``instances``.
+    - params (map of str to str, optional): QIDO search filters.
+
+  Successful outputs are Rows with:
+
+    - result (str): JSON-encoded list of matching DICOM resources.
+    - status (str): HTTP status from the DICOM API.
+    - input (str): JSON-encoded copy of the search request.
+
+  Failed searches raise unless ``error_handling`` is set, in which case they
+  are routed to the configured error output.
+
+  Args:
+    buffer_size: Number of requests to buffer before flushing.
+    max_workers: Maximum number of threads used to issue requests.
+    error_handling: If specified, should be a mapping giving an output into
+      which to emit failed searches, as described at
+      https://beam.apache.org/documentation/sdks/yaml-errors/
+  """
+  try:
+    from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  except ImportError as exn:
+    raise ValueError(
+        "GCP dependencies are not installed. Cannot use DicomSearch. "
+        "Please install using 'pip install apache-beam[gcp]'.") from exn
+
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  def normalize_request(value):
+    # YAML Create types params as map[str, str]; qido_search needs int
+    # limit/offset for pagination comparisons.
+    request = row_to_dict(value)
+    params = request.get('params')
+    params = dict(params) if isinstance(params, Mapping) else {}
+    limit = params.get('limit', 500)
+    offset = params.get('offset', 0)
+    params['limit'] = int(limit)
+    params['offset'] = int(offset)
+    request['params'] = params
+    return request
+
+  if error_handling:
+    error_handling = yaml_utils.SafeLineLoader.strip_metadata(error_handling)
+
+  results = (
+      pcoll
+      | beam.Map(normalize_request)
+      | DicomSearch(buffer_size=buffer_size, max_workers=max_workers))
+
+  if error_handling and error_handling.get('output'):
+    return {
+        'good': (
+            results
+            | beam.Filter(lambda r: r.get('success'))
+            | beam.Map(_dicom_search_to_output_row).with_output_types(
+                _DICOM_SEARCH_OUTPUT_SCHEMA)),
+        error_handling['output']: (
+            results
+            | beam.Filter(lambda r: not r.get('success'))
+            | beam.Map(_dicom_search_to_error_row)),
+    }
+
+  return results | beam.Map(_dicom_search_result_to_row).with_output_types(
+      _DICOM_SEARCH_OUTPUT_SCHEMA)

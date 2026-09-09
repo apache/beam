@@ -32,7 +32,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An implementation of {@link TypedSchemaTransformProvider} for BigQuery read jobs configured using
@@ -42,9 +42,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @Internal
 @AutoService(SchemaTransformProvider.class)
 public class BigQueryExportReadSchemaTransformProvider
@@ -96,7 +93,7 @@ public class BigQueryExportReadSchemaTransformProvider
    */
   protected static class BigQueryExportSchemaTransform extends SchemaTransform {
     /** An instance of {@link BigQueryServices} used for testing. */
-    private BigQueryServices testBigQueryServices = null;
+    private @Nullable BigQueryServices testBigQueryServices = null;
 
     private final BigQueryExportReadSchemaTransformConfiguration configuration;
 
@@ -135,11 +132,11 @@ public class BigQueryExportReadSchemaTransformProvider
     BigQueryIO.TypedRead<TableRow> toTypedRead() {
       BigQueryIO.TypedRead<TableRow> read = BigQueryIO.readTableRowsWithSchema();
 
-      if (!Strings.isNullOrEmpty(configuration.getQuery())) {
+      if (configuration.getQuery() != null && !configuration.getQuery().isEmpty()) {
         read = read.fromQuery(configuration.getQuery());
       }
 
-      if (!Strings.isNullOrEmpty(configuration.getTableSpec())) {
+      if (configuration.getTableSpec() != null && !configuration.getTableSpec().isEmpty()) {
         read = read.from(configuration.getTableSpec());
       }
 
@@ -147,7 +144,7 @@ public class BigQueryExportReadSchemaTransformProvider
         read = read.usingStandardSql();
       }
 
-      if (!Strings.isNullOrEmpty(configuration.getQueryLocation())) {
+      if (configuration.getQueryLocation() != null && !configuration.getQueryLocation().isEmpty()) {
         read = read.withQueryLocation(configuration.getQueryLocation());
       }
 

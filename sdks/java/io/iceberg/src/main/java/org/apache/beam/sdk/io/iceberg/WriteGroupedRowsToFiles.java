@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class WriteGroupedRowsToFiles
     extends PTransform<
@@ -39,16 +41,19 @@ class WriteGroupedRowsToFiles
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
+  private final @Nullable Map<String, String> writeProperties;
 
   WriteGroupedRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       String filePrefix,
-      long maxBytesPerFile) {
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
     this.maxBytesPerFile = maxBytesPerFile;
+    this.writeProperties = writeProperties;
   }
 
   @Override
@@ -57,7 +62,7 @@ class WriteGroupedRowsToFiles
     return input.apply(
         ParDo.of(
             new WriteGroupedRowsToFilesDoFn(
-                catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix)));
+                catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix, writeProperties)));
   }
 
   private static class WriteGroupedRowsToFilesDoFn
@@ -67,16 +72,19 @@ class WriteGroupedRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final long maxFileSize;
+    private final @Nullable Map<String, String> writeProperties;
 
     WriteGroupedRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         long maxFileSize,
-        String filePrefix) {
+        String filePrefix,
+        @Nullable Map<String, String> writeProperties) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.maxFileSize = maxFileSize;
+      this.writeProperties = writeProperties;
     }
 
     @ProcessElement
@@ -93,7 +101,8 @@ class WriteGroupedRowsToFiles
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
       RecordWriterManager writer;
       try (RecordWriterManager openWriter =
-          new RecordWriterManager(catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE)) {
+          new RecordWriterManager(
+              catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE, writeProperties)) {
         writer = openWriter;
         for (Row e : element.getValue()) {
           writer.write(windowedDestination, e);

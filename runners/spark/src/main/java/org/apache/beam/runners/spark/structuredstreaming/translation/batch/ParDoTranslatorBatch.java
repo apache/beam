@@ -24,7 +24,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.spark.sql.functions.col;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +35,7 @@ import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.TranslationState;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator.UnresolvedTranslation;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.SideInputValues;
@@ -64,8 +65,11 @@ import scala.Tuple2;
  *
  * <p>Each tag is encoded as individual column with a respective schema & encoder each.
  *
+ * <p>Stateful {@link org.apache.beam.sdk.transforms.DoFn DoFns}, those using timers, and those
+ * annotated with {@link DoFn.RequiresTimeSortedInput} are translated by {@link
+ * StatefulParDoTranslatorBatch} instead.
+ *
  * <p>TODO:
- * <li>Add support for state and timers.
  * <li>Add support for SplittableDoFn
  */
 class ParDoTranslatorBatch<InputT, OutputT>
@@ -87,17 +91,17 @@ class ParDoTranslatorBatch<InputT, OutputT>
         "Not expected to directly translate splittable DoFn, should have been overridden: %s",
         doFn);
 
-    // TODO: add support of states and timers
+    // Stateful, timer using and time sorted DoFns are routed to StatefulParDoTranslatorBatch by
+    // PipelineTranslatorBatch#getTransformTranslator. Reaching here with one means dispatch is
+    // broken, not that the feature is unsupported.
     checkState(
-        !signature.usesState() && !signature.usesTimers(),
-        "States and timers are not supported for the moment.");
+        !StatefulParDoTranslatorBatch.appliesTo(transform),
+        "Stateful / time sorted DoFn should have been translated by %s: %s",
+        StatefulParDoTranslatorBatch.class.getSimpleName(),
+        doFn);
 
     checkState(
         signature.onWindowExpiration() == null, "onWindowExpiration is not supported: %s", doFn);
-
-    checkState(
-        !signature.processElement().requiresTimeSortedInput(),
-        "@RequiresTimeSortedInput is not supported for the moment");
 
     SparkSideInputReader.validateMaterializations(transform.getSideInputs().values());
     return true;
@@ -211,11 +215,11 @@ class ParDoTranslatorBatch<InputT, OutputT>
    * <p>This can help to avoid unnecessary caching in case of multiple outputs if only {@code
    * mainTag} is consumed.
    */
-  private Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
+  static Map<TupleTag<?>, PCollection<?>> skipUnconsumedOutputs(
       Map<TupleTag<?>, PCollection<?>> outputs,
       TupleTag<?> mainTag,
       TupleTagList otherTags,
-      Context cxt) {
+      TranslationState cxt) {
     switch (outputs.size()) {
       case 1:
         return outputs; // always keep main output
@@ -235,7 +239,7 @@ class ParDoTranslatorBatch<InputT, OutputT>
     }
   }
 
-  private Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {
+  static Map<String, Integer> tagsColumnIndex(Collection<TupleTag<?>> tags) {
     Map<String, Integer> index = Maps.newHashMapWithExpectedSize(tags.size());
     for (TupleTag<?> tag : tags) {
       index.put(tag.getId(), index.size());
@@ -243,20 +247,24 @@ class ParDoTranslatorBatch<InputT, OutputT>
     return index;
   }
 
-  /** List of encoders matching the order of tagIds. */
-  private List<Encoder<WindowedValue<Object>>> createEncoders(
-      Map<TupleTag<?>, PCollection<?>> outputs, Map<String, Integer> tagIdColIdx, Context ctx) {
-    ArrayList<Encoder<WindowedValue<Object>>> encoders = new ArrayList<>(outputs.size());
+  /** List of encoders indexed by column index, as assigned by {@code tagIdColIdx}. */
+  @SuppressWarnings("rawtypes") // generic array creation
+  static List<Encoder<WindowedValue<Object>>> createEncoders(
+      Map<TupleTag<?>, PCollection<?>> outputs,
+      Map<String, Integer> tagIdColIdx,
+      TransformTranslator<?, ?, ?>.Context ctx) {
+    // Indexed rather than appended, so the iteration order of outputs need not match the columns.
+    Encoder<WindowedValue<Object>>[] encoders = new Encoder[outputs.size()];
     for (Entry<TupleTag<?>, PCollection<?>> e : outputs.entrySet()) {
-      Encoder<WindowedValue<Object>> enc = ctx.windowedEncoder((Coder) e.getValue().getCoder());
       int colIdx = checkStateNotNull(tagIdColIdx.get(e.getKey().getId()));
-      encoders.add(colIdx, enc);
+      encoders[colIdx] = ctx.windowedEncoder((Coder) e.getValue().getCoder());
     }
-    return encoders;
+    return Arrays.asList(encoders);
   }
 
-  private <T> SideInputReader createSideInputReader(
-      Collection<PCollectionView<?>> views, Context cxt) {
+  /** Broadcasts {@code views}, if any, and exposes them as a {@link SideInputReader}. */
+  static <T> SideInputReader createSideInputReader(
+      Collection<PCollectionView<?>> views, TranslationState cxt) {
     if (views.isEmpty()) {
       return SparkSideInputReader.empty();
     }

@@ -77,6 +77,7 @@ public @interface Default {
   @interface Byte {
     byte value();
   }
+
   /** This represents that the default of the option is the specified short primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)
@@ -85,6 +86,7 @@ public @interface Default {
   @interface Short {
     short value();
   }
+
   /** This represents that the default of the option is the specified int primitive value. */
   @Target(ElementType.METHOD)
   @Retention(RetentionPolicy.RUNTIME)

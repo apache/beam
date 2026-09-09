@@ -34,13 +34,13 @@ def tpcdsRunnerProperty = "tpcds.runner"
 def tpcdsRunnerDependency = project.findProperty(tpcdsRunnerProperty)
         ?: ":runners:direct-java"
 def isSpark = tpcdsRunnerDependency.startsWith(":runners:spark:")
-def isFlink2 = tpcdsRunnerDependency.startsWith(":runners:flink:") && {
+def gtFlink20 = tpcdsRunnerDependency.startsWith(":runners:flink:") && {
   def version = tpcdsRunnerDependency.substring(":runners:flink:".length())
   try {
     def parts = version.split('\\.')
     def major = parts[0].toInteger()
     def minor = parts.length > 1 ? parts[1].toInteger() : 0
-    return (major > 2) || (major == 2 && minor >= 1)
+    return (major == 2 && minor > 0)
   } catch (Exception e) {
     return false
   }
@@ -94,7 +94,7 @@ dependencies {
     gradleRun project(path: tpcdsRunnerDependency, configuration: runnerConfiguration)
 }
 
-if (isFlink2) {
+if (!gtFlink20) {
     resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
 }
 
@@ -102,6 +102,20 @@ if (isSpark) {
     configurations.gradleRun {
       exclude group: "org.slf4j", module: "slf4j-jdk14"
     }
+    resolveCapabilitiesConflict(configurations.gradleRun, 'org.lz4:lz4-java', 'at.yawk.lz4')
+}
+
+def sparkJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    ]
+  }
+  return []
 }
 
 // Execute the TPC-DS queries or suites via Gradle.
@@ -141,6 +155,7 @@ task run(type: JavaExec) {
     // Dataset runner only
     systemProperty "spark.sql.shuffle.partitions", "4"
     systemProperty "spark.sql.adaptive.enabled", "false" // high overhead for complex queries
+    jvmArgs += sparkJvmArgs()
   }
 
     mainClass = "org.apache.beam.sdk.tpcds.BeamTpcds"

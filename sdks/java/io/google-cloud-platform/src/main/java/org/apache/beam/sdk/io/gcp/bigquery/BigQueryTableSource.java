@@ -82,6 +82,11 @@ class BigQueryTableSource<T> extends BigQuerySourceBase<T> {
         }
 
         Long numBytes = table.getNumBytes();
+        if (numBytes == null) {
+          // Tables that don't report storage statistics, e.g. Lakehouse runtime catalog
+          // (BigLake metastore) tables.
+          numBytes = 0L;
+        }
         if (table.getStreamingBuffer() != null
             && table.getStreamingBuffer().getEstimatedBytes() != null) {
           numBytes += table.getStreamingBuffer().getEstimatedBytes().longValue();

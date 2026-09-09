@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.transforms;
 
 import com.google.auto.service.AutoService;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.sdk.annotations.Internal;
@@ -182,14 +185,18 @@ public class Redistribute {
                     @Element KV<K, ValueInSingleWindow<V>> kv,
                     OutputReceiver<KV<K, V>> outputReceiver) {
                   // todo #33176 specify additional metadata in the future
-                  outputReceiver
-                      .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
-                      .setTimestamp(kv.getValue().getTimestamp())
-                      .setWindow(kv.getValue().getWindow())
-                      .setPaneInfo(kv.getValue().getPaneInfo())
-                      .setCausedByDrain(kv.getValue().getCausedByDrain())
-                      .setValueKind(kv.getValue().getValueKind())
-                      .output();
+                  Context c = kv.getValue().getOpenTelemetryContext();
+                  try (Scope ignored =
+                      Objects.requireNonNullElse(c, Context.root()).makeCurrent()) {
+                    outputReceiver
+                        .builder(KV.of(kv.getKey(), kv.getValue().getValue()))
+                        .setTimestamp(kv.getValue().getTimestamp())
+                        .setWindow(kv.getValue().getWindow())
+                        .setPaneInfo(kv.getValue().getPaneInfo())
+                        .setCausedByDrain(kv.getValue().getCausedByDrain())
+                        .setValueKind(kv.getValue().getValueKind())
+                        .output();
+                  }
                 }
               }));
     }

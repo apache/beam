@@ -59,16 +59,19 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final @Nullable Duration triggeringFrequency;
   private final String filePrefix;
   private final @Nullable Integer directWriteByteLimit;
+  private final @Nullable Map<String, String> writeProperties;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       @Nullable Duration triggeringFrequency,
-      @Nullable Integer directWriteByteLimit) {
+      @Nullable Integer directWriteByteLimit,
+      @Nullable Map<String, String> writeProperties) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     this.directWriteByteLimit = directWriteByteLimit;
+    this.writeProperties = writeProperties;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
@@ -112,7 +115,11 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     return groupedRecords.apply(
         "WriteGroupedRows",
         new WriteGroupedRowsToFiles(
-            catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+            catalogConfig,
+            dynamicDestinations,
+            filePrefix,
+            DEFAULT_MAX_BYTES_PER_FILE,
+            writeProperties));
   }
 
   private PCollection<FileWriteResult> applyUserTriggering(PCollection<FileWriteResult> input) {
@@ -157,7 +164,11 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         largeBatches.apply(
             "WriteDirectRowsToFiles",
             new WriteDirectRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+                catalogConfig,
+                dynamicDestinations,
+                filePrefix,
+                DEFAULT_MAX_BYTES_PER_FILE,
+                writeProperties));
 
     PCollection<FileWriteResult> groupedFileWrites = groupAndWriteRecords(smallBatches);
 
@@ -189,7 +200,11 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         input.apply(
             "Fast-path write rows",
             new WriteUngroupedRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+                catalogConfig,
+                dynamicDestinations,
+                filePrefix,
+                DEFAULT_MAX_BYTES_PER_FILE,
+                writeProperties));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -199,7 +214,11 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .apply(
                 "Write remaining rows to files",
                 new WriteGroupedRowsToFiles(
-                    catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+                    catalogConfig,
+                    dynamicDestinations,
+                    filePrefix,
+                    DEFAULT_MAX_BYTES_PER_FILE,
+                    writeProperties));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)

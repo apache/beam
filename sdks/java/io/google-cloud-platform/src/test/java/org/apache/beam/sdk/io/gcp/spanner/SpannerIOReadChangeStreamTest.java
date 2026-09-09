@@ -159,6 +159,22 @@ public class SpannerIOReadChangeStreamTest {
           defaultCredential, changeStreamSpannerConfigWithCredential.getCredentials().get());
       assertEquals(defaultCredential, metadataSpannerConfigWithCredential.getCredentials().get());
     }
+
+    @Test
+    public void testSetDirectedReadOptions() {
+      String directedReadString =
+          "{\"includeReplicas\":{\"replicaSelections\":[{\"location\":\"us-central1\",\"type\":\"READ_ONLY\"}]}}";
+      readChangeStream = readChangeStream.withDirectedReadOptions(directedReadString);
+      SpannerConfig changeStreamSpannerConfig = readChangeStream.buildChangeStreamSpannerConfig();
+      assertEquals(
+          "us-central1",
+          changeStreamSpannerConfig
+              .getDirectedReadOptions()
+              .get()
+              .getIncludeReplicas()
+              .getReplicaSelections(0)
+              .getLocation());
+    }
   }
 
   /** Parameterized tests for Dialect and Partition Mode combinations. */

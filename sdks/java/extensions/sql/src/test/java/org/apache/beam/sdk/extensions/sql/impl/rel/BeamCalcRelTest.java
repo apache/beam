@@ -17,7 +17,11 @@
  */
 package org.apache.beam.sdk.extensions.sql.impl.rel;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
+
 import java.math.BigDecimal;
+import java.time.Instant;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.BeamTableStatistics;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
@@ -249,5 +253,21 @@ public class BeamCalcRelTest extends BaseRelTest {
     Assert.assertTrue(fieldAccess.getNestedFieldsAccessed().isEmpty());
 
     pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testTimestampToCalciteMillisAcceptsMillisecondPrecision() {
+    Instant instant = Instant.parse("2025-07-31T20:17:40.123Z");
+    assertEquals(instant.toEpochMilli(), BeamCalcRel.timestampToCalciteMillis(instant));
+  }
+
+  @Test
+  public void testTimestampToCalciteMillisRejectsSubMillisecondPrecision() {
+    Instant instant = Instant.parse("2025-07-31T20:17:40.123456Z");
+    UnsupportedOperationException thrown =
+        assertThrows(
+            UnsupportedOperationException.class,
+            () -> BeamCalcRel.timestampToCalciteMillis(instant));
+    Assert.assertTrue(thrown.getMessage().contains("sub-millisecond"));
   }
 }

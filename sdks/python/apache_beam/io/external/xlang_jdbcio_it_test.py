@@ -18,8 +18,10 @@
 # pytype: skip-file
 
 import datetime
+import json
 import logging
 import os
+import sys
 import time
 import typing
 import unittest
@@ -44,6 +46,13 @@ try:
   import sqlalchemy
 except ImportError:
   sqlalchemy = None
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from google.cloud import secretmanager
+except ImportError:
+  secretmanager = None  # type: ignore[assignment]
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
@@ -138,6 +147,42 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
     cls.engines = {}
     cls.jdbc_configs = {}
 
+    cls.secret_manager_available = False
+    if secretmanager is not None:
+      try:
+        cls.project_id = os.environ.get(
+            'GOOGLE_CLOUD_PROJECT', 'apache-beam-testing')
+        cls.secret_client = secretmanager.SecretManagerServiceClient()
+        py_version = f'_py{sys.version_info.major}{sys.version_info.minor}'
+        secret_postfix = (
+            datetime.datetime.now().strftime('%m%d_%H%M%S') + py_version)
+        cls.secret_id = 'xlang_jdbc_test_secret_' + secret_postfix
+        cls.project_path = f'projects/{cls.project_id}'
+        cls.secret_path = f'{cls.project_path}/secrets/{cls.secret_id}'
+        try:
+          cls.secret_client.get_secret(request={'name': cls.secret_path})
+        except Exception:
+          cls.secret_client.create_secret(
+              request={
+                  'parent': cls.project_path,
+                  'secret_id': cls.secret_id,
+                  'secret': {
+                      'replication': {
+                          'automatic': {}
+                      }
+                  }
+              })
+        cls.secret_client.add_secret_version(
+            request={
+                'parent': cls.secret_path, 'payload': {
+                    'data': b'test'
+                }
+            })
+        cls.secret_manager_available = True
+      except Exception as e:
+        logging.warning("Could not set up GCP Secret Manager: %s", e)
+        cls.secret_manager_available = False
+
     for db_type, db_data in cls.DB_CONTAINER_CLASSPATH_STRING.items():
       container = cls.start_container(db_data.container_fn)
       cls.containers[db_type] = container
@@ -162,6 +207,13 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
 
   @classmethod
   def tearDownClass(cls):
+    if getattr(cls, 'secret_manager_available',
+               False) and secretmanager is not None:
+      try:
+        cls.secret_client.delete_secret(request={'name': cls.secret_path})
+      except Exception:  # pylint: disable=broad-except
+        logging.warning("Could not delete GCP secret: %s", cls.secret_path)
+
     for db_type, container in cls.containers.items():
       if container:
         # Sometimes stopping the container raises ReadTimeout. We can ignore it
@@ -453,6 +505,67 @@ class CrossLanguageJdbcIOTest(unittest.TestCase):
               schema=SimpleRow))
 
       assert_that(result, equal_to(expected_filtered_rows))
+
+  @parameterized.expand(['postgres', 'mysql'])
+  def test_xlang_jdbc_with_secret_manager(self, database):
+    if not getattr(self, 'secret_manager_available', False):
+      self.skipTest(
+          "GCP Secret Manager is not available or credentials not configured.")
+
+    if self.containers[database] is None:
+      self.skipTest(f"{database} container could not be initialized")
+
+    table_name = f"jdbc_secret_manager_test_{database}"
+
+    with self.engines[database].begin() as connection:
+      connection.execute(
+          sqlalchemy.text(
+              f"CREATE TABLE IF NOT EXISTS {table_name}" +
+              "(id INTEGER, name VARCHAR(50), value DOUBLE PRECISION)"))
+
+    test_rows = [
+        SimpleRow(1, "Item1", 10.5),
+        SimpleRow(2, "Item2", 20.75),
+        SimpleRow(3, "Item3", 30.25),
+        SimpleRow(4, "Item4", 40.0),
+        SimpleRow(-5, "Item5", 50.5),
+    ]
+
+    config = self.jdbc_configs[database]
+    secret_password_spec = json.dumps({
+        'name': self.secret_id, 'project': self.project_id
+    })
+
+    with TestPipeline() as p:
+      p.not_use_test_runner_api = True
+      _ = (
+          p
+          | beam.Create(test_rows).with_output_types(SimpleRow)
+          | 'Write to jdbc with secret manager' >> WriteToJdbc(
+              table_name=table_name,
+              driver_class_name=config['driver_class_name'],
+              jdbc_url=config['jdbc_url'],
+              username=config['username'],
+              password=secret_password_spec,
+              secret_manager='googlecloudsecretmanager',
+              classpath=config['classpath'],
+          ))
+
+    with TestPipeline() as p:
+      p.not_use_test_runner_api = True
+      result = (
+          p
+          | 'Read from jdbc with secret manager' >> ReadFromJdbc(
+              table_name=table_name,
+              driver_class_name=config['driver_class_name'],
+              jdbc_url=config['jdbc_url'],
+              username=config['username'],
+              password=secret_password_spec,
+              secret_manager='googlecloudsecretmanager',
+              classpath=config['classpath'],
+              schema=SimpleRow))
+
+      assert_that(result, equal_to(test_rows))
 
 
 if __name__ == '__main__':

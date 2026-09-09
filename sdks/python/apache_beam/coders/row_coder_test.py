@@ -203,6 +203,60 @@ class RowCoderTest(unittest.TestCase):
     for test_case in self.PEOPLE:
       self.assertEqual(test_case, coder.decode(coder.encode(test_case)))
 
+  def test_create_row_coder_from_schema_with_parameterized_timestamp(self):
+    # Simulates schemas produced by the Java SDK's parameterized Timestamp
+    # logical type. Subseconds field uses INT16 for
+    # precision < 5 and INT32 otherwise.
+    for precision, subseconds_type in [(3, schema_pb2.INT16),
+                                       (4, schema_pb2.INT16),
+                                       (5, schema_pb2.INT32),
+                                       (6, schema_pb2.INT32),
+                                       (9, schema_pb2.INT32)]:
+      schema = schema_pb2.Schema(
+          id="timestamp_precision_%d" % precision,
+          fields=[
+              schema_pb2.Field(
+                  name="event_time",
+                  type=schema_pb2.FieldType(
+                      logical_type=schema_pb2.LogicalType(
+                          urn="beam:logical_type:timestamp:v1",
+                          representation=schema_pb2.FieldType(
+                              row_type=schema_pb2.RowType(
+                                  schema=schema_pb2.Schema(
+                                      id="timestamp_repr_%d" % precision,
+                                      fields=[
+                                          schema_pb2.Field(
+                                              name="seconds",
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=schema_pb2.INT64)
+                                          ),
+                                          schema_pb2.Field(
+                                              name="subseconds",
+                                              type=schema_pb2.FieldType(
+                                                  atomic_type=subseconds_type)),
+                                      ]))),
+                          argument_type=schema_pb2.FieldType(
+                              atomic_type=schema_pb2.INT32),
+                          argument=schema_pb2.FieldValue(
+                              atomic_value=schema_pb2.AtomicTypeValue(
+                                  int32=precision))))),
+          ])
+      coder = RowCoder(schema)
+      row = named_tuple_from_schema(schema)
+
+      subseconds = 10**precision - 1
+      for value in [
+          Timestamp(seconds=1500000000,
+                    subseconds=subseconds,
+                    precision=precision),
+          Timestamp(seconds=-2, subseconds=subseconds, precision=precision),
+          Timestamp(seconds=1500000000, precision=precision),
+      ]:
+        test_case = row(event_time=value)
+        decoded = coder.decode(coder.encode(test_case))
+        self.assertEqual(test_case, decoded)
+        self.assertEqual(decoded.event_time.precision(), precision)
+
   def test_row_coder_negative_varint(self):
     schema = schema_pb2.Schema(
         id="negative",

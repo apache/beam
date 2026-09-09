@@ -19,8 +19,4 @@
  * Defines {@link org.apache.beam.sdk.coders.Coder Coders} to specify how data is encoded to and
  * decoded from byte strings using Apache Avro.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.extensions.avro.coders;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

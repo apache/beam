@@ -586,11 +586,17 @@ message StateSpec {
   FunctionSpec protocol = 7;
 }
 
+// Specification for a read-modify-write state cell, which holds a single value
+// per key and window. The value can be read, modified, and written back atomically.
 message ReadModifyWriteStateSpec {
+  // (Required) The id of the Coder for the values stored in this state cell.
   string coder_id = 1;
 }
 
+// Specification for a bag state cell, which holds an unordered collection of elements
+// per key and window. Elements can be appended and read as an iterable.
 message BagStateSpec {
+  // (Required) The id of the Coder for elements stored in this bag.
   string element_coder_id = 1;
 }
 
@@ -601,30 +607,57 @@ message OrderedListStateSpec {
   string element_coder_id = 1;
 }
 
+// Specification for a combining state cell, which incrementally combines values
+// using a CombineFn. Rather than storing all input values, it stores a single
+// accumulator that is updated as new values arrive.
 message CombiningStateSpec {
+  // (Required) The id of the Coder for the accumulator.
   string accumulator_coder_id = 1;
+  // (Required) The FunctionSpec of the CombineFn used to combine values.
   FunctionSpec combine_fn = 2;
 }
 
+// Specification for a map state cell, which holds a key-value mapping per key
+// and window. Keys and values can be read, written, and deleted individually.
+// Note: This is distinct from MultimapStateSpec in that MapState keys are unique.
+// In practice, Beam SDKs use Multimap state for both map and multimap semantics.
 message MapStateSpec {
+  // (Required) The id of the Coder for map keys.
   string key_coder_id = 1;
+  // (Required) The id of the Coder for map values.
   string value_coder_id = 2;
 }
 
+// Specification for a multimap state cell, which holds a key-to-multiple-values
+// mapping per key and window. A single key can be associated with multiple values,
+// analogous to a multimap.
 message MultimapStateSpec {
+  // (Required) The id of the Coder for map keys.
   string key_coder_id = 1;
+  // (Required) The id of the Coder for map values.
   string value_coder_id = 2;
 }
 
+// Specification for a set state cell, which holds an unordered collection of
+// unique elements per key and window. Elements can be added, removed, and checked
+// for existence.
 message SetStateSpec {
+  // (Required) The id of the Coder for elements stored in this set.
   string element_coder_id = 1;
 }
 
+// Specification for a timer family, which groups timers that share the same
+// time domain and encoding. Timer families allow timers to be managed together,
+// including batch processing of expired timers.
 message TimerFamilySpec {
+  // (Required) The time domain for this timer family (event time or processing time).
   TimeDomain.Enum time_domain = 1;
+  // (Required) The id of the Coder for timers in this family.
   string timer_family_coder_id = 2;
 }
 
+// Indicates whether a PCollection is bounded (finite, known size) or unbounded (infinite, unknown size).
+// This affects how runners execute the pipeline and which features are available.
 message IsBounded {
   enum Enum {
     UNSPECIFIED = 0;
@@ -811,7 +844,13 @@ message GroupIntoBatchesPayload {
   int64 max_buffering_duration_millis = 2;
 }
 
+// Payload for the RedistributeByKey and RedistributeArbitrarily composite transforms.
+// These transforms redistribute elements across workers, optionally allowing duplicates
+// to improve throughput at the cost of additional processing.
 message RedistributePayload {
+  // (Optional) If true, the redistribution may produce duplicate elements.
+  // This can improve performance by avoiding costly deduplication, but requires
+  // downstream transforms to be tolerant of duplicates.
   bool allow_duplicates = 1;
 }
 
@@ -1330,8 +1369,9 @@ message Trigger {
   message Default {
   }
 
-  // Ready whenever the requisite number of input elements have arrived
+  // Ready whenever the requisite number of input elements have arrived.
   message ElementCount {
+    // (Required) The number of elements that must arrive before this trigger fires.
     int32 element_count = 1;
   }
 
@@ -1477,11 +1517,12 @@ message StandardArtifacts {
   }
 }
 
+// Payload for a file-based artifact, referencing a locally-accessible file on disk.
 message ArtifactFilePayload {
-  // a string for an artifact file path e.g. "/tmp/foo.jar"
+  // (Required) A file path for an artifact e.g. "/tmp/foo.jar"
   string path = 1;
 
-  // The hex-encoded sha256 checksum of the artifact.
+  // (Optional) The hex-encoded sha256 checksum of the artifact.
   string sha256 = 2;
 }
 
@@ -1498,11 +1539,12 @@ message EmbeddedFilePayload {
   bytes data = 1;
 }
 
+// Payload for a PyPI artifact, describing a Python package dependency.
 message PyPIPayload {
-  // Pypi compatible artifact id e.g. "apache-beam"
+  // (Required) A PyPI-compatible artifact id e.g. "apache-beam"
   string artifact_id = 1;
 
-  // Pypi compatible version string.
+  // (Required) A PyPI-compatible version string, e.g. "2.59.0"
   string version = 2;
 }
 
@@ -1515,29 +1557,40 @@ message MavenPayload {
   string repository_url = 2;
 }
 
+// Payload for a deferred artifact, where the interpretation of the data is
+// deferred to the creator. This allows custom artifact types not covered by
+// the standard artifact types.
 message DeferredArtifactPayload {
-  // A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
+  // (Required) A unique string identifier assigned by the creator of this payload. The creator may use this key to confirm
   // whether they can parse the data.
   string key = 1;
 
-  // Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
+  // (Required) Data for deferred artifacts. Interpretation of bytes is delegated to the creator of this payload.
   bytes data = 2;
 }
 
+// Payload for the staging_to role, used when an artifact needs to be staged
+// to a particular location. The staged name is relative to the staging directory.
 message ArtifactStagingToRolePayload {
-  // A generated staged name (relative path under staging directory).
+  // (Required) A generated staged name (relative path under staging directory).
   string staged_name = 1;
 }
 
+// Full descriptor of an artifact, including its type and role.
+// Used to describe dependencies of an Environment.
 message ArtifactInformation {
-  // A URN that describes the type of artifact
+  // (Required) A URN that describes the type of artifact (e.g. file, URL, embedded, PyPI, Maven).
+  // See StandardArtifacts.Types for well-known URNs.
   string type_urn = 1;
 
+  // (Optional) The payload for the artifact type, as determined by type_urn.
   bytes type_payload = 2;
 
-  // A URN that describes the role of artifact
+  // (Required) A URN that describes the role of the artifact (e.g. staging_to, go_worker_binary).
+  // See StandardArtifacts.Roles for well-known URNs.
   string role_urn = 3;
 
+  // (Optional) The payload for the artifact role, as determined by role_urn.
   bytes role_payload = 4;
 }
 
@@ -1598,24 +1651,41 @@ message StandardEnvironments {
   }
 }
 
-// The payload of a Docker image
+// Payload for a Docker container environment.
 message DockerPayload {
+  // (Required) The Docker container image URL, e.g. "apache/beam_java_sdk:2.59.0"
   string container_image = 1;  // implicitly linux_amd64.
 }
 
+// Payload for a native process environment, where the SDK harness is launched as
+// a subprocess directly on the worker machine (not inside a container).
 message ProcessPayload {
+  // (Required) The operating system, e.g. "linux", "darwin".
   string os = 1;  // "linux", "darwin", ..
+  // (Required) The CPU architecture, e.g. "amd64", "arm64".
   string arch = 2;  // "amd64", ..
+  // (Required) The command to execute to start the SDK harness process.
   string command = 3; // process to execute
+  // (Optional) Environment variables to set for the SDK harness process.
   map<string, string> env = 4; // Environment variables
 }
 
+// Payload for an external process environment, where the SDK harness is managed
+// by an external service rather than directly by the runner. The runner communicates
+// with the external worker pool via the provided gRPC endpoint.
 message ExternalPayload {
+  // (Required) The gRPC endpoint serving the BeamFnExternalWorkerPool API.
   ApiServiceDescriptor endpoint = 1;  // Serving BeamFnExternalWorkerPool API.
+  // (Optional) Arbitrary extra parameters to pass to the external worker pool.
   map<string, string> params = 2;  // Arbitrary extra parameters to pass
 }
 
+// Payload for an AnyOf environment, which presents a set of equivalent environments
+// that a runner may choose from. Each alternative is fully specified with its own
+// dependencies, capabilities, etc. This allows SDKs to express flexibility in
+// execution environment while preserving compatibility across runners.
 message AnyOfEnvironmentPayload {
+  // (Required) The list of fully-specified environments the runner may choose from.
   // Each is fully contained (with their own dependencies, capabilities, etc.)
   repeated Environment environments = 1;
 }
@@ -1852,6 +1922,8 @@ message StandardDisplayData {
   }
 }
 
+// A labelled display data payload, associating a human-readable label with a value.
+// Used as the payload for the StandardDisplayData.LABELLED URN.
 message LabelledPayload {
   // (Required) A human readable label for the value.
   string label = 1;

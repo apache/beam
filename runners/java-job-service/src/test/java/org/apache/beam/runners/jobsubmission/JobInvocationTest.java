@@ -81,6 +81,28 @@ public class JobInvocationTest {
   }
 
   @Test(timeout = 10_000)
+  public void testStateAfterDrainCompleted() throws Exception {
+    jobInvocation.start();
+    assertThat(jobInvocation.getState(), is(JobApi.JobState.Enum.RUNNING));
+
+    TestPipelineResult pipelineResult = new TestPipelineResult(PipelineResult.State.DRAINED);
+    runner.setResult(pipelineResult);
+
+    awaitJobState(jobInvocation, JobApi.JobState.Enum.DRAINED);
+  }
+
+  @Test(timeout = 10_000)
+  public void testStateAfterDrainStarted() throws Exception {
+    jobInvocation.start();
+    assertThat(jobInvocation.getState(), is(JobApi.JobState.Enum.RUNNING));
+
+    TestPipelineResult pipelineResult = new TestPipelineResult(PipelineResult.State.DRAINING);
+    runner.setResult(pipelineResult);
+
+    awaitJobState(jobInvocation, JobApi.JobState.Enum.DRAINING);
+  }
+
+  @Test(timeout = 10_000)
   public void testStateAfterCompletionWithoutResult() throws Exception {
     jobInvocation.start();
     assertThat(jobInvocation.getState(), is(JobApi.JobState.Enum.RUNNING));
@@ -125,6 +147,20 @@ public class JobInvocationTest {
     jobInvocation.cancel();
     assertThat(jobInvocation.getState(), is(JobApi.JobState.Enum.DONE));
     // Ensure that cancel has not been called
+    assertThat(pipelineResult.cancelLatch.getCount(), is(1L));
+  }
+
+  @Test(timeout = 10_000)
+  public void testNoCancellationWhenDrained() throws Exception {
+    jobInvocation.start();
+    assertThat(jobInvocation.getState(), is(JobApi.JobState.Enum.RUNNING));
+
+    TestPipelineResult pipelineResult = new TestPipelineResult(PipelineResult.State.DRAINED);
+    runner.setResult(pipelineResult);
+    awaitJobState(jobInvocation, JobApi.JobState.Enum.DRAINED);
+
+    jobInvocation.cancel();
+    assertThat(jobInvocation.getState(), is(JobApi.JobState.Enum.DRAINED));
     assertThat(pipelineResult.cancelLatch.getCount(), is(1L));
   }
 

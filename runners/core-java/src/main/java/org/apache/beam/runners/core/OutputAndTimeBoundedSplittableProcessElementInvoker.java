@@ -245,8 +245,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
 
     DoFn.ProcessContinuation cont = invoker.invokeProcessElement(invokerArgumentProvider);
     processContext.cancelScheduledCheckpoint();
-    @Nullable
-    KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
+    @Nullable KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residual =
         processContext.getTakenCheckpoint();
     if (cont.shouldResume()) {
       checkState(

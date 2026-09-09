@@ -17,8 +17,11 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.beam.runners.core.triggers.TriggerStateMachineTester.SimpleTriggerStateMachineTester;
@@ -93,6 +96,57 @@ public class AfterEachStateMachineTest {
     assertTrue(tester.shouldFire(window));
     tester.fireIfShouldFire(window);
     assertTrue(tester.isMarkedFinished(window));
+  }
+
+  /**
+   * Once the last subtrigger finishes, the {@link AfterEachStateMachine} itself is marked finished
+   * and the trigger machinery stops delivering elements to it.
+   */
+  @Test
+  public void testAfterEachFinishesWithItsLastSubtrigger() throws Exception {
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                AfterPaneStateMachine.elementCountAtLeast(1),
+                AfterPaneStateMachine.elementCountAtLeast(1)),
+            FixedWindows.of(Duration.millis(10)));
+
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+
+    tester.injectElements(1);
+    tester.fireIfShouldFire(window);
+    assertFalse(tester.isMarkedFinished(window));
+
+    tester.injectElements(2);
+    tester.fireIfShouldFire(window);
+    assertTrue(tester.isMarkedFinished(window));
+
+    // The window is closed, so this element must not re-enter the trigger.
+    tester.injectElements(3);
+    assertTrue(tester.isMarkedFinished(window));
+  }
+
+  /**
+   * {@link AfterEachStateMachine} has no subtrigger to delegate to once they are all finished, and
+   * nothing in the trigger machinery enforces that it is not invoked in that state. If the
+   * invariant is ever broken, it must fail with a message identifying the trigger.
+   */
+  @Test
+  public void testInvokedWithAllSubtriggersFinished() throws Exception {
+    tester =
+        TriggerStateMachineTester.forTrigger(
+            AfterEachStateMachine.inOrder(
+                AfterPaneStateMachine.elementCountAtLeast(1),
+                AfterPaneStateMachine.elementCountAtLeast(1)),
+            FixedWindows.of(Duration.millis(10)));
+
+    IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10));
+    tester.setSubTriggerFinishedForWindow(0, window, true);
+    tester.setSubTriggerFinishedForWindow(1, window, true);
+
+    IllegalStateException thrown =
+        assertThrows(IllegalStateException.class, () -> tester.shouldFire(window));
+    assertThat(thrown.getMessage(), containsString("AfterEach.inOrder"));
   }
 
   @Test

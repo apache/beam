@@ -82,11 +82,30 @@ public class PipelineTranslatorBatch extends PipelineTranslator {
         SplittableParDo.PrimitiveBoundedRead.class, new ReadSourceTranslatorBatch<>());
   }
 
+  /**
+   * Translators that shadow the {@link #TRANSFORM_TRANSLATORS} entry for their transform class when
+   * a predicate matches, so that a single transform class can be translated in more than one way
+   * depending on the transform instance.
+   *
+   * <p>Currently only {@link ParDo.MultiOutput} needs this, to route stateful and time sorted
+   * {@link org.apache.beam.sdk.transforms.DoFn DoFns} away from {@link ParDoTranslatorBatch}.
+   */
+  @SuppressWarnings("rawtypes")
+  private static final TransformTranslator STATEFUL_PARDO_TRANSLATOR =
+      new StatefulParDoTranslatorBatch<>();
+
   /** Returns a {@link TransformTranslator} for the given {@link PTransform} if known. */
   @Override
   @Nullable
   protected <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
       TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
+    // Resolved ahead of the class keyed registry: ParDo.MultiOutput maps to a different translator
+    // depending on the DoFn signature, which a lookup by transform class alone cannot express. This
+    // is the predicated dispatch of the TODO above, limited to the single transform needing it.
+    if (transform instanceof ParDo.MultiOutput
+        && StatefulParDoTranslatorBatch.appliesTo((ParDo.MultiOutput<?, ?>) transform)) {
+      return STATEFUL_PARDO_TRANSLATOR;
+    }
     return TRANSFORM_TRANSLATORS.get(transform.getClass());
   }
 }

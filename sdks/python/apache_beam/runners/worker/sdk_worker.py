@@ -80,7 +80,7 @@ DEFAULT_BUNDLE_PROCESSOR_CACHE_SHUTDOWN_THRESHOLD_S = 60
 MAX_KNOWN_NOT_RUNNING_INSTRUCTIONS = 1000
 # The number of ProcessBundleRequest instruction ids that BundleProcessorCache
 # will remember for failed instructions.
-MAX_FAILED_INSTRUCTIONS = 10000
+MAX_FAILED_INSTRUCTIONS = 1000
 
 # retry on transient UNAVAILABLE grpc error from state channels.
 _GRPC_SERVICE_CONFIG = json.dumps({
@@ -559,7 +559,15 @@ class BundleProcessorCache(object):
     """
     processor = None
     with self._lock:
-      self.failed_instruction_ids[instruction_id] = exception
+      tb_str = "".join(traceback.format_exception(exception))
+      if len(tb_str) > 10240:
+        tb_str = (
+            tb_str[:5000] + "\n... [traceback truncated] ...\n" +
+            tb_str[-5000:])
+      clean_exception = RuntimeError(
+          f"Original Exception: {type(exception).__name__}: {str(exception)[:2000]}\n{tb_str}"
+      )
+      self.failed_instruction_ids[instruction_id] = clean_exception
       while len(self.failed_instruction_ids) > MAX_FAILED_INSTRUCTIONS:
         self.failed_instruction_ids.popitem(last=False)
       if instruction_id in self.active_bundle_processors:

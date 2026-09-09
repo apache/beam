@@ -53,6 +53,7 @@
     - 'beam:schematransform:org.apache.beam:iceberg_read:v1'
     - 'beam:schematransform:org.apache.beam:iceberg_cdc_read:v1'
     - 'beam:schematransform:org.apache.beam:delta_lake_read:v1'
+    - 'beam:schematransform:org.apache.beam:delta_lake_cdc_read:v1'
 
 - gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
   destinations:
@@ -62,6 +63,10 @@
       name: 'WriteToMqtt'
     'beam:schematransform:org.apache.beam:mqtt_read:v1':
       name: 'ReadFromMqtt'
+    'beam:schematransform:org.apache.beam:jms_write:v1':
+      name: 'WriteToJms'
+    'beam:schematransform:org.apache.beam:jms_read:v1':
+      name: 'ReadFromJms'
   skip_transforms:
     # Core SchemaTransforms bundled via :sdks:java:expansion-service; already
     # generated from the Java IO expansion service above.

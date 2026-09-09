@@ -125,6 +125,13 @@ BIGQUERY_TYPE_TO_PYTHON_TYPE = {
     "GEOGRAPHY": str,
 }
 
+# Duplicated logic with io/gcp/bigquery_change_history.py
+# Default table expiration for auto-created temp datasets: 24 hours in ms.
+# Tables created in the dataset auto-expire after this duration if not
+# explicitly deleted, acting as a safety net for orphaned temp tables
+# (e.g. pipeline crash before cleanup runs).
+_DEFAULT_TABLE_EXPIRATION_MS = 24 * 60 * 60 * 1000
+
 
 class FileFormat(object):
   CSV = 'CSV'
@@ -952,6 +959,7 @@ class BigQueryWrapper(object):
         project_id,
         self.temp_dataset_id,
         location=location,
+        default_table_expiration_ms=_DEFAULT_TABLE_EXPIRATION_MS,
         labels=labels,
         kms_key=kms_key)
 

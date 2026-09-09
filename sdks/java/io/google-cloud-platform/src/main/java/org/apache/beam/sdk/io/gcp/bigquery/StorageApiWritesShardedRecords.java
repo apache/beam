@@ -123,7 +123,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
   private final CreateDisposition createDisposition;
-  private final String kmsKey;
+  private final @Nullable String kmsKey;
   private final BigQueryServices bqServices;
   private final Coder<DestinationT> destinationCoder;
   private final Coder<BigQueryStorageApiInsertError> failedRowsCoder;
@@ -151,7 +151,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
   public StorageApiWritesShardedRecords(
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       CreateDisposition createDisposition,
-      String kmsKey,
+      @Nullable String kmsKey,
       BigQueryServices bqServices,
       Coder<DestinationT> destinationCoder,
       Coder<BigQueryStorageApiInsertError> failedRowsCoder,
@@ -273,12 +273,13 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
           + " tryIteration: "
           + tryIteration;
     }
-  };
+  }
+  ;
 
   @AutoValue
   abstract static class CreateRetryManagerResult<DestinationT> {
-    abstract @Nullable RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>>
-        getRetryManager();
+    abstract @Nullable
+        RetryManager<AppendRowsResponse, AppendRowsContext<DestinationT>> getRetryManager();
 
     abstract boolean getSchemaMismatchSeen();
 
@@ -859,8 +860,7 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                 // So before creating a StreamWriter below, we fetch the table schema to check if we
                 // missed an update. If so, use the new schema instead of the base schema.
                 // TODO: There's still a race here!
-                @Nullable
-                TableSchema streamSchema =
+                @Nullable TableSchema streamSchema =
                     MoreObjects.firstNonNull(
                         writeStreamService.getWriteStreamSchema(getOrCreateStream.get()),
                         TableSchema.getDefaultInstance());
@@ -1066,16 +1066,33 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
 
         if (numAppends > 0) {
           initializeContexts.accept(contexts);
-          retryManager.run(true);
+          try {
+            retryManager.run(true);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+          } catch (Exception e) {
+            Status.Code statusCode = Status.fromThrowable(e).getCode();
+            String errorMessage =
+                String.format(
+                    "More than %d attempts to call AppendRows failed. Last encountered error: %s",
+                    maxRetries, e.toString());
+            if (statusCode == Status.Code.PERMISSION_DENIED
+                || statusCode == Status.Code.NOT_FOUND) {
+              errorMessage +=
+                  ". Please check if the destination table exists and if the service account has the "
+                      + "bigquery.tables.updateData permission.";
+            }
+            throw new RuntimeException(errorMessage, e);
+          }
 
           appendSplitDistribution.update(numAppends);
           if (autoUpdateSchema) {
-            @Nullable
-            StreamAppendClient streamAppendClient = appendClientHolder.getStreamAppendClient();
+            @Nullable StreamAppendClient streamAppendClient =
+                appendClientHolder.getStreamAppendClient();
             TableSchema originalSchema = appendClientHolder.get().getTableSchema();
 
-            @Nullable
-            TableSchema updatedSchemaReturned =
+            @Nullable TableSchema updatedSchemaReturned =
                 (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
             // Update the table schema and clear the append client.
             if (updatedSchemaReturned != null) {

@@ -82,6 +82,7 @@ import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
@@ -1440,6 +1441,18 @@ public class DoFnInvokersTest {
       public TypeDescriptor<T> getOutputTypeDescriptor() {
         return typeDescriptor;
       }
+
+      // Deliberately make separate instances equal. The per-instance cache must use identity
+      // because equal instances can have different generic types.
+      @Override
+      public boolean equals(@Nullable Object other) {
+        return other instanceof DynamicTypeDoFn;
+      }
+
+      @Override
+      public int hashCode() {
+        return 0;
+      }
     }
 
     DoFn<String, String> stringFn = new DynamicTypeDoFn<>(TypeDescriptors.strings());
@@ -1455,5 +1468,39 @@ public class DoFnInvokersTest {
         "Critical bug: Beam returned the same cached class for different generic types.",
         stringInvoker.getClass(),
         intInvoker.getClass());
+  }
+
+  @Test
+  public void testTypeDescriptorResolutionIsCachedPerDoFnInstance() {
+    class CountingTypeDoFn extends DoFn<String, String> {
+      private int inputTypeDescriptorCalls;
+      private int outputTypeDescriptorCalls;
+
+      @ProcessElement
+      public void processElement(@Element String element, OutputReceiver<String> out) {
+        out.output(element);
+      }
+
+      @Override
+      public TypeDescriptor<String> getInputTypeDescriptor() {
+        inputTypeDescriptorCalls++;
+        return TypeDescriptors.strings();
+      }
+
+      @Override
+      public TypeDescriptor<String> getOutputTypeDescriptor() {
+        outputTypeDescriptorCalls++;
+        return TypeDescriptors.strings();
+      }
+    }
+
+    CountingTypeDoFn fn = new CountingTypeDoFn();
+
+    DoFnInvoker<String, String> firstInvoker = DoFnInvokers.invokerFor(fn);
+    DoFnInvoker<String, String> secondInvoker = DoFnInvokers.invokerFor(fn);
+
+    assertSame(firstInvoker.getClass(), secondInvoker.getClass());
+    assertEquals(1, fn.inputTypeDescriptorCalls);
+    assertEquals(1, fn.outputTypeDescriptorCalls);
   }
 }

@@ -30,10 +30,22 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Spark'
 
   t.intent 'Runs the WordCount Code with Spark runner'
     // Run the wordcount example with the spark runner
-    t.run """mvn compile exec:java -q \
-      -Dexec.mainClass=org.apache.beam.examples.WordCount \
-      -Dexec.args="--inputFile=pom.xml --output=counts \
-      --runner=SparkRunner" -Pspark-runner"""
+
+    // Retrieve classpath
+    def deps = t.run """mvn compile dependency:build-classpath -q \
+        -Dmdep.outputFile=/dev/stdout \
+        -Dmaven.wagon.http.retryHandler.class=default \
+        -Dmaven.wagon.http.retryHandler.count=5 \
+        -Dmaven.wagon.http.pool=false \
+        -Dmaven.wagon.httpconnectionManager.ttlSeconds=120 \
+        -Dhttp.keepAlive=false \
+        -Pspark-runner"""
+
+    def cp = "target/classes:${deps.trim()}"
+    def jvmArgs = "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED --add-opens=java.base/java.nio=ALL-UNNAMED --add-opens=java.base/java.util=ALL-UNNAMED --add-opens=java.base/java.lang.invoke=ALL-UNNAMED --add-opens=java.base/java.lang=ALL-UNNAMED"
+    t.run """mvn exec:exec -q -Dexec.executable=java \
+      -Dexec.args="${jvmArgs} -cp '${cp}' org.apache.beam.examples.WordCount \
+      --inputFile=pom.xml --output=counts --runner=SparkRunner" """
 
     // Verify text from the pom.xml input file
     String result = t.run "grep Foundation counts*"
