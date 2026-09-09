@@ -34,10 +34,15 @@ class OpenLineagePipelineResult implements PipelineResult {
 
   private final PipelineResult delegate;
   private final OpenLineageContext context;
+  private final @Nullable OpenLineageJobTracker tracker;
 
-  OpenLineagePipelineResult(PipelineResult delegate, OpenLineageContext context) {
+  OpenLineagePipelineResult(
+      PipelineResult delegate,
+      OpenLineageContext context,
+      @Nullable OpenLineageJobTracker tracker) {
     this.delegate = delegate;
     this.context = context;
+    this.tracker = tracker;
   }
 
   @Override
@@ -79,6 +84,10 @@ class OpenLineagePipelineResult implements PipelineResult {
   private void afterTerminal(@Nullable State state) {
     if (state == null || !state.isTerminal()) {
       return;
+    }
+    // Stop the periodic tracker first so it is not also racing to emit the terminal event.
+    if (tracker != null) {
+      tracker.stopTracking();
     }
     context.sweepLineageMetrics(delegate);
     context.onJobFinished(OpenLineageJobTracker.terminalEventType(state), null);

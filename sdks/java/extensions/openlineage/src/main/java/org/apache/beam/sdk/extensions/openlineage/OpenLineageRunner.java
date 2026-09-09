@@ -97,6 +97,7 @@ public class OpenLineageRunner extends PipelineRunner<PipelineResult> {
       throw e;
     }
 
+    @Nullable OpenLineageJobTracker tracker = null;
     if (olOptions.isOpenLineageDisableTracking()) {
       LOG.info("OpenLineage tracking disabled; no periodic RUNNING events will be emitted");
     } else {
@@ -111,9 +112,10 @@ public class OpenLineageRunner extends PipelineRunner<PipelineResult> {
             configured,
             BeamOpenLineageConfig.DEFAULT_TRACKING_INTERVAL_SECONDS);
       }
-      new OpenLineageJobTracker(context, result, intervalSeconds).startTracking();
+      tracker = new OpenLineageJobTracker(context, result, intervalSeconds);
+      tracker.startTracking();
     }
-    return new OpenLineagePipelineResult(result, context);
+    return new OpenLineagePipelineResult(result, context, tracker);
   }
 
   private PipelineRunner<? extends PipelineResult> resolveDelegate(

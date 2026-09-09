@@ -115,6 +115,8 @@ class OpenLineageContext {
   private final AtomicBoolean finished = new AtomicBoolean(false);
   // Guarded by the synchronized emit path; guarantees START precedes every other event.
   private boolean startEmitted;
+  // Guarded by the instance monitor; set only once the transport has accepted the terminal event.
+  private boolean terminalDelivered;
   private volatile boolean streaming;
 
   private OpenLineageContext(PipelineOptions options) {
@@ -280,16 +282,35 @@ class OpenLineageContext {
     }
   }
 
-  /** Emits the terminal event exactly once. */
-  void onJobFinished(OpenLineage.RunEvent.EventType eventType, @Nullable Throwable error) {
-    if (disabled) {
+  /**
+   * Emits the terminal event exactly once.
+   *
+   * <p>Synchronized, and the run is marked finished only after the transport has accepted the
+   * event. Two threads can observe completion at the same time: the periodic {@link
+   * OpenLineageJobTracker} daemon and whichever thread calls {@code waitUntilFinish()} or {@code
+   * cancel()}. Claiming the terminal transition before emitting would let the daemon win the claim,
+   * get killed by JVM exit part way through emission, and leave the other thread with nothing to do
+   * — the run would stay open forever in the backend. Holding the monitor across emission makes the
+   * second caller wait for delivery instead, which also keeps the JVM alive until the event is out.
+   * If the transport rejects the event the run stays unsettled so a later completion signal retries
+   * it.
+   */
+  synchronized void onJobFinished(
+      OpenLineage.RunEvent.EventType eventType, @Nullable Throwable error) {
+    if (disabled || terminalDelivered) {
       return;
     }
-    if (finished.compareAndSet(false, true)) {
-      started.set(true);
-      emit(eventType, error);
-      emitter.close();
+    started.set(true);
+    if (!emit(eventType, error)) {
+      LOG.warn(
+          "OpenLineage {} event was not accepted by the transport; leaving the run unsettled so a "
+              + "later completion signal can retry it",
+          eventType);
+      return;
     }
+    terminalDelivered = true;
+    finished.set(true);
+    emitter.close();
   }
 
   /**
@@ -297,24 +318,25 @@ class OpenLineageContext {
    * events on the transport: START is always emitted (exactly once) before any other event, and
    * nothing is emitted after the terminal event.
    */
-  private synchronized void emit(
+  private synchronized boolean emit(
       OpenLineage.RunEvent.EventType eventType, @Nullable Throwable error) {
     if (finished.get() && eventType == OpenLineage.RunEvent.EventType.RUNNING) {
-      return;
+      return true;
     }
     try {
       if (eventType == OpenLineage.RunEvent.EventType.START) {
         if (startEmitted) {
-          return;
+          return true;
         }
         startEmitted = true;
       } else if (!startEmitted) {
         startEmitted = true;
         emitter.emit(buildEvent(OpenLineage.RunEvent.EventType.START, null));
       }
-      emitter.emit(buildEvent(eventType, error));
+      return emitter.emit(buildEvent(eventType, error));
     } catch (RuntimeException e) {
       LOG.warn("Failed to build OpenLineage {} event", eventType, e);
+      return false;
     }
   }
 

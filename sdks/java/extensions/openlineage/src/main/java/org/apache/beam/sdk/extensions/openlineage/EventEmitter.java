@@ -75,11 +75,17 @@ class EventEmitter {
     }
   }
 
-  /** Emits the event; failures are logged and swallowed so lineage never breaks the job. */
-  void emit(OpenLineage.RunEvent event) {
+  /**
+   * Emits the event; failures are logged and swallowed so lineage never breaks the job.
+   *
+   * @return false only when the transport rejected the event, so that a caller which must not lose
+   *     the event (the terminal event) can leave it unsettled and let a later completion signal
+   *     retry it. A non-emitting client counts as settled: there is nothing to retry.
+   */
+  boolean emit(OpenLineage.RunEvent event) {
     final OpenLineageClient localClient = client;
     if (localClient == null) {
-      return;
+      return true;
     }
     try {
       if (circuitBreaker != null) {
@@ -92,8 +98,10 @@ class EventEmitter {
         localClient.emit(event);
       }
       LOG.debug("Emitted OpenLineage event: {} run {}", event.getEventType(), event.getRun());
+      return true;
     } catch (RuntimeException e) {
       LOG.warn("Failed to emit OpenLineage event, swallowing exception", e);
+      return false;
     }
   }
 
