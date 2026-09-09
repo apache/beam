@@ -337,60 +337,24 @@ class _TableSchemaCompat(list):
       self.extend(value)
 
 
-class _TableCellCompat(object):
-  def __init__(self, v=None):
-    self.v = v
-
-
-class _TableRowCompat(object):
-  def __init__(self, f=None):
-    self.f = f or []
-
-
-if apitools_bigquery is not None and hasattr(apitools_bigquery,
-                                             "TableReference"):
-  TableReference = apitools_bigquery.TableReference
-  DatasetReference = getattr(
-      apitools_bigquery, "DatasetReference", None) or _DatasetReferenceCompat
-  TableFieldSchema = apitools_bigquery.TableFieldSchema
-  TableSchema = apitools_bigquery.TableSchema
-  TableRow = getattr(apitools_bigquery, "TableRow", None) or _TableRowCompat
-  TableCell = getattr(apitools_bigquery, "TableCell", None) or _TableCellCompat
-  Table = getattr(apitools_bigquery, "Table", None)
-  Dataset = getattr(apitools_bigquery, "Dataset", None)
-  Job = getattr(apitools_bigquery, "Job", None)
-  JobConfiguration = getattr(apitools_bigquery, "JobConfiguration", None)
-  JobConfigurationLoad = getattr(
-      apitools_bigquery, "JobConfigurationLoad", None)
-  JobConfigurationQuery = getattr(
-      apitools_bigquery, "JobConfigurationQuery", None)
-  JobConfigurationExtract = getattr(
-      apitools_bigquery, "JobConfigurationExtract", None)
-  JobConfigurationTableCopy = getattr(
-      apitools_bigquery, "JobConfigurationTableCopy", None)
-  JobStatistics = getattr(apitools_bigquery, "JobStatistics", None)
-  JobStatistics2 = getattr(apitools_bigquery, "JobStatistics2", None)
-  JobStatistics4 = getattr(apitools_bigquery, "JobStatistics4", None)
-  ErrorProto = getattr(apitools_bigquery, "ErrorProto", None)
-else:
-  TableReference = _TableReferenceCompat
-  DatasetReference = _DatasetReferenceCompat
-  TableFieldSchema = _TableFieldSchemaCompat
-  TableSchema = _TableSchemaCompat
-  TableRow = _TableRowCompat
-  TableCell = _TableCellCompat
-  Table = None
-  Dataset = None
-  Job = None
-  JobConfiguration = None
-  JobConfigurationLoad = None
-  JobConfigurationQuery = None
-  JobConfigurationExtract = None
-  JobConfigurationTableCopy = None
-  JobStatistics = None
-  JobStatistics2 = None
-  JobStatistics4 = None
-  ErrorProto = None
+TableReference = apitools_bigquery.TableReference
+DatasetReference = apitools_bigquery.DatasetReference
+TableFieldSchema = apitools_bigquery.TableFieldSchema
+TableSchema = apitools_bigquery.TableSchema
+TableRow = apitools_bigquery.TableRow
+TableCell = apitools_bigquery.TableCell
+Table = apitools_bigquery.Table
+Dataset = apitools_bigquery.Dataset
+Job = apitools_bigquery.Job
+JobConfiguration = apitools_bigquery.JobConfiguration
+JobConfigurationLoad = apitools_bigquery.JobConfigurationLoad
+JobConfigurationQuery = apitools_bigquery.JobConfigurationQuery
+JobConfigurationExtract = apitools_bigquery.JobConfigurationExtract
+JobConfigurationTableCopy = apitools_bigquery.JobConfigurationTableCopy
+JobStatistics = apitools_bigquery.JobStatistics
+JobStatistics2 = apitools_bigquery.JobStatistics2
+JobStatistics4 = apitools_bigquery.JobStatistics4
+ErrorProto = apitools_bigquery.ErrorProto
 
 
 class JobReference(object):
