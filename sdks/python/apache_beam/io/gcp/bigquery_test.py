@@ -28,11 +28,13 @@ import pickle
 import re
 import secrets
 import time
+import typing
 import unittest
 import uuid
 
 import hamcrest as hc
 import mock
+import numpy as np
 import pytest
 import pytz
 import requests
@@ -100,6 +102,12 @@ except ImportError:
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class _MyRowForFileLoadsSchemaTest(typing.NamedTuple):
+  name: str
+  age: np.int64
+
 
 _ELEMENTS = [
     {
@@ -1006,6 +1014,92 @@ class TestWriteToBigQuery(unittest.TestCase):
                 "dataset.table",
                 schema=beam.io.gcp.bigquery.SCHEMA_AUTODETECT,
                 temp_file_format=bigquery_tools.FileFormat.AVRO))
+
+  def test_schema_autoinferred_for_file_loads_from_schema_pcoll(self):
+    p = beam.Pipeline()
+    pc = p | beam.Create([_MyRowForFileLoadsSchemaTest('a', 1)
+                          ]).with_output_types(_MyRowForFileLoadsSchemaTest)
+
+    transform = beam.io.gcp.bigquery.WriteToBigQuery(
+        "dataset.table",
+        schema=None,
+        method=beam.io.gcp.bigquery.WriteToBigQuery.Method.FILE_LOADS,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+
+    with mock.patch(
+        'apache_beam.io.gcp.bigquery_file_loads.BigQueryBatchFileLoads'
+    ) as mock_batch_file_loads:
+      mock_batch_file_loads.side_effect = RuntimeError('stop-here')
+      with self.assertRaisesRegex(RuntimeError, 'stop-here'):
+        transform.expand(pc)
+
+    self.assertEqual(
+        transform.schema,
+        {
+            'fields': [
+                {
+                    'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'age', 'type': 'INT64', 'mode': 'REQUIRED'
+                },
+            ]
+        })
+
+  def test_schema_autoinferred_for_avro_file_loads(self):
+    # Prior to auto-inference, FILE_LOADS with AVRO always required an
+    # explicit schema, even when the input PCollection carried a Beam
+    # schema. This confirms that requirement is now satisfied by inference.
+    p = beam.Pipeline()
+    pc = p | beam.Create([_MyRowForFileLoadsSchemaTest('a', 1)
+                          ]).with_output_types(_MyRowForFileLoadsSchemaTest)
+
+    transform = beam.io.gcp.bigquery.WriteToBigQuery(
+        "dataset.table",
+        schema=None,
+        method=beam.io.gcp.bigquery.WriteToBigQuery.Method.FILE_LOADS,
+        temp_file_format=bigquery_tools.FileFormat.AVRO)
+
+    with mock.patch(
+        'apache_beam.io.gcp.bigquery_file_loads.BigQueryBatchFileLoads'
+    ) as mock_batch_file_loads:
+      mock_batch_file_loads.side_effect = RuntimeError('stop-here')
+      # Should reach BigQueryBatchFileLoads (and hit our stub error) rather
+      # than raising "A schema must be provided" from the AVRO check.
+      with self.assertRaisesRegex(RuntimeError, 'stop-here'):
+        transform.expand(pc)
+
+    self.assertEqual(
+        transform.schema,
+        {
+            'fields': [
+                {
+                    'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'age', 'type': 'INT64', 'mode': 'REQUIRED'
+                },
+            ]
+        })
+
+  def test_schema_not_autoinferred_for_file_loads_without_schema_pcoll(self):
+    p = beam.Pipeline()
+    pc = p | beam.Create([{'name': 'a', 'age': 1}])
+
+    transform = beam.io.gcp.bigquery.WriteToBigQuery(
+        "dataset.table",
+        schema=None,
+        method=beam.io.gcp.bigquery.WriteToBigQuery.Method.FILE_LOADS,
+        temp_file_format=bigquery_tools.FileFormat.JSON)
+
+    with mock.patch(
+        'apache_beam.io.gcp.bigquery_file_loads.BigQueryBatchFileLoads'
+    ) as mock_batch_file_loads:
+      mock_batch_file_loads.side_effect = RuntimeError('stop-here')
+      with self.assertRaisesRegex(RuntimeError, 'stop-here'):
+        transform.expand(pc)
+
+    self.assertIsNone(transform.schema)
 
   def test_to_from_runner_api(self):
     """Tests that serialization of WriteToBigQuery is correct.

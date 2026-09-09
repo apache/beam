@@ -2403,6 +2403,21 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
               BigQueryWriteFn.FAILED_ROWS_WITH_ERRORS])
 
     elif method_to_use == WriteToBigQuery.Method.FILE_LOADS:
+      if self.schema is None:
+        # If the input PCollection carries a Beam schema (e.g. it was
+        # produced by ReadFromBigQuery(..., output_type='BEAM_ROW'), or is
+        # otherwise a PCollection of NamedTuples, dataclasses, or Beam Rows),
+        # auto-infer the destination table's schema from it. This mirrors
+        # the schema auto-inference already performed for the
+        # STORAGE_WRITE_API method.
+        try:
+          beam_schema = schema_from_element_type(pcoll.element_type)
+        except TypeError:
+          beam_schema = None
+        if beam_schema is not None:
+          self.schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(
+              beam_schema)
+
       if self._temp_file_format == bigquery_tools.FileFormat.AVRO:
         if self.schema == SCHEMA_AUTODETECT:
           raise ValueError(
