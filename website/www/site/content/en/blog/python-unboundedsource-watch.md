@@ -23,8 +23,10 @@ limitations under the License.
 
 The Apache Beam Python SDK now includes an `UnboundedSource` API for custom
 unbounded sources and a `Watch` transform for repeatedly polling growing inputs.
-This project brought both APIs to Python, improved `Watch` deduplication, and
-addressed runner issues found while validating the new transforms.
+These APIs give source authors control over reading a continuous stream or
+discovering new items through repeated queries. This project brought both APIs
+to Python, improved `Watch` deduplication, and addressed runner issues found
+while validating the new transforms.
 
 <!--more-->
 
@@ -36,15 +38,32 @@ The first public Python
 and Python SDKs. Source authors implement `UnboundedSource`, `UnboundedReader`,
 and `CheckpointMark`, then read the source with `beam.io.Read(MySource())`.
 
-The SDK runs the reader through a splittable DoFn (SDF), which allows a read to
-pause and resume while preserving its progress. The wrapper handles
-checkpointing and event-time watermarks, and uses bundle finalization to invoke
-`CheckpointMark.finalize_checkpoint` after the runner has durably committed the
-output. A source can use this hook to acknowledge consumed messages.
+The reader exposes methods such as `start()`, `advance()`, `get_current()`, and
+`get_checkpoint_mark()`. Returning `False` from `advance()` means that no record
+is available now; the reader can resume when more data arrives. The reader also
+reports an event-time watermark through `get_watermark()`, which Beam uses to
+track progress and determine when windows can close. A watermark of
+`MAX_TIMESTAMP` signals that the source has permanently finished.
 
-Each invocation is limited by record count and elapsed time so a busy source
-periodically yields to the runner. This was an important design refinement from
-mentor review.
+The SDK runs the reader through a splittable DoFn (SDF), Beam's mechanism for
+managing work that can pause and resume. The wrapper saves the reader's
+checkpoint with the unfinished work and reports its watermark to the runner.
+This lets the same source implementation run on DirectRunner, Prism, Flink, and
+Dataflow. Sources can split their work at pipeline startup; an active read is
+not subdivided further.
+
+The wrapper uses bundle finalization to invoke
+`CheckpointMark.finalize_checkpoint` after the runner has durably committed
+the output. A message-queue source can use this hook to acknowledge consumed
+messages. Readers can also be reused across resumed bundles on the same worker,
+with idle readers evicted from a bounded cache, reducing the need to reopen
+connections.
+
+The wrapper checks the record count and elapsed time between reads, yielding
+when either limit is reached. This refinement came from mentor review:
+correctly saving progress also requires giving the runner regular opportunities
+to take over. The [Python I/O connector guide](https://beam.apache.org/documentation/io/developing-io-python/)
+documents the API and its lifecycle.
 
 ## The Watch transform
 
@@ -55,24 +74,50 @@ Polling stops when the poll reports completion or a termination condition fires.
 The API includes `PollFn`, `PollResult`, and the `never()` and `after_total_of()`
 termination conditions.
 
-Deduplication was a central design challenge. The default mode retains a hash
-for every distinct output key, so its history grows throughout a long-running
-watch. The opt-in
-[`timestamp_cursor` mode](https://github.com/apache/beam/pull/39090) lets history
-expire as event time advances. Outputs more than `allowed_lateness` behind the
-greatest emitted event time are also skipped, including previously unseen ones.
-This suits inputs arriving in roughly non-decreasing event time; retained state
-depends on the keys within that time range.
+A single SDF manages each input's polling, duplicate suppression, output,
+waiting, and termination. For example, a poll can repeatedly list files under
+a prefix while `Watch` remembers which results it has already emitted. Keeping
+this lifecycle together also lets the transform save its deduplication state
+with its progress.
+
+An output's identity is the hash of its encoded key. The key defaults to the
+output itself, and `output_key_fn` can select another identity. `Watch` requires
+a deterministic key coder so equal keys produce the same fingerprint across
+workers and after a restart. A coder with no deterministic form is rejected
+when the pipeline is built.
+
+The default deduplication mode retains a hash for every distinct output key,
+so its history grows throughout a long-running watch. This also allows the
+transform to recognize an item seen much earlier. The opt-in
+[`timestamp_cursor` mode](https://github.com/apache/beam/pull/39090) addresses
+this [state-growth problem](https://github.com/apache/beam/issues/18459) by
+letting history expire as event time advances.
+
+The cursor records the greatest emitted event time. Outputs more than
+`allowed_lateness` behind it are skipped, including previously unseen ones,
+and hashes older than that threshold can be discarded. This suits inputs
+arriving in roughly non-decreasing event time. Increasing `allowed_lateness`
+accommodates older arrivals while retaining more history. The cursor itself is
+a single timestamp; the retained hashes depend on the keys within that time
+range.
 
 [Refactoring `MatchContinuously` onto `Watch`](https://github.com/apache/beam/pull/39461)
-made cursor mode available for continuous file matching. The same design was
-also [ported back to Java](https://github.com/apache/beam/pull/39746).
+made cursor mode available for continuous file matching and saved deduplication
+history with pipeline checkpoints. The existing implementation remains for
+users who disable duplicate suppression. The cursor design was also
+[ported back to Java](https://github.com/apache/beam/pull/39746).
 
 ## Validation across runners
 
 Both transforms were exercised on DirectRunner, Prism, Flink, and Dataflow.
-Long-running pipelines, checkpoint recovery, and polling exposed issues beyond
-the SDK implementations:
+Validation covered pause and resume behavior, acknowledgments, watermarks, and
+polling. The `UnboundedSource` wrapper passed five end-to-end tests submitted
+as Dataflow streaming jobs. For `MatchContinuously` on Flink, testing included
+killing a worker during a run and restoring from a checkpoint. Prism tests
+added files while a watch was running and checked that both deduplication modes
+emitted them once and terminated on time.
+
+These runs exposed issues beyond the SDK implementations:
 
 - [Flink](https://github.com/apache/beam/pull/39191) accumulated state entries
   when an SDF saved unfinished work. Reusing a state entry addressed the growth.
@@ -82,16 +127,31 @@ the SDK implementations:
 - [Portable Spark batch](https://github.com/apache/beam/pull/39331) gained
   support for retaining and resuming unfinished SDF work.
 
-## Benchmarks and remaining work
+The work also produced a [local Flink contributor guide](https://github.com/apache/beam/pull/39580),
+documenting the cluster setup used to reproduce and investigate streaming
+behavior.
+
+## Benchmarks
 
 The [local benchmarks](https://github.com/Eliaaazzz/gsoc-2026-beam#6-validation-and-benchmarks)
 measured `UnboundedSource` throughput and checkpoint cadence, and `Watch`
-deduplication overhead as the polled set grew. On Prism, `UnboundedSource`
-processed about 34,000 to 44,000 records per second across checkpoint settings,
-excluding startup. In the 200,000-output `Watch` benchmark, cursor mode reduced
-total time from 111 to 24 seconds on DirectRunner and from 59 to 15 seconds on
-Prism. These were single-machine experiments; distributed benchmarks remain
-future work.
+deduplication overhead as the polled set grew.
+
+For `UnboundedSource`, an in-memory source supplied one million records to
+isolate the wrapper's overhead from external I/O. On Prism, a cap of 1,000
+records per invocation produced 1,001 self-checkpoints and about 34,000 records
+per second. Raising the cap to 100,000 reduced the self-checkpoint count to 11
+and reached about 44,000 records per second. Throughput was measured from the
+first record to the last, excluding runner startup.
+
+The `Watch` benchmark repeatedly listed a set that gained 2,000 items per round
+for 100 rounds. Each item retained its original event time. Both modes emitted
+all 200,000 items once. Cursor mode reduced total time from 111 to 24 seconds
+on DirectRunner and from 59 to 15 seconds on Prism. These single-machine
+experiments show how checkpoint frequency and growing deduplication history
+affect the transforms; distributed benchmarks remain future work.
+
+## Remaining work
 
 Both Python APIs remain experimental, and
 [Spark streaming SDF support](https://github.com/apache/beam/issues/19468) is
