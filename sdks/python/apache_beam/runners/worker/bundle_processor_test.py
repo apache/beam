@@ -778,7 +778,7 @@ class NamedDataStreamsTest(unittest.TestCase):
     mock_channel_default = mock.MagicMock()
     mock_channel_named = mock.MagicMock()
 
-    def get_channel(port, data_stream_id=None):
+    def get_channel(port, data_stream_id):
       if data_stream_id == 'named_stream':
         return mock_channel_named
       return mock_channel_default
@@ -793,10 +793,8 @@ class NamedDataStreamsTest(unittest.TestCase):
 
     # Process on default stream
     processor.process_bundle('inst_1')
-    data_channel_factory.create_data_channel.assert_any_call(
-        source_port, data_stream_id=None)
-    data_channel_factory.create_data_channel.assert_any_call(
-        sink_port, data_stream_id=None)
+    data_channel_factory.create_data_channel.assert_any_call(source_port, None)
+    data_channel_factory.create_data_channel.assert_any_call(sink_port, None)
     mock_channel_default.output_stream.assert_called_once_with(
         'inst_1', SINK_ID)
 
@@ -806,9 +804,9 @@ class NamedDataStreamsTest(unittest.TestCase):
     processor.process_bundle('inst_2', data_stream_id='named_stream')
 
     data_channel_factory.create_data_channel.assert_any_call(
-        source_port, data_stream_id='named_stream')
+        source_port, 'named_stream')
     data_channel_factory.create_data_channel.assert_any_call(
-        sink_port, data_stream_id='named_stream')
+        sink_port, 'named_stream')
     mock_channel_named.output_stream.assert_called_once_with('inst_2', SINK_ID)
 
 

@@ -137,8 +137,8 @@ class RunnerIOOperation(operations.Operation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel])
-  -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]
+  ) -> None:
     super().__init__(name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
     self.windowed_coder_impl = windowed_coder.get_impl()
@@ -167,8 +167,8 @@ class DataOutputOperation(RunnerIOOperation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel])
-  -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]
+  ) -> None:
     super().__init__(
         operation_name,
         step_name,
@@ -204,8 +204,8 @@ class DataInputOperation(RunnerIOOperation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel])
-  -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]
+  ) -> None:
     super().__init__(
         operation_name,
         step_name,
