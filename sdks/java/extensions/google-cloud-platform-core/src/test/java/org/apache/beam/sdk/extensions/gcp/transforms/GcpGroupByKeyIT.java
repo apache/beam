@@ -195,8 +195,8 @@ public class GcpGroupByKeyIT {
     PAssert.that(normalizedOutput)
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
@@ -235,8 +235,8 @@ public class GcpGroupByKeyIT {
     PAssert.that(normalizedOutput)
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
@@ -278,8 +278,8 @@ public class GcpGroupByKeyIT {
     PAssert.that(normalizedOutput)
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
