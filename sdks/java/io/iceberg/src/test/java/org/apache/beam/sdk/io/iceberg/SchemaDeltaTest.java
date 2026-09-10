@@ -29,7 +29,7 @@ import static org.junit.Assert.assertTrue;
 import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashSet;
-import org.apache.beam.sdk.io.iceberg.SchemaDelta.Kind;
+import org.apache.beam.sdk.io.iceberg.SchemaChange.Kind;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;

@@ -21,8 +21,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import org.apache.beam.sdk.io.iceberg.SchemaDelta.Change;
-import org.apache.beam.sdk.io.iceberg.SchemaDelta.Kind;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -45,17 +43,18 @@ final class ColumnNameChecks {
    * the top level). A case-only pair would be added as two columns, after which Iceberg cannot
    * build the lower-case name index.
    */
-  static void findInvalidNames(Types.StructType struct, String prefix, List<Change> changes) {
+  static void findInvalidNames(Types.StructType struct, String prefix, List<SchemaChange> changes) {
     Map<String, String> seenByLowerCase = new HashMap<>();
     for (Types.NestedField field : struct.fields()) {
       String rawPath = prefix + field.name();
       if (field.name().isEmpty()) {
         String at = prefix.isEmpty() ? "" : " under " + prefix.substring(0, prefix.length() - 1);
-        changes.add(new Change(Kind.CONFLICT, rawPath, "empty column name" + at));
+        changes.add(
+            new SchemaChange(SchemaChange.Kind.CONFLICT, rawPath, "empty column name" + at));
       } else if (field.name().contains(".")) {
         changes.add(
-            new Change(
-                Kind.CONFLICT,
+            new SchemaChange(
+                SchemaChange.Kind.CONFLICT,
                 rawPath,
                 "column name "
                     + SchemaDelta.quoteIfDotted(field.name())
@@ -66,8 +65,8 @@ final class ColumnNameChecks {
           seenByLowerCase.put(field.name().toLowerCase(Locale.ROOT), field.name());
       if (seen != null) {
         changes.add(
-            new Change(
-                Kind.CONFLICT,
+            new SchemaChange(
+                SchemaChange.Kind.CONFLICT,
                 rawPath,
                 "columns "
                     + prefix
@@ -81,7 +80,8 @@ final class ColumnNameChecks {
     }
   }
 
-  private static void findInvalidNamesInType(Type type, String rawPath, List<Change> changes) {
+  private static void findInvalidNamesInType(
+      Type type, String rawPath, List<SchemaChange> changes) {
     if (type.isStructType()) {
       findInvalidNames(type.asStructType(), rawPath + ".", changes);
     } else if (type.isListType()) {
@@ -101,7 +101,7 @@ final class ColumnNameChecks {
       Types.StructType tableStruct,
       Types.StructType fileStruct,
       String prefix,
-      List<Change> changes) {
+      List<SchemaChange> changes) {
     for (Types.NestedField fileField : fileStruct.fields()) {
       String rawPath = prefix + fileField.name();
       Types.NestedField exact = tableStruct.field(fileField.name());
@@ -109,8 +109,8 @@ final class ColumnNameChecks {
         for (Types.NestedField tableField : tableStruct.fields()) {
           if (tableField.name().equalsIgnoreCase(fileField.name())) {
             changes.add(
-                new Change(
-                    Kind.CONFLICT,
+                new SchemaChange(
+                    SchemaChange.Kind.CONFLICT,
                     rawPath,
                     "column "
                         + prefix
@@ -128,7 +128,7 @@ final class ColumnNameChecks {
   }
 
   private static void findCaseCollisionsInType(
-      Type tableType, Type fileType, String rawPath, List<Change> changes) {
+      Type tableType, Type fileType, String rawPath, List<SchemaChange> changes) {
     if (tableType.isStructType() && fileType.isStructType()) {
       findCaseCollisions(tableType.asStructType(), fileType.asStructType(), rawPath + ".", changes);
     } else if (tableType.isListType() && fileType.isListType()) {

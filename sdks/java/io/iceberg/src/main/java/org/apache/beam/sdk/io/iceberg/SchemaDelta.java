@@ -48,72 +48,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 final class SchemaDelta {
 
-  enum Kind {
-    FIELD_ADDITION(SchemaEvolutionOption.ALLOW_FIELD_ADDITION),
-    FIELD_RELAXATION(SchemaEvolutionOption.ALLOW_FIELD_RELAXATION),
-    TYPE_PROMOTION(SchemaEvolutionOption.ALLOW_TYPE_PROMOTION),
-    /** The union is impossible (for example string vs int); never allowed. */
-    CONFLICT(null);
+  private final List<SchemaChange> changes;
 
-    final @Nullable SchemaEvolutionOption option;
-
-    Kind(@Nullable SchemaEvolutionOption option) {
-      this.option = option;
-    }
-
-    boolean allowedBy(SchemaEvolutionConfig config) {
-      return option != null && config.allows(option);
-    }
-  }
-
-  static final class Change {
-    final Kind kind;
-
-    /** Unquoted column path for the config lookup; empty for conflicts without a field. */
-    final String path;
-
-    final String description;
-
-    /** A relaxation because the column is absent from the file, not declared optional. */
-    final boolean absent;
-
-    Change(Kind kind, String path, String description) {
-      this(kind, path, description, false);
-    }
-
-    Change(Kind kind, String path, String description, boolean absent) {
-      this.kind = kind;
-      this.path = path;
-      this.description = description;
-      this.absent = absent;
-    }
-
-    boolean allowedBy(SchemaEvolutionConfig config, Pins pins) {
-      // A pin also forbids relaxing the structs above it: a null ancestor nulls the pinned leaf.
-      if (kind == Kind.FIELD_RELAXATION
-          && (pins.isPinned(path) || pins.pinnedColumnBeneath(path) != null)) {
-        return false;
-      }
-      return kind.allowedBy(config);
-    }
-
-    String disallowedReason(Pins pins) {
-      if (kind == Kind.FIELD_RELAXATION) {
-        if (pins.isPinned(path)) {
-          return description + " (pinned as required)";
-        }
-        @Nullable String pin = pins.pinnedColumnBeneath(path);
-        if (pin != null) {
-          return description + " (ancestor of pinned column " + pin + ")";
-        }
-      }
-      return description + " (needs " + kind.option + ")";
-    }
-  }
-
-  private final List<Change> changes;
-
-  private SchemaDelta(List<Change> changes) {
+  private SchemaDelta(List<SchemaChange> changes) {
     this.changes = Collections.unmodifiableList(changes);
   }
 
@@ -128,7 +65,7 @@ final class SchemaDelta {
       return new SchemaDelta(Collections.emptyList());
     }
 
-    List<Change> nameConflicts = new ArrayList<>();
+    List<SchemaChange> nameConflicts = new ArrayList<>();
     ColumnNameChecks.findInvalidNames(fileSchema.asStruct(), "", nameConflicts);
     ColumnNameChecks.findCaseCollisions(
         before.asStruct(), fileSchema.asStruct(), "", nameConflicts);
@@ -136,7 +73,7 @@ final class SchemaDelta {
       return new SchemaDelta(nameConflicts);
     }
 
-    List<Change> absent = new ArrayList<>();
+    List<SchemaChange> absent = new ArrayList<>();
     findAbsentRequired(before.asStruct(), fileSchema.asStruct(), "", absent);
     Schema merged;
     try {
@@ -144,7 +81,7 @@ final class SchemaDelta {
       // identifier field, say) is classified as this file's conflict instead of surfacing
       // mid-transaction under a cross-schema message.
       UpdateSchema update = table.updateSchema().unionByNameWith(fileSchema);
-      for (Change change : absent) {
+      for (SchemaChange change : absent) {
         update = update.makeColumnOptional(change.path);
       }
       merged = update.apply();
@@ -152,8 +89,8 @@ final class SchemaDelta {
       // SchemaUpdate reports type conflicts through both exception types
       return conflict(e.getClass().getSimpleName() + ": " + AddFiles.errorMessage(e));
     }
-    Map<String, Change> absentByPath = new HashMap<>();
-    for (Change change : absent) {
+    Map<String, SchemaChange> absentByPath = new HashMap<>();
+    for (SchemaChange change : absent) {
       absentByPath.put(change.path, change);
     }
     return diff(before, merged, absentByPath);
@@ -170,15 +107,15 @@ final class SchemaDelta {
       Types.StructType tableStruct,
       Types.StructType fileStruct,
       String prefix,
-      List<Change> changes) {
+      List<SchemaChange> changes) {
     for (Types.NestedField field : tableStruct.fields()) {
       String rawPath = prefix + field.name();
       Types.NestedField fileField = fileStruct.field(field.name());
       if (fileField == null) {
         if (field.isRequired()) {
           changes.add(
-              new Change(
-                  Kind.FIELD_RELAXATION,
+              new SchemaChange(
+                  SchemaChange.Kind.FIELD_RELAXATION,
                   rawPath,
                   "relax "
                       + prefix
@@ -193,7 +130,7 @@ final class SchemaDelta {
   }
 
   private static void findAbsentRequiredInType(
-      Type tableType, Type fileType, String rawPath, List<Change> changes) {
+      Type tableType, Type fileType, String rawPath, List<SchemaChange> changes) {
     if (tableType.isStructType() && fileType.isStructType()) {
       findAbsentRequired(tableType.asStructType(), fileType.asStructType(), rawPath + ".", changes);
     } else if (tableType.isListType() && fileType.isListType()) {
@@ -214,7 +151,7 @@ final class SchemaDelta {
   /** Paths of required table columns absent from the file; the union alone does not relax them. */
   List<String> absentRequiredPaths() {
     List<String> paths = new ArrayList<>();
-    for (Change change : changes) {
+    for (SchemaChange change : changes) {
       if (change.absent) {
         paths.add(change.path);
       }
@@ -223,8 +160,8 @@ final class SchemaDelta {
   }
 
   private static SchemaDelta conflict(String message) {
-    List<Change> changes = new ArrayList<>();
-    changes.add(new Change(Kind.CONFLICT, "", message));
+    List<SchemaChange> changes = new ArrayList<>();
+    changes.add(new SchemaChange(SchemaChange.Kind.CONFLICT, "", message));
     return new SchemaDelta(changes);
   }
 
@@ -241,8 +178,9 @@ final class SchemaDelta {
    * {@code absentByPath}: classify's absent-column relaxations, emitted here in path order where
    * the diff sees the required-to-optional flip that classify itself staged.
    */
-  private static SchemaDelta diff(Schema before, Schema after, Map<String, Change> absentByPath) {
-    Map<String, Change> absentRemaining = new HashMap<>(absentByPath);
+  private static SchemaDelta diff(
+      Schema before, Schema after, Map<String, SchemaChange> absentByPath) {
+    Map<String, SchemaChange> absentRemaining = new HashMap<>(absentByPath);
     Map<Integer, Types.NestedField> beforeById = TypeUtil.indexById(before.asStruct());
     Map<Integer, Types.NestedField> afterById = TypeUtil.indexById(after.asStruct());
     Map<Integer, Integer> parentById = TypeUtil.indexParents(after.asStruct());
@@ -255,7 +193,7 @@ final class SchemaDelta {
         (a, b) ->
             checkStateNotNull(rawPathById.get(a)).compareTo(checkStateNotNull(rawPathById.get(b))));
 
-    List<Change> changes = new ArrayList<>();
+    List<SchemaChange> changes = new ArrayList<>();
     for (Integer id : idsByPath) {
       String path = checkStateNotNull(pathById.get(id));
       String rawPath = checkStateNotNull(rawPathById.get(id));
@@ -264,8 +202,8 @@ final class SchemaDelta {
       if (oldField == null) {
         if (!hasAddedAncestor(id, parentById, beforeById)) {
           changes.add(
-              new Change(
-                  Kind.FIELD_ADDITION,
+              new SchemaChange(
+                  SchemaChange.Kind.FIELD_ADDITION,
                   rawPath,
                   "add " + optionality(newField) + " " + path + " " + describe(newField.type())));
         }
@@ -288,7 +226,7 @@ final class SchemaDelta {
     }
     Collections.sort(removed);
     for (String path : removed) {
-      changes.add(new Change(Kind.CONFLICT, "", "field removed: " + path));
+      changes.add(new SchemaChange(SchemaChange.Kind.CONFLICT, "", "field removed: " + path));
     }
     return new SchemaDelta(changes);
   }
@@ -303,33 +241,40 @@ final class SchemaDelta {
       String rawPath,
       Types.NestedField oldField,
       Types.NestedField newField,
-      Map<String, Change> absentRemaining,
-      List<Change> changes) {
+      Map<String, SchemaChange> absentRemaining,
+      List<SchemaChange> changes) {
     if (!oldField.name().equals(newField.name())) {
       changes.add(
-          new Change(
-              Kind.CONFLICT,
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT,
               rawPath,
               "renamed " + path + " from " + oldField.name() + " to " + newField.name()));
     }
     if (!Objects.equals(oldField.doc(), newField.doc())) {
       // benign but unsupported: schema evolution has no option for doc updates
       changes.add(
-          new Change(Kind.CONFLICT, rawPath, "doc changed on " + path + " (not supported)"));
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT, rawPath, "doc changed on " + path + " (not supported)"));
     }
     if (!Objects.equals(oldField.initialDefault(), newField.initialDefault())
         || !Objects.equals(oldField.writeDefault(), newField.writeDefault())) {
       changes.add(
-          new Change(Kind.CONFLICT, rawPath, "default changed on " + path + " (not supported)"));
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT,
+              rawPath,
+              "default changed on " + path + " (not supported)"));
     }
     if (oldField.isRequired() && newField.isOptional()) {
-      @Nullable Change absent = absentRemaining.remove(rawPath);
+      @Nullable SchemaChange absent = absentRemaining.remove(rawPath);
       changes.add(
           absent != null
               ? absent
-              : new Change(Kind.FIELD_RELAXATION, rawPath, "relax " + path + " to optional"));
+              : new SchemaChange(
+                  SchemaChange.Kind.FIELD_RELAXATION, rawPath, "relax " + path + " to optional"));
     } else if (oldField.isOptional() && newField.isRequired()) {
-      changes.add(new Change(Kind.CONFLICT, rawPath, "optionality tightened on " + path));
+      changes.add(
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT, rawPath, "optionality tightened on " + path));
     }
     boolean oldPrimitive = oldField.type().isPrimitiveType();
     boolean newPrimitive = newField.type().isPrimitiveType();
@@ -339,14 +284,14 @@ final class SchemaDelta {
       }
       if (TypeUtil.isPromotionAllowed(oldField.type(), newField.type().asPrimitiveType())) {
         changes.add(
-            new Change(
-                Kind.TYPE_PROMOTION,
+            new SchemaChange(
+                SchemaChange.Kind.TYPE_PROMOTION,
                 rawPath,
                 "promote " + path + " " + oldField.type() + " to " + newField.type()));
       } else {
         changes.add(
-            new Change(
-                Kind.CONFLICT,
+            new SchemaChange(
+                SchemaChange.Kind.CONFLICT,
                 rawPath,
                 "type changed on "
                     + path
@@ -359,8 +304,8 @@ final class SchemaDelta {
     } else if (oldPrimitive != newPrimitive
         || oldField.type().typeId() != newField.type().typeId()) {
       changes.add(
-          new Change(
-              Kind.CONFLICT,
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT,
               rawPath,
               "type changed on "
                   + path
@@ -428,9 +373,9 @@ final class SchemaDelta {
     return changes.isEmpty();
   }
 
-  Set<Kind> kinds() {
-    Set<Kind> kinds = EnumSet.noneOf(Kind.class);
-    for (Change change : changes) {
+  Set<SchemaChange.Kind> kinds() {
+    Set<SchemaChange.Kind> kinds = EnumSet.noneOf(SchemaChange.Kind.class);
+    for (SchemaChange change : changes) {
       kinds.add(change.kind);
     }
     return kinds;
@@ -438,15 +383,15 @@ final class SchemaDelta {
 
   List<String> descriptions() {
     List<String> descriptions = new ArrayList<>();
-    for (Change change : changes) {
+    for (SchemaChange change : changes) {
       descriptions.add(change.description);
     }
     return Collections.unmodifiableList(descriptions);
   }
 
   @Nullable String conflict() {
-    for (Change change : changes) {
-      if (change.kind == Kind.CONFLICT) {
+    for (SchemaChange change : changes) {
+      if (change.kind == SchemaChange.Kind.CONFLICT) {
         return change.description;
       }
     }
@@ -455,7 +400,7 @@ final class SchemaDelta {
 
   boolean allowedBy(SchemaEvolutionConfig config) {
     Pins pins = new Pins(config.getRequiredColumns());
-    for (Change change : changes) {
+    for (SchemaChange change : changes) {
       if (!change.allowedBy(config, pins)) {
         return false;
       }
@@ -466,8 +411,8 @@ final class SchemaDelta {
   /** Why {@link #allowedBy} is false; empty when it is true. */
   String disallowedReason(SchemaEvolutionConfig config) {
     List<String> conflicts = new ArrayList<>();
-    for (Change change : changes) {
-      if (change.kind == Kind.CONFLICT) {
+    for (SchemaChange change : changes) {
+      if (change.kind == SchemaChange.Kind.CONFLICT) {
         conflicts.add(change.description);
       }
     }
@@ -476,7 +421,7 @@ final class SchemaDelta {
     }
     Pins pins = new Pins(config.getRequiredColumns());
     List<String> disallowed = new ArrayList<>();
-    for (Change change : changes) {
+    for (SchemaChange change : changes) {
       if (!change.allowedBy(config, pins)) {
         disallowed.add(change.disallowedReason(pins));
       }

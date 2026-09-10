@@ -25,7 +25,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import org.apache.beam.sdk.io.iceberg.SchemaDelta.Kind;
+import org.apache.beam.sdk.io.iceberg.SchemaChange.Kind;
 import org.apache.iceberg.types.Types;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -35,21 +35,21 @@ import org.junit.runners.JUnit4;
 public class ColumnNameChecksTest {
 
   private static List<String> invalidNames(Types.StructType fileStruct) {
-    List<SchemaDelta.Change> changes = new ArrayList<>();
+    List<SchemaChange> changes = new ArrayList<>();
     ColumnNameChecks.findInvalidNames(fileStruct, "", changes);
     return conflictDescriptions(changes);
   }
 
   private static List<String> caseCollisions(
       Types.StructType tableStruct, Types.StructType fileStruct) {
-    List<SchemaDelta.Change> changes = new ArrayList<>();
+    List<SchemaChange> changes = new ArrayList<>();
     ColumnNameChecks.findCaseCollisions(tableStruct, fileStruct, "", changes);
     return conflictDescriptions(changes);
   }
 
-  private static List<String> conflictDescriptions(List<SchemaDelta.Change> changes) {
+  private static List<String> conflictDescriptions(List<SchemaChange> changes) {
     List<String> descriptions = new ArrayList<>();
-    for (SchemaDelta.Change change : changes) {
+    for (SchemaChange change : changes) {
       assertEquals(Kind.CONFLICT, change.kind);
       descriptions.add(change.description);
     }
