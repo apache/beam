@@ -304,11 +304,13 @@ async function processPull(
         prState.nextAction = REVIEWERS_ACTION;
 
         // Persist state
-        await stateClient.writePrState(pull.number, prState);
+        await stateClient.writePrState(pull.number, prState, false);
         await stateClient.writeReviewersForLabelState(
           labelOfReviewer,
-          reviewersState
+          reviewersState,
+          false
         );
+        await stateClient.commitStateToRepo();
 
         return;
       }
@@ -364,14 +366,16 @@ async function processPull(
   prState.nextAction = "Reviewers";
   prState.reviewersAssignedAt = Date.now();
 
-  await stateClient.writePrState(pull.number, prState);
+  await stateClient.writePrState(pull.number, prState, false);
   let labelsToUpdate = Object.keys(reviewerStateToUpdate);
   for (const label of labelsToUpdate) {
     await stateClient.writeReviewersForLabelState(
       label,
-      reviewerStateToUpdate[label]
+      reviewerStateToUpdate[label],
+      false
     );
   }
+  await stateClient.commitStateToRepo();
 }
 
 async function processNewPrs() {
@@ -390,8 +394,6 @@ async function processNewPrs() {
   for (const pull of openPulls) {
     await processPull(pull, reviewerConfig, stateClient);
   }
-
-  await stateClient.commitStateToRepo();
 }
 
 processNewPrs();

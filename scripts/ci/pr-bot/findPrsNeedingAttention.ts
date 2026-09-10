@@ -134,14 +134,16 @@ async function assignToNewReviewers(
     })
   );
 
-  await stateClient.writePrState(pull.number, prState);
+  await stateClient.writePrState(pull.number, prState, false);
   let labelsToUpdate = Object.keys(reviewerStateToUpdate);
   for (const label of labelsToUpdate) {
     await stateClient.writeReviewersForLabelState(
       label,
-      reviewerStateToUpdate[label]
+      reviewerStateToUpdate[label],
+      false
     );
   }
+  await stateClient.commitStateToRepo();
 }
 
 // Flag any prs that have been awaiting reviewer action at least 7 days,
@@ -259,7 +261,6 @@ async function processOldPrs() {
   }
 
   await stateClient.deleteStalePrStates(openPulls, 100);
-  await stateClient.commitStateToRepo();
 }
 
 processOldPrs();

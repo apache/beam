@@ -115,11 +115,13 @@ async function assignToNextReviewer(
     prState.nextAction = "Reviewers";
 
     // Persist state
-    await stateClient.writePrState(pullNumber, prState);
+    await stateClient.writePrState(pullNumber, prState, false);
     await stateClient.writeReviewersForLabelState(
       labelOfReviewer,
-      reviewersState
+      reviewersState,
+      false
     );
+    await stateClient.commitStateToRepo();
   }
 }
 
@@ -237,13 +239,15 @@ async function assignReviewerSet(
   github.nextActionReviewers(pullNumber, existingLabels);
   prState.nextAction = "Reviewers";
 
-  await stateClient.writePrState(pullNumber, prState);
+  await stateClient.writePrState(pullNumber, prState, false);
   let labelsToUpdate = Object.keys(reviewerStateToUpdate);
   for (let i = 0; i < labelsToUpdate.length; i++) {
     let label = labelsToUpdate[i];
     await stateClient.writeReviewersForLabelState(
       label,
-      reviewerStateToUpdate[label]
+      reviewerStateToUpdate[label],
+      false
     );
   }
+  await stateClient.commitStateToRepo();
 }

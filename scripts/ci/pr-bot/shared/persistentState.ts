@@ -33,7 +33,6 @@ function getReviewersForLabelFileName(label) {
 
 export class PersistentState {
   private switchedBranch = false;
-  private hasWrittenState = false;
 
   // Returns a Pr object representing the current saved state of the pr.
   async getPrState(prNumber: number): Promise<typeof Pr> {
@@ -42,9 +41,18 @@ export class PersistentState {
   }
 
   // Writes a Pr object representing the current saved state of the pr to persistent storage.
-  async writePrState(prNumber: number, newState: any) {
+  async writePrState(
+    prNumber: number,
+    newState: any,
+    commitImmediately: boolean = true
+  ) {
     var fileName = getPrFileName(prNumber);
-    await this.writeState(fileName, PR_STATE_DIR, new Pr(newState));
+    await this.writeState(
+      fileName,
+      PR_STATE_DIR,
+      new Pr(newState),
+      commitImmediately
+    );
   }
 
   // Returns a ReviewersForLabel object representing the current saved state of which reviewers have reviewed recently.
@@ -56,12 +64,17 @@ export class PersistentState {
   }
 
   // Writes a ReviewersForLabel object representing the current saved state of which reviewers have reviewed recently.
-  async writeReviewersForLabelState(label: string, newState: any) {
+  async writeReviewersForLabelState(
+    label: string,
+    newState: any,
+    commitImmediately: boolean = true
+  ) {
     var fileName = getReviewersForLabelFileName(label);
     await this.writeState(
       fileName,
       "state",
-      new ReviewersForLabel(label, newState)
+      new ReviewersForLabel(label, newState),
+      commitImmediately
     );
   }
 
@@ -108,20 +121,14 @@ export class PersistentState {
           prsToDelete[0].prNumber
         }, newest: PR ${prsToDelete[prsToDelete.length - 1].prNumber})`
       );
-      this.hasWrittenState = true;
+      await this.commitStateToRepo();
     }
 
     return prsToDelete.length;
   }
 
-  // Commits all written state changes to the pr-bot-state branch in a single batch.
+  // Commits state changes to the pr-bot-state branch.
   async commitStateToRepo() {
-    if (!this.hasWrittenState) {
-      console.log(
-        "Skipping updating state branch since there are no changes to commit"
-      );
-      return;
-    }
     try {
       await exec.exec("git pull origin pr-bot-state");
     } catch (err) {
@@ -145,7 +152,6 @@ export class PersistentState {
         "Skipping updating state branch since there are no changes to commit"
       );
     }
-    this.hasWrittenState = false;
   }
 
   private async getState(fileName, baseDirectory) {
@@ -157,7 +163,12 @@ export class PersistentState {
     return JSON.parse(fs.readFileSync(fileName, { encoding: "utf-8" }));
   }
 
-  private async writeState(fileName, baseDirectory, state) {
+  private async writeState(
+    fileName,
+    baseDirectory,
+    state,
+    commitImmediately: boolean = true
+  ) {
     await this.ensureCorrectBranch();
     fileName = path.join(baseDirectory, fileName);
     if (!fs.existsSync(baseDirectory)) {
@@ -166,7 +177,9 @@ export class PersistentState {
     fs.writeFileSync(fileName, JSON.stringify(state, null, 2), {
       encoding: "utf-8",
     });
-    this.hasWrittenState = true;
+    if (commitImmediately) {
+      await this.commitStateToRepo();
+    }
   }
 
   private async ensureCorrectBranch() {
