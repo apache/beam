@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/metrics"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/metricsx"
 )
 
@@ -127,6 +128,38 @@ func TestGetShortID(t *testing.T) {
 			}
 			cache.mu.Unlock()
 		})
+	}
+}
+
+func TestMonitoring_NilStore(t *testing.T) {
+	mons, pylds, consuming := monitoring(&exec.Plan{}, nil, false)
+	if mons != nil {
+		t.Error("expected nil monitoring infos for nil store")
+	}
+	if pylds != nil {
+		t.Error("expected nil payloads for nil store")
+	}
+	if consuming {
+		t.Error("expected consuming=false for nil store")
+	}
+}
+
+func TestGetNextShortID(t *testing.T) {
+	c := newShortIDCache()
+	// Initial state: lastShortID is 0, first call returns "1"
+	id1 := c.getNextShortID()
+	id2 := c.getNextShortID()
+
+	if id1 == id2 {
+		t.Errorf("getNextShortID returned duplicate ids: %v == %v", id1, id2)
+	}
+
+	// IDs should be sequential base-36 strings: "1", "2", ...
+	if id1 != "1" {
+		t.Errorf("first short ID should be '1', got %q", id1)
+	}
+	if id2 != "2" {
+		t.Errorf("second short ID should be '2', got %q", id2)
 	}
 }
 
