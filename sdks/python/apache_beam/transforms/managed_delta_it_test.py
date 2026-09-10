@@ -17,7 +17,9 @@
 
 """Integration tests for DeltaIO and Delta CDC using Managed Transforms."""
 
+import os
 import shutil
+import sys
 import tempfile
 import unittest
 
@@ -38,9 +40,18 @@ from apache_beam.testing.util import equal_to
 
 
 @pytest.mark.uses_io_java_expansion_service
+@unittest.skipUnless(
+    os.environ.get('EXPANSION_JARS'),
+    "EXPANSION_JARS environment var is not provided, "
+    "indicating that jars have not been built")
 @unittest.skipIf(write_deltalake is None, 'deltalake is not installed.')
 class ManagedDeltaIT(unittest.TestCase):
   def setUp(self):
+    if any('DataflowRunner' in arg for arg in sys.argv):
+      self.skipTest(
+          'ManagedDeltaIT only supports direct runner execution with '
+          'local file paths.')
+
     self.temp_dir = tempfile.mkdtemp()
 
     # Version 0 commit
