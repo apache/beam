@@ -72,6 +72,7 @@
 
 ## New Features / Improvements
 
+* Added an OpenLineage extension (`sdks/java/extensions/openlineage`) that emits OpenLineage events describing the datasets a pipeline reads and writes, via a wrapper runner (`--runner=OpenLineageRunner`) and a pluggable lineage backend (`--lineageType`) (Java) ([#39427](https://github.com/apache/beam/issues/39427)).
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * (Java/Python) `Watch` can bound its deduplication state by event time, retiring an output key once the greatest emitted timestamp has moved more than the allowed lateness past it. Java adds `Watch.growthOf(...).withTimestampCursor()`. Python adds `allowed_lateness` for the existing `timestamp_cursor` option ([#18459](https://github.com/apache/beam/issues/18459)).
 * (Java) Spark Structured Streaming runner: stateful ParDo with state, timers, `@RequiresTimeSortedInput` and tagged outputs is now supported in batch mode ([#39779](https://github.com/apache/beam/issues/39779)).
