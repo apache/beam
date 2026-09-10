@@ -26,9 +26,12 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
+import java.util.List;
 import org.apache.beam.sdk.io.iceberg.SchemaDelta.Kind;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
@@ -390,101 +393,227 @@ public class SchemaDeltaTest {
     assertEquals("", delta.disallowedReason(ALL));
   }
 
-  // ---- names the table cannot absorb
+  // ---- names the table cannot absorb: one classify wiring test per check; exhaustive
+  //      shapes are covered directly on the walks below
 
   @Test
-  public void testDottedColumnNamesAreConflicts() {
-    // colliding with an existing struct, top-level with no collision, and nested
-    Schema colliding = new Schema(optional(1, "address.zip", Types.IntegerType.get()));
-    SchemaDelta delta = classify(colliding);
+  public void testDottedColumnNameIsConflict() {
+    Schema file = new Schema(optional(1, "address.zip", Types.IntegerType.get()));
+    SchemaDelta delta = classify(file);
     assertEquals(delta.toString(), EnumSet.of(Kind.CONFLICT), delta.kinds());
     String reason = delta.disallowedReason(ALL);
     assertTrue(reason, reason.contains("path separator"));
-
-    Schema flat =
-        new Schema(
-            required(1, "id", Types.LongType.get()), optional(2, "x.y", Types.StringType.get()));
-    assertEquals(EnumSet.of(Kind.CONFLICT), classify(flat).kinds());
-
-    Schema nested =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(2, "a", Types.StructType.of(optional(3, "b.c", Types.StringType.get()))));
-    SchemaDelta nestedDelta = classify(nested);
-    assertEquals(nestedDelta.toString(), EnumSet.of(Kind.CONFLICT), nestedDelta.kinds());
-    String nestedReason = nestedDelta.disallowedReason(ALL);
-    assertTrue(nestedReason, nestedReason.contains("`b.c`"));
   }
 
   /** The union rejects an empty name only at the top level; nested ones would be added. */
   @Test
-  public void testEmptyColumnNamesAreConflicts() {
+  public void testEmptyColumnNameIsConflict() {
     Schema file =
         new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(2, "", Types.StringType.get()),
-            optional(
-                3,
-                "address",
-                Types.StructType.of(
-                    optional(4, "city", Types.StringType.get()),
-                    optional(5, "", Types.StringType.get()))));
+            required(1, "id", Types.LongType.get()), optional(2, "", Types.StringType.get()));
     SchemaDelta delta = classify(file);
     assertEquals(delta.toString(), EnumSet.of(Kind.CONFLICT), delta.kinds());
-    assertEquals(2, delta.descriptions().size());
     String reason = delta.disallowedReason(ALL);
-    assertTrue(reason, reason.contains("empty column name under address"));
+    assertTrue(reason, reason.contains("empty column name"));
   }
 
   @Test
   public void testCaseOnlyDifferenceFromTableIsConflict() {
-    Schema flat =
+    Schema file =
         new Schema(
             optional(1, "NAME", Types.StringType.get()), required(2, "id", Types.LongType.get()));
-    SchemaDelta delta = classify(flat);
+    SchemaDelta delta = classify(file);
     assertEquals(delta.toString(), EnumSet.of(Kind.CONFLICT), delta.kinds());
     String reason = delta.disallowedReason(ALL);
     assertTrue(reason, reason.contains("differs only in case from table column name"));
-
-    Schema nested =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2, "address", Types.StructType.of(optional(3, "CITY", Types.StringType.get()))));
-    SchemaDelta nestedDelta = classify(nested);
-    assertEquals(nestedDelta.toString(), EnumSet.of(Kind.CONFLICT), nestedDelta.kinds());
-    String nestedReason = nestedDelta.disallowedReason(ALL);
-    assertTrue(
-        nestedReason,
-        nestedReason.contains("address.CITY differs only in case from table column city"));
   }
 
   /** Two new columns differing only in case would break the lower-case index between them. */
   @Test
   public void testFileInternalCaseCollisionIsConflict() {
-    Schema flat =
+    Schema file =
         new Schema(
             required(1, "id", Types.LongType.get()),
             optional(2, "email", Types.StringType.get()),
             optional(3, "EMAIL", Types.StringType.get()));
-    SchemaDelta delta = classify(flat);
+    SchemaDelta delta = classify(file);
     assertEquals(delta.toString(), EnumSet.of(Kind.CONFLICT), delta.kinds());
     String reason = delta.disallowedReason(ALL);
     assertTrue(reason, reason.contains("email and EMAIL differ only in case"));
+  }
 
-    Schema insideNewStruct =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
+  // ---- the name walks, driven directly (pure, no table)
+
+  private static List<String> invalidNames(Types.StructType fileStruct) {
+    List<SchemaDelta.Change> changes = new ArrayList<>();
+    SchemaDelta.findInvalidNames(fileStruct, "", changes);
+    return conflictDescriptions(changes);
+  }
+
+  private static List<String> caseCollisions(
+      Types.StructType tableStruct, Types.StructType fileStruct) {
+    List<SchemaDelta.Change> changes = new ArrayList<>();
+    SchemaDelta.findCaseCollisions(tableStruct, fileStruct, "", changes);
+    return conflictDescriptions(changes);
+  }
+
+  private static List<String> conflictDescriptions(List<SchemaDelta.Change> changes) {
+    List<String> descriptions = new ArrayList<>();
+    for (SchemaDelta.Change change : changes) {
+      assertEquals(Kind.CONFLICT, change.kind);
+      descriptions.add(change.description);
+    }
+    return descriptions;
+  }
+
+  @Test
+  public void testFindInvalidNamesFlagsDottedNamesAtEveryLevel() {
+    Types.StructType file =
+        Types.StructType.of(
+            optional(1, "a.b", Types.StringType.get()),
+            optional(2, "s", Types.StructType.of(optional(3, "c.d", Types.IntegerType.get()))),
             optional(
-                2,
-                "geo",
-                Types.StructType.of(
-                    optional(3, "lat", Types.DoubleType.get()),
-                    optional(4, "LAT", Types.DoubleType.get()))));
-    SchemaDelta nested = classify(insideNewStruct);
-    assertEquals(nested.toString(), EnumSet.of(Kind.CONFLICT), nested.kinds());
-    String nestedReason = nested.disallowedReason(ALL);
-    assertTrue(nestedReason, nestedReason.contains("geo.lat and geo.LAT differ only in case"));
+                4,
+                "l",
+                Types.ListType.ofOptional(
+                    5, Types.StructType.of(optional(6, "e.f", Types.StringType.get())))),
+            optional(
+                7,
+                "m",
+                Types.MapType.ofOptional(
+                    8,
+                    9,
+                    Types.StringType.get(),
+                    Types.StructType.of(optional(10, "g.h", Types.StringType.get())))));
+    List<String> conflicts = invalidNames(file);
+    assertEquals(conflicts.toString(), 4, conflicts.size());
+    for (String name : Arrays.asList("`a.b`", "`c.d`", "`e.f`", "`g.h`")) {
+      assertTrue(conflicts.toString(), conflicts.toString().contains(name));
+    }
+  }
+
+  @Test
+  public void testFindInvalidNamesFlagsEmptyNamesAtEveryLevel() {
+    Types.StructType file =
+        Types.StructType.of(
+            optional(1, "", Types.StringType.get()),
+            optional(2, "s", Types.StructType.of(optional(3, "", Types.IntegerType.get()))),
+            optional(
+                4,
+                "l",
+                Types.ListType.ofOptional(
+                    5, Types.StructType.of(optional(6, "", Types.StringType.get())))),
+            optional(
+                7,
+                "m",
+                Types.MapType.ofOptional(
+                    8,
+                    9,
+                    Types.StringType.get(),
+                    Types.StructType.of(optional(10, "", Types.StringType.get())))));
+    assertEquals(
+        Arrays.asList(
+            "empty column name",
+            "empty column name under s",
+            "empty column name under l.element",
+            "empty column name under m.value"),
+        invalidNames(file));
+  }
+
+  @Test
+  public void testFindInvalidNamesFlagsCaseDuplicatesPerLevel() {
+    Types.StructType file =
+        Types.StructType.of(
+            optional(1, "email", Types.StringType.get()),
+            optional(2, "EMAIL", Types.StringType.get()),
+            optional(
+                3,
+                "l",
+                Types.ListType.ofOptional(
+                    4,
+                    Types.StructType.of(
+                        optional(5, "lat", Types.DoubleType.get()),
+                        optional(6, "LAT", Types.DoubleType.get())))));
+    List<String> conflicts = invalidNames(file);
+    assertEquals(conflicts.toString(), 2, conflicts.size());
+    assertTrue(
+        conflicts.toString(), conflicts.get(0).contains("email and EMAIL differ only in case"));
+    assertTrue(
+        conflicts.toString(),
+        conflicts.get(1).contains("l.element.lat and l.element.LAT differ only in case"));
+  }
+
+  /** The duplicate rule is per level: the same name at different levels is fine. */
+  @Test
+  public void testFindInvalidNamesAcceptsCleanSchemas() {
+    Types.StructType file =
+        Types.StructType.of(
+            optional(1, "name", Types.StringType.get()),
+            optional(2, "s", Types.StructType.of(optional(3, "NAME", Types.StringType.get()))));
+    assertEquals(Collections.emptyList(), invalidNames(file));
+  }
+
+  @Test
+  public void testFindCaseCollisionsAtEveryLevel() {
+    Types.StructType table =
+        Types.StructType.of(
+            optional(1, "name", Types.StringType.get()),
+            optional(2, "s", Types.StructType.of(optional(3, "city", Types.StringType.get()))),
+            optional(
+                4,
+                "l",
+                Types.ListType.ofOptional(
+                    5, Types.StructType.of(optional(6, "sku", Types.StringType.get())))),
+            optional(
+                7,
+                "m",
+                Types.MapType.ofOptional(
+                    8,
+                    9,
+                    Types.StringType.get(),
+                    Types.StructType.of(optional(10, "v", Types.StringType.get())))));
+    Types.StructType file =
+        Types.StructType.of(
+            optional(1, "NAME", Types.StringType.get()),
+            optional(2, "s", Types.StructType.of(optional(3, "CITY", Types.StringType.get()))),
+            optional(
+                4,
+                "l",
+                Types.ListType.ofOptional(
+                    5, Types.StructType.of(optional(6, "SKU", Types.StringType.get())))),
+            optional(
+                7,
+                "m",
+                Types.MapType.ofOptional(
+                    8,
+                    9,
+                    Types.StringType.get(),
+                    Types.StructType.of(optional(10, "V", Types.StringType.get())))));
+    assertEquals(
+        Arrays.asList(
+            "column NAME differs only in case from table column name;"
+                + " rename it or map it with a column alias",
+            "column s.CITY differs only in case from table column city;"
+                + " rename it or map it with a column alias",
+            "column l.element.SKU differs only in case from table column sku;"
+                + " rename it or map it with a column alias",
+            "column m.value.V differs only in case from table column v;"
+                + " rename it or map it with a column alias"),
+        caseCollisions(table, file));
+  }
+
+  @Test
+  public void testFindCaseCollisionsPassesExactNewAndKindMismatchedNames() {
+    Types.StructType table =
+        Types.StructType.of(
+            optional(1, "name", Types.StringType.get()),
+            optional(2, "s", Types.StructType.of(optional(3, "x", Types.IntegerType.get()))));
+    Types.StructType file =
+        Types.StructType.of(
+            optional(1, "name", Types.StringType.get()),
+            optional(2, "email", Types.StringType.get()),
+            optional(3, "s", Types.StringType.get()));
+    assertEquals(Collections.emptyList(), caseCollisions(table, file));
   }
 
   // ---- Iceberg behaviors classify depends on; after a version bump failure, start here
@@ -590,6 +719,27 @@ public class SchemaDeltaTest {
                 .build());
     assertEquals(
         EnumSet.of(Kind.CONFLICT, Kind.FIELD_RELAXATION), SchemaDelta.diff(id, defaulted).kinds());
+
+    Schema structOfX =
+        new Schema(
+            optional(1, "s", Types.StructType.of(optional(2, "x", Types.IntegerType.get()))));
+    Schema primitiveS = new Schema(optional(1, "s", Types.StringType.get()));
+    assertEquals(
+        Arrays.asList(
+            "type changed on s from struct<x: optional int> to string", "field removed: s.x"),
+        SchemaDelta.diff(structOfX, primitiveS).descriptions());
+
+    Schema withContainers =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(
+                2,
+                "attrs",
+                Types.MapType.ofOptional(3, 4, Types.StringType.get(), Types.IntegerType.get())),
+            optional(5, "tags", Types.ListType.ofOptional(6, Types.StringType.get())));
+    assertEquals(
+        Arrays.asList("add optional attrs map<string, int>", "add optional tags list<string>"),
+        SchemaDelta.diff(id, withContainers).descriptions());
   }
 
   /** Iceberg rejects a schema where a dotted name equals a nested path, so only quoting matters. */

@@ -29,6 +29,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.UpdateSchema;
@@ -67,7 +68,7 @@ final class SchemaDelta {
     }
   }
 
-  private static final class Change {
+  static final class Change {
     final Kind kind;
 
     /** Unquoted column path for the config lookup; empty for conflicts without a field. */
@@ -169,8 +170,8 @@ final class SchemaDelta {
    * the top level). A case-only pair would be added as two columns, after which Iceberg cannot
    * build the lower-case name index.
    */
-  private static void findInvalidNames(
-      Types.StructType struct, String prefix, List<Change> changes) {
+  @VisibleForTesting
+  static void findInvalidNames(Types.StructType struct, String prefix, List<Change> changes) {
     Map<String, String> seenByLowerCase = new HashMap<>();
     for (Types.NestedField field : struct.fields()) {
       String rawPath = prefix + field.name();
@@ -222,7 +223,8 @@ final class SchemaDelta {
    * a separate column, after which Iceberg cannot build the lower-case name index and every
    * case-insensitive reader of the table fails.
    */
-  private static void findCaseCollisions(
+  @VisibleForTesting
+  static void findCaseCollisions(
       Types.StructType tableStruct,
       Types.StructType fileStruct,
       String prefix,
