@@ -64,6 +64,7 @@ labels:
     exclusionList: []
   - name: yaml
     reviewers:
+      - chamikaramj
       - derrickaw
   - name: Build
     reviewers:
