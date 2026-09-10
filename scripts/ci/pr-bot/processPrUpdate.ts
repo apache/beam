@@ -205,6 +205,8 @@ async function processPrUpdate() {
     default:
       console.log("Not a PR comment or push, doing nothing");
   }
+
+  await stateClient.commitStateToRepo();
 }
 
 processPrUpdate();
