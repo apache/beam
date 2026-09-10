@@ -19,6 +19,8 @@ package org.apache.beam.sdk.schemas.utils;
 
 import static org.apache.beam.sdk.values.Row.toRow;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.InputStream;
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -40,6 +42,8 @@ import org.yaml.snakeyaml.Yaml;
 import org.yaml.snakeyaml.error.YAMLException;
 
 public class YamlUtils {
+  private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
   private static final Map<Schema.TypeName, Function<String, @Nullable Object>> YAML_VALUE_PARSERS =
       ImmutableMap
           .<Schema.TypeName,
@@ -116,6 +120,9 @@ public class YamlUtils {
     }
 
     if (yamlValue instanceof List) {
+      if (fieldType.getTypeName() == Schema.TypeName.STRING) {
+        return toJsonString(field, yamlValue);
+      }
       FieldType innerType =
           Preconditions.checkNotNull(
               fieldType.getCollectionElementType(),
@@ -142,6 +149,8 @@ public class YamlUtils {
         return toBeamRow((Map<String, Object>) yamlValue, nestedSchema, convertNamesToCamelCase);
       } else if (fieldType.getTypeName() == Schema.TypeName.MAP) {
         return yamlValue;
+      } else if (fieldType.getTypeName() == Schema.TypeName.STRING) {
+        return toJsonString(field, yamlValue);
       }
     }
 
@@ -194,6 +203,18 @@ public class YamlUtils {
                   + "Please ensure all configuration values are simple types (String, Number, Boolean) "
                   + "or properly structured Maps and Lists. Original error: %s",
               problematicKeys, e.getMessage()),
+          e);
+    }
+  }
+
+  private static String toJsonString(Field field, Object yamlValue) {
+    try {
+      return OBJECT_MAPPER.writeValueAsString(yamlValue);
+    } catch (JsonProcessingException e) {
+      throw new IllegalArgumentException(
+          String.format(
+              "Failed to serialize YAML %s to JSON string for field '%s': %s",
+              yamlValue instanceof List ? "list" : "map", field.getName(), e.getMessage()),
           e);
     }
   }
