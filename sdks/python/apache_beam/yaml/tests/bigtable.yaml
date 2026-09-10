@@ -91,6 +91,7 @@ pipelines:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"
             table: 'test-table'
+            flatten: True
         - type: MapToFields
           config:
             language: python
@@ -145,33 +146,41 @@ pipelines:
             fields:
               key:
                 callable: |
-                  def convert_to_bytes(row):
-                    return row.key.decode("utf-8") if "key" in row._fields else None
+                  def convert_to_string(row):
+                    k = getattr(row, 'key', None)
+                    return k.decode("utf-8") if hasattr(k, 'decode') else k
 
               column_families:
-                column_families
-#        TODO: issue  #35790, once fixed we can uncomment this assert
-#        - type: AssertEqual
-#          config:
-#            elements:
-#              - {key: 'row1',
-#                # Use explicit map syntax to match the actual output
-#                 column_families: {
-#                   cf1: {
-#                     cq1: [
-#                       { value: "value1", timestamp_micros: 5000 }
-#                     ],
-#                     cq2: [
-#                       { value: "value2", timestamp_micros: 1000 }
-#                     ]
-#                   }
-#                 }
-#              }
-        #                - {'key': 'row1',
-        #                   column_families: {cf1: {cq2:
-        #                                             [BeamSchema_3281a0ae_fe85_474b_9030_86fbed58833a(value=b'value2', timestamp_micros=1000)], 'cq1': [BeamSchema_3281a0ae_fe85_474b_9030_86fbed58833a(value=b'value1', timestamp_micros=5000)]}}}
-
-
-#        - type: LogForTesting
+                callable: |
+                  def convert_cells_to_string(row):
+                    cf = getattr(row, 'column_families', None)
+                    if not cf:
+                      return None
+                    return {
+                      fam: {
+                        col: [
+                          beam.Row(value=c.value.decode("utf-8") if hasattr(c.value, 'decode') else c.value,
+                                   timestamp_micros=c.timestamp_micros)
+                          for c in cells
+                        ]
+                        for col, cells in cols.items()
+                      }
+                      for fam, cols in cf.items()
+                    }
+        - type: AssertEqual
+          config:
+            elements:
+              - key: 'row1'
+                # Use explicit map syntax to match the actual output
+                column_families: {
+                  cf1: {
+                    cq1: [
+                      { value: "value1", timestamp_micros: 5000 }
+                    ],
+                    cq2: [
+                      { value: "value2", timestamp_micros: 1000 }
+                    ]
+                  }
+                }
 
 
