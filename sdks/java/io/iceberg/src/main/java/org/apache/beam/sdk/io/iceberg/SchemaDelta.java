@@ -25,11 +25,9 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.UpdateSchema;
@@ -131,8 +129,9 @@ final class SchemaDelta {
     }
 
     List<Change> nameConflicts = new ArrayList<>();
-    findInvalidNames(fileSchema.asStruct(), "", nameConflicts);
-    findCaseCollisions(before.asStruct(), fileSchema.asStruct(), "", nameConflicts);
+    ColumnNameChecks.findInvalidNames(fileSchema.asStruct(), "", nameConflicts);
+    ColumnNameChecks.findCaseCollisions(
+        before.asStruct(), fileSchema.asStruct(), "", nameConflicts);
     if (!nameConflicts.isEmpty()) {
       return new SchemaDelta(nameConflicts);
     }
@@ -158,119 +157,6 @@ final class SchemaDelta {
       absentByPath.put(change.path, change);
     }
     return diff(before, merged, absentByPath);
-  }
-
-  /**
-   * Adds a conflict for every file column name no table can absorb, at every level including
-   * structs the table does not have yet: names containing a literal dot, empty names, and pairs of
-   * names at one level differing only in case. A dot is a conflict because Iceberg's name APIs,
-   * pins, aliases and ignores all treat it as a path separator, and a colliding struct in a later
-   * window would make the whole table unresolvable by name; rejected whether or not it collides
-   * today. An empty name would otherwise be added as a real column (the union only rejects it at
-   * the top level). A case-only pair would be added as two columns, after which Iceberg cannot
-   * build the lower-case name index.
-   */
-  @VisibleForTesting
-  static void findInvalidNames(Types.StructType struct, String prefix, List<Change> changes) {
-    Map<String, String> seenByLowerCase = new HashMap<>();
-    for (Types.NestedField field : struct.fields()) {
-      String rawPath = prefix + field.name();
-      if (field.name().isEmpty()) {
-        String at = prefix.isEmpty() ? "" : " under " + prefix.substring(0, prefix.length() - 1);
-        changes.add(new Change(Kind.CONFLICT, rawPath, "empty column name" + at));
-      } else if (field.name().contains(".")) {
-        changes.add(
-            new Change(
-                Kind.CONFLICT,
-                rawPath,
-                "column name "
-                    + quoteIfDotted(field.name())
-                    + " contains '.', which Iceberg treats as a path separator; rename the column"
-                    + " at its source"));
-      }
-      @Nullable String seen =
-          seenByLowerCase.put(field.name().toLowerCase(Locale.ROOT), field.name());
-      if (seen != null) {
-        changes.add(
-            new Change(
-                Kind.CONFLICT,
-                rawPath,
-                "columns "
-                    + prefix
-                    + quoteIfDotted(seen)
-                    + " and "
-                    + prefix
-                    + quoteIfDotted(field.name())
-                    + " differ only in case; rename one or map it with a column alias"));
-      }
-      findInvalidNamesInType(field.type(), rawPath, changes);
-    }
-  }
-
-  private static void findInvalidNamesInType(Type type, String rawPath, List<Change> changes) {
-    if (type.isStructType()) {
-      findInvalidNames(type.asStructType(), rawPath + ".", changes);
-    } else if (type.isListType()) {
-      findInvalidNamesInType(type.asListType().elementType(), rawPath + ".element", changes);
-    } else if (type.isMapType()) {
-      findInvalidNamesInType(type.asMapType().valueType(), rawPath + ".value", changes);
-    }
-  }
-
-  /**
-   * Adds a conflict for every file column whose name matches a table column at the same level only
-   * case-insensitively; exact matches and genuinely new names pass. Such a column would be added as
-   * a separate column, after which Iceberg cannot build the lower-case name index and every
-   * case-insensitive reader of the table fails.
-   */
-  @VisibleForTesting
-  static void findCaseCollisions(
-      Types.StructType tableStruct,
-      Types.StructType fileStruct,
-      String prefix,
-      List<Change> changes) {
-    for (Types.NestedField fileField : fileStruct.fields()) {
-      String rawPath = prefix + fileField.name();
-      Types.NestedField exact = tableStruct.field(fileField.name());
-      if (exact == null) {
-        for (Types.NestedField tableField : tableStruct.fields()) {
-          if (tableField.name().equalsIgnoreCase(fileField.name())) {
-            changes.add(
-                new Change(
-                    Kind.CONFLICT,
-                    rawPath,
-                    "column "
-                        + prefix
-                        + quoteIfDotted(fileField.name())
-                        + " differs only in case from table column "
-                        + quoteIfDotted(tableField.name())
-                        + "; rename it or map it with a column alias"));
-            break;
-          }
-        }
-        continue;
-      }
-      findCaseCollisionsInType(exact.type(), fileField.type(), rawPath, changes);
-    }
-  }
-
-  private static void findCaseCollisionsInType(
-      Type tableType, Type fileType, String rawPath, List<Change> changes) {
-    if (tableType.isStructType() && fileType.isStructType()) {
-      findCaseCollisions(tableType.asStructType(), fileType.asStructType(), rawPath + ".", changes);
-    } else if (tableType.isListType() && fileType.isListType()) {
-      findCaseCollisionsInType(
-          tableType.asListType().elementType(),
-          fileType.asListType().elementType(),
-          rawPath + ".element",
-          changes);
-    } else if (tableType.isMapType() && fileType.isMapType()) {
-      findCaseCollisionsInType(
-          tableType.asMapType().valueType(),
-          fileType.asMapType().valueType(),
-          rawPath + ".value",
-          changes);
-    }
   }
 
   /**
@@ -527,7 +413,7 @@ final class SchemaDelta {
     return false;
   }
 
-  private static String quoteIfDotted(String name) {
+  static String quoteIfDotted(String name) {
     if (name.contains(".")) {
       return "`" + name + "`";
     }
