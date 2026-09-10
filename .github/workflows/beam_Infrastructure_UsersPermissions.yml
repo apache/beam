@@ -23,16 +23,9 @@
 name: Modify the GCP User Roles according to the infra/users.yml file
 
 on:
-  workflow_dispatch:
-  pull_request_target:
-    types: [opened, synchronize, reopened, closed]
-    paths:
-      - 'infra/iam/users.yml'
-
-# This allows a subsequently queued workflow run to interrupt previous runs
-concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
-  cancel-in-progress: true
+  workflow_run:
+    workflows: ["Extract users.yml from PR"]
+    types: [completed]
 
 permissions:
   contents: read
@@ -43,32 +36,50 @@ jobs:
     name: Apply user roles changes
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 30
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Checkout code
+      - name: Checkout trusted base repository
         uses: actions/checkout@v7
         with:
-          ref: ${{ github.event.pull_request.merged == true && github.base_ref || github.event.pull_request.head.sha }}
           persist-credentials: false
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: pr-data
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      # Move the users.yml file to the correct location for Terraform to process it
+      - name: Prepare users.yml
+        run: mv users.yml infra/iam/users.yml
+
+      - name: Load PR Number
+        run: |
+          PR_NUM=$(cat pr_number.txt)
+          echo "PR_NUMBER=$PR_NUM" >> $GITHUB_ENV
+
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+
       - name: Install Terraform
-        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e
         with:
           terraform_version: 1.12.2
+
       - name: Initialize Terraform
         working-directory: ./infra/iam
         run: terraform init
+
       - name: Terraform Plan
         working-directory: ./infra/iam
         run: terraform plan -out=tfplan
 
       - name: Convert plan to plaintext
-        if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
         working-directory: ./infra/iam
         run: terraform show -no-color tfplan > tfplan.txt
 
       - name: Create comment body
-        if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
         run: |
           PLAN_SIZE=$(wc -c < ./infra/iam/tfplan.txt)
           if [ "$PLAN_SIZE" -gt 60000 ]; then
@@ -81,14 +92,9 @@ jobs:
             echo '```' >> comment_body.txt
           fi
 
+      # Use the environment variable PR_NUMBER that we read from the file
       - name: Upload plan as a comment to PR
-        if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-        run: gh pr comment ${{ github.event.pull_request.number }} --body-file comment_body.txt
-
-      - name: Terraform Apply
-        if: github.event.pull_request.merged == true
-        working-directory: ./infra/iam
-        run: terraform apply -auto-approve tfplan
+        run: gh pr comment "$PR_NUMBER" --body-file comment_body.txt
