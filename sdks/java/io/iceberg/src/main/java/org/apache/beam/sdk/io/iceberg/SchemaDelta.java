@@ -90,20 +90,23 @@ final class SchemaDelta {
     }
 
     boolean allowedBy(SchemaEvolutionConfig config, Pins pins) {
-      if (kind == Kind.FIELD_RELAXATION && pins.forbiddingRelaxationOf(path) != null) {
+      // A pin also forbids relaxing the structs above it: a null ancestor nulls the pinned leaf.
+      if (kind == Kind.FIELD_RELAXATION
+          && (pins.isPinned(path) || pins.pinnedColumnBeneath(path) != null)) {
         return false;
       }
       return kind.allowedBy(config);
     }
 
     String disallowedReason(Pins pins) {
-      @Nullable String pin =
-          kind == Kind.FIELD_RELAXATION ? pins.forbiddingRelaxationOf(path) : null;
-      if (pin != null) {
-        if (pin.equals(path)) {
+      if (kind == Kind.FIELD_RELAXATION) {
+        if (pins.isPinned(path)) {
           return description + " (pinned as required)";
         }
-        return description + " (ancestor of pinned column " + pin + ")";
+        @Nullable String pin = pins.pinnedColumnBeneath(path);
+        if (pin != null) {
+          return description + " (ancestor of pinned column " + pin + ")";
+        }
       }
       return description + " (needs " + kind.option + ")";
     }

@@ -328,6 +328,12 @@ public class SchemaDeltaTest {
         "file schema needs changes that are not allowed: "
             + "relax address to optional (ancestor of pinned column address.city)",
         delta.disallowedReason(pinned("address.city")));
+    // When several pins forbid the same relaxation, the lexicographically first is reported,
+    // independent of the set's iteration order.
+    assertEquals(
+        "file schema needs changes that are not allowed: "
+            + "relax address to optional (ancestor of pinned column address.city)",
+        delta.disallowedReason(pinned("address.zip", "address.city")));
   }
 
   // ---- promotion
