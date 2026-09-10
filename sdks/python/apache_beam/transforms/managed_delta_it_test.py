@@ -63,8 +63,7 @@ class ManagedDeltaIT(unittest.TestCase):
       output = (
           p
           | beam.managed.Read(
-              beam.managed.DELTA,
-              config={"table": self.temp_dir})
+              beam.managed.DELTA, config={"table": self.temp_dir})
           | beam.Map(lambda row: row.name))
       assert_that(output, equal_to(["a", "b", "c"]))
 
@@ -74,7 +73,9 @@ class ManagedDeltaIT(unittest.TestCase):
           p
           | beam.managed.Read(
               beam.managed.DELTA_CDC,
-              config={"table": self.temp_dir, "start_version": 0})
+              config={
+                  "table": self.temp_dir, "start_version": 0
+              })
           | beam.Map(lambda row: row.name))
       assert_that(output, equal_to(["a", "b", "c"]))
 
@@ -84,7 +85,9 @@ class ManagedDeltaIT(unittest.TestCase):
           p
           | beam.managed.Read(
               beam.managed.DELTA_CDC,
-              config={"table": self.temp_dir, "start_version": 1})
+              config={
+                  "table": self.temp_dir, "start_version": 1
+              })
           | beam.Map(lambda row: row.name))
       assert_that(output, equal_to(["c"]))
 
@@ -95,9 +98,7 @@ class ManagedDeltaIT(unittest.TestCase):
           | beam.managed.Read(
               beam.managed.DELTA_CDC,
               config={
-                  "table": self.temp_dir,
-                  "start_version": 0,
-                  "end_version": 0
+                  "table": self.temp_dir, "start_version": 0, "end_version": 0
               })
           | beam.Map(lambda row: row.name))
       assert_that(output, equal_to(["a", "b"]))
