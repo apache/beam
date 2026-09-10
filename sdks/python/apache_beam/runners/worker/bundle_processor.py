@@ -137,7 +137,8 @@ class RunnerIOOperation(operations.Operation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]) -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel])
+  -> None:
     super().__init__(name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
     self.windowed_coder_impl = windowed_coder.get_impl()
@@ -151,7 +152,7 @@ class RunnerIOOperation(operations.Operation):
 
   def get_data_channel(
       self, data_stream_id: Optional[str] = None) -> data_plane.DataChannel:
-    return self.data_channel_factory(data_stream_id=data_stream_id)
+    return self.data_channel_factory(data_stream_id)
 
 
 class DataOutputOperation(RunnerIOOperation):
@@ -166,7 +167,8 @@ class DataOutputOperation(RunnerIOOperation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]) -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel])
+  -> None:
     super().__init__(
         operation_name,
         step_name,
@@ -202,7 +204,8 @@ class DataInputOperation(RunnerIOOperation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]) -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel])
+  -> None:
     super().__init__(
         operation_name,
         step_name,
@@ -1263,7 +1266,9 @@ class BundleProcessor(object):
       op.reset()
 
   def process_bundle(
-      self, instruction_id: str, data_stream_id: Optional[str] = None
+      self,
+      instruction_id: str,
+      data_stream_id: Optional[str] = None
   ) -> tuple[list[beam_fn_api_pb2.DelayedBundleApplication], bool]:
 
     expected_input_ops: list[DataInputOperation] = []
@@ -1315,8 +1320,7 @@ class BundleProcessor(object):
         timer_data_channel = self.timer_data_channel
 
       if timer_data_channel:
-        data_channels[timer_data_channel].extend(
-            list(self.timers_info.keys()))
+        data_channels[timer_data_channel].extend(list(self.timers_info.keys()))
 
         # Set up timer output stream for DoOperation.
         for ((transform_id, timer_family_id),

@@ -92,9 +92,12 @@ class DataChannelTest(unittest.TestCase):
       url = 'localhost:%s' % test_port
       ch_default = factory.create_data_channel_from_url(url)
       ch_default2 = factory.create_data_channel_from_url(url, data_stream_id='')
-      ch_stream1 = factory.create_data_channel_from_url(url, data_stream_id='stream_1')
-      ch_stream1_dup = factory.create_data_channel_from_url(url, data_stream_id='stream_1')
-      ch_stream2 = factory.create_data_channel_from_url(url, data_stream_id='stream_2')
+      ch_stream1 = factory.create_data_channel_from_url(
+          url, data_stream_id='stream_1')
+      ch_stream1_dup = factory.create_data_channel_from_url(
+          url, data_stream_id='stream_1')
+      ch_stream2 = factory.create_data_channel_from_url(
+          url, data_stream_id='stream_2')
 
       self.assertIs(ch_default, ch_default2)
       self.assertIs(ch_stream1, ch_stream1_dup)

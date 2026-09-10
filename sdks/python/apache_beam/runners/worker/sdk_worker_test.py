@@ -416,7 +416,8 @@ class SdkWorkerTest(unittest.TestCase):
     mock_bundle_processor = mock.MagicMock()
     mock_bundle_processor.process_bundle.return_value = ([], False)
     mock_bundle_processor.monitoring_infos.return_value = []
-    mock_bundle_processor.state_handler.process_instruction_id.return_value = contextlib.nullcontext()
+    mock_bundle_processor.state_handler.process_instruction_id.return_value = contextlib.nullcontext(
+    )
 
     bundle_processor_cache = mock.MagicMock()
     bundle_processor_cache.get.return_value = mock_bundle_processor

@@ -72,8 +72,10 @@ class DataStreamIdInterceptorTest(unittest.TestCase):
     headers_holder = {}
 
     def continuation(client_details, request_iterator):
-      headers_holder.update(
-          {data_stream_id_key: dict(client_details.metadata).get(data_stream_id_key)})
+      headers_holder.update({
+          data_stream_id_key: dict(
+              client_details.metadata).get(data_stream_id_key)
+      })
 
     DataStreamIdInterceptor('stream_123').intercept_stream_stream(
         continuation, _ClientCallDetails(None, None, None, None), [])
@@ -97,17 +99,18 @@ class DataStreamIdInterceptorTest(unittest.TestCase):
     headers_holder = {}
 
     def continuation(client_details, request_iterator):
-      headers_holder.update(
-          {data_stream_id_key: dict(client_details.metadata).get(data_stream_id_key)})
+      headers_holder.update({
+          data_stream_id_key: dict(
+              client_details.metadata).get(data_stream_id_key)
+      })
 
     with self.assertRaises(RuntimeError):
       DataStreamIdInterceptor('stream_123').intercept_stream_stream(
           continuation,
-          _ClientCallDetails(None, None, [('data_stream_id', 'existing')], None),
-          [])
+          _ClientCallDetails(
+              None, None, [('data_stream_id', 'existing')], None), [])
 
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
-

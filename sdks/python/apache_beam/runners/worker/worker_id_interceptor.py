@@ -107,4 +107,3 @@ class DataStreamIdInterceptor(grpc.UnaryUnaryClientInterceptor,
           client_call_details.credentials)
       return continuation(new_client_details, request)
     return continuation(client_call_details, request)
-

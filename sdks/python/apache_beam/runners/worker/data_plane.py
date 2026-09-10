@@ -810,8 +810,7 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
   def get_conn_by_worker_id(
       self,
       worker_id: str,
-      data_stream_id: Optional[str] = None
-  ) -> _GrpcDataChannel:
+      data_stream_id: Optional[str] = None) -> _GrpcDataChannel:
     with self._lock:
       return self._connections_by_worker_id[(worker_id, data_stream_id or '')]
 
@@ -836,8 +835,7 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
   def create_data_channel(
       self,
       remote_grpc_port: beam_fn_api_pb2.RemoteGrpcPort,
-      data_stream_id: Optional[str] = None
-  ) -> DataChannel:
+      data_stream_id: Optional[str] = None) -> DataChannel:
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
@@ -845,8 +843,7 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
   def create_data_channel_from_url(
       self,
       url: str,
-      data_stream_id: Optional[str] = None
-  ) -> Optional[DataChannel]:
+      data_stream_id: Optional[str] = None) -> Optional[DataChannel]:
     """Returns a ``DataChannel`` from the given url."""
     raise NotImplementedError(type(self))
 
@@ -876,7 +873,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       data_buffer_time_limit_ms=0  # type: int
   ):
     # type: (...) -> None
-    self._data_channel_cache = {}  # type: Dict[Tuple[str, str], GrpcClientDataChannel]
+    self._data_channel_cache = {
+    }  # type: Dict[Tuple[str, str], GrpcClientDataChannel]
     self._lock = threading.Lock()
     self._credentials = None
     self._worker_id = worker_id
@@ -888,8 +886,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def create_data_channel_from_url(
       self,
       url: str,
-      data_stream_id: Optional[str] = None
-  ) -> Optional[GrpcClientDataChannel]:
+      data_stream_id: Optional[str] = None) -> Optional[GrpcClientDataChannel]:
     if not url:
       return None
     data_stream_id = data_stream_id or ''
@@ -929,8 +926,7 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
   def create_data_channel(
       self,
       remote_grpc_port: beam_fn_api_pb2.RemoteGrpcPort,
-      data_stream_id: Optional[str] = None
-  ) -> GrpcClientDataChannel:
+      data_stream_id: Optional[str] = None) -> GrpcClientDataChannel:
     url = remote_grpc_port.api_service_descriptor.url
     # TODO(https://github.com/apache/beam/issues/19737): this can return None
     #  if url is falsey, but this seems incorrect, as code that calls this
@@ -959,15 +955,13 @@ class InMemoryDataChannelFactory(DataChannelFactory):
   def create_data_channel(
       self,
       unused_remote_grpc_port: beam_fn_api_pb2.RemoteGrpcPort,
-      data_stream_id: Optional[str] = None
-  ) -> DataChannel:
+      data_stream_id: Optional[str] = None) -> DataChannel:
     return self._in_memory_data_channel
 
   def create_data_channel_from_url(
       self,
       url: Any,
-      data_stream_id: Optional[str] = None
-  ) -> DataChannel:
+      data_stream_id: Optional[str] = None) -> DataChannel:
     return self._in_memory_data_channel
 
   def close(self):

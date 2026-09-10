@@ -743,7 +743,8 @@ class NamedDataStreamsTest(unittest.TestCase):
 
     # Coders
     CODER_ID = 'coder'
-    descriptor.coders[CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
+    descriptor.coders[
+        CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
 
     # PCollections
     PCOLLECTION_IN = 'pcoll_in'
@@ -796,7 +797,8 @@ class NamedDataStreamsTest(unittest.TestCase):
         source_port, data_stream_id=None)
     data_channel_factory.create_data_channel.assert_any_call(
         sink_port, data_stream_id=None)
-    mock_channel_default.output_stream.assert_called_once_with('inst_1', SINK_ID)
+    mock_channel_default.output_stream.assert_called_once_with(
+        'inst_1', SINK_ID)
 
     processor.reset()
 
