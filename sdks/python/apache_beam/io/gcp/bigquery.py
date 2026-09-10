@@ -2241,10 +2241,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
-        The argument can be used by passing True and the Beam Rows will be
-        sent as they are to the BigQuery sink which expects a 'record'
-        and 'row_mutation_info' properties.
-        Used for STORAGE_WRITE_API, working on 'at least once' mode.
+        When True, requires ``method=STORAGE_WRITE_API`` and
+        ``use_at_least_once=True``. Each input element must contain ``record``
+        and ``row_mutation_info`` properties. The latter must contain the
+        required string properties ``mutation_type`` (``UPSERT`` or
+        ``DELETE``) and ``change_sequence_number``.
       primary_key: When using CDC write on BigQuery and
         CREATE_IF_NEEDED mode for the underlying tables a list of column names
         is required to be configured as the primary key. Used for
