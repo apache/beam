@@ -248,7 +248,7 @@ class DeltaCDCSourceDoFn extends DoFn<DeltaCDCReadTask, Row> {
         if (field.getName().equals(DeltaIO.COMMIT_VERSION_COLUMN)) {
           value = task.getVersion();
         } else if (field.getName().equals(DeltaIO.COMMIT_TIMESTAMP_COLUMN)) {
-          value = new org.joda.time.Instant(task.getTimestamp());
+          value = java.time.Instant.ofEpochMilli(task.getTimestamp());
         }
       }
       builder.addValue(value);
