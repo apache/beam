@@ -89,32 +89,16 @@ final class SchemaDelta {
       this.absent = absent;
     }
 
-    boolean allowedBy(SchemaEvolutionConfig config) {
-      if (kind == Kind.FIELD_RELAXATION && forbiddingPin(config) != null) {
+    boolean allowedBy(SchemaEvolutionConfig config, Pins pins) {
+      if (kind == Kind.FIELD_RELAXATION && pins.forbiddingRelaxationOf(path) != null) {
         return false;
       }
       return kind.allowedBy(config);
     }
 
-    /**
-     * The pin that forbids relaxing this path: the path itself, or a pinned column beneath it. A
-     * null ancestor nulls the pinned leaf, so relaxing the ancestor only manufactures files that
-     * fail the pin check at registration.
-     */
-    private @Nullable String forbiddingPin(SchemaEvolutionConfig config) {
-      if (config.isPinned(path)) {
-        return path;
-      }
-      for (String pin : config.getRequiredColumns()) {
-        if (pin.startsWith(path + ".")) {
-          return pin;
-        }
-      }
-      return null;
-    }
-
-    String disallowedReason(SchemaEvolutionConfig config) {
-      @Nullable String pin = kind == Kind.FIELD_RELAXATION ? forbiddingPin(config) : null;
+    String disallowedReason(Pins pins) {
+      @Nullable String pin =
+          kind == Kind.FIELD_RELAXATION ? pins.forbiddingRelaxationOf(path) : null;
       if (pin != null) {
         if (pin.equals(path)) {
           return description + " (pinned as required)";
@@ -572,8 +556,9 @@ final class SchemaDelta {
   }
 
   boolean allowedBy(SchemaEvolutionConfig config) {
+    Pins pins = new Pins(config.getRequiredColumns());
     for (Change change : changes) {
-      if (!change.allowedBy(config)) {
+      if (!change.allowedBy(config, pins)) {
         return false;
       }
     }
@@ -591,10 +576,11 @@ final class SchemaDelta {
     if (!conflicts.isEmpty()) {
       return "file schema conflicts with the table schema: " + String.join("; ", conflicts);
     }
+    Pins pins = new Pins(config.getRequiredColumns());
     List<String> disallowed = new ArrayList<>();
     for (Change change : changes) {
-      if (!change.allowedBy(config)) {
-        disallowed.add(change.disallowedReason(config));
+      if (!change.allowedBy(config, pins)) {
+        disallowed.add(change.disallowedReason(pins));
       }
     }
     if (disallowed.isEmpty()) {
