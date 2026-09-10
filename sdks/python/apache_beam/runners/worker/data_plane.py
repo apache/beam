@@ -959,9 +959,7 @@ class InMemoryDataChannelFactory(DataChannelFactory):
     return self._in_memory_data_channel
 
   def create_data_channel_from_url(
-      self,
-      url: Any,
-      data_stream_id: Optional[str] = None) -> DataChannel:
+      self, url: Any, data_stream_id: Optional[str] = None) -> DataChannel:
     return self._in_memory_data_channel
 
   def close(self):
