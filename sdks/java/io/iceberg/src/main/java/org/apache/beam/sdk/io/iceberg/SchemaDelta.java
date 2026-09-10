@@ -160,13 +160,14 @@ final class SchemaDelta {
   }
 
   /**
-   * File column names no table can absorb, checked at every level including structs the table does
-   * not have yet. A literal dot is a conflict because Iceberg's name APIs, pins, aliases and
-   * ignores all treat the dot as a path separator, and a colliding struct in a later window would
-   * make the whole table unresolvable by name; rejected whether or not it collides today. An empty
-   * name would otherwise be added as a real column (the union only rejects it at the top level).
-   * Two file columns at one level differing only in case would be added as two columns, after which
-   * Iceberg cannot build the lower-case name index.
+   * Adds a conflict for every file column name no table can absorb, at every level including
+   * structs the table does not have yet: names containing a literal dot, empty names, and pairs of
+   * names at one level differing only in case. A dot is a conflict because Iceberg's name APIs,
+   * pins, aliases and ignores all treat it as a path separator, and a colliding struct in a later
+   * window would make the whole table unresolvable by name; rejected whether or not it collides
+   * today. An empty name would otherwise be added as a real column (the union only rejects it at
+   * the top level). A case-only pair would be added as two columns, after which Iceberg cannot
+   * build the lower-case name index.
    */
   private static void findInvalidNames(
       Types.StructType struct, String prefix, List<Change> changes) {
@@ -216,9 +217,10 @@ final class SchemaDelta {
   }
 
   /**
-   * A file column whose name matches a table column at the same level only case-insensitively would
-   * be added as a separate column, after which Iceberg cannot build the lower-case name index and
-   * every case-insensitive reader of the table fails.
+   * Adds a conflict for every file column whose name matches a table column at the same level only
+   * case-insensitively; exact matches and genuinely new names pass. Such a column would be added as
+   * a separate column, after which Iceberg cannot build the lower-case name index and every
+   * case-insensitive reader of the table fails.
    */
   private static void findCaseCollisions(
       Types.StructType tableStruct,
