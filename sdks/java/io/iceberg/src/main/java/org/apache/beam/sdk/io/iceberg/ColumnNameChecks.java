@@ -87,6 +87,7 @@ final class ColumnNameChecks {
     } else if (type.isListType()) {
       findInvalidNamesInType(type.asListType().elementType(), rawPath + ".element", changes);
     } else if (type.isMapType()) {
+      findInvalidNamesInType(type.asMapType().keyType(), rawPath + ".key", changes);
       findInvalidNamesInType(type.asMapType().valueType(), rawPath + ".value", changes);
     }
   }
@@ -138,6 +139,11 @@ final class ColumnNameChecks {
           rawPath + ".element",
           changes);
     } else if (tableType.isMapType() && fileType.isMapType()) {
+      findCaseCollisionsInType(
+          tableType.asMapType().keyType(),
+          fileType.asMapType().keyType(),
+          rawPath + ".key",
+          changes);
       findCaseCollisionsInType(
           tableType.asMapType().valueType(),
           fileType.asMapType().valueType(),

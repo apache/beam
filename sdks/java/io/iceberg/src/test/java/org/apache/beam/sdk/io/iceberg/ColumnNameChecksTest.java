@@ -205,4 +205,54 @@ public class ColumnNameChecksTest {
             optional(3, "s", Types.StringType.get()));
     assertEquals(Collections.emptyList(), caseCollisions(table, file));
   }
+
+  /** Map keys can be structs, and their field names are checked like any other level. */
+  @Test
+  public void testInvalidNamesInsideStructMapKeysAreConflicts() {
+    Types.StructType file =
+        Types.StructType.of(
+            optional(
+                1,
+                "m",
+                Types.MapType.ofOptional(
+                    2,
+                    3,
+                    Types.StructType.of(
+                        optional(4, "a.b", Types.StringType.get()),
+                        optional(5, "", Types.StringType.get())),
+                    Types.StringType.get())));
+    List<String> conflicts = invalidNames(file);
+    assertEquals(conflicts.toString(), 2, conflicts.size());
+    assertTrue(conflicts.toString(), conflicts.get(0).contains("`a.b`"));
+    assertEquals("empty column name under m.key", conflicts.get(1));
+  }
+
+  @Test
+  public void testCaseCollisionInsideStructMapKeyIsConflict() {
+    Types.StructType table =
+        Types.StructType.of(
+            optional(
+                1,
+                "m",
+                Types.MapType.ofOptional(
+                    2,
+                    3,
+                    Types.StructType.of(optional(4, "k", Types.StringType.get())),
+                    Types.StringType.get())));
+    Types.StructType file =
+        Types.StructType.of(
+            optional(
+                1,
+                "m",
+                Types.MapType.ofOptional(
+                    2,
+                    3,
+                    Types.StructType.of(optional(4, "K", Types.StringType.get())),
+                    Types.StringType.get())));
+    List<String> conflicts = caseCollisions(table, file);
+    assertEquals(conflicts.toString(), 1, conflicts.size());
+    assertTrue(
+        conflicts.toString(),
+        conflicts.get(0).contains("m.key.K differs only in case from table column k"));
+  }
 }

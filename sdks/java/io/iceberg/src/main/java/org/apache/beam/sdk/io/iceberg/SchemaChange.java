@@ -77,6 +77,10 @@ final class SchemaChange {
   }
 
   String disallowedReason(Pins pins) {
+    if (kind == Kind.CONFLICT) {
+      // A conflict needs no option and its description stands alone.
+      return description;
+    }
     if (kind == Kind.FIELD_RELAXATION) {
       if (pins.isPinned(path)) {
         return description + " (pinned as required)";
