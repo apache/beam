@@ -118,6 +118,11 @@ final class SchemaDelta {
     this.changes = Collections.unmodifiableList(changes);
   }
 
+  /**
+   * What registering a file with {@code fileSchema} would need from the table, as changes ordered
+   * by column path; the table itself is never modified. File column names no table can absorb
+   * (dotted, empty, case-colliding) come back as conflicts without attempting the union.
+   */
   static SchemaDelta classify(Table table, Schema fileSchema) {
     Schema before = table.schema();
     if (before.sameSchema(fileSchema)) {
