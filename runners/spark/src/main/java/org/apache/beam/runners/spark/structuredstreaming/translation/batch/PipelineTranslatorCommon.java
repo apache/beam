@@ -21,7 +21,6 @@ import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine;
 import org.apache.beam.sdk.transforms.Flatten;
@@ -37,8 +36,8 @@ import org.apache.beam.sdk.values.POutput;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Holds the translator registry shared by the batch and the streaming translator, and the
- * registry lookup.
+ * Holds the translator registry shared by the batch and the streaming translator, and the registry
+ * lookup.
  */
 @Internal
 public class PipelineTranslatorCommon extends PipelineTranslator {
