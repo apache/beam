@@ -514,6 +514,27 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# Spanner CDC
+- type: renaming
+  transforms:
+    'ReadFromSpannerCDC': 'ReadFromSpannerCDC'
+  config:
+    mappings:
+      'ReadFromSpannerCDC':
+        project: 'project_id'
+        instance: 'instance_id'
+        database: 'database_id'
+        table: 'table'
+        change_stream: 'change_stream_name'
+        start_at: 'start_at_timestamp'
+        end_at: 'end_at_timestamp'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromSpannerCDC': 'beam:schematransform:org.apache.beam:spanner_cdc_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
 # Firestore
 - type: renaming
   transforms:
