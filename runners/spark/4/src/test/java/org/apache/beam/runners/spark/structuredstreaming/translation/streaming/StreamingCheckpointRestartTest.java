@@ -22,10 +22,8 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
+import java.util.Set;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
@@ -78,11 +76,11 @@ public class StreamingCheckpointRestartTest implements Serializable {
     // First run reads all elements from a fresh checkpoint directory.
     runPipeline(checkpointPath, collectorA, TAG);
 
-    List<String> collectedA = new ArrayList<>(StreamingTestUtils.<String>getCollected(collectorA));
+    Set<String> collectedA = StreamingTestUtils.collected(collectorA);
     assertEquals(
         "first run must read every element",
         TestUnboundedSource.elements(TAG, 1, ELEMENT_COUNT),
-        new HashSet<>(collectedA));
+        collectedA);
 
     // The source checkpoint lives under the location the translator handed to Spark.
     File sourceRoot = new File(new File(checkpointPath, "0"), "sources/0");
@@ -96,10 +94,10 @@ public class StreamingCheckpointRestartTest implements Serializable {
     // Second run resumes against the same checkpoint directory.
     runPipeline(checkpointPath, collectorB, TAG);
 
-    List<String> collectedB = new ArrayList<>(StreamingTestUtils.<String>getCollected(collectorB));
+    Set<String> collectedB = StreamingTestUtils.collected(collectorB);
     assertTrue(
         "second run must not re-emit elements the first run committed",
-        Collections.disjoint(new HashSet<>(collectedA), collectedB));
+        Collections.disjoint(collectedA, collectedB));
     assertTrue(
         "readers must be recreated during the second run",
         TestUnboundedSource.created(TAG) > createdBeforeSecondRun);

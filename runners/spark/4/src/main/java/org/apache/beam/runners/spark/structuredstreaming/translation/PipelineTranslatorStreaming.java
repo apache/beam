@@ -19,7 +19,7 @@ package org.apache.beam.runners.spark.structuredstreaming.translation;
 
 import java.util.Collection;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorCommon;
 import org.apache.beam.runners.spark.structuredstreaming.translation.streaming.ReadUnboundedTranslator;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.transforms.Combine;
@@ -36,64 +36,72 @@ import org.apache.spark.sql.SparkSession;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
- * Pipeline translator for streaming pipelines on Spark 4. It extends the batch translator to reuse
+ * Pipeline translator for streaming pipelines on Spark 4. It extends the common registry to reuse
  * the stateless single output ParDo, Window.Assign, Flatten and Reshuffle translators, which are
  * safe on a streaming Dataset. Every other primitive fails at translation, the batch translators
  * for them persist or collect the Dataset, which Spark rejects for streaming plans.
  */
 @Internal
-public class PipelineTranslatorStreaming extends PipelineTranslatorBatch {
+public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
+
+  private static final String NOT_SUPPORTED =
+      " is not supported by the Spark 4 streaming runner yet, see"
+          + " https://github.com/apache/beam/issues/36841";
 
   /** Returns a {@link TransformTranslator} for the given {@link PTransform} if known. */
   @Override
-  @SuppressWarnings({"rawtypes", "unchecked"})
   @Nullable
   protected <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
       TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
 
     if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
-      return (TransformTranslator) new ReadUnboundedTranslator<>();
+      @SuppressWarnings("unchecked")
+      TransformTranslator<InT, OutT, TransformT> read =
+          (TransformTranslator<InT, OutT, TransformT>)
+              (TransformTranslator<?, ?, ?>) new ReadUnboundedTranslator<>();
+      return read;
     }
 
     if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
-      throw unsupported(
-          "Bounded Read (Read.from(BoundedSource), Create with two or more elements)");
+      throw new UnsupportedOperationException(
+          "Bounded Read (Read.from(BoundedSource), Create with two or more elements)"
+              + NOT_SUPPORTED);
     }
 
     if (transform instanceof Impulse) {
-      throw unsupported("Impulse (Create with fewer than two elements, PAssert)");
+      throw new UnsupportedOperationException(
+          "Impulse (Create with fewer than two elements, PAssert)" + NOT_SUPPORTED);
     }
 
     if (transform instanceof GroupByKey) {
-      throw unsupported("GroupByKey");
+      throw new UnsupportedOperationException("GroupByKey" + NOT_SUPPORTED);
     }
 
     if (transform instanceof Combine.PerKey) {
-      throw unsupported("Combine.perKey");
+      throw new UnsupportedOperationException("Combine.perKey" + NOT_SUPPORTED);
     }
 
     if (transform instanceof ParDo.MultiOutput) {
       ParDo.MultiOutput<?, ?> parDo = (ParDo.MultiOutput<?, ?>) transform;
       DoFnSignature signature = DoFnSignatures.signatureForDoFn(parDo.getFn());
       if (signature.usesState() || signature.usesTimers()) {
-        throw unsupported("Stateful ParDo (" + signature.fnClass().getName() + ")");
+        throw new UnsupportedOperationException(
+            "Stateful ParDo (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
       }
       if (!parDo.getSideInputs().isEmpty()) {
-        throw unsupported("ParDo with side inputs (" + signature.fnClass().getName() + ")");
+        throw new UnsupportedOperationException(
+            "ParDo with side inputs (" + signature.fnClass().getName() + ")" + NOT_SUPPORTED);
       }
       if (!parDo.getAdditionalOutputTags().getAll().isEmpty()) {
-        throw unsupported("ParDo with additional outputs (" + signature.fnClass().getName() + ")");
+        throw new UnsupportedOperationException(
+            "ParDo with additional outputs ("
+                + signature.fnClass().getName()
+                + ")"
+                + NOT_SUPPORTED);
       }
     }
 
     return super.getTransformTranslator(transform);
-  }
-
-  private static UnsupportedOperationException unsupported(String what) {
-    return new UnsupportedOperationException(
-        what
-            + " is not supported by the Spark 4 streaming runner yet, see"
-            + " https://github.com/apache/beam/issues/36841");
   }
 
   @Override

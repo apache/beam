@@ -20,8 +20,10 @@ package org.apache.beam.runners.spark.structuredstreaming.translation.streaming;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
@@ -77,13 +79,13 @@ public final class StreamingTestUtils {
 
   /** Returns a snapshot of everything collected so far under {@code collectorId}. */
   @SuppressWarnings("unchecked")
-  public static <T> List<T> getCollected(String collectorId) {
+  public static <T> Set<T> collected(String collectorId) {
     List<Object> values = COLLECTORS.get(collectorId);
     if (values == null) {
-      return Collections.emptyList();
+      return Collections.emptySet();
     }
     synchronized (values) {
-      return (List<T>) new ArrayList<>(values);
+      return (Set<T>) (Set<?>) new HashSet<>(values);
     }
   }
 

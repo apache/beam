@@ -34,7 +34,6 @@ import org.apache.beam.sdk.transforms.Flatten;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
-import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -59,13 +58,6 @@ public class StatelessParDoStreamingTest implements Serializable {
     }
   }
 
-  @After
-  public void tearDown() {
-    TestUnboundedSource.forget("stateless-pardo");
-    TestUnboundedSource.forget("flatten-a");
-    TestUnboundedSource.forget("flatten-b");
-  }
-
   @Test
   public void everyElementPassesThrough() throws Exception {
     String tag = "stateless-pardo";
@@ -83,7 +75,7 @@ public class StatelessParDoStreamingTest implements Serializable {
 
     PipelineResult result = StreamingTestUtils.run(pipeline);
 
-    Set<String> collected = new HashSet<>(StreamingTestUtils.<String>getCollected(collectorId));
+    Set<String> collected = StreamingTestUtils.collected(collectorId);
     Set<String> expected = TestUnboundedSource.elements(tag, 1, 10);
     assertEquals("pipeline state=" + result.getState(), expected, collected);
   }
@@ -109,7 +101,7 @@ public class StatelessParDoStreamingTest implements Serializable {
 
     PipelineResult result = StreamingTestUtils.run(pipeline);
 
-    Set<String> collected = new HashSet<>(StreamingTestUtils.<String>getCollected(collectorId));
+    Set<String> collected = StreamingTestUtils.collected(collectorId);
     Set<String> expected = new HashSet<>();
     expected.addAll(TestUnboundedSource.elements(tagA, 1, 5));
     expected.addAll(TestUnboundedSource.elements(tagB, 1, 5));

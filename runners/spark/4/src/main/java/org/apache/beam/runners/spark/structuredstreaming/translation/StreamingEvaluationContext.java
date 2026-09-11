@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.spark.SparkCommonPipelineOptions;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
 import org.apache.beam.sdk.annotations.Internal;
+import org.apache.hadoop.fs.Path;
 import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.apache.spark.sql.streaming.StreamingQuery;
@@ -116,6 +117,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
         toAwait = new ArrayList<>(queries);
       }
       awaitTermination(toAwait);
+    } catch (RuntimeException e) {
+      stop();
+      throw e;
     } finally {
       if (idleStopListener != null) {
         getSparkSession().streams().removeListener(idleStopListener);
@@ -151,7 +155,9 @@ public class StreamingEvaluationContext extends EvaluationContext {
           .writeStream()
           .format("noop")
           .outputMode("append")
-          .option("checkpointLocation", checkpointBaseDir + "/" + leafIndex)
+          .option(
+              "checkpointLocation",
+              new Path(checkpointBaseDir, Integer.toString(leafIndex)).toString())
           .trigger(Trigger.ProcessingTime(options.getMaxBatchDurationMillis()))
           .start();
     } catch (TimeoutException e) {
@@ -187,10 +193,7 @@ public class StreamingEvaluationContext extends EvaluationContext {
         query.stop();
       }
     } catch (TimeoutException | RuntimeException e) {
-      LOG.warn(
-          "Error while stopping streaming query {}: {}",
-          query.id(),
-          String.valueOf(e.getMessage()));
+      LOG.warn("Failed to stop streaming query {}.", query.id(), e);
     }
   }
 

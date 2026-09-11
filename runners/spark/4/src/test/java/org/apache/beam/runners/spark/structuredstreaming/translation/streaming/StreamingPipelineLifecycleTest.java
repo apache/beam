@@ -22,8 +22,8 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
-import java.util.HashSet;
 import java.util.Set;
+import java.util.function.IntPredicate;
 import org.apache.beam.runners.spark.StreamingTest;
 import org.apache.beam.runners.spark.structuredstreaming.SparkSessionRule;
 import org.apache.beam.runners.spark.structuredstreaming.SparkStructuredStreamingPipelineOptions;
@@ -33,7 +33,6 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
-import org.junit.After;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,23 +55,16 @@ public class StreamingPipelineLifecycleTest implements Serializable {
 
   @Rule public transient TemporaryFolder checkpointDir = new TemporaryFolder();
 
-  /** How long to wait for a query to start before failing. */
+  /** Upper bound for a query to start or stop. */
   private static final long QUERY_START_TIMEOUT_MILLIS = 60_000L;
 
-  @After
-  public void tearDown() {
-    TestUnboundedSource.forget("lifecycle-done");
-    TestUnboundedSource.forget("lifecycle-cancel");
-    TestUnboundedSource.forget("lifecycle-healthy");
-    TestUnboundedSource.forget("lifecycle-poison");
-  }
-
-  /** Blocks until at least one streaming query is active on the shared session. */
-  private static void awaitQueryStarted() throws InterruptedException {
+  /** Polls the active query count of the shared session until {@code condition} holds. */
+  private static void awaitActiveQueries(IntPredicate condition, String failure)
+      throws InterruptedException {
     long deadline = System.currentTimeMillis() + QUERY_START_TIMEOUT_MILLIS;
-    while (SESSION.getSession().streams().active().length == 0) {
+    while (!condition.test(SESSION.getSession().streams().active().length)) {
       assertTrue(
-          "no streaming query started within " + QUERY_START_TIMEOUT_MILLIS + "ms",
+          failure + " within " + QUERY_START_TIMEOUT_MILLIS + " ms",
           System.currentTimeMillis() < deadline);
       Thread.sleep(50L);
     }
@@ -99,7 +91,7 @@ public class StreamingPipelineLifecycleTest implements Serializable {
     assertEquals(PipelineResult.State.DONE, finalState);
     assertEquals(PipelineResult.State.DONE, result.getState());
 
-    Set<String> collected = new HashSet<>(StreamingTestUtils.<String>getCollected(collectorId));
+    Set<String> collected = StreamingTestUtils.collected(collectorId);
     assertEquals(TestUnboundedSource.elements(tag, 1, 10), collected);
   }
 
@@ -122,19 +114,13 @@ public class StreamingPipelineLifecycleTest implements Serializable {
     PipelineResult result = pipeline.run();
     assertEquals(PipelineResult.State.RUNNING, result.getState());
 
-    awaitQueryStarted();
+    awaitActiveQueries(count -> count > 0, "no streaming query started");
 
     PipelineResult.State cancelledState = result.cancel();
     assertEquals(PipelineResult.State.CANCELLED, cancelledState);
     assertEquals(PipelineResult.State.CANCELLED, result.getState());
 
-    long deadline = System.currentTimeMillis() + QUERY_START_TIMEOUT_MILLIS;
-    while (SESSION.getSession().streams().active().length > 0) {
-      assertTrue(
-          "the streaming query was still active " + QUERY_START_TIMEOUT_MILLIS + "ms after cancel",
-          System.currentTimeMillis() < deadline);
-      Thread.sleep(50L);
-    }
+    awaitActiveQueries(count -> count == 0, "the streaming query did not stop after cancel");
   }
 
   /** A failure in any leaf query surfaces through waitUntilFinish. */
@@ -163,15 +149,7 @@ public class StreamingPipelineLifecycleTest implements Serializable {
     assertThrows(RuntimeException.class, () -> StreamingTestUtils.waitUntilFinish(result));
     assertEquals(PipelineResult.State.FAILED, result.getState());
 
-    long deadline = System.currentTimeMillis() + QUERY_START_TIMEOUT_MILLIS;
-    while (SESSION.getSession().streams().active().length > 0) {
-      assertTrue(
-          "a sibling query was still active "
-              + QUERY_START_TIMEOUT_MILLIS
-              + "ms after the pipeline failed",
-          System.currentTimeMillis() < deadline);
-      Thread.sleep(50L);
-    }
+    awaitActiveQueries(count -> count == 0, "a sibling query did not stop after the failure");
   }
 
   /** Throws on one specific element index, passes every other element through. */
