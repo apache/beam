@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Mo
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -35,25 +36,36 @@ import org.apache.beam.sdk.util.UserCodeException;
 import org.apache.spark.SparkException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class SparkStructuredStreamingPipelineResult implements PipelineResult {
+
+  private static final Logger LOG =
+      LoggerFactory.getLogger(SparkStructuredStreamingPipelineResult.class);
+
+  /** Upper bound on how long {@link #cancel()} waits for the execution thread to end. */
+  private static final long CANCEL_WAIT_SECONDS = 60;
 
   private final Future<?> pipelineExecution;
   // Supplies the context of the translated pipeline, null until translation has completed.
   private final Supplier<? extends @Nullable EvaluationContext> evaluationContext;
   private final MetricsAccumulator metrics;
   private final @Nullable Runnable onTerminalState;
+  private final ExecutorService executor;
   private PipelineResult.State state;
 
   SparkStructuredStreamingPipelineResult(
       Future<?> pipelineExecution,
       Supplier<? extends @Nullable EvaluationContext> evaluationContext,
       MetricsAccumulator metrics,
-      final @Nullable Runnable onTerminalState) {
+      final @Nullable Runnable onTerminalState,
+      ExecutorService executor) {
     this.pipelineExecution = pipelineExecution;
     this.evaluationContext = evaluationContext;
     this.metrics = metrics;
     this.onTerminalState = onTerminalState;
+    this.executor = executor;
     // pipelineExecution is expected to have started executing eagerly.
     this.state = State.RUNNING;
   }
@@ -117,6 +129,11 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
     return asAttemptedOnlyMetricResults(metrics.value());
   }
 
+  /**
+   * Cancels the execution and waits up to {@link #CANCEL_WAIT_SECONDS} for the execution thread to
+   * end before the terminal state callback stops the session. An interrupted caller returns without
+   * the callback, the state stays RUNNING.
+   */
   @Override
   public PipelineResult.State cancel() throws IOException {
     EvaluationContext ctx = evaluationContext.get();
@@ -124,6 +141,16 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
       ctx.stop();
     }
     pipelineExecution.cancel(true);
+    try {
+      if (!executor.awaitTermination(CANCEL_WAIT_SECONDS, TimeUnit.SECONDS)) {
+        LOG.warn(
+            "Pipeline execution still running {} s after cancel, stopping the session anyway.",
+            CANCEL_WAIT_SECONDS);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return state;
+    }
     offerNewState(PipelineResult.State.CANCELLED);
     return state;
   }

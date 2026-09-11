@@ -152,7 +152,7 @@ public final class SparkStructuredStreamingRunner
     // evaluation on cancel. Remains null until translation completes.
     final AtomicReference<EvaluationContext> ctxRef = new AtomicReference<>();
 
-    final Future<?> submissionFuture =
+    final Submission submission =
         runAsync(
             () -> {
               EvaluationContext ctx = translatePipeline(sparkSession, pipeline);
@@ -162,10 +162,11 @@ public final class SparkStructuredStreamingRunner
 
     final SparkStructuredStreamingPipelineResult result =
         new SparkStructuredStreamingPipelineResult(
-            submissionFuture,
+            submission.future,
             ctxRef::get,
             metrics,
-            sparkStopFn(sparkSession, options.getUseActiveSparkSession()));
+            sparkStopFn(sparkSession, options.getUseActiveSparkSession()),
+            submission.executor);
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName(), metrics);
@@ -217,7 +218,18 @@ public final class SparkStructuredStreamingRunner
     }
   }
 
-  private static Future<?> runAsync(Runnable task) {
+  /** The future of a submitted pipeline and the executor that runs it, for cancel to await. */
+  private static final class Submission {
+    private final Future<?> future;
+    private final ExecutorService executor;
+
+    Submission(Future<?> future, ExecutorService executor) {
+      this.future = future;
+      this.executor = executor;
+    }
+  }
+
+  private static Submission runAsync(Runnable task) {
     ThreadFactory factory =
         new ThreadFactoryBuilder()
             .setDaemon(true)
@@ -226,7 +238,7 @@ public final class SparkStructuredStreamingRunner
     ExecutorService execService = Executors.newSingleThreadExecutor(factory);
     Future<?> future = execService.submit(task);
     execService.shutdown();
-    return future;
+    return new Submission(future, execService);
   }
 
   private static @Nullable Runnable sparkStopFn(SparkSession session, boolean isProvided) {
