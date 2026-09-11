@@ -30,19 +30,28 @@ Apache Beam, mentored by Yi Hu.
 
 ## Motivation
 
-The Java SDK has had both of these for years. A Python user who wanted to read
-from a streaming system with no existing connector had to reach for a
-cross-language Java connector or write an unbounded splittable DoFn directly,
-wiring up a restriction tracker, a watermark estimator, and their own decision
-about when to pause and resume. Polling an input that keeps growing had no
-Python answer at all: there was no `Watch` transform, and
-`fileio.MatchContinuously` kept one state entry per matched file path for the
-life of the pipeline, so its state grew with every file the pattern had ever
-seen.
+I wanted a Python developer to be able to read their own message queue or
+database change feed without dropping into Java. Java has had
+`UnboundedSource` since 2016. Python could read whatever system already had a
+connector, and the ones living outside the SDK reach it through cross-language
+wrappers that run a Java implementation behind an expansion service, Kafka,
+Kinesis, and Debezium change data capture among them.
 
-This project brought both APIs to Python, gave duplicate suppression a way to
-forget outputs it has moved past, and fixed the runner bugs that validating
-them turned up.
+Writing such a source in Python was possible before this project. An unbounded
+splittable DoFn gets restriction tracking, checkpoint and resume, and watermark
+estimators from Beam. Each author still had to work out the part specific to
+reading a stream: express the reader's position as a restriction, decide when to
+stop and hand progress back, and keep the watermark moving. `UnboundedSource`
+settles that once, with a checkpoint mark carrying the resume position and a
+hook that fires after the runner commits, which is where a queue source
+acknowledges its messages.
+
+`Watch` is for the other shape of streaming input, the kind that keeps growing.
+Java has had it since 2017. Python could poll for new files by composing
+`PeriodicImpulse` with `MatchAll`, and with duplicate suppression on,
+`fileio.MatchContinuously` held one state entry per matched path for the life of
+the pipeline. I wanted polling that any source could reuse and a way to stop
+that history from growing forever.
 
 ## The UnboundedSource API
 
@@ -69,7 +78,7 @@ not subdivided further.
 The wrapper uses bundle finalization to invoke
 `CheckpointMark.finalize_checkpoint` after the runner has durably committed
 the output. A message-queue source can use this hook to acknowledge consumed
-messages. Readers can also be reused across resumed bundles on the same worker,
+messages. Finalization is best effort, so the hook has to be idempotent. Readers can also be reused across resumed bundles on the same worker,
 with idle readers evicted from a bounded cache, reducing the need to reopen
 connections.
 
