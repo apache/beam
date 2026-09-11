@@ -601,6 +601,43 @@ def read_from_delta(
           hadoop_config=hadoop_config))
 
 
+def read_from_delta_cdc(
+    table: str,
+    start_version: Optional[int] = None,
+    start_timestamp: Optional[str] = None,
+    end_version: Optional[int] = None,
+    end_timestamp: Optional[str] = None,
+    include_metadata_columns: Optional[Iterable[str]] = None,
+    hadoop_config: Optional[Mapping[str, str]] = None,
+):
+  """Reads change records from a Delta Lake table.
+
+  Args:
+    table: Identifier of the Delta Lake table.
+    start_version: Start version of the Delta Lake table to read changes from.
+      Either this or start_timestamp has to be provided.
+    start_timestamp: Start timestamp of the Delta Lake table to read changes
+      from. Should be specified in the ISO 8601 standard. Either this or
+      start_version has to be provided.
+    end_version: End version of the Delta Lake table to read changes up to.
+    end_timestamp: End timestamp of the Delta Lake table to read changes up to.
+      Should be specified in the ISO 8601 standard.
+    include_metadata_columns: Metadata columns to include in the output rows.
+      Supported columns are: _change_type, _commit_version, and _commit_timestamp.
+    hadoop_config: Properties passed to the Hadoop Configuration.
+  """
+  return beam.managed.Read(
+      "delta_cdc",
+      config=dict(
+          table=table,
+          start_version=start_version,
+          start_timestamp=start_timestamp,
+          end_version=end_version,
+          end_timestamp=end_timestamp,
+          include_metadata_columns=include_metadata_columns,
+          hadoop_config=hadoop_config))
+
+
 def write_to_iceberg(
     table: str,
     catalog_name: Optional[str] = None,

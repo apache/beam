@@ -1137,6 +1137,29 @@ def temp_delta_table():
     yield temp_dir
 
 
+@contextlib.contextmanager
+def temp_delta_cdc_table():
+  try:
+    from deltalake import write_deltalake
+  except ImportError as exn:
+    raise unittest.SkipTest('deltalake is not installed') from exn
+
+  with tempfile.TemporaryDirectory() as temp_dir:
+    # Version 0 commit
+    table_data = pa.table({"name": ["a", "b"]})
+    write_deltalake(
+        temp_dir,
+        table_data,
+        mode="overwrite",
+        configuration={"delta.enableChangeDataFeed": "true"})
+
+    # Version 1 commit
+    table_data_1 = pa.table({"name": ["c"]})
+    write_deltalake(temp_dir, table_data_1, mode="append")
+
+    yield temp_dir
+
+
 def replace_recursive(spec, vars):
   """Recursively replaces string placeholders in a spec with values from vars.
 
