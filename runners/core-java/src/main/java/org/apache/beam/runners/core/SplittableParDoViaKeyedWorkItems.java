@@ -606,6 +606,9 @@ public class SplittableParDoViaKeyedWorkItems {
         restrictionState.clear();
         watermarkEstimatorState.clear();
         holdState.clear();
+        if (backlogBytesCallback != null) {
+          backlogBytesCallback.accept(0.0);
+        }
         return;
       }
 
