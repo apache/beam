@@ -85,7 +85,7 @@ public final class StreamingTestUtils {
       return Collections.emptySet();
     }
     synchronized (values) {
-      return (Set<T>) (Set<?>) new HashSet<>(values);
+      return (Set<T>) new HashSet<>(values);
     }
   }
 

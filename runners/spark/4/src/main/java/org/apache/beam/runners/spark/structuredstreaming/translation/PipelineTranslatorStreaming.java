@@ -44,6 +44,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @Internal
 public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
 
+  @SuppressWarnings("rawtypes")
+  private static final TransformTranslator READ_UNBOUNDED = new ReadUnboundedTranslator<>();
+
   private static final String NOT_SUPPORTED =
       " is not supported by the Spark 4 streaming runner yet, see"
           + " https://github.com/apache/beam/issues/36841";
@@ -55,11 +58,7 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
       TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
 
     if (transform instanceof SplittableParDo.PrimitiveUnboundedRead) {
-      @SuppressWarnings("unchecked")
-      TransformTranslator<InT, OutT, TransformT> read =
-          (TransformTranslator<InT, OutT, TransformT>)
-              (TransformTranslator<?, ?, ?>) new ReadUnboundedTranslator<>();
-      return read;
+      return READ_UNBOUNDED;
     }
 
     if (transform instanceof SplittableParDo.PrimitiveBoundedRead) {
