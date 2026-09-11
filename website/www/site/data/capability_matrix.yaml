@@ -22,8 +22,6 @@ capability-matrix:
       name: Apache Spark (RDD/DStream based)
     - class: spark-dataset
       name: Apache Spark Structured Streaming (Dataset based)
-    - class: nemo
-      name: Apache Nemo
     - class: jet
       name: Hazelcast Jet
     - class: kafka-streams
@@ -66,10 +64,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ParDo applies per-element transformations as Spark FlatMapFunction.
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -109,10 +103,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>groupByKey</tt>."
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -152,10 +142,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: Some corner cases like flatten on empty collections are not yet supported.
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -195,10 +181,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's <tt>Aggregator</tt> and agg function"
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: "Batch mode uses pre-aggregation"
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -237,10 +219,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: supported via inlining only in batch mode
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: jet
               l1: "Partially"
@@ -281,10 +259,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: "Using Spark's broadcast variables."
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Partially"
               l2: with restrictions
@@ -324,10 +298,6 @@ capability-matrix:
               l1: "Partially"
               l2: bounded source only
               l3: "Using Spark's DatasourceV2 API in microbatch mode (Continuous streaming mode is tagged experimental in spark and does not support aggregation)."
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -367,10 +337,6 @@ capability-matrix:
               l1: "Partially"
               l2: All metric types are supported in batch mode.
               l3: Only attempted values are supported. No committed values for metrics.
-            - class: nemo
-              l1: "No"
-              l2: not implemented
-              l3: ""
             - class: jet
               l1: "Partially"
               l2: All metrics types supported, both in batching and streaming mode.
@@ -407,13 +373,9 @@ capability-matrix:
               l2: full support in batch mode
               l3:
             - class: spark-dataset
-              l1: "No"
-              l2: not implemented
+              l1: "Partially"
+              l2: full support in batch mode
               l3:
-            - class: nemo
-              l1: "No"
-              l2: not implemented
-              l3: ""
             - class: jet
               l1: "Partially"
               l2: non-merging windows
@@ -455,14 +417,10 @@ capability-matrix:
               l2: Only portable Flink Runner supports this.
               l3: ""
             - class: spark-rdd
-              l1:
-              l2:
+              l1: "Partially"
+              l2: Only portable Spark Runner in batch mode supports this.
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -505,10 +463,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: nemo
-              l1:
-              l2:
-              l3: ""
             - class: jet
               l1:
               l2:
@@ -541,14 +495,10 @@ capability-matrix:
               l2: Only portable Flink Runner supports this.
               l3: ""
             - class: spark-rdd
-              l1:
-              l2:
+              l1: "Partially"
+              l2: Only portable Spark Runner in batch mode supports this.
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -584,14 +534,10 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-rdd
-              l1:
+              l1: "No"
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -627,14 +573,10 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-rdd
-              l1:
-              l2:
+              l1: "No"
+              l2: not implemented
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -675,18 +617,14 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
-              l1: "Partially"
+              l1: "Yes"
               l2:
-              l3: "Support is either incomplete or broken on portable Flink Runner (#19637)"
+              l3: ""
             - class: spark-rdd
               l1:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -718,18 +656,14 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
-              l1: "No"
-              l2:
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this.
               l3: ""
             - class: spark-rdd
               l1:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -761,7 +695,7 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
-              l1: "Partially"
+              l1: "Yes"
               l2:
               l3: ""
             - class: spark-rdd
@@ -769,10 +703,6 @@ capability-matrix:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -815,10 +745,6 @@ capability-matrix:
               l1:
               l2:
               l3: ""
-            - class: nemo
-              l1:
-              l2:
-              l3: ""
             - class: jet
               l1:
               l2:
@@ -847,18 +773,14 @@ capability-matrix:
               l2: fully supported
               l3: ""
             - class: flink
-              l1: "No"
-              l2:
+              l1: "Partially"
+              l2: Only portable Flink Runner supports this with checkpointing enabled.
               l3: ""
             - class: spark-rdd
               l1:
               l2:
               l3: ""
             - class: spark-dataset
-              l1:
-              l2:
-              l3: ""
-            - class: nemo
               l1:
               l2:
               l3: ""
@@ -910,10 +832,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: supported
@@ -952,10 +870,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: jet
               l1: "Yes"
@@ -996,10 +910,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: supported
@@ -1038,10 +948,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: jet
               l1: "Yes"
@@ -1082,10 +988,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: supported
@@ -1125,10 +1027,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: supported
@@ -1167,10 +1065,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: supported
               l3: ""
             - class: jet
               l1: "Yes"
@@ -1221,10 +1115,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -1263,10 +1153,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: jet
               l1: "Yes"
@@ -1308,10 +1194,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3:
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -1351,10 +1233,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "Partially"
               l2: fully supported in batch mode
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: jet
               l1: "Yes"
@@ -1396,10 +1274,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -1440,10 +1314,6 @@ capability-matrix:
               l1: "No"
               l2: no streaming support in the runner
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -1481,12 +1351,8 @@ capability-matrix:
               l2: fully supported in batch mode
               l3: ""
             - class: spark-dataset
-              l1: "No"
-              l2: not implemented
-              l3: ""
-            - class: nemo
-              l1: "No"
-              l2: not implemented
+              l1: "Partially"
+              l2: fully supported in batch mode
               l3: ""
             - class: jet
               l1: "Partially"
@@ -1537,10 +1403,6 @@ capability-matrix:
               l1: "Partially"
               l2: fully supported in batch mode
               l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
-              l3: ""
             - class: jet
               l1: "Yes"
               l2: fully supported
@@ -1580,10 +1442,6 @@ capability-matrix:
             - class: spark-dataset
               l1: "No"
               l2: ""
-              l3: ""
-            - class: nemo
-              l1: "Yes"
-              l2: fully supported
               l3: ""
             - class: jet
               l1: "Yes"
@@ -1634,10 +1492,6 @@ capability-matrix:
               l1:
               l2:
               l3:
-            - class: nemo
-              l1:
-              l2:
-              l3:
             - class: jet
               l1:
               l2:
@@ -1677,10 +1531,6 @@ capability-matrix:
               l1: "No"
               l2:
               l3: not implemented
-            - class: nemo
-              l1:
-              l2:
-              l3:
             - class: jet
               l1:
               l2:
@@ -1721,10 +1571,6 @@ capability-matrix:
               l2:
               l3:
             - class: ibmstreams
-              l1: "Unverified"
-              l2:
-              l3:
-            - class: nemo
               l1: "Unverified"
               l2:
               l3:
