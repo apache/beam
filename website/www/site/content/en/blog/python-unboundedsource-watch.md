@@ -30,28 +30,22 @@ Apache Beam, mentored by Yi Hu.
 
 ## Motivation
 
-I wanted a Python developer to be able to read their own message queue or
-database change feed without dropping into Java. Java has had
-`UnboundedSource` since 2016. Python could read whatever system already had a
-connector, and the ones living outside the SDK reach it through cross-language
-wrappers that run a Java implementation behind an expansion service, Kafka,
-Kinesis, and Debezium change data capture among them.
+Reading a custom unbounded source in Python already worked through an unbounded
+splittable DoFn. The learning curve is the problem. You have to model the
+reader's position as a restriction, decide when to stop and hand progress back,
+and drive a watermark estimator, all before writing a line of code that talks
+to your queue. `UnboundedSource` asks for `start()`, `advance()`,
+`get_watermark()`, and a checkpoint mark, and the wrapper handles the SDF part.
+That puts a source for your own message broker or database change feed within
+reach in Python, where Kafka, Kinesis, and Debezium change data capture reach it
+today through cross-language wrappers that run a Java implementation behind an
+expansion service.
 
-Writing such a source in Python was possible before this project. An unbounded
-splittable DoFn gets restriction tracking, checkpoint and resume, and watermark
-estimators from Beam. Each author still had to work out the part specific to
-reading a stream: express the reader's position as a restriction, decide when to
-stop and hand progress back, and keep the watermark moving. `UnboundedSource`
-settles that once, with a checkpoint mark carrying the resume position and a
-hook that fires after the runner commits, which is where a queue source
-acknowledges its messages.
-
-`Watch` is for the other shape of streaming input, the kind that keeps growing.
-Java has had it since 2017. Python could poll for new files by composing
-`PeriodicImpulse` with `MatchAll`, and with duplicate suppression on,
-`fileio.MatchContinuously` held one state entry per matched path for the life of
-the pipeline. I wanted polling that any source could reuse and a way to stop
-that history from growing forever.
+`Watch` is the same kind of convenience for an input that keeps growing. Python
+could poll for new files by composing `PeriodicImpulse` with `MatchAll`, and
+with duplicate suppression on, `fileio.MatchContinuously` held one state entry
+per matched path for the life of the pipeline. `Watch` makes the polling
+reusable for any source and bounds that history.
 
 ## The UnboundedSource API
 
