@@ -49,7 +49,6 @@ The bot consists of three core workflows and a persistent state tracking system:
 
 ### 4. Persistent State (`PersistentState`)
 * Stores PR review progress and label assignment rotations on the `pr-bot-state` Git branch under `state/pr-state/pr-<number>.json` and `state/reviewers-for-label-<label>.json`.
-* State changes within a run are staged locally and batched into a single Git commit and push per workflow execution.
 
 ## Build/Test
 

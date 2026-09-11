@@ -31,9 +31,34 @@ function getReviewersForLabelFileName(label) {
   return `reviewers-for-label-${label}.json`.toLowerCase();
 }
 
+async function commitStateToRepo() {
+  try {
+    await exec.exec("git pull origin pr-bot-state");
+  } catch (err) {
+    console.log(
+      `Unable to get most recent repo contents, commit may fail: ${err}`
+    );
+  }
+  // Print changes for observability
+  await exec.exec("git status", [], { ignoreReturnCode: true });
+  await exec.exec("git add -A state");
+  const changes = await exec.exec(
+    "git diff --quiet --cached origin/pr-bot-state state",
+    [],
+    { ignoreReturnCode: true }
+  );
+  if (changes == 1) {
+    await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
+    await exec.exec("git push origin pr-bot-state");
+  } else {
+    console.log(
+      "Skipping updating state branch since there are no changes to commit"
+    );
+  }
+}
+
 export class PersistentState {
   private switchedBranch = false;
-  private hasWrittenState = false;
 
   // Returns a Pr object representing the current saved state of the pr.
   async getPrState(prNumber: number): Promise<typeof Pr> {
@@ -108,44 +133,10 @@ export class PersistentState {
           prsToDelete[0].prNumber
         }, newest: PR ${prsToDelete[prsToDelete.length - 1].prNumber})`
       );
-      this.hasWrittenState = true;
+      await commitStateToRepo();
     }
 
     return prsToDelete.length;
-  }
-
-  // Commits all written state changes to the pr-bot-state branch in a single batch.
-  async commitStateToRepo() {
-    if (!this.hasWrittenState) {
-      console.log(
-        "Skipping updating state branch since there are no changes to commit"
-      );
-      return;
-    }
-    try {
-      await exec.exec("git pull origin pr-bot-state");
-    } catch (err) {
-      console.log(
-        `Unable to get most recent repo contents, commit may fail: ${err}`
-      );
-    }
-    // Print changes for observability
-    await exec.exec("git status", [], { ignoreReturnCode: true });
-    await exec.exec("git add -A state");
-    const changes = await exec.exec(
-      "git diff --quiet --cached origin/pr-bot-state state",
-      [],
-      { ignoreReturnCode: true }
-    );
-    if (changes == 1) {
-      await exec.exec(`git commit -m "Updating config from bot" --allow-empty`);
-      await exec.exec("git push origin pr-bot-state");
-    } else {
-      console.log(
-        "Skipping updating state branch since there are no changes to commit"
-      );
-    }
-    this.hasWrittenState = false;
   }
 
   private async getState(fileName, baseDirectory) {
@@ -166,7 +157,7 @@ export class PersistentState {
     fs.writeFileSync(fileName, JSON.stringify(state, null, 2), {
       encoding: "utf-8",
     });
-    this.hasWrittenState = true;
+    await commitStateToRepo();
   }
 
   private async ensureCorrectBranch() {

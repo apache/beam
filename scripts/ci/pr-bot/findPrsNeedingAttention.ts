@@ -259,7 +259,6 @@ async function processOldPrs() {
   }
 
   await stateClient.deleteStalePrStates(openPulls, 100);
-  await stateClient.commitStateToRepo();
 }
 
 processOldPrs();

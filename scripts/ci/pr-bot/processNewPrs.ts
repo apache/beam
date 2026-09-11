@@ -390,8 +390,6 @@ async function processNewPrs() {
   for (const pull of openPulls) {
     await processPull(pull, reviewerConfig, stateClient);
   }
-
-  await stateClient.commitStateToRepo();
 }
 
 processNewPrs();
