@@ -28,9 +28,7 @@ Apache Beam, mentored by Yi Hu.
 
 <!--more-->
 
-This post describes the implementation on Beam's `master` branch as of September
-2026. The `Watch` `allowed_lateness` option and the `MatchContinuously`
-integration described below are newer than Beam 2.76.0.
+This post describes both APIs as of Beam 2.77.0.
 
 ## Motivation
 
