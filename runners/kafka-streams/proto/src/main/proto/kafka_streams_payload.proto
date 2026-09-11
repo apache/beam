@@ -50,26 +50,13 @@ message KafkaStreamsPayload {
     bytes value = 1;
   }
 
-  // A request to close the open bundle and flush its output.
-  //
-  // A bundle has to be bounded in time as well as in size, or on a sparse stream the elements
-  // already fed to it wait for the next watermark. Closing it from a wall-clock punctuator does
-  // not work: transactions are committed by the Kafka Streams runtime in the background, are
-  // agnostic to punctuations, and are deliberately not exposed, so a bundle cannot be aligned with
-  // one. Instead a source emits this marker on its own punctuator and it travels the topology as
-  // an ordinary record, so a stage closes its bundle from process() rather than beside it.
-  //
-  // The partition fields are what let the marker be targeted rather than broadcast. Broadcasting
-  // would deliver one flush per upstream partition, so a downstream partition would see N times
-  // more flushes than the configured interval. Instead the producing partition addresses a slice
-  // of the downstream partitions, and the slices tile the whole range, so each downstream
-  // partition receives exactly one flush per interval.
+  // A request to close the open bundle and flush its output. See
+  // https://github.com/apache/beam/issues/39633.
   message FlushPayload {
-    // Which partition (physical instance) of the producing transform emitted this marker, in
-    // [0, total_partitions).
-    uint32 source_partition = 1;
-    // How many partitions (physical instances) the producing transform has in total.
-    uint32 total_partitions = 2;
+    // Which partitions of the repartition topic this marker is for. The producer picks them so
+    // that each downstream partition gets exactly one flush per interval; broadcasting would give
+    // it one per upstream partition instead.
+    repeated uint32 target_partitions = 1;
   }
 
   // Exactly one variant is set; the oneof case discriminates data vs watermark vs flush.

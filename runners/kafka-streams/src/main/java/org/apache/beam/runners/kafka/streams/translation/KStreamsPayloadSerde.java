@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
@@ -78,11 +79,9 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
             KafkaStreamsPayload.DataPayload.newBuilder()
                 .setValue(ByteString.copyFrom(encoded.toByteArray())));
       } else if (payload.isFlush()) {
-        FlushPayload flush = payload.asFlush();
         proto.setFlush(
             KafkaStreamsPayload.FlushPayload.newBuilder()
-                .setSourcePartition(flush.getSourcePartition())
-                .setTotalPartitions(flush.getTotalSourcePartitions()));
+                .addAllTargetPartitions(payload.asFlush().getTargetPartitions()));
       } else {
         WatermarkPayload watermark = payload.asWatermark();
         proto.setWatermark(
@@ -120,8 +119,8 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
               watermark.getSourcePartition(),
               watermark.getTotalPartitions());
         case FLUSH:
-          KafkaStreamsPayload.FlushPayload flush = proto.getFlush();
-          return KStreamsPayload.flush(flush.getSourcePartition(), flush.getTotalPartitions());
+          return KStreamsPayload.flush(
+              ImmutableSet.copyOf(proto.getFlush().getTargetPartitionsList()));
         case PAYLOAD_NOT_SET:
         default:
           throw new SerializationException(

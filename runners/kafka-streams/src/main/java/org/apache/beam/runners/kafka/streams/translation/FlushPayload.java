@@ -17,30 +17,21 @@
  */
 package org.apache.beam.runners.kafka.streams.translation;
 
+import java.util.Set;
+
 /**
  * The flush-only view of a {@link KStreamsPayload}, obtained via {@link KStreamsPayload#asFlush()}.
- * As with {@link WatermarkPayload}, the accessors live here so they are only reachable once the
- * caller has checked the kind and narrowed the payload.
  *
- * <p>A flush marker asks the stage that receives it to close its open bundle and flush the output,
- * which is how a bundle is bounded in time. It arrives as an ordinary record, so the bundle is
- * closed from {@code process()} rather than from a punctuator: transactions are committed by the
- * Kafka Streams runtime in the background and are not exposed, so a bundle cannot be aligned with
- * one, and trying to do it from a punctuator duplicated output against a real broker
- * (https://github.com/apache/beam/issues/39633).
- *
- * <p>The partition fields exist so the marker can be targeted rather than broadcast. Broadcasting
- * would give a downstream partition one flush per upstream partition, so N times more flushes than
- * the interval asks for. Instead the producing partition addresses a slice of the downstream
- * partitions and the slices tile the range, so each downstream partition gets exactly one flush per
- * interval. Unlike a watermark, a flush needs no aggregation on arrival: there is nothing to hold
- * and nothing to combine, because only one arrives.
+ * <p>A flush marker asks the stage that receives it to close its bundle, which is how a bundle is
+ * bounded in time. It arrives as a record so the bundle is closed from {@code process()} rather
+ * than from a punctuator; see https://github.com/apache/beam/issues/39633.
  */
 public interface FlushPayload {
 
-  /** Which partition of the producing transform emitted this marker. */
-  int getSourcePartition();
-
-  /** How many partitions the producing transform has in total. */
-  int getTotalSourcePartitions();
+  /**
+   * The repartition-topic partitions this marker is addressed to. Never empty: a producer with
+   * nothing to address emits no marker. The receiving stage ignores this; only the partitioner
+   * reads it.
+   */
+  Set<Integer> getTargetPartitions();
 }

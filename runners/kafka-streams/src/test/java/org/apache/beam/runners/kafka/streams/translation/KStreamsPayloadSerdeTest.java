@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -49,36 +50,25 @@ public class KStreamsPayloadSerdeTest {
 
   @Test
   public void roundTripsFlushPayload() {
-    KStreamsPayload<Integer> payload = KStreamsPayload.flush(3, 8);
+    KStreamsPayload<Integer> payload = KStreamsPayload.flush(ImmutableSet.of(0, 3, 7));
     KStreamsPayload<Integer> out = roundTrip(payload);
     assertThat(out.isFlush(), is(true));
     assertThat(out.isData(), is(false));
     assertThat(out.isWatermark(), is(false));
-    assertThat(out.asFlush().getSourcePartition(), is(3));
-    assertThat(out.asFlush().getTotalSourcePartitions(), is(8));
+    assertThat(out.asFlush().getTargetPartitions(), is(ImmutableSet.of(0, 3, 7)));
     assertThat(out, is(payload));
   }
 
   @Test
-  public void aFlushPayloadSurvivesTheFirstAndLastPartition() {
-    // Partition 0 and the last partition are the boundary cases of the range check, and the last
-    // one also happens to be the only partition that emits a flush when fanning in.
-    assertThat(roundTrip(KStreamsPayload.flush(0, 1)).asFlush().getSourcePartition(), is(0));
-    KStreamsPayload<Integer> last = roundTrip(KStreamsPayload.flush(7, 8));
-    assertThat(last.asFlush().getSourcePartition(), is(7));
-    assertThat(last.asFlush().getTotalSourcePartitions(), is(8));
-  }
-
-  @Test
-  public void aFlushPayloadRejectsAPartitionOutsideItsRange() {
-    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(8, 8));
-    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(-1, 8));
-    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(0, 0));
+  public void aFlushPayloadMustTargetSomething() {
+    // A producer with nothing to address emits no marker at all, so an empty set is a bug rather
+    // than a case to encode.
+    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(ImmutableSet.of()));
   }
 
   @Test
   public void aFlushPayloadIsNotAWatermarkOrData() {
-    KStreamsPayload<Integer> flush = KStreamsPayload.flush(0, 1);
+    KStreamsPayload<Integer> flush = KStreamsPayload.flush(ImmutableSet.of(0));
     assertThrows(IllegalStateException.class, flush::asWatermark);
     assertThrows(IllegalStateException.class, flush::getData);
     KStreamsPayload<Integer> data = KStreamsPayload.data(WindowedValues.valueInGlobalWindow(1));

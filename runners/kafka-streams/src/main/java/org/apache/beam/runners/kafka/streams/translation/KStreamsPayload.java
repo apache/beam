@@ -18,9 +18,11 @@
 package org.apache.beam.runners.kafka.streams.translation;
 
 import java.util.Objects;
+import java.util.Set;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
@@ -48,6 +50,7 @@ public final class KStreamsPayload<T> {
   private final String transformId;
   private final int sourcePartition;
   private final int totalSourcePartitions;
+  private final Set<Integer> targetPartitions;
 
   private KStreamsPayload(
       Kind kind,
@@ -55,18 +58,20 @@ public final class KStreamsPayload<T> {
       long watermarkMillis,
       String transformId,
       int sourcePartition,
-      int totalSourcePartitions) {
+      int totalSourcePartitions,
+      Set<Integer> targetPartitions) {
     this.kind = kind;
     this.data = data;
     this.watermarkMillis = watermarkMillis;
     this.transformId = transformId;
     this.sourcePartition = sourcePartition;
     this.totalSourcePartitions = totalSourcePartitions;
+    this.targetPartitions = targetPartitions;
   }
 
   /** Returns a data payload wrapping the given {@link WindowedValue}. */
   public static <T> KStreamsPayload<T> data(WindowedValue<T> value) {
-    return new KStreamsPayload<>(Kind.DATA, value, 0L, "", 0, 0);
+    return new KStreamsPayload<>(Kind.DATA, value, 0L, "", 0, 0, ImmutableSet.of());
   }
 
   /**
@@ -90,26 +95,24 @@ public final class KStreamsPayload<T> {
         sourcePartition,
         totalSourcePartitions);
     return new KStreamsPayload<>(
-        Kind.WATERMARK, null, watermarkMillis, transformId, sourcePartition, totalSourcePartitions);
+        Kind.WATERMARK,
+        null,
+        watermarkMillis,
+        transformId,
+        sourcePartition,
+        totalSourcePartitions,
+        ImmutableSet.of());
   }
 
   /**
-   * Returns a flush marker: a request to close the open bundle and flush its output, carrying the
-   * partition of the producing transform that emitted it and how many partitions that transform
-   * has. Those two fields are what let the marker be addressed to a slice of the downstream
-   * partitions rather than broadcast to all of them; see {@link FlushPayload}.
+   * Returns a flush marker addressed to the given repartition-topic partitions. A producer with no
+   * partitions to address emits no marker, so the set must not be empty.
    */
-  public static <T> KStreamsPayload<T> flush(int sourcePartition, int totalSourcePartitions) {
+  public static <T> KStreamsPayload<T> flush(Set<Integer> targetPartitions) {
     Preconditions.checkArgument(
-        totalSourcePartitions > 0,
-        "totalSourcePartitions must be positive: %s",
-        totalSourcePartitions);
-    Preconditions.checkArgument(
-        sourcePartition >= 0 && sourcePartition < totalSourcePartitions,
-        "sourcePartition %s out of range for totalSourcePartitions %s",
-        sourcePartition,
-        totalSourcePartitions);
-    return new KStreamsPayload<>(Kind.FLUSH, null, 0L, "", sourcePartition, totalSourcePartitions);
+        !targetPartitions.isEmpty(), "flush marker must target at least one partition");
+    return new KStreamsPayload<>(
+        Kind.FLUSH, null, 0L, "", 0, 0, ImmutableSet.copyOf(targetPartitions));
   }
 
   public boolean isData() {
@@ -157,13 +160,8 @@ public final class KStreamsPayload<T> {
   /** {@link FlushPayload} view backed by this payload's fields. */
   private final class FlushView implements FlushPayload {
     @Override
-    public int getSourcePartition() {
-      return sourcePartition;
-    }
-
-    @Override
-    public int getTotalSourcePartitions() {
-      return totalSourcePartitions;
+    public Set<Integer> getTargetPartitions() {
+      return targetPartitions;
     }
   }
 
@@ -204,13 +202,20 @@ public final class KStreamsPayload<T> {
         && transformId.equals(that.transformId)
         && sourcePartition == that.sourcePartition
         && totalSourcePartitions == that.totalSourcePartitions
+        && targetPartitions.equals(that.targetPartitions)
         && Objects.equals(data, that.data);
   }
 
   @Override
   public int hashCode() {
     return Objects.hash(
-        kind, data, watermarkMillis, transformId, sourcePartition, totalSourcePartitions);
+        kind,
+        data,
+        watermarkMillis,
+        transformId,
+        sourcePartition,
+        totalSourcePartitions,
+        targetPartitions);
   }
 
   @Override
