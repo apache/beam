@@ -20,10 +20,15 @@ package org.apache.beam.runners.spark.structuredstreaming;
 import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.Serializable;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.runners.spark.io.CreateStream;
+import org.apache.beam.runners.spark.structuredstreaming.translation.SparkSessionFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
@@ -36,7 +41,10 @@ import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.spark.TaskContext;
+import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
+import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -61,6 +69,41 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   @Rule public transient TestName testName = new TestName();
 
   private static final String FAILED_THE_BATCH_INTENTIONALLY = "Failed the batch intentionally";
+
+  private static final long DEADLINE_SECONDS = 60;
+
+  // Shared with the DoFn running in Spark's local executor threads, reset per test.
+  private static volatile CountDownLatch started = new CountDownLatch(1);
+  private static volatile CountDownLatch release = new CountDownLatch(1);
+
+  /** Signals started, then blocks until the task is interrupted or release is counted down. */
+  private static class BlockingDoFn extends DoFn<String, String> {
+    @ProcessElement
+    public void processElement(ProcessContext c) throws InterruptedException {
+      started.countDown();
+      while (!TaskContext.get().isInterrupted() && !release.await(50, TimeUnit.MILLISECONDS)) {
+        // wait for cancel
+      }
+      c.output(c.element());
+    }
+  }
+
+  @After
+  public void releaseBlockedDoFn() {
+    release.countDown();
+  }
+
+  private SparkStructuredStreamingPipelineResult runBlockingPipeline(
+      SparkStructuredStreamingPipelineOptions options) throws InterruptedException {
+    started = new CountDownLatch(1);
+    release = new CountDownLatch(1);
+    Pipeline pipeline = Pipeline.create(options);
+    pipeline.apply(Create.of("one", "two")).apply(ParDo.of(new BlockingDoFn()));
+    SparkStructuredStreamingPipelineResult result =
+        (SparkStructuredStreamingPipelineResult) pipeline.run();
+    assertTrue("DoFn did not start", started.await(DEADLINE_SECONDS, TimeUnit.SECONDS));
+    return result;
+  }
 
   private ParDo.SingleOutput<String, String> printParDo(final String prefix) {
     return ParDo.of(
@@ -221,5 +264,44 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   @Test
   public void testBatchPipelineTimeoutState() throws Exception {
     testTimeoutPipeline(getBatchOptions());
+  }
+
+  @Test
+  public void testBatchCancelStopsRunningJob() throws Exception {
+    SparkStructuredStreamingPipelineResult result = runBlockingPipeline(getBatchOptions());
+    assertThat(result.cancel(), is(PipelineResult.State.CANCELLED));
+    assertThat(result.getState(), is(PipelineResult.State.CANCELLED));
+    assertTrue("owned session not stopped", SparkSession.getDefaultSession().isEmpty());
+  }
+
+  @Test
+  public void testCancelKeepsSharedSession() throws Exception {
+    SparkSession session = SparkSessionFactory.sessionBuilder("local[1]").getOrCreate();
+    try {
+      SparkStructuredStreamingPipelineResult result = runBlockingPipeline(getBatchOptions());
+      assertThat(result.cancel(), is(PipelineResult.State.CANCELLED));
+      assertFalse("shared session stopped", session.sparkContext().isStopped());
+    } finally {
+      session.stop();
+    }
+  }
+
+  @Test
+  public void testActiveSessionPipelineKeepsRunnerSession() throws Exception {
+    SparkStructuredStreamingPipelineResult owner = runBlockingPipeline(getBatchOptions());
+    SparkSession session = SparkSession.getDefaultSession().get();
+
+    SparkStructuredStreamingPipelineOptions active =
+        PipelineOptionsFactory.create().as(SparkStructuredStreamingPipelineOptions.class);
+    active.setRunner(SparkStructuredStreamingRunner.class);
+    active.setUseActiveSparkSession(true);
+    Pipeline guest = Pipeline.create(active);
+    guest.apply(Create.of("guest")).apply(printParDo("guest"));
+    assertThat(guest.run().waitUntilFinish(), is(PipelineResult.State.DONE));
+    assertFalse("guest pipeline stopped the runner session", session.sparkContext().isStopped());
+
+    release.countDown();
+    assertThat(owner.waitUntilFinish(), is(PipelineResult.State.DONE));
+    assertTrue("owner did not stop its session", session.sparkContext().isStopped());
   }
 }
