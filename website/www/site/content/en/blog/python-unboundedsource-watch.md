@@ -21,14 +21,28 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -->
 
-The Apache Beam Python SDK now includes an `UnboundedSource` API for custom
-unbounded sources and a `Watch` transform for repeatedly polling growing inputs.
-These APIs give source authors control over reading a continuous stream or
-discovering new items through repeated queries. This project brought both APIs
-to Python, improved `Watch` deduplication, and addressed runner issues found
-while validating the new transforms.
+The Apache Beam Python SDK now has an `UnboundedSource` API for writing custom
+unbounded sources and a `Watch` transform for repeatedly polling an input that
+keeps growing. I built both during my Google Summer of Code 2026 project with
+Apache Beam, mentored by Yi Hu.
 
 <!--more-->
+
+## Motivation
+
+The Java SDK has had both of these for years. A Python user who wanted to read
+from a streaming system with no existing connector had to reach for a
+cross-language Java connector or write an unbounded splittable DoFn directly,
+wiring up a restriction tracker, a watermark estimator, and their own decision
+about when to pause and resume. Polling an input that keeps growing had no
+Python answer at all: there was no `Watch` transform, and
+`fileio.MatchContinuously` kept one state entry per matched file path for the
+life of the pipeline, so its state grew with every file the pattern had ever
+seen.
+
+This project brought both APIs to Python, gave duplicate suppression a way to
+forget outputs it has moved past, and fixed the runner bugs that validating
+them turned up.
 
 ## The UnboundedSource API
 
@@ -102,9 +116,10 @@ a single timestamp; the retained hashes depend on the keys within that time
 range.
 
 [Refactoring `MatchContinuously` onto `Watch`](https://github.com/apache/beam/pull/39461)
-made cursor mode available for continuous file matching and saved deduplication
-history with pipeline checkpoints. The existing implementation remains for
-users who disable duplicate suppression. The cursor design was also
+replaced its per-file state entries with the `Watch` restriction, so continuous
+file matching can use cursor mode and stop accumulating an entry for every file
+it has ever matched. The existing implementation remains for users who disable
+duplicate suppression. The cursor design was also
 [ported back to Java](https://github.com/apache/beam/pull/39746).
 
 ## Validation across runners
