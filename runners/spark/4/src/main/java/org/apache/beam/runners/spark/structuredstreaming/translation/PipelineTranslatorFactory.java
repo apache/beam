@@ -15,10 +15,21 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
+package org.apache.beam.runners.spark.structuredstreaming.translation;
 
+import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.sdk.annotations.Internal;
 
-/** Translator for batch pipelines, the registry and the lookup live in the common base. */
+/**
+ * This class shadows the shared base file of the same name. The Spark 4 module compiles the
+ * override tree with later wins, so this copy replaces the base one that throws for streaming.
+ */
 @Internal
-public class PipelineTranslatorBatch extends PipelineTranslatorCommon {}
+public final class PipelineTranslatorFactory {
+  private PipelineTranslatorFactory() {}
+
+  /** Creates a {@link PipelineTranslator} for the given execution mode. */
+  public static PipelineTranslator create(boolean streaming) {
+    return streaming ? new PipelineTranslatorStreaming() : new PipelineTranslatorBatch();
+  }
+}
