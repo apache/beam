@@ -28,24 +28,26 @@ Apache Beam, mentored by Yi Hu.
 
 <!--more-->
 
+This post describes the implementation on Beam's `master` branch as of September
+2026. The `Watch` `allowed_lateness` option and the `MatchContinuously`
+integration described below are newer than Beam 2.76.0.
+
 ## Motivation
 
-Reading a custom unbounded source in Python already worked through an unbounded
-splittable DoFn. The learning curve is the problem. You have to model the
-reader's position as a restriction, decide when to stop and hand progress back,
-and drive a watermark estimator, all before writing a line of code that talks
-to your queue. `UnboundedSource` asks for `start()`, `advance()`,
-`get_watermark()`, and a checkpoint mark, and the wrapper handles the SDF part.
-That puts a source for your own message broker or database change feed within
-reach in Python, where Kafka, Kinesis, and Debezium change data capture reach it
-today through cross-language wrappers that run a Java implementation behind an
-expansion service.
+Writing a connector for a message broker or database change feed means deciding
+how to read records, save a position, and resume after a failure. Python already
+supported custom streaming reads through a splittable DoFn (SDF). Using one
+also meant learning how to represent work as a restriction, hand unfinished
+work back to the runner, and report progress through a watermark estimator.
+`UnboundedSource` wraps that machinery in a reader API so source authors can
+focus on their connector's reading and checkpoint logic.
 
-`Watch` is the same kind of convenience for an input that keeps growing. Python
-could poll for new files by composing `PeriodicImpulse` with `MatchAll`, and
-with duplicate suppression on, `fileio.MatchContinuously` held one state entry
-per matched path for the life of the pipeline. `Watch` makes the polling
-reusable for any source and bounds that history.
+Polling a growing input raises a related problem: how to remember which results
+have already been emitted. Python's `fileio.MatchContinuously` could poll for
+new files, but its deduplication state grew with the number of matched paths.
+`Watch` makes this polling logic reusable for other inputs, such as an API that
+lists newly available records. Its opt-in `timestamp_cursor` mode lets old
+deduplication history expire when the input's event times keep advancing.
 
 ## The UnboundedSource API
 
@@ -55,15 +57,15 @@ The first public Python
 and Python SDKs. Source authors implement `UnboundedSource`, `UnboundedReader`,
 and `CheckpointMark`, then read the source with `beam.io.Read(MySource())`.
 
-The reader exposes methods such as `start()`, `advance()`, `get_current()`, and
-`get_checkpoint_mark()`. Returning `False` from `advance()` means that no record
-is available now; the reader can resume when more data arrives. The reader also
+The reader exposes methods such as `start()`, `advance()`, `get_current()`,
+`get_current_timestamp()`, and `get_checkpoint_mark()`. Reading must not block:
+returning `False` from `start()` or `advance()` means that no record is available
+now, and the reader can resume when more data arrives. The reader also
 reports an event-time watermark through `get_watermark()`, which Beam uses to
 track progress and determine when windows can close. A watermark of
 `MAX_TIMESTAMP` signals that the source has permanently finished.
 
-The SDK runs the reader through a splittable DoFn (SDF), Beam's mechanism for
-managing work that can pause and resume. The wrapper saves the reader's
+The SDK runs the reader through an SDF. The wrapper saves the reader's
 checkpoint with the unfinished work and reports its watermark to the runner.
 This lets the same source implementation run on DirectRunner, Prism, Flink, and
 Dataflow. Sources can split their work at pipeline startup; an active read is
@@ -72,15 +74,18 @@ not subdivided further.
 The wrapper uses bundle finalization to invoke
 `CheckpointMark.finalize_checkpoint` after the runner has durably committed
 the output. A message-queue source can use this hook to acknowledge consumed
-messages. Finalization is best effort, so the hook has to be idempotent. Readers can also be reused across resumed bundles on the same worker,
-with idle readers evicted from a bounded cache, reducing the need to reopen
-connections.
+messages. Finalization is best effort: a mark may never be finalized, and
+retries can produce marks covering overlapping records. The hook must therefore
+be idempotent. Readers can also be reused across resumed bundles on the same
+worker, with idle readers evicted from a bounded cache, reducing the need to
+reopen connections.
 
-The wrapper checks the record count and elapsed time between reads, yielding
-when either limit is reached. This refinement came from mentor review:
-correctly saving progress also requires giving the runner regular opportunities
-to take over. The [Python I/O connector guide](https://beam.apache.org/documentation/io/developing-io-python/)
-documents the API and its lifecycle.
+Mentor review led me to limit how many records a reader can emit and how long
+it can run before yielding. The wrapper checks these limits between reads.
+A busy source needs to yield regularly so the runner can commit its progress
+and finalize checkpoints. The
+[Python I/O connector guide](/documentation/io/developing-io-python/#unboundedsource)
+includes an example source and explains the API's lifecycle.
 
 ## The Watch transform
 
@@ -116,7 +121,9 @@ and hashes older than that threshold can be discarded. This suits inputs
 arriving in roughly non-decreasing event time. Increasing `allowed_lateness`
 accommodates older arrivals while retaining more history. The cursor itself is
 a single timestamp; the retained hashes depend on the keys within that time
-range.
+range. In cursor mode, an item must keep its original event time across polls;
+assigning it a new timestamp on every poll can cause it to be emitted again
+after its hash expires.
 
 [Refactoring `MatchContinuously` onto `Watch`](https://github.com/apache/beam/pull/39461)
 replaced its per-file state entries with the `Watch` restriction, so continuous
@@ -127,9 +134,9 @@ duplicate suppression. The cursor design was also
 
 ## Validation across runners
 
-Both transforms were exercised on DirectRunner, Prism, Flink, and Dataflow.
-Validation covered pause and resume behavior, acknowledgments, watermarks, and
-polling. The `UnboundedSource` wrapper passed five end-to-end tests submitted
+I tested both transforms on DirectRunner, Prism, Flink, and Dataflow. The runs
+covered pause and resume behavior, acknowledgments, watermarks, and polling.
+The `UnboundedSource` wrapper passed five end-to-end tests submitted
 as Dataflow streaming jobs. For `MatchContinuously` on Flink, testing included
 killing a worker during a run and restoring from a checkpoint. Prism tests
 added files while a watch was running and checked that both deduplication modes
@@ -158,9 +165,10 @@ deduplication overhead as the polled set grew.
 For `UnboundedSource`, an in-memory source supplied one million records to
 isolate the wrapper's overhead from external I/O. On Prism, a cap of 1,000
 records per invocation produced 1,001 self-checkpoints and about 34,000 records
-per second. Raising the cap to 100,000 reduced the self-checkpoint count to 11
-and reached about 44,000 records per second. Throughput was measured from the
-first record to the last, excluding runner startup.
+per second. Raising the cap to 10,000 reduced the self-checkpoint count to 101
+and reached about 44,000 records per second. A cap of 100,000 reduced the count
+to 11, with throughput still around 44,000 records per second. Throughput was
+measured from the first record to the last, excluding runner startup.
 
 The `Watch` benchmark repeatedly listed a set that gained 2,000 items per round
 for 100 rounds. Each item retained its original event time. Both modes emitted
