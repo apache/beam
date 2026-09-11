@@ -126,26 +126,34 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
       if (batch.isEmpty()) {
         continue;
       }
-      publishBatch(batch);
+      int entriesPublished = publishBatch(batch);
+      sentToBroker.inc(entriesPublished);
+      incrementPendingPublishes(entriesPublished);
     }
     getCurrentBundle().clear();
 
+    // Wait for pending asynchronous Solace ACK callbacks to complete before emitting publish
+    // results. In batch pipelines, the pipeline may end before the timer fires and before
+    // ACK callbacks arrive, causing data loss. This wait ensures all in-flight publishes
+    // are acknowledged before we emit results.
+    waitForPendingPublishes();
     publishResults(BeamContextWrapper.of(context));
   }
 
   @OnTimer("bundle_flusher")
   public void flushBundle(OnTimerContext context) throws IOException {
+    waitForPendingPublishes();
     publishResults(BeamContextWrapper.of(context));
   }
 
-  private void publishBatch(List<Solace.Record> records) {
+  private int publishBatch(List<Solace.Record> records) {
     try {
       int entriesPublished =
           solaceSessionServiceWithProducer()
               .getInitializedProducer(getSubmissionMode())
               .publishBatch(
                   records, shouldPublishLatencyMetrics(), getDestinationFn(), getDeliveryMode());
-      sentToBroker.inc(entriesPublished);
+      return entriesPublished;
     } catch (Exception e) {
       batchesRejectedByBroker.inc();
       Solace.PublishResult errorPublish =
@@ -159,6 +167,10 @@ public final class UnboundedBatchedSolaceWriter extends UnboundedSolaceWriter {
               .setLatencyNanos(System.nanoTime())
               .build();
       solaceSessionServiceWithProducer().getPublishedResultsQueue().add(errorPublish);
+      // Even though the batch failed, we need to track the pending count so that
+      // waitForPendingPublishes() doesn't wait indefinitely. The error result is already
+      // in the queue, so the count doesn't need to be incremented.
+      return 0;
     }
   }
 }

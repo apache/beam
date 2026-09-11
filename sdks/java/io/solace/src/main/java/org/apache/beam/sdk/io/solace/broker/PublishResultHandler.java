@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.solace.broker;
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
@@ -42,11 +43,14 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
   private final Queue<PublishResult> publishResultsQueue;
+  private final AtomicInteger pendingPublishCount;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(Queue<PublishResult> publishResultsQueue) {
+  public PublishResultHandler(
+      Queue<PublishResult> publishResultsQueue, AtomicInteger pendingPublishCount) {
     this.publishResultsQueue = publishResultsQueue;
+    this.pendingPublishCount = pendingPublishCount;
   }
 
   @Override
@@ -90,6 +94,7 @@ public final class PublishResultHandler implements JCSMPStreamingPublishCorrelat
     // Static reference, it receives all callbacks from all publications
     // from all threads
     publishResultsQueue.add(publishResult);
+    pendingPublishCount.decrementAndGet();
   }
 
   private static long calculateLatency(Solace.CorrelationKey key) {

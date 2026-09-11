@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.solace.write;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
+import java.io.IOException;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -115,6 +116,7 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
               shouldPublishLatencyMetrics(),
               getDeliveryMode());
       sentToBroker.inc();
+      incrementPendingPublishes(1);
     } catch (Exception e) {
       rejectedByBroker.inc();
       Solace.PublishResult errorPublish =
@@ -132,7 +134,13 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
   }
 
   @FinishBundle
-  public void finishBundle(FinishBundleContext context) {
+  public void finishBundle(FinishBundleContext context) throws IOException {
+    // Wait for pending asynchronous Solace ACK callbacks to complete before emitting publish
+    // results. In batch pipelines, the asynchronous ACK callbacks from publishSingleMessage
+    // may not have arrived by the time finishBundle is called, causing the pipeline to end
+    // before publish results are emitted. This wait ensures all in-flight publishes are
+    // acknowledged before we emit results.
+    waitForPendingPublishes();
     publishResults(BeamContextWrapper.of(context));
   }
 }
