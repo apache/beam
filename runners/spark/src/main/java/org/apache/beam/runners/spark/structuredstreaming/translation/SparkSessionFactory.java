@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -90,6 +91,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.execution.datasources.v2.DataWritingSparkTaskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 public class SparkSessionFactory {
 
@@ -113,15 +115,61 @@ public class SparkSessionFactory {
           "/com.esotericsoftware/kryo-shaded",
           "/com/esotericsoftware/kryo-shaded");
 
+  // Builder.getOrCreate adopts an existing session without applying the pipeline's configuration.
+  // A pipeline must not stop a session it did not create, and the next pipeline needs the
+  // previous one stopped to get its own configuration, so sessions created here are counted.
+  private static final Map<SparkSession, Integer> OWNED_SESSIONS = new HashMap<>();
+
+  /** Returns the {@link SparkSession} for a pipeline, paired with {@link #release}. */
+  public static synchronized SparkSession acquire(SparkStructuredStreamingPipelineOptions options) {
+    if (options.getUseActiveSparkSession()) {
+      return SparkSession.active();
+    }
+    boolean noUsableSession =
+        !isUsable(SparkSession.getActiveSession()) && !isUsable(SparkSession.getDefaultSession());
+    SparkSession session = sessionBuilder(options.getSparkMaster(), options).getOrCreate();
+    Integer count = OWNED_SESSIONS.get(session);
+    if (count != null) {
+      OWNED_SESSIONS.put(session, count + 1);
+      LOG.info("Pipeline options will not be applied to the shared SparkSession");
+    } else if (noUsableSession) {
+      OWNED_SESSIONS.put(session, 1);
+    }
+    return session;
+  }
+
   /**
-   * Gets active {@link SparkSession} or creates one using {@link
-   * SparkStructuredStreamingPipelineOptions}.
+   * Releases a session from {@link #acquire} and stops it when no longer used. The stop runs under
+   * the lock, a pipeline starting meanwhile creates a new session.
    */
+  public static synchronized void release(SparkSession session) {
+    Integer count = OWNED_SESSIONS.get(session);
+    if (count == null) {
+      return;
+    }
+    if (count > 1) {
+      OWNED_SESSIONS.put(session, count - 1);
+      return;
+    }
+    OWNED_SESSIONS.remove(session);
+    LOG.info("Stopping SparkSession created by the runner");
+    session.stop();
+  }
+
+  /**
+   * @deprecated Use {@link #acquire} and {@link #release}. Returns the active or default session
+   *     when usable, otherwise a new one, never tracked by the runner.
+   */
+  @Deprecated
   public static SparkSession getOrCreateSession(SparkStructuredStreamingPipelineOptions options) {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
     return sessionBuilder(options.getSparkMaster(), options).getOrCreate();
+  }
+
+  private static boolean isUsable(Option<SparkSession> session) {
+    return session.isDefined() && !session.get().sparkContext().isStopped();
   }
 
   /** Creates Spark session builder with some optimizations for local mode, e.g. in tests. */
