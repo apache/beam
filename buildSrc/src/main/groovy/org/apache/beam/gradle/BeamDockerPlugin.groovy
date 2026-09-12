@@ -61,7 +61,6 @@ class BeamDockerPlugin implements Plugin<Project> {
     boolean push = false
     String builder = null
     String target = null
-    String compression = 'zstd'
 
     File resolvedDockerfile = null
     File resolvedDockerComposeTemplate = null
@@ -73,9 +72,6 @@ class BeamDockerPlugin implements Plugin<Project> {
     DockerExtension(Project project) {
       this.project = project
       this.copySpec = project.copySpec()
-      if (project.hasProperty('docker-compression')) {
-        this.compression = project.property('docker-compression')
-      }
     }
 
     void resolvePathsAndValidate() {
@@ -241,23 +237,13 @@ class BeamDockerPlugin implements Plugin<Project> {
       if (!ext.platform.isEmpty()) {
         buildCommandLine.addAll('--platform', String.join(',', ext.platform))
       }
-      if (ext.load && ext.push) {
-        throw new Exception("cannot combine 'push' and 'load' options")
+      if (ext.load) {
+        buildCommandLine.add '--load'
       }
-      if (ext.compression != null && !ext.compression.isEmpty()) {
-        if (ext.push) {
-          buildCommandLine.add "--output=type=registry,compression=${ext.compression},force-compression=true,oci-mediatypes=true"
-        } else if (ext.load) {
-          buildCommandLine.add '--load'
-        } else {
-          buildCommandLine.add "--output=type=image,compression=${ext.compression},force-compression=true,oci-mediatypes=true"
-        }
-      } else {
+      if (ext.push) {
+        buildCommandLine.add '--push'
         if (ext.load) {
-          buildCommandLine.add '--load'
-        }
-        if (ext.push) {
-          buildCommandLine.add '--push'
+          throw new Exception("cannot combine 'push' and 'load' options")
         }
       }
       if (ext.builder != null) {
