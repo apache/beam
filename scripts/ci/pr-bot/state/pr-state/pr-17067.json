@@ -1,9 +1,0 @@
-{
-  "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {
-    "go": "youngoli"
-  },
-  "nextAction": "Reviewers",
-  "stopReviewerNotifications": true,
-  "remindAfterTestsPass": []
-}

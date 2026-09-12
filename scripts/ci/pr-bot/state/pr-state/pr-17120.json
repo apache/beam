@@ -1,9 +1,0 @@
-{
-  "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {
-    "go": "riteshghorse"
-  },
-  "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
-  "remindAfterTestsPass": []
-}

@@ -1,9 +1,0 @@
-{
-  "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {
-    "go": "jrmccluskey"
-  },
-  "nextAction": "Reviewers",
-  "stopReviewerNotifications": true,
-  "remindAfterTestsPass": []
-}
