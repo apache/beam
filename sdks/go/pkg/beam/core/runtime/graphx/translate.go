@@ -63,6 +63,10 @@ const (
 	URNFixedWindowsWindowFn   = "beam:window_fn:fixed_windows:v1"
 	URNSlidingWindowsWindowFn = "beam:window_fn:sliding_windows:v1"
 	URNSessionsWindowFn       = "beam:window_fn:session_windows:v1"
+	// URNCustomWindowFn is Go specific, mirroring
+	// beam:window_fn:serialized_java:v1 and beam:window_fn:pickled_python:v1.
+	// Other SDKs and runners cannot rehydrate it.
+	URNCustomWindowFn = "beam:window_fn:serialized_go:v1"
 
 	// SDK constants
 	URNDoFn = "beam:go:transform:dofn:v1"
@@ -75,7 +79,6 @@ const (
 	URNWindowMappingFixed   = "beam:go:windowmapping:fixed:v1"
 	URNWindowMappingSliding = "beam:go:windowmapping:sliding:v1"
 	URNWindowMappingCustom  = "beam:go:windowmapping:custom:v1"
-	URNCustomWindowFn       = "beam:go:windowfn:custom:v1"
 
 	URNProgressReporting        = "beam:protocol:progress_reporting:v1"
 	URNMultiCore                = "beam:protocol:multi_core_bundle_processing:v1"
