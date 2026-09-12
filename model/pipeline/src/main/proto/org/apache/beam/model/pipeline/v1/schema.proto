@@ -247,6 +247,13 @@ message LogicalTypes {
     //     e.g. -1.5s at precision 6 is {seconds: -2, subseconds: 500000}.
     TIMESTAMP = 9 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:logical_type:timestamp:v1"];
+
+    // A URN for Time type
+    //   - Representation type: INT64
+    //   - A time without a timezone, represented by the number of
+    //     nanoseconds since midnight.
+    TIME = 10 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:logical_type:time:v1"];
   }
 }
 
