@@ -1478,9 +1478,13 @@ func makeWindowFn(w *window.Fn) (*pipepb.FunctionSpec, error) {
 		}, nil
 	case window.CustomWindows:
 		t := reflect.TypeOf(w.CustomFn)
-		key, ok := runtime.TypeKey(reflectx.SkipPtr(t))
+		structType := reflectx.SkipPtr(t)
+		if _, ok := window.LookupWindowFn(structType); !ok {
+			return nil, errors.Errorf("custom WindowFn type %v is not registered; call window.RegisterWindowFn during init()", t)
+		}
+		key, ok := runtime.TypeKey(structType)
 		if !ok {
-			return nil, errors.Errorf("custom WindowFn type %v is not registered", t)
+			return nil, errors.Errorf("custom WindowFn type %v has no type key", t)
 		}
 		structPayload, err := jsonx.Marshal(w.CustomFn)
 		if err != nil {

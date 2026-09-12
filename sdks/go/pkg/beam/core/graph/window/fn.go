@@ -123,7 +123,7 @@ func (w *Fn) String() string {
 	case Sessions:
 		return fmt.Sprintf("%v[%v]", w.Kind, w.Gap)
 	case CustomWindows:
-		return fmt.Sprintf("%v[%v]", w.Kind, reflect.TypeOf(w.CustomFn))
+		return fmt.Sprintf("%v[%T %+v]", w.Kind, w.CustomFn, w.CustomFn)
 	default:
 		return string(w.Kind)
 	}

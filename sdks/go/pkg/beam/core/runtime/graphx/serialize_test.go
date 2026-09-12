@@ -18,6 +18,7 @@
 package graphx
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
@@ -26,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	v1pb "github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/v1"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
 func TestEncodeType(t *testing.T) {
@@ -113,14 +115,74 @@ func TestWindowFnRoundTrip(t *testing.T) {
 	}
 }
 
-func TestWindowFnRoundTrip_CustomKind(t *testing.T) {
-	// Custom WindowFns are serialized via the Beam model proto
-	// (FunctionSpec), not the internal v1 proto. The v1 path only
-	// preserves the Kind so that EncodeMultiEdge does not fail.
+// TestEncodeWindowFnCustomKeepsKind covers the internal v1 proto path, which
+// preserves only the Kind so that EncodeMultiEdge does not fail. Custom
+// WindowFns travel via the Beam model proto instead; see TestMakeWindowFnCustom.
+func TestEncodeWindowFnCustomKeepsKind(t *testing.T) {
 	fn := &window.Fn{Kind: window.CustomWindows}
 	pb := encodeWindowFn(fn)
 	got := decodeWindowFn(pb)
 	if got.Kind != window.CustomWindows {
 		t.Errorf("kind mismatch: got %v, want %v", got.Kind, window.CustomWindows)
+	}
+}
+
+// serializeTestWindowFn is a custom WindowFn used to check the FunctionSpec
+// that makeWindowFn emits.
+type serializeTestWindowFn struct {
+	SizeMs int64
+}
+
+func (f *serializeTestWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	return []typex.Window{window.IntervalWindow{Start: ts, End: ts + typex.EventTime(f.SizeMs)}}
+}
+
+func init() {
+	window.RegisterWindowFn[*serializeTestWindowFn]()
+}
+
+// TestMakeWindowFnCustom checks the URN and JSON envelope that a custom
+// WindowFn is marshalled into, which unmarshalWindowFn has to read back.
+func TestMakeWindowFnCustom(t *testing.T) {
+	spec, err := makeWindowFn(window.NewCustom(&serializeTestWindowFn{SizeMs: 3000}))
+	if err != nil {
+		t.Fatalf("makeWindowFn failed: %v", err)
+	}
+	if got := spec.GetUrn(); got != URNCustomWindowFn {
+		t.Errorf("urn = %v, want %v", got, URNCustomWindowFn)
+	}
+
+	var envelope struct {
+		Type    string          `json:"type"`
+		Payload json.RawMessage `json:"payload"`
+	}
+	if err := json.Unmarshal(spec.GetPayload(), &envelope); err != nil {
+		t.Fatalf("payload is not a JSON envelope: %v", err)
+	}
+
+	wantKey, ok := runtime.TypeKey(reflect.TypeOf(serializeTestWindowFn{}))
+	if !ok {
+		t.Fatal("serializeTestWindowFn has no type key")
+	}
+	if envelope.Type != wantKey {
+		t.Errorf("envelope type = %v, want %v", envelope.Type, wantKey)
+	}
+
+	var back serializeTestWindowFn
+	if err := json.Unmarshal(envelope.Payload, &back); err != nil {
+		t.Fatalf("envelope payload does not decode into the WindowFn: %v", err)
+	}
+	if back.SizeMs != 3000 {
+		t.Errorf("envelope payload SizeMs = %v, want 3000", back.SizeMs)
+	}
+}
+
+// TestMakeWindowFnCustomUnregistered checks that marshalling refuses a
+// WindowFn the type registry does not know, since the harness could not look
+// it up on the other side.
+func TestMakeWindowFnCustomUnregistered(t *testing.T) {
+	type localWindowFn struct{}
+	if _, err := makeWindowFn(&window.Fn{Kind: window.CustomWindows, CustomFn: &localWindowFn{}}); err == nil {
+		t.Error("makeWindowFn succeeded for an unregistered type, want error")
 	}
 }
