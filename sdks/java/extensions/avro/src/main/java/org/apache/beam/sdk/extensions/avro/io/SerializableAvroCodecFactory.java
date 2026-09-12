@@ -40,9 +40,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * A wrapper that allows {@link CodecFactory}s to be serialized using Java's standard serialization
  * mechanisms.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class SerializableAvroCodecFactory implements Externalizable {
   private static final long serialVersionUID = 7445324844109564303L;
   private static final List<String> noOptAvroCodecs =
@@ -64,7 +61,7 @@ class SerializableAvroCodecFactory implements Externalizable {
     this.codecFactory = codecFactory;
   }
 
-  private boolean checkIsSupportedCodec(CodecFactory codecFactory) {
+  private static boolean checkIsSupportedCodec(CodecFactory codecFactory) {
     final String codecStr = codecFactory.toString();
     return noOptAvroCodecs.contains(codecStr)
         || deflatePattern.matcher(codecStr).matches()
@@ -74,7 +71,7 @@ class SerializableAvroCodecFactory implements Externalizable {
 
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
-    out.writeUTF(codecFactory.toString());
+    out.writeUTF(getCodec().toString());
   }
 
   @Override
@@ -91,32 +88,37 @@ class SerializableAvroCodecFactory implements Externalizable {
 
     Matcher deflateMatcher = deflatePattern.matcher(codecStr);
     if (deflateMatcher.find()) {
-      codecFactory = CodecFactory.deflateCodec(Integer.parseInt(deflateMatcher.group("level")));
+      codecFactory = CodecFactory.deflateCodec(matchedLevel(deflateMatcher));
       return;
     }
 
     Matcher xzMatcher = xzPattern.matcher(codecStr);
     if (xzMatcher.find()) {
-      codecFactory = CodecFactory.xzCodec(Integer.parseInt(xzMatcher.group("level")));
+      codecFactory = CodecFactory.xzCodec(matchedLevel(xzMatcher));
       return;
     }
 
     Matcher zstdMatcher = zstdPattern.matcher(codecStr);
     if (zstdMatcher.find()) {
-      codecFactory = CodecFactory.zstandardCodec(Integer.parseInt(zstdMatcher.group("level")));
+      codecFactory = CodecFactory.zstandardCodec(matchedLevel(zstdMatcher));
       return;
     }
 
     throw new IllegalStateException(codecStr + " is not supported");
   }
 
+  /** Reads the {@code level} group of a matcher that has just matched successfully. */
+  private static int matchedLevel(Matcher matcher) {
+    return Integer.parseInt(checkNotNull(matcher.group("level")));
+  }
+
   public CodecFactory getCodec() {
-    return codecFactory;
+    return checkNotNull(
+        codecFactory, "Inner CodecFactory is null, please use non default constructor");
   }
 
   @Override
   public String toString() {
-    checkNotNull(codecFactory, "Inner CodecFactory is null, please use non default constructor");
-    return codecFactory.toString();
+    return getCodec().toString();
   }
 }

@@ -34,9 +34,6 @@ import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Create {@link DatumReader} and {@link DatumWriter} for given schemas. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class AvroDatumFactory<T>
     implements AvroSource.DatumReaderFactory<T>, AvroSink.DatumWriterFactory<T> {
 
@@ -172,20 +169,25 @@ public abstract class AvroDatumFactory<T>
 
     @Override
     public DatumReader<T> apply(Schema writer, Schema reader) {
-      ReflectData data = new ReflectData(type.getClassLoader());
+      ReflectData data = newReflectData(type);
       AvroUtils.addLogicalTypeConversions(data);
       return new ReflectDatumReader<>(writer, reader, data);
     }
 
     @Override
     public DatumWriter<T> apply(Schema writer) {
-      ReflectData data = new ReflectData(type.getClassLoader());
+      ReflectData data = newReflectData(type);
       AvroUtils.addLogicalTypeConversions(data);
       return new ReflectDatumWriter<>(writer, data);
     }
 
     public static <T> ReflectDatumFactory<T> of(Class<T> type) {
       return new ReflectDatumFactory<>(type);
+    }
+
+    @SuppressWarnings("nullness") // ReflectData tolerates a null class loader but is unannotated
+    private static ReflectData newReflectData(Class<?> type) {
+      return new ReflectData(type.getClassLoader());
     }
   }
 }

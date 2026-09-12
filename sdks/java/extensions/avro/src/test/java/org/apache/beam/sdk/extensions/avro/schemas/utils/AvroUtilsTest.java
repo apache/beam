@@ -73,6 +73,7 @@ import org.joda.time.DateTimeFieldType;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.joda.time.Instant;
+import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -1112,8 +1113,88 @@ public class AvroUtilsTest {
 
     // Alternatively, a timestamp-millis logical type can have a joda datum.
     genericRecord.put("timestampMillis", new DateTime(genericRecord.get("timestampMillis")));
-    row = AvroUtils.toBeamRowStrict(getGenericRecord(), null);
+    row = AvroUtils.toBeamRowStrict(genericRecord, null);
     assertEquals(getBeamRow(), row);
+  }
+
+  @Test
+  public void testNullableLogicalTypeGenericRecordToBeamRow() {
+    org.apache.avro.Schema decimalSchema =
+        LogicalTypes.decimal(Integer.MAX_VALUE)
+            .addToSchema(org.apache.avro.Schema.create(org.apache.avro.Schema.Type.BYTES));
+    org.apache.avro.Schema avroSchema =
+        org.apache.avro.Schema.createRecord(
+            "topLevelRecord",
+            null,
+            null,
+            false,
+            Lists.newArrayList(
+                new org.apache.avro.Schema.Field(
+                    "date",
+                    ReflectData.makeNullable(
+                        LogicalTypes.date()
+                            .addToSchema(
+                                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.INT))),
+                    "",
+                    (Object) null),
+                new org.apache.avro.Schema.Field(
+                    "timestampMillis",
+                    ReflectData.makeNullable(
+                        LogicalTypes.timestampMillis()
+                            .addToSchema(
+                                org.apache.avro.Schema.create(org.apache.avro.Schema.Type.LONG))),
+                    "",
+                    (Object) null),
+                new org.apache.avro.Schema.Field(
+                    "decimal", ReflectData.makeNullable(decimalSchema), "", (Object) null)));
+
+    Schema beamSchema =
+        Schema.builder()
+            .addNullableField("date", FieldType.DATETIME)
+            .addNullableField("timestampMillis", FieldType.DATETIME)
+            .addNullableField("decimal", FieldType.DECIMAL)
+            .build();
+    assertEquals(beamSchema, AvroUtils.toBeamSchema(avroSchema));
+
+    // Data written through a GenericData with logical type conversions registered carries the
+    // converted values (joda LocalDate/DateTime, BigDecimal) rather than the raw int/long/bytes.
+    GenericRecord converted =
+        new GenericRecordBuilder(avroSchema)
+            .set("date", new LocalDate(1979, 3, 14))
+            .set("timestampMillis", DATE_TIME)
+            .set("decimal", BIG_DECIMAL)
+            .build();
+    assertEquals(
+        Row.withSchema(beamSchema)
+            .addValues(new DateTime(1979, 3, 14, 0, 0, DateTimeZone.UTC), DATE_TIME, BIG_DECIMAL)
+            .build(),
+        AvroUtils.toBeamRowStrict(converted, beamSchema));
+
+    // The same fields holding their unconverted avro representations.
+    GenericRecord raw =
+        new GenericRecordBuilder(avroSchema)
+            .set("date", (int) java.time.LocalDate.of(1979, 3, 14).toEpochDay())
+            .set("timestampMillis", DATE_TIME.getMillis())
+            .set(
+                "decimal",
+                new Conversions.DecimalConversion()
+                    .toBytes(BIG_DECIMAL, decimalSchema, decimalSchema.getLogicalType()))
+            .build();
+    assertEquals(
+        Row.withSchema(beamSchema)
+            .addValues(new DateTime(1979, 3, 14, 0, 0, DateTimeZone.UTC), DATE_TIME, BIG_DECIMAL)
+            .build(),
+        AvroUtils.toBeamRowStrict(raw, beamSchema));
+
+    GenericRecord nulls =
+        new GenericRecordBuilder(avroSchema)
+            .set("date", null)
+            .set("timestampMillis", null)
+            .set("decimal", null)
+            .build();
+    assertEquals(
+        Row.withSchema(beamSchema).addValues(null, null, null).build(),
+        AvroUtils.toBeamRowStrict(nulls, beamSchema));
   }
 
   @Test
