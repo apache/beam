@@ -143,6 +143,12 @@ var portableFilters = []string{
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
+
+	// Custom WindowFns use a Go-specific WindowFn URN that Java-based
+	// runners reject when rehydrating the windowing strategy.
+	"TestWindowSums_Custom",
+	"TestWindowSums_ElementAware",
+	"TestValidateCustomWindowedSideInputs",
 }
 
 var prismFilters = []string{
@@ -204,6 +210,12 @@ var flinkFilters = []string{
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
+
+	// Custom WindowFns use a Go-specific WindowFn URN that Java-based
+	// runners reject when rehydrating the windowing strategy.
+	"TestWindowSums_Custom",
+	"TestWindowSums_ElementAware",
+	"TestValidateCustomWindowedSideInputs",
 }
 
 var samzaFilters = []string{
@@ -251,6 +263,12 @@ var samzaFilters = []string{
 
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
+
+	// Custom WindowFns use a Go-specific WindowFn URN that Java-based
+	// runners reject when rehydrating the windowing strategy.
+	"TestWindowSums_Custom",
+	"TestWindowSums_ElementAware",
+	"TestValidateCustomWindowedSideInputs",
 }
 
 var sparkFilters = []string{
@@ -289,6 +307,12 @@ var sparkFilters = []string{
 	"TestTimers_ProcessingTime_Unbounded", // Side inputs in executable stage not supported.
 	// no support for BundleFinalizer
 	"TestParDoBundleFinalizer.*",
+
+	// Custom WindowFns use a Go-specific WindowFn URN that Java-based
+	// runners reject when rehydrating the windowing strategy.
+	"TestWindowSums_Custom",
+	"TestWindowSums_ElementAware",
+	"TestValidateCustomWindowedSideInputs",
 }
 
 var dataflowFilters = []string{
@@ -331,6 +355,12 @@ var dataflowFilters = []string{
 	"TestOomParDo",
 	// Runner V2 doesn't support OrderedListState SDK feature.
 	"TestOrderedListState",
+
+	// Custom WindowFns use a Go-specific WindowFn URN that Java-based
+	// runners reject when rehydrating the windowing strategy.
+	"TestWindowSums_Custom",
+	"TestWindowSums_ElementAware",
+	"TestValidateCustomWindowedSideInputs",
 }
 
 // CheckFilters checks if an integration test is filtered to be skipped, either
