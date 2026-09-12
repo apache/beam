@@ -20,6 +20,7 @@
 
 import random
 import unittest
+from unittest import mock
 
 import apache_beam as beam
 from apache_beam.coders import StrUtf8Coder
@@ -30,6 +31,7 @@ from apache_beam.runners import common
 from apache_beam.runners.portability.fn_api_runner.worker_handlers import StateServicer
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import operations
+from apache_beam.runners.worker import sdk_worker
 from apache_beam.runners.worker.bundle_processor import BeamTransformFactory
 from apache_beam.runners.worker.bundle_processor import BundleProcessor
 from apache_beam.runners.worker.bundle_processor import DataInputOperation
@@ -427,6 +429,116 @@ class EnvironmentCompatibilityTest(unittest.TestCase):
         bundle_processor._environments_compatible(
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom",
             "beam:version:sdk_base:apache/beam_python3.5_sdk:2.1.0-custom"))
+
+
+class RuntimeStateCommitTest(unittest.TestCase):
+  STATE_TYPES = (
+      bundle_processor.SynchronousBagRuntimeState,
+      bundle_processor.SynchronousSetRuntimeState,
+      SynchronousOrderedListRuntimeState)
+
+  def setUp(self):
+    # Keep set compaction deterministic; it is exercised separately below.
+    patcher = mock.patch.object(random, 'random', return_value=0)
+    patcher.start()
+    self.addCleanup(patcher.stop)
+
+  def _create_state(self, state_type, append_errors=('', ), clear_error=''):
+    futures = []
+
+    def response_future(error):
+      future = sdk_worker._Future().set(
+          beam_fn_api_pb2.StateResponse(error=error))
+      future.get = mock.Mock(wraps=future.get)
+      futures.append(future)
+      return future
+
+    append_errors = iter(append_errors)
+    underlying = mock.Mock(spec=sdk_worker.StateHandler)
+    underlying.append_raw.side_effect = (
+        lambda *args: response_future(next(append_errors)))
+    underlying.clear.side_effect = lambda *args: response_future(clear_error)
+    underlying.get_raw.return_value = (b'', None)
+    handler = GlobalCachingStateHandler(StateCache(0), underlying)
+    if state_type is SynchronousOrderedListRuntimeState:
+      key = beam_fn_api_pb2.StateKey(
+          ordered_list_user_state=beam_fn_api_pb2.StateKey.OrderedListUserState(
+          ))
+    else:
+      key = beam_fn_api_pb2.StateKey(
+          bag_user_state=beam_fn_api_pb2.StateKey.BagUserState())
+    return state_type(handler, key, StrUtf8Coder()), futures
+
+  def _add(self, state, value):
+    if isinstance(state, SynchronousOrderedListRuntimeState):
+      state.add((timestamp.Timestamp(1), value))
+    else:
+      state.add(value)
+
+  def test_commit_rejects_failed_append(self):
+    for state_type in self.STATE_TYPES:
+      with self.subTest(state_type=state_type):
+        state, _ = self._create_state(
+            state_type, append_errors=('append failed', ))
+        self._add(state, 'value')
+        with self.assertRaisesRegex(RuntimeError, 'append failed'):
+          state.commit()
+
+  def test_commit_rejects_failed_clear(self):
+    for state_type in self.STATE_TYPES:
+      with self.subTest(state_type=state_type):
+        state, _ = self._create_state(state_type, clear_error='clear failed')
+        state.clear()
+        with self.assertRaisesRegex(RuntimeError, 'clear failed'):
+          state.commit()
+
+  def test_clear_then_append_checks_every_response(self):
+    for state_type in self.STATE_TYPES:
+      for clear_error, append_error in (
+          ('', ''), ('clear failed', ''), ('clear failed', 'append failed')):
+        with self.subTest(state_type=state_type,
+                          clear_error=clear_error,
+                          append_error=append_error):
+          state, futures = self._create_state(
+              state_type, (append_error, ), clear_error)
+          state.clear()
+          self._add(state, 'replacement')
+          if clear_error:
+            with self.assertRaises(RuntimeError) as raised:
+              state.commit()
+            self.assertEqual(
+                str(raised.exception),
+                '\n'.join(
+                    error for error in (clear_error, append_error) if error))
+          else:
+            state.commit()
+          self.assertEqual(len(futures), 2)
+          for future in futures:
+            future.get.assert_called_once()
+
+  def test_commit_rejects_failure_in_earlier_append_chunk(self):
+    state, futures = self._create_state(
+        bundle_processor.SynchronousBagRuntimeState,
+        append_errors=('first append failed', ''))
+    state.add('first')
+    state.add('second')
+    with mock.patch.object(sdk_worker.data_plane,
+                           '_DEFAULT_SIZE_FLUSH_THRESHOLD',
+                           1):
+      with self.assertRaisesRegex(RuntimeError, 'first append failed'):
+        state.commit()
+    self.assertEqual(len(futures), 2)
+    for future in futures:
+      future.get.assert_called_once()
+
+  def test_commit_rejects_failed_set_compaction(self):
+    state, futures = self._create_state(
+        bundle_processor.SynchronousSetRuntimeState, clear_error='clear failed')
+    with mock.patch.object(random, 'random', return_value=1):
+      state.add('value')
+    with self.assertRaisesRegex(RuntimeError, 'clear failed'):
+      state.commit()
+    self.assertEqual(len(futures), 2)
 
 
 class OrderedListStateTest(unittest.TestCase):

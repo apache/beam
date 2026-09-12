@@ -592,6 +592,17 @@ class _ConcatIterable(object):
 coder_impl.FastPrimitivesCoderImpl.register_iterable_like_type(_ConcatIterable)
 
 
+def _await_state_commit(futures) -> None:
+  # Resolve every write before reporting errors, including clears followed by
+  # appends. State futures return error responses rather than raising them.
+  responses = [future.get() for future in futures if future]
+  errors = [
+      response.error for response in responses if response and response.error
+  ]
+  if errors:
+    raise RuntimeError('\n'.join(errors))
+
+
 class SynchronousBagRuntimeState(userstate.BagRuntimeState):
   def __init__(
       self,
@@ -619,15 +630,16 @@ class SynchronousBagRuntimeState(userstate.BagRuntimeState):
     self._added_elements = []
 
   def commit(self) -> None:
-    to_await = None
+    futures = []
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key)
+      futures.append(self._state_handler.clear(self._state_key))
     if self._added_elements:
-      to_await = self._state_handler.extend(
-          self._state_key, self._value_coder.get_impl(), self._added_elements)
-    if to_await:
-      # To commit, we need to wait on the last state request future to complete.
-      to_await.get()
+      futures.append(
+          self._state_handler.extend(
+              self._state_key,
+              self._value_coder.get_impl(),
+              self._added_elements))
+    _await_state_commit(futures)
 
 
 class SynchronousSetRuntimeState(userstate.SetRuntimeState):
@@ -699,9 +711,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     all_futures = self._futures
     self._futures = []
 
-    for f in all_futures:
-      if f:
-        f.get()
+    _await_state_commit(all_futures)
 
 
 class RangeSet:
@@ -870,10 +880,7 @@ class SynchronousOrderedListRuntimeState(userstate.OrderedListRuntimeState):
               self._state_key, self._elem_coder.get_impl(), items_to_add))
       self._pending_adds = SortedDict()
 
-    if len(futures):
-      # To commit, we need to wait on every state request futures to complete.
-      for to_await in futures:
-        to_await.get()
+    _await_state_commit(futures)
 
     self._cleared = False
 
