@@ -31,6 +31,8 @@ type WindowInto struct {
 	UID UnitID
 	Fn  *window.Fn
 	Out Node
+
+	invoker *window.WindowFnInvoker // non-nil for CustomWindows
 }
 
 // ID returns the UnitID for this unit.
@@ -39,7 +41,18 @@ func (w *WindowInto) ID() UnitID {
 }
 
 func (w *WindowInto) Up(ctx context.Context) error {
+	w.invoker = invokerFor(w.Fn)
 	return nil
+}
+
+// invokerFor returns the invoker for a custom WindowFn, or nil for the
+// built-in kinds. Callers cache the result rather than rebuilding it per
+// element: construction costs a registry lookup and a closure allocation.
+func invokerFor(wfn *window.Fn) *window.WindowFnInvoker {
+	if wfn.Kind != window.CustomWindows {
+		return nil
+	}
+	return window.NewWindowFnInvoker(wfn.CustomFn)
 }
 
 func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataContext) error {
@@ -48,7 +61,7 @@ func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataContex
 
 func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	windowed := &FullValue{
-		Windows:   assignWindows(w.Fn, elm.Timestamp),
+		Windows:   assignWindows(w.Fn, w.invoker, elm.Timestamp, elm.Elm),
 		Timestamp: elm.Timestamp,
 		Elm:       elm.Elm,
 		Elm2:      elm.Elm2,
@@ -57,7 +70,9 @@ func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values 
 	return w.Out.ProcessElement(ctx, windowed, values...)
 }
 
-func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
+// assignWindows assigns windows for ts. inv is the cached invoker for
+// CustomWindows and is unused for the built-in kinds.
+func assignWindows(wfn *window.Fn, inv *window.WindowFnInvoker, ts typex.EventTime, elm any) []typex.Window {
 	switch wfn.Kind {
 	case window.GlobalWindows:
 		return window.SingleGlobalWindow
@@ -81,6 +96,9 @@ func assignWindows(wfn *window.Fn, ts typex.EventTime) []typex.Window {
 		// future.  Overlapping windows (representing elements within Gap of
 		// each other) will be merged.
 		return []typex.Window{window.IntervalWindow{Start: ts, End: ts.Add(wfn.Gap)}}
+
+	case window.CustomWindows:
+		return inv.Invoke(ts, elm)
 
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))
@@ -170,10 +188,15 @@ type WindowMapper interface {
 
 type windowMapper struct {
 	wfn *window.Fn
+	inv *window.WindowFnInvoker // non-nil for CustomWindows
+}
+
+func newWindowMapper(wfn *window.Fn) *windowMapper {
+	return &windowMapper{wfn: wfn, inv: invokerFor(wfn)}
 }
 
 func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
-	candidates := assignWindows(f.wfn, w.MaxTimestamp())
+	candidates := assignWindows(f.wfn, f.inv, w.MaxTimestamp(), nil)
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
 	}

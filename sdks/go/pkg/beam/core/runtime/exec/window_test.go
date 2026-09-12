@@ -113,10 +113,32 @@ func TestAssignWindow(t *testing.T) {
 				window.IntervalWindow{Start: 60000, End: 120000},
 			},
 		},
+		{
+			// Custom window that mimics 3-second fixed windows.
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			0,
+			[]typex.Window{
+				window.IntervalWindow{Start: 0, End: 3000},
+			},
+		},
+		{
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			2999,
+			[]typex.Window{
+				window.IntervalWindow{Start: 0, End: 3000},
+			},
+		},
+		{
+			window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+			3000,
+			[]typex.Window{
+				window.IntervalWindow{Start: 3000, End: 6000},
+			},
+		},
 	}
 
 	for _, test := range tests {
-		out := assignWindows(test.fn, test.in)
+		out := assignWindows(test.fn, invokerFor(test.fn), test.in, nil)
 		if !window.IsEqualList(out, test.out) {
 			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.out)
 		}
@@ -217,6 +239,93 @@ func TestMapWindows(t *testing.T) {
 			}
 		})
 	}
+}
+
+func init() {
+	window.RegisterWindowFn[*fixedCustomWindowFn]()
+	window.RegisterWindowFn[*elemSizedWindowFn]()
+}
+
+// elemSizedWindowFn derives the window size from the element value.
+type elemSizedWindowFn struct{}
+
+func (f *elemSizedWindowFn) AssignWindows(ts typex.EventTime, elem int64) []typex.Window {
+	size := typex.EventTime(elem)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
+}
+
+func BenchmarkAssignWindowsCustom(b *testing.B) {
+	fn := window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000})
+	inv := invokerFor(fn)
+	b.ReportAllocs()
+	for b.Loop() {
+		assignWindows(fn, inv, 1500, nil)
+	}
+}
+
+// TestWindowIntoElementAware checks that an element-aware custom WindowFn
+// receives the element value rather than the enclosing FullValue.
+func TestWindowIntoElementAware(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   typex.EventTime
+		elm  int64
+		want typex.Window
+	}{
+		{"element sets 3s size", 1500, 3000, window.IntervalWindow{Start: 0, End: 3000}},
+		{"element sets 6s size", 1500, 6000, window.IntervalWindow{Start: 0, End: 6000}},
+		{"element selects later window", 4500, 3000, window.IntervalWindow{Start: 3000, End: 6000}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			out := &CaptureNode{UID: 1}
+			wi := &WindowInto{UID: 2, Fn: window.NewCustom(&elemSizedWindowFn{}), Out: out}
+			root := &FixedRoot{UID: 3, Elements: []MainInput{{Key: FullValue{
+				Windows:   window.SingleGlobalWindow,
+				Timestamp: test.ts,
+				Elm:       test.elm,
+			}}}, Out: wi}
+
+			p, err := NewPlan("a", []Unit{root, wi, out})
+			if err != nil {
+				t.Fatalf("failed to construct plan: %v", err)
+			}
+			if err := p.Execute(ctx, "1", DataContext{}); err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if err := p.Down(ctx); err != nil {
+				t.Fatalf("down failed: %v", err)
+			}
+
+			if len(out.Elements) != 1 {
+				t.Fatalf("got %v elements, want 1", len(out.Elements))
+			}
+			if got := out.Elements[0].Windows; !window.IsEqualList(got, []typex.Window{test.want}) {
+				t.Errorf("WindowInto assigned %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+// fixedCustomWindowFn is a test custom WindowFn that mimics fixed windows.
+type fixedCustomWindowFn struct {
+	SizeMs int64
+}
+
+func (f *fixedCustomWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	size := typex.EventTime(f.SizeMs)
+	start := ts - (ts % size)
+	if ts < 0 {
+		// Go's % truncates toward zero, so for negative dividends
+		// ts%size is non-positive and ts-(ts%size) rounds toward
+		// zero instead of toward -inf. The double-mod expression
+		// computes the Euclidean (non-negative) remainder, giving
+		// a correct floor to the window boundary.
+		start = ts - (ts%size+size)%size
+	}
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
 }
 
 func makeNoncedWindowValues(in []typex.Window, expect []typex.Window) ([]MainInput, []FullValue) {
