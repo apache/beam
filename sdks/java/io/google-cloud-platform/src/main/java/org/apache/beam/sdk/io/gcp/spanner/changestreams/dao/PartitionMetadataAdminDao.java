@@ -268,11 +268,11 @@ public class PartitionMetadataAdminDao {
   public void deletePartitionMetadataTable(List<String> indexes) {
     List<String> ddl = new ArrayList<>();
     if (this.isPostgres()) {
-      indexes.forEach(index -> ddl.add("DROP INDEX \"" + index + "\""));
-      ddl.add("DROP TABLE \"" + names.getTableName() + "\"");
+      indexes.forEach(index -> ddl.add("DROP INDEX IF EXISTS \"" + index + "\""));
+      ddl.add("DROP TABLE IF EXISTS \"" + names.getTableName() + "\"");
     } else {
-      indexes.forEach(index -> ddl.add("DROP INDEX " + index));
-      ddl.add("DROP TABLE " + names.getTableName());
+      indexes.forEach(index -> ddl.add("DROP INDEX IF EXISTS " + index));
+      ddl.add("DROP TABLE IF EXISTS " + names.getTableName());
     }
     OperationFuture<Void, UpdateDatabaseDdlMetadata> op =
         databaseAdminClient.updateDatabaseDdl(instanceId, databaseId, ddl, null);
