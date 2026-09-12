@@ -291,7 +291,7 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 		if !ok {
 			return nil, errors.Errorf("custom WindowFn type key %q not found in registry", envelope.Type)
 		}
-		if window.LookupWindowFnMeta(t) == nil {
+		if _, ok := window.LookupWindowFn(t); !ok {
 			return nil, errors.Errorf("type %v is not registered via window.RegisterWindowFn", t)
 		}
 		val := reflect.New(t)
@@ -349,11 +349,11 @@ func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, err
 		if !ok {
 			return nil, errors.Errorf("custom WindowFn type key %q not found in registry", envelope.Type)
 		}
-		meta := window.LookupWindowFnMeta(t)
-		if meta == nil {
+		elems, ok := window.LookupWindowFn(t)
+		if !ok {
 			return nil, errors.Errorf("type %v is not registered via window.RegisterWindowFn", t)
 		}
-		if meta.NeedsElement() {
+		if len(elems) > 0 {
 			return nil, errors.Errorf("element-aware custom WindowFn %v cannot be used for side input window mapping", t)
 		}
 		val := reflect.New(t)

@@ -46,9 +46,80 @@ func (f *elemAwareConcreteWindowFn) AssignWindows(ts typex.EventTime, elem int64
 	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
 }
 
+// kvConcreteWindowFn takes a KV element as concrete key and value types.
+type kvConcreteWindowFn struct{}
+
+func (f *kvConcreteWindowFn) AssignWindows(ts typex.EventTime, k string, v int64) []typex.Window {
+	size := typex.EventTime(v)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
+}
+
+// kvAnyWindowFn takes a KV element as any, reaching the interface fast path.
+type kvAnyWindowFn struct{}
+
+func (f *kvAnyWindowFn) AssignWindows(ts typex.EventTime, k, v any) []typex.Window {
+	size := typex.EventTime(v.(int64))
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
+}
+
 func init() {
 	RegisterWindowFn[*elemAwareAnyWindowFn]()
 	RegisterWindowFn[*elemAwareConcreteWindowFn]()
+	RegisterWindowFn[*kvConcreteWindowFn]()
+	RegisterWindowFn[*kvAnyWindowFn]()
+}
+
+// TestWindowFnInvoker_KV checks that a KV element reaches AssignWindows as a
+// separate key and value, the way a DoFn receives its main input.
+func TestWindowFnInvoker_KV(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   any
+	}{
+		{"concrete key and value", &kvConcreteWindowFn{}},
+		{"key and value as any", &kvAnyWindowFn{}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			inv := NewWindowFnInvoker(tc.fn)
+			if !inv.NeedsElement() {
+				t.Error("NeedsElement() = false, want true")
+			}
+			if !inv.IsKV() {
+				t.Error("IsKV() = false, want true")
+			}
+
+			windows := inv.Invoke(7500, "key", int64(5000))
+			if len(windows) != 1 {
+				t.Fatalf("got %d windows, want 1", len(windows))
+			}
+			want := IntervalWindow{Start: 5000, End: 10000}
+			if !windows[0].Equals(want) {
+				t.Errorf("Invoke(7500, key, 5000) = %v, want %v", windows[0], want)
+			}
+		})
+	}
+}
+
+func TestWindowFnInvoker_IsKV(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   any
+		want bool
+	}{
+		{"timestamp-only", &testWindowFn{BucketSize: 1000}, false},
+		{"single element", &elemAwareConcreteWindowFn{DefaultSizeMs: 1000}, false},
+		{"kv element", &kvConcreteWindowFn{}, true},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := NewWindowFnInvoker(tc.fn).IsKV(); got != tc.want {
+				t.Errorf("IsKV() = %v, want %v", got, tc.want)
+			}
+		})
+	}
 }
 
 func TestWindowFnInvoker_TimestampOnly(t *testing.T) {
@@ -59,7 +130,7 @@ func TestWindowFnInvoker_TimestampOnly(t *testing.T) {
 		t.Fatal("NeedsElement() = true, want false")
 	}
 
-	windows := inv.Invoke(1500, nil)
+	windows := inv.Invoke(1500, nil, nil)
 	if len(windows) != 1 {
 		t.Fatalf("got %d windows, want 1", len(windows))
 	}
@@ -77,7 +148,7 @@ func TestWindowFnInvoker_AnyElem(t *testing.T) {
 		t.Fatal("NeedsElement() = false, want true")
 	}
 
-	windows := inv.Invoke(7500, "ignored")
+	windows := inv.Invoke(7500, "ignored", nil)
 	if len(windows) != 1 {
 		t.Fatalf("got %d windows, want 1", len(windows))
 	}
@@ -96,7 +167,7 @@ func TestWindowFnInvoker_ConcreteElem(t *testing.T) {
 	}
 
 	// Element provides window size of 5000ms.
-	windows := inv.Invoke(7500, int64(5000))
+	windows := inv.Invoke(7500, int64(5000), nil)
 	if len(windows) != 1 {
 		t.Fatalf("got %d windows, want 1", len(windows))
 	}
@@ -106,7 +177,7 @@ func TestWindowFnInvoker_ConcreteElem(t *testing.T) {
 	}
 
 	// Element <= 0: falls back to default.
-	windows = inv.Invoke(1500, int64(0))
+	windows = inv.Invoke(1500, int64(0), nil)
 	if len(windows) != 1 {
 		t.Fatalf("got %d windows, want 1", len(windows))
 	}

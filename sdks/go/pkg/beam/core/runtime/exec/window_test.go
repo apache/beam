@@ -138,7 +138,7 @@ func TestAssignWindow(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		out := assignWindows(test.fn, invokerFor(test.fn), test.in, nil)
+		out := assignWindows(test.fn, invokerFor(test.fn), test.in, nil, nil)
 		if !window.IsEqualList(out, test.out) {
 			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.out)
 		}
@@ -245,6 +245,63 @@ func init() {
 	window.RegisterWindowFn[*fixedCustomWindowFn]()
 	window.RegisterWindowFn[*elemSizedWindowFn]()
 	window.RegisterWindowFn[*multiWindowFn]()
+	window.RegisterWindowFn[*kvSizedWindowFn]()
+}
+
+// kvSizedWindowFn derives the window size from a KV element's value.
+type kvSizedWindowFn struct{}
+
+func (f *kvSizedWindowFn) AssignWindows(ts typex.EventTime, k string, v int64) []typex.Window {
+	size := typex.EventTime(v)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
+}
+
+// TestWindowIntoKV checks that a KV element reaches AssignWindows as a
+// separate key and value rather than the key alone.
+func TestWindowIntoKV(t *testing.T) {
+	tests := []struct {
+		name string
+		ts   typex.EventTime
+		key  string
+		val  int64
+		want typex.Window
+	}{
+		{"value sets 3s size", 1500, "a", 3000, window.IntervalWindow{Start: 0, End: 3000}},
+		{"value sets 6s size", 1500, "b", 6000, window.IntervalWindow{Start: 0, End: 6000}},
+		{"value selects later window", 4500, "c", 3000, window.IntervalWindow{Start: 3000, End: 6000}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			ctx := context.Background()
+			out := &CaptureNode{UID: 1}
+			wi := &WindowInto{UID: 2, Fn: window.NewCustom(&kvSizedWindowFn{}), Out: out}
+			root := &FixedRoot{UID: 3, Elements: []MainInput{{Key: FullValue{
+				Windows:   window.SingleGlobalWindow,
+				Timestamp: test.ts,
+				Elm:       test.key,
+				Elm2:      test.val,
+			}}}, Out: wi}
+
+			p, err := NewPlan("a", []Unit{root, wi, out})
+			if err != nil {
+				t.Fatalf("failed to construct plan: %v", err)
+			}
+			if err := p.Execute(ctx, "1", DataContext{}); err != nil {
+				t.Fatalf("execute failed: %v", err)
+			}
+			if err := p.Down(ctx); err != nil {
+				t.Fatalf("down failed: %v", err)
+			}
+
+			if len(out.Elements) != 1 {
+				t.Fatalf("got %v elements, want 1", len(out.Elements))
+			}
+			if got := out.Elements[0].Windows; !window.IsEqualList(got, []typex.Window{test.want}) {
+				t.Errorf("WindowInto assigned %v, want %v", got, test.want)
+			}
+		})
+	}
 }
 
 // multiWindowFn assigns every timestamp to two windows, earliest first.
@@ -314,7 +371,7 @@ func BenchmarkAssignWindowsCustom(b *testing.B) {
 	inv := invokerFor(fn)
 	b.ReportAllocs()
 	for b.Loop() {
-		assignWindows(fn, inv, 1500, nil)
+		assignWindows(fn, inv, 1500, nil, nil)
 	}
 }
 

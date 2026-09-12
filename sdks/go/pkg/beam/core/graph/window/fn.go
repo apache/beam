@@ -71,7 +71,7 @@ func NewCustom(fn any) *Fn {
 	if t.Kind() == reflect.Pointer {
 		st = t.Elem()
 	}
-	if LookupWindowFnMeta(st) == nil {
+	if _, ok := LookupWindowFn(st); !ok {
 		panic(fmt.Sprintf("window.NewCustom: type %v is not registered; call window.RegisterWindowFn during init()", t))
 	}
 	return &Fn{Kind: CustomWindows, CustomFn: fn}
@@ -98,10 +98,8 @@ func (w *Fn) NeedsElement() bool {
 	if t.Kind() == reflect.Pointer {
 		t = t.Elem()
 	}
-	if meta := LookupWindowFnMeta(t); meta != nil {
-		return meta.NeedsElement()
-	}
-	return false
+	elems, _ := LookupWindowFn(t)
+	return len(elems) > 0
 }
 
 // TODO(herohde) 4/17/2018: do we need to expose the window type as well?

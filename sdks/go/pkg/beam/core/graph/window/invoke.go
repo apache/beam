@@ -27,26 +27,34 @@ type tsOnlyAssigner interface {
 	AssignWindows(typex.EventTime) []typex.Window
 }
 
-// anyElemAssigner is the fast-path interface for element-aware WindowFns
-// whose element parameter is typed as any (interface{}).
+// anyElemAssigner is the fast-path interface for element-aware WindowFns whose
+// element parameter is typed as any.
 type anyElemAssigner interface {
 	AssignWindows(typex.EventTime, any) []typex.Window
 }
 
-// WindowFnInvoker wraps a custom WindowFn instance and dispatches
-// AssignWindows calls through one of three paths, chosen once at
-// construction:
-//
-//  1. Type-assert to tsOnlyAssigner — zero allocation.
-//  2. Type-assert to anyElemAssigner — zero allocation.
-//  3. reflect.Value.Method.Call — small per-call allocation.
-type WindowFnInvoker struct {
-	call         func(typex.EventTime, any) []typex.Window
-	needsElement bool
+// anyKVAssigner is the fast-path interface for KV-aware WindowFns whose key and
+// value parameters are both typed as any.
+type anyKVAssigner interface {
+	AssignWindows(typex.EventTime, any, any) []typex.Window
 }
 
-// NewWindowFnInvoker builds an invoker for fn. The concrete type of fn
-// must have been previously registered via RegisterWindowFn.
+// WindowFnInvoker wraps a custom WindowFn instance and dispatches AssignWindows
+// through a path chosen once at construction: a typed interface assertion where
+// the signature permits one, otherwise reflect.Value.Call, which costs a small
+// per-call allocation.
+//
+// Element parameters follow the convention the DoFn invoker uses for main
+// input: a KV element arrives as a key and a value, anything else as a single
+// element.
+type WindowFnInvoker struct {
+	call         func(ts typex.EventTime, elm, elm2 any) []typex.Window
+	needsElement bool
+	isKV         bool
+}
+
+// NewWindowFnInvoker builds an invoker for fn. The concrete type of fn must
+// have been previously registered via RegisterWindowFn.
 // Panics if fn's type is not registered.
 func NewWindowFnInvoker(fn any) *WindowFnInvoker {
 	t := reflect.TypeOf(fn)
@@ -58,60 +66,77 @@ func NewWindowFnInvoker(fn any) *WindowFnInvoker {
 		structType = t.Elem()
 	}
 
-	meta := LookupWindowFnMeta(structType)
-	if meta == nil {
+	elems, ok := LookupWindowFn(structType)
+	if !ok {
 		panic(fmt.Sprintf("window.NewWindowFnInvoker: type %v is not registered; call window.RegisterWindowFn during init()", t))
 	}
 
-	inv := &WindowFnInvoker{needsElement: meta.NeedsElement()}
+	inv := &WindowFnInvoker{needsElement: len(elems) > 0, isKV: len(elems) > 1}
 
-	if !meta.NeedsElement() {
-		// Fast path 1: timestamp-only.
+	switch len(elems) {
+	case 0:
 		if a, ok := fn.(tsOnlyAssigner); ok {
-			inv.call = func(ts typex.EventTime, _ any) []typex.Window {
+			inv.call = func(ts typex.EventTime, _, _ any) []typex.Window {
 				return a.AssignWindows(ts)
 			}
 			return inv
 		}
-		// Unreachable for well-typed registrations, but fall through to reflect.
-	} else {
-		// Fast path 2: element typed as any.
+	case 1:
 		if a, ok := fn.(anyElemAssigner); ok {
-			inv.call = func(ts typex.EventTime, elem any) []typex.Window {
-				return a.AssignWindows(ts, elem)
+			inv.call = func(ts typex.EventTime, elm, _ any) []typex.Window {
+				return a.AssignWindows(ts, elm)
+			}
+			return inv
+		}
+	default:
+		if a, ok := fn.(anyKVAssigner); ok {
+			inv.call = func(ts typex.EventTime, elm, elm2 any) []typex.Window {
+				return a.AssignWindows(ts, elm, elm2)
 			}
 			return inv
 		}
 	}
 
-	// Slow path 3: concrete element type — use reflect.
-	rv := reflect.ValueOf(fn)
-	m := rv.MethodByName("AssignWindows")
+	// Concrete element types cannot be reached through an interface assertion.
+	m := reflect.ValueOf(fn).MethodByName("AssignWindows")
 	if !m.IsValid() {
 		panic(fmt.Sprintf("window.NewWindowFnInvoker: %v has no AssignWindows method", t))
 	}
 
-	if !meta.NeedsElement() {
-		inv.call = func(ts typex.EventTime, _ any) []typex.Window {
+	switch len(elems) {
+	case 0:
+		inv.call = func(ts typex.EventTime, _, _ any) []typex.Window {
 			out := m.Call([]reflect.Value{reflect.ValueOf(ts)})
 			return out[0].Interface().([]typex.Window)
 		}
-	} else {
-		inv.call = func(ts typex.EventTime, elem any) []typex.Window {
-			out := m.Call([]reflect.Value{reflect.ValueOf(ts), reflect.ValueOf(elem)})
+	case 1:
+		inv.call = func(ts typex.EventTime, elm, _ any) []typex.Window {
+			out := m.Call([]reflect.Value{reflect.ValueOf(ts), reflect.ValueOf(elm)})
+			return out[0].Interface().([]typex.Window)
+		}
+	default:
+		inv.call = func(ts typex.EventTime, elm, elm2 any) []typex.Window {
+			out := m.Call([]reflect.Value{reflect.ValueOf(ts), reflect.ValueOf(elm), reflect.ValueOf(elm2)})
 			return out[0].Interface().([]typex.Window)
 		}
 	}
 	return inv
 }
 
-// Invoke calls AssignWindows on the underlying WindowFn.
-// If the WindowFn is timestamp-only, elem is ignored.
-func (inv *WindowFnInvoker) Invoke(ts typex.EventTime, elem any) []typex.Window {
-	return inv.call(ts, elem)
+// Invoke calls AssignWindows on the underlying WindowFn. Signatures that do not
+// take element parameters ignore elm and elm2; elm2 carries the value of a KV
+// element.
+func (inv *WindowFnInvoker) Invoke(ts typex.EventTime, elm, elm2 any) []typex.Window {
+	return inv.call(ts, elm, elm2)
 }
 
 // NeedsElement reports whether the underlying WindowFn accepts an element.
 func (inv *WindowFnInvoker) NeedsElement() bool {
 	return inv.needsElement
+}
+
+// IsKV reports whether the underlying WindowFn takes a KV element as a
+// separate key and value.
+func (inv *WindowFnInvoker) IsKV() bool {
+	return inv.isKV
 }

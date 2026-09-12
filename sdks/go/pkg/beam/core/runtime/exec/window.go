@@ -61,7 +61,7 @@ func (w *WindowInto) StartBundle(ctx context.Context, id string, data DataContex
 
 func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values ...ReStream) error {
 	windowed := &FullValue{
-		Windows:   assignWindows(w.Fn, w.invoker, elm.Timestamp, elm.Elm),
+		Windows:   assignWindows(w.Fn, w.invoker, elm.Timestamp, elm.Elm, elm.Elm2),
 		Timestamp: elm.Timestamp,
 		Elm:       elm.Elm,
 		Elm2:      elm.Elm2,
@@ -72,7 +72,7 @@ func (w *WindowInto) ProcessElement(ctx context.Context, elm *FullValue, values 
 
 // assignWindows assigns windows for ts. inv is the cached invoker for
 // CustomWindows and is unused for the built-in kinds.
-func assignWindows(wfn *window.Fn, inv *window.WindowFnInvoker, ts typex.EventTime, elm any) []typex.Window {
+func assignWindows(wfn *window.Fn, inv *window.WindowFnInvoker, ts typex.EventTime, elm, elm2 any) []typex.Window {
 	switch wfn.Kind {
 	case window.GlobalWindows:
 		return window.SingleGlobalWindow
@@ -98,7 +98,7 @@ func assignWindows(wfn *window.Fn, inv *window.WindowFnInvoker, ts typex.EventTi
 		return []typex.Window{window.IntervalWindow{Start: ts, End: ts.Add(wfn.Gap)}}
 
 	case window.CustomWindows:
-		return inv.Invoke(ts, elm)
+		return inv.Invoke(ts, elm, elm2)
 
 	default:
 		panic(fmt.Sprintf("Unexpected window fn: %v", wfn))
@@ -196,7 +196,7 @@ func newWindowMapper(wfn *window.Fn) *windowMapper {
 }
 
 func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
-	candidates := assignWindows(f.wfn, f.inv, w.MaxTimestamp(), nil)
+	candidates := assignWindows(f.wfn, f.inv, w.MaxTimestamp(), nil, nil)
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
 	}

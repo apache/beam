@@ -24,32 +24,24 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
-// windowFnMeta holds validated metadata about a registered custom WindowFn type.
-type windowFnMeta struct {
-	// Type is the struct type (with pointer stripped), e.g. myWindowFn.
-	Type reflect.Type
-	// ElemType is the concrete element parameter type, or nil for
-	// timestamp-only signatures.
-	ElemType reflect.Type
-}
-
-// NeedsElement reports whether this WindowFn signature accepts an element.
-func (m *windowFnMeta) NeedsElement() bool {
-	return m.ElemType != nil
-}
-
+// windowFnRegistry maps the struct type of a registered custom WindowFn, with
+// the pointer stripped, to the element parameter types of its AssignWindows
+// method. Presence in the map rather than the value is what says a type is
+// registered.
 var (
 	windowFnRegistryMu sync.RWMutex
-	windowFnRegistry   = map[reflect.Type]*windowFnMeta{}
+	windowFnRegistry   = map[reflect.Type][]reflect.Type{}
 )
 
-// LookupWindowFnMeta returns the validated metadata for a registered custom
-// WindowFn type. The key is the struct type (pointer stripped).
-// Returns nil if not registered.
-func LookupWindowFnMeta(t reflect.Type) *windowFnMeta {
+// LookupWindowFn reports whether t is a registered custom WindowFn struct type
+// and returns the element parameter types of its AssignWindows method. elems is
+// empty for a timestamp-only signature, holds one type for a single element,
+// and two for a KV element taken as a key and a value.
+func LookupWindowFn(t reflect.Type) (elems []reflect.Type, ok bool) {
 	windowFnRegistryMu.RLock()
 	defer windowFnRegistryMu.RUnlock()
-	return windowFnRegistry[t]
+	elems, ok = windowFnRegistry[t]
+	return elems, ok
 }
 
 var (
@@ -66,6 +58,10 @@ var (
 //
 //	func (f *MyFn) AssignWindows(ts typex.EventTime) []typex.Window
 //	func (f *MyFn) AssignWindows(ts typex.EventTime, elem T) []typex.Window
+//	func (f *MyFn) AssignWindows(ts typex.EventTime, k K, v V) []typex.Window
+//
+// The element parameters mirror how a DoFn receives its main input: a KV
+// PCollection arrives as two parameters, anything else as one.
 //
 // RegisterWindowFn panics if the type is invalid or already registered.
 //
@@ -91,7 +87,7 @@ func RegisterWindowFn[T any]() {
 		panic(fmt.Sprintf("window.RegisterWindowFn: %v has no AssignWindows method", t))
 	}
 
-	meta := validateAssignWindows(t, m)
+	elems := validateAssignWindows(t, m)
 
 	windowFnRegistryMu.Lock()
 	defer windowFnRegistryMu.Unlock()
@@ -99,49 +95,37 @@ func RegisterWindowFn[T any]() {
 	if _, dup := windowFnRegistry[structType]; dup {
 		panic(fmt.Sprintf("window.RegisterWindowFn: %v is already registered", t))
 	}
-	windowFnRegistry[structType] = meta
+	windowFnRegistry[structType] = elems
 
 	runtime.RegisterType(reflect.TypeOf(v))
 }
 
 // validateAssignWindows checks that the method has a valid signature and
-// returns the corresponding metadata.
-func validateAssignWindows(ptrType reflect.Type, m reflect.Method) *windowFnMeta {
+// returns its element parameter types, empty if it takes only a timestamp.
+func validateAssignWindows(ptrType reflect.Type, m reflect.Method) []reflect.Type {
+	// The method type counts the receiver, so NumIn is one more than the
+	// parameter list the user wrote: 2, 3 and 4 are the accepted shapes.
 	mt := m.Type
-	// Method type includes the receiver as first param.
-	// Valid shapes:
-	//   (receiver, typex.EventTime) -> []typex.Window                   numIn=2
-	//   (receiver, typex.EventTime, elemType) -> []typex.Window         numIn=3
 
 	if mt.NumOut() != 1 || mt.Out(0) != windowSliceType {
 		panic(fmt.Sprintf(
 			"window.RegisterWindowFn: %v.AssignWindows must return []typex.Window, got %v",
 			ptrType, mt))
 	}
-
-	switch mt.NumIn() {
-	case 2:
-		// (receiver, typex.EventTime)
-		if mt.In(1) != eventTimeType {
-			panic(fmt.Sprintf(
-				"window.RegisterWindowFn: %v.AssignWindows first param must be typex.EventTime, got %v",
-				ptrType, mt.In(1)))
-		}
-		return &windowFnMeta{Type: ptrType.Elem(), ElemType: nil}
-
-	case 3:
-		// (receiver, typex.EventTime, elemType)
-		if mt.In(1) != eventTimeType {
-			panic(fmt.Sprintf(
-				"window.RegisterWindowFn: %v.AssignWindows first param must be typex.EventTime, got %v",
-				ptrType, mt.In(1)))
-		}
-		elemType := mt.In(2)
-		return &windowFnMeta{Type: ptrType.Elem(), ElemType: elemType}
-
-	default:
+	if mt.NumIn() < 2 || mt.NumIn() > 4 {
 		panic(fmt.Sprintf(
-			"window.RegisterWindowFn: %v.AssignWindows must take (typex.EventTime) or (typex.EventTime, T), got %d params (excluding receiver)",
+			"window.RegisterWindowFn: %v.AssignWindows must take (typex.EventTime), (typex.EventTime, T) or (typex.EventTime, K, V), got %d params (excluding receiver)",
 			ptrType, mt.NumIn()-1))
 	}
+	if mt.In(1) != eventTimeType {
+		panic(fmt.Sprintf(
+			"window.RegisterWindowFn: %v.AssignWindows first param must be typex.EventTime, got %v",
+			ptrType, mt.In(1)))
+	}
+
+	var elems []reflect.Type
+	for i := 2; i < mt.NumIn(); i++ {
+		elems = append(elems, mt.In(i))
+	}
+	return elems
 }
