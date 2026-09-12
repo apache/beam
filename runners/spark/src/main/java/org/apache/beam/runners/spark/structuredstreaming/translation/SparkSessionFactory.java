@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -90,6 +91,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.execution.datasources.v2.DataWritingSparkTaskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 public class SparkSessionFactory {
 
@@ -113,15 +115,47 @@ public class SparkSessionFactory {
           "/com.esotericsoftware/kryo-shaded",
           "/com/esotericsoftware/kryo-shaded");
 
+  // Users per session created here, guarded by the class lock.
+  private static final Map<SparkSession, Integer> OWNED_SESSIONS = new HashMap<>();
+
   /**
-   * Gets active {@link SparkSession} or creates one using {@link
-   * SparkStructuredStreamingPipelineOptions}.
+   * Returns the {@link SparkSession} for a pipeline, pair with {@link #release}. Without {@code
+   * useActiveSparkSession} the session is created here unless a usable one exists, only sessions
+   * created here are stopped on release.
    */
-  public static SparkSession getOrCreateSession(SparkStructuredStreamingPipelineOptions options) {
+  public static synchronized SparkSession acquire(SparkStructuredStreamingPipelineOptions options) {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
-    return sessionBuilder(options.getSparkMaster(), options).getOrCreate();
+    // Spark 3 also returns stopped sessions.
+    boolean noUsableSession =
+        !isUsable(SparkSession.getActiveSession()) && !isUsable(SparkSession.getDefaultSession());
+    SparkSession session = sessionBuilder(options.getSparkMaster(), options).getOrCreate();
+    if (noUsableSession) {
+      OWNED_SESSIONS.put(session, 1);
+    } else {
+      OWNED_SESSIONS.computeIfPresent(session, (unused, count) -> count + 1);
+    }
+    return session;
+  }
+
+  /** Releases a session from {@link #acquire}, stops it when it was created here and unused. */
+  public static synchronized void release(SparkSession session) {
+    Integer count = OWNED_SESSIONS.get(session);
+    if (count == null) {
+      return;
+    }
+    if (count > 1) {
+      OWNED_SESSIONS.put(session, count - 1);
+      return;
+    }
+    OWNED_SESSIONS.remove(session);
+    LOG.info("Stopping SparkSession created by the runner");
+    session.stop();
+  }
+
+  private static boolean isUsable(Option<SparkSession> session) {
+    return session.isDefined() && !session.get().sparkContext().isStopped();
   }
 
   /** Creates Spark session builder with some optimizations for local mode, e.g. in tests. */

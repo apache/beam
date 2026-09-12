@@ -52,6 +52,7 @@ public class EvaluationContext {
 
   private final Collection<? extends NamedDataset<?>> leaves;
   private final SparkSession session;
+  private volatile boolean stopped = false;
 
   protected EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
     this.leaves = leaves;
@@ -63,9 +64,13 @@ public class EvaluationContext {
     return leaves;
   }
 
-  /** Trigger evaluation of all leaf datasets. */
+  /** Trigger evaluation of all leaf datasets. Returns early once {@link #stop()} was called. */
   public void evaluate() {
     for (NamedDataset<?> ds : leaves) {
+      if (stopped) {
+        LOG.info("Evaluation stopped, skipping remaining datasets");
+        return;
+      }
       final Dataset<?> dataset = ds.dataset();
       if (dataset == null) {
         continue;
@@ -119,11 +124,12 @@ public class EvaluationContext {
   }
 
   /**
-   * Stops any ongoing streaming execution triggered by this context.
-   *
-   * <p>This is a no-op for batch pipelines.
+   * Stops the evaluation after the current leaf dataset. Streaming contexts override this to stop
+   * their queries.
    */
-  public void stop() {}
+  public void stop() {
+    stopped = true;
+  }
 
   public SparkSession getSparkSession() {
     return session;

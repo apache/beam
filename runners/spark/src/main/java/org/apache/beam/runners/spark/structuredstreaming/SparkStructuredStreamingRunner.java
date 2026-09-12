@@ -17,12 +17,13 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
-import javax.annotation.Nullable;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.core.metrics.NoOpMetricsSink;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.sql.SparkSession;
@@ -145,27 +147,59 @@ public final class SparkStructuredStreamingRunner
 
     PipelineTranslator.detectStreamingMode(pipeline, options);
 
-    final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
-    final MetricsAccumulator metrics = MetricsAccumulator.getInstance(sparkSession);
+    final boolean releaseSession = !options.getUseActiveSparkSession();
+    final SparkSession sparkSession = SparkSessionFactory.acquire(options);
+    final SparkContext sc = sparkSession.sparkContext();
+    final MetricsAccumulator metrics;
+    try {
+      metrics = MetricsAccumulator.getInstance(sparkSession);
+    } catch (RuntimeException e) {
+      if (releaseSession) {
+        SparkSessionFactory.release(sparkSession);
+      }
+      throw e;
+    }
 
-    // Set once the pipeline is translated, so the result can stop an ongoing (streaming)
-    // evaluation on cancel. Remains null until translation completes.
+    // Null until translation completes.
     final AtomicReference<EvaluationContext> ctxRef = new AtomicReference<>();
+    final AtomicBoolean cancelRequested = new AtomicBoolean(false);
+
+    final String jobName = options.getJobName();
+    final String jobGroupId = "beam-" + jobName + "-" + UUID.randomUUID();
+    final Runnable cancelSparkJobs =
+        () -> {
+          try {
+            if (!sc.isStopped()) {
+              sc.cancelJobGroup(jobGroupId);
+            }
+          } catch (IllegalStateException e) {
+            // Context stopped concurrently.
+          }
+        };
 
     final Future<?> submissionFuture =
         runAsync(
             () -> {
-              EvaluationContext ctx = translatePipeline(sparkSession, pipeline);
-              ctxRef.set(ctx);
-              ctx.evaluate();
+              try {
+                sc.setJobGroup(jobGroupId, "Beam " + jobName, true);
+                EvaluationContext ctx = translatePipeline(sparkSession, pipeline);
+                ctxRef.set(ctx);
+                if (!cancelRequested.get()) {
+                  ctx.evaluate();
+                }
+              } finally {
+                if (!sc.isStopped()) {
+                  sc.clearJobGroup();
+                }
+                if (releaseSession) {
+                  SparkSessionFactory.release(sparkSession);
+                }
+              }
             });
 
     final SparkStructuredStreamingPipelineResult result =
         new SparkStructuredStreamingPipelineResult(
-            submissionFuture,
-            ctxRef::get,
-            metrics,
-            sparkStopFn(sparkSession, options.getUseActiveSparkSession()));
+            submissionFuture, ctxRef::get, metrics, cancelRequested, cancelSparkJobs);
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName(), metrics);
@@ -227,9 +261,5 @@ public final class SparkStructuredStreamingRunner
     Future<?> future = execService.submit(task);
     execService.shutdown();
     return future;
-  }
-
-  private static @Nullable Runnable sparkStopFn(SparkSession session, boolean isProvided) {
-    return !isProvided ? () -> session.stop() : null;
   }
 }
