@@ -43,7 +43,6 @@ import org.apache.beam.sdk.transforms.splittabledofn.GrowableOffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.ManualWatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker;
-import org.apache.beam.sdk.transforms.splittabledofn.RestrictionTracker.HasProgress;
 import org.apache.beam.sdk.transforms.splittabledofn.UnsplittableRestrictionTracker;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimator;
 import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators.MonotonicallyIncreasing;
@@ -552,7 +551,8 @@ abstract class ReadFromKafkaDoFn<K, V>
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
-            updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+            updateWatermarkManually(
+                timestampPolicy, watermarkEstimator, expectedOffset, latestOffsetEstimator.get());
           }
           return ProcessContinuation.resume();
         }
@@ -595,7 +595,11 @@ abstract class ReadFromKafkaDoFn<K, V>
               // WatermarkEstimator should be a manual one.
               if (timestampPolicy != null) {
                 TimestampPolicyContext context =
-                    updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+                    updateWatermarkManually(
+                        timestampPolicy,
+                        watermarkEstimator,
+                        expectedOffset,
+                        latestOffsetEstimator.get());
                 outputTimestamp = timestampPolicy.getTimestampForRecord(context, kafkaRecord);
               } else {
                 Preconditions.checkStateNotNull(this.extractOutputTimestampFn);
@@ -614,7 +618,11 @@ abstract class ReadFromKafkaDoFn<K, V>
                   e,
                   "Failure deserializing Key or Value of Kakfa record reading from Kafka");
               if (timestampPolicy != null) {
-                updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+                updateWatermarkManually(
+                    timestampPolicy,
+                    watermarkEstimator,
+                    expectedOffset,
+                    latestOffsetEstimator.get());
               }
             }
           }
@@ -635,7 +643,8 @@ abstract class ReadFromKafkaDoFn<K, V>
             return ProcessContinuation.stop();
           }
           if (timestampPolicy != null) {
-            updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+            updateWatermarkManually(
+                timestampPolicy, watermarkEstimator, expectedOffset, latestOffsetEstimator.get());
           }
         }
 
@@ -653,7 +662,8 @@ abstract class ReadFromKafkaDoFn<K, V>
       }
 
       if (timestampPolicy != null) {
-        updateWatermarkManually(timestampPolicy, watermarkEstimator, tracker);
+        updateWatermarkManually(
+            timestampPolicy, watermarkEstimator, expectedOffset, latestOffsetEstimator.get());
       }
 
       return ProcessContinuation.resume();
@@ -672,11 +682,18 @@ abstract class ReadFromKafkaDoFn<K, V>
   private TimestampPolicyContext updateWatermarkManually(
       TimestampPolicy<K, V> timestampPolicy,
       WatermarkEstimator<Instant> watermarkEstimator,
-      RestrictionTracker<OffsetRange, Long> tracker) {
+      long nextOffset,
+      long estimatedEndOffset) {
     checkState(watermarkEstimator instanceof ManualWatermarkEstimator);
+    // Both offsets are exclusive: nextOffset is the offset that will be fetched next and
+    // estimatedEndOffset is the most recent estimate of the end offset of the partition. Their
+    // difference is the number of messages left to read, which reaches zero once the partition is
+    // fully consumed. Timestamp policies such as CustomTimestampPolicyWithLimitedDelay and
+    // TimestampPolicyFactory.LogAppendTimePolicy only advance the watermark of an idle partition
+    // when the backlog is exactly zero, so an inclusive offset here would pin their watermarks.
     TimestampPolicyContext context =
         new TimestampPolicyContext(
-            (long) ((HasProgress) tracker).getProgress().getWorkRemaining(), Instant.now());
+            Math.max(estimatedEndOffset, nextOffset) - nextOffset, Instant.now());
     ((ManualWatermarkEstimator<Instant>) watermarkEstimator)
         .setWatermark(ensureTimestampWithinBounds(timestampPolicy.getWatermark(context)));
     return context;

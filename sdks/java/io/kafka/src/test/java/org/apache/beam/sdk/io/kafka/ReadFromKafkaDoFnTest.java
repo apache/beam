@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.DistributionCell;
@@ -57,6 +58,8 @@ import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.errorhandling.BadRecord;
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler.DefaultErrorHandler;
 import org.apache.beam.sdk.transforms.splittabledofn.OffsetRangeTracker;
+import org.apache.beam.sdk.transforms.splittabledofn.WatermarkEstimators;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -79,6 +82,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.internals.RecordHeaders;
+import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.checkerframework.checker.initialization.qual.Initialized;
@@ -97,6 +101,12 @@ public class ReadFromKafkaDoFnTest {
 
   private static final TupleTag<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> RECORDS =
       new TupleTag<>();
+
+  /** A fixed, positive record timestamp far enough in the past to let an idle watermark advance. */
+  private static final Instant IDLE_RECORD_TIMESTAMP = new Instant(1_600_000_000_000L);
+
+  private static final org.joda.time.Duration IDLE_MAX_DELAY =
+      org.joda.time.Duration.standardMinutes(1);
 
   @Rule public ExpectedException thrown = ExpectedException.none();
 
@@ -336,6 +346,97 @@ public class ReadFromKafkaDoFnTest {
     public synchronized void seek(TopicPartition partition, long offset) {}
   }
 
+  /**
+   * A mock consumer which returns a single batch of {@code CREATE_TIME} records on its first poll
+   * and reports empty polls afterwards. Unlike {@link SimpleMockKafkaConsumer} it advances the
+   * consumer position as records are returned, so that {@link MockConsumer#currentLag} reports the
+   * lag implied by the end offset configured for the partition.
+   */
+  private static class IdlingMockKafkaConsumer extends MockConsumer<byte[], byte[]> {
+
+    private final TopicPartition topicPartition;
+    private final long numOfRecordsToReturn;
+    private final Instant recordTimestamp;
+    private long position = 0L;
+    private boolean polled = false;
+
+    IdlingMockKafkaConsumer(
+        TopicPartition topicPartition,
+        long numOfRecordsToReturn,
+        long remainingBacklog,
+        Instant recordTimestamp) {
+      super(OffsetResetStrategy.NONE);
+      this.topicPartition = topicPartition;
+      this.numOfRecordsToReturn = numOfRecordsToReturn;
+      this.recordTimestamp = recordTimestamp;
+      updateBeginningOffsets(ImmutableMap.of(topicPartition, 0L));
+      updateEndOffsets(ImmutableMap.of(topicPartition, numOfRecordsToReturn + remainingBacklog));
+    }
+
+    @Override
+    public synchronized List<PartitionInfo> partitionsFor(String topic) {
+      return ImmutableList.of(
+          new PartitionInfo(topicPartition.topic(), topicPartition.partition(), null, null, null));
+    }
+
+    @Override
+    public synchronized void seek(TopicPartition partition, long offset) {
+      this.position = offset;
+      super.seek(partition, offset);
+    }
+
+    @Override
+    public synchronized long position(TopicPartition partition) {
+      return this.position;
+    }
+
+    @Override
+    public synchronized ConsumerRecords<byte[], byte[]> poll(Duration timeout) {
+      if (polled) {
+        return ConsumerRecords.empty();
+      }
+      polled = true;
+      List<ConsumerRecord<byte[], byte[]>> records = new ArrayList<>();
+      for (long offset = position; offset < numOfRecordsToReturn; offset++) {
+        records.add(
+            new ConsumerRecord<>(
+                topicPartition.topic(),
+                topicPartition.partition(),
+                offset,
+                recordTimestamp.getMillis(),
+                TimestampType.CREATE_TIME,
+                ConsumerRecord.NULL_SIZE,
+                ConsumerRecord.NULL_SIZE,
+                "key".getBytes(StandardCharsets.UTF_8),
+                "value".getBytes(StandardCharsets.UTF_8),
+                new RecordHeaders(),
+                Optional.empty()));
+      }
+      if (records.isEmpty()) {
+        return ConsumerRecords.empty();
+      }
+      this.position = numOfRecordsToReturn;
+      return new ConsumerRecords<>(ImmutableMap.of(topicPartition, records));
+    }
+  }
+
+  private static class BacklogRecordingTimestampPolicy extends TimestampPolicy<String, String> {
+
+    private final List<Long> observedBacklogs = new ArrayList<>();
+
+    @Override
+    public Instant getTimestampForRecord(
+        PartitionContext context, KafkaRecord<String, String> record) {
+      return new Instant(record.getTimestamp());
+    }
+
+    @Override
+    public Instant getWatermark(PartitionContext context) {
+      observedBacklogs.add(context.getMessageBacklog());
+      return BoundedWindow.TIMESTAMP_MIN_VALUE;
+    }
+  }
+
   private static class MockMultiOutputReceiver implements MultiOutputReceiver {
 
     TestOutputReceiver<KV<KafkaSourceDescriptor, KafkaRecord<String, String>>> mockOutputReceiver =
@@ -551,6 +652,83 @@ public class ReadFromKafkaDoFnTest {
             receiver);
     assertEquals(ProcessContinuation.resume(), result);
     assertTrue(receiver.getGoodRecords().isEmpty());
+  }
+
+  @Test
+  public void testMessageBacklogReachesZeroWhenPartitionIsCaughtUp() throws Exception {
+    assertEquals(ImmutableList.of(2L, 1L, 0L, 0L), observeMessageBacklog(3L, 0L));
+  }
+
+  @Test
+  public void testMessageBacklogExcludesRecordsAlreadyRead() throws Exception {
+    assertEquals(ImmutableList.of(7L, 6L, 5L, 5L), observeMessageBacklog(3L, 5L));
+  }
+
+  private List<Long> observeMessageBacklog(long numOfRecords, long remainingBacklog)
+      throws Exception {
+    final BacklogRecordingTimestampPolicy timestampPolicy = new BacklogRecordingTimestampPolicy();
+    final ReadFromKafkaDoFn<String, String> dofn =
+        makeIdlingDoFn(numOfRecords, remainingBacklog, (tp, previousWatermark) -> timestampPolicy);
+    final KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
+
+    final ProcessContinuation result =
+        dofn.processElement(
+            descriptor,
+            dofn.restrictionTracker(descriptor, new OffsetRange(0L, Long.MAX_VALUE)),
+            new WatermarkEstimators.Manual(BoundedWindow.TIMESTAMP_MIN_VALUE),
+            new MockMultiOutputReceiver());
+
+    assertEquals(ProcessContinuation.resume(), result);
+    return timestampPolicy.observedBacklogs;
+  }
+
+  @Test
+  public void testWatermarkAdvancesForIdleCaughtUpPartition() throws Exception {
+    // The partition is fully consumed, so CustomTimestampPolicyWithLimitedDelay takes its idle
+    // branch and advances the watermark past the timestamp of the last record read.
+    assertTrue(observeIdleWatermark(0L).isAfter(IDLE_RECORD_TIMESTAMP));
+  }
+
+  @Test
+  public void testWatermarkDoesNotAdvanceForIdlePartitionWithBacklog() throws Exception {
+    // Records are still outstanding, so the watermark stays behind the last record read.
+    assertEquals(IDLE_RECORD_TIMESTAMP.minus(IDLE_MAX_DELAY), observeIdleWatermark(5L));
+  }
+
+  private Instant observeIdleWatermark(long remainingBacklog) throws Exception {
+    final ReadFromKafkaDoFn<String, String> dofn =
+        makeIdlingDoFn(3L, remainingBacklog, TimestampPolicyFactory.withCreateTime(IDLE_MAX_DELAY));
+    final KafkaSourceDescriptor descriptor =
+        KafkaSourceDescriptor.of(topicPartition, null, null, null, null, null);
+    final WatermarkEstimators.Manual watermarkEstimator =
+        new WatermarkEstimators.Manual(BoundedWindow.TIMESTAMP_MIN_VALUE);
+
+    final ProcessContinuation result =
+        dofn.processElement(
+            descriptor,
+            dofn.restrictionTracker(descriptor, new OffsetRange(0L, Long.MAX_VALUE)),
+            watermarkEstimator,
+            new MockMultiOutputReceiver());
+
+    assertEquals(ProcessContinuation.resume(), result);
+    return watermarkEstimator.currentWatermark();
+  }
+
+  private ReadFromKafkaDoFn<String, String> makeIdlingDoFn(
+      long numOfRecords,
+      long remainingBacklog,
+      TimestampPolicyFactory<String, String> timestampPolicyFactory)
+      throws Exception {
+    final ReadFromKafkaDoFn<String, String> dofn =
+        ReadFromKafkaDoFn.create(
+            makeReadSourceDescriptor(
+                    new IdlingMockKafkaConsumer(
+                        topicPartition, numOfRecords, remainingBacklog, IDLE_RECORD_TIMESTAMP))
+                .withTimestampPolicyFactory(timestampPolicyFactory),
+            RECORDS);
+    dofn.setup();
+    return dofn;
   }
 
   @Test
