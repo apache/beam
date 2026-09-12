@@ -6,6 +6,6 @@
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false,
+  "committerAssigned": true,
   "reviewersAssignedAt": 1789176044047
 }
