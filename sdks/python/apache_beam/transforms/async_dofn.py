@@ -212,9 +212,9 @@ class AsyncWrapper(beam.DoFn):
     self._sync_fn.teardown()
 
   def sync_fn_process(self, element, *args, **kwargs):
-    """Makes the call to the wrapped dofn's start_bundle, process
+    """Calls the wrapped dofn's start_bundle, process and finish_bundle methods.
 
-    methods.  It will then combine the results into a single generator.
+    Collects process outputs before finishing the bundle.
 
     Args:
       element: The element to process.
@@ -225,31 +225,21 @@ class AsyncWrapper(beam.DoFn):
         called with.
 
     Returns:
-      A generator of elements produced by the input element.
+      A list of elements produced by the input element.
     """
+    def _collect(result):
+      if result is None:
+        return []
+      if isinstance(result, Iterable) and not isinstance(result, (str, bytes)):
+        return list(result)
+      return [result]
+
     self._sync_fn.start_bundle()
-    process_result = self._sync_fn.process(element, *args, **kwargs)
-    bundle_result = self._sync_fn.finish_bundle()
-
-    # both process and finish bundle may or may not return generators. We want
-    # to combine whatever results have been returned into a single generator. If
-    # they are single elements then wrap them in lists so that we can combine
-    # them.
-    if not process_result:
-      process_result = []
-    elif not isinstance(process_result, GeneratorType):
-      process_result = [process_result]
-    if not bundle_result:
-      bundle_result = []
-    elif not isinstance(bundle_result, GeneratorType):
-      bundle_result = [bundle_result]
-
-    to_return = []
-    for x in process_result:
-      to_return.append(x)
-    for x in bundle_result:
-      to_return.append(x)
-    return to_return
+    # Exhaust lazy process outputs before finish_bundle flushes or closes any
+    # resources used by the process iterator.
+    process_result = _collect(self._sync_fn.process(element, *args, **kwargs))
+    bundle_result = _collect(self._sync_fn.finish_bundle())
+    return process_result + bundle_result
 
   async def async_fn_process(self, element, *args, **kwargs):
     """Makes the call to the wrapped dofn's start_bundle, process
