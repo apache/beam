@@ -83,7 +83,7 @@ func TestWindowFnInvoker_KV(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			inv := NewWindowFnInvoker(tc.fn)
+			inv := mustInvoker(t, tc.fn)
 			if !inv.NeedsElement() {
 				t.Error("NeedsElement() = false, want true")
 			}
@@ -115,7 +115,7 @@ func TestWindowFnInvoker_IsKV(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			if got := NewWindowFnInvoker(tc.fn).IsKV(); got != tc.want {
+			if got := mustInvoker(t, tc.fn).IsKV(); got != tc.want {
 				t.Errorf("IsKV() = %v, want %v", got, tc.want)
 			}
 		})
@@ -124,7 +124,7 @@ func TestWindowFnInvoker_IsKV(t *testing.T) {
 
 func TestWindowFnInvoker_TimestampOnly(t *testing.T) {
 	fn := &testWindowFn{BucketSize: 3000}
-	inv := NewWindowFnInvoker(fn)
+	inv := mustInvoker(t, fn)
 
 	if inv.NeedsElement() {
 		t.Fatal("NeedsElement() = true, want false")
@@ -142,7 +142,7 @@ func TestWindowFnInvoker_TimestampOnly(t *testing.T) {
 
 func TestWindowFnInvoker_AnyElem(t *testing.T) {
 	fn := &elemAwareAnyWindowFn{SizeMs: 5000}
-	inv := NewWindowFnInvoker(fn)
+	inv := mustInvoker(t, fn)
 
 	if !inv.NeedsElement() {
 		t.Fatal("NeedsElement() = false, want true")
@@ -160,7 +160,7 @@ func TestWindowFnInvoker_AnyElem(t *testing.T) {
 
 func TestWindowFnInvoker_ConcreteElem(t *testing.T) {
 	fn := &elemAwareConcreteWindowFn{DefaultSizeMs: 1000}
-	inv := NewWindowFnInvoker(fn)
+	inv := mustInvoker(t, fn)
 
 	if !inv.NeedsElement() {
 		t.Fatal("NeedsElement() = false, want true")
@@ -199,7 +199,7 @@ func TestWindowFnInvoker_NeedsElementCorrectness(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			inv := NewWindowFnInvoker(tc.fn)
+			inv := mustInvoker(t, tc.fn)
 			if got := inv.NeedsElement(); got != tc.want {
 				t.Errorf("NeedsElement() = %v, want %v", got, tc.want)
 			}
@@ -207,12 +207,24 @@ func TestWindowFnInvoker_NeedsElementCorrectness(t *testing.T) {
 	}
 }
 
-func TestWindowFnInvoker_PanicOnUnregistered(t *testing.T) {
+func TestWindowFnInvoker_ErrorOnUnregistered(t *testing.T) {
 	type unregisteredFn struct{}
-	defer func() {
-		if r := recover(); r == nil {
-			t.Error("NewWindowFnInvoker did not panic on unregistered type")
-		}
-	}()
-	NewWindowFnInvoker(&unregisteredFn{})
+	if _, err := NewWindowFnInvoker(&unregisteredFn{}); err == nil {
+		t.Error("NewWindowFnInvoker succeeded on an unregistered type, want error")
+	}
+}
+
+func TestWindowFnInvoker_ErrorOnNil(t *testing.T) {
+	if _, err := NewWindowFnInvoker(nil); err == nil {
+		t.Error("NewWindowFnInvoker(nil) succeeded, want error")
+	}
+}
+
+func mustInvoker(t *testing.T, fn any) *WindowFnInvoker {
+	t.Helper()
+	inv, err := NewWindowFnInvoker(fn)
+	if err != nil {
+		t.Fatalf("NewWindowFnInvoker(%T) failed: %v", fn, err)
+	}
+	return inv
 }

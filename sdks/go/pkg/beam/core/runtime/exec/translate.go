@@ -308,7 +308,7 @@ func unmarshalWindowFn(wfn *pipepb.FunctionSpec) (*window.Fn, error) {
 func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, error) {
 	switch urn := wmfn.GetUrn(); urn {
 	case graphx.URNWindowMappingGlobal:
-		return newWindowMapper(window.NewGlobalWindows()), nil
+		return newWindowMapper(window.NewGlobalWindows())
 	case graphx.URNWindowMappingFixed:
 		var payload pipepb.FixedWindowsPayload
 		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
@@ -319,7 +319,7 @@ func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, err
 			return nil, err
 		}
 		size := sizePB.AsDuration()
-		return newWindowMapper(window.NewFixedWindows(size)), nil
+		return newWindowMapper(window.NewFixedWindows(size))
 	case graphx.URNWindowMappingSliding:
 		var payload pipepb.SlidingWindowsPayload
 		if err := proto.Unmarshal(wmfn.GetPayload(), &payload); err != nil {
@@ -336,7 +336,7 @@ func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, err
 			return nil, err
 		}
 		size := sizePB.AsDuration()
-		return newWindowMapper(window.NewSlidingWindows(period, size)), nil
+		return newWindowMapper(window.NewSlidingWindows(period, size))
 	case graphx.URNWindowMappingCustom:
 		var envelope struct {
 			Type    string          `json:"type"`
@@ -360,7 +360,7 @@ func unmarshalAndMakeWindowMapping(wmfn *pipepb.FunctionSpec) (WindowMapper, err
 		if err := jsonx.Unmarshal(val.Interface(), envelope.Payload); err != nil {
 			return nil, errors.Wrapf(err, "unmarshaling custom WindowFn %v for window mapping", t)
 		}
-		return newWindowMapper(window.NewCustom(val.Interface())), nil
+		return newWindowMapper(window.NewCustom(val.Interface()))
 	default:
 		return nil, fmt.Errorf("unsupported window mapping fn URN %v", urn)
 	}

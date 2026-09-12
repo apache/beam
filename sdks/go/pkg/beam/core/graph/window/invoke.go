@@ -16,10 +16,10 @@
 package window
 
 import (
-	"fmt"
 	"reflect"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 )
 
 // tsOnlyAssigner is the fast-path interface for timestamp-only custom WindowFns.
@@ -55,11 +55,10 @@ type WindowFnInvoker struct {
 
 // NewWindowFnInvoker builds an invoker for fn. The concrete type of fn must
 // have been previously registered via RegisterWindowFn.
-// Panics if fn's type is not registered.
-func NewWindowFnInvoker(fn any) *WindowFnInvoker {
+func NewWindowFnInvoker(fn any) (*WindowFnInvoker, error) {
 	t := reflect.TypeOf(fn)
 	if t == nil {
-		panic("window.NewWindowFnInvoker: fn must not be nil")
+		return nil, errors.New("window.NewWindowFnInvoker: fn must not be nil")
 	}
 	structType := t
 	if t.Kind() == reflect.Pointer {
@@ -68,7 +67,7 @@ func NewWindowFnInvoker(fn any) *WindowFnInvoker {
 
 	elems, ok := LookupWindowFn(structType)
 	if !ok {
-		panic(fmt.Sprintf("window.NewWindowFnInvoker: type %v is not registered; call window.RegisterWindowFn during init()", t))
+		return nil, errors.Errorf("window.NewWindowFnInvoker: type %v is not registered; call window.RegisterWindowFn during init()", t)
 	}
 
 	inv := &WindowFnInvoker{needsElement: len(elems) > 0, isKV: len(elems) > 1}
@@ -79,28 +78,28 @@ func NewWindowFnInvoker(fn any) *WindowFnInvoker {
 			inv.call = func(ts typex.EventTime, _, _ any) []typex.Window {
 				return a.AssignWindows(ts)
 			}
-			return inv
+			return inv, nil
 		}
 	case 1:
 		if a, ok := fn.(anyElemAssigner); ok {
 			inv.call = func(ts typex.EventTime, elm, _ any) []typex.Window {
 				return a.AssignWindows(ts, elm)
 			}
-			return inv
+			return inv, nil
 		}
 	default:
 		if a, ok := fn.(anyKVAssigner); ok {
 			inv.call = func(ts typex.EventTime, elm, elm2 any) []typex.Window {
 				return a.AssignWindows(ts, elm, elm2)
 			}
-			return inv
+			return inv, nil
 		}
 	}
 
 	// Concrete element types cannot be reached through an interface assertion.
 	m := reflect.ValueOf(fn).MethodByName("AssignWindows")
 	if !m.IsValid() {
-		panic(fmt.Sprintf("window.NewWindowFnInvoker: %v has no AssignWindows method", t))
+		return nil, errors.Errorf("window.NewWindowFnInvoker: %v has no AssignWindows method", t)
 	}
 
 	switch len(elems) {
@@ -120,7 +119,7 @@ func NewWindowFnInvoker(fn any) *WindowFnInvoker {
 			return out[0].Interface().([]typex.Window)
 		}
 	}
-	return inv
+	return inv, nil
 }
 
 // Invoke calls AssignWindows on the underlying WindowFn. Signatures that do not

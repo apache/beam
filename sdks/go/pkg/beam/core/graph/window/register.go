@@ -63,7 +63,8 @@ var (
 // The element parameters mirror how a DoFn receives its main input: a KV
 // PCollection arrives as two parameters, anything else as one.
 //
-// RegisterWindowFn panics if the type is invalid or already registered.
+// RegisterWindowFn panics if the type is invalid. Registering the same type
+// more than once is allowed.
 //
 // Example:
 //
@@ -92,9 +93,8 @@ func RegisterWindowFn[T any]() {
 	windowFnRegistryMu.Lock()
 	defer windowFnRegistryMu.Unlock()
 
-	if _, dup := windowFnRegistry[structType]; dup {
-		panic(fmt.Sprintf("window.RegisterWindowFn: %v is already registered", t))
-	}
+	// Re-registering a type is harmless: the element types are derived from its
+	// AssignWindows method, so the value cannot differ.
 	windowFnRegistry[structType] = elems
 
 	runtime.RegisterType(reflect.TypeOf(v))

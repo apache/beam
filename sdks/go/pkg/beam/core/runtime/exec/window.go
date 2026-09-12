@@ -41,16 +41,17 @@ func (w *WindowInto) ID() UnitID {
 }
 
 func (w *WindowInto) Up(ctx context.Context) error {
-	w.invoker = invokerFor(w.Fn)
-	return nil
+	var err error
+	w.invoker, err = invokerFor(w.Fn)
+	return err
 }
 
 // invokerFor returns the invoker for a custom WindowFn, or nil for the
 // built-in kinds. Callers cache the result rather than rebuilding it per
 // element: construction costs a registry lookup and a closure allocation.
-func invokerFor(wfn *window.Fn) *window.WindowFnInvoker {
+func invokerFor(wfn *window.Fn) (*window.WindowFnInvoker, error) {
 	if wfn.Kind != window.CustomWindows {
-		return nil
+		return nil, nil
 	}
 	return window.NewWindowFnInvoker(wfn.CustomFn)
 }
@@ -191,8 +192,12 @@ type windowMapper struct {
 	inv *window.WindowFnInvoker // non-nil for CustomWindows
 }
 
-func newWindowMapper(wfn *window.Fn) *windowMapper {
-	return &windowMapper{wfn: wfn, inv: invokerFor(wfn)}
+func newWindowMapper(wfn *window.Fn) (*windowMapper, error) {
+	inv, err := invokerFor(wfn)
+	if err != nil {
+		return nil, err
+	}
+	return &windowMapper{wfn: wfn, inv: inv}, nil
 }
 
 func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {

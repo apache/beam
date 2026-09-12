@@ -138,7 +138,7 @@ func TestAssignWindow(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		out := assignWindows(test.fn, invokerFor(test.fn), test.in, nil, nil)
+		out := assignWindows(test.fn, mustInvokerFor(t, test.fn), test.in, nil, nil)
 		if !window.IsEqualList(out, test.out) {
 			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.out)
 		}
@@ -184,7 +184,7 @@ func TestMapWindow(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		mapper := newWindowMapper(test.wfn)
+		mapper := mustWindowMapper(t, test.wfn)
 		outputWin, err := mapper.MapWindow(test.in)
 		if err != nil {
 			t.Fatalf("MapWindow for test %v failed, got %v", test.name, err)
@@ -220,7 +220,7 @@ func TestMapWindows(t *testing.T) {
 			inV, expected := makeNoncedWindowValues(tc.in, tc.expect)
 
 			out := &CaptureNode{UID: 1}
-			unit := &MapWindows{UID: 2, Fn: newWindowMapper(tc.wFn), Out: out}
+			unit := &MapWindows{UID: 2, Fn: mustWindowMapper(t, tc.wFn), Out: out}
 			a := &FixedRoot{UID: 3, Elements: inV, Out: unit}
 
 			p, err := NewPlan(tc.name, []Unit{a, unit, out})
@@ -340,7 +340,7 @@ func TestMapWindowCustom(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := newWindowMapper(tc.wfn).MapWindow(tc.in)
+			got, err := mustWindowMapper(t, tc.wfn).MapWindow(tc.in)
 			if tc.wantErr {
 				if err == nil {
 					t.Fatalf("MapWindow(%v) = %v, want error", tc.in, got)
@@ -368,7 +368,10 @@ func (f *elemSizedWindowFn) AssignWindows(ts typex.EventTime, elem int64) []type
 
 func BenchmarkAssignWindowsCustom(b *testing.B) {
 	fn := window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000})
-	inv := invokerFor(fn)
+	inv, err := invokerFor(fn)
+	if err != nil {
+		b.Fatalf("invokerFor(%v) failed: %v", fn, err)
+	}
 	b.ReportAllocs()
 	for b.Loop() {
 		assignWindows(fn, inv, 1500, nil, nil)
@@ -452,4 +455,22 @@ func makeNoncedWindowValues(in []typex.Window, expect []typex.Window) ([]MainInp
 		expectV[i] = makeKV(nonce, expect[i])[0]
 	}
 	return inV, expectV
+}
+
+func mustInvokerFor(t *testing.T, wfn *window.Fn) *window.WindowFnInvoker {
+	t.Helper()
+	inv, err := invokerFor(wfn)
+	if err != nil {
+		t.Fatalf("invokerFor(%v) failed: %v", wfn, err)
+	}
+	return inv
+}
+
+func mustWindowMapper(t *testing.T, wfn *window.Fn) *windowMapper {
+	t.Helper()
+	m, err := newWindowMapper(wfn)
+	if err != nil {
+		t.Fatalf("newWindowMapper(%v) failed: %v", wfn, err)
+	}
+	return m
 }

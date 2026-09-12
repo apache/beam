@@ -102,9 +102,12 @@ func TestRegisterWindowFn(t *testing.T) {
 			wantPanic: true,
 		},
 		{
-			name:      "already registered",
-			register:  RegisterWindowFn[*regTsOnly],
-			wantPanic: true,
+			// Matches runtime.RegisterFunction and runtime.RegisterType, which
+			// both tolerate registering the same thing twice.
+			name:       "already registered",
+			register:   RegisterWindowFn[*regTsOnly],
+			structType: reflect.TypeFor[regTsOnly](),
+			wantElems:  nil,
 		},
 	}
 	for _, tc := range tests {
