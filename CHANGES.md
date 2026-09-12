@@ -75,6 +75,7 @@
   ([#38139](https://github.com/apache/beam/issues/38139)).
 * (Python) Added type alias for with_exception_handling to be used for typehints. ([#38173](https://github.com/apache/beam/issues/38173)).
 * Added plugin mechanism to support different Lineage implementations (Java) ([#36790](https://github.com/apache/beam/issues/36790)).
+* (Go) Added support for custom WindowFns ([#20627](https://github.com/apache/beam/issues/20627)).
 
 ## Breaking Changes
 

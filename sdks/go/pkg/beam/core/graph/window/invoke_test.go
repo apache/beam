@@ -21,18 +21,20 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
 )
 
-// elemAwareAnyWindowFn accepts an element typed as any — fast path 2.
+// elemAwareAnyWindowFn accepts an element typed as any, so the invoker can
+// reach it through an interface assertion.
 type elemAwareAnyWindowFn struct {
 	SizeMs int64
 }
 
 func (f *elemAwareAnyWindowFn) AssignWindows(ts typex.EventTime, _ any) []typex.Window {
 	size := typex.EventTime(f.SizeMs)
-	start := ts - (ts % size)
+	start := ts - ((ts%size)+size)%size
 	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
 }
 
-// elemAwareConcreteWindowFn accepts a concrete element type — reflect path.
+// elemAwareConcreteWindowFn accepts a concrete element type, so the invoker
+// has to dispatch through reflect.
 type elemAwareConcreteWindowFn struct {
 	DefaultSizeMs int64
 }
@@ -42,7 +44,7 @@ func (f *elemAwareConcreteWindowFn) AssignWindows(ts typex.EventTime, elem int64
 	if size <= 0 {
 		size = typex.EventTime(f.DefaultSizeMs)
 	}
-	start := ts - (ts % size)
+	start := ts - ((ts%size)+size)%size
 	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
 }
 
@@ -84,12 +86,6 @@ func TestWindowFnInvoker_KV(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			inv := mustInvoker(t, tc.fn)
-			if !inv.NeedsElement() {
-				t.Error("NeedsElement() = false, want true")
-			}
-			if !inv.IsKV() {
-				t.Error("IsKV() = false, want true")
-			}
 
 			windows := inv.Invoke(7500, "key", int64(5000))
 			if len(windows) != 1 {
@@ -103,32 +99,9 @@ func TestWindowFnInvoker_KV(t *testing.T) {
 	}
 }
 
-func TestWindowFnInvoker_IsKV(t *testing.T) {
-	tests := []struct {
-		name string
-		fn   any
-		want bool
-	}{
-		{"timestamp-only", &testWindowFn{BucketSize: 1000}, false},
-		{"single element", &elemAwareConcreteWindowFn{DefaultSizeMs: 1000}, false},
-		{"kv element", &kvConcreteWindowFn{}, true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			if got := mustInvoker(t, tc.fn).IsKV(); got != tc.want {
-				t.Errorf("IsKV() = %v, want %v", got, tc.want)
-			}
-		})
-	}
-}
-
 func TestWindowFnInvoker_TimestampOnly(t *testing.T) {
 	fn := &testWindowFn{BucketSize: 3000}
 	inv := mustInvoker(t, fn)
-
-	if inv.NeedsElement() {
-		t.Fatal("NeedsElement() = true, want false")
-	}
 
 	windows := inv.Invoke(1500, nil, nil)
 	if len(windows) != 1 {
@@ -144,10 +117,6 @@ func TestWindowFnInvoker_AnyElem(t *testing.T) {
 	fn := &elemAwareAnyWindowFn{SizeMs: 5000}
 	inv := mustInvoker(t, fn)
 
-	if !inv.NeedsElement() {
-		t.Fatal("NeedsElement() = false, want true")
-	}
-
 	windows := inv.Invoke(7500, "ignored", nil)
 	if len(windows) != 1 {
 		t.Fatalf("got %d windows, want 1", len(windows))
@@ -161,10 +130,6 @@ func TestWindowFnInvoker_AnyElem(t *testing.T) {
 func TestWindowFnInvoker_ConcreteElem(t *testing.T) {
 	fn := &elemAwareConcreteWindowFn{DefaultSizeMs: 1000}
 	inv := mustInvoker(t, fn)
-
-	if !inv.NeedsElement() {
-		t.Fatal("NeedsElement() = false, want true")
-	}
 
 	// Element provides window size of 5000ms.
 	windows := inv.Invoke(7500, int64(5000), nil)
@@ -184,26 +149,6 @@ func TestWindowFnInvoker_ConcreteElem(t *testing.T) {
 	want = IntervalWindow{Start: 1000, End: 2000}
 	if !windows[0].Equals(want) {
 		t.Errorf("Invoke(1500, 0) = %v, want %v", windows[0], want)
-	}
-}
-
-func TestWindowFnInvoker_NeedsElementCorrectness(t *testing.T) {
-	tests := []struct {
-		name string
-		fn   any
-		want bool
-	}{
-		{"timestamp-only", &testWindowFn{BucketSize: 1000}, false},
-		{"any-elem", &elemAwareAnyWindowFn{SizeMs: 1000}, true},
-		{"concrete-elem", &elemAwareConcreteWindowFn{DefaultSizeMs: 1000}, true},
-	}
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			inv := mustInvoker(t, tc.fn)
-			if got := inv.NeedsElement(); got != tc.want {
-				t.Errorf("NeedsElement() = %v, want %v", got, tc.want)
-			}
-		})
 	}
 }
 

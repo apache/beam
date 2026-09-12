@@ -211,7 +211,7 @@ func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
 	// PartitioningWindowFn, which assigns to exactly one window, so require
 	// that of custom WindowFns rather than picking one arbitrarily.
 	if f.wfn.Kind == window.CustomWindows && len(candidates) != 1 {
-		return nil, fmt.Errorf("custom WindowFn %v assigned %v windows to the side input window for %v; side input mapping requires exactly one", f.wfn.String(), len(candidates), w)
+		return nil, errors.Errorf("custom WindowFn %v assigned %v windows to the side input window for %v; side input mapping requires exactly one", f.wfn.String(), len(candidates), w)
 	}
 	// Return earliest candidate window in terms of event time (only relevant for sliding windows)
 	// Sliding windows append the latest window first in assignWindows.

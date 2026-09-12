@@ -30,9 +30,9 @@ import (
 // correct windows for a given timestamp.
 func TestAssignWindow(t *testing.T) {
 	tests := []struct {
-		fn  *window.Fn
-		in  typex.EventTime
-		out []typex.Window
+		fn   *window.Fn
+		in   typex.EventTime
+		want []typex.Window
 	}{
 		{
 			window.NewGlobalWindows(),
@@ -139,18 +139,18 @@ func TestAssignWindow(t *testing.T) {
 
 	for _, test := range tests {
 		out := assignWindows(test.fn, mustInvokerFor(t, test.fn), test.in, nil, nil)
-		if !window.IsEqualList(out, test.out) {
-			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.out)
+		if !window.IsEqualList(out, test.want) {
+			t.Errorf("assignWindows(%v, %v) = %v, want %v", test.fn, test.in, out, test.want)
 		}
 	}
 }
 
 func TestMapWindow(t *testing.T) {
 	tests := []struct {
-		name     string
-		wfn      *window.Fn
-		in       typex.Window
-		expected typex.Window
+		name string
+		wfn  *window.Fn
+		in   typex.Window
+		want typex.Window
 	}{
 		{
 			"interval to global",
@@ -189,18 +189,18 @@ func TestMapWindow(t *testing.T) {
 		if err != nil {
 			t.Fatalf("MapWindow for test %v failed, got %v", test.name, err)
 		}
-		if !outputWin.Equals(test.expected) {
-			t.Errorf("test %v failed: expected window %v, got %v", test.name, test.expected, outputWin)
+		if !outputWin.Equals(test.want) {
+			t.Errorf("test %v failed: got window %v, want %v", test.name, outputWin, test.want)
 		}
 	}
 }
 
 func TestMapWindows(t *testing.T) {
 	tests := []struct {
-		name   string
-		wFn    *window.Fn
-		in     []typex.Window
-		expect []typex.Window
+		name string
+		wFn  *window.Fn
+		in   []typex.Window
+		want []typex.Window
 	}{
 		{
 			"fixed2fixed",
@@ -217,7 +217,7 @@ func TestMapWindows(t *testing.T) {
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			inV, expected := makeNoncedWindowValues(tc.in, tc.expect)
+			inV, wantFVs := makeNoncedWindowValues(tc.in, tc.want)
 
 			out := &CaptureNode{UID: 1}
 			unit := &MapWindows{UID: 2, Fn: mustWindowMapper(t, tc.wFn), Out: out}
@@ -234,8 +234,8 @@ func TestMapWindows(t *testing.T) {
 			if err := p.Down(ctx); err != nil {
 				t.Fatalf("down failed: %s", err)
 			}
-			if !equalList(out.Elements, expected) {
-				t.Errorf("map_windows returned %v, want %v", extractValues(out.Elements...), extractValues(expected...))
+			if !equalList(out.Elements, wantFVs) {
+				t.Errorf("map_windows returned %v, want %v", extractValues(out.Elements...), extractValues(wantFVs...))
 			}
 		})
 	}
@@ -373,7 +373,7 @@ func BenchmarkAssignWindowsCustom(b *testing.B) {
 		b.Fatalf("invokerFor(%v) failed: %v", fn, err)
 	}
 	b.ReportAllocs()
-	for b.Loop() {
+	for i := 0; i < b.N; i++ {
 		assignWindows(fn, inv, 1500, nil, nil)
 	}
 }
@@ -430,15 +430,8 @@ type fixedCustomWindowFn struct {
 
 func (f *fixedCustomWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
 	size := typex.EventTime(f.SizeMs)
-	start := ts - (ts % size)
-	if ts < 0 {
-		// Go's % truncates toward zero, so for negative dividends
-		// ts%size is non-positive and ts-(ts%size) rounds toward
-		// zero instead of toward -inf. The double-mod expression
-		// computes the Euclidean (non-negative) remainder, giving
-		// a correct floor to the window boundary.
-		start = ts - (ts%size+size)%size
-	}
+	// Euclidean remainder; correct floor for negative ts.
+	start := ts - ((ts%size)+size)%size
 	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
 }
 

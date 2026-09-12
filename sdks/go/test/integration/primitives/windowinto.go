@@ -45,6 +45,8 @@ func init() {
 	register.DoFn2x0[[]byte, func(beam.EventTime, elemWithSize)](&createElemAwareData{})
 	register.Emitter2[beam.EventTime, elemWithSize]()
 	register.Function1x1(extractValue)
+
+	beam.RegisterType(reflect.TypeOf((*elemWithSize)(nil)).Elem())
 }
 
 // createTimestampedData produces data timestamped with the ordinal.
@@ -432,9 +434,9 @@ type customFixedWindowFn struct {
 
 func (f *customFixedWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
 	size := typex.EventTime(f.SizeMs)
-	start := ts - (ts.Add(time.Duration(f.SizeMs)*time.Millisecond) % mtime.FromDuration(time.Duration(f.SizeMs)*time.Millisecond))
-	end := start + size
-	return []typex.Window{window.IntervalWindow{Start: start, End: end}}
+	// Euclidean remainder, so the floor is correct for negative ts too.
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
 }
 
 // ValidateCustomWindowedSideInputs checks that side inputs windowed with
@@ -479,10 +481,6 @@ type elemWithSize struct {
 	SizeMs int64
 }
 
-func init() {
-	beam.RegisterType(reflect.TypeOf((*elemWithSize)(nil)).Elem())
-}
-
 // elemAwareWindowFn uses the element's SizeMs field to determine the
 // window size, demonstrating data-driven window assignment.
 type elemAwareWindowFn struct{}
@@ -492,7 +490,7 @@ func (f *elemAwareWindowFn) AssignWindows(ts typex.EventTime, elem elemWithSize)
 	if size <= 0 {
 		size = 1000 // fallback: 1s
 	}
-	start := ts - (ts % size)
+	start := ts - ((ts%size)+size)%size
 	return []typex.Window{window.IntervalWindow{Start: start, End: start + size}}
 }
 

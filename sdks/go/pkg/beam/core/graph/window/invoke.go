@@ -48,9 +48,7 @@ type anyKVAssigner interface {
 // input: a KV element arrives as a key and a value, anything else as a single
 // element.
 type WindowFnInvoker struct {
-	call         func(ts typex.EventTime, elm, elm2 any) []typex.Window
-	needsElement bool
-	isKV         bool
+	call func(ts typex.EventTime, elm, elm2 any) []typex.Window
 }
 
 // NewWindowFnInvoker builds an invoker for fn. The concrete type of fn must
@@ -70,7 +68,7 @@ func NewWindowFnInvoker(fn any) (*WindowFnInvoker, error) {
 		return nil, errors.Errorf("window.NewWindowFnInvoker: type %v is not registered; call window.RegisterWindowFn during init()", t)
 	}
 
-	inv := &WindowFnInvoker{needsElement: len(elems) > 0, isKV: len(elems) > 1}
+	inv := &WindowFnInvoker{}
 
 	switch len(elems) {
 	case 0:
@@ -127,15 +125,4 @@ func NewWindowFnInvoker(fn any) (*WindowFnInvoker, error) {
 // element.
 func (inv *WindowFnInvoker) Invoke(ts typex.EventTime, elm, elm2 any) []typex.Window {
 	return inv.call(ts, elm, elm2)
-}
-
-// NeedsElement reports whether the underlying WindowFn accepts an element.
-func (inv *WindowFnInvoker) NeedsElement() bool {
-	return inv.needsElement
-}
-
-// IsKV reports whether the underlying WindowFn takes a KV element as a
-// separate key and value.
-func (inv *WindowFnInvoker) IsKV() bool {
-	return inv.isKV
 }
