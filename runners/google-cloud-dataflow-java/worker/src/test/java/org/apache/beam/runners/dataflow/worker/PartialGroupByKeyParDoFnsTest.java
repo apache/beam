@@ -238,7 +238,7 @@ public class PartialGroupByKeyParDoFnsTest {
                 new CoderSizeEstimator(WindowedValues.getValueOnlyCoder(keyCoder)),
                 new CoderSizeEstimator(valueCoder)),
             receiver,
-            mockSideInputFetcher);
+            () -> mockSideInputFetcher);
 
     Set<BoundedWindow> readyWindows = ImmutableSet.<BoundedWindow>of(GlobalWindow.INSTANCE);
     when(mockSideInputFetcher.getReadyWindows()).thenReturn(readyWindows);
