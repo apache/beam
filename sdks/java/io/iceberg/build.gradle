@@ -213,6 +213,7 @@ task dataflowIntegrationTest(type: Test) {
     ]
     if (project.hasProperty('enableManagedTransforms')) {
         args.add("--experiments=enable_managed_transforms")
+        args.add("--updateCompatibilityVersion=2.75.0")
     }
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(args)
 
