@@ -262,11 +262,14 @@ class ApproximateUniqueCombineFn(CombineFn):
     except Exception as e:
       raise RuntimeError("Runtime exception: %s" % e)
 
-  # created an issue https://github.com/apache/beam/issues/19459 to speed up
-  # merge process.
   def merge_accumulators(self, accumulators, *args, **kwargs):
-    merged_accumulator = self.create_accumulator()
-    for accumulator in accumulators:
+    accumulator_iter = iter(accumulators)
+    try:
+      merged_accumulator = next(accumulator_iter)
+    except StopIteration:
+      return self.create_accumulator()
+
+    for accumulator in accumulator_iter:
       for i in accumulator._sample_heap:
         merged_accumulator.add(i)
 
