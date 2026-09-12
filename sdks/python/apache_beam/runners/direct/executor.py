@@ -27,10 +27,7 @@ import threading
 import traceback
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
-from typing import FrozenSet
 from typing import Optional
-from typing import Set
 from weakref import WeakValueDictionary
 
 from apache_beam.metrics.execution import MetricsContainer
@@ -145,7 +142,7 @@ class _ExecutorService(object):
 
 
 class _TransformEvaluationState(object):
-  def __init__(self, executor_service, scheduled: Set['TransformExecutor']):
+  def __init__(self, executor_service, scheduled: set['TransformExecutor']):
     self.executor_service = executor_service
     self.scheduled = scheduled
 
@@ -212,7 +209,7 @@ class _TransformExecutorServices(object):
   """
   def __init__(self, executor_service: _ExecutorService) -> None:
     self._executor_service = executor_service
-    self._scheduled: Set[TransformExecutor] = set()
+    self._scheduled: set[TransformExecutor] = set()
     self._parallel = _ParallelEvaluationState(
         self._executor_service, self._scheduled)
     self._serial_cache: WeakValueDictionary[
@@ -229,7 +226,7 @@ class _TransformExecutorServices(object):
     return cached
 
   @property
-  def executors(self) -> FrozenSet['TransformExecutor']:
+  def executors(self) -> frozenset['TransformExecutor']:
     return frozenset(self._scheduled)
 
 
@@ -305,7 +302,7 @@ class TransformExecutor(_ExecutorService.CallableTask):
     self._applied_ptransform = applied_ptransform
     self._completion_callback = completion_callback
     self._transform_evaluation_state = transform_evaluation_state
-    self._side_input_values: Dict[pvalue.AsSideInput, Any] = {}
+    self._side_input_values: dict[pvalue.AsSideInput, Any] = {}
     self.blocked = False
     self._call_count = 0
     self._retry_count = 0

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import org.apache.beam.sdk.lineage.LineageBase;
 import org.apache.beam.sdk.lineage.LineageOptions;
 import org.apache.beam.sdk.metrics.Metrics.MetricsFlag;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -121,17 +123,33 @@ public class Lineage {
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Every reporter writes into the same metric cell, so all callers need the one shared instance. A copy would drop the lineage it records.")
   public static Lineage getSources() {
-    return checkNotNull(
-        sources,
-        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
+    Lineage localSources = sources;
+    if (localSources == null) {
+      return createDefaultLineage(LineageDirection.SOURCE);
+    }
+    return localSources;
   }
 
   /** {@link Lineage} representing sinks. */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Every reporter writes into the same metric cell, so all callers need the one shared instance. A copy would drop the lineage it records.")
   public static Lineage getSinks() {
-    return checkNotNull(
-        sinks,
-        "Lineage not initialized. FileSystems.setDefaultPipelineOptions must be called first.");
+    Lineage localSinks = sinks;
+    if (localSinks == null) {
+      return createDefaultLineage(LineageDirection.SINK);
+    }
+    return localSinks;
+  }
+
+  private static Lineage createDefaultLineage(LineageDirection direction) {
+    return createLineage(PipelineOptionsFactory.create(), direction);
   }
 
   @VisibleForTesting
@@ -309,7 +327,9 @@ public class Lineage {
     return result;
   }
 
-  /** @return {@link MetricQueryResults} containing lineage metrics. */
+  /**
+   * @return {@link MetricQueryResults} containing lineage metrics.
+   */
   private static MetricQueryResults getLineageQueryResults(MetricResults results, Type type) {
     MetricsFilter filter =
         MetricsFilter.builder()

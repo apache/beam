@@ -23,7 +23,7 @@
 
   <requiredProperties>
     <requiredProperty key="targetPlatform">
-      <defaultValue>1.8</defaultValue>
+      <defaultValue>11</defaultValue>
     </requiredProperty>
   </requiredProperties>
 

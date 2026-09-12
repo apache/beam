@@ -25,6 +25,7 @@ that derived pipelines can link back to the parent user pipeline.
 """
 
 import shutil
+import threading
 from typing import Iterator
 from typing import Optional
 
@@ -39,13 +40,16 @@ class UserPipelineTracker:
   derived pipelines.
   """
   def __init__(self):
+    self._lock = threading.RLock()
     self._user_pipelines: dict[beam.Pipeline, list[beam.Pipeline]] = {}
-    self._derived_pipelines: dict[beam.Pipeline] = {}
-    self._pid_to_pipelines: dict[beam.Pipeline] = {}
+    self._derived_pipelines: dict[beam.Pipeline, beam.Pipeline] = {}
+    self._pid_to_pipelines: dict[str, beam.Pipeline] = {}
 
   def __iter__(self) -> Iterator[beam.Pipeline]:
     """Iterates through all the user pipelines."""
-    for p in self._user_pipelines:
+    with self._lock:
+      pipelines = list(self._user_pipelines.keys())
+    for p in pipelines:
       yield p
 
   def _key(self, pipeline: beam.Pipeline) -> str:
@@ -57,45 +61,57 @@ class UserPipelineTracker:
     Removes the given pipeline and derived pipelines if a user pipeline.
     Otherwise, removes the given derived pipeline.
     """
-    user_pipeline = self.get_user_pipeline(pipeline)
-    if user_pipeline:
-      for d in self._user_pipelines[user_pipeline]:
-        del self._derived_pipelines[d]
-      del self._user_pipelines[user_pipeline]
-    elif pipeline in self._derived_pipelines:
-      del self._derived_pipelines[pipeline]
+    with self._lock:
+      if pipeline in self._user_pipelines:
+        for d in self._user_pipelines[pipeline]:
+          self._derived_pipelines.pop(d, None)
+          self._pid_to_pipelines.pop(self._key(d), None)
+        self._user_pipelines.pop(pipeline, None)
+      elif pipeline in self._derived_pipelines:
+        user_pipeline = self._derived_pipelines.pop(pipeline, None)
+        if user_pipeline in self._user_pipelines:
+          try:
+            self._user_pipelines[user_pipeline].remove(pipeline)
+          except ValueError:
+            pass
+      self._pid_to_pipelines.pop(self._key(pipeline), None)
 
   def clear(self) -> None:
     """Clears the tracker of all user and derived pipelines."""
     # Remove all local_tempdir of created pipelines.
-    for p in self._pid_to_pipelines.values():
-      shutil.rmtree(p.local_tempdir, ignore_errors=True)
+    with self._lock:
+      pipelines = list(self._pid_to_pipelines.values())
+      self._user_pipelines.clear()
+      self._derived_pipelines.clear()
+      self._pid_to_pipelines.clear()
 
-    self._user_pipelines.clear()
-    self._derived_pipelines.clear()
-    self._pid_to_pipelines.clear()
+    for p in pipelines:
+      shutil.rmtree(p.local_tempdir, ignore_errors=True)
 
   def get_pipeline(self, pid: str) -> Optional[beam.Pipeline]:
     """Returns the pipeline corresponding to the given pipeline id."""
-    return self._pid_to_pipelines.get(pid, None)
+    with self._lock:
+      return self._pid_to_pipelines.get(pid, None)
 
   def add_user_pipeline(self, p: beam.Pipeline) -> beam.Pipeline:
     """Adds a user pipeline with an empty set of derived pipelines."""
-    self._memoize_pipieline(p)
+    with self._lock:
+      self._memoize_pipeline(p)
 
-    # Create a new node for the user pipeline if it doesn't exist already.
-    user_pipeline = self.get_user_pipeline(p)
-    if not user_pipeline:
-      user_pipeline = p
-      self._user_pipelines[p] = []
+      # Create a new node for the user pipeline if it doesn't exist already.
+      user_pipeline = self.get_user_pipeline(p)
+      if not user_pipeline:
+        user_pipeline = p
+        self._user_pipelines[p] = []
 
-    return user_pipeline
+      return user_pipeline
 
-  def _memoize_pipieline(self, p: beam.Pipeline) -> None:
+  def _memoize_pipeline(self, p: beam.Pipeline) -> None:
     """Memoizes the pid of the pipeline to the pipeline object."""
     pid = self._key(p)
-    if pid not in self._pid_to_pipelines:
-      self._pid_to_pipelines[pid] = p
+    with self._lock:
+      if pid not in self._pid_to_pipelines:
+        self._pid_to_pipelines[pid] = p
 
   def add_derived_pipeline(
       self, maybe_user_pipeline: beam.Pipeline,
@@ -119,20 +135,21 @@ class UserPipelineTracker:
     # Returns p.
     ut.get_user_pipeline(derived2)
     """
-    self._memoize_pipieline(maybe_user_pipeline)
-    self._memoize_pipieline(derived_pipeline)
+    with self._lock:
+      self._memoize_pipeline(maybe_user_pipeline)
+      self._memoize_pipeline(derived_pipeline)
 
-    # Cannot add a derived pipeline twice.
-    assert derived_pipeline not in self._derived_pipelines
+      # Cannot add a derived pipeline twice.
+      assert derived_pipeline not in self._derived_pipelines
 
-    # Get the "true" user pipeline. This allows for the user to derive a
-    # pipeline from another derived pipeline, use both as arguments, and this
-    # method will still get the correct user pipeline.
-    user = self.add_user_pipeline(maybe_user_pipeline)
+      # Get the "true" user pipeline. This allows for the user to derive a
+      # pipeline from another derived pipeline, use both as arguments, and this
+      # method will still get the correct user pipeline.
+      user = self.add_user_pipeline(maybe_user_pipeline)
 
-    # Map the derived pipeline to the user pipeline.
-    self._derived_pipelines[derived_pipeline] = user
-    self._user_pipelines[user].append(derived_pipeline)
+      # Map the derived pipeline to the user pipeline.
+      self._derived_pipelines[derived_pipeline] = user
+      self._user_pipelines[user].append(derived_pipeline)
 
   def get_user_pipeline(self, p: beam.Pipeline) -> Optional[beam.Pipeline]:
     """Returns the user pipeline of the given pipeline.
@@ -142,14 +159,14 @@ class UserPipelineTracker:
     returns the same pipeline. If the given pipeline is a derived pipeline then
     this returns the user pipeline.
     """
+    with self._lock:
+      # If `p` is a user pipeline then return it.
+      if p in self._user_pipelines:
+        return p
 
-    # If `p` is a user pipeline then return it.
-    if p in self._user_pipelines:
-      return p
+      # If `p` exists then return its user pipeline.
+      if p in self._derived_pipelines:
+        return self._derived_pipelines[p]
 
-    # If `p` exists then return its user pipeline.
-    if p in self._derived_pipelines:
-      return self._derived_pipelines[p]
-
-    # Otherwise, `p` is not in this tracker.
-    return None
+      # Otherwise, `p` is not in this tracker.
+      return None

@@ -23,7 +23,6 @@ Beam Datastore types.
 
 import copy
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Union
 
@@ -154,7 +153,7 @@ class Query(object):
 class Key(object):
   def __init__(
       self,
-      path_elements: List[Union[str, int]],
+      path_elements: list[Union[str, int]],
       parent: Optional['Key'] = None,
       project: Optional[str] = None,
       namespace: Optional[str] = None):

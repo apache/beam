@@ -64,7 +64,9 @@ jobs:
         job_phrase: ["Run TransformService_Direct PostCommit"]
         python_version: ['3.10','3.14']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:
@@ -74,7 +76,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 11
+          # Transform Service expansion containers are Java 17
+          # (BeamModulePlugin transformServiceJavaContainerSuffix).
+          java-version: '17'
           python-version: |
             3.10
             ${{ matrix.python_version }}
@@ -83,11 +87,11 @@ jobs:
         with:
           gradle-command: :sdks:python:test-suites:direct:xlang:transformServicePythonUsingJava
           arguments: |
-            -PtestJavaVersion=11 \
-            -Pjava11Home=$JAVA_HOME_11_X64 \
-            -PpythonVersion=${{ matrix.python_version }} \
+            -PtestJavaVersion=17 \
+            -Pjava17Home=$JAVA_HOME_17_X64 \
+            -PpythonVersion=${{ matrix.python_version }}
       - name: Archive Python Test Results
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: Python ${{ matrix.python_version }} Test Results

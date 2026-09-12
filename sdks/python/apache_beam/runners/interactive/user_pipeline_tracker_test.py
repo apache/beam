@@ -15,7 +15,9 @@
 # limitations under the License.
 #
 
+import threading
 import unittest
+from unittest.mock import patch
 
 import apache_beam as beam
 from apache_beam.runners.interactive.user_pipeline_tracker import UserPipelineTracker
@@ -201,6 +203,52 @@ class UserPipelineTrackerTest(unittest.TestCase):
 
     self.assertIs(user2, ut.get_user_pipeline(derived21))
     self.assertIs(user2, ut.get_user_pipeline(derived22))
+
+  def test_clear_race_condition(self):
+    ut = UserPipelineTracker()
+    # Add a pipeline so clear() has at least one element to iterate over.
+    p1 = beam.Pipeline()
+    derived1 = beam.Pipeline()
+    ut.add_derived_pipeline(p1, derived1)
+
+    # Set by the mock when clear() enters its loop. Signals the background
+    # worker to mutate.
+    in_loop_event = threading.Event()
+    # Set by the worker when mutation is complete. Signals mock that it can
+    # safely resume clear().
+    mutate_done_event = threading.Event()
+
+    def mock_rmtree(path, ignore_errors=False):
+      # Signal the worker that clear() is iterating.
+      in_loop_event.set()
+      # Pause here to give the worker thread time to perform the mutation.
+      mutate_done_event.wait(timeout=5)
+
+    def worker():
+      # Wait for clear() to start iterating.
+      if in_loop_event.wait(timeout=5):
+        # Concurrently mutate the tracker dictionary.
+        p2 = beam.Pipeline()
+        derived2 = beam.Pipeline()
+        try:
+          ut.add_derived_pipeline(p2, derived2)
+        finally:
+          # Resume the main thread.
+          mutate_done_event.set()
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+
+    try:
+      # Intercept shutil.rmtree inside clear() to orchestrate the concurrent
+      # mutation.
+      with patch('shutil.rmtree', side_effect=mock_rmtree):
+        ut.clear()
+    finally:
+      # Avoid hanging tests if events are missed.
+      in_loop_event.set()
+      mutate_done_event.set()
+      thread.join()
 
 
 if __name__ == '__main__':

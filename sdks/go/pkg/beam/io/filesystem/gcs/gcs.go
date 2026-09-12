@@ -21,7 +21,8 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"path/filepath"
+	"regexp"
+	"strings"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -37,6 +38,78 @@ import (
 const (
 	projectBillingHook = "beam:go:hook:filesystem:billingproject"
 )
+
+// globToRegex translates a glob pattern to a regular expression.
+// It differs from filepath.Match in that:
+//   - / is treated as a regular character (not a separator), since GCS object
+//     names are flat with / being just another character
+//   - ** matches any sequence of characters including / (zero or more)
+//   - **/  matches zero or more path segments (e.g., "" or "dir/" or "dir/subdir/")
+//   - * matches any sequence of characters except / (zero or more)
+//   - ? matches any single character except /
+//
+// This matches the behavior of the Python and Java SDKs.
+func globToRegex(pattern string) (*regexp.Regexp, error) {
+	var result strings.Builder
+	result.WriteString("^")
+
+	// Scan rune by rune so multi-byte characters are handled correctly.
+	runes := []rune(pattern)
+	for i := 0; i < len(runes); i++ {
+		c := runes[i]
+		switch c {
+		case '*':
+			// Check for ** (double asterisk)
+			if i+1 < len(runes) && runes[i+1] == '*' {
+				// Check if followed by / (e.g., "**/" matches zero or more path segments)
+				if i+2 < len(runes) && runes[i+2] == '/' {
+					// **/ matches "" or "something/" or "a/b/c/"
+					result.WriteString("(?:.*/)?")
+					i += 2 // Skip the second * and the /
+				} else {
+					// ** at end or before non-slash matches any characters
+					result.WriteString(".*")
+					i++ // Skip the second *
+				}
+			} else {
+				result.WriteString("[^/]*")
+			}
+		case '?':
+			result.WriteString("[^/]")
+		case '[':
+			// Character class - find the closing bracket
+			j := i + 1
+			if j < len(runes) && runes[j] == '!' {
+				j++
+			}
+			if j < len(runes) && runes[j] == ']' {
+				j++
+			}
+			for j < len(runes) && runes[j] != ']' {
+				j++
+			}
+			if j >= len(runes) {
+				return nil, fmt.Errorf("syntax error: unclosed '[' in pattern %q", pattern)
+			} else {
+				// Copy the character class, converting ! to ^ for negation
+				result.WriteByte('[')
+				content := runes[i+1 : j]
+				if len(content) > 0 && content[0] == '!' {
+					result.WriteByte('^')
+					content = content[1:]
+				}
+				result.WriteString(string(content))
+				result.WriteByte(']')
+				i = j
+			}
+		default:
+			result.WriteString(regexp.QuoteMeta(string(c)))
+		}
+	}
+
+	result.WriteString("$") // match end
+	return regexp.Compile(result.String())
+}
 
 var billingProject string = ""
 
@@ -107,6 +180,15 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 		return nil, err
 	}
 
+	// Compile the glob pattern to a regex. We use a custom glob-to-regex
+	// translation that treats / as a regular character (not a separator),
+	// since GCS object names are flat. This also supports ** for recursive
+	// matching, similar to the Java and Python SDKs.
+	re, err := globToRegex(object)
+	if err != nil {
+		return nil, fmt.Errorf("invalid glob pattern %q: %w", object, err)
+	}
+
 	var candidates []string
 
 	// We handle globs by list all candidates and matching them here.
@@ -125,11 +207,7 @@ func (f *fs) List(ctx context.Context, glob string) ([]string, error) {
 			return nil, err
 		}
 
-		match, err := filepath.Match(object, obj.Name)
-		if err != nil {
-			return nil, err
-		}
-		if match {
+		if re.MatchString(obj.Name) {
 			candidates = append(candidates, obj.Name)
 		}
 	}

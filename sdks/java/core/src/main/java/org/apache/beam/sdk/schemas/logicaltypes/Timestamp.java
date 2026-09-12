@@ -22,6 +22,8 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.time.Instant;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -56,7 +58,12 @@ import org.checkerframework.checker.nullness.qual.NonNull;
  * }</pre>
  */
 public class Timestamp implements Schema.LogicalType<Instant, Row> {
-  public static final String IDENTIFIER = "beam:logical_type:timestamp:v1";
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.TIMESTAMP
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
+
   static final int MIN_PRECISION = 0;
   static final int MAX_PRECISION = 9;
 

@@ -173,6 +173,7 @@ public class HL7v2Message {
   public void setSchematizedData(String schematizedData) {
     this.schematizedData = schematizedData;
   }
+
   /**
    * Gets labels.
    *

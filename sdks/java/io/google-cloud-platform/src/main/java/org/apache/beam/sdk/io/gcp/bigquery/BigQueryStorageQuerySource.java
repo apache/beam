@@ -100,7 +100,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         parseFn,
         outputCoder,
         bqServices,
-        /*picosTimestampPrecision=*/ null);
+        /* picosTimestampPrecision= */ null);
   }
 
   public static <T> BigQueryStorageQuerySource<T> create(
@@ -128,7 +128,7 @@ class BigQueryStorageQuerySource<T> extends BigQueryStorageSourceBase<T> {
         parseFn,
         outputCoder,
         bqServices,
-        /*picosTimestampPrecision=*/ null);
+        /* picosTimestampPrecision= */ null);
   }
 
   private final String stepUuid;

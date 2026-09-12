@@ -522,6 +522,73 @@ func TestWorker_State_MultimapSideInput(t *testing.T) {
 	}
 }
 
+// TestBundle_ProcessOn_WorkerFailure verifies that the runner does not deadlock when
+// a worker fails mid-bundle and stops reading elements from the Data plane stream.
+func TestBundle_ProcessOn_WorkerFailure(t *testing.T) {
+	ctx, wk, clientConn := serveTestWorker(t)
+
+	dataCli := fnpb.NewBeamFnDataClient(clientConn)
+	dataStream, err := dataCli.Data(ctx)
+	if err != nil {
+		t.Fatal("couldn't create data client:", err)
+	}
+
+	instID := wk.NextInst()
+
+	// Create 15 large input blocks (512 KB each) to saturate the 10-slot channel buffer
+	// and the gRPC flow control window, forcing the Data sender inside worker.go to block.
+	largeBytes := make([]byte, 512*1024)
+	var inputBlocks []*engine.Block
+	for i := 0; i < 15; i++ {
+		inputBlocks = append(inputBlocks, &engine.Block{
+			Kind:  engine.BlockData,
+			Bytes: [][]byte{largeBytes},
+		})
+	}
+
+	b := &B{
+		InstID:      instID,
+		PBDID:       "teststageID",
+		Input:       inputBlocks,
+		OutputCount: 1,
+	}
+	b.Init()
+	wk.activeInstructions[instID] = b
+
+	processOnDone := make(chan struct{})
+	go func() {
+		b.ProcessOn(ctx, wk)
+		close(processOnDone)
+	}()
+
+	// Send the initial process bundle request trigger.
+	wk.InstReqs <- &fnpb.InstructionRequest{
+		InstructionId: instID,
+	}
+
+	// Read only the first block to simulate worker processing start.
+	_, err = dataStream.Recv()
+	if err != nil {
+		t.Fatal("couldn't receive first data element:", err)
+	}
+
+	// Simulate worker failure by responding with an error on the Control channel.
+	// Without the fix, ProcessOn's background goroutine deadlocks at `wk.DataReqs <- elms`
+	// because the client stopped reading and the buffer/flow-control is saturated.
+	wk.activeInstructions[instID].Respond(&fnpb.InstructionResponse{
+		InstructionId: instID,
+		Error:         "Intentional worker failure",
+	})
+
+	// Verify that ProcessOn exits cleanly and does not deadlock/hang.
+	select {
+	case <-processOnDone:
+		// Test passed: ProcessOn exited successfully!
+	case <-time.After(10 * time.Second):
+		t.Fatal("ProcessOn deadlocked / hung after worker failure!")
+	}
+}
+
 func newWorker() *W {
 	mw := &MultiplexW{
 		pool: map[string]*W{},

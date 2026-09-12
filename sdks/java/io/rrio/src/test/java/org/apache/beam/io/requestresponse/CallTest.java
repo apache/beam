@@ -105,6 +105,20 @@ public class CallTest {
   }
 
   @Test
+  public void givenCallerThrowsNonUserCodeException_emitsWrappedUserCodeExecutionException() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(Call.of(new CallerThrowsRuntimeException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
   public void givenCallerThrowsQuotaException_emitsIntoFailurePCollection() {
     Result<Response> result =
         pipeline
@@ -123,7 +137,7 @@ public class CallTest {
 
   @Test
   public void givenCallerTimeout_emitsFailurePCollection() {
-    Duration timeout = Duration.standardMinutes(1L);
+    Duration timeout = Duration.standardSeconds(1L);
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
@@ -142,7 +156,7 @@ public class CallTest {
   }
 
   @Test
-  public void givenCallerThrowsTimeoutException_emitsFailurePCollection() {
+  public void givenCallerThrowsTimeoutException_thenPreservesExceptionType() {
     Result<Response> result =
         pipeline
             .apply(Create.of(new Request("a")))
@@ -150,10 +164,27 @@ public class CallTest {
 
     PCollection<ApiIOError> failures = result.getFailures();
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
-        .isEqualTo(1L);
+        .isEqualTo(0L);
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeQuotaException.class)).isEqualTo(0L);
     PAssert.thatSingleton(countStackTracesOf(failures, UserCodeTimeoutException.class))
         .isEqualTo(1L);
+
+    pipeline.run();
+  }
+
+  @Test
+  public void givenCallerThrowsRemoteSystemException_thenPreservesExceptionType() {
+    Result<Response> result =
+        pipeline
+            .apply(Create.of(new Request("a")))
+            .apply(
+                Call.of(new CallerThrowsRemoteSystemException(), NON_DETERMINISTIC_RESPONSE_CODER));
+
+    PCollection<ApiIOError> failures = result.getFailures();
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeRemoteSystemException.class))
+        .isEqualTo(1L);
+    PAssert.thatSingleton(countStackTracesOf(failures, UserCodeExecutionException.class))
+        .isEqualTo(0L);
 
     pipeline.run();
   }
@@ -182,8 +213,7 @@ public class CallTest {
 
   @Test
   public void givenSetupTimeout_throwsError() {
-    Duration timeout = Duration.standardMinutes(1L);
-
+    Duration timeout = Duration.standardSeconds(1L);
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
@@ -231,7 +261,7 @@ public class CallTest {
 
   @Test
   public void givenTeardownTimeout_throwsError() {
-    Duration timeout = Duration.standardMinutes(1L);
+    Duration timeout = Duration.standardSeconds(1L);
     pipeline
         .apply(Create.of(new Request("")))
         .apply(
@@ -271,7 +301,7 @@ public class CallTest {
   private static class ValidCaller implements Caller<Request, Response> {
 
     @Override
-    public Response call(Request request) throws UserCodeExecutionException {
+    public Response call(Request request) {
       return new Response(request.id);
     }
   }
@@ -282,7 +312,7 @@ public class CallTest {
     private final UnSerializable nestedThing = new UnSerializable();
 
     @Override
-    public Response call(Request request) throws UserCodeExecutionException {
+    public Response call(Request request) {
       return new Response(request.id);
     }
   }
@@ -291,10 +321,10 @@ public class CallTest {
       implements SetupTeardown {
 
     @Override
-    public void setup() throws UserCodeExecutionException {}
+    public void setup() {}
 
     @Override
-    public void teardown() throws UserCodeExecutionException {}
+    public void teardown() {}
   }
 
   private static class UnSerializable {}
@@ -358,11 +388,11 @@ public class CallTest {
     private final Duration timeout;
 
     CallerExceedsTimeout(Duration timeout) {
-      this.timeout = timeout.plus(Duration.standardSeconds(1L));
+      this.timeout = timeout.plus(Duration.standardSeconds(10L));
     }
 
     @Override
-    public Response call(Request request) throws UserCodeExecutionException {
+    public Response call(Request request) {
       sleep(timeout);
       return new Response(request.id);
     }
@@ -376,11 +406,27 @@ public class CallTest {
     }
   }
 
+  private static class CallerThrowsRuntimeException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) {
+      throw new RuntimeException("unexpected error");
+    }
+  }
+
   private static class CallerThrowsTimeout implements Caller<Request, Response> {
 
     @Override
     public Response call(Request request) throws UserCodeExecutionException {
       throw new UserCodeTimeoutException("");
+    }
+  }
+
+  private static class CallerThrowsRemoteSystemException implements Caller<Request, Response> {
+
+    @Override
+    public Response call(Request request) throws UserCodeExecutionException {
+      throw new UserCodeRemoteSystemException("");
     }
   }
 
@@ -397,16 +443,16 @@ public class CallTest {
     private final Duration timeout;
 
     private SetupExceedsTimeout(Duration timeout) {
-      this.timeout = timeout.plus(Duration.standardSeconds(1L));
+      this.timeout = timeout.plus(Duration.standardSeconds(10L));
     }
 
     @Override
-    public void setup() throws UserCodeExecutionException {
+    public void setup() {
       sleep(timeout);
     }
 
     @Override
-    public void teardown() throws UserCodeExecutionException {}
+    public void teardown() {}
   }
 
   private static class SetupThrowsUserCodeExecutionException implements SetupTeardown {
@@ -416,7 +462,7 @@ public class CallTest {
     }
 
     @Override
-    public void teardown() throws UserCodeExecutionException {}
+    public void teardown() {}
   }
 
   private static class SetupThrowsUserCodeQuotaException implements SetupTeardown {
@@ -426,7 +472,7 @@ public class CallTest {
     }
 
     @Override
-    public void teardown() throws UserCodeExecutionException {}
+    public void teardown() {}
   }
 
   private static class SetupThrowsUserCodeTimeoutException implements SetupTeardown {
@@ -436,28 +482,28 @@ public class CallTest {
     }
 
     @Override
-    public void teardown() throws UserCodeExecutionException {}
+    public void teardown() {}
   }
 
   private static class TeardownExceedsTimeout implements SetupTeardown {
     private final Duration timeout;
 
     private TeardownExceedsTimeout(Duration timeout) {
-      this.timeout = timeout.plus(Duration.standardSeconds(1L));
+      this.timeout = timeout.plus(Duration.standardSeconds(10L));
     }
 
     @Override
-    public void setup() throws UserCodeExecutionException {}
+    public void setup() {}
 
     @Override
-    public void teardown() throws UserCodeExecutionException {
+    public void teardown() {
       sleep(timeout);
     }
   }
 
   private static class TeardownThrowsUserCodeExecutionException implements SetupTeardown {
     @Override
-    public void setup() throws UserCodeExecutionException {}
+    public void setup() {}
 
     @Override
     public void teardown() throws UserCodeExecutionException {
@@ -467,7 +513,7 @@ public class CallTest {
 
   private static class TeardownThrowsUserCodeQuotaException implements SetupTeardown {
     @Override
-    public void setup() throws UserCodeExecutionException {}
+    public void setup() {}
 
     @Override
     public void teardown() throws UserCodeExecutionException {
@@ -477,7 +523,7 @@ public class CallTest {
 
   private static class TeardownThrowsUserCodeTimeoutException implements SetupTeardown {
     @Override
-    public void setup() throws UserCodeExecutionException {}
+    public void setup() {}
 
     @Override
     public void teardown() throws UserCodeExecutionException {
@@ -519,14 +565,12 @@ public class CallTest {
     private static final Coder<String> ID_CODER = StringUtf8Coder.of();
 
     @Override
-    public void encode(Request value, @NotNull OutputStream outStream)
-        throws CoderException, IOException {
+    public void encode(Request value, @NotNull OutputStream outStream) throws IOException {
       ID_CODER.encode(checkStateNotNull(value).id, outStream);
     }
 
     @Override
-    public @NonNull Request decode(@NotNull InputStream inStream)
-        throws CoderException, IOException {
+    public @NonNull Request decode(@NotNull InputStream inStream) throws IOException {
       String id = ID_CODER.decode(inStream);
       return new Request(id);
     }
@@ -542,7 +586,7 @@ public class CallTest {
 
     @Override
     public void encode(@Nullable Response value, @NotNull OutputStream outStream)
-        throws CoderException, IOException {
+        throws IOException {
       if (value == null) {
         ID_CODER.encode(null, outStream);
         return;
@@ -551,7 +595,7 @@ public class CallTest {
     }
 
     @Override
-    public Response decode(@NotNull InputStream inStream) throws CoderException, IOException {
+    public Response decode(@NotNull InputStream inStream) throws IOException {
       try {
         String id = ID_CODER.decode(inStream);
         return new Response(id);

@@ -1677,9 +1677,10 @@ class TextSinkTest(unittest.TestCase):
     with TestPipeline() as pipeline:
       footer_text = 'footer'
       pcoll = pipeline | beam.core.Create(self.lines)
-      pcoll | 'Write' >> WriteToText(   # pylint: disable=expression-not-assigned
-        self.path,
-        footer=footer_text)
+      pcoll | 'Write' >> WriteToText(  # pylint: disable=expression-not-assigned
+          self.path,
+          shard_name_template='',
+          footer=footer_text)
 
     read_result = []
     for file_name in glob.glob(self.path + '*'):

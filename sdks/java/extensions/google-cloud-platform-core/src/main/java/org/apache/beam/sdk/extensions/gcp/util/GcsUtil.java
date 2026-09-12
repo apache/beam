@@ -25,6 +25,8 @@ import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BlobGetOption;
 import com.google.cloud.storage.Storage.BlobListOption;
+import com.google.cloud.storage.Storage.BlobSourceOption;
+import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
@@ -83,13 +85,17 @@ public class GcsUtil {
     }
   }
 
-  /** @deprecated use {@link GcsPath#getNonWildcardPrefix(String)} instead. */
+  /**
+   * @deprecated use {@link GcsPath#getNonWildcardPrefix(String)} instead.
+   */
   @Deprecated
   public static String getNonWildcardPrefix(String globExp) {
     return GcsPath.getNonWildcardPrefix(globExp);
   }
 
-  /** @deprecated use {@link GcsPath#isWildcard(GcsPath)} instead. */
+  /**
+   * @deprecated use {@link GcsPath#isWildcard(GcsPath)} instead.
+   */
   @Deprecated
   public static boolean isWildcard(GcsPath spec) {
     return GcsPath.isWildcard(spec);
@@ -118,7 +124,9 @@ public class GcsUtil {
     return delegate.fileSize(path);
   }
 
-  /** @deprecated use {@link #getBlob(GcsPath, BlobGetOption...)}. */
+  /**
+   * @deprecated use {@link #getBlob(GcsPath, BlobGetOption...)}.
+   */
   @Deprecated
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
     return delegate.getObject(gcsPath);
@@ -131,7 +139,9 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /** @deprecated use {@link #getBlobs(Iterable, BlobGetOption...)}. */
+  /**
+   * @deprecated use {@link #getBlobs(Iterable, BlobGetOption...)}.
+   */
   @Deprecated
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
     List<GcsUtilV1.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
@@ -148,14 +158,18 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /** @deprecated use {@link #listBlobs(String, String, String, BlobListOption...)}. */
+  /**
+   * @deprecated use {@link #listBlobs(String, String, String, BlobListOption...)}.
+   */
   @Deprecated
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
     return delegate.listObjects(bucket, prefix, pageToken);
   }
 
-  /** @deprecated use {@link #listBlobs(String, String, String, String, BlobListOption...)}. */
+  /**
+   * @deprecated use {@link #listBlobs(String, String, String, String, BlobListOption...)}.
+   */
   @Deprecated
   public Objects listObjects(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
@@ -186,16 +200,30 @@ public class GcsUtil {
   }
 
   public SeekableByteChannel open(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.open(path);
+    }
     return delegate.open(path);
   }
 
-  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  public SeekableByteChannel openV2(GcsPath path, BlobSourceOption... options) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.open(path, options);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
+  }
+
+  /**
+   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
+   */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
     return delegate.create(path, type);
   }
 
-  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  /**
+   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
+   */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
@@ -254,7 +282,18 @@ public class GcsUtil {
   }
 
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.create(path, options.delegate);
+    }
     return delegate.create(path, options.delegate);
+  }
+
+  public WritableByteChannel createV2(
+      GcsPath path, CreateOptions options, BlobWriteOption... writeOptions) throws IOException {
+    if (delegateV2 != null) {
+      return delegateV2.create(path, options.delegate, writeOptions);
+    }
+    throw new IOException("GcsUtil V2 not initialized.");
   }
 
   public void verifyBucketAccessible(GcsPath path) throws IOException {
@@ -279,7 +318,9 @@ public class GcsUtil {
     return delegate.bucketOwner(path);
   }
 
-  /** @deprecated use {@link #createBucket(BucketInfo)}. */
+  /**
+   * @deprecated use {@link #createBucket(BucketInfo)}.
+   */
   @Deprecated
   public void createBucket(String projectId, Bucket bucket) throws IOException {
     delegate.createBucket(projectId, bucket);
@@ -293,7 +334,9 @@ public class GcsUtil {
     }
   }
 
-  /** @deprecated use {@link #getBucketWithOptions(GcsPath, BucketGetOption...)} . */
+  /**
+   * @deprecated use {@link #getBucketWithOptions(GcsPath, BucketGetOption...)} .
+   */
   @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return delegate.getBucket(path);
@@ -307,7 +350,9 @@ public class GcsUtil {
     throw new IOException("GcsUtil V2 not initialized.");
   }
 
-  /** @deprecated use {@link #removeBucket(BucketInfo)}. */
+  /**
+   * @deprecated use {@link #removeBucket(BucketInfo)}.
+   */
   @Deprecated
   public void removeBucket(Bucket bucket) throws IOException {
     delegate.removeBucket(bucket);

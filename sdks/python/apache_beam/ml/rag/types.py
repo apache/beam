@@ -32,10 +32,7 @@ import uuid
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 
@@ -60,8 +57,8 @@ class Embedding:
       dense_embedding: Dense vector representation.
       sparse_embedding: Optional sparse vector representation for hybrid search.
   """
-  dense_embedding: Optional[List[float]] = None
-  sparse_embedding: Optional[Tuple[List[int], List[float]]] = None
+  dense_embedding: Optional[list[float]] = None
+  sparse_embedding: Optional[tuple[list[int], list[float]]] = None
 
 
 @dataclass
@@ -95,7 +92,7 @@ class EmbeddableItem:
   content: Content
   id: str = field(default_factory=lambda: str(uuid.uuid4()))
   index: int = 0
-  metadata: Dict[str, Any] = field(default_factory=dict)
+  metadata: dict[str, Any] = field(default_factory=dict)
   embedding: Optional[Embedding] = None
 
   @classmethod
@@ -105,7 +102,7 @@ class EmbeddableItem:
       *,
       id: Optional[str] = None,
       index: int = 0,
-      metadata: Optional[Dict[str, Any]] = None,
+      metadata: Optional[dict[str, Any]] = None,
   ) -> 'EmbeddableItem':
     """Create an EmbeddableItem with text content.
 
@@ -128,7 +125,7 @@ class EmbeddableItem:
       image: Union[bytes, str],
       *,
       id: Optional[str] = None,
-      metadata: Optional[Dict[str, Any]] = None,
+      metadata: Optional[dict[str, Any]] = None,
   ) -> 'EmbeddableItem':
     """Create an EmbeddableItem with image content.
 
@@ -145,11 +142,11 @@ class EmbeddableItem:
     )
 
   @property
-  def dense_embedding(self) -> Optional[List[float]]:
+  def dense_embedding(self) -> Optional[list[float]]:
     return self.embedding.dense_embedding if self.embedding else None
 
   @property
-  def sparse_embedding(self) -> Optional[Tuple[List[int], List[float]]]:
+  def sparse_embedding(self) -> Optional[tuple[list[int], list[float]]]:
     return self.embedding.sparse_embedding if self.embedding else None
 
   @property

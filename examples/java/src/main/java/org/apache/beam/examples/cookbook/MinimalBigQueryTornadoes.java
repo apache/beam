@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
 //   always_run: true
 //   default_example: false
 //   pipeline_options: --project apache-beam-testing
-//   context_line: 102
+//   context_line: 125
 //   categories:
 //     - Filtering
 //     - IO

@@ -47,8 +47,6 @@ import os
 from functools import partial
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Union
 
 import fastavro
@@ -564,10 +562,10 @@ BEAM_PRIMITIVES_TO_AVRO_PRIMITIVES = {
     for k, v in AVRO_PRIMITIVES_TO_BEAM_PRIMITIVES.items()
 }
 
-_AvroSchemaType = Union[str, List, Dict]
+_AvroSchemaType = Union[str, list, dict]
 
 
-def avro_union_type_to_beam_type(union_type: List) -> schema_pb2.FieldType:
+def avro_union_type_to_beam_type(union_type: list) -> schema_pb2.FieldType:
   """convert an avro union type to a beam type
 
   if the union type is a nullable, and it is a nullable union of an avro

@@ -37,6 +37,8 @@ from apache_beam.runners.interactive.testing.mock_env import isolated_env
 
 # Get major, minor version
 PD_VERSION = tuple(map(int, pd.__version__.split('.')[0:2]))
+# Get major, minor, patch version
+PD_FULL_VERSION = tuple(int(x) for x in re.findall(r'\d+', pd.__version__)[0:3])
 
 GROUPBY_DF = pd.DataFrame({
     'group': ['a' if i % 5 == 0 or i % 3 == 0 else 'b' for i in range(100)],
@@ -329,6 +331,19 @@ class DeferredFrameTest(_AbstractFrameTest):
         lambda df: df.num_legs.xs(('bird', 'walks'), level=[0, 'locomotion']),
         df)
 
+    # Test cases reported in BEAM-28559
+    df_single_index = df.reset_index().set_index('class')
+    self._run_test(
+        lambda df: df.num_legs.xs('mammal'), df_single_index, check_proxy=False)
+    self._run_test(lambda df: df.num_legs.xs('bird'), df_single_index)
+
+    # Categorical Series single match
+    s_cat = pd.Series(
+        pd.Categorical(['a', 'b', 'c']),
+        index=['r1', 'r2', 'r3'],
+        name='cat_col')
+    self._run_test(lambda s: s.xs('r1'), s_cat, check_proxy=False)
+
   def test_dataframe_xs(self):
     # Test cases reported in BEAM-13421
     df = pd.DataFrame(
@@ -340,9 +355,66 @@ class DeferredFrameTest(_AbstractFrameTest):
         ]),
         columns=['provider', 'time', 'value'])
 
-    self._run_test(lambda df: df.xs('state'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs('state'),
+        df.set_index(['provider']),
+        check_proxy=False)
     self._run_test(
         lambda df: df.xs('state'), df.set_index(['provider', 'time']))
+
+    # Test cases reported in BEAM-28559
+    self._run_test(lambda df: df.xs('county'), df.set_index(['provider']))
+    self._run_test(
+        lambda df: df.xs(('state', 'day1')),
+        df.set_index(['provider', 'time']),
+        check_proxy=False)
+
+    df_unique = pd.DataFrame(
+        np.array([
+            ['state', 'day1', 12],
+            ['state', 'day2', 14],
+            ['county', 'day1', 9],
+        ]),
+        columns=['provider', 'time', 'value'])
+    self._run_test(
+        lambda df: df.xs(('state', 'day2')),
+        df_unique.set_index(['provider', 'time']))
+
+    # Categorical and extension dtype tests
+    df_cat = pd.DataFrame({
+        'cat': pd.Categorical(['a', 'b', 'c']), 'val': [1, 2, 3]
+    },
+                          index=['r1', 'r2', 'r3'])
+    self._run_test(lambda df: df.xs('r1'), df_cat)
+
+    df_dt_tz = pd.DataFrame({
+        'dt': pd.Series([
+            pd.Timestamp('2023-01-01', tz='UTC'),
+            pd.Timestamp('2023-01-02', tz='UTC')
+        ],
+                        dtype='datetime64[ns, UTC]'),
+        'val': [1, 2]
+    },
+                            index=['r1', 'r2'])
+    self._run_test(lambda df: df.xs('r1'), df_dt_tz)
+
+    df_null_int = pd.DataFrame({'num': pd.Series([1, 2, None], dtype='Int64')},
+                               index=['r1', 'r2', 'r3'])
+    self._run_test(lambda df: df.xs('r1'), df_null_int)
+
+  def test_dataframe_xs_non_empty_duplicate_proxy(self):
+    df_dups = pd.DataFrame({'a': [1, 2]}, index=['x', 'x'])
+    p = beam.Pipeline()
+    deferred = to_dataframe(p | beam.Create([{'a': 1}]), proxy=df_dups)
+    res = deferred.xs('x')
+    self.assertIsInstance(res, frames.DeferredSeries)
+    self.assertTrue(res._expr.proxy().empty)
+
+    s_dups = pd.Series(pd.Categorical(['a', 'b']), index=['x', 'x'], name='s')
+    deferred_s = to_dataframe(
+        p | 'CreateSeries' >> beam.Create(['a']), proxy=s_dups)
+    res_s = deferred_s.xs('x')
+    self.assertIsInstance(res_s, frame_base.DeferredBase)
 
   def test_set_column(self):
     def new_column(df):
@@ -1437,7 +1509,7 @@ class DeferredFrameTest(_AbstractFrameTest):
     self._run_test(lambda s: s.unstack(level=0), s)
 
   @unittest.skipIf(
-      sys.version_info >= (3, 12) and PD_VERSION < (2, 3),
+      sys.version_info >= (3, 12) and PD_FULL_VERSION < (2, 3, 4),
       'https://github.com/pandas-dev/pandas/issues/58604')
   def test_unstack_pandas_example3(self):
     index = self._unstack_get_categorical_index()
@@ -2955,19 +3027,26 @@ class AllowNonParallelTest(unittest.TestCase):
       self._use_non_parallel_operation()
 
 
+_CONSTRUCTION_TIME_TEST_COLUMNS = [
+    'str_col', 'int_col', 'flt_col', 'cat_col', 'datetime_col'
+]
+
+
 class ConstructionTimeTest(unittest.TestCase):
   """Tests for operations that can be executed eagerly."""
-  DF = pd.DataFrame({
-      'str_col': ['foo', 'bar'] * 3,
-      'int_col': [1, 2] * 3,
-      'flt_col': [1.1, 2.2] * 3,
-      'cat_col': pd.Series(list('aabbca'), dtype="category"),
-      'datetime_col': pd.Series(
-          pd.date_range(
-              '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
-  })
-  DEFERRED_DF = frame_base.DeferredFrame.wrap(
-      expressions.PlaceholderExpression(DF.iloc[:0]))
+  @classmethod
+  def setUpClass(cls):
+    cls.DF = pd.DataFrame({
+        'str_col': ['foo', 'bar'] * 3,
+        'int_col': [1, 2] * 3,
+        'flt_col': [1.1, 2.2] * 3,
+        'cat_col': pd.Series(list('aabbca'), dtype="category"),
+        'datetime_col': pd.Series(
+            pd.date_range(
+                '1/1/2000', periods=6, freq='m', tz='America/Los_Angeles'))
+    })
+    cls.DEFERRED_DF = frame_base.DeferredFrame.wrap(
+        expressions.PlaceholderExpression(cls.DF.iloc[:0]))
 
   def _run_test(self, fn):
     expected = fn(self.DF)
@@ -2982,11 +3061,11 @@ class ConstructionTimeTest(unittest.TestCase):
     else:
       self.assertEqual(expected, actual)
 
-  @parameterized.expand(DF.columns)
+  @parameterized.expand(_CONSTRUCTION_TIME_TEST_COLUMNS)
   def test_series_name(self, col_name):
     self._run_test(lambda df: df[col_name].name)
 
-  @parameterized.expand(DF.columns)
+  @parameterized.expand(_CONSTRUCTION_TIME_TEST_COLUMNS)
   def test_series_dtype(self, col_name):
     self._run_test(lambda df: df[col_name].dtype)
     self._run_test(lambda df: df[col_name].dtypes)

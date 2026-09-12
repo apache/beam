@@ -85,3 +85,13 @@ dependencies {
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testImplementation project(path: ":sdks:java:io:common")
 }
+
+test {
+    // Open java.lang for Gson reflection on StackTraceElement under Java 17+
+    jvmArgs '--add-opens=java.base/java.lang=ALL-UNNAMED'
+}
+
+// spark3_streaming depends on old 'org.lz4:lz4-java'; conflict with kafka-clients:3.9.2
+configurations.all {
+    resolveCapabilitiesConflict(it, 'org.lz4:lz4-java', 'at.yawk.lz4')
+}

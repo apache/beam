@@ -131,15 +131,13 @@ public interface BigQueryServices extends Serializable {
      *
      * <p>Returns null if the table is not found.
      */
-    @Nullable
-    Table getTable(TableReference tableRef) throws InterruptedException, IOException;
+    @Nullable Table getTable(TableReference tableRef) throws InterruptedException, IOException;
 
-    @Nullable
-    Table getTable(TableReference tableRef, List<String> selectedFields)
+    @Nullable Table getTable(TableReference tableRef, List<String> selectedFields)
         throws InterruptedException, IOException;
 
-    @Nullable
-    Table getTable(TableReference tableRef, List<String> selectedFields, TableMetadataView view)
+    @Nullable Table getTable(
+        TableReference tableRef, List<String> selectedFields, TableMetadataView view)
         throws InterruptedException, IOException;
 
     /** Creates the specified table if it does not exist. */
@@ -204,6 +202,10 @@ public interface BigQueryServices extends Serializable {
     /** Patch BigQuery {@link Table} description. */
     Table patchTableDescription(TableReference tableReference, @Nullable String tableDescription)
         throws IOException, InterruptedException;
+
+    Table patchTableSchema(
+        TableReference tableReference, com.google.api.services.bigquery.model.TableSchema newSchema)
+        throws IOException, InterruptedException;
   }
 
   /** An interface to get, create and flush Cloud BigQuery STORAGE API write streams. */
@@ -212,8 +214,7 @@ public interface BigQueryServices extends Serializable {
     WriteStream createWriteStream(String tableUrn, WriteStream.Type type)
         throws IOException, InterruptedException;
 
-    @Nullable
-    TableSchema getWriteStreamSchema(String writeStream);
+    @Nullable TableSchema getWriteStreamSchema(String writeStream);
 
     /**
      * Create an append client for a given Storage API write stream. The stream must be created
@@ -246,8 +247,7 @@ public interface BigQueryServices extends Serializable {
     ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows) throws Exception;
 
     /** If the table schema has been updated, returns the new schema. Otherwise returns null. */
-    @Nullable
-    TableSchema getUpdatedSchema();
+    @Nullable TableSchema getUpdatedSchema();
 
     /**
      * If the previous call to appendRows blocked due to flow control, returns how long the call
@@ -266,7 +266,7 @@ public interface BigQueryServices extends Serializable {
     /**
      * Unpin this object. If the object has been closed, this will release any underlying resources.
      */
-    void unpin() throws Exception;
+    void unpin();
   }
 
   /**

@@ -26,7 +26,6 @@ import uuid
 from datetime import datetime
 from datetime import timezone
 from typing import Any
-from typing import Dict
 
 import pandas as pd
 
@@ -46,7 +45,7 @@ from apache_beam.testing.analyzers.perf_analysis_utils import read_test_config
 
 
 def get_test_config_container(
-    params: Dict[str, Any],
+    params: dict[str, Any],
     test_id: str,
     metric_name: str,
 ) -> TestConfigContainer:
@@ -69,7 +68,7 @@ def get_test_config_container(
 
 
 def get_change_point_config(
-    params: Dict[str, Any],
+    params: dict[str, Any],
 ) -> ChangePointConfig:
   """
   Args:
@@ -242,7 +241,7 @@ def run(
   defined in the config file.
 
   """
-  tests_config: Dict[str, Dict[str, Any]] = read_test_config(config_file_path)
+  tests_config: dict[str, dict[str, Any]] = read_test_config(config_file_path)
 
   for test_id, params in tests_config.items():
     # single test config can have multiple metrics so we need to

@@ -261,8 +261,7 @@ class RowUtils {
       topNode.setOverrides(overrides);
     }
 
-    @Nullable
-    FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
+    @Nullable FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
       return topNode.getOverride(fieldAccessDescriptor);
     }
 
@@ -326,8 +325,7 @@ class RowUtils {
         this.fieldOverrides = overrides;
       }
 
-      @Nullable
-      FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
+      @Nullable FieldOverride getOverride(FieldAccessDescriptor fieldAccessDescriptor) {
         FieldOverride override = null;
         if (!fieldAccessDescriptor.getFieldsAccessed().isEmpty()) {
           FieldDescriptor fieldDescriptor =

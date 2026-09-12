@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -73,6 +74,7 @@ import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.FullWindowedValueCoder;
@@ -203,6 +205,7 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Map<K, V>> view;
+
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsMap(
@@ -691,6 +694,7 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Map<K, Iterable<V>>> view;
+
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsMultimap(
@@ -1071,6 +1075,7 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<List<T>> view;
+
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsList(DataflowRunner runner, CreatePCollectionView<T, List<T>> transform) {
@@ -1152,6 +1157,7 @@ class BatchViewOverrides {
 
     private final transient DataflowRunner runner;
     private final PCollectionView<Iterable<T>> view;
+
     /** Builds an instance of this class from the overridden transform. */
     @SuppressWarnings("unused") // used via reflection in DataflowRunner#apply()
     public BatchViewAsIterable(
@@ -1380,6 +1386,11 @@ class BatchViewOverrides {
     }
 
     @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
+    }
+
+    @Override
     public CausedByDrain causedByDrain() {
       return CausedByDrain.NORMAL;
     }
@@ -1401,6 +1412,11 @@ class BatchViewOverrides {
 
     @Override
     public @Nullable String getRecordId() {
+      return null;
+    }
+
+    @Override
+    public @Nullable Context getOpenTelemetryContext() {
       return null;
     }
 

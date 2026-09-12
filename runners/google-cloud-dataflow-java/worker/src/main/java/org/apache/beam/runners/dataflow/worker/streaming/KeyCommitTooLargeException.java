@@ -18,16 +18,25 @@
 package org.apache.beam.runners.dataflow.worker.streaming;
 
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 public final class KeyCommitTooLargeException extends Exception {
 
   public static KeyCommitTooLargeException causedBy(
-      String computationId, long byteLimit, Windmill.WorkItemCommitRequest request) {
+      String stageName,
+      long byteLimit,
+      Windmill.WorkItemCommitRequest request,
+      @Nullable Object decodedKey,
+      boolean hotKeyLoggingEnabled) {
     StringBuilder message = new StringBuilder();
     message.append("Commit request for stage ");
-    message.append(computationId);
+    message.append(stageName);
     message.append(" and sharding key ");
-    message.append(request.getShardingKey());
+    message.append(Long.toUnsignedString(request.getShardingKey()));
+    if (decodedKey != null && hotKeyLoggingEnabled) {
+      message.append(" and key ");
+      message.append(decodedKey);
+    }
     if (request.getSerializedSize() > 0) {
       message.append(
           " has size "
@@ -38,9 +47,8 @@ public final class KeyCommitTooLargeException extends Exception {
       message.append(" is larger than 2GB and cannot be processed");
     }
     message.append(
-        ". This may be caused by grouping a very "
-            + "large amount of data in a single window without using Combine,"
-            + " or by producing a large amount of data from a single input element."
+        ". This may be caused by grouping a very large amount of data in a single window without"
+            + " using Combine, or by producing a large amount of data from a single input element."
             + " See https://cloud.google.com/dataflow/docs/guides/common-errors#key-commit-too-large-exception.");
     return new KeyCommitTooLargeException(message.toString());
   }

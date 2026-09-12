@@ -254,16 +254,6 @@
       </dependencies>
     </profile>
     <profile>
-      <id>samza-runner</id>
-      <dependencies>
-        <dependency>
-          <groupId>org.apache.beam</groupId>
-          <artifactId>beam-runners-samza</artifactId>
-          <scope>runtime</scope>
-        </dependency>
-      </dependencies>
-    </profile>
-    <profile>
       <id>twister2-runner</id>
       <dependencies>
         <dependency>

@@ -100,7 +100,7 @@ class DaskBagWindowedIterator:
 class TaggingReceiver(Receiver):
   """A Receiver that handles tagged `WindowValue`s."""
   tag: str
-  values: t.List[PCollVal]
+  values: list[PCollVal]
 
   def receive(self, windowed_value: WindowedValue):
     if self.tag:
@@ -113,7 +113,7 @@ class TaggingReceiver(Receiver):
 @dataclasses.dataclass
 class OneReceiver(dict):
   """A Receiver that tags value via dictionary lookup key."""
-  values: t.List[PCollVal] = field(default_factory=list)
+  values: list[PCollVal] = field(default_factory=list)
 
   def __missing__(self, key):
     if key not in self:
@@ -135,7 +135,7 @@ class DaskBagOp(abc.ABC):
       from the pipeline's `DaskOptions`.
   """
   applied: AppliedPTransform
-  bag_kwargs: t.Dict = dataclasses.field(default_factory=dict)
+  bag_kwargs: dict = dataclasses.field(default_factory=dict)
 
   @property
   def transform(self):
@@ -263,7 +263,7 @@ class GroupByKey(DaskBagOp):
 class Flatten(DaskBagOp):
   """Produces a flattened bag from a collection of bags."""
   def apply(
-      self, input_bag: t.List[db.Bag], side_inputs: OpSide = None) -> db.Bag:
+      self, input_bag: list[db.Bag], side_inputs: OpSide = None) -> db.Bag:
     assert isinstance(input_bag, list), 'Must take a sequence of bags!'
     return db.concat(input_bag)
 

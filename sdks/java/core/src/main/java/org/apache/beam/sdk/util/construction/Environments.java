@@ -214,8 +214,7 @@ public class Environments {
           defaultEnvironment = createDockerEnvironment(getDockerContainerImage(options));
       }
     }
-    return defaultEnvironment
-        .toBuilder()
+    return defaultEnvironment.toBuilder()
         .addAllDependencies(getDeferredArtifacts(options))
         .addAllCapabilities(getJavaCapabilities())
         .build();
@@ -324,7 +323,8 @@ public class Environments {
                   .equals(environment.getUrn())) {
                 try {
                   return AnyOfEnvironmentPayload.parseFrom(environment.getPayload())
-                      .getEnvironmentsList().stream()
+                      .getEnvironmentsList()
+                      .stream()
                       .flatMap(subenv -> expandAnyOfEnvironments(subenv).stream());
                 } catch (InvalidProtocolBufferException exn) {
                   throw new RuntimeException(exn);
@@ -522,6 +522,7 @@ public class Environments {
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.SDK_CONSUMING_RECEIVED_DATA));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.ORDERED_LIST_STATE));
     capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.MULTIMAP_STATE));
+    capabilities.add(BeamUrns.getUrn(StandardProtocols.Enum.NAMED_DATA_STREAMS));
     return capabilities.build();
   }
 

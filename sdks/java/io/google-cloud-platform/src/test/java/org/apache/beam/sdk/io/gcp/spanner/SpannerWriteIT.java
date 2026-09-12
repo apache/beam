@@ -17,9 +17,11 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner;
 
+import static org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper.isOmni;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assume.assumeFalse;
 
 import com.google.api.gax.longrunning.OperationFuture;
 import com.google.cloud.spanner.Database;
@@ -37,7 +39,6 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.Objects;
 import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -81,8 +82,7 @@ public class SpannerWriteIT {
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
 
     @Description("Project that hosts Spanner instance")
-    @Nullable
-    String getInstanceProjectId();
+    @Nullable String getInstanceProjectId();
 
     void setInstanceProjectId(String value);
 
@@ -117,21 +117,20 @@ public class SpannerWriteIT {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
-    project = options.getInstanceProjectId();
-    if (project == null) {
-      project = options.as(GcpOptions.class).getProject();
-    }
+    project = SpannerTestHelper.getProject(options, options.getInstanceProjectId());
+    options.setInstanceId(SpannerTestHelper.getInstanceId(options.getInstanceId()));
 
-    spanner =
+    SpannerOptions.Builder spannerBuilder =
         SpannerOptions.newBuilder()
             .setProjectId(project)
             .disableGrpcGcpExtension()
             .setSessionPoolOption(
                 SessionPoolOptions.newBuilder()
                     .setWaitForMinSessionsDuration(java.time.Duration.ofMinutes(5))
-                    .build())
-            .build()
-            .getService();
+                    .build());
+
+    spannerBuilder = SpannerTestHelper.setUpSpannerOptions(spannerBuilder);
+    spanner = spannerBuilder.build().getService();
 
     databaseName = generateDatabaseName();
     pgDatabaseName = "pg-" + databaseName;
@@ -191,10 +190,11 @@ public class SpannerWriteIT {
         .apply("Generate mu", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
             "Write db",
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(databaseName));
+            SpannerTestHelper.setUpSpannerIO(
+                SpannerIO.write()
+                    .withProjectId(project)
+                    .withInstanceId(options.getInstanceId())
+                    .withDatabaseId(databaseName)));
 
     PCollectionView<Dialect> dialectView =
         p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
@@ -203,10 +203,11 @@ public class SpannerWriteIT {
         .apply("Generate PG mu", ParDo.of(new GenerateMutations(options.getTable())))
         .apply(
             "Write PG db",
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(pgDatabaseName)
+            SpannerTestHelper.setUpSpannerIO(
+                    SpannerIO.write()
+                        .withProjectId(project)
+                        .withInstanceId(options.getInstanceId())
+                        .withDatabaseId(pgDatabaseName))
                 .withDialectView(dialectView));
 
     PipelineResult result = p.run();
@@ -218,6 +219,8 @@ public class SpannerWriteIT {
 
   @Test
   public void testWriteViaSchemaTransform() throws Exception {
+    assumeFalse(
+        "SchemaTransform tests do not support dynamic SpannerConfig overrides for Omni", isOmni());
     int numRecords = 100;
     final Schema tableSchema =
         Schema.builder().addInt64Field("Key").addStringField("Value").build();
@@ -258,20 +261,22 @@ public class SpannerWriteIT {
             .apply("Gen mutations1", ParDo.of(new GenerateMutations(options.getTable())))
             .apply(
                 "write to table1",
-                SpannerIO.write()
-                    .withProjectId(project)
-                    .withInstanceId(options.getInstanceId())
-                    .withDatabaseId(databaseName));
+                SpannerTestHelper.setUpSpannerIO(
+                    SpannerIO.write()
+                        .withProjectId(project)
+                        .withInstanceId(options.getInstanceId())
+                        .withDatabaseId(databaseName)));
 
     p.apply("second step", GenerateSequence.from(numRecords).to(2 * numRecords))
         .apply("Gen mutations2", ParDo.of(new GenerateMutations(options.getTable())))
         .apply("wait", Wait.on(stepOne.getOutput()))
         .apply(
             "write to table2",
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(databaseName));
+            SpannerTestHelper.setUpSpannerIO(
+                SpannerIO.write()
+                    .withProjectId(project)
+                    .withInstanceId(options.getInstanceId())
+                    .withDatabaseId(databaseName)));
 
     PCollectionView<Dialect> dialectView =
         p.apply("PG Dialect", Create.of(Dialect.POSTGRESQL))
@@ -282,10 +287,11 @@ public class SpannerWriteIT {
             .apply("Gen pg mutations1", ParDo.of(new GenerateMutations(options.getTable())))
             .apply(
                 "write to pg table1",
-                SpannerIO.write()
-                    .withProjectId(project)
-                    .withInstanceId(options.getInstanceId())
-                    .withDatabaseId(pgDatabaseName)
+                SpannerTestHelper.setUpSpannerIO(
+                        SpannerIO.write()
+                            .withProjectId(project)
+                            .withInstanceId(options.getInstanceId())
+                            .withDatabaseId(pgDatabaseName))
                     .withDialectView(dialectView));
 
     p.apply("pg second step", GenerateSequence.from(numRecords).to(2 * numRecords))
@@ -293,10 +299,11 @@ public class SpannerWriteIT {
         .apply("pg wait", Wait.on(pgStepOne.getOutput()))
         .apply(
             "write to pg table2",
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(pgDatabaseName)
+            SpannerTestHelper.setUpSpannerIO(
+                    SpannerIO.write()
+                        .withProjectId(project)
+                        .withInstanceId(options.getInstanceId())
+                        .withDatabaseId(pgDatabaseName))
                 .withDialectView(dialectView));
 
     PipelineResult result = p.run();
@@ -313,10 +320,11 @@ public class SpannerWriteIT {
         .apply("Generate mu", ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
             "Write db",
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(databaseName)
+            SpannerTestHelper.setUpSpannerIO(
+                    SpannerIO.write()
+                        .withProjectId(project)
+                        .withInstanceId(options.getInstanceId())
+                        .withDatabaseId(databaseName))
                 .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES));
 
     PCollectionView<Dialect> dialectView =
@@ -326,10 +334,11 @@ public class SpannerWriteIT {
         .apply("Generate pg mu", ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
             "Write pg db",
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(pgDatabaseName)
+            SpannerTestHelper.setUpSpannerIO(
+                    SpannerIO.write()
+                        .withProjectId(project)
+                        .withInstanceId(options.getInstanceId())
+                        .withDatabaseId(pgDatabaseName))
                 .withFailureMode(SpannerIO.FailureMode.REPORT_FAILURES)
                 .withDialectView(dialectView));
 
@@ -348,10 +357,11 @@ public class SpannerWriteIT {
     p.apply(GenerateSequence.from(0).to(2 * numRecords))
         .apply(ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(databaseName));
+            SpannerTestHelper.setUpSpannerIO(
+                SpannerIO.write()
+                    .withProjectId(project)
+                    .withInstanceId(options.getInstanceId())
+                    .withDatabaseId(databaseName)));
 
     PipelineResult result = p.run();
     result.waitUntilFinish();
@@ -369,10 +379,11 @@ public class SpannerWriteIT {
     p.apply(GenerateSequence.from(0).to(2 * numRecords))
         .apply(ParDo.of(new GenerateMutations(options.getTable(), new DivBy2())))
         .apply(
-            SpannerIO.write()
-                .withProjectId(project)
-                .withInstanceId(options.getInstanceId())
-                .withDatabaseId(pgDatabaseName)
+            SpannerTestHelper.setUpSpannerIO(
+                    SpannerIO.write()
+                        .withProjectId(project)
+                        .withInstanceId(options.getInstanceId())
+                        .withDatabaseId(pgDatabaseName))
                 .withDialectView(dialectView));
 
     PipelineResult result = p.run();

@@ -24,11 +24,7 @@ from dataclasses import dataclass
 from dataclasses import field
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
-from typing import Type
 
 from apache_beam.ml.rag.types import Chunk
 from apache_beam.ml.rag.types import Content
@@ -65,7 +61,7 @@ class MilvusConnectionParameters:
   db_name: str = "default"
   token: str = field(default_factory=str)
   timeout: Optional[float] = None
-  kwargs: Dict[str, Any] = field(default_factory=dict)
+  kwargs: dict[str, Any] = field(default_factory=dict)
 
   def __post_init__(self):
     if not self.uri:
@@ -82,8 +78,8 @@ class MilvusHelpers:
   """Utility class providing helper methods for Milvus vector db operations."""
   @staticmethod
   def sparse_embedding(
-      sparse_vector: Optional[Tuple[List[int], List[float]]]
-  ) -> Optional[Dict[int, float]]:
+      sparse_vector: Optional[tuple[list[int], list[float]]]
+  ) -> Optional[dict[int, float]]:
     if not sparse_vector:
       return None
     # Converts sparse embedding from (indices, values) tuple format to
@@ -92,7 +88,7 @@ class MilvusHelpers:
     return {int(idx): float(val) for idx, val in zip(indices, values)}
 
 
-def parse_chunk_strings(chunk_str_list: List[str]) -> List[Chunk]:
+def parse_chunk_strings(chunk_str_list: list[str]) -> list[Chunk]:
   parsed_chunks = []
 
   # Define safe globals and disable built-in functions for safety.
@@ -149,7 +145,7 @@ def retry_with_backoff(
     retry_delay: float = 1.0,
     retry_backoff_factor: float = 2.0,
     operation_name: str = "operation",
-    exception_types: Tuple[Type[BaseException], ...] = (Exception, )
+    exception_types: tuple[type[BaseException], ...] = (Exception, )
 ) -> Any:
   """Executes an operation with retry logic and exponential backoff.
 

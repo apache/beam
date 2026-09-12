@@ -21,9 +21,11 @@ import com.google.auto.service.AutoService;
 import java.util.Map;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroGenericCoder;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.construction.CoderTranslator;
 import org.apache.beam.sdk.util.construction.CoderTranslatorRegistrar;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Coder registrar for AvroGenericCoder. */
 @AutoService(CoderTranslatorRegistrar.class)
@@ -41,5 +43,21 @@ public class AvroGenericCoderRegistrar implements CoderTranslatorRegistrar {
   @Override
   public Map<Class<? extends Coder>, CoderTranslator<? extends Coder>> getCoderTranslators() {
     return ImmutableMap.of(AvroGenericCoder.class, new AvroGenericCoderTranslator());
+  }
+
+  @Override
+  public boolean isKnownCoder(Coder<?> coder, PipelineOptions options) {
+    return coder.getClass() == AvroGenericCoder.class;
+  }
+
+  @Override
+  public @Nullable CoderTranslator<? extends Coder> getCoderTranslator(
+      Class<? extends Coder> coderClass) {
+    return coderClass == AvroGenericCoder.class ? new AvroGenericCoderTranslator() : null;
+  }
+
+  @Override
+  public @Nullable Class<? extends Coder> getCoderForUrn(String coderUrn) {
+    return AVRO_CODER_URN.equals(coderUrn) ? AvroGenericCoder.class : null;
   }
 }

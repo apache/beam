@@ -119,6 +119,15 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
 class TestBigtableDirectRowToBeamRow(unittest.TestCase):
   doFn = bigtableio.WriteToBigTable._DirectRowMutationsToBeamRow()
 
+  @staticmethod
+  def _get_mutation_pbs(direct_row):
+    # In google-cloud-bigtable >= 2.44.0, _get_mutations() returns Python
+    # dataclass objects instead of protobuf messages; use _get_mutation_pbs()
+    # to retrieve Mutation protobuf messages.
+    if hasattr(direct_row, '_get_mutation_pbs'):
+      return direct_row._get_mutation_pbs()
+    return direct_row._get_mutations()
+
   def test_set_cell(self):
     # create some set cell mutations
     direct_row: DirectRow = DirectRow('key-1')
@@ -144,7 +153,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     # sort both lists of mutations for convenience
     beam_row_mutations = sorted(beam_row.mutations, key=lambda m: m['value'])
     bt_row_mutations = sorted(
-        direct_row._get_mutations(), key=lambda m: m.set_cell.value)
+        self._get_mutation_pbs(direct_row), key=lambda m: m.set_cell.value)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 
@@ -186,7 +195,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     beam_row_mutations = sorted(
         beam_row.mutations, key=lambda m: m['column_qualifier'])
     bt_row_mutations = sorted(
-        direct_row._get_mutations(),
+        self._get_mutation_pbs(direct_row),
         key=lambda m: m.delete_from_column.column_qualifier)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
@@ -232,8 +241,8 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     beam_row_mutations = sorted(
         beam_row.mutations, key=lambda m: m['family_name'])
     bt_row_mutations = sorted(
-        direct_row._get_mutations(),
-        key=lambda m: m.delete_from_column.family_name)
+        self._get_mutation_pbs(direct_row),
+        key=lambda m: m.delete_from_family.family_name)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 
@@ -330,6 +339,61 @@ class TestWriteBigTable(unittest.TestCase):
           self._TABLE_ID,
           ServiceCallMetric.bigtable_error_code_to_grpc_status_string(OK),
           2)
+
+  def test_write_batch_error_surfaces_from_async_flush(self):
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1,
+        max_row_bytes=5242880)
+    write_fn.table = self.table
+    write_fn.start_bundle()
+
+    direct_rows = [self.generate_row(i) for i in range(5)]
+    with patch.object(Table,
+                      'mutate_rows',
+                      side_effect=Exception('batch RPC failed')):
+      for direct_row in direct_rows:
+        write_fn.process(direct_row)
+      with self.assertRaises(Exception):
+        write_fn.finish_bundle()
+
+  def test_write_batch_error_surfaces_from_buffered_rows(self):
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1000,
+        max_row_bytes=5242880)
+    write_fn.table = self.table
+    write_fn.start_bundle()
+
+    mock_mutate = MagicMock(side_effect=Exception('batch RPC failed'))
+    with patch.object(Table, 'mutate_rows', mock_mutate):
+      write_fn.process(self.generate_row(0))
+      with self.assertRaises(Exception):
+        write_fn.finish_bundle()
+      self.assertGreater(
+          mock_mutate.call_count, 0, 'buffered row was never flushed')
+
+  def test_write_close_error_is_surfaced(self):
+    write_fn = bigtableio._BigTableWriteFn(
+        self._PROJECT_ID,
+        self._INSTANCE_ID,
+        self._TABLE_ID,
+        flush_count=1000,
+        max_row_bytes=5242880)
+    write_fn.table = self.table
+    write_fn.start_bundle()
+
+    with patch.object(MutationsBatcher,
+                      'close',
+                      side_effect=Exception('error on close')) as mock_close:
+      write_fn.process(self.generate_row(0))
+      with self.assertRaises(Exception):
+        write_fn.finish_bundle()
+      mock_close.assert_called_once()
 
   def generate_row(self, index=0):
     rand = choice(string.ascii_letters + string.digits)

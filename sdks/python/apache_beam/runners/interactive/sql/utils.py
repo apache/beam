@@ -28,10 +28,8 @@ import tempfile
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import NamedTuple
 from typing import Optional
-from typing import Type
 from typing import Union
 
 import apache_beam as beam
@@ -72,8 +70,8 @@ def register_coder_for_schema(
 
 def find_pcolls(
     sql: str,
-    pcolls: Dict[str, beam.PCollection],
-    verbose: bool = False) -> Dict[str, beam.PCollection]:
+    pcolls: dict[str, beam.PCollection],
+    verbose: bool = False) -> dict[str, beam.PCollection]:
   """Finds all PCollections used in the given sql query.
 
   It does a simple word by word match and calls ib.collect for each PCollection
@@ -120,7 +118,7 @@ def pformat_namedtuple(schema: NamedTuple) -> str:
       ]))
 
 
-def pformat_dict(raw_input: Dict[str, Any]) -> str:
+def pformat_dict(raw_input: dict[str, Any]) -> str:
   return '{{\n{}\n}}'.format(
       ',\n'.join(['{}: {}'.format(k, v) for k, v in raw_input.items()]))
 
@@ -146,8 +144,8 @@ class OptionsEntry:
   """
   label: str
   help: str
-  cls: Type[PipelineOptions]
-  arg_builder: Union[str, Dict[str, Optional[Callable]]]
+  cls: type[PipelineOptions]
+  arg_builder: Union[str, dict[str, Optional[Callable]]]
   default: Optional[str] = None
 
   def __post_init__(self):

@@ -38,4 +38,4 @@ repos:
     hooks:
       - id: ruff-check
         files: ^sdks/python/apache_beam/
-        args: ["--config=sdks/python/ruff.toml"]
+        args: ["--config=sdks/python/pyproject.toml"]

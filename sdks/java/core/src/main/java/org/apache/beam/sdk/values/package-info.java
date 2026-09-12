@@ -47,8 +47,4 @@
  *
  * <p>For further details, see the documentation for each class in this package.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.values;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

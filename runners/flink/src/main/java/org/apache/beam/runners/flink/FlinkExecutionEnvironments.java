@@ -298,6 +298,7 @@ public class FlinkExecutionEnvironments {
     configureStateBackend(options, flinkStreamEnv);
 
     configureWebUIOptions(flinkStreamEnv.getConfig(), options.as(PipelineOptions.class));
+    configureCustomKryoSerializers(flinkStreamEnv.getConfig());
 
     return flinkStreamEnv;
   }
@@ -320,6 +321,13 @@ public class FlinkExecutionEnvironments {
     } catch (Exception e) {
       LOG.warn("Unable to configure web ui options", e);
     }
+  }
+
+  private static void configureCustomKryoSerializers(ExecutionConfig config) {
+    // Force Beam schema to use JavaSerializer to fix serialization involving ImmutableMap
+    config.registerTypeWithKryoSerializer(
+        org.apache.beam.sdk.schemas.Schema.class,
+        com.esotericsoftware.kryo.serializers.JavaSerializer.class);
   }
 
   private static class GlobalJobParametersImpl extends ExecutionConfig.GlobalJobParameters {

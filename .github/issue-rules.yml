@@ -52,8 +52,8 @@ rules:
   addLabels: ['spark']
 - contains: '[x] Component: Flink'
   addLabels: ['flink']
-- contains: '[x] Component: Samza'
-  addLabels: ['samza']
+- contains: '[x] Component: Prism'
+  addLabels: ['prism']
 - contains: '[x] Component: Twister2'
   addLabels: ['twister2']
 - contains: '[x] Component: Hazelcast'

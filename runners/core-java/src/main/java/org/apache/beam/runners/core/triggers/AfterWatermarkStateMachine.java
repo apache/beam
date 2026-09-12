@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.core.triggers;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Objects;
@@ -51,9 +52,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)} or {@code
  * AfterWatermark.pastEndOfWindow.withEarlyFirings(OnceTrigger)}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AfterWatermarkStateMachine {
 
   private static final String TO_STRING = "AfterWatermark.pastEndOfWindow()";
@@ -77,7 +75,7 @@ public class AfterWatermarkStateMachine {
 
     @SuppressWarnings("unchecked")
     private AfterWatermarkEarlyAndLate(
-        TriggerStateMachine earlyTrigger, TriggerStateMachine lateTrigger) {
+        TriggerStateMachine earlyTrigger, @Nullable TriggerStateMachine lateTrigger) {
       super(
           lateTrigger == null
               ? ImmutableList.of(earlyTrigger)
@@ -109,7 +107,11 @@ public class AfterWatermarkStateMachine {
 
       if (!c.trigger().isMerging()) {
         // If merges can never happen, we just run the unfinished subtrigger
-        c.trigger().firstUnfinishedSubTrigger().invokeOnElement(c);
+        checkStateNotNull(
+                c.trigger().firstUnfinishedSubTrigger(),
+                "%s invoked after all of its subtriggers finished",
+                this)
+            .invokeOnElement(c);
       } else {
         // If merges can happen, we run for all subtriggers because they might be
         // de-activated or re-activated

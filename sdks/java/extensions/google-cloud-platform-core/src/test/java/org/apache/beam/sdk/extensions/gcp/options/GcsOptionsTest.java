@@ -18,11 +18,16 @@
 package org.apache.beam.sdk.extensions.gcp.options;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -74,5 +79,47 @@ public class GcsOptionsTest {
     assertThrows(
         IllegalArgumentException.class,
         () -> PipelineOptionsFactory.fromArgs(TOO_MANY_ENTRIES_WITH_JOB).as(GcsOptions.class));
+  }
+
+  @Test
+  public void testGoogleCloudStorageReadOptionsSerialization() throws Exception {
+    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
+    GoogleCloudStorageReadOptions readOptions =
+        GoogleCloudStorageReadOptions.builder()
+            .setFadvise(GoogleCloudStorageReadOptions.Fadvise.RANDOM)
+            .setFastFailOnNotFoundEnabled(false)
+            .setMinRangeRequestSize(12345L)
+            .build();
+    options.setGoogleCloudStorageReadOptions(readOptions);
+
+    ObjectMapper mapper = new ObjectMapper();
+    String serialized = mapper.writeValueAsString(options);
+    GcsOptions deserialized =
+        mapper.readValue(serialized, PipelineOptions.class).as(GcsOptions.class);
+
+    GoogleCloudStorageReadOptions deserializedReadOptions =
+        deserialized.getGoogleCloudStorageReadOptions();
+
+    assertNotNull(deserializedReadOptions);
+    assertEquals(
+        GoogleCloudStorageReadOptions.Fadvise.RANDOM, deserializedReadOptions.getFadvise());
+    assertFalse(deserializedReadOptions.isFastFailOnNotFoundEnabled());
+    assertEquals(12345L, deserializedReadOptions.getMinRangeRequestSize());
+  }
+
+  @Test
+  public void testDefaultGoogleCloudStorageReadOptionsSerialization() throws Exception {
+    GcsOptions options = PipelineOptionsFactory.as(GcsOptions.class);
+    ObjectMapper mapper = new ObjectMapper();
+    String serialized = mapper.writeValueAsString(options);
+    GcsOptions deserialized =
+        mapper.readValue(serialized, PipelineOptions.class).as(GcsOptions.class);
+
+    GoogleCloudStorageReadOptions deserializedReadOptions =
+        deserialized.getGoogleCloudStorageReadOptions();
+
+    assertNotNull(deserializedReadOptions);
+    assertEquals(
+        GoogleCloudStorageReadOptions.Fadvise.SEQUENTIAL, deserializedReadOptions.getFadvise());
   }
 }

@@ -444,12 +444,18 @@ class PipelineOptionsTest(unittest.TestCase):
         'abc',
         '--disk_type',
         'def',
+        '--disk_provisioned_iops',
+        '4000',
+        '--disk_provisioned_throughput_mibps',
+        '200',
         '--element_processing_timeout_minutes',
         '10',
     ])
     worker_options = options.view_as(WorkerOptions)
     self.assertEqual(worker_options.machine_type, 'abc')
     self.assertEqual(worker_options.disk_type, 'def')
+    self.assertEqual(worker_options.disk_provisioned_iops, 4000)
+    self.assertEqual(worker_options.disk_provisioned_throughput_mibps, 200)
     self.assertEqual(worker_options.element_processing_timeout_minutes, 10)
 
     options = PipelineOptions(
@@ -563,6 +569,22 @@ class PipelineOptionsTest(unittest.TestCase):
     options = PipelineOptions(flags=[''])
     self.assertEqual(options.get_all_options()['extra_packages'], None)
 
+  def test_files_to_stage(self):
+    options = PipelineOptions([
+        '--file_to_stage',
+        'abc',
+        '--files_to_stage',
+        'def',
+        '--files_to_stage',
+        'ghi'
+    ])
+    self.assertEqual(
+        sorted(options.get_all_options()['files_to_stage']),
+        ['abc', 'def', 'ghi'])
+
+    options = PipelineOptions(flags=[''])
+    self.assertEqual(options.get_all_options()['files_to_stage'], None)
+
   def test_dataflow_job_file(self):
     options = PipelineOptions(['--dataflow_job_file', 'abc'])
     self.assertEqual(options.get_all_options()['dataflow_job_file'], 'abc')
@@ -662,6 +684,52 @@ class PipelineOptionsTest(unittest.TestCase):
       # Invalid option choice.
       options = PipelineOptions(['--type_check_strictness', 'blahblah'])
       options.view_as(TypeOptions)
+
+  def test_profiling_agent_is_exclusive_with_legacy_profiling_options(self):
+    options = PipelineOptions(['--profiler_agent=memray'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+
+    options = PipelineOptions(['--profiler_agent=memray', '--profile_cpu'])
+    validator = PipelineOptionsValidator(options, None)
+    errors = validator.validate()
+    self.assertTrue(
+        any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+    options = PipelineOptions(['--profiler_agent=memray', '--profile_memory'])
+    validator = PipelineOptionsValidator(options, None)
+    errors = validator.validate()
+    self.assertTrue(
+        any('--profiler_agent is mutually exclusive' in err for err in errors))
+
+  def test_profiling_agent_coredump_adds_core_pattern(self):
+    options = PipelineOptions(['--profiler_agent=coredump'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    debug_options = options.view_as(DebugOptions)
+    self.assertEqual(
+        debug_options.lookup_experiment('core_pattern'),
+        '/tmp/beam_coredump.%e.%p')
+
+  def test_profile_location_defaulting_and_opt_out(self):
+    options = PipelineOptions(
+        ['--profiler_agent=memray', '--temp_location=gs://bucket/temp'])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    self.assertEqual(
+        options.view_as(ProfilingOptions).profile_location,
+        'gs://bucket/temp/profiles')
+
+    options = PipelineOptions([
+        '--profiler_agent=memray',
+        '--temp_location=gs://bucket/temp',
+        '--profile_location=gs://other-bucket/custom_profiles'
+    ])
+    validator = PipelineOptionsValidator(options, None)
+    self.assertEqual(validator.validate(), [])
+    self.assertEqual(
+        options.view_as(ProfilingOptions).profile_location,
+        'gs://other-bucket/custom_profiles')
 
   def test_add_experiment(self):
     options = PipelineOptions([])

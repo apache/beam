@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Demonstration of Schema transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 60
+//   context_line: 65
 //   categories:
 //     - Schemas
 //     - Combiners

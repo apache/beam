@@ -17,7 +17,6 @@
 
 import hashlib
 import json
-from typing import List
 
 import apache_beam as beam
 from apache_beam.ml.rag.types import Chunk
@@ -57,7 +56,7 @@ class ChunkTestUtils:
       range_start: int,
       range_end: int,
       content_prefix: str = "Testval",
-      seed_multiplier: int = 1) -> List[Chunk]:
+      seed_multiplier: int = 1) -> list[Chunk]:
     """Returns a range of test Chunks."""
     return [
         ChunkTestUtils.from_seed(i, content_prefix, seed_multiplier)

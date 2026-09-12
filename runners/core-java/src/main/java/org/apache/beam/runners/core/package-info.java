@@ -17,8 +17,4 @@
  */
 
 /** Provides utilities for Beam runner authors. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

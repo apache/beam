@@ -18,11 +18,15 @@
 package org.apache.beam.sdk.io.clickhouse;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThrows;
 
+import java.math.BigDecimal;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.beam.sdk.io.clickhouse.TableSchema.ColumnType;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.FixedPrecisionNumeric;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 
@@ -37,6 +41,142 @@ public class TableSchemaTest {
   @Test
   public void testParseDateTime() {
     assertEquals(ColumnType.DATETIME, ColumnType.parse("DateTime"));
+  }
+
+  @Test
+  public void testParseDateTime64Millis() {
+    assertEquals(ColumnType.dateTime64(3), ColumnType.parse("DateTime64(3)"));
+  }
+
+  @Test
+  public void testParseDateTime64MicrosWithTimezone() {
+    // The timezone argument is display-only metadata; the parser accepts and ignores it.
+    assertEquals(ColumnType.dateTime64(6), ColumnType.parse("DateTime64(6, 'UTC')"));
+  }
+
+  @Test
+  public void testParseBareDateTime64DefaultsToPrecision3() {
+    assertEquals(ColumnType.dateTime64(3), ColumnType.parse("DateTime64"));
+  }
+
+  @Test
+  public void testParseDateTime64Nanos() {
+    assertEquals(ColumnType.dateTime64(9), ColumnType.parse("DateTime64(9)"));
+  }
+
+  @Test
+  public void testParseNullableDateTime64() {
+    assertEquals(
+        ColumnType.dateTime64(6).withNullable(true), ColumnType.parse("Nullable(DateTime64(6))"));
+  }
+
+  @Test
+  public void testParseArrayOfDateTime64() {
+    assertEquals(
+        ColumnType.array(ColumnType.dateTime64(3)), ColumnType.parse("Array(DateTime64(3))"));
+  }
+
+  @Test
+  public void testParseDateTime64OutOfRangePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(10)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDateTime64NegativePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(-1)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDateTime64GarbagePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("DateTime64(abc)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimal() {
+    assertEquals(ColumnType.decimal(10, 2), ColumnType.parse("Decimal(10, 2)"));
+  }
+
+  @Test
+  public void testParseDecimalPrecisionOnlyDefaultsToScale0() {
+    assertEquals(ColumnType.decimal(5, 0), ColumnType.parse("Decimal(5)"));
+  }
+
+  @Test
+  public void testParseBareDecimalDefaultsToPrecision10Scale0() {
+    assertEquals(ColumnType.decimal(10, 0), ColumnType.parse("Decimal"));
+  }
+
+  @Test
+  public void testParseDecimal32() {
+    assertEquals(ColumnType.decimal(9, 2), ColumnType.parse("Decimal32(2)"));
+  }
+
+  @Test
+  public void testParseDecimal64() {
+    assertEquals(ColumnType.decimal(18, 4), ColumnType.parse("Decimal64(4)"));
+  }
+
+  @Test
+  public void testParseDecimal128() {
+    assertEquals(ColumnType.decimal(38, 20), ColumnType.parse("Decimal128(20)"));
+  }
+
+  @Test
+  public void testParseDecimal256() {
+    assertEquals(ColumnType.decimal(76, 40), ColumnType.parse("Decimal256(40)"));
+  }
+
+  @Test
+  public void testParseNullableDecimal() {
+    assertEquals(
+        ColumnType.decimal(10, 2).withNullable(true), ColumnType.parse("Nullable(Decimal(10, 2))"));
+  }
+
+  @Test
+  public void testParseArrayOfDecimal() {
+    assertEquals(
+        ColumnType.array(ColumnType.decimal(38, 10)), ColumnType.parse("Array(Decimal(38, 10))"));
+  }
+
+  @Test
+  public void testParseDecimalPrecisionAboveMaxFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(77, 2)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalZeroPrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(0)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalScaleAbovePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(9, 10)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalNegativeScaleFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(9, -1)"));
+    assertEquals("failed to parse", e.getMessage());
+  }
+
+  @Test
+  public void testParseDecimalGarbagePrecisionFailsToParse() {
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> ColumnType.parse("Decimal(abc)"));
+    assertEquals("failed to parse", e.getMessage());
   }
 
   @Test
@@ -184,6 +324,16 @@ public class TableSchemaTest {
   }
 
   @Test
+  public void testParseDefaultExpressionDecimal() {
+    assertEquals(
+        new BigDecimal("1.23"),
+        ColumnType.parseDefaultExpression(ColumnType.decimal(9, 2), "1.23"));
+    assertEquals(
+        new BigDecimal("-1.23"),
+        ColumnType.parseDefaultExpression(ColumnType.decimal(9, 2), "-1.23"));
+  }
+
+  @Test
   public void testEquivalentSchema() {
     TableSchema tableSchema =
         TableSchema.of(
@@ -196,6 +346,110 @@ public class TableSchemaTest {
             Schema.Field.nullable("f1", Schema.FieldType.INT64));
 
     assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaDateTime64Millis() {
+    // Precision ≤ 3 keeps the legacy Joda-backed DATETIME so that existing pipelines using
+    // millisecond timestamps continue to work without code changes.
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("ts", ColumnType.dateTime64(3)));
+    Schema expected = Schema.of(Schema.Field.of("ts", Schema.FieldType.DATETIME));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaDateTime64Micros() {
+    // Precision 4–6 maps to SqlTypes.TIMESTAMP (MicrosInstant) — interoperable with
+    // BigQueryIO and Beam SQL, sufficient for microsecond ticks.
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("ts", ColumnType.dateTime64(6)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.of(
+                "ts",
+                Schema.FieldType.logicalType(
+                    org.apache.beam.sdk.schemas.logicaltypes.SqlTypes.TIMESTAMP)));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaDateTime64Nanos() {
+    // Precision 7–9 needs nanosecond precision; MicrosInstant rejects non-micro-aligned
+    // nanos, so the mapping must use NanosInstant.
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("ts", ColumnType.dateTime64(9)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.of(
+                "ts",
+                Schema.FieldType.logicalType(
+                    new org.apache.beam.sdk.schemas.logicaltypes.NanosInstant())));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDateTime64RejectsNegativePrecision() {
+    ColumnType.dateTime64(-1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDateTime64RejectsPrecisionAboveNine() {
+    ColumnType.dateTime64(10);
+  }
+
+  @Test
+  public void testEquivalentSchemaDecimal() {
+    TableSchema tableSchema = TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(10, 2)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.of("d", Schema.FieldType.logicalType(FixedPrecisionNumeric.of(10, 2))));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testEquivalentSchemaNullableDecimal() {
+    TableSchema tableSchema =
+        TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(38, 10).withNullable(true)));
+    Schema expected =
+        Schema.of(
+            Schema.Field.nullable(
+                "d", Schema.FieldType.logicalType(FixedPrecisionNumeric.of(38, 10))));
+    assertEquals(expected, TableSchema.getEquivalentSchema(tableSchema));
+  }
+
+  @Test
+  public void testMappedDecimalRejectsPrecisionOverflowAtRowConstruction() {
+    // The mapped FixedPrecisionNumeric type rejects most over-precision values at Row
+    // construction, well before the writer's own range check: building a Row with more digits
+    // than the column declares must fail loudly.
+    Schema schema =
+        TableSchema.getEquivalentSchema(
+            TableSchema.of(TableSchema.Column.of("d", ColumnType.decimal(5, 0))));
+
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> Row.withSchema(schema).addValue(new BigDecimal("999999")).build());
+
+    Row row = Row.withSchema(schema).addValue(new BigDecimal("99999")).build();
+    assertEquals(new BigDecimal("99999"), row.getValue("d"));
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsZeroPrecision() {
+    ColumnType.decimal(0, 0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsPrecisionAboveSeventySix() {
+    ColumnType.decimal(77, 0);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsNegativeScale() {
+    ColumnType.decimal(10, -1);
+  }
+
+  @Test(expected = IllegalArgumentException.class)
+  public void testDecimalRejectsScaleAbovePrecision() {
+    ColumnType.decimal(10, 11);
   }
 
   @Test

@@ -20,9 +20,7 @@
 A connector for sending API requests to the GCP Vision API.
 """
 
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from cachetools.func import ttl_cache
@@ -154,7 +152,7 @@ class AnnotateImage(PTransform):
                 metadata=self.metadata)))
 
   @typehints.with_input_types(Union[str, bytes], Optional[vision.ImageContext])
-  @typehints.with_output_types(List[vision.AnnotateImageRequest])
+  @typehints.with_output_types(list[vision.AnnotateImageRequest])
   def _create_image_annotation_pairs(self, element, context_side_input):
     if context_side_input:  # If we have a side input image context, use that
       image_context = context_side_input.get(element)
@@ -249,8 +247,8 @@ class AnnotateImageWithContext(AnnotateImage):
                 metadata=self.metadata)))
 
   @typehints.with_input_types(
-      Tuple[Union[str, bytes], Optional[vision.ImageContext]])
-  @typehints.with_output_types(List[vision.AnnotateImageRequest])
+      tuple[Union[str, bytes], Optional[vision.ImageContext]])
+  @typehints.with_output_types(list[vision.AnnotateImageRequest])
   def _create_image_annotation_pairs(self, element, **kwargs):
     element, image_context = element  # Unpack (image, image_context) tuple
     if isinstance(element, str):
@@ -267,7 +265,7 @@ class AnnotateImageWithContext(AnnotateImage):
     yield request
 
 
-@typehints.with_input_types(List[vision.AnnotateImageRequest])
+@typehints.with_input_types(list[vision.AnnotateImageRequest])
 class _ImageAnnotateFn(DoFn):
   """A DoFn that sends each input element to the GCP Vision API.
   Returns ``google.cloud.vision.BatchAnnotateImagesResponse``.

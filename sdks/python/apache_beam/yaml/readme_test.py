@@ -132,15 +132,17 @@ class FakeAggregation(beam.PTransform):
         lambda _: 1, sum, 'count')
 
 
+class SomeTransform(beam.PTransform):
+  def __init__(self, *args, **kwargs):
+    super().__init__()
+
+  def expand(self, pcoll):
+    return pcoll
+
+
 class _Fakes:
   fn = str
-
-  class SomeTransform(beam.PTransform):
-    def __init__(*args, **kwargs):
-      pass
-
-    def expand(self, pcoll):
-      return pcoll
+  SomeTransform = SomeTransform
 
 
 RENDER_DIR = None

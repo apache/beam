@@ -118,7 +118,7 @@ task printrunnerV2PipelineOptionsARM {
   dependsOn buildAndPushDockerJavaMultiarchContainer
 
   doLast {
-    println "To run a Dataflow job with runner V2 on ARM, add the following pipeline options to your command-line:"
+    println "To run a Dataflow job with Dataflow Portable Runner on ARM, add the following pipeline options to your command-line:"
     println runnerV2PipelineOptionsARM.join(' ')
   }
 }

@@ -91,7 +91,7 @@ implement a new unit test that covers a problematic code branch.
 ## Inform the community if Beam breaks downstream projects {#inform_community}
 
 There are multiple external projects depending on Beam which contain tests that are
-outside of Beam repository. For example, Dataflow, Samza runner, and IBM Streams.
+outside of Beam repository. For example, Dataflow, Scio, and IBM Streams.
 
 When an external project encounters an issue caused by (a PR) in Beam
 and, in consequence, requests for a change in the Beam repository,

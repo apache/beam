@@ -104,6 +104,9 @@ public class IntrinsicMapTaskExecutorTest {
       aborted = true;
       super.abort();
     }
+
+    @Override
+    public void finishKey(Object key) throws Exception {}
   }
 
   // A mock ReadOperation fed to a MapTaskExecutor in test.
@@ -217,6 +220,9 @@ public class IntrinsicMapTaskExecutorTest {
 
     @Override
     public void abort() {}
+
+    @Override
+    public void finishKey(Object key) throws Exception {}
   }
 
   /** Verify counts for the per-element-output-time counter are correct. */
@@ -312,6 +318,9 @@ public class IntrinsicMapTaskExecutorTest {
                   Metrics.counter("TestMetric", "MetricCounter").inc(1L);
                 }
               }
+
+              @Override
+              public void finishKey(Object key) throws Exception {}
             },
             new Operation(new OutputReceiver[] {}, context2) {
               @Override
@@ -321,6 +330,9 @@ public class IntrinsicMapTaskExecutorTest {
                   Metrics.counter("TestMetric", "MetricCounter").inc(2L);
                 }
               }
+
+              @Override
+              public void finishKey(Object key) throws Exception {}
             },
             new Operation(new OutputReceiver[] {}, context3) {
               @Override
@@ -330,6 +342,9 @@ public class IntrinsicMapTaskExecutorTest {
                   Metrics.counter("TestMetric", "MetricCounter").inc(3L);
                 }
               }
+
+              @Override
+              public void finishKey(Object key) throws Exception {}
             });
 
     try (IntrinsicMapTaskExecutor executor =

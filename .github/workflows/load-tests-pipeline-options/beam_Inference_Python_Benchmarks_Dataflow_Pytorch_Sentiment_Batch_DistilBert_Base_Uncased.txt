@@ -18,6 +18,7 @@
 --machine_type=n1-standard-2
 --num_workers=20
 --max_num_workers=250
+--timeout_ms=600000
 --disk_size_gb=50
 --autoscaling_algorithm=THROUGHPUT_BASED
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
@@ -31,5 +32,7 @@
 --device=CPU
 --input_file=gs://apache-beam-ml/testing/inputs/sentences_50k.txt
 --runner=DataflowRunner
+--sdk_location=container
+--sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest
 --model_path=distilbert-base-uncased-finetuned-sst-2-english
 --model_state_dict_path=gs://apache-beam-ml/models/huggingface.sentiment.distilbert-base-uncased.pth

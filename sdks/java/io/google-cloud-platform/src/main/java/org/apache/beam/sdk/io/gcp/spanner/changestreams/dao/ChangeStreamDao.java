@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.dao;
 
+import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.DEFAULT_TVF_NAME;
+
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.Dialect;
@@ -74,6 +76,8 @@ public class ChangeStreamDao {
    * @param partitionToken the unique partition token to be queried. If {@link
    *     InitialPartition#PARTITION_TOKEN} is given, null will be used in the change stream query
    *     instead.
+   * @param tvfName the name of the table-valued function to be used for the change stream query. If
+   *     null, the default global Change Stream TVF will be used.
    * @param startTimestamp the inclusive start time for the change stream query
    * @param endTimestamp the inclusive end time for the change stream query
    * @param heartbeatMillis the number of milliseconds after the stream is idle, which a heartbeat
@@ -83,6 +87,7 @@ public class ChangeStreamDao {
    */
   public ChangeStreamResultSet changeStreamQuery(
       String partitionToken,
+      String tvfName,
       Timestamp startTimestamp,
       Timestamp endTimestamp,
       long heartbeatMillis) {
@@ -95,10 +100,14 @@ public class ChangeStreamDao {
     if (this.isPostgres()) {
       // Ensure we have determined whether change stream uses mutable key range
       if (this.isMutableChangeStream) {
-        query =
-            "SELECT * FROM \"spanner\".\"read_proto_bytes_"
-                + changeStreamName
-                + "\"($1, $2, $3, $4, null)";
+        if (tvfName == null || tvfName.equals(DEFAULT_TVF_NAME)) {
+          query =
+              "SELECT * FROM \"spanner\".\"read_proto_bytes_"
+                  + changeStreamName
+                  + "\"($1, $2, $3, $4, null)";
+        } else {
+          query = "SELECT * FROM \"spanner\".\"" + tvfName + "\"($1, $2, $3, $4, null)";
+        }
       } else {
         query =
             "SELECT * FROM \"spanner\".\"read_json_"
@@ -117,16 +126,29 @@ public class ChangeStreamDao {
               .to(heartbeatMillis)
               .build();
     } else {
-      query =
-          "SELECT * FROM READ_"
-              + changeStreamName
-              + "("
-              + "   start_timestamp => @startTimestamp,"
-              + "   end_timestamp => @endTimestamp,"
-              + "   partition_token => @partitionToken,"
-              + "   read_options => null,"
-              + "   heartbeat_milliseconds => @heartbeatMillis"
-              + ")";
+      if (this.isMutableChangeStream && tvfName != null && !tvfName.equals(DEFAULT_TVF_NAME)) {
+        query =
+            "SELECT * FROM "
+                + tvfName
+                + "("
+                + "   start_timestamp => @startTimestamp,"
+                + "   end_timestamp => @endTimestamp,"
+                + "   partition_token => @partitionToken,"
+                + "   read_options => null,"
+                + "   heartbeat_milliseconds => @heartbeatMillis"
+                + ")";
+      } else {
+        query =
+            "SELECT * FROM READ_"
+                + changeStreamName
+                + "("
+                + "   start_timestamp => @startTimestamp,"
+                + "   end_timestamp => @endTimestamp,"
+                + "   partition_token => @partitionToken,"
+                + "   read_options => null,"
+                + "   heartbeat_milliseconds => @heartbeatMillis"
+                + ")";
+      }
       statement =
           Statement.newBuilder(query)
               .bind("startTimestamp")

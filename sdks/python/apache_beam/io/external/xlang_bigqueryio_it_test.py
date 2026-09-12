@@ -563,7 +563,7 @@ class BigQueryXlangStorageWriteIT(unittest.TestCase):
 
   @unittest.skip(
       "Streaming to the Storage Write API sink with autosharding is broken "
-      "with Dataflow Runner V2.")
+      "with Dataflow Portable Runner.")
   def test_streaming_with_auto_sharding(self):
     self.skip_if_not_dataflow_runner()
     table = 'streaming_with_auto_sharding'

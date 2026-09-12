@@ -19,9 +19,6 @@
 
 from __future__ import absolute_import
 
-from typing import Dict
-from typing import List
-from typing import Set
 from typing import Union
 
 from apache_beam.portability.api import beam_runner_api_pb2
@@ -40,7 +37,7 @@ class WatermarkManager(object):
     def __init__(self, name):
       self.name = name
       self._watermark = timestamp.MIN_TIMESTAMP
-      self.producers: Set[WatermarkManager.StageNode] = set()
+      self.producers: set[WatermarkManager.StageNode] = set()
       self.consumers = 0
       self._fully_consumed_by = 0
       self._produced_watermark = timestamp.MIN_TIMESTAMP
@@ -77,9 +74,9 @@ class WatermarkManager(object):
       # the output watermark of the stage, because only the main input
       # can actually advance that watermark.
       self.name = name
-      self.inputs: Set[WatermarkManager.PCollectionNode] = set()
-      self.side_inputs: Set[WatermarkManager.PCollectionNode] = set()
-      self.outputs: Set[WatermarkManager.PCollectionNode] = set()
+      self.inputs: set[WatermarkManager.PCollectionNode] = set()
+      self.side_inputs: set[WatermarkManager.PCollectionNode] = set()
+      self.outputs: set[WatermarkManager.PCollectionNode] = set()
 
     def __str__(self):
       return 'StageNode<inputs=%s,side_inputs=%s' % (
@@ -102,10 +99,10 @@ class WatermarkManager(object):
         w = min(w, min(i._produced_watermark for i in self.side_inputs))
       return w
 
-  def __init__(self, stages: List[translations.Stage]) -> None:
-    self._pcollections_by_name: Dict[Union[str, translations.TimerFamilyId],
+  def __init__(self, stages: list[translations.Stage]) -> None:
+    self._pcollections_by_name: dict[Union[str, translations.TimerFamilyId],
                                      WatermarkManager.PCollectionNode] = {}
-    self._stages_by_name: Dict[str, WatermarkManager.StageNode] = {}
+    self._stages_by_name: dict[str, WatermarkManager.StageNode] = {}
 
     def add_pcollection(
         pcname: str,
@@ -179,7 +176,7 @@ class WatermarkManager(object):
 
     self._verify(stages)
 
-  def _verify(self, stages: List[translations.Stage]):
+  def _verify(self, stages: list[translations.Stage]):
     for s in stages:
       if len(self._stages_by_name[s.name].inputs) == 0:
         from apache_beam.runners.portability.fn_api_runner import visualization_tools

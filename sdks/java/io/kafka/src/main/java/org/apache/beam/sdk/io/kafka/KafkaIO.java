@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.kafka;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.apache.kafka.clients.consumer.ConsumerConfig.AUTO_OFFSET_RESET_CONFIG;
@@ -25,6 +26,13 @@ import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
+import io.opentelemetry.context.Context;
+import io.opentelemetry.context.Scope;
+import io.opentelemetry.context.propagation.TextMapGetter;
+import io.opentelemetry.context.propagation.TextMapSetter;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
@@ -40,6 +48,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
@@ -61,6 +70,7 @@ import org.apache.beam.sdk.io.kafka.KafkaIOReadImplementationCompatibility.Kafka
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
@@ -125,6 +135,7 @@ import org.apache.kafka.common.PartitionInfo;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.config.SaslConfigs;
 import org.apache.kafka.common.header.Header;
+import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -614,6 +625,7 @@ public class KafkaIO {
         .setTimestampPolicyFactory(TimestampPolicyFactory.withProcessingTime())
         .setConsumerPollingTimeout(2L)
         .setRedistributed(false)
+        .setEnableOpenTelemetryTracing(false)
         .setAllowDuplicates(false)
         .setRedistributeNumKeys(0)
         .build();
@@ -653,6 +665,7 @@ public class KafkaIO {
         .setEosTriggerNumElements(1) // keep default numElements
         .setEosTriggerTimeout(null) // keep default trigger (timeout)
         .setNumShards(0)
+        .setEnableOpenTelemetryTracing(false)
         .setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN)
         .setBadRecordRouter(BadRecordRouter.THROWING_ROUTER)
         .setBadRecordErrorHandler(new DefaultErrorHandler<>())
@@ -741,6 +754,9 @@ public class KafkaIO {
 
     @Pure
     public abstract @Nullable Duration getWatchTopicPartitionDuration();
+
+    @Pure
+    public abstract boolean isEnableOpenTelemetryTracing();
 
     @Pure
     public abstract TimestampPolicyFactory<K, V> getTimestampPolicyFactory();
@@ -832,6 +848,8 @@ public class KafkaIO {
         return setCheckStopReadingFn(CheckStopReadingFnWrapper.of(checkStopReadingFn));
       }
 
+      abstract Builder<K, V> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
+
       abstract Builder<K, V> setConsumerPollingTimeout(long consumerPollingTimeout);
 
       abstract Builder<K, V> setLogTopicVerification(@Nullable Boolean logTopicVerification);
@@ -865,6 +883,7 @@ public class KafkaIO {
 
         // Set required defaults
         builder.setTopicPartitions(Collections.emptyList());
+        builder.setEnableOpenTelemetryTracing(false);
         builder.setConsumerFactoryFn(KafkaIOUtils.KAFKA_CONSUMER_FACTORY_FN);
         if (config.maxReadTime != null) {
           builder.setMaxReadTime(Duration.standardSeconds(config.maxReadTime));
@@ -1302,6 +1321,10 @@ public class KafkaIO {
       return toBuilder().setValueDeserializerProvider(deserializerProvider).build();
     }
 
+    public Read<K, V> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
+    }
+
     public Read<K, V> withValueDeserializerProviderAndCoder(
         DeserializerProvider<V> deserializerProvider, Coder<V> valueCoder) {
       return toBuilder()
@@ -1628,18 +1651,13 @@ public class KafkaIO {
       checkArgument(
           getConsumerConfig().get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG) != null,
           "withBootstrapServers() is required");
-      // With dynamic read, we no longer require providing topic/partition during pipeline
-      // construction time. But it requires enabling beam_fn_api.
+      // With dynamic read, topics and partitions are discovered during pipeline execution.
       if (!isDynamicRead()) {
         checkArgument(
             (getTopics() != null && getTopics().size() > 0)
                 || (getTopicPartitions() != null && getTopicPartitions().size() > 0)
                 || getTopicPattern() != null,
             "Either withTopic(), withTopics(), withTopicPartitions() or withTopicPattern() is required");
-      } else {
-        checkArgument(
-            ExperimentalOptions.hasExperiment(input.getPipeline().getOptions(), "beam_fn_api"),
-            "Kafka Dynamic Read requires enabling experiment beam_fn_api.");
       }
       checkArgument(getKeyDeserializerProvider() != null, "withKeyDeserializer() is required");
       checkArgument(getValueDeserializerProvider() != null, "withValueDeserializer() is required");
@@ -1903,8 +1921,7 @@ public class KafkaIO {
         // Handles unbounded source to bounded conversion if maxNumRecords or maxReadTime is set.
         Unbounded<KafkaRecord<K, V>> unbounded =
             org.apache.beam.sdk.io.Read.from(
-                kafkaRead
-                    .toBuilder()
+                kafkaRead.toBuilder()
                     .setKeyCoder(keyCoder)
                     .setValueCoder(valueCoder)
                     .build()
@@ -1920,6 +1937,14 @@ public class KafkaIO {
                   .withMaxNumRecords(kafkaRead.getMaxNumRecords());
         }
         PCollection<KafkaRecord<K, V>> output = input.getPipeline().apply(transform);
+
+        if (kafkaRead.isEnableOpenTelemetryTracing()) {
+          output =
+              output.apply(
+                  "Extract OpenTelemetry context from Header",
+                  ParDo.of(new OpenTelemetryHeaderConsumer<>()));
+        }
+
         if (kafkaRead.getOffsetDeduplication() != null && kafkaRead.getOffsetDeduplication()) {
           output =
               output.apply(
@@ -2041,9 +2066,15 @@ public class KafkaIO {
                     .apply(ParDo.of(new GenerateKafkaSourceDescriptor(kafkaRead)));
           }
         }
+        PCollection<KafkaRecord<K, V>> pcol =
+            output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+        if (kafkaRead.isEnableOpenTelemetryTracing()) {
+          pcol =
+              pcol.apply(
+                  "Extract OpenTelemetry context from Header",
+                  ParDo.of(new OpenTelemetryHeaderConsumer<>()));
+        }
         if (kafkaRead.isRedistributed()) {
-          PCollection<KafkaRecord<K, V>> pcol =
-              output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
           if (kafkaRead.getRedistributeNumKeys() == 0) {
             return pcol.apply(
                 "Insert Redistribute",
@@ -2057,7 +2088,7 @@ public class KafkaIO {
                     .withNumBuckets((int) kafkaRead.getRedistributeNumKeys()));
           }
         }
-        return output.apply(readTransform).setCoder(KafkaRecordCoder.of(keyCoder, valueCoder));
+        return pcol;
       }
     }
 
@@ -2218,6 +2249,101 @@ public class KafkaIO {
     }
   }
 
+  static class OpenTelemetryHeaderConsumer<K, V>
+      extends DoFn<KafkaRecord<K, V>, KafkaRecord<K, V>> {
+    @Nullable Tracer tracer = null;
+
+    @Setup
+    public void setup(PipelineOptions options) {
+      // inject tracer via options
+      io.opentelemetry.api.OpenTelemetry openTelemetry =
+          options.as(SdkHarnessOptions.class).getOpenTelemetry();
+      if (openTelemetry != null) {
+        tracer = openTelemetry.getTracer("KafkaIO");
+      }
+    }
+
+    Context extractSpanContext(KafkaRecord<K, V> message) {
+      TextMapGetter<KafkaRecord<K, V>> extractMessageAttributes =
+          new TextMapGetter<KafkaRecord<K, V>>() {
+
+            @Override
+            public @Nullable String get(@Nullable KafkaRecord<K, V> carrier, String key) {
+              if (carrier == null) {
+                return null;
+              }
+              Headers headers = carrier.getHeaders();
+              if (headers == null) {
+                return null;
+              }
+              Header header = headers.lastHeader(key);
+              if (header == null) {
+                return null;
+              }
+              return new String(header.value(), UTF_8);
+            }
+
+            @Override
+            public Iterable<String> keys(@Nullable KafkaRecord<K, V> carrier) {
+              if (carrier == null || carrier.getHeaders() == null) {
+                return ImmutableList.of();
+              }
+              return StreamSupport.stream(carrier.getHeaders().spliterator(), false)
+                  .map(Header::key)
+                  .collect(Collectors.toList());
+            }
+          };
+      return W3CTraceContextPropagator.getInstance()
+          .extract(Context.current(), message, extractMessageAttributes);
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KafkaRecord<K, V> element, OutputReceiver<KafkaRecord<K, V>> receiver) {
+      Context context = extractSpanContext(element);
+      Span span =
+          Preconditions.checkArgumentNotNull(tracer)
+              .spanBuilder("KafkaIO.Read")
+              .setParent(context)
+              .startSpan();
+      try (Scope ignored = span.makeCurrent()) {
+        receiver.output(element);
+      } finally {
+        span.end();
+      }
+    }
+  }
+
+  static class OpenTelemetryHeaderPropagator<K, V>
+      extends DoFn<ProducerRecord<K, V>, ProducerRecord<K, V>> {
+    ProducerRecord<K, V> injectTraceContext(ProducerRecord<K, V> message) {
+      org.apache.kafka.common.header.internals.RecordHeaders headers =
+          new org.apache.kafka.common.header.internals.RecordHeaders(message.headers());
+      TextMapSetter<org.apache.kafka.common.header.internals.RecordHeaders>
+          injectMessageAttributes =
+              (carrier, key, value) -> {
+                if (carrier != null) {
+                  carrier.add(key, value.getBytes(UTF_8));
+                }
+              };
+      W3CTraceContextPropagator.getInstance()
+          .inject(Context.current(), headers, injectMessageAttributes);
+      return new ProducerRecord<>(
+          message.topic(),
+          message.partition(),
+          message.timestamp(),
+          message.key(),
+          message.value(),
+          headers);
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element ProducerRecord<K, V> element, OutputReceiver<ProducerRecord<K, V>> receiver) {
+      receiver.output(injectTraceContext(element));
+    }
+  }
+
   /**
    * A {@link PTransform} to read from Kafka topics. Similar to {@link KafkaIO.Read}, but removes
    * Kafka metatdata and returns a {@link PCollection} of {@link KV}. See {@link KafkaIO} for more
@@ -2315,8 +2441,7 @@ public class KafkaIO {
     byte @Nullable [] value;
 
     @SchemaFieldNumber("6")
-    @Nullable
-    List<KafkaHeader> headers;
+    @Nullable List<KafkaHeader> headers;
 
     @SchemaFieldNumber("7")
     int timestampTypeId;
@@ -2488,12 +2613,12 @@ public class KafkaIO {
     abstract @Nullable CheckStopReadingFn getCheckStopReadingFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<KafkaRecord<K, V>, Instant>
-        getExtractOutputTimestampFn();
+    abstract @Nullable
+        SerializableFunction<KafkaRecord<K, V>, Instant> getExtractOutputTimestampFn();
 
     @Pure
-    abstract @Nullable SerializableFunction<Instant, WatermarkEstimator<Instant>>
-        getCreateWatermarkEstimatorFn();
+    abstract @Nullable
+        SerializableFunction<Instant, WatermarkEstimator<Instant>> getCreateWatermarkEstimatorFn();
 
     @Pure
     abstract boolean isCommitOffsetEnabled();
@@ -3162,6 +3287,8 @@ public class KafkaIO {
     // we shouldn't have to duplicate the same API for similar transforms like {@link Write} and
     // {@link WriteRecords}. See example at {@link PubsubIO.Write}.
 
+    public abstract boolean isEnableOpenTelemetryTracing();
+
     @Pure
     public abstract @Nullable String getTopic();
 
@@ -3169,8 +3296,8 @@ public class KafkaIO {
     public abstract Map<String, Object> getProducerConfig();
 
     @Pure
-    public abstract @Nullable SerializableFunction<Map<String, Object>, Producer<K, V>>
-        getProducerFactoryFn();
+    public abstract @Nullable
+        SerializableFunction<Map<String, Object>, Producer<K, V>> getProducerFactoryFn();
 
     @Pure
     public abstract @Nullable Class<? extends Serializer<K>> getKeySerializer();
@@ -3179,8 +3306,8 @@ public class KafkaIO {
     public abstract @Nullable Class<? extends Serializer<V>> getValueSerializer();
 
     @Pure
-    public abstract @Nullable KafkaPublishTimestampFunction<ProducerRecord<K, V>>
-        getPublishTimestampFunction();
+    public abstract @Nullable
+        KafkaPublishTimestampFunction<ProducerRecord<K, V>> getPublishTimestampFunction();
 
     // Configuration for EOS sink
     @Pure
@@ -3197,8 +3324,8 @@ public class KafkaIO {
     public abstract int getNumShards();
 
     @Pure
-    public abstract @Nullable SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>>
-        getConsumerFactoryFn();
+    public abstract @Nullable
+        SerializableFunction<Map<String, Object>, ? extends Consumer<?, ?>> getConsumerFactoryFn();
 
     @Pure
     public abstract BadRecordRouter getBadRecordRouter();
@@ -3211,6 +3338,8 @@ public class KafkaIO {
     @AutoValue.Builder
     abstract static class Builder<K, V> {
       abstract Builder<K, V> setTopic(String topic);
+
+      abstract Builder<K, V> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
       abstract Builder<K, V> setProducerConfig(Map<String, Object> producerConfig);
 
@@ -3275,6 +3404,10 @@ public class KafkaIO {
     /** Sets a {@link Serializer} for serializing value to bytes. */
     public WriteRecords<K, V> withValueSerializer(Class<? extends Serializer<V>> valueSerializer) {
       return toBuilder().setValueSerializer(valueSerializer).build();
+    }
+
+    public WriteRecords<K, V> withEnableOpenTelemetryTracing() {
+      return toBuilder().setEnableOpenTelemetryTracing(true).build();
     }
 
     /**
@@ -3413,7 +3546,11 @@ public class KafkaIO {
 
       checkArgument(getKeySerializer() != null, "withKeySerializer() is required");
       checkArgument(getValueSerializer() != null, "withValueSerializer() is required");
-
+      if (this.isEnableOpenTelemetryTracing()) {
+        input =
+            input.apply(
+                "Propagate OpenTelemetry Tracing", ParDo.of(new OpenTelemetryHeaderPropagator<>()));
+      }
       if (isEOS()) {
         checkArgument(getTopic() != null, "withTopic() is required when isEOS() is true");
         checkArgument(
@@ -3651,6 +3788,10 @@ public class KafkaIO {
      */
     public Write<K, V> withInputTimestamp() {
       return withWriteRecordsTransform(getWriteRecordsTransform().withInputTimestamp());
+    }
+
+    public Write<K, V> withEnableOpenTelemetryTracing() {
+      return withWriteRecordsTransform(getWriteRecordsTransform().withEnableOpenTelemetryTracing());
     }
 
     /**

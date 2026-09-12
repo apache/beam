@@ -167,8 +167,7 @@ public class HCatalogIO {
 
     abstract @Nullable String getFilter();
 
-    @Nullable
-    ReaderContext getContext() {
+    @Nullable ReaderContext getContext() {
       if (getContextHolder() == null) {
         return null;
       }

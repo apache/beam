@@ -29,3 +29,9 @@ project.ext {
 
 // Load the main build script which contains all build logic.
 apply from: "$basePath/spark_job_server.gradle"
+
+// Spark 3 uses org.lz4:lz4-java instead of at.yawk.lz4:lz4-java
+// Explicitly prefer at.yawk.lz4 candidates to resolve capability conflict
+configurations.all {
+  resolveCapabilitiesConflict(it, 'org.lz4:lz4-java', 'at.yawk.lz4')
+}

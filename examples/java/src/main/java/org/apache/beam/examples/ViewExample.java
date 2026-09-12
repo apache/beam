@@ -39,7 +39,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of View transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 49
+//   context_line: 52
 //   categories:
 //     - Core Transforms
 //   complexity: MEDIUM
@@ -113,9 +113,7 @@ public class ViewExample {
     }
 
     @ProcessElement
-    public void processElement(
-        @Element KV<String, String> element, OutputReceiver<KV<String, String>> receiver)
-        throws Exception {
+    public void processElement(@Element T element, OutputReceiver<T> receiver) throws Exception {
       LOG.info("{}{}", prefix, element);
       receiver.output(element);
     }

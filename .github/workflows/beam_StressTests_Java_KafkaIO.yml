@@ -62,7 +62,9 @@ jobs:
         job_name: ["beam_StressTests_Java_KafkaIO"]
         job_phrase: ["Run Stress Tests Java KafkaIO"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

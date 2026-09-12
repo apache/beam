@@ -46,7 +46,7 @@ dependencies {
 ['8', '11', '17', '21', '25'].each { String ver ->
   tasks.create(name: "verifyJavaVersion${ver}", type: Test) {
     filter {
-      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava8"
+      includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyCodeIsCompiledWithJava11"
       includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyTestCodeIsCompiledWithJava${ver}"
       includeTestsMatching "org.apache.beam.sdk.testutils.jvmverification.JvmVerification.verifyRunningJVMVersionIs${ver}"
     }

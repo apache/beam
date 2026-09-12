@@ -57,7 +57,9 @@ public abstract class Source<T> implements Serializable, HasDisplayData {
    */
   public void validate() {}
 
-  /** @deprecated Override {@link #getOutputCoder()} instead. */
+  /**
+   * @deprecated Override {@link #getOutputCoder()} instead.
+   */
   @Deprecated
   public Coder<T> getDefaultOutputCoder() {
     // If the subclass doesn't override getDefaultOutputCoder(), hopefully it overrides the proper

@@ -23,7 +23,7 @@ package org.apache.beam.examples.complete;
 //     GCS prefix.
 //   multifile: true
 //   pipeline_options: --output output.txt
-//   context_line: 447
+//   context_line: 462
 //   categories:
 //     - Combiners
 //     - Options

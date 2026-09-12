@@ -35,7 +35,6 @@ import tarfile
 import tempfile
 import time
 import uuid
-from typing import Type
 
 from google.protobuf.json_format import MessageToJson
 
@@ -139,7 +138,7 @@ class SdkContainerImageBuilder(plugin.BeamPlugin):
     return builder._build()
 
   @classmethod
-  def _get_subclass_by_key(cls, key: str) -> Type['SdkContainerImageBuilder']:
+  def _get_subclass_by_key(cls, key: str) -> type['SdkContainerImageBuilder']:
     available_builders = [
         subclass for subclass in cls.get_all_subclasses()
         if subclass._builder_key() == key
@@ -244,7 +243,7 @@ class _SdkContainerImageCloudBuilder(SdkContainerImageBuilder):
     build = cloud_build_types.Build()
     if self._cloud_build_machine_type:
       build.options = cloud_build_types.BuildOptions()
-      build.options.machineType = self._cloud_build_machine_type
+      build.options.machine_type = self._cloud_build_machine_type
     build.steps = []
     step = cloud_build_types.BuildStep()
     step.name = 'quay.io/buildah/stable:latest'

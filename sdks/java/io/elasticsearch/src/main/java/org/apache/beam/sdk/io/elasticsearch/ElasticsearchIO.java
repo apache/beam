@@ -2140,6 +2140,7 @@ public class ElasticsearchIO {
       return toBuilder().setTimestamp(timestamp).build();
     }
   }
+
   /**
    * A {@link PTransform} writing data to Elasticsearch.
    *
@@ -2244,6 +2245,7 @@ public class ElasticsearchIO {
       docToBulk = docToBulk.withIsDeleteFn(isDeleteFn);
       return this;
     }
+
     // End building Doc2Bulk
 
     /** Refer to {@link BulkIO#withConnectionConfiguration}. */
@@ -2382,7 +2384,9 @@ public class ElasticsearchIO {
 
       abstract Builder setUseStatefulBatches(boolean useStatefulBatches);
 
-      /** @deprecated Use {@link #setMaxParallelRequests} instead. */
+      /**
+       * @deprecated Use {@link #setMaxParallelRequests} instead.
+       */
       @Deprecated
       abstract Builder setMaxParallelRequestsPerWindow(int maxParallelRequestsPerWindow);
 

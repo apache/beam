@@ -141,6 +141,7 @@ class RedistributeByKeyOverrideFactory<K, V>
                       .setTimestamp(kv.getValue().getTimestamp())
                       .setWindow(kv.getValue().getWindow())
                       .setPaneInfo(kv.getValue().getPaneInfo())
+                      .setValueKind(kv.getValue().getValueKind())
                       .output();
                 }
               }));

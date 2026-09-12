@@ -78,7 +78,7 @@ body:
        - label: "Component: Infrastructure"
        - label: "Component: Spark Runner"
        - label: "Component: Flink Runner"
-       - label: "Component: Samza Runner"
+       - label: "Component: Prism Runner"
        - label: "Component: Twister2 Runner"
        - label: "Component: Hazelcast Jet Runner"
        - label: "Component: Google Cloud Dataflow Runner"

@@ -18,7 +18,6 @@
 
 import unittest
 from typing import Any
-from typing import Dict
 from typing import Optional
 
 import pytest
@@ -54,7 +53,7 @@ class MockChunkingProvider(ChunkingTransformProvider):
 
   def get_splitter_transform(
       self
-  ) -> beam.PTransform[beam.PCollection[Dict[str, Any]],
+  ) -> beam.PTransform[beam.PCollection[dict[str, Any]],
                        beam.PCollection[Chunk]]:
     return beam.ParDo(WordSplitter())
 

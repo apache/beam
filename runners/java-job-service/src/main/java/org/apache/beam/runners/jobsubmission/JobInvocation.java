@@ -116,6 +116,12 @@ public class JobInvocation {
                 case RUNNING:
                   setState(JobState.Enum.RUNNING);
                   break;
+                case DRAINING:
+                  setState(JobState.Enum.DRAINING);
+                  break;
+                case DRAINED:
+                  setState(JobState.Enum.DRAINED);
+                  break;
                 case CANCELLED:
                   setState(JobState.Enum.CANCELLED);
                   break;
@@ -169,9 +175,12 @@ public class JobInvocation {
           new FutureCallback<PortablePipelineResult>() {
             @Override
             public void onSuccess(PortablePipelineResult pipelineResult) {
-              // Do not cancel when we are already done.
-              if (pipelineResult != null
-                  && pipelineResult.getState() != PipelineResult.State.DONE) {
+              // Do not cancel when the runner has already successfully finished.
+              if (pipelineResult != null) {
+                PipelineResult.State state = pipelineResult.getState();
+                if (state == PipelineResult.State.DONE || state == PipelineResult.State.DRAINED) {
+                  return;
+                }
                 try {
                   pipelineResult.cancel();
                   setState(JobState.Enum.CANCELLED);

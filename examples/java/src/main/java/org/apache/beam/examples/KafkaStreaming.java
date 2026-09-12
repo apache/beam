@@ -21,7 +21,7 @@ package org.apache.beam.examples;
 //   name: KafkaStreaming
 //   description: Example of streaming data processing using Kafka
 //   multifile: false
-//   context_line: 186
+//   context_line: 113
 //   never_run: true
 //   always_run: true
 //   categories:

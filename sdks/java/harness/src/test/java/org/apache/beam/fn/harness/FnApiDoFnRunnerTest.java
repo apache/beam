@@ -717,7 +717,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeClient.getData());
     }
 
-    /** @return a test MetricUpdate for expected metrics to compare against */
+    /**
+     * @return a test MetricUpdate for expected metrics to compare against
+     */
     public MetricUpdate create(String stepName, MetricName name, long value) {
       return MetricUpdate.create(MetricKey.create(stepName, name), value);
     }
@@ -839,7 +841,7 @@ public class FnApiDoFnRunnerTest implements Serializable {
       private Supplier<String> processBundleRequestIdSupplier;
 
       public TestBeamFnDataOutboundAggregator(Supplier<String> bundleIdSupplier) {
-        super(PipelineOptionsFactory.create(), bundleIdSupplier, null, false);
+        super(PipelineOptionsFactory.create(), false);
         this.timers = new HashMap<>();
         this.dataOutput = new HashMap<>();
         this.processBundleRequestIdSupplier = bundleIdSupplier;

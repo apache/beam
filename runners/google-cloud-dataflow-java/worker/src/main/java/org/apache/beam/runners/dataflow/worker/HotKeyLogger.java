@@ -18,6 +18,7 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import com.google.api.client.util.Clock;
+import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -33,6 +34,7 @@ public class HotKeyLogger {
    * The previous time the HotKeyDetection was logged. This is used to throttle logging to every 5
    * minutes.
    */
+  @GuardedBy("this")
   private long prevHotKeyDetectionLogMs = 0;
 
   /** Throttles logging the detection to every loggingPeriod */
@@ -83,10 +85,12 @@ public class HotKeyLogger {
   protected boolean isThrottled() {
     // Throttle logging the HotKeyDetection to every 5 minutes.
     long nowMs = clock.currentTimeMillis();
-    if (nowMs - prevHotKeyDetectionLogMs < loggingPeriod.getMillis()) {
-      return true;
+    synchronized (this) {
+      if (nowMs - prevHotKeyDetectionLogMs < loggingPeriod.getMillis()) {
+        return true;
+      }
+      prevHotKeyDetectionLogMs = nowMs;
     }
-    prevHotKeyDetectionLogMs = nowMs;
     return false;
   }
 }

@@ -20,6 +20,7 @@ import os
 import re
 import subprocess
 import sys
+import urllib.request
 """
 This Python script is used for upgrading the GCP-BOM in BeamModulePlugin.
 Specifically, it
@@ -27,7 +28,8 @@ Specifically, it
 1. preprocessing BeamModulePlugin.groovy to decide the dependencies need to sync
 2. generate an empty Maven project to fetch the exact target versions to change
 3. Write back to BeamModulePlugin.groovy
-4. Update libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
+4. Update libraries-bom and opentelemetry-bom entries on
+   sdks/java/container/license_scripts/dep_urls_java.yaml
 
 There are few reasons we need to declare the version numbers:
 1. Sync the dependency that not included in GCP-BOM with those included with BOM
@@ -40,6 +42,59 @@ versions managed by gcp-cloud-bom
 """
 
 # To format: yapf --style sdks/python/setup.cfg --in-place scripts/tools/bomupgrader.py
+
+
+def get_latest_bom():
+  url = "https://repo1.maven.org/maven2/com/google/cloud/libraries-bom/maven-metadata.xml"
+  with urllib.request.urlopen(url, timeout=15) as response:
+    xml = response.read().decode('utf-8')
+  match = re.search(r'<release>([^<]+)</release>', xml)
+  if match:
+    return match.group(1)
+  raise RuntimeError("Could not find latest release in Maven metadata")
+
+
+def get_current_bom():
+  path = "buildSrc/src/main/groovy/org/apache/beam/gradle/BeamModulePlugin.groovy"
+  with open(path) as f:
+    content = f.read()
+  match = re.search(
+      r'google_cloud_platform_libraries_bom\s*:\s*[\"\']com\.google\.cloud:libraries-bom:([0-9.]+)[\"\']',
+      content)
+  if match:
+    return match.group(1)
+  raise RuntimeError(
+      "Could not find current libraries-bom in BeamModulePlugin.groovy")
+
+
+def to_tuple(version_str):
+  parts = []
+  for part in version_str.split('.'):
+    match = re.match(r'^(\d+)', part)
+    parts.append(int(match.group(1)) if match else 0)
+  return tuple(parts)
+
+
+def check_bom():
+  latest = get_latest_bom()
+  current = get_current_bom()
+  print(f"Latest libraries-bom version: {latest}")
+  print(f"Current libraries-bom version: {current}")
+
+  should_upgrade = to_tuple(latest) > to_tuple(current)
+
+  github_output = os.getenv('GITHUB_OUTPUT')
+  if github_output:
+    with open(github_output, 'a') as f:
+      f.write(f"should_upgrade={str(should_upgrade).lower()}\n")
+      f.write(f"latest_version={latest}\n")
+      f.write(f"current_version={current}\n")
+
+  if should_upgrade:
+    print("A newer version of libraries-bom is available. Upgrade needed.")
+  else:
+    print("libraries-bom is up-to-date.")
+  return should_upgrade, latest
 
 
 class BeamModulePluginProcessor:
@@ -254,17 +309,51 @@ configurations.implementation.canBeResolved = true
       for line in self.target_lines:
         fout.write(line)
 
+  def _get_opentelemetry_version(self):
+    for line in self.target_lines:
+      match = self.VERSION_STRING.match(line)
+      if match and match.group(1) == 'opentelemetry':
+        return match.group(2)
+    logging.warning('opentelemetry_version not found in BeamModulePlugin')
+    return None
+
   def write_license_script(self):
     logging.info("-----Update dep_urls_java.yaml-----")
-    with open(os.path.join(self.project_root, self.LICENSE_SC_PATH),
-              'r') as fin:
+    license_path = os.path.join(self.project_root, self.LICENSE_SC_PATH)
+    with open(license_path, 'r') as fin:
       lines = fin.readlines()
-    with open(os.path.join(self.project_root, self.LICENSE_SC_PATH),
-              'w') as fout:
-      for idx, line in enumerate(lines):
-        if line.strip() == 'libraries-bom:':
-          lines[idx + 1] = re.sub(
-              r'[\'"]\d[\.\d]+[\'"]', f"'{self.bom_version}'", lines[idx + 1])
+
+    otel_version = self._get_opentelemetry_version()
+    otel_license_url = (
+        'https://raw.githubusercontent.com/open-telemetry/'
+        'opentelemetry-java/v{}/LICENSE'.format(otel_version)
+        if otel_version else None)
+    otel_license_line = '    license: "{}"\n'.format(otel_license_url)
+
+    for idx, line in enumerate(lines):
+      stripped = line.strip()
+      if stripped == 'libraries-bom:':
+        lines[idx + 1] = re.sub(
+            r'[\'"]\d[\d\.]+[\'"]', "'{}'".format(self.bom_version),
+            lines[idx + 1])
+        continue
+      if otel_version and stripped == 'opentelemetry-bom:':
+        lines[idx + 1] = re.sub(
+            r"'[\d\.]+'", "'{}'".format(otel_version), lines[idx + 1])
+        lines[idx + 2] = otel_license_line
+        continue
+      if otel_version and stripped == 'opentelemetry-bom-alpha:':
+        lines[idx + 1] = re.sub(
+            r"'[\d\.]+-alpha'", "'{}-alpha'".format(otel_version),
+            lines[idx + 1])
+        lines[idx + 2] = otel_license_line
+
+    if otel_version:
+      logging.info(
+          'Updated opentelemetry-bom license entries to %s', otel_version)
+
+    with open(license_path, 'w') as fout:
+      for line in lines:
         fout.write(line)
 
   def run(self):
@@ -278,7 +367,16 @@ configurations.implementation.canBeResolved = true
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   if len(sys.argv) < 2:
-    print("Usage: python scripts/tools/bomupgrader.py target_version")
+    print("Usage: python scripts/tools/bomupgrader.py [--check | latest | target_version]")
     exit(1)
-  processor = BeamModulePluginProcessor(sys.argv[1])
-  processor.run()
+
+  arg = sys.argv[1]
+  if arg in ['--check', '--check-only']:
+    check_bom()
+  else:
+    if arg in ['latest', '--latest']:
+      _, target_ver = check_bom()
+    else:
+      target_ver = arg
+    processor = BeamModulePluginProcessor(target_ver)
+    processor.run()

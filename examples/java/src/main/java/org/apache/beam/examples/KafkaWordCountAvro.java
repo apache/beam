@@ -21,7 +21,7 @@ package org.apache.beam.examples;
 //   name: KafkaWordCountAvro
 //   description: Read CountWords dataset (CountWords.avro) from Kafka to count words
 //   multifile: false
-//   context_line: 64
+//   context_line: 66
 //   categories:
 //     - Emulated Data Source
 //     - IO

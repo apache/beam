@@ -1,0 +1,439 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.sdk.io.iceberg;
+
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import org.apache.iceberg.Schema;
+import org.apache.iceberg.Table;
+import org.apache.iceberg.UpdateSchema;
+import org.apache.iceberg.exceptions.ValidationException;
+import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.TypeUtil;
+import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
+
+/**
+ * What {@code unionByNameWith(fileSchema)} would change on a table, without changing it. Computed
+ * by diffing the union result against the table schema by field id: existing fields keep their ids
+ * and additions get fresh ones, so the diff is exact and independent of column order.
+ *
+ * <p>The union ignores table columns absent from the file, but every row of such a file reads null
+ * in them, so a required column absent from the file is also a relaxation. The commit side stages
+ * those explicitly via {@link #absentRequiredPaths()}.
+ */
+final class SchemaDelta {
+
+  private final List<SchemaChange> changes;
+
+  private SchemaDelta(List<SchemaChange> changes) {
+    this.changes = Collections.unmodifiableList(changes);
+  }
+
+  /**
+   * What registering a file with {@code fileSchema} would need from the table, as changes ordered
+   * by column path; the table itself is never modified. File column names no table can absorb
+   * (dotted, empty, case-colliding) come back as conflicts without attempting the union.
+   */
+  static SchemaDelta classify(Table table, Schema fileSchema) {
+    Schema before = table.schema();
+    if (before.sameSchema(fileSchema)) {
+      return new SchemaDelta(Collections.emptyList());
+    }
+
+    List<SchemaChange> nameConflicts = new ArrayList<>();
+    ColumnNameChecks.findInvalidNames(fileSchema.asStruct(), "", nameConflicts);
+    ColumnNameChecks.findCaseCollisions(
+        before.asStruct(), fileSchema.asStruct(), "", nameConflicts);
+    if (!nameConflicts.isEmpty()) {
+      return new SchemaDelta(nameConflicts);
+    }
+
+    List<SchemaChange> absent = new ArrayList<>();
+    findAbsentRequired(before.asStruct(), fileSchema.asStruct(), "", absent);
+    Schema merged;
+    try {
+      // The absent-path relaxations are applied here too, so anything Iceberg refuses (an
+      // identifier field, say) is classified as this file's conflict instead of surfacing
+      // mid-transaction under a cross-schema message.
+      UpdateSchema update = table.updateSchema().unionByNameWith(fileSchema);
+      for (SchemaChange change : absent) {
+        update = update.makeColumnOptional(change.path);
+      }
+      merged = update.apply();
+    } catch (ValidationException | IllegalArgumentException e) {
+      // SchemaUpdate reports type conflicts through both exception types
+      return conflict(e.getClass().getSimpleName() + ": " + AddFiles.errorMessage(e));
+    }
+    Map<String, SchemaChange> absentByPath = new HashMap<>();
+    for (SchemaChange change : absent) {
+      absentByPath.put(change.path, change);
+    }
+    return diff(before, merged, absentByPath);
+  }
+
+  /**
+   * Required table columns with no counterpart in the file, by name per level. Children are checked
+   * only when their parent is present; an absent struct is the relaxation itself. Descends through
+   * list elements and map values (paths use {@code element} and {@code value}, which
+   * makeColumnOptional accepts); map keys are required by definition. FileSchemas tightening stops
+   * at lists and maps for a different reason (ambiguous null counts); the two are independent.
+   */
+  private static void findAbsentRequired(
+      Types.StructType tableStruct,
+      Types.StructType fileStruct,
+      String prefix,
+      List<SchemaChange> changes) {
+    for (Types.NestedField field : tableStruct.fields()) {
+      String rawPath = prefix + field.name();
+      Types.NestedField fileField = fileStruct.field(field.name());
+      if (fileField == null) {
+        if (field.isRequired()) {
+          changes.add(
+              new SchemaChange(
+                  SchemaChange.Kind.FIELD_RELAXATION,
+                  rawPath,
+                  "relax "
+                      + prefix
+                      + quoteIfDotted(field.name())
+                      + " to optional (absent from file)",
+                  true));
+        }
+        continue;
+      }
+      findAbsentRequiredInType(field.type(), fileField.type(), rawPath, changes);
+    }
+  }
+
+  private static void findAbsentRequiredInType(
+      Type tableType, Type fileType, String rawPath, List<SchemaChange> changes) {
+    if (tableType.isStructType() && fileType.isStructType()) {
+      findAbsentRequired(tableType.asStructType(), fileType.asStructType(), rawPath + ".", changes);
+    } else if (tableType.isListType() && fileType.isListType()) {
+      findAbsentRequiredInType(
+          tableType.asListType().elementType(),
+          fileType.asListType().elementType(),
+          rawPath + ".element",
+          changes);
+    } else if (tableType.isMapType() && fileType.isMapType()) {
+      findAbsentRequiredInType(
+          tableType.asMapType().valueType(),
+          fileType.asMapType().valueType(),
+          rawPath + ".value",
+          changes);
+    }
+  }
+
+  /** Paths of required table columns absent from the file; the union alone does not relax them. */
+  List<String> absentRequiredPaths() {
+    List<String> paths = new ArrayList<>();
+    for (SchemaChange change : changes) {
+      if (change.absent) {
+        paths.add(change.path);
+      }
+    }
+    return paths;
+  }
+
+  private static SchemaDelta conflict(String message) {
+    List<SchemaChange> changes = new ArrayList<>();
+    changes.add(new SchemaChange(SchemaChange.Kind.CONFLICT, "", message));
+    return new SchemaDelta(changes);
+  }
+
+  /**
+   * Changes from {@code before} to {@code after}, ordered by field path. Fields are matched by id;
+   * paths only appear in messages (quoted when a name contains a dot). Anything a union by name
+   * cannot produce is reported as a conflict so it is never applied unclassified.
+   */
+  static SchemaDelta diff(Schema before, Schema after) {
+    return diff(before, after, Collections.emptyMap());
+  }
+
+  /**
+   * {@code absentByPath}: classify's absent-column relaxations, emitted here in path order where
+   * the diff sees the required-to-optional flip that classify itself staged.
+   */
+  private static SchemaDelta diff(
+      Schema before, Schema after, Map<String, SchemaChange> absentByPath) {
+    Map<String, SchemaChange> absentRemaining = new HashMap<>(absentByPath);
+    Map<Integer, Types.NestedField> beforeById = TypeUtil.indexById(before.asStruct());
+    Map<Integer, Types.NestedField> afterById = TypeUtil.indexById(after.asStruct());
+    Map<Integer, Integer> parentById = TypeUtil.indexParents(after.asStruct());
+    Map<Integer, String> rawPathById = TypeUtil.indexNameById(after.asStruct());
+    Map<Integer, String> pathById =
+        TypeUtil.indexQuotedNameById(after.asStruct(), SchemaDelta::quoteIfDotted);
+
+    List<Integer> idsByPath = new ArrayList<>(afterById.keySet());
+    idsByPath.sort(
+        (a, b) ->
+            checkStateNotNull(rawPathById.get(a)).compareTo(checkStateNotNull(rawPathById.get(b))));
+
+    List<SchemaChange> changes = new ArrayList<>();
+    for (Integer id : idsByPath) {
+      String path = checkStateNotNull(pathById.get(id));
+      String rawPath = checkStateNotNull(rawPathById.get(id));
+      Types.NestedField newField = checkStateNotNull(afterById.get(id));
+      Types.NestedField oldField = beforeById.get(id);
+      if (oldField == null) {
+        if (!hasAddedAncestor(id, parentById, beforeById)) {
+          changes.add(
+              new SchemaChange(
+                  SchemaChange.Kind.FIELD_ADDITION,
+                  rawPath,
+                  "add " + optionality(newField) + " " + path + " " + describe(newField.type())));
+        }
+        continue;
+      }
+      compareField(path, rawPath, oldField, newField, absentRemaining, changes);
+    }
+    checkState(
+        absentRemaining.isEmpty(),
+        "absent-column relaxations did not surface in the diff: %s",
+        absentRemaining.keySet());
+
+    Map<Integer, String> beforePathById =
+        TypeUtil.indexQuotedNameById(before.asStruct(), SchemaDelta::quoteIfDotted);
+    List<String> removed = new ArrayList<>();
+    for (Integer id : beforeById.keySet()) {
+      if (!afterById.containsKey(id)) {
+        removed.add(checkStateNotNull(beforePathById.get(id)));
+      }
+    }
+    Collections.sort(removed);
+    for (String path : removed) {
+      changes.add(new SchemaChange(SchemaChange.Kind.CONFLICT, "", "field removed: " + path));
+    }
+    return new SchemaDelta(changes);
+  }
+
+  /**
+   * Attribute by attribute: name, doc and defaults must be equal; required to optional is the
+   * relaxation; primitive types must be equal or a promotion; nested types must stay the same kind,
+   * their children are compared on their own ids.
+   */
+  private static void compareField(
+      String path,
+      String rawPath,
+      Types.NestedField oldField,
+      Types.NestedField newField,
+      Map<String, SchemaChange> absentRemaining,
+      List<SchemaChange> changes) {
+    if (!oldField.name().equals(newField.name())) {
+      changes.add(
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT,
+              rawPath,
+              "renamed " + path + " from " + oldField.name() + " to " + newField.name()));
+    }
+    if (!Objects.equals(oldField.doc(), newField.doc())) {
+      // benign but unsupported: schema evolution has no option for doc updates
+      changes.add(
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT, rawPath, "doc changed on " + path + " (not supported)"));
+    }
+    if (!Objects.equals(oldField.initialDefault(), newField.initialDefault())
+        || !Objects.equals(oldField.writeDefault(), newField.writeDefault())) {
+      changes.add(
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT,
+              rawPath,
+              "default changed on " + path + " (not supported)"));
+    }
+    if (oldField.isRequired() && newField.isOptional()) {
+      @Nullable SchemaChange absent = absentRemaining.remove(rawPath);
+      changes.add(
+          absent != null
+              ? absent
+              : new SchemaChange(
+                  SchemaChange.Kind.FIELD_RELAXATION, rawPath, "relax " + path + " to optional"));
+    } else if (oldField.isOptional() && newField.isRequired()) {
+      changes.add(
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT, rawPath, "optionality tightened on " + path));
+    }
+    boolean oldPrimitive = oldField.type().isPrimitiveType();
+    boolean newPrimitive = newField.type().isPrimitiveType();
+    if (oldPrimitive && newPrimitive) {
+      if (oldField.type().equals(newField.type())) {
+        return;
+      }
+      if (TypeUtil.isPromotionAllowed(oldField.type(), newField.type().asPrimitiveType())) {
+        changes.add(
+            new SchemaChange(
+                SchemaChange.Kind.TYPE_PROMOTION,
+                rawPath,
+                "promote " + path + " " + oldField.type() + " to " + newField.type()));
+      } else {
+        changes.add(
+            new SchemaChange(
+                SchemaChange.Kind.CONFLICT,
+                rawPath,
+                "type changed on "
+                    + path
+                    + " from "
+                    + oldField.type()
+                    + " to "
+                    + newField.type()
+                    + " (not a promotion)"));
+      }
+    } else if (oldPrimitive != newPrimitive
+        || oldField.type().typeId() != newField.type().typeId()) {
+      changes.add(
+          new SchemaChange(
+              SchemaChange.Kind.CONFLICT,
+              rawPath,
+              "type changed on "
+                  + path
+                  + " from "
+                  + describe(oldField.type())
+                  + " to "
+                  + describe(newField.type())));
+    }
+  }
+
+  /** Renders a type without field ids: file-side ids are positional and would only mislead. */
+  private static String describe(Type type) {
+    if (type.isStructType()) {
+      StringBuilder rendered = new StringBuilder("struct<");
+      List<Types.NestedField> fields = type.asStructType().fields();
+      for (int i = 0; i < fields.size(); i++) {
+        Types.NestedField field = fields.get(i);
+        if (i > 0) {
+          rendered.append(", ");
+        }
+        rendered
+            .append(quoteIfDotted(field.name()))
+            .append(": ")
+            .append(optionality(field))
+            .append(" ")
+            .append(describe(field.type()));
+      }
+      return rendered.append(">").toString();
+    }
+    if (type.isListType()) {
+      return "list<" + describe(type.asListType().elementType()) + ">";
+    }
+    if (type.isMapType()) {
+      Types.MapType map = type.asMapType();
+      return "map<" + describe(map.keyType()) + ", " + describe(map.valueType()) + ">";
+    }
+    return type.toString();
+  }
+
+  /** A field added inside a newly added struct is reported once, as part of its ancestor. */
+  private static boolean hasAddedAncestor(
+      int id, Map<Integer, Integer> parentById, Map<Integer, Types.NestedField> beforeById) {
+    Integer parent = parentById.get(id);
+    while (parent != null) {
+      if (!beforeById.containsKey(parent)) {
+        return true;
+      }
+      parent = parentById.get(parent);
+    }
+    return false;
+  }
+
+  static String quoteIfDotted(String name) {
+    if (name.contains(".")) {
+      return "`" + name + "`";
+    }
+    return name;
+  }
+
+  private static String optionality(Types.NestedField field) {
+    return field.isOptional() ? "optional" : "required";
+  }
+
+  boolean isEmpty() {
+    return changes.isEmpty();
+  }
+
+  Set<SchemaChange.Kind> kinds() {
+    Set<SchemaChange.Kind> kinds = EnumSet.noneOf(SchemaChange.Kind.class);
+    for (SchemaChange change : changes) {
+      kinds.add(change.kind);
+    }
+    return kinds;
+  }
+
+  List<String> descriptions() {
+    List<String> descriptions = new ArrayList<>();
+    for (SchemaChange change : changes) {
+      descriptions.add(change.description);
+    }
+    return Collections.unmodifiableList(descriptions);
+  }
+
+  @Nullable String conflict() {
+    for (SchemaChange change : changes) {
+      if (change.kind == SchemaChange.Kind.CONFLICT) {
+        return change.description;
+      }
+    }
+    return null;
+  }
+
+  boolean allowedBy(SchemaEvolutionConfig config) {
+    Pins pins = new Pins(config.getRequiredColumns());
+    for (SchemaChange change : changes) {
+      if (!change.allowedBy(config, pins)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Why {@link #allowedBy} is false; empty when it is true. */
+  String disallowedReason(SchemaEvolutionConfig config) {
+    List<String> conflicts = new ArrayList<>();
+    for (SchemaChange change : changes) {
+      if (change.kind == SchemaChange.Kind.CONFLICT) {
+        conflicts.add(change.description);
+      }
+    }
+    if (!conflicts.isEmpty()) {
+      return "file schema conflicts with the table schema: " + String.join("; ", conflicts);
+    }
+    Pins pins = new Pins(config.getRequiredColumns());
+    List<String> disallowed = new ArrayList<>();
+    for (SchemaChange change : changes) {
+      if (!change.allowedBy(config, pins)) {
+        disallowed.add(change.disallowedReason(pins));
+      }
+    }
+    if (disallowed.isEmpty()) {
+      return "";
+    }
+    return "file schema needs changes that are not allowed: " + String.join("; ", disallowed);
+  }
+
+  @Override
+  public String toString() {
+    return "SchemaDelta" + descriptions();
+  }
+}

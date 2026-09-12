@@ -296,6 +296,44 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string('test message'))
 
+  def test_failed_instruction_id_cache_size_is_capped(self):
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    with mock.patch(
+        'apache_beam.runners.worker.sdk_worker.MAX_FAILED_INSTRUCTIONS', 10):
+      for i in range(15):
+        bundle_processor_cache.discard(f'inst_{i}', RuntimeError(f'error {i}'))
+
+      for i in range(5):
+        self.assertNotIn(
+            f'inst_{i}', bundle_processor_cache.failed_instruction_ids)
+      for i in range(5, 15):
+        self.assertIn(
+            f'inst_{i}', bundle_processor_cache.failed_instruction_ids)
+
+  def test_failed_instruction_tracebacks_are_truncated_when_too_long(self):
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    long_message = "x" * 15000
+    bundle_processor_cache.discard('instruction_id', RuntimeError(long_message))
+
+    stored_exception = bundle_processor_cache.failed_instruction_ids[
+        'instruction_id']
+    tb_str = str(stored_exception)
+
+    self.assertLessEqual(len(tb_str), 13000)
+    self.assertIn('[traceback truncated]', tb_str)
+
   def test_data_sampling_response(self):
     # Create a data sampler with some fake sampled data. This data will be seen
     # in the sample response.
@@ -702,6 +740,38 @@ class ShortIdCacheTest(unittest.TestCase):
           cache.get_short_id(case.info),
           "Got incorrect short id on second retrieval for monitoring info:\n%s"
           % case.info)
+
+
+class DeferredCallTest(unittest.TestCase):
+  """Tests for _DeferredCall.get()."""
+  def test_get_single_arg(self):
+    f = sdk_worker._Future().set(42)
+    call = sdk_worker._DeferredCall(lambda x: x, f)
+    self.assertEqual(call.get(), 42)
+
+  def test_get_multiple_args(self):
+    futures = [sdk_worker._Future().set(i) for i in range(5)]
+    call = sdk_worker._DeferredCall(lambda *args: sum(args), *futures)
+    self.assertEqual(call.get(), sum(range(5)))
+
+  def test_get_non_future_args_are_wrapped(self):
+    # __init__ wraps non-Future values in _Future().set(v); get() must work.
+    call = sdk_worker._DeferredCall(lambda x, y: x * y, 3, 7)
+    self.assertEqual(call.get(), 21)
+
+  def test_get_mixed_future_and_value_args(self):
+    a = sdk_worker._Future().set(10)
+    call = sdk_worker._DeferredCall(lambda x, y: x + y, a, 5)
+    self.assertEqual(call.get(), 15)
+
+  def test_get_zero_args(self):
+    call = sdk_worker._DeferredCall(lambda: 99)
+    self.assertEqual(call.get(), 99)
+
+  def test_get_preserves_return_value_type(self):
+    f = sdk_worker._Future().set({'key': 'val'})
+    call = sdk_worker._DeferredCall(lambda d: d, f)
+    self.assertEqual(call.get(), {'key': 'val'})
 
 
 def monitoringInfoMetadata(info):

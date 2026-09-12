@@ -38,8 +38,8 @@ K = typing.TypeVar('K')
 V = typing.TypeVar('V')
 
 
-@typehints.with_input_types(typing.Tuple[K, V])
-@typehints.with_output_types(typing.Tuple[K, V])
+@typehints.with_input_types(tuple[K, V])
+@typehints.with_output_types(tuple[K, V])
 class DeduplicatePerKey(ptransform.PTransform):
   """ A PTransform which deduplicates <key, value> pair over a time domain and
   threshold. Values in different windows will NOT be considered duplicates of

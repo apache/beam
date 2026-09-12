@@ -153,9 +153,14 @@ cdef class StateSampler(object):
     self.sampling_thread.join()
 
   def reset(self):
-    for state in self.scoped_states_by_index:
-      (<ScopedState>state)._nsecs = 0
-    self.started = self.finished = False
+    with nogil:
+      pythread.PyThread_acquire_lock(self.lock, pythread.WAIT_LOCK)
+    try:
+      for state in self.scoped_states_by_index:
+        (<ScopedState>state)._nsecs = 0
+      self.started = self.finished = False
+    finally:
+      pythread.PyThread_release_lock(self.lock)
 
   cpdef ScopedState current_state(self):
     return self.current_state_c()
@@ -217,7 +222,13 @@ cdef class ScopedState(object):
 
   @property
   def nsecs(self):
-    return self._nsecs
+    cdef pythread.PyThread_type_lock lock = self.sampler.lock
+    cdef int64_t val
+    with nogil:
+      pythread.PyThread_acquire_lock(lock, pythread.WAIT_LOCK)
+      val = self._nsecs
+      pythread.PyThread_release_lock(lock)
+    return val
 
   def sampled_seconds(self):
     return 1e-9 * self.nsecs

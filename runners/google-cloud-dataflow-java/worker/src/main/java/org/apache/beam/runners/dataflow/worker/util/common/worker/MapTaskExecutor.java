@@ -100,9 +100,6 @@ public class MapTaskExecutor implements WorkExecutor {
         } catch (Exception closeExn) {
           exn.addSuppressed(closeExn);
         }
-        if (exn instanceof InterruptedException) {
-          Thread.currentThread().interrupt();
-        }
         throw exn;
       }
     }
@@ -110,6 +107,13 @@ public class MapTaskExecutor implements WorkExecutor {
     LOG.debug("Map task execution complete");
 
     // TODO: support for success / failure ports?
+  }
+
+  @Override
+  public void finishKey(@Nullable Object key) throws Exception {
+    for (Operation op : operations) {
+      op.finishKey(key);
+    }
   }
 
   @Override

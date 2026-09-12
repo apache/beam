@@ -35,6 +35,7 @@ import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContaining;
 import static org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.timeContainingToRowFn;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -50,6 +51,7 @@ import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.NullableAllPrimitiveDa
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.SinglyNestedDataTypes;
 import org.apache.beam.sdk.io.common.SchemaAwareJavaBeans.TimeContaining;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.joda.time.Instant;
 
 /** Shared {@link SchemaAwareJavaBeans} data to be used across various tests. */
@@ -59,6 +61,23 @@ class FileWriteSchemaTransformFormatProviderTestData {
 
   /* Prevent instantiation outside this class. */
   private FileWriteSchemaTransformFormatProviderTestData() {}
+
+  private static class ListPatcher<T> {
+    private ArrayList<T> list;
+
+    ListPatcher(List<T> list) {
+      this.list = Lists.newArrayList(list);
+    }
+
+    ArrayList<T> get() {
+      return list;
+    }
+
+    ListPatcher<T> patch(int index, T value) {
+      list.set(index, value);
+      return this;
+    }
+  }
 
   final List<AllPrimitiveDataTypes> allPrimitiveDataTypesList =
       Arrays.asList(
@@ -188,8 +207,50 @@ class FileWriteSchemaTransformFormatProviderTestData {
               Collections.emptyList(),
               Collections.emptyList()));
 
+  // TODO(AVRO-4110): remove this workaround when Beam upgraded Avro past 1.12.0
+  final List<ArrayPrimitiveDataTypes> arrayPrimitiveDataTypesListAvro1120 =
+      new ListPatcher<>(arrayPrimitiveDataTypesList)
+          .patch(
+              1,
+              arrayPrimitiveDataTypes(
+                  Collections.emptyList(),
+                  Collections.singletonList((double) Float.MAX_VALUE),
+                  Collections.emptyList(),
+                  Collections.emptyList(),
+                  Collections.emptyList(),
+                  Collections.emptyList()))
+          .patch(
+              6,
+              arrayPrimitiveDataTypes(
+                  Arrays.asList(false, true, false),
+                  Arrays.asList((double) Float.MIN_VALUE, 0.0, (double) Float.MAX_VALUE),
+                  Arrays.asList(Float.MIN_VALUE, 0.0f, Float.MAX_VALUE),
+                  Arrays.asList(Integer.MIN_VALUE, 0, Integer.MAX_VALUE),
+                  Arrays.asList(Long.MIN_VALUE, 0L, Long.MAX_VALUE),
+                  Arrays.asList(
+                      Stream.generate(() -> "🐤").limit(10).collect(Collectors.joining("")),
+                      Stream.generate(() -> "🐥").limit(10).collect(Collectors.joining("")),
+                      Stream.generate(() -> "🐣").limit(10).collect(Collectors.joining("")))))
+          .patch(
+              7,
+              arrayPrimitiveDataTypes(
+                  Stream.generate(() -> true).limit(10).collect(Collectors.toList()),
+                  Stream.generate(() -> (double) Float.MIN_VALUE)
+                      .limit(10)
+                      .collect(Collectors.toList()),
+                  Stream.generate(() -> Float.MIN_VALUE).limit(10).collect(Collectors.toList()),
+                  Stream.generate(() -> Integer.MIN_VALUE).limit(10).collect(Collectors.toList()),
+                  Stream.generate(() -> Long.MIN_VALUE).limit(10).collect(Collectors.toList()),
+                  Stream.generate(() -> "🐿").limit(10).collect(Collectors.toList())))
+          .get();
+
   final List<Row> arrayPrimitiveDataTypesRows =
       arrayPrimitiveDataTypesList.stream()
+          .map(arrayPrimitiveDataTypesToRowFn()::apply)
+          .collect(Collectors.toList());
+
+  final List<Row> arrayPrimitiveDataTypesRowsAvro1120 =
+      arrayPrimitiveDataTypesListAvro1120.stream()
           .map(arrayPrimitiveDataTypesToRowFn()::apply)
           .collect(Collectors.toList());
 

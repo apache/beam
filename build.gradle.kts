@@ -21,7 +21,7 @@ import java.util.TreeMap
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.1"
+  id("org.nosphere.apache.rat") version "0.9.0"
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -278,11 +278,13 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")
+  // Only when the opt-in flag put it in the build; see settings.gradle.kts.
+  if (findProject(":runners:kafka-streams") != null) {
+    dependsOn(":runners:kafka-streams:build")
+  }
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")
-  dependsOn(":runners:samza:build")
-  dependsOn(":runners:samza:job-server:build")
   dependsOn(":runners:spark:3:build")
   dependsOn(":runners:spark:3:job-server:build")
   dependsOn(":runners:twister2:build")
@@ -341,7 +343,9 @@ tasks.register("javaPreCommit") {
 // a precommit task build multiple IOs (except those splitting into single jobs)
 tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:amqp:build")
-  dependsOn(":sdks:java:io:cassandra:build")
+  dependsOn(":sdks:java:io:arrow-flight:build")
+  // CassandraIO, HBaseIO and HCatalogIO do not support Java17+, test ran separately
+  // dependsOn(":sdks:java:io:cassandra:build")
   dependsOn(":sdks:java:io:csv:build")
   dependsOn(":sdks:java:io:cdap:build")
   dependsOn(":sdks:java:io:clickhouse:build")
@@ -351,8 +355,8 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:elasticsearch:build")
   dependsOn(":sdks:java:io:file-schema-transform:build")
   dependsOn(":sdks:java:io:google-ads:build")
-  dependsOn(":sdks:java:io:hbase:build")
-  dependsOn(":sdks:java:io:hcatalog:build")
+  // dependsOn(":sdks:java:io:hbase:build")
+  // dependsOn(":sdks:java:io:hcatalog:build")
   dependsOn(":sdks:java:io:influxdb:build")
   dependsOn(":sdks:java:io:jdbc:build")
   dependsOn(":sdks:java:io:jms:build")
@@ -392,6 +396,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
+  dependsOn(":sdks:java:extensions:sql:delta:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
@@ -410,7 +415,6 @@ tasks.register("javaPostCommit") {
 }
 
 tasks.register("javaPostCommitSickbay") {
-  dependsOn(":runners:samza:validatesRunnerSickbay")
   for (version in project.ext.get("allFlinkVersions") as Array<*>) {
     dependsOn(":runners:flink:${version}:validatesRunnerSickbay")
   }
@@ -762,15 +766,15 @@ tasks.register("validateChanges") {
             println("  No bracketed language reference found")
           }
 
-          // Rule 2: Check if each entry has an issue link
-          val issueLinkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/issues/[0-9a-zA-Z]+\\)\\)"
-          val issueLinkRegex = Regex(issueLinkPattern)
+          // Rule 2: Check if each entry links an issue or a PR
+          val linkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/(?:issues|pull)/[0-9a-zA-Z]+\\)\\)"
+          val linkRegex = Regex(linkPattern)
 
-          val hasIssueLink = issueLinkRegex.containsMatchIn(line)
-          println("  Has issue link: $hasIssueLink")
+          val hasLink = linkRegex.containsMatchIn(line)
+          println("  Has issue link: $hasLink")
 
-          if (!hasIssueLink) {
-            val error = "Line ${i+1}: Missing or malformed issue link. Each entry should end with ([#X](https://github.com/apache/beam/issues/X)): $line"
+          if (!hasLink) {
+            val error = "Line ${i+1}: Missing or malformed issue link. Each entry must end with a reference to an Issue or a PR, for example: ([#X](https://github.com/apache/beam/issues/X)): $line"
             println("  Adding error: $error")
             errors.add(error)
           }

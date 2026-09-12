@@ -63,6 +63,7 @@ public class ApproximateCountDistinctTest {
     PAssert.that(result).containsInAnyOrder(1L);
     p.run();
   }
+
   /** Test correct Builder is returned from Generic type. * */
   @Test
   public void testStringBuilder() {
@@ -75,6 +76,7 @@ public class ApproximateCountDistinctTest {
     PAssert.that(result).containsInAnyOrder(1L);
     p.run();
   }
+
   /** Test correct Builder is returned from Generic type. * */
   @Test
   public void testLongBuilder() {
@@ -86,6 +88,7 @@ public class ApproximateCountDistinctTest {
     PAssert.that(result).containsInAnyOrder(1L);
     p.run();
   }
+
   /** Test correct Builder is returned from Generic type. * */
   @Test
   public void testBytesBuilder() {

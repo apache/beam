@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.metrics;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.beam.runners.core.metrics.MetricsContainerStepMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.spark.sql.SparkSession;
@@ -85,6 +86,10 @@ public class MetricsAccumulator
    * Get the {@link MetricsAccumulator} on this driver. If there's no such accumulator yet, it will
    * be created and registered using the provided {@link SparkSession}.
    */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Spark merges only the accumulator instance the driver registered. A copy would collect metrics that nothing reports.")
   public static MetricsAccumulator getInstance(SparkSession session) {
     MetricsAccumulator current = instance;
     if (current != null) {

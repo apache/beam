@@ -44,7 +44,6 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.options.PipelineOptions;
-import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFnSchemaInformation;
 import org.apache.beam.sdk.util.DoFnInfo;
@@ -65,7 +64,8 @@ import org.joda.time.Duration;
 })
 class SplittableProcessFnFactory {
   static final ParDoFnFactory createDefault() {
-    return new UserParDoFnFactory(new ProcessFnExtractor(), new SplittableDoFnRunnerFactory());
+    return new UserParDoFnFactory(
+        new ProcessFnExtractor(), new SplittableDoFnRunnerFactory(), true);
   }
 
   private static class ProcessFnExtractor implements UserParDoFnFactory.DoFnExtractor {
@@ -157,6 +157,7 @@ class SplittableProcessFnFactory {
               10000,
               Duration.standardSeconds(10),
               stepContext::bundleFinalizer));
+      processFn.setBacklogBytesCallback(userStepContext::setBacklogBytes);
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> simpleRunner =
           new SimpleDoFnRunner<>(
               options,
@@ -173,22 +174,6 @@ class SplittableProcessFnFactory {
               sideInputMapping);
       DoFnRunner<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT> fnRunner =
           new DataflowProcessFnRunner<>(simpleRunner);
-      boolean hasStreamingSideInput =
-          options.as(StreamingOptions.class).isStreaming() && !sideInputReader.isEmpty();
-      KeyedWorkItemCoder<byte[], KV<InputT, RestrictionT>> kwiCoder =
-          (KeyedWorkItemCoder<byte[], KV<InputT, RestrictionT>>) inputCoder;
-      if (hasStreamingSideInput) {
-        fnRunner =
-            new StreamingKeyedWorkItemSideInputDoFnRunner<>(
-                fnRunner,
-                ByteArrayCoder.of(),
-                new StreamingSideInputFetcher<>(
-                    sideInputViews,
-                    kwiCoder.getElementCoder(),
-                    processFn.getInputWindowingStrategy(),
-                    (StreamingModeExecutionContext.StreamingModeStepContext) userStepContext),
-                userStepContext);
-      }
       return fnRunner;
     }
   }

@@ -24,6 +24,7 @@
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import collections
 from typing import TYPE_CHECKING
 from typing import Any

@@ -18,12 +18,14 @@
 package org.apache.beam.runners.dataflow.worker;
 
 import org.apache.beam.runners.core.ElementByteSizeObservable;
+import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.dataflow.worker.counters.Counter;
 import org.apache.beam.runners.dataflow.worker.counters.CounterFactory;
 import org.apache.beam.runners.dataflow.worker.counters.CounterName;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.ElementCounter;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.OutputObjectAndByteCounter;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 
@@ -33,6 +35,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@Internal
 public class DataflowOutputCounter implements ElementCounter {
   /** Number of logical element and single window pairs that were processed. */
   private static final String ELEMENT_COUNTER_NAME = "-ElementCount";
@@ -41,20 +44,36 @@ public class DataflowOutputCounter implements ElementCounter {
 
   private OutputObjectAndByteCounter objectAndByteCounter;
   private Counter<Long, ?> elementCount;
+  private final boolean isStreaming;
 
-  public DataflowOutputCounter(
-      String outputName, CounterFactory counterFactory, NameContext nameContext) {
-    this(outputName, null, counterFactory, nameContext);
-  }
-
-  public DataflowOutputCounter(
+  public static DataflowOutputCounter create(
       String outputName,
       ElementByteSizeObservable<?> elementByteSizeObservable,
       CounterFactory counterFactory,
-      NameContext nameContext) {
-    objectAndByteCounter =
+      NameContext nameContext,
+      boolean isStreaming) {
+    return new DataflowOutputCounter(
+        outputName, elementByteSizeObservable, counterFactory, nameContext, isStreaming);
+  }
+
+  public static DataflowOutputCounter create(
+      String outputName,
+      CounterFactory counterFactory,
+      NameContext nameContext,
+      boolean isStreaming) {
+    return new DataflowOutputCounter(outputName, null, counterFactory, nameContext, isStreaming);
+  }
+
+  private DataflowOutputCounter(
+      String outputName,
+      ElementByteSizeObservable<?> elementByteSizeObservable,
+      CounterFactory counterFactory,
+      NameContext nameContext,
+      boolean isStreaming) {
+    this.isStreaming = isStreaming;
+    this.objectAndByteCounter =
         new OutputObjectAndByteCounter(elementByteSizeObservable, counterFactory, nameContext);
-    objectAndByteCounter.countMeanByte(outputName + MEAN_BYTE_COUNTER_NAME);
+    this.objectAndByteCounter.countMeanByte(outputName + MEAN_BYTE_COUNTER_NAME);
     createElementCounter(counterFactory, outputName + ELEMENT_COUNTER_NAME);
   }
 
@@ -63,12 +82,39 @@ public class DataflowOutputCounter implements ElementCounter {
     objectAndByteCounter.update(elem);
     long windowsSize = ((WindowedValue<?>) elem).getWindows().size();
     if (windowsSize == 0) {
-      // GroupingShuffleReader produces ValueInEmptyWindows.
-      // For now, we count the element at least once to keep the current counter
-      // behavior.
-      elementCount.addValue(1L);
+      updateEmptyWindows((WindowedValue<?>) elem);
     } else {
+      // Standard WindowedValue.
       elementCount.addValue(windowsSize);
+    }
+  }
+
+  private void updateEmptyWindows(WindowedValue<?> elem) {
+    if (isStreaming) {
+      Object value = elem.getValue();
+      if (value instanceof KeyedWorkItem<?, ?>) {
+        // KeyedWorkItem wrapped in ValueInEmptyWindows
+        // (e.g. WindowingWindmillReader for Streaming GBK)
+        KeyedWorkItem<?, ?> keyedWorkItem = (KeyedWorkItem<?, ?>) value;
+        long totalElementCount = 0;
+        // Iterate through elementWindowsIterable and ignore timers in KeyedWorkItem.
+        // Uses lightweight metadata-only iteration without payload deserialization overhead.
+        for (WindowedValue<?> element : keyedWorkItem.elementWindowsIterable()) {
+          long elementWindowsSize = element.getWindows().size();
+          // Fan out for windows.
+          totalElementCount += (elementWindowsSize == 0 ? 1L : elementWindowsSize);
+        }
+        elementCount.addValue(totalElementCount);
+      } else {
+        // NOTE: in streaming mode, this should not normally happen.
+        // Counting as 1 element serves as a fallback to maintain counter behavior without failing
+        // execution.
+        elementCount.addValue(1L);
+      }
+    } else {
+      // Non-KeyedWorkItem wrapped in ValueInEmptyWindows
+      // (e.g. GroupingShuffleReader KV output for Batch GBK)
+      elementCount.addValue(1L);
     }
   }
 

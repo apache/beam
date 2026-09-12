@@ -36,7 +36,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of Combine transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 47
+//   context_line: 49
 //   categories:
 //     - Core Transforms
 //     - Combiners

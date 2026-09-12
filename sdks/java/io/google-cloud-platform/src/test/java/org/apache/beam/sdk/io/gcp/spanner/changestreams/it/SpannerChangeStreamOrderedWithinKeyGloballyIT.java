@@ -34,6 +34,7 @@ import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerConfig;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO;
+import org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.DataChangeRecord;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -93,10 +94,11 @@ public class SpannerChangeStreamOrderedWithinKeyGloballyIT {
   @Test
   public void testOrderedWithinKey() {
     final SpannerConfig spannerConfig =
-        SpannerConfig.create()
-            .withProjectId(projectId)
-            .withInstanceId(instanceId)
-            .withDatabaseId(databaseId);
+        SpannerTestHelper.setUpSpannerConfig(
+            SpannerConfig.create()
+                .withProjectId(projectId)
+                .withInstanceId(instanceId)
+                .withDatabaseId(databaseId));
 
     // Get the time increment interval at which to flush data changes ordered by key.
     final long timeIncrementInSeconds = 10;

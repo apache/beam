@@ -24,7 +24,7 @@ package org.apache.beam.examples.complete;
 //     each month.
 //   multifile: true
 //   pipeline_options: --output output.txt
-//   context_line: 236
+//   context_line: 244
 //   categories:
 //     - Combiners
 //     - Options

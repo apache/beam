@@ -25,10 +25,7 @@ import importlib
 import keyword
 import logging
 import traceback
-from typing import Dict
-from typing import List
 from typing import Optional
-from typing import Tuple
 from typing import Union
 
 from IPython.core.magic import Magics
@@ -126,7 +123,7 @@ class BeamSqlParser:
             'names and the SQL keywords, such as "SELECT", "FROM", "WHERE" and '
             'etc.'))
 
-  def parse(self, args: List[str]) -> Optional[argparse.Namespace]:
+  def parse(self, args: list[str]) -> Optional[argparse.Namespace]:
     """Parses a list of string inputs.
 
     The parsed namespace contains these attributes:
@@ -246,7 +243,7 @@ class BeamSqlMagics(Magics):
 
 
 @progress_indicated
-def collect_data_for_local_run(query: str, found: Dict[str, beam.PCollection]):
+def collect_data_for_local_run(query: str, found: dict[str, beam.PCollection]):
   from apache_beam.runners.interactive import interactive_beam as ib
   for name, pcoll in found.items():
     try:
@@ -269,8 +266,8 @@ def collect_data_for_local_run(query: str, found: Dict[str, beam.PCollection]):
 def apply_sql(
     query: str,
     output_name: Optional[str],
-    found: Dict[str, beam.PCollection],
-    run: bool = True) -> Tuple[str, Union[PValue, SqlNode], SqlChain]:
+    found: dict[str, beam.PCollection],
+    run: bool = True) -> tuple[str, Union[PValue, SqlNode], SqlChain]:
   """Applies a SqlTransform with the given sql and queried PCollections.
 
   Args:
@@ -312,7 +309,7 @@ def apply_sql(
 def pcolls_from_streaming_cache(
     user_pipeline: beam.Pipeline,
     query_pipeline: beam.Pipeline,
-    name_to_pcoll: Dict[str, beam.PCollection]) -> Dict[str, beam.PCollection]:
+    name_to_pcoll: dict[str, beam.PCollection]) -> dict[str, beam.PCollection]:
   """Reads PCollection cache through the TestStream.
 
   Args:
@@ -364,7 +361,7 @@ def pcolls_from_streaming_cache(
 
 def _generate_output_name(
     output_name: Optional[str], query: str,
-    found: Dict[str, beam.PCollection]) -> str:
+    found: dict[str, beam.PCollection]) -> str:
   """Generates a unique output name if None is provided.
 
   Otherwise, returns the given output name directly.
@@ -379,11 +376,11 @@ def _generate_output_name(
 
 def _build_query_components(
     query: str,
-    found: Dict[str, beam.PCollection],
+    found: dict[str, beam.PCollection],
     output_name: str,
     run: bool = True
-) -> Tuple[str,
-           Union[Dict[str, beam.PCollection], beam.PCollection, beam.Pipeline],
+) -> tuple[str,
+           Union[dict[str, beam.PCollection], beam.PCollection, beam.Pipeline],
            SqlChain]:
   """Builds necessary components needed to apply the SqlTransform.
 

@@ -30,7 +30,6 @@ import com.google.api.client.googleapis.services.json.AbstractGoogleJsonClientRe
 import com.google.api.client.http.HttpHeaders;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.http.HttpStatusCodes;
-import com.google.api.client.http.HttpTransport;
 import com.google.api.client.util.BackOff;
 import com.google.api.client.util.Sleeper;
 import com.google.api.services.storage.Storage;
@@ -53,7 +52,6 @@ import com.google.cloud.hadoop.util.RetryDeterminer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
@@ -73,6 +71,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -166,8 +165,10 @@ class GcsUtilV1 {
 
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
+
   /** Default maximum number of requests permitted in a GCS batch request where data is copied. */
   private static final int MAX_REQUESTS_PER_COPY_BATCH = 10;
+
   /** Maximum number of concurrent batches of requests executing on GCS. */
   private static final int MAX_CONCURRENT_BATCHES = 256;
 
@@ -186,6 +187,7 @@ class GcsUtilV1 {
           return RetryDeterminer.SOCKET_ERRORS.shouldRetry(e);
         }
       };
+  private static final AtomicBoolean overwriteLog = new AtomicBoolean(false);
 
   /////////////////////////////////////////////////////////////////////////////
 
@@ -195,6 +197,7 @@ class GcsUtilV1 {
   private Supplier<BatchInterface> batchRequestSupplier;
 
   private final HttpRequestInitializer httpRequestInitializer;
+
   /** Buffer size for GCS uploads (in bytes). */
   private final @Nullable Integer uploadBufferSizeBytes;
 
@@ -261,14 +264,24 @@ class GcsUtilV1 {
     this.credentials = credentials;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
-    googleCloudStorageOptions =
+    GoogleCloudStorageOptions.Builder optionsBuilder =
         GoogleCloudStorageOptions.builder()
             .setAppName("Beam")
             .setReadChannelOptions(gcsReadOptions)
-            .setGrpcEnabled(shouldUseGrpc)
-            .build();
-    googleCloudStorage =
-        createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
+            .setGrpcEnabled(shouldUseGrpc);
+    if (storageClient.getRootUrl() != null) {
+      optionsBuilder.setStorageRootUrl(storageClient.getRootUrl());
+    }
+    if (storageClient.getServicePath() != null) {
+      optionsBuilder.setStorageServicePath(storageClient.getServicePath());
+    }
+    googleCloudStorageOptions = optionsBuilder.build();
+    try {
+      googleCloudStorage =
+          createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
     this.batchRequestSupplier =
         () -> {
           // Capture reference to this so that the most recent storageClient and initializer
@@ -364,8 +377,7 @@ class GcsUtilV1 {
   }
 
   @VisibleForTesting
-  @Nullable
-  Integer getUploadBufferSizeBytes() {
+  @Nullable Integer getUploadBufferSizeBytes() {
     return uploadBufferSizeBytes;
   }
 
@@ -492,6 +504,11 @@ class GcsUtilV1 {
   }
 
   @VisibleForTesting
+  GoogleCloudStorage getGoogleCloudStorage() {
+    return googleCloudStorage;
+  }
+
+  @VisibleForTesting
   void setCloudStorageImpl(GoogleCloudStorage g) {
     googleCloudStorage = g;
   }
@@ -611,14 +628,18 @@ class GcsUtilV1 {
     }
   }
 
-  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  /**
+   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
+   */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
     CreateOptions.Builder builder = CreateOptions.builder().setContentType(type);
     return create(path, builder.build());
   }
 
-  /** @deprecated Use {@link #create(GcsPath, CreateOptions)} instead. */
+  /**
+   * @deprecated Use {@link #create(GcsPath, CreateOptions)} instead.
+   */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
@@ -671,8 +692,7 @@ class GcsUtilV1 {
    */
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     AsyncWriteChannelOptions wcOptions = googleCloudStorageOptions.getWriteChannelOptions();
-    @Nullable
-    Integer uploadBufferSizeBytes =
+    @Nullable Integer uploadBufferSizeBytes =
         options.getUploadBufferSizeBytes() != null
             ? options.getUploadBufferSizeBytes()
             : getUploadBufferSizeBytes();
@@ -724,49 +744,24 @@ class GcsUtilV1 {
     }
   }
 
+  @SuppressFBWarnings("LG_LOST_LOGGER_DUE_TO_WEAK_REFERENCE")
   GoogleCloudStorage createGoogleCloudStorage(
-      GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
-    try {
-      return new GoogleCloudStorageImpl(options, storage, credentials);
-    } catch (NoSuchMethodError e) {
-      // gcs-connector 3.x drops the direct constructor and exclusively uses Builder
-      // TODO eliminate reflection once Beam drops Java 8 support and upgrades to gcsio 3.x
-      try {
-        final Method builderMethod = GoogleCloudStorageImpl.class.getMethod("builder");
-        Object builder = builderMethod.invoke(null);
-        final Class<?> builderClass =
-            Class.forName(
-                "com.google.cloud.hadoop.gcsio.AutoBuilder_GoogleCloudStorageImpl_Builder");
-
-        final Method setOptionsMethod =
-            builderClass.getMethod("setOptions", GoogleCloudStorageOptions.class);
-        setOptionsMethod.setAccessible(true);
-        builder = setOptionsMethod.invoke(builder, options);
-
-        final Method setHttpTransportMethod =
-            builderClass.getMethod("setHttpTransport", HttpTransport.class);
-        setHttpTransportMethod.setAccessible(true);
-        builder =
-            setHttpTransportMethod.invoke(builder, storage.getRequestFactory().getTransport());
-
-        final Method setCredentialsMethod =
-            builderClass.getMethod("setCredentials", Credentials.class);
-        setCredentialsMethod.setAccessible(true);
-        builder = setCredentialsMethod.invoke(builder, credentials);
-
-        final Method setHttpRequestInitializerMethod =
-            builderClass.getMethod("setHttpRequestInitializer", HttpRequestInitializer.class);
-        setHttpRequestInitializerMethod.setAccessible(true);
-        builder = setHttpRequestInitializerMethod.invoke(builder, httpRequestInitializer);
-
-        final Method buildMethod = builderClass.getMethod("build");
-        buildMethod.setAccessible(true);
-        return (GoogleCloudStorage) buildMethod.invoke(builder);
-      } catch (Exception reflectionError) {
-        throw new RuntimeException(
-            "Failed to construct GoogleCloudStorageImpl from gcsio 3.x Builder", reflectionError);
-      }
+      GoogleCloudStorageOptions options, Storage storage, Credentials credentials)
+      throws IOException {
+    // Suppress log spams in gcsio 3.0
+    if (overwriteLog.compareAndSet(false, true)) {
+      java.util.logging.Logger.getLogger("com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl")
+          .setLevel(java.util.logging.Level.SEVERE);
     }
+
+    return GoogleCloudStorageImpl.builder()
+        .setOptions(options)
+        .setHttpTransport(storage.getRequestFactory().getTransport())
+        .setCredentials(credentials)
+        // gcsio 3 expects httpRequestInitializer to be either absent or
+        // com.google.cloud.hadoop.util.RetryHttpInitializer when credentials not provided
+        .setHttpRequestInitializer(credentials != null ? httpRequestInitializer : null)
+        .build();
   }
 
   /**
@@ -834,8 +829,7 @@ class GcsUtilV1 {
   }
 
   @VisibleForTesting
-  @Nullable
-  Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
+  @Nullable Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
 
     try {
@@ -1181,9 +1175,9 @@ class GcsUtilV1 {
     rewriteHelper(
         srcFilenames,
         destFilenames,
-        /*deleteSource=*/ false,
-        /*ignoreMissingSource=*/ false,
-        /*ignoreExistingDest=*/ false);
+        /* deleteSource= */ false,
+        /* ignoreMissingSource= */ false,
+        /* ignoreExistingDest= */ false);
   }
 
   public void rename(
@@ -1197,7 +1191,11 @@ class GcsUtilV1 {
     final boolean ignoreExistingDest =
         moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
     rewriteHelper(
-        srcFilenames, destFilenames, /*deleteSource=*/ true, ignoreMissingSrc, ignoreExistingDest);
+        srcFilenames,
+        destFilenames,
+        /* deleteSource= */ true,
+        ignoreMissingSrc,
+        ignoreExistingDest);
   }
 
   private void rewriteHelper(

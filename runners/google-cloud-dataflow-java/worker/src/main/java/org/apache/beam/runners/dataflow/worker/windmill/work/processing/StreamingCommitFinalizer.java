@@ -156,7 +156,7 @@ final class StreamingCommitFinalizer {
     }
     for (Runnable callback : callbacksToExecute) {
       try {
-        finalizationExecutor.forceExecute(callback, 0);
+        finalizationExecutor.forceExecute(callback);
       } catch (OutOfMemoryError oom) {
         throw oom;
       } catch (Throwable t) {

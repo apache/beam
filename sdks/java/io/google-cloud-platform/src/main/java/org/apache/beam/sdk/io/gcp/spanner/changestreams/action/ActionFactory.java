@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.spanner.changestreams.action;
 
+import io.opentelemetry.api.OpenTelemetry;
 import java.io.Serializable;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamMetrics;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.cache.WatermarkCache;
@@ -191,7 +192,8 @@ public class ActionFactory implements Serializable {
       PartitionEventRecordAction partitionEventRecordAction,
       ChangeStreamMetrics metrics,
       boolean isMutableChangeStream,
-      Duration realTimeCheckpointInterval) {
+      Duration realTimeCheckpointInterval,
+      OpenTelemetry openTelemetry) {
     if (queryChangeStreamActionInstance == null) {
       queryChangeStreamActionInstance =
           new QueryChangeStreamAction(
@@ -207,7 +209,8 @@ public class ActionFactory implements Serializable {
               partitionEventRecordAction,
               metrics,
               isMutableChangeStream,
-              realTimeCheckpointInterval);
+              realTimeCheckpointInterval,
+              openTelemetry);
     }
     return queryChangeStreamActionInstance;
   }

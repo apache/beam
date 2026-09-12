@@ -81,10 +81,6 @@ def sickbayTests = [
     //
     // There is not currently a category for excluding these _only_ in committed mode
     'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testAllCommittedMetrics',
-    'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedCounterMetrics',
-    'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedDistributionMetrics',
-    'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedStringSetMetrics',
-    'org.apache.beam.sdk.metrics.MetricsTest$CommittedMetricTests.testCommittedGaugeMetrics',
 
     // Instead of 42, Prism got 84, which suggests two early panes of 42 are fired.
     'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
@@ -112,8 +108,6 @@ def sickbayTests = [
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testInStreamingMode',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInFixedWindow',
     'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testBufferingTimerInGlobalWindow',
-    // ShardedKey not yet implemented.
-    'org.apache.beam.sdk.transforms.GroupIntoBatchesTest.testWithShardedKeyInGlobalWindow',
 
     // Some tests failed when using TestStream with keyed elements.
     // https://github.com/apache/beam/issues/36984
@@ -162,6 +156,9 @@ def sickbayTests = [
     // java.lang.IllegalStateException: java.io.EOFException
     'org.apache.beam.sdk.transforms.ViewTest.testSideInputWithNestedIterables',
 
+    // Triggers index-out-of-bound error in Prism
+    'org.apache.beam.sdk.transforms.ParDoTest$StateTests.testTimerSideInput',
+
     // Missing output due to processing time timer skew.
     'org.apache.beam.sdk.transforms.ParDoTest$TimestampTests.testProcessElementSkew',
 
@@ -185,6 +182,7 @@ def sickbayTests = [
 def createPrismValidatesRunnerTask = { name, environmentType ->
   Task vrTask = tasks.create(name: name, type: Test, group: "Verification") {
     description "PrismRunner Java $environmentType ValidatesRunner suite"
+    outputs.upToDateWhen { false }
     classpath = configurations.validatesRunner
 
     var prismBuildTask = dependsOn(':runners:prism:build')

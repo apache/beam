@@ -221,10 +221,17 @@ public static class LoopingStatefulTimer extends DoFn<KV<String, Integer>, KV<St
     public void onTimer(
         OnTimerContext c,
         @StateId("key") ValueState<String> key,
-        @TimerId("loopingTimer") Timer loopingTimer) {
+        @TimerId("loopingTimer") Timer loopingTimer,
+        CausedByDrain drain) {
 
       LOG.info("Timer @ {} fired", c.timestamp());
       c.output(KV.of(key.read(), 0));
+
+      // Check if drain is in progress and avoid resetting the timer
+      if (drain == CausedByDrain.CAUSED_BY_DRAIN) {
+        LOG.info("Drain in progress, stopping looping timer.");
+        return;
+      }
 
       // If we do not put in a “time to live” value, then the timer would loop forever
       Instant nextTimer = c.timestamp().plus(Duration.standardMinutes(1));
@@ -347,4 +354,4 @@ support for dealing with this use case in production.
 
 
 Runner specific notes:
-Google Cloud Dataflow Runners Drain feature does not support looping timers (Link to matrix)
+Support for cancelling looping timers on drain is currently limited to Dataflow and is being implemented (see [Issue #36884](https://github.com/apache/beam/issues/36884)).

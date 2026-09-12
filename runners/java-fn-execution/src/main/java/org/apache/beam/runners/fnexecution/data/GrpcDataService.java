@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Supplier;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.Elements;
 import org.apache.beam.model.fnexecution.v1.BeamFnDataGrpc;
@@ -61,6 +60,7 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
   }
 
   private final SettableFuture<BeamFnDataGrpcMultiplexer> connectedClient;
+
   /**
    * A collection of multiplexers which are not used to send data. A handle to these multiplexers is
    * maintained in order to perform an orderly shutdown.
@@ -85,7 +85,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
     this.outboundObserverFactory = outboundObserverFactory;
   }
 
-  /** @deprecated This constructor is for migrating Dataflow purpose only. */
+  /**
+   * @deprecated This constructor is for migrating Dataflow purpose only.
+   */
   @Deprecated
   public GrpcDataService() {
     this.connectedClient = null;
@@ -175,13 +177,13 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
 
   @Override
   public BeamFnDataOutboundAggregator createOutboundAggregator(
-      Supplier<String> processBundleRequestIdSupplier, boolean collectElementsIfNoFlushes) {
+      String instructionId, boolean collectElementsIfNoFlushes) {
     try {
-      return new BeamFnDataOutboundAggregator(
-          options,
-          processBundleRequestIdSupplier,
-          connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver(),
-          collectElementsIfNoFlushes);
+      BeamFnDataOutboundAggregator aggregator =
+          new BeamFnDataOutboundAggregator(options, collectElementsIfNoFlushes);
+      aggregator.prepareForInstruction(
+          instructionId, connectedClient.get(3, TimeUnit.MINUTES).getOutboundObserver());
+      return aggregator;
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       throw new RuntimeException(e);

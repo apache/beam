@@ -519,11 +519,16 @@ public class ApiSurface {
     return pruned(TypeToken.of(type).getRawType());
   }
 
+  private static final ImmutableSet<String> EXCLUDED_NAMES =
+      ImmutableSet.of(
+          "jdk.internal.HotSpotIntrinsicCandidate",
+          "jdk.internal.vm.annotation.IntrinsicCandidate");
+
   /** Whether a class and all that it references should be pruned from the graph. */
   private boolean pruned(Class<?> clazz) {
     return clazz.isPrimitive()
         || clazz.isArray()
-        || clazz.getCanonicalName().equals("jdk.internal.HotSpotIntrinsicCandidate")
+        || EXCLUDED_NAMES.contains(clazz.getCanonicalName())
         || getPrunedPattern().matcher(clazz.getName()).matches();
   }
 

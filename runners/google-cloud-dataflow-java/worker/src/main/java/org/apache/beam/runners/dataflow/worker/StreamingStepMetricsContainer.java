@@ -335,6 +335,7 @@ public class StreamingStepMetricsContainer implements MetricsContainer {
   public static boolean getEnablePerWorkerMetrics() {
     return StreamingStepMetricsContainer.enablePerWorkerMetrics;
   }
+
   /**
    * Updates {@code perWorkerCountersByFirstStaleTime} with the current zero-valued metrics and
    * removes metrics that have been stale for longer than {@code maximumPerWorkerCounterStaleness}

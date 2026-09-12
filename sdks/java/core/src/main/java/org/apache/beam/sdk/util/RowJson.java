@@ -26,6 +26,7 @@ import static org.apache.beam.sdk.schemas.Schema.TypeName.FLOAT;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT16;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT32;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.INT64;
+import static org.apache.beam.sdk.schemas.Schema.TypeName.MAP;
 import static org.apache.beam.sdk.schemas.Schema.TypeName.STRING;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.booleanValueExtractor;
 import static org.apache.beam.sdk.util.RowJsonValueExtractors.byteValueExtractor;
@@ -57,6 +58,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.schemas.Schema;
@@ -95,7 +99,8 @@ import org.joda.time.ReadableInstant;
 })
 public class RowJson {
   private static final ImmutableSet<TypeName> SUPPORTED_TYPES =
-      ImmutableSet.of(BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, DATETIME);
+      ImmutableSet.of(
+          BYTE, INT16, INT32, INT64, FLOAT, DOUBLE, BOOLEAN, STRING, DECIMAL, DATETIME, MAP);
   private static final ImmutableSet<String> KNOWN_LOGICAL_TYPE_IDENTIFIERS =
       ImmutableSet.of(
           SqlTypes.DATE.getIdentifier(),
@@ -158,6 +163,14 @@ public class RowJson {
 
     if (fieldTypeName.isCollectionType()) {
       return findUnsupportedFields(fieldType.getCollectionElementType(), fieldName + "[]");
+    }
+
+    if (fieldTypeName.isMapType()) {
+      if (!STRING.equals(fieldType.getMapKeyType().getTypeName())) {
+        return ImmutableList.of(
+            new UnsupportedField(fieldName + ".key", fieldType.getMapKeyType().getTypeName()));
+      }
+      return findUnsupportedFields(fieldType.getMapValueType(), fieldName + "{}");
     }
 
     if (fieldTypeName.isLogicalType()) {
@@ -303,6 +316,10 @@ public class RowJson {
         return jsonArrayToList(fieldValue);
       }
 
+      if (fieldValue.isMapType()) {
+        return jsonObjectToMap(fieldValue);
+      }
+
       if (fieldValue.typeName().isLogicalType()) {
         String identifier = fieldValue.type().getLogicalType().getIdentifier();
         if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
@@ -363,6 +380,32 @@ public class RowJson {
                           arrayFieldValue.arrayElementType(),
                           jsonArrayElement)))
           .collect(toImmutableList());
+    }
+
+    private Map<String, Object> jsonObjectToMap(FieldValue mapFieldValue) {
+      if (!mapFieldValue.isJsonObject()) {
+        throw new UnsupportedRowJsonException(
+            "Expected JSON object for field '"
+                + mapFieldValue.name()
+                + "'. Instead got "
+                + mapFieldValue.jsonNodeType().name());
+      }
+
+      Map<String, Object> result = new HashMap<>();
+      Iterator<Map.Entry<String, JsonNode>> fields = mapFieldValue.jsonValue().fields();
+      while (fields.hasNext()) {
+        Map.Entry<String, JsonNode> field = fields.next();
+        String key = field.getKey();
+        JsonNode value = field.getValue();
+
+        Object extractedValue =
+            extractJsonNodeValue(
+                FieldValue.of(
+                    mapFieldValue.name() + "['" + key + "']", mapFieldValue.mapValueType(), value));
+
+        result.put(key, extractedValue);
+      }
+      return result;
     }
 
     private static Object extractJsonPrimitiveValue(FieldValue fieldValue) {
@@ -438,6 +481,18 @@ public class RowJson {
 
       Schema rowSchema() {
         return type().getRowSchema();
+      }
+
+      boolean isMapType() {
+        return TypeName.MAP.equals(type().getTypeName());
+      }
+
+      FieldType mapKeyType() {
+        return type().getMapKeyType();
+      }
+
+      FieldType mapValueType() {
+        return type().getMapValueType();
       }
 
       static FieldValue of(String name, FieldType type, JsonNode jsonValue) {
@@ -537,6 +592,14 @@ public class RowJson {
           break;
         case ROW:
           writeRow((Row) value, type.getRowSchema(), gen);
+          break;
+        case MAP:
+          gen.writeStartObject();
+          for (Map.Entry<Object, Object> entry : ((Map<Object, Object>) value).entrySet()) {
+            gen.writeFieldName(entry.getKey().toString());
+            writeValue(gen, type.getMapValueType(), entry.getValue());
+          }
+          gen.writeEndObject();
           break;
         case LOGICAL_TYPE:
           String identifier = type.getLogicalType().getIdentifier();

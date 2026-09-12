@@ -298,7 +298,7 @@ public class SdkHarnessClient implements AutoCloseable {
       ImmutableMap.Builder<LogicalEndpoint, FnDataReceiver<?>> receiverBuilder =
           ImmutableMap.builder();
       BeamFnDataOutboundAggregator beamFnDataOutboundAggregator =
-          fnApiDataService.createOutboundAggregator(() -> bundleId, false);
+          fnApiDataService.createOutboundAggregator(bundleId, false);
       for (RemoteInputDestination remoteInput : remoteInputs) {
         LogicalEndpoint endpoint = LogicalEndpoint.data(bundleId, remoteInput.getPTransformId());
         receiverBuilder.put(

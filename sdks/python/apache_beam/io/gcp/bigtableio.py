@@ -39,10 +39,9 @@ those generated rows in the table.
 
 import logging
 import struct
-from typing import Dict
-from typing import List
 
 import apache_beam as beam
+from apache_beam import version as beam_version
 from apache_beam.internal.metrics.metric import ServiceCallMetric
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.metrics import Metrics
@@ -59,6 +58,7 @@ FLUSH_COUNT = 1000
 MAX_ROW_BYTES = 5242880  # 5MB
 
 try:
+  from google.api_core.gapic_v1 import client_info as client_info_lib
   from google.cloud.bigtable import Client
   from google.cloud.bigtable.batcher import MutationsBatcher
   from google.cloud.bigtable.row import Cell
@@ -141,7 +141,11 @@ class _BigTableWriteFn(beam.DoFn):
 
   def start_bundle(self):
     if self.table is None:
-      client = Client(project=self.beam_options['project_id'])
+      client = Client(
+          project=self.beam_options['project_id'],
+          client_info=client_info_lib.ClientInfo(
+              user_agent="apache-beam/%s (GPN:Beam)" %
+              beam_version.__version__))
       instance = client.instance(self.beam_options['instance_id'])
       self.table = instance.table(self.beam_options['table_id'])
     self.service_call_metric = self.start_service_call_metrics(
@@ -262,7 +266,7 @@ class WriteToBigTable(beam.PTransform):
           input
           | beam.ParDo(self._DirectRowMutationsToBeamRow()).with_output_types(
               RowTypeConstraint.from_fields(
-                  [("key", bytes), ("mutations", List[Dict[str, bytes]])]))
+                  [("key", bytes), ("mutations", list[dict[str, bytes]])]))
           | external_write)
     else:
       return (
@@ -279,7 +283,13 @@ class WriteToBigTable(beam.PTransform):
     def process(self, direct_row):
       args = {"key": direct_row.row_key, "mutations": []}
       # start accumulating mutations in a list
-      for mutation in direct_row._get_mutations():
+      # In google-cloud-bigtable >= 2.44.0, _get_mutations() returns Python
+      # dataclass objects (RowMutationEntry) instead of protobuf messages.
+      # Use _get_mutation_pbs() to retrieve Mutation protobuf objects.
+      mutations = (
+          direct_row._get_mutation_pbs() if hasattr(
+              direct_row, '_get_mutation_pbs') else direct_row._get_mutations())
+      for mutation in mutations:
         if mutation.__contains__("set_cell"):
           mutation_dict = {
               "type": b'SetCell',

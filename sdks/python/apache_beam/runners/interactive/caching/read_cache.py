@@ -21,8 +21,6 @@ For internal use only; no backward-compatibility guarantees.
 """
 # pytype: skip-file
 
-from typing import Tuple
-
 import apache_beam as beam
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.interactive import cache_manager as cache
@@ -47,7 +45,7 @@ class ReadCache:
     self._cacheable = cacheable
     self._key = repr(cacheable.to_key())
 
-  def read_cache(self) -> Tuple[str, str]:
+  def read_cache(self) -> tuple[str, str]:
     """Reads cache of the cacheable PCollection and wires the cache into the
     pipeline proto. Returns the pipeline-scoped ids of the cacheable PCollection
     and the cache reading output PCollection that replaces it.
@@ -118,7 +116,7 @@ class ReadCache:
     return source_id, output_id
 
   def _build_runner_api_template(
-      self) -> Tuple[beam_runner_api_pb2.Pipeline, beam.pvalue.PCollection]:
+      self) -> tuple[beam_runner_api_pb2.Pipeline, beam.pvalue.PCollection]:
     transform = _ReadCacheTransform(self._cache_manager, self._key)
     tmp_pipeline = beam.Pipeline()
     tmp_pipeline.component_id_map = self._context.component_id_map

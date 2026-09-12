@@ -18,12 +18,8 @@ import json
 from dataclasses import dataclass
 from typing import Any
 from typing import Callable
-from typing import Dict
-from typing import List
 from typing import Literal
 from typing import Optional
-from typing import Tuple
-from typing import Type
 from typing import Union
 
 from apache_beam.ml.rag.types import EmbeddableItem
@@ -108,7 +104,7 @@ class ColumnSpec:
       jsonb: Creates a JSONB column specification with jsonb casting.
   """
   column_name: str
-  python_type: Type
+  python_type: type
   value_fn: Callable[[EmbeddableItem], Any]
   sql_typecast: Optional[str] = None
 
@@ -158,7 +154,7 @@ class ColumnSpec:
 class ColumnSpecsBuilder:
   """Builder for :class:`.ColumnSpec`'s with chainable methods."""
   def __init__(self):
-    self._specs: List[ColumnSpec] = []
+    self._specs: list[ColumnSpec] = []
 
   @staticmethod
   def with_defaults() -> 'ColumnSpecsBuilder':
@@ -170,7 +166,7 @@ class ColumnSpecsBuilder:
   def with_id_spec(
       self,
       column_name: str = "id",
-      python_type: Type = str,
+      python_type: type = str,
       convert_fn: Optional[Callable[[str], Any]] = None,
       sql_typecast: Optional[str] = None) -> 'ColumnSpecsBuilder':
     """Add ID :class:`.ColumnSpec` with optional type and conversion.
@@ -207,7 +203,7 @@ class ColumnSpecsBuilder:
   def with_content_spec(
       self,
       column_name: str = "content",
-      python_type: Type = str,
+      python_type: type = str,
       convert_fn: Optional[Callable[[str], Any]] = None,
       sql_typecast: Optional[str] = None) -> 'ColumnSpecsBuilder':
     """Add content :class:`.ColumnSpec` with optional type and conversion.
@@ -244,8 +240,8 @@ class ColumnSpecsBuilder:
   def with_metadata_spec(
       self,
       column_name: str = "metadata",
-      python_type: Type = str,
-      convert_fn: Optional[Callable[[Dict[str, Any]], Any]] = None,
+      python_type: type = str,
+      convert_fn: Optional[Callable[[dict[str, Any]], Any]] = None,
       sql_typecast: Optional[str] = "::jsonb") -> 'ColumnSpecsBuilder':
     """Add metadata :class:`.ColumnSpec` with optional type and conversion.
 
@@ -284,7 +280,7 @@ class ColumnSpecsBuilder:
   def with_embedding_spec(
       self,
       column_name: str = "embedding",
-      convert_fn: Optional[Callable[[List[float]], Any]] = None
+      convert_fn: Optional[Callable[[list[float]], Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add embedding :class:`.ColumnSpec` with optional conversion.
 
@@ -318,7 +314,7 @@ class ColumnSpecsBuilder:
   def with_sparse_embedding_spec(
       self,
       column_name: str = "sparse_embedding",
-      conv_fn: Optional[Callable[[Tuple[List[int], List[float]]], Any]] = None
+      conv_fn: Optional[Callable[[tuple[list[int], list[float]]], Any]] = None
   ) -> 'ColumnSpecsBuilder':
     """Add sparse embedding :class:`.ColumnSpec` with optional conversion.
 
@@ -354,7 +350,7 @@ class ColumnSpecsBuilder:
   def add_metadata_field(
       self,
       field: str,
-      python_type: Type,
+      python_type: type,
       column_name: Optional[str] = None,
       convert_fn: Optional[Callable[[Any], Any]] = None,
       default: Any = None,
@@ -450,7 +446,7 @@ class ColumnSpecsBuilder:
     self._specs.append(spec)
     return self
 
-  def build(self) -> List[ColumnSpec]:
+  def build(self) -> list[ColumnSpec]:
     """Build the final list of column specifications."""
     return self._specs.copy()
 
@@ -491,11 +487,11 @@ class ConflictResolution:
         ...     action="IGNORE"
         ... )
     """
-  on_conflict_fields: Union[str, List[str]]
+  on_conflict_fields: Union[str, list[str]]
   action: Literal["UPDATE", "IGNORE"] = "UPDATE"
-  update_fields: Optional[List[str]] = None
+  update_fields: Optional[list[str]] = None
 
-  def maybe_set_default_update_fields(self, columns: List[str]):
+  def maybe_set_default_update_fields(self, columns: list[str]):
     if self.action != "UPDATE":
       return
     if self.update_fields is not None:

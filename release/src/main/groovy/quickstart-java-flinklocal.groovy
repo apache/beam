@@ -41,9 +41,9 @@ t.describe 'Run Apache Beam Java SDK Quickstart - Flink Local'
         -Dhttp.keepAlive=false \
         -Pflink-runner"""
 
-    def cp = "target/classes:${deps}"
+    def cp = "target/classes:${deps.trim()}"
     t.run """mvn exec:exec -q -Dexec.executable=java \
-      -Dexec.args="-cp ${cp} org.apache.beam.examples.WordCount \
+      -Dexec.args="-cp '${cp}' org.apache.beam.examples.WordCount \
       --inputFile=pom.xml --output=counts --runner=FlinkRunner" """
 
     // Verify text from the pom.xml input file

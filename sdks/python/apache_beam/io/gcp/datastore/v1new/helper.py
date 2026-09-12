@@ -25,7 +25,6 @@ For internal use only; no backwards-compatibility guarantees.
 
 import os
 import uuid
-from typing import List
 from typing import Union
 
 from cachetools.func import ttl_cache
@@ -70,7 +69,7 @@ def retry_on_rpc_error(exception):
 def create_entities(count, id_or_name=False):
   """Creates a list of entities with random keys."""
   if id_or_name:
-    ids_or_names: List[Union[str, int]] = [
+    ids_or_names: list[Union[str, int]] = [
         uuid.uuid4().int & ((1 << 63) - 1) for _ in range(count)
     ]
   else:

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -24,6 +25,7 @@ import java.util.Map;
 import org.apache.beam.runners.core.DoFnRunner;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.SideInputReader;
+import org.apache.beam.runners.core.StepContext;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.CachedSideInputReader;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.functions.NoOpStepContext;
@@ -48,8 +50,8 @@ import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
-import scala.Serializable;
 
 /**
  * Factory to create a {@link DoFnRunner}. The factory supports fusing multiple {@link DoFnRunner
@@ -69,6 +71,20 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
    */
   abstract DoFnRunnerWithTeardown<InT, T> create(
       PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output);
+
+  /**
+   * Creates a runner backed by {@code stepContext} so that state and timers are available.
+   *
+   * <p>Only supported for a single, unfused {@link DoFn}: a fused runner cannot drive timers.
+   */
+  DoFnRunnerWithTeardown<InT, T> create(
+      PipelineOptions options,
+      MetricsAccumulator metrics,
+      WindowedValueMultiReceiver output,
+      StepContext stepContext) {
+    throw new UnsupportedOperationException(
+        "Stateful execution is not supported by " + getClass().getSimpleName());
+  }
 
   /**
    * Fuses the factory for the following {@link DoFnRunner} into a single factory that processes
@@ -127,6 +143,15 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
     @Override
     DoFnRunnerWithTeardown<InT, T> create(
         PipelineOptions options, MetricsAccumulator metrics, WindowedValueMultiReceiver output) {
+      return create(options, metrics, output, new NoOpStepContext());
+    }
+
+    @Override
+    DoFnRunnerWithTeardown<InT, T> create(
+        PipelineOptions options,
+        MetricsAccumulator metrics,
+        WindowedValueMultiReceiver output,
+        StepContext stepContext) {
       DoFnRunner<InT, T> simpleRunner =
           DoFnRunners.simpleRunner(
               options,
@@ -135,7 +160,7 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
               filterMainOutput ? new FilteredOutput<>(output, mainOutput) : output,
               mainOutput,
               additionalOutputs,
-              new NoOpStepContext(),
+              stepContext,
               coder,
               outputCoders,
               windowingStrategy,
@@ -283,6 +308,9 @@ abstract class DoFnRunnerFactory<InT, T> implements Serializable {
           runners[i].finishBundle();
         }
       }
+
+      @Override
+      public <KeyT extends @Nullable Object> void finishKey(KeyT key) {}
 
       @Override
       public DoFn<InT, T> getFn() {

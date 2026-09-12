@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Demonstration of SQL transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 60
+//   context_line: 62
 //   categories:
 //     - Beam SQL
 //     - Combiners

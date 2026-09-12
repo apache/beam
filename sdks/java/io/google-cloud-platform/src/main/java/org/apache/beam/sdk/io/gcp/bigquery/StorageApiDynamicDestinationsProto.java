@@ -24,9 +24,11 @@ import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Message;
+import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.checkerframework.checker.nullness.qual.NonNull;
@@ -37,7 +39,7 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
   private final DescriptorProtos.DescriptorProto descriptorProto;
   private final @Nullable BigQueryIO.TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
-  @SuppressWarnings({"unchecked", "nullness"})
+  @SuppressWarnings("unchecked")
   StorageApiDynamicDestinationsProto(
       DynamicDestinations<T, DestinationT> inner,
       Class<T> protoClass,
@@ -45,11 +47,12 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
     super(inner);
     try {
       this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
+      // Method.invoke takes a null receiver for a static method; that is not expressible
+      // against the JDK's annotations.
+      @SuppressWarnings("nullness")
+      Object rawDescriptor = protoClass.getMethod("getDescriptor").invoke(null);
       this.descriptorProto =
-          fixNestedTypes(
-              (Descriptors.Descriptor)
-                  Preconditions.checkStateNotNull(protoClass.getMethod("getDescriptor"))
-                      .invoke(null));
+          fixNestedTypes((Descriptors.Descriptor) Preconditions.checkStateNotNull(rawDescriptor));
     } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
       throw new IllegalArgumentException(e);
     }
@@ -57,7 +60,11 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
   @Override
   public MessageConverter<T> getMessageConverter(
-      DestinationT destination, DatasetService datasetService) throws Exception {
+      DestinationT destination,
+      PipelineOptions pipelineOptions,
+      DatasetService datasetService,
+      BigQueryServices.WriteStreamService writeStreamService)
+      throws Exception {
     return new Converter(
         TableRowToStorageApiProto.schemaToProtoTableSchema(
             Preconditions.checkStateNotNull(getSchema(destination))));
@@ -77,6 +84,9 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
       return tableSchema;
     }
 
+    @Override
+    public void updateSchemaFromTable() throws IOException, InterruptedException {}
+
     public TableRowToStorageApiProto.SchemaInformation getSchemaInformation() {
       if (this.schemaInformation == null) {
         this.schemaInformation =
@@ -95,7 +105,10 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
 
     @Override
     public StorageApiWritePayload toMessage(
-        T element, @Nullable RowMutationInformation rowMutationInformation) throws Exception {
+        T element,
+        @Nullable RowMutationInformation rowMutationInformation,
+        TableRowToStorageApiProto.ErrorCollector collectedExceptions)
+        throws Exception {
       // NB: What makes this path efficient is that the storage API directly understands protos, so
       // we can forward
       // the through directly. This means that we don't currently support ignoreUnknownValues or
@@ -106,7 +119,6 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
           formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
 
-    @SuppressWarnings("nullness")
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {
@@ -125,7 +137,8 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
         }
       }
     }
-  };
+  }
+  ;
 
   private static DescriptorProtos.DescriptorProto fixNestedTypes(
       Descriptors.Descriptor descriptor) {

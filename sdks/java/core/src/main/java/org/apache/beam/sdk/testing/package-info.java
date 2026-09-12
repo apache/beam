@@ -19,8 +19,4 @@
  * Defines utilities for unit testing Apache Beam pipelines. The tests for the {@code PTransform}s
  * and examples included in the Apache Beam SDK provide examples of using these utilities.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.testing;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

@@ -19,9 +19,6 @@
 
 # pytype: skip-file
 
-from typing import Dict
-from typing import Set
-
 from apache_beam import pvalue
 from apache_beam.pipeline import AppliedPTransform
 from apache_beam.pipeline import PipelineVisitor
@@ -37,9 +34,9 @@ class ConsumerTrackingPipelineVisitor(PipelineVisitor):
   transform has produced and committed output.
   """
   def __init__(self):
-    self.value_to_consumers: Dict[pvalue.PValue, Set[AppliedPTransform]] = {}
-    self.root_transforms: Set[AppliedPTransform] = set()
-    self.step_names: Dict[AppliedPTransform, str] = {}
+    self.value_to_consumers: dict[pvalue.PValue, set[AppliedPTransform]] = {}
+    self.root_transforms: set[AppliedPTransform] = set()
+    self.step_names: dict[AppliedPTransform, str] = {}
 
     self._num_transforms = 0
     self._views = set()

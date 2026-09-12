@@ -189,6 +189,7 @@ public class RehydratedComponents {
         windowingStrategies.asMap(),
         coders.asMap(),
         Collections.emptyMap(),
-        requirements);
+        requirements,
+        pipeline.getOptions());
   }
 }

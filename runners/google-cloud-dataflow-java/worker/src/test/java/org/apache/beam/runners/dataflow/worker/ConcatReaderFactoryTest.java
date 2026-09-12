@@ -59,7 +59,7 @@ public class ConcatReaderFactoryTest {
       inMemorySourceDictionary.put(PropertyNames.SOURCE_SPEC, inMemorySourceSpec);
 
       CloudObject textSourceEncoding =
-          CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null);
+          CloudObjects.asCloudObject(StringUtf8Coder.of(), /* sdkComponents= */ null);
       inMemorySourceDictionary.put(PropertyNames.ENCODING, textSourceEncoding);
 
       sourcesList.add(inMemorySourceDictionary);

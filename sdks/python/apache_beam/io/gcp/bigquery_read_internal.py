@@ -29,9 +29,7 @@ import time
 import uuid
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import List
 from typing import Optional
 from typing import Union
 
@@ -197,7 +195,7 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
       gcs_location: Union[str, ValueProvider] = None,
       validate: bool = False,
       use_json_exports: bool = False,
-      bigquery_job_labels: Dict[str, str] = None,
+      bigquery_job_labels: dict[str, str] = None,
       step_name: str = None,
       job_name: str = None,
       unique_id: str = None,
@@ -462,7 +460,7 @@ class _JsonToDictCoder(coders.Coder):
     value = json.loads(value.decode('utf-8'))
     return self._decode_row(value, self.fields)
 
-  def _decode_row(self, row: Dict[str, Any], schema_fields: List[FieldSchema]):
+  def _decode_row(self, row: dict[str, Any], schema_fields: list[FieldSchema]):
     for field in schema_fields:
       if field.name not in row:
         # The field exists in the schema, but it doesn't exist in this row.

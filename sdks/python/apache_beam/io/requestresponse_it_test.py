@@ -21,7 +21,6 @@ import time
 import typing
 import unittest
 from dataclasses import dataclass
-from typing import Tuple
 from typing import Union
 
 import pytest
@@ -155,7 +154,7 @@ class EchoHTTPCallerTestIT(unittest.TestCase):
     cls.client = EchoHTTPCaller(http_endpoint_address)
 
   @classmethod
-  def _get_client_and_options(cls) -> Tuple[EchoHTTPCaller, EchoITOptions]:
+  def _get_client_and_options(cls) -> tuple[EchoHTTPCaller, EchoITOptions]:
     assert cls.options is not None
     assert cls.client is not None
     return cls.client, cls.options

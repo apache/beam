@@ -32,8 +32,7 @@ import org.joda.time.Instant;
  */
 interface UncommittedBundle<T> {
   /** Returns the PCollection that the elements of this {@link UncommittedBundle} belong to. */
-  @Nullable
-  PCollection<T> getPCollection();
+  @Nullable PCollection<T> getPCollection();
 
   /**
    * Outputs an element to this bundle.

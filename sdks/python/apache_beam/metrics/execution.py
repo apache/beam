@@ -32,6 +32,7 @@ Available classes:
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import threading
 from typing import TYPE_CHECKING
 from typing import Any

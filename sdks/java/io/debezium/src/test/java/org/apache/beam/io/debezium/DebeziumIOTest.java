@@ -52,7 +52,8 @@ public class DebeziumIOTest implements Serializable {
           .withConnectionProperty("database.server.id", "184054")
           .withConnectionProperty("database.server.name", "dbserver1")
           .withConnectionProperty(
-              "database.history", KafkaSourceConsumerFn.DebeziumSDFDatabaseHistory.class.getName())
+              "schema.history.internal",
+              KafkaSourceConsumerFn.DebeziumSDFDatabaseHistory.class.getName())
           .withConnectionProperty("include.schema.changes", "false");
 
   @Test

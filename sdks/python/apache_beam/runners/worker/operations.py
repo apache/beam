@@ -20,6 +20,7 @@
 # pytype: skip-file
 # pylint: disable=super-with-arguments
 
+# ruff: noqa: UP006
 import collections
 import logging
 import threading

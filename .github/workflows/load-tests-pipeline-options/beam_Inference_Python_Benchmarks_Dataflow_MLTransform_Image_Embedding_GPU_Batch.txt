@@ -1,0 +1,44 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+--runner=DataflowRunner
+--project=apache-beam-testing
+--region=us-central1
+--num_workers=5
+--max_num_workers=20
+--disk_size_gb=100
+--autoscaling_algorithm=THROUGHPUT_BASED
+--staging_location=gs://temp-storage-for-perf-tests/loadtests
+--temp_location=gs://temp-storage-for-perf-tests/loadtests
+--requirements_file=apache_beam/ml/transforms/mltransform_embedding_tests_requirements.txt
+--publish_to_big_query=true
+--metrics_dataset=beam_run_inference
+--metrics_table=mltransform_image_embedding_gpu_batch
+--input_options={}
+--influx_measurement=mltransform_image_embedding_gpu_batch
+--mode=batch
+--input=gs://apache-beam-ml/testing/inputs/openimage_50k_benchmark.txt
+--artifact_location=gs://temp-storage-for-perf-tests/loadtests/mltransform_image_embedding_gpu/artifacts
+--output_table=apache-beam-testing:beam_run_inference.result_mltransform_image_embedding_gpu_batch
+--pretrained_model_name=clip-ViT-B-32
+--device=GPU
+--min_batch_size=8
+--max_batch_size=64
+--embedding_accelerator=type:nvidia-tesla-t4;count:1;install-nvidia-driver
+--sdk_location=container
+--sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest
+--dataflow_service_options=enable_prime
+--experiments=use_runner_v2
+--timeout_ms=3600000

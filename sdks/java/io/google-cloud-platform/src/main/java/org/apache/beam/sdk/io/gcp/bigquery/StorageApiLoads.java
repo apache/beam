@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.ThrowingBadR
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -63,12 +64,13 @@ public class StorageApiLoads<DestinationT, ElementT>
   @Nullable TupleTag<TableRow> successfulWrittenRowsTag;
   Predicate<String> successfulRowsPredicate;
   private final Coder<DestinationT> destinationCoder;
+  private final Coder<ElementT> elementCoder;
   private final StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations;
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
   private final CreateDisposition createDisposition;
-  private final String kmsKey;
-  private final Duration triggeringFrequency;
+  private final @Nullable String kmsKey;
+  private final @Nullable Duration triggeringFrequency;
   private final BigQueryServices bqServices;
   private final int numShards;
   private final boolean allowInconsistentWrites;
@@ -78,19 +80,21 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final boolean usesCdc;
 
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
-  private final Map<String, String> bigLakeConfiguration;
+  private final @Nullable Map<String, String> bigLakeConfiguration;
 
   private final BadRecordRouter badRecordRouter;
 
   private final ErrorHandler<BadRecord, ?> badRecordErrorHandler;
+  private final boolean hasSchemaUpdateOptions;
 
   public StorageApiLoads(
       Coder<DestinationT> destinationCoder,
+      Coder<ElementT> elementCoder,
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
       CreateDisposition createDisposition,
-      String kmsKey,
-      Duration triggeringFrequency,
+      @Nullable String kmsKey,
+      @Nullable Duration triggeringFrequency,
       BigQueryServices bqServices,
       int numShards,
       boolean allowInconsistentWrites,
@@ -101,10 +105,12 @@ public class StorageApiLoads<DestinationT, ElementT>
       Predicate<String> propagateSuccessfulStorageApiWritesPredicate,
       boolean usesCdc,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-      Map<String, String> bigLakeConfiguration,
+      @Nullable Map<String, String> bigLakeConfiguration,
       BadRecordRouter badRecordRouter,
-      ErrorHandler<BadRecord, ?> badRecordErrorHandler) {
+      ErrorHandler<BadRecord, ?> badRecordErrorHandler,
+      boolean hasSchemaUpdateOptions) {
     this.destinationCoder = destinationCoder;
+    this.elementCoder = elementCoder;
     this.dynamicDestinations = dynamicDestinations;
     this.rowUpdateFn = rowUpdateFn;
     this.createDisposition = createDisposition;
@@ -125,6 +131,7 @@ public class StorageApiLoads<DestinationT, ElementT>
     this.bigLakeConfiguration = bigLakeConfiguration;
     this.badRecordRouter = badRecordRouter;
     this.badRecordErrorHandler = badRecordErrorHandler;
+    this.hasSchemaUpdateOptions = hasSchemaUpdateOptions;
   }
 
   public TupleTag<BigQueryStorageApiInsertError> getFailedRowsTag() {
@@ -171,8 +178,11 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
+                elementCoder,
+                destinationCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                hasSchemaUpdateOptions));
     PCollectionTuple writeRecordsResult =
         convertMessagesResult
             .get(successfulConvertedRowsTag)
@@ -222,6 +232,10 @@ public class StorageApiLoads<DestinationT, ElementT>
       PCollection<KV<DestinationT, ElementT>> input,
       Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
       Coder<StorageApiWritePayload> payloadCoder) {
+    // Only reached when a triggering frequency is configured; see expand().
+    Duration triggeringFrequency =
+        Preconditions.checkStateNotNull(
+            this.triggeringFrequency, "A triggering frequency is required for triggered loads");
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
@@ -235,8 +249,11 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
+                elementCoder,
+                destinationCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                hasSchemaUpdateOptions));
 
     PCollection<KV<ShardedKey<DestinationT>, Iterable<StorageApiWritePayload>>> groupedRecords;
 
@@ -358,8 +375,11 @@ public class StorageApiLoads<DestinationT, ElementT>
                 successfulConvertedRowsTag,
                 BigQueryStorageApiInsertErrorCoder.of(),
                 successCoder,
+                elementCoder,
+                destinationCoder,
                 rowUpdateFn,
-                badRecordRouter));
+                badRecordRouter,
+                hasSchemaUpdateOptions));
 
     PCollection<KV<DestinationT, StorageApiWritePayload>> successfulConvertedRows =
         convertMessagesResult.get(successfulConvertedRowsTag);

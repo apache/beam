@@ -15,16 +15,35 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import java.util.Properties
+
+val parentProperties = Properties().apply {
+  val file = file("../gradle.properties")
+  if (file.exists()) {
+    file.inputStream().use { load(it) }
+  }
+}
+
+val mavenCentralMirrorUrl = parentProperties.getProperty("mavenCentralMirrorUrl")
+val isCi = System.getenv("GITHUB_ACTIONS") != null || System.getenv("JENKINS_HOME") != null
+val useMirror = isCi && !mavenCentralMirrorUrl.isNullOrBlank()
 
 // Plugins for configuring _this build_ of the module
 plugins {
   `java-gradle-plugin`
   groovy
-  id("com.diffplug.spotless") version "5.6.1"
+  id("com.diffplug.spotless") version "7.2.1"
 }
 
 // Define the set of repositories required to fetch and enable plugins.
 repositories {
+  if (useMirror) {
+    logger.lifecycle("Running in CI. Mirroring Maven Central repositories via Google Maven Mirror for buildSrc.")
+  }
+
+  if (useMirror) {
+    maven { url = uri(mavenCentralMirrorUrl!!) }
+  }
   maven { url = uri("https://plugins.gradle.org/m2/") }
   maven {
     url = uri("https://repo.spring.io/plugins-release/")
@@ -44,12 +63,12 @@ dependencies {
   implementation("com.gradleup.shadow:shadow-gradle-plugin:8.3.8") {                   // Enable shading Java dependencies
     exclude(group="org.codehaus.plexus", module="plexus-xml") // plexus-xml 4.x requires Java17
   }
-  runtimeOnly("org.codehaus.plexus:plexus-xml:3.0.2")
+  runtimeOnly("org.codehaus.plexus:plexus-xml:4.2.0")
   implementation("com.github.spotbugs.snom:spotbugs-gradle-plugin:5.0.14")
 
   runtimeOnly("com.google.protobuf:protobuf-gradle-plugin:0.8.13")                                         // Enable proto code generation
   runtimeOnly("com.github.davidmc24.gradle.plugin:gradle-avro-plugin:1.9.1")                               // Enable Avro code generation. Version 1.1.0 is the last supporting avro 1.10.2
-  runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:5.6.1")                                        // Enable a code formatting plugin
+  runtimeOnly("com.diffplug.spotless:spotless-plugin-gradle:7.2.1")                                        // Enable a code formatting plugin
   runtimeOnly("gradle.plugin.com.dorongold.plugins:task-tree:1.5")                                         // Adds a 'taskTree' task to print task dependency tree
   runtimeOnly("net.linguica.gradle:maven-settings-plugin:0.5")
   runtimeOnly("gradle.plugin.io.pry.gradle.offline_dependencies:gradle-offline-dependencies-plugin:0.5.0") // Enable creating an offline repository
@@ -75,10 +94,14 @@ spotless {
   isEnforceCheck = !isSpotlessCheckDisabled
   groovy {
     excludeJava()
-    greclipse().configFile("greclipse.properties")
+    leadingTabsToSpaces(2)
+    trimTrailingWhitespace()
+    endWithNewline()
   }
   groovyGradle {
-    greclipse().configFile("greclipse.properties")
+    leadingTabsToSpaces(2)
+    trimTrailingWhitespace()
+    endWithNewline()
   }
 }
 

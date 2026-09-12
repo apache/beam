@@ -44,8 +44,8 @@ class TableRowInferenceOptions(
   @classmethod
   def _add_argparse_args(cls, parser):
     parser.add_argument('--mode', default='batch')
-    parser.add_argument('--input_subscription')
-    parser.add_argument('--input_file')
+    parser.add_argument('--input_subscription', default='')
+    parser.add_argument('--input_file', default='')
     parser.add_argument('--output_table')
     parser.add_argument('--model_path')
     parser.add_argument('--feature_columns')
@@ -72,32 +72,36 @@ class TableRowInferenceBenchmarkTest(DataflowCostBenchmark):
         metrics_namespace=self.metrics_namespace,
         is_streaming=False,
         pcollection='RunInference/BeamML_RunInference_Postprocess-0.out0')
-    self.is_streaming = ((self.pipeline.get_option('mode') or
-                          'batch') == 'streaming')
+    self.opts = self.pipeline.get_pipeline_options().view_as(
+        TableRowInferenceOptions)
+    mode = self.opts.mode or 'batch'
+    self.is_streaming = mode == 'streaming'
     if self.is_streaming:
-      self.subscription = self.pipeline.get_option('input_subscription')
+      self.subscription = self.opts.input_subscription
 
   def test(self):
     """Execute the table row inference pipeline for benchmarking."""
-    extra_opts = {}
-
-    mode = self.pipeline.get_option('mode') or 'batch'
-    extra_opts['mode'] = mode
+    mode = self.opts.mode or 'batch'
+    extra_opts = {'mode': mode}
 
     if mode == 'streaming':
-      extra_opts['input_subscription'] = self.pipeline.get_option(
-          'input_subscription')
-      extra_opts['window_size_sec'] = int(
-          self.pipeline.get_option('window_size_sec') or 60)
-      extra_opts['trigger_interval_sec'] = int(
-          self.pipeline.get_option('trigger_interval_sec') or 30)
-    else:
-      extra_opts['input_file'] = self.pipeline.get_option('input_file')
+      if self.opts.input_subscription:
+        extra_opts['input_subscription'] = self.opts.input_subscription
+      extra_opts['window_size_sec'] = (
+          self.opts.window_size_sec
+          if self.opts.window_size_sec is not None else 60)
+      extra_opts['trigger_interval_sec'] = (
+          self.opts.trigger_interval_sec
+          if self.opts.trigger_interval_sec is not None else 30)
+    elif self.opts.input_file:
+      extra_opts['input_file'] = self.opts.input_file
 
-    for opt in ['output_table', 'model_path', 'feature_columns']:
-      val = self.pipeline.get_option(opt)
-      if val:
-        extra_opts[opt] = val
+    if self.opts.output_table:
+      extra_opts['output_table'] = self.opts.output_table
+    if self.opts.model_path:
+      extra_opts['model_path'] = self.opts.model_path
+    if self.opts.feature_columns:
+      extra_opts['feature_columns'] = self.opts.feature_columns
 
     self.result = table_row_inference.run(
         self.pipeline.get_full_options_as_args(**extra_opts),

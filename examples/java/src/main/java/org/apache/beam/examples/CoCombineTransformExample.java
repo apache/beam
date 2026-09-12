@@ -22,7 +22,7 @@ package org.apache.beam.examples;
 //   description: Demonstration of Composed Combine transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 143
+//   context_line: 145
 //   categories:
 //     - Schemas
 //     - Combiners

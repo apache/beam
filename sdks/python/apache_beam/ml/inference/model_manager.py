@@ -37,9 +37,7 @@ from collections import defaultdict
 from collections import deque
 from typing import Any
 from typing import Callable
-from typing import Dict
 from typing import Optional
-from typing import Tuple
 
 import numpy as np
 import torch
@@ -122,7 +120,7 @@ class GPUMonitor:
       self._memory_history.append((now, self._current_usage))
       self._peak_usage = self._current_usage
 
-  def get_stats(self) -> Tuple[float, float, float]:
+  def get_stats(self) -> tuple[float, float, float]:
     with self._lock:
       return self._current_usage, self._peak_usage, self._total_memory
 
@@ -186,7 +184,7 @@ class ResourceEstimator:
     self.smoothing_factor = smoothing_factor
     self.min_data_points = min_data_points
     self.verbose_logging = verbose_logging
-    self.estimates: Dict[str, float] = {}
+    self.estimates: dict[str, float] = {}
     self.history = defaultdict(lambda: deque(maxlen=20))
     self.known_models = set()
     self._lock = threading.Lock()
@@ -214,7 +212,7 @@ class ResourceEstimator:
       self.logging_info("Initial Profile for %s: %s MB", model_tag, cost)
 
   def add_observation(
-      self, active_snapshot: Dict[str, int], peak_memory: float):
+      self, active_snapshot: dict[str, int], peak_memory: float):
     if active_snapshot:
       model_list = "\n".join(
           f"\t- {model}: {count}"

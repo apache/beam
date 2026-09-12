@@ -180,6 +180,22 @@ if (use_override) {
   }
 }
 
+def flinkTestJvmArgs() {
+  def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+  if (testJavaVer >= 17) {
+    return [
+      "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+      "--add-opens=java.base/java.nio=ALL-UNNAMED",
+      "--add-opens=java.base/java.util=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED",
+      "--add-opens=java.base/java.lang=ALL-UNNAMED",
+      "-Djava.security.manager=allow",
+    ]
+  } else {
+    return []
+  }
+}
+
 test {
   systemProperty "log4j.configuration", "log4j-test.properties"
   // Change log level to debug:
@@ -187,6 +203,7 @@ test {
   // Change log level to debug only for the package and nested packages:
   // systemProperty "org.slf4j.simpleLogger.log.org.apache.beam.runners.flink.translation.wrappers.streaming", "debug"
   jvmArgs "-XX:-UseGCOverheadLimit"
+  jvmArgs += flinkTestJvmArgs()
   if (System.getProperty("beamSurefireArgline")) {
     jvmArgs System.getProperty("beamSurefireArgline")
   }
@@ -229,6 +246,13 @@ dependencies {
   // Runtime dependencies are not included in Beam's generated pom.xml, so we must declare flink-clients in implementation
   // configuration (https://issues.apache.org/jira/browse/BEAM-11732).
   permitUnusedDeclared "org.apache.flink:flink-clients:$flink_version"
+
+  // align with Flink's kryo version (groupId changed)
+  if (flink_major.startsWith('2')) {
+    implementation "com.esotericsoftware:kryo:5.6.2"
+  } else {
+    implementation "com.esotericsoftware.kryo:kryo:2.24.0"
+  }
 
   implementation "org.apache.flink:flink-streaming-java:$flink_version"
   testImplementation "org.apache.flink:flink-statebackend-rocksdb:$flink_version"

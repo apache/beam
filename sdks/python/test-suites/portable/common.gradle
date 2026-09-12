@@ -146,33 +146,6 @@ tasks.register("portableLocalRunnerTestWithRequirementsFile") {
   }
 }
 
-def createSamzaRunnerTestTask(String workerType) {
-  def taskName = "samzaCompatibilityMatrix${workerType}"
-  def jobServerJar = "${rootDir}/runners/samza/job-server/build/libs/beam-runners-samza-job-server-${version}.jar"
-  def options = "--samza_job_server_jar=${jobServerJar} --environment_type=${workerType}"
-  if (workerType == 'PROCESS') {
-    options += " --environment_options=process_command=${buildDir.absolutePath}/sdk_worker.sh"
-  }
-  def task = toxTask(taskName, 'samza-runner-test', options)
-  task.configure {
-    dependsOn ":runners:samza:job-server:shadowJar"
-    if (workerType == 'DOCKER') {
-      dependsOn pythonContainerTask
-    } else if (workerType == 'PROCESS') {
-      dependsOn createProcessWorker
-    }
-  }
-  return task
-}
-
-createSamzaRunnerTestTask('DOCKER')
-createSamzaRunnerTestTask('PROCESS')
-createSamzaRunnerTestTask('LOOPBACK')
-
-task samzaValidatesRunner() {
-  dependsOn 'samzaCompatibilityMatrixLOOPBACK'
-}
-
 def createSparkRunnerTestTask(String workerType) {
   def taskName = "sparkCompatibilityMatrix${workerType}"
   // `project(':runners:spark:3:job-server').shadowJar.archivePath` is not resolvable until runtime, so hard-code it here.
@@ -199,6 +172,45 @@ createSparkRunnerTestTask('LOOPBACK')
 
 tasks.register("sparkValidatesRunner") {
   dependsOn 'sparkCompatibilityMatrixLOOPBACK'
+}
+
+// Unlike the Flink and Spark suites, this one needs a Kafka broker: the runner executes on Kafka
+// rather than on a cluster of its own. It is therefore not wired into any aggregate build. Run it
+// against a broker, e.g.
+//
+//   docker run -d -p 9092:9092 --name beam-kafka apache/kafka:4.0.0
+//   ./gradlew :sdks:python:test-suites:portable:py312:kafkaStreamsValidatesRunner
+//
+// The broker defaults to localhost:9092; point it elsewhere with
+// -PkafkaStreamsBootstrapServers=host:port.
+//
+// LOOPBACK only, unlike the other runners: it is the environment the suite has been run in, and a
+// task for an environment nobody has tried would claim more than is known.
+def createKafkaStreamsRunnerTestTask() {
+  def taskName = "kafkaStreamsCompatibilityMatrixLOOPBACK"
+  // Not resolvable until runtime, as for the Spark job server above, so the path is spelled out.
+  def jobServerJar =
+      "${rootDir}/runners/kafka-streams/job-server/build/libs/beam-runners-kafka-streams-job-server-${version}.jar"
+  def bootstrapServers =
+      project.findProperty('kafkaStreamsBootstrapServers') ?: 'localhost:9092'
+  def options =
+      "--kafka_streams_job_server_jar=${jobServerJar} --environment_type=LOOPBACK" +
+      " --bootstrap_servers=${bootstrapServers}"
+  def task = toxTask(taskName, 'kafka-streams-runner-test', options)
+  task.configure {
+    dependsOn ':runners:kafka-streams:job-server:shadowJar'
+  }
+  return task
+}
+
+// The Kafka Streams runner is opt-in (-Pwith-kafka-streams-runner), so its job server is only a
+// project when it was asked for; without it there is nothing for these tasks to run against.
+if (project.findProject(':runners:kafka-streams:job-server') != null) {
+  createKafkaStreamsRunnerTestTask()
+
+  tasks.register("kafkaStreamsValidatesRunner") {
+    dependsOn 'kafkaStreamsCompatibilityMatrixLOOPBACK'
+  }
 }
 
 def createPrismRunnerTestTask(String workerType) {

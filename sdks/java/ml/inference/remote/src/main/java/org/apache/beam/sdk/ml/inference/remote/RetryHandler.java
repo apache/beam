@@ -34,13 +34,25 @@ public class RetryHandler implements Serializable {
   private final Duration initialBackoff;
   private final Duration maxBackoff;
   private final Duration maxCumulativeBackoff;
+  private final RetryFilter retryFilter;
+
+  @FunctionalInterface
+  public interface RetryFilter extends Serializable {
+    boolean shouldRetry(Exception e);
+  }
 
   private RetryHandler(
-      int maxRetries, Duration initialBackoff, Duration maxBackoff, Duration maxCumulativeBackoff) {
+      int maxRetries,
+      Duration initialBackoff,
+      Duration maxBackoff,
+      Duration maxCumulativeBackoff,
+      RetryFilter retryFilter) {
     this.maxRetries = maxRetries;
     this.initialBackoff = initialBackoff;
     this.maxBackoff = maxBackoff;
     this.maxCumulativeBackoff = maxCumulativeBackoff;
+    this.retryFilter =
+        java.util.Objects.requireNonNull(retryFilter, "retryFilter must not be null");
   }
 
   public static RetryHandler withDefaults() {
@@ -48,8 +60,14 @@ public class RetryHandler implements Serializable {
         3, // maxRetries
         Duration.standardSeconds(1), // initialBackoff
         Duration.standardSeconds(10), // maxBackoff per retry
-        Duration.standardMinutes(1) // maxCumulativeBackoff
+        Duration.standardMinutes(1), // maxCumulativeBackoff
+        e -> true // retryFilter default to retrying all exceptions
         );
+  }
+
+  public RetryHandler withRetryFilter(RetryFilter retryFilter) {
+    return new RetryHandler(
+        maxRetries, initialBackoff, maxBackoff, maxCumulativeBackoff, retryFilter);
   }
 
   public <T> T execute(RetryableRequest<T> request) throws Exception {
@@ -71,6 +89,11 @@ public class RetryHandler implements Serializable {
 
       } catch (Exception e) {
         lastException = e;
+
+        if (retryFilter != null && !retryFilter.shouldRetry(e)) {
+          LOG.warn("Exception not eligible for retry. Failing immediately.", e);
+          throw e;
+        }
 
         long backoffMillis = backoff.nextBackOffMillis();
 

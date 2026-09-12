@@ -21,23 +21,33 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.hivemq.client.mqtt.MqttGlobalPublishFilter;
+import com.hivemq.client.mqtt.datatypes.MqttQos;
+import com.hivemq.client.mqtt.mqtt3.Mqtt3BlockingClient;
+import com.hivemq.client.mqtt.mqtt3.Mqtt3Client;
+import com.hivemq.client.mqtt.mqtt3.Mqtt3ClientBuilder;
+import com.hivemq.client.mqtt.mqtt3.message.publish.Mqtt3Publish;
 import java.io.IOException;
 import java.io.Serializable;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -49,12 +59,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
-import org.fusesource.mqtt.client.BlockingConnection;
-import org.fusesource.mqtt.client.FutureConnection;
-import org.fusesource.mqtt.client.MQTT;
-import org.fusesource.mqtt.client.Message;
-import org.fusesource.mqtt.client.QoS;
-import org.fusesource.mqtt.client.Topic;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
@@ -205,13 +209,17 @@ public class MqttIO {
   private MqttIO() {}
 
   /** A POJO describing a MQTT connection. */
+  @DefaultSchema(AutoValueSchema.class)
   @AutoValue
   public abstract static class ConnectionConfiguration implements Serializable {
 
+    @SchemaFieldDescription("The MQTT broker URI.")
     abstract String getServerUri();
 
+    @SchemaFieldDescription("The MQTT topic pattern.")
     abstract @Nullable String getTopic();
 
+    @SchemaFieldDescription("The client ID prefix, which is used to construct a unique client ID.")
     abstract @Nullable String getClientId();
 
     abstract @Nullable String getUsername();
@@ -292,29 +300,40 @@ public class MqttIO {
       builder.addIfNotNull(DisplayData.item("username", getUsername()));
     }
 
-    private MQTT createClient() throws Exception {
+    private Mqtt3BlockingClient createClient() throws Exception {
       LOG.debug("Creating MQTT client to {}", getServerUri());
-      MQTT client = new MQTT();
-      client.setHost(getServerUri());
+      URI uri = new URI(getServerUri());
+      String host = uri.getHost();
+      int port = uri.getPort();
+      if (port == -1) {
+        port = "ssl".equals(uri.getScheme()) || "tls".equals(uri.getScheme()) ? 8883 : 1883;
+      }
+
+      Mqtt3ClientBuilder builder = Mqtt3Client.builder().serverHost(host).serverPort(port);
+
+      if ("ssl".equals(uri.getScheme()) || "tls".equals(uri.getScheme())) {
+        builder = builder.sslWithDefaultConfig();
+      }
+
+      String clientId = getClientId();
+      if (clientId == null) {
+        clientId = UUID.randomUUID().toString();
+      } else {
+        clientId = clientId + "-" + UUID.randomUUID().toString();
+      }
+      clientId = clientId.substring(0, Math.min(clientId.length(), MQTT_3_1_MAX_CLIENT_ID_LENGTH));
+      LOG.debug("MQTT client id set to {}", clientId);
+      builder = builder.identifier(clientId);
+
       if (getUsername() != null) {
         LOG.debug("MQTT client uses username {}", getUsername());
-        client.setUserName(getUsername());
-        client.setPassword(getPassword());
+        var auth = builder.simpleAuth().username(getUsername());
+        if (getPassword() != null) {
+          auth = auth.password(getPassword().getBytes(StandardCharsets.UTF_8));
+        }
+        builder = auth.applySimpleAuth();
       }
-      if (getClientId() != null) {
-        String clientId = getClientId() + "-" + UUID.randomUUID().toString();
-        clientId =
-            clientId.substring(0, Math.min(clientId.length(), MQTT_3_1_MAX_CLIENT_ID_LENGTH));
-        LOG.debug("MQTT client id set to {}", clientId);
-        client.setClientId(clientId);
-      } else {
-        String clientId = UUID.randomUUID().toString();
-        clientId =
-            clientId.substring(0, Math.min(clientId.length(), MQTT_3_1_MAX_CLIENT_ID_LENGTH));
-        LOG.debug("MQTT client id set to random value {}", clientId);
-        client.setClientId(clientId);
-      }
-      return client;
+      return builder.buildBlocking();
     }
   }
 
@@ -422,9 +441,9 @@ public class MqttIO {
   static class MqttCheckpointMark implements UnboundedSource.CheckpointMark, Serializable {
 
     @VisibleForTesting String clientId;
-    @VisibleForTesting transient List<Message> messages = new ArrayList<>();
+    @VisibleForTesting transient List<Mqtt3Publish> messages = new ArrayList<>();
 
-    public MqttCheckpointMark(String id, List<Message> messages) {
+    public MqttCheckpointMark(String id, List<Mqtt3Publish> messages) {
       this.clientId = id;
       this.messages = messages;
     }
@@ -437,9 +456,9 @@ public class MqttIO {
     @Override
     public void finalizeCheckpoint() {
       LOG.debug("Finalizing checkpoint acknowledging pending messages for client ID {}", clientId);
-      for (Message message : messages) {
+      for (Mqtt3Publish message : messages) {
         try {
-          message.ack();
+          message.acknowledge();
         } catch (Exception e) {
           LOG.warn("Can't ack message for client ID {}", clientId, e);
         }
@@ -473,7 +492,7 @@ public class MqttIO {
     static class Preparer {
       @VisibleForTesting String clientId;
       @VisibleForTesting Instant oldestMessageTimestamp = Instant.now();
-      @VisibleForTesting transient List<Message> messages = new ArrayList<>();
+      @VisibleForTesting transient List<Mqtt3Publish> messages = new ArrayList<>();
 
       public Preparer(MqttCheckpointMark checkpointMark) {
         clientId = checkpointMark.clientId;
@@ -486,7 +505,7 @@ public class MqttIO {
 
       public Preparer() {}
 
-      public void add(Message message, Instant timestamp) {
+      public void add(Mqtt3Publish message, Instant timestamp) {
         if (timestamp.isBefore(oldestMessageTimestamp)) {
           oldestMessageTimestamp = timestamp;
         }
@@ -494,7 +513,7 @@ public class MqttIO {
       }
 
       MqttCheckpointMark newCheckpoint() {
-        List<Message> currentMessages = messages;
+        List<Mqtt3Publish> currentMessages = messages;
         messages = new ArrayList<>();
         oldestMessageTimestamp = Instant.now();
         return new MqttCheckpointMark(clientId, currentMessages);
@@ -525,7 +544,8 @@ public class MqttIO {
             new UnboundedMqttReader<>(
                 this,
                 preparer,
-                message -> (T) MqttRecord.of(message.getTopic(), message.getPayload()));
+                message ->
+                    (T) MqttRecord.of(message.getTopic().toString(), message.getPayloadAsBytes()));
       } else {
         unboundedMqttReader = new UnboundedMqttReader<>(this, preparer);
       }
@@ -563,12 +583,13 @@ public class MqttIO {
 
     private final UnboundedMqttSource<T> source;
 
-    private MQTT client;
-    private BlockingConnection connection;
+    private Mqtt3BlockingClient client;
+    private Mqtt3BlockingClient.Mqtt3Publishes publishes;
+    private String clientId = "";
     private T current;
     private Instant currentTimestamp;
     private final MqttCheckpointMark.Preparer checkpointPreparer;
-    private SerializableFunction<Message, T> extractFn;
+    private SerializableFunction<Mqtt3Publish, T> extractFn;
 
     public UnboundedMqttReader(
         UnboundedMqttSource<T> source, MqttCheckpointMark.Preparer checkpointPreparer) {
@@ -579,13 +600,13 @@ public class MqttIO {
       } else {
         this.checkpointPreparer = new MqttCheckpointMark.Preparer();
       }
-      this.extractFn = message -> (T) message.getPayload();
+      this.extractFn = message -> (T) message.getPayloadAsBytes();
     }
 
     public UnboundedMqttReader(
         UnboundedMqttSource<T> source,
         MqttCheckpointMark.Preparer checkpointPreparer,
-        SerializableFunction<Message, T> extractFn) {
+        SerializableFunction<Mqtt3Publish, T> extractFn) {
       this(source, checkpointPreparer);
       this.extractFn = extractFn;
     }
@@ -596,11 +617,20 @@ public class MqttIO {
       Read<T> spec = source.spec;
       try {
         client = spec.connectionConfiguration().createClient();
-        LOG.debug("Reader client ID is {}", client.getClientId());
-        checkpointPreparer.clientId = client.getClientId().toString();
-        connection = createConnection(client);
-        connection.subscribe(
-            new Topic[] {new Topic(spec.connectionConfiguration().getTopic(), QoS.AT_LEAST_ONCE)});
+        this.clientId = client.getConfig().getClientIdentifier().map(Object::toString).orElse("");
+        LOG.debug("Reader client ID is {}", clientId);
+        checkpointPreparer.clientId = clientId;
+        client.connect();
+
+        // Subscribe and get the publishes stream with manual acks enabled
+        publishes = client.publishes(MqttGlobalPublishFilter.ALL, true);
+
+        client
+            .subscribeWith()
+            .topicFilter(spec.connectionConfiguration().getTopic())
+            .qos(MqttQos.AT_LEAST_ONCE)
+            .send();
+
         return advance();
       } catch (Exception e) {
         throw new IOException(e);
@@ -610,11 +640,12 @@ public class MqttIO {
     @Override
     public boolean advance() throws IOException {
       try {
-        LOG.trace("MQTT reader (client ID {}) waiting message ...", client.getClientId());
-        Message message = connection.receive(1, TimeUnit.SECONDS);
-        if (message == null) {
+        LOG.trace("MQTT reader (client ID {}) waiting message ...", clientId);
+        Optional<Mqtt3Publish> messageOpt = publishes.receive(1, TimeUnit.SECONDS);
+        if (!messageOpt.isPresent()) {
           return false;
         }
+        Mqtt3Publish message = messageOpt.get();
         current = this.extractFn.apply(message);
         currentTimestamp = Instant.now();
         checkpointPreparer.add(message, currentTimestamp);
@@ -626,13 +657,24 @@ public class MqttIO {
 
     @Override
     public void close() throws IOException {
-      LOG.debug("Closing MQTT reader (client ID {})", client.getClientId());
-      try {
-        if (connection != null) {
-          connection.disconnect();
+      LOG.debug("Closing MQTT reader (client ID {})", clientId);
+      if (publishes != null) {
+        try {
+          publishes.close();
+        } catch (Exception e) {
+          LOG.warn("Error closing publishes stream", e);
+        } finally {
+          publishes = null;
         }
-      } catch (Exception e) {
-        throw new IOException(e);
+      }
+      if (client != null) {
+        try {
+          client.disconnect();
+        } catch (Exception e) {
+          throw new IOException(e);
+        } finally {
+          client = null;
+        }
       }
     }
 
@@ -757,8 +799,7 @@ public class MqttIO {
       private final SerializableFunction<InputT, byte[]> payloadFn;
       private final boolean retained;
 
-      private transient MQTT client;
-      private transient BlockingConnection connection;
+      private transient Mqtt3BlockingClient client;
 
       public WriteFn(Write<InputT> spec) {
         this.spec = spec;
@@ -776,8 +817,9 @@ public class MqttIO {
       public void createMqttClient() throws Exception {
         LOG.debug("Starting MQTT writer");
         this.client = this.spec.connectionConfiguration().createClient();
-        LOG.debug("MQTT writer client ID is {}", client.getClientId());
-        this.connection = createConnection(client);
+        String clientId = client.getConfig().getClientIdentifier().map(Object::toString).orElse("");
+        LOG.debug("MQTT writer client ID is {}", clientId);
+        this.client.connect();
       }
 
       @ProcessElement
@@ -786,32 +828,25 @@ public class MqttIO {
         byte[] payload = this.payloadFn.apply(element);
         String topic = this.topicFn.apply(element);
         LOG.debug("Sending message {}", new String(payload, StandardCharsets.UTF_8));
-        this.connection.publish(topic, payload, QoS.AT_LEAST_ONCE, this.retained);
+
+        client
+            .publishWith()
+            .topic(topic)
+            .payload(payload)
+            .qos(MqttQos.AT_LEAST_ONCE)
+            .retain(this.retained)
+            .send();
       }
 
       @Teardown
       public void closeMqttClient() throws Exception {
-        if (this.connection != null) {
-          LOG.debug("Disconnecting MQTT connection (client ID {})", client.getClientId());
-          this.connection.disconnect();
+        if (this.client != null) {
+          String clientId =
+              client.getConfig().getClientIdentifier().map(Object::toString).orElse("");
+          LOG.debug("Disconnecting MQTT connection (client ID {})", clientId);
+          this.client.disconnect();
         }
       }
     }
-  }
-
-  /** Create a connected MQTT BlockingConnection from given client, aware of connection timeout. */
-  static BlockingConnection createConnection(MQTT client) throws Exception {
-    FutureConnection futureConnection = client.futureConnection();
-    org.fusesource.mqtt.client.Future<Void> connecting = futureConnection.connect();
-    while (true) {
-      try {
-        connecting.await(1, TimeUnit.MINUTES);
-      } catch (TimeoutException e) {
-        LOG.warn("Connection to {} pending after waiting for 1 minute", client.getHost());
-        continue;
-      }
-      break;
-    }
-    return new BlockingConnection(futureConnection);
   }
 }

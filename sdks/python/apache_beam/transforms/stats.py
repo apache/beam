@@ -28,6 +28,7 @@ ns/zetasketch/HllCount.html
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import hashlib
 import heapq
 import itertools

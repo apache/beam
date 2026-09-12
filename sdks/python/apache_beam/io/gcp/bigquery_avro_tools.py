@@ -24,7 +24,6 @@ NOTHING IN THIS FILE HAS BACKWARDS COMPATIBILITY GUARANTEES.
 """
 
 from typing import Any
-from typing import Dict
 
 # BigQuery types as listed in
 # https://cloud.google.com/bigquery/docs/reference/standard-sql/data-types
@@ -67,8 +66,8 @@ BIG_QUERY_TO_AVRO_TYPES = {
 
 def get_record_schema_from_dict_table_schema(
     schema_name: str,
-    table_schema: Dict[str, Any],
-    namespace: str = "apache_beam.io.gcp.bigquery") -> Dict[str, Any]:
+    table_schema: dict[str, Any],
+    namespace: str = "apache_beam.io.gcp.bigquery") -> dict[str, Any]:
   # noqa: F821
 
   """Convert a table schema into an Avro schema.
@@ -95,8 +94,8 @@ def get_record_schema_from_dict_table_schema(
   }
 
 
-def table_field_to_avro_field(table_field: Dict[str, Any],
-                              namespace: str) -> Dict[str, Any]:
+def table_field_to_avro_field(table_field: dict[str, Any],
+                              namespace: str) -> dict[str, Any]:
   # noqa: F821
 
   """Convert a BigQuery field to an avro field.

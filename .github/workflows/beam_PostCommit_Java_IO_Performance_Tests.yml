@@ -66,13 +66,22 @@ jobs:
         job_phrase: ["Run Java PostCommit IO Performance Tests"]
         test_case: ["GCSPerformanceTest", "BigTablePerformanceTest", "BigQueryStorageApiStreamingPerformanceTest"]
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - name: Setup repository
       uses: ./.github/actions/setup-action
       with:
         comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_case }}
         github_token: ${{ secrets.GITHUB_TOKEN }}
         github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_case }})
+    # Configure the runner from this workflow revision before any later
+    # checkout of a release tag. The release's setup-environment-action may
+    # pin a gradle/actions SHA that Apache no longer allowlists.
+    - name: Setup environment
+      uses: ./.github/actions/setup-environment-action
+      with:
+        java-version: default
     - name: Get Beam latest release
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
       run: |
@@ -80,14 +89,11 @@ jobs:
         echo "BEAM_VERSION=${BEAM_VERSION}" >> $GITHUB_ENV
     - name: Checkout release branch
       if: github.event_name == 'schedule' #This has scheduled runs run against the latest release
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         ref: ${{ env.BEAM_VERSION }}
         repository: apache/beam
-    - name: Setup environment
-      uses: ./.github/actions/setup-environment-action
-      with:
-        java-version: default
+        persist-credentials: false
     - name: run scheduled javaPostcommitIOPerformanceTests script
       if: github.event_name == 'schedule' #This ensures only scheduled runs publish metrics publicly by changing which exportTable is configured
       uses: ./.github/actions/gradle-command-self-hosted-action
@@ -105,7 +111,7 @@ jobs:
         exportDataset: performance_tests
         exportTable: io_performance_metrics_test
     - name: Archive JUnit Test Results
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       if: ${{ !success() }}
       with:
         name: JUnit Test Results

@@ -63,7 +63,9 @@ public class BigQuerySinkMetrics {
     STREAMING_INSERTS,
     APPEND_ROWS,
     FLUSH_ROWS,
-    FINALIZE_STREAM
+    FINALIZE_STREAM,
+    PATCH_TABLE,
+    OPEN_WRITE_STREAM
   }
 
   // Status of a BigQuery row from the AppendRows RPC call.

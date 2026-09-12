@@ -23,6 +23,7 @@ context.
 
 # pytype: skip-file
 
+# ruff: noqa: UP006
 import copy
 import logging
 import threading

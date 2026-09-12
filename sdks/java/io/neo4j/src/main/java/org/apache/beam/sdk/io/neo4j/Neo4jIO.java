@@ -478,8 +478,8 @@ public class Neo4jIO {
 
     abstract @Nullable RowMapper<OutputT> getRowMapper();
 
-    abstract @Nullable SerializableFunction<ParameterT, Map<String, Object>>
-        getParametersFunction();
+    abstract @Nullable
+        SerializableFunction<ParameterT, Map<String, Object>> getParametersFunction();
 
     abstract @Nullable Coder<OutputT> getCoder();
 
@@ -901,8 +901,8 @@ public class Neo4jIO {
 
     abstract @Nullable ValueProvider<TransactionConfig> getTransactionConfig();
 
-    abstract @Nullable SerializableFunction<ParameterT, Map<String, Object>>
-        getParametersFunction();
+    abstract @Nullable
+        SerializableFunction<ParameterT, Map<String, Object>> getParametersFunction();
 
     abstract @Nullable ValueProvider<Long> getBatchSize();
 

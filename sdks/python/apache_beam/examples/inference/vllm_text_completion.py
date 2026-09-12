@@ -138,6 +138,20 @@ def parse_known_args(argv):
           'Passed to the vLLM OpenAI server as --gpu-memory-utilization '
           '(fraction of total GPU memory for KV cache). Lower this if the '
           'engine fails to start with CUDA out of memory.'))
+  parser.add_argument(
+      '--use_dynamo',
+      dest='use_dynamo',
+      action='store_true',
+      help=(
+          'Use embedded NVIDIA Dynamo as the vLLM engine. Requires '
+          'ai-dynamo[vllm] and the etcd binary in the runtime environment. '
+          'See VLLMCompletionsModelHandler for limitations of embedded mode.'))
+  parser.add_argument(
+      '--max_tokens',
+      dest='max_tokens',
+      type=int,
+      default=16,
+      help='Maximum number of tokens to generate for each example.')
   return parser.parse_known_args(argv)
 
 
@@ -178,14 +192,17 @@ def run(
       build_vllm_server_kwargs(known_args))
 
   model_handler = VLLMCompletionsModelHandler(
-      model_name=known_args.model, vllm_server_kwargs=effective_vllm_kwargs)
+      model_name=known_args.model,
+      vllm_server_kwargs=effective_vllm_kwargs,
+      use_dynamo=known_args.use_dynamo)
   input_examples = COMPLETION_EXAMPLES
 
   if known_args.chat:
     model_handler = VLLMChatModelHandler(
         model_name=known_args.model,
         chat_template_path=known_args.chat_template,
-        vllm_server_kwargs=dict(effective_vllm_kwargs))
+        vllm_server_kwargs=dict(effective_vllm_kwargs),
+        use_dynamo=known_args.use_dynamo)
     input_examples = CHAT_EXAMPLES
 
   pipeline = test_pipeline
@@ -193,7 +210,8 @@ def run(
     pipeline = beam.Pipeline(options=pipeline_options)
 
   examples = pipeline | "Create examples" >> beam.Create(input_examples)
-  predictions = examples | "RunInference" >> RunInference(model_handler)
+  predictions = examples | "RunInference" >> RunInference(
+      model_handler, inference_args={'max_tokens': known_args.max_tokens})
   process_output = predictions | "Process Predictions" >> beam.ParDo(
       PostProcessor())
   _ = process_output | "WriteOutput" >> beam.io.WriteToText(

@@ -27,11 +27,7 @@ import threading
 import weakref
 from multiprocessing.pool import ThreadPool
 from typing import Any
-from typing import Dict
 from typing import Iterable
-from typing import List
-from typing import Tuple
-from typing import Type
 from typing import TypeVar
 from typing import Union
 
@@ -68,9 +64,9 @@ class ArgumentPlaceholder(object):
 
 def remove_objects_from_args(
     args: Iterable[Any],
-    kwargs: Dict[str, Any],
-    pvalue_class: Union[Type[T], Tuple[Type[T], ...]]
-) -> Tuple[List[Any], Dict[str, Any], List[T]]:
+    kwargs: dict[str, Any],
+    pvalue_class: Union[type[T], tuple[type[T], ...]]
+) -> tuple[list[Any], dict[str, Any], list[T]]:
   """For internal use only; no backwards-compatibility guarantees.
 
   Replaces all objects of a given type in args/kwargs with a placeholder.

@@ -17,9 +17,11 @@
  */
 package org.apache.beam.runners.spark.util;
 
+import io.opentelemetry.context.Context;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -34,6 +36,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
@@ -117,8 +120,18 @@ public class TimerUtils {
     }
 
     @Override
+    public @Nullable Context getOpenTelemetryContext() {
+      return null;
+    }
+
+    @Override
     public CausedByDrain causedByDrain() {
       return CausedByDrain.NORMAL;
+    }
+
+    @Override
+    public ValueKind getValueKind() {
+      return ValueKind.INSERT;
     }
 
     @Override
@@ -190,10 +203,12 @@ public class TimerUtils {
       SparkTimerInternals sparkTimerInternals,
       WindowingStrategy<?, W> windowingStrategy,
       AbstractInOutIterator<?, ?, ?> abstractInOutIterator) {
-    final Collection<TimerInternals.TimerData> expiredTimers =
+    final List<TimerInternals.TimerData> expiredTimers =
         getExpiredTimers(sparkTimerInternals, windowingStrategy);
 
     if (!expiredTimers.isEmpty()) {
+      // Timers fire in timestamp order.
+      expiredTimers.sort(Comparator.comparing(TimerInternals.TimerData::getTimestamp));
       expiredTimers.forEach(abstractInOutIterator::fireTimer);
     }
   }
@@ -209,7 +224,7 @@ public class TimerUtils {
     }
   }
 
-  private static <W extends BoundedWindow> Collection<TimerInternals.TimerData> getExpiredTimers(
+  private static <W extends BoundedWindow> List<TimerInternals.TimerData> getExpiredTimers(
       SparkTimerInternals sparkTimerInternals, WindowingStrategy<?, W> windowingStrategy) {
     return sparkTimerInternals.getTimers().stream()
         .filter(

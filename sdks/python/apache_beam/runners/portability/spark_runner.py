@@ -31,6 +31,13 @@ from apache_beam.runners.portability import spark_uber_jar_job_server
 # https://spark.apache.org/docs/latest/submitting-applications.html#master-urls
 LOCAL_MASTER_PATTERN = r'^local(\[.+\])?$'
 
+SPARK_JAR_JOB_SERVER_JVM_ARGS = [
+    '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED',
+    '--add-opens=java.base/java.nio=ALL-UNNAMED',
+    '--add-opens=java.base/java.util=ALL-UNNAMED',
+    '--add-opens=java.base/java.lang.invoke=ALL-UNNAMED',
+]
+
 # Since Java job servers are heavyweight external processes, cache them.
 # This applies only to SparkJarJobServer, not SparkUberJarJobServer.
 JOB_SERVER_CACHE = {}
@@ -84,6 +91,10 @@ class SparkJarJobServer(job_server.JavaJarJobServer):
     self._jar = options.spark_job_server_jar
     self._master_url = options.spark_master_url
     self._spark_version = options.spark_version
+    self._jvm_properties = list(self._jvm_properties)
+    for arg in SPARK_JAR_JOB_SERVER_JVM_ARGS:
+      if arg not in self._jvm_properties:
+        self._jvm_properties.append(arg)
 
   def path_to_jar(self):
     if self._jar:

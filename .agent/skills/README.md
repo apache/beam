@@ -25,15 +25,19 @@ This directory contains skills that help the agent perform specialized tasks in 
 
 | Skill | Description |
 |-------|-------------|
+| [adding-new-metadata](adding-new-metadata/SKILL.md) | Guide on how to add and propagate new metadata fields in WindowedValue to avoid metadata loss |
 | [beam-concepts](beam-concepts/SKILL.md) | Core Beam programming model (PCollections, PTransforms, windowing, triggers) |
+| [beam-dofn-modernizer](beam-dofn-modernizer/SKILL.md) | Rewrite Apache Beam DoFn methods to remove legacy ProcessContext/OnTimerContext |
 | [ci-cd](ci-cd/SKILL.md) | GitHub Actions workflows, debugging CI failures, triggering tests |
 | [contributing](contributing/SKILL.md) | PR workflow, issue management, code review, release cycles |
 | [gradle-build](gradle-build/SKILL.md) | Build commands, flags, publishing, troubleshooting |
 | [io-connectors](io-connectors/SKILL.md) | 51+ I/O connectors, testing patterns, usage examples |
+| [developing-new-io-connectors](developing-new-io-connectors/SKILL.md) | A detailed guide on developing new I/O connectors |
 | [java-development](java-development/SKILL.md) | Java SDK development, building, testing, project structure |
 | [license-compliance](license-compliance/SKILL.md) | Apache 2.0 license headers for all new files |
 | [python-development](python-development/SKILL.md) | Python SDK environment setup, testing, building pipelines |
 | [runners](runners/SKILL.md) | Direct, Dataflow, Flink, Spark runner configuration |
+| [yaml-development](yaml-development/SKILL.md) | YAML SDK development, environment setup, testing, and key concepts |
 
 ## How Skills Work
 

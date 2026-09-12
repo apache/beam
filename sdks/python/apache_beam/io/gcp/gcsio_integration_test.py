@@ -33,6 +33,7 @@ import time
 import unittest
 import uuid
 import zlib
+from hashlib import blake2b
 
 import mock
 import pytest
@@ -207,19 +208,17 @@ class GcsIOIntegrationTest(unittest.TestCase):
     # requires this option unset.
     google_cloud_options.dataflow_kms_key = None
 
-    import random
-    from hashlib import blake2b
-
-    # Add a random number to avoid collision if multiple test instances
-    # are run at the same time. To avoid too many dangling buckets if bucket
-    # removal fails, we limit the max number of possible bucket names in this
-    # test to 1000.
-    overridden_bucket_name = 'gcsio-it-%d-%s-%s-%d' % (
-        random.randint(0, 999),
+    # Add a unique uuid and the parameterized test options to the bucket name
+    # to avoid collisions when multiple parameterized instances run in parallel
+    # or concurrent CI jobs run at the same time.
+    overridden_bucket_name = 'gcsio-it-%s-%s-%s-%d-%s-%s' % (
+        uuid.uuid4().hex[:6],
         google_cloud_options.region,
         blake2b(google_cloud_options.project.encode('utf8'),
-                digest_size=4).hexdigest(),
-        int(time.time()))
+                digest_size=2).hexdigest(),
+        int(time.time()),
+        '1' if self.no_gcsio_throttling_counter else '0',
+        '1' if self.enable_gcsio_blob_generation else '0')
 
     mock_default_gcs_bucket_name.return_value = overridden_bucket_name
 

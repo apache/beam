@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 //   description: Demonstration of FlatMapElements transform usage.
 //   multifile: false
 //   default_example: false
-//   context_line: 50
+//   context_line: 52
 //   categories:
 //     - Core Transforms
 //   complexity: BASIC

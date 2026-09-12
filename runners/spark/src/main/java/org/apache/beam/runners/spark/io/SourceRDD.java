@@ -50,7 +50,7 @@ import org.apache.spark.rdd.RDD;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Option;
-import scala.collection.JavaConversions;
+import scala.collection.JavaConverters;
 
 /** Classes implementing Beam {@link Source} {@link RDD}s. */
 @SuppressWarnings({
@@ -75,7 +75,7 @@ public class SourceRDD {
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.Seq<Dependency<?>> NIL =
-        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+        JavaConverters.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Bounded(
         SparkContext sc,
@@ -148,7 +148,7 @@ public class SourceRDD {
       final Iterator<WindowedValue<T>> readerIterator =
           new ReaderToIteratorAdapter<>(metricsContainer, reader);
 
-      return new InterruptibleIterator<>(context, JavaConversions.asScalaIterator(readerIterator));
+      return new InterruptibleIterator<>(context, JavaConverters.asScalaIterator(readerIterator));
     }
 
     /**
@@ -299,7 +299,7 @@ public class SourceRDD {
 
     // to satisfy Scala API.
     private static final scala.collection.immutable.List<Dependency<?>> NIL =
-        JavaConversions.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
+        JavaConverters.asScalaBuffer(Collections.<Dependency<?>>emptyList()).toList();
 
     public Unbounded(
         SparkContext sc,
@@ -344,7 +344,7 @@ public class SourceRDD {
           (CheckpointableSourcePartition<T, CheckpointMarkT>) split;
       scala.Tuple2<Source<T>, CheckpointMarkT> tuple2 =
           new scala.Tuple2<>(partition.getSource(), partition.checkpointMark);
-      return JavaConversions.asScalaIterator(Collections.singleton(tuple2).iterator());
+      return JavaConverters.asScalaIterator(Collections.singleton(tuple2).iterator());
     }
   }
 

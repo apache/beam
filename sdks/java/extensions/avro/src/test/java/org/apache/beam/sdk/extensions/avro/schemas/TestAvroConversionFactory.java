@@ -17,14 +17,13 @@
  */
 package org.apache.beam.sdk.extensions.avro.schemas;
 
+import static org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils.VERSION_AVRO;
+
 import java.lang.reflect.Constructor;
-import org.apache.avro.Schema;
 import org.joda.time.LocalDate;
 
 /** Create a {@link TestAvroConversion} instance with different constructors. */
 public class TestAvroConversionFactory {
-
-  private static final String VERSION_AVRO = Schema.class.getPackage().getImplementationVersion();
 
   public static TestAvroConversion newInstance(LocalDate date) throws Exception {
     if (VERSION_AVRO.equals("1.8.2")) {
