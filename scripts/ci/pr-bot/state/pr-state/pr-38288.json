@@ -1,0 +1,11 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "go": "lostluck"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false,
+  "reviewersAssignedAt": 1789202438604
+}
