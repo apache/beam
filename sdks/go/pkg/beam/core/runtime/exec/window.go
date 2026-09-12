@@ -200,6 +200,14 @@ func (f *windowMapper) MapWindow(w typex.Window) (typex.Window, error) {
 	if len(candidates) == 0 {
 		return nil, fmt.Errorf("failed to map main input window to side input window with WindowFn %v", f.wfn.String())
 	}
+	// Picking the last candidate relies on sliding windows appending the
+	// latest window first, which is an invariant of the built-in kinds only.
+	// Java offers this maximum-timestamp mapping solely for
+	// PartitioningWindowFn, which assigns to exactly one window, so require
+	// that of custom WindowFns rather than picking one arbitrarily.
+	if f.wfn.Kind == window.CustomWindows && len(candidates) != 1 {
+		return nil, fmt.Errorf("custom WindowFn %v assigned %v windows to the side input window for %v; side input mapping requires exactly one", f.wfn.String(), len(candidates), w)
+	}
 	// Return earliest candidate window in terms of event time (only relevant for sliding windows)
 	// Sliding windows append the latest window first in assignWindows.
 	return candidates[len(candidates)-1], nil

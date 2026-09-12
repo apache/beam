@@ -184,7 +184,7 @@ func TestMapWindow(t *testing.T) {
 		},
 	}
 	for _, test := range tests {
-		mapper := &windowMapper{wfn: test.wfn}
+		mapper := newWindowMapper(test.wfn)
 		outputWin, err := mapper.MapWindow(test.in)
 		if err != nil {
 			t.Fatalf("MapWindow for test %v failed, got %v", test.name, err)
@@ -220,7 +220,7 @@ func TestMapWindows(t *testing.T) {
 			inV, expected := makeNoncedWindowValues(tc.in, tc.expect)
 
 			out := &CaptureNode{UID: 1}
-			unit := &MapWindows{UID: 2, Fn: &windowMapper{wfn: tc.wFn}, Out: out}
+			unit := &MapWindows{UID: 2, Fn: newWindowMapper(tc.wFn), Out: out}
 			a := &FixedRoot{UID: 3, Elements: inV, Out: unit}
 
 			p, err := NewPlan(tc.name, []Unit{a, unit, out})
@@ -244,6 +244,60 @@ func TestMapWindows(t *testing.T) {
 func init() {
 	window.RegisterWindowFn[*fixedCustomWindowFn]()
 	window.RegisterWindowFn[*elemSizedWindowFn]()
+	window.RegisterWindowFn[*multiWindowFn]()
+}
+
+// multiWindowFn assigns every timestamp to two windows, earliest first.
+type multiWindowFn struct{}
+
+func (f *multiWindowFn) AssignWindows(ts typex.EventTime) []typex.Window {
+	return []typex.Window{
+		window.IntervalWindow{Start: 0, End: 1000},
+		window.IntervalWindow{Start: 1000, End: 2000},
+	}
+}
+
+// TestMapWindowCustom checks that side input mapping accepts a custom
+// WindowFn only when it assigns to exactly one window. Picking among several
+// candidates relies on an ordering only the built-in kinds guarantee.
+func TestMapWindowCustom(t *testing.T) {
+	tests := []struct {
+		name    string
+		wfn     *window.Fn
+		in      typex.Window
+		want    typex.Window
+		wantErr bool
+	}{
+		{
+			name: "single window",
+			wfn:  window.NewCustom(&fixedCustomWindowFn{SizeMs: 1000}),
+			in:   window.IntervalWindow{Start: 100, End: 200},
+			want: window.IntervalWindow{Start: 0, End: 1000},
+		},
+		{
+			name:    "multiple windows rejected",
+			wfn:     window.NewCustom(&multiWindowFn{}),
+			in:      window.IntervalWindow{Start: 100, End: 200},
+			wantErr: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := newWindowMapper(tc.wfn).MapWindow(tc.in)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("MapWindow(%v) = %v, want error", tc.in, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("MapWindow(%v) failed: %v", tc.in, err)
+			}
+			if !got.Equals(tc.want) {
+				t.Errorf("MapWindow(%v) = %v, want %v", tc.in, got, tc.want)
+			}
+		})
+	}
 }
 
 // elemSizedWindowFn derives the window size from the element value.
