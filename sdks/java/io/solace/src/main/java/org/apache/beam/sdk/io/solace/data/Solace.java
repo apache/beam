@@ -21,12 +21,17 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.SDTException;
+import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.TextMessage;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -276,6 +281,16 @@ public class Solace {
     @SchemaFieldNumber("13")
     public abstract PayloadType getPayloadType();
 
+    /**
+     * Gets the user properties of the message as a string map.
+     *
+     * <p>Mapped from {@link BytesXMLMessage#getProperties()}. Values are stringified.
+     *
+     * @return The user properties, or an empty map if the message carries none.
+     */
+    @SchemaFieldNumber("14")
+    public abstract Map<String, String> getUserProperties();
+
     /** Gets the payload decoded as UTF-8 when this record has type {@link PayloadType#TEXT}. */
     public final String getText() {
       if (getPayloadType() != PayloadType.TEXT) {
@@ -292,7 +307,8 @@ public class Solace {
           .setRedelivered(false)
           .setTimeToLive(0)
           .setAttachmentBytes(new byte[0])
-          .setPayloadType(PayloadType.BYTES_XML);
+          .setPayloadType(PayloadType.BYTES_XML)
+          .setUserProperties(Collections.emptyMap());
     }
 
     @AutoValue.Builder
@@ -331,6 +347,8 @@ public class Solace {
           @Nullable String replicationGroupMessageId);
 
       public abstract Builder setAttachmentBytes(byte[] attachmentBytes);
+
+      public abstract Builder setUserProperties(Map<String, String> userProperties);
 
       public abstract Record build();
     }
@@ -456,6 +474,7 @@ public class Solace {
 
       Destination replyTo = getDestination(msg.getCorrelationId(), msg.getReplyTo());
       Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
+      Map<String, String> userProperties = getUserProperties(msg.getProperties());
 
       Record.Builder recordBuilder = decodePayload(msg);
       return recordBuilder
@@ -473,6 +492,7 @@ public class Solace {
               msg.getReplicationGroupMessageId() != null
                   ? msg.getReplicationGroupMessageId().toString()
                   : null)
+          .setUserProperties(userProperties)
           .build();
     }
 
@@ -518,6 +538,10 @@ public class Solace {
       }
       msg.setSenderTimestamp(senderTimestamp);
       msg.setApplicationMessageId(record.getMessageId());
+
+      if (!record.getUserProperties().isEmpty()) {
+        msg.setProperties(createUserProperties(record.getUserProperties()));
+      }
 
       return msg;
     }
@@ -598,6 +622,48 @@ public class Solace {
       byte[] attachment = new byte[buffer.remaining()];
       buffer.get(attachment);
       return attachment;
+    }
+
+    private static Map<String, String> getUserProperties(@Nullable SDTMap properties) {
+      if (properties == null || properties.isEmpty()) {
+        return Collections.emptyMap();
+      }
+
+      Map<String, String> userProperties = new HashMap<>();
+      for (String key : properties.keySet()) {
+        String value = stringifyUserProperty(properties, key);
+        if (value == null) {
+          LOG.warn("User property '{}' has a null value, skipping.", key);
+          continue;
+        }
+        userProperties.put(key, value);
+      }
+      return Collections.unmodifiableMap(userProperties);
+    }
+
+    private static @Nullable String stringifyUserProperty(SDTMap properties, String key) {
+      try {
+        Object value = properties.get(key);
+        if (value == null) {
+          return null;
+        }
+        return String.valueOf(value);
+      } catch (SDTException e) {
+        LOG.error("Could not read user property '{}'.", key, e);
+        return null;
+      }
+    }
+
+    private static SDTMap createUserProperties(Map<String, String> userProperties) {
+      SDTMap properties = JCSMPFactory.onlyInstance().createMap();
+      for (Map.Entry<String, String> entry : userProperties.entrySet()) {
+        try {
+          properties.putString(entry.getKey(), entry.getValue());
+        } catch (SDTException e) {
+          LOG.error("Could not write user property '{}'.", entry.getKey(), e);
+        }
+      }
+      return properties;
     }
   }
 }
