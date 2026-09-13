@@ -310,7 +310,9 @@ public class CreateStreamTest implements Serializable {
                 TimestampedValue.of(1, instant),
                 TimestampedValue.of(2, instant),
                 TimestampedValue.of(3, instant))
-            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(10)));
+            .advanceWatermarkForNextBatch(instant.plus(Duration.standardMinutes(10)))
+            .emptyBatch()
+            .advanceNextBatchWatermarkToInfinity();
     CreateStream<Integer> source2 =
         CreateStream.of(VarIntCoder.of(), batchDuration())
             .emptyBatch()
