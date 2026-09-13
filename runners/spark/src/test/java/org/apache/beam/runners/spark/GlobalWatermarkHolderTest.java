@@ -202,7 +202,7 @@ public class GlobalWatermarkHolderTest {
 
     GlobalWatermarkHolder.advance();
 
-    // a completed source holds nothing back, so it is not retained.
+    // a completed source is dropped so its last low watermark stops pinning the minimum.
     assertThat(GlobalWatermarkHolder.get(0L).containsKey(1), equalTo(false));
     assertThat(GlobalWatermarkHolder.get(0L).get(2), notNullValue());
   }

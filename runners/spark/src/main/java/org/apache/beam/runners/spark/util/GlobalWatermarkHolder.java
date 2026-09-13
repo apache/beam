@@ -189,8 +189,8 @@ public class GlobalWatermarkHolder {
 
     // Update the sources that reported progress over a copy of the stored map, so a source
     // with no update in this batch keeps its last known watermarks. A source whose high
-    // watermark already reached the end of time is done and holds nothing back, so it is
-    // not retained.
+    // watermark already reached the end of time has finished, so it is dropped before its
+    // last low watermark pins the minimum.
     final Map<Integer, SparkWatermarks> newValues = new HashMap<>();
     for (Map.Entry<Integer, SparkWatermarks> current : currentWatermarks.entrySet()) {
       if (current.getValue().getHighWatermark().isBefore(BoundedWindow.TIMESTAMP_MAX_VALUE)) {
