@@ -436,7 +436,8 @@ public class FileSystems {
     public List<ResourceId> resultSources = new ArrayList();
     public List<ResourceId> resultDestinations = new ArrayList();
     public List<ResourceId> filteredExistingSrcs = new ArrayList();
-  };
+  }
+  ;
 
   private static FilterResult filterFiles(
       FileSystem fileSystem,

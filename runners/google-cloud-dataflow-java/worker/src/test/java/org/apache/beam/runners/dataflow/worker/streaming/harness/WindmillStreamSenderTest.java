@@ -107,8 +107,7 @@ public class WindmillStreamSenderTest {
         .createDirectGetWorkStream(
             eq(connection),
             eq(
-                GET_WORK_REQUEST
-                    .toBuilder()
+                GET_WORK_REQUEST.toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -138,8 +137,7 @@ public class WindmillStreamSenderTest {
         .createDirectGetWorkStream(
             eq(connection),
             eq(
-                GET_WORK_REQUEST
-                    .toBuilder()
+                GET_WORK_REQUEST.toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),
@@ -172,8 +170,7 @@ public class WindmillStreamSenderTest {
         .createDirectGetWorkStream(
             eq(connection),
             eq(
-                GET_WORK_REQUEST
-                    .toBuilder()
+                GET_WORK_REQUEST.toBuilder()
                     .setMaxItems(itemBudget)
                     .setMaxBytes(byteBudget)
                     .build()),

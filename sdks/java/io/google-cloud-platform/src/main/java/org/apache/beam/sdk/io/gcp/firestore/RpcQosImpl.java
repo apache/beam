@@ -72,6 +72,7 @@ final class RpcQosImpl implements RpcQos {
           .stream()
           .map(Code::getNumber)
           .collect(ImmutableSet.toImmutableSet());
+
   /**
    * The target minimum number of requests per samplePeriodMs, even if no requests succeed. Must be
    * greater than 0, else we could throttle to zero. Because every decision is probabilistic, there

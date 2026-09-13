@@ -133,8 +133,7 @@ class AssignDestinationsAndPartitions
 
         Schema schema = IcebergUtils.beamSchemaToIcebergSchema(data.getSchema());
 
-        @Nullable
-        IcebergTableCreateConfig createConfig =
+        @Nullable IcebergTableCreateConfig createConfig =
             dynamicDestinations.instantiateDestination(tableIdentifier).getTableCreateConfig();
 
         if (createConfig != null && createConfig.getPartitionFields() != null) {

@@ -184,8 +184,7 @@ public class TFRecordWriteSchemaTransformProvider
           output = "";
         }
       }
-      PCollection<Row> errorOutput =
-          byteArrays.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
+      PCollection<Row> errorOutput = byteArrays.get(ERROR_TAG).setRowSchema(errorSchema);
       return PCollectionRowTuple.of(handleErrors ? output : "errors", errorOutput);
     }
   }

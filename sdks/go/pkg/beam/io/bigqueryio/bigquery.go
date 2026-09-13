@@ -118,6 +118,11 @@ type QueryOptions struct {
 	// QuotaProject is the GCP project ID used for quota and billing attribution
 	// of the BigQuery API calls, if different from the project the data resides in.
 	QuotaProject string
+	// Parameters are the query parameters for parameterized queries.
+	// In the current implementation, user-defines types are not supported in Value field.
+	// Use *bigquery.QueryParameterValue to build STRUCT/ARRAY parameters
+	// or use go primitive types explicitly.
+	parameters []bigquery.QueryParameter
 }
 
 // UseStandardSQL enables BigQuery's Standard SQL dialect when executing a query.
@@ -135,6 +140,15 @@ func UseStandardSQL() func(qo *QueryOptions) error {
 func WithQuotaProject(project string) func(qo *QueryOptions) error {
 	return func(qo *QueryOptions) error {
 		qo.QuotaProject = project
+		return nil
+	}
+}
+
+// WithQueryParameters sets the query parameters for parameterized queries.
+// See QueryOptions.parameters for the list of supported Value types.
+func WithQueryParameters(params ...bigquery.QueryParameter) func(qo *QueryOptions) error {
+	return func(qo *QueryOptions) error {
+		qo.parameters = params
 		return nil
 	}
 }
@@ -166,7 +180,16 @@ func query(s beam.Scope, project, query string, t reflect.Type, options ...func(
 	}
 
 	imp := beam.Impulse(s)
-	return beam.ParDo(s, &queryFn{Project: project, Query: query, Type: beam.EncodedType{T: t}, Options: queryOptions}, imp, beam.TypeDefinition{Var: beam.XType, T: t})
+	queryParameters, err := encodeQueryParameters(queryOptions.parameters)
+	if err != nil {
+		panic(errors.Wrapf(err, "bigqueryio.Query: failed to encode query parameters"))
+	}
+	return beam.ParDo(
+		s,
+		&queryFn{Project: project, Query: query, Type: beam.EncodedType{T: t}, QueryParameters: queryParameters, Options: queryOptions},
+		imp,
+		beam.TypeDefinition{Var: beam.XType, T: t},
+	)
 }
 
 type queryFn struct {
@@ -176,6 +199,8 @@ type queryFn struct {
 	Query string `json:"query"`
 	// Type is the encoded schema type.
 	Type beam.EncodedType `json:"type"`
+	// QueryParameters are serialized query parameters for parameterized queries.
+	QueryParameters []byte `json:"query_parameters"`
 	// Options specifies additional query execution options.
 	Options QueryOptions `json:"options"`
 }
@@ -191,6 +216,11 @@ func (f *queryFn) ProcessElement(ctx context.Context, _ []byte, emit func(beam.X
 	if !f.Options.UseStandardSQL {
 		q.UseLegacySQL = true
 	}
+	parameters, err := decodeQueryParameters(f.QueryParameters)
+	if err != nil {
+		return errors.Wrapf(err, "bigqueryio.queryFn: failed to decode query parameters")
+	}
+	q.Parameters = parameters
 
 	it, err := q.Read(ctx)
 	if err != nil {

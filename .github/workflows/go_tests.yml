@@ -28,7 +28,7 @@ on:
   pull_request:
     branches: ['master', 'release-*']
     tags: ['v*']
-    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*', '.github/workflows/go_test.yml']
+    paths: ['sdks/go/pkg/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/container/*', 'sdks/java/container/*', 'sdks/python/container/*', 'sdks/typescript/container/*', '.github/workflows/go_tests.yml']
   workflow_dispatch:
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -65,6 +65,6 @@ jobs:
           go vet --copylocks=false --unsafeptr=false ./...
       - name: Run Staticcheck
         run: |
-          go install "honnef.co/go/tools/cmd/staticcheck@2025.1.1"
+          go install "honnef.co/go/tools/cmd/staticcheck@2026.2"
           cd sdks/go/pkg/beam
           $(go env GOPATH)/bin/staticcheck ./...

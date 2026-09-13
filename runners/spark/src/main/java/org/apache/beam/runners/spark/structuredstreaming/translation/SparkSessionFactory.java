@@ -22,6 +22,7 @@ import static org.apache.commons.lang3.StringUtils.substringBetween;
 import static org.apache.commons.lang3.math.NumberUtils.toInt;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -175,6 +176,12 @@ public class SparkSessionFactory {
       sparkConf.setIfMissing("spark.sql.shuffle.partitions", Integer.toString(partitions));
     }
 
+    // Spark 4 transformWithState (used for streaming pipelines) requires the RocksDB state store.
+    // This is a harmless, inert configuration for batch pipelines on Spark 3.
+    sparkConf.setIfMissing(
+        "spark.sql.streaming.stateStore.providerClass",
+        "org.apache.spark.sql.execution.streaming.state.RocksDBStateStoreProvider");
+
     return SparkSession.builder().config(sparkConf);
   }
 
@@ -282,11 +289,44 @@ public class SparkSessionFactory {
       kryo.register(CoGbkResultSchema.class);
       kryo.register(TupleTag.class);
       kryo.register(TupleTagList.class);
+
+      // Streaming internals that only exist as of Spark 4, registered by name so this shared
+      // source also compiles against Spark 3. Must stay last so the auto assigned ids of the
+      // registrations above are identical in the Spark 3 and Spark 4 artifacts.
+      registerSparkStreamingInternals(kryo);
+    }
+
+    /**
+     * Registers the internals a Structured Streaming query serializes behind the runner's back, so
+     * streaming pipelines work with {@code spark.kryo.registrationRequired=true}: {@code
+     * StateSchemaMetadata} (broadcast for every {@code transformWithState} query) and {@code
+     * MemoryWriterCommitMessage} (the {@code memory} sink's commit message, nested inside the
+     * already registered {@link DataWritingSparkTaskResult}). A {@link JavaSerializer} covers their
+     * whole Scala object graph without tracking Spark's field layout; neither is on a hot path.
+     */
+    private void registerSparkStreamingInternals(Kryo kryo) {
+      tryToRegister(
+          kryo,
+          "org.apache.spark.sql.execution.streaming.state.StateSchemaMetadata",
+          new JavaSerializer());
+      tryToRegister(
+          kryo,
+          "org.apache.spark.sql.execution.streaming.sources.MemoryWriterCommitMessage",
+          new JavaSerializer());
     }
 
     private void tryToRegister(Kryo kryo, String className) {
+      tryToRegister(kryo, className, null);
+    }
+
+    private void tryToRegister(Kryo kryo, String className, @Nullable Serializer<?> serializer) {
       try {
-        kryo.register(Class.forName(className));
+        Class<?> cls = Class.forName(className);
+        if (serializer == null) {
+          kryo.register(cls);
+        } else {
+          kryo.register(cls, serializer);
+        }
       } catch (ClassNotFoundException e) {
         LOG.info("Class {}} was not found on classpath", className);
       }

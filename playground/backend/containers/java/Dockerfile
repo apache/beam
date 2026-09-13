@@ -16,7 +16,7 @@
 # limitations under the License.
 ###############################################################################
 ARG BEAM_VERSION=2.68.0
-FROM golang:1-bullseye AS build
+FROM golang:1-bookworm AS build
 ARG BEAM_VERSION
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"

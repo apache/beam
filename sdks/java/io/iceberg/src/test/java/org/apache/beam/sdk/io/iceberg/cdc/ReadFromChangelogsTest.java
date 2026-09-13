@@ -316,10 +316,7 @@ public class ReadFromChangelogsTest {
   private static List<SerializableDeleteFile> serializableDeletes(
       List<DeleteFile> deletes, Table table) {
     return deletes.stream()
-        .map(
-            delete ->
-                SerializableDeleteFile.from(
-                    delete, table.spec().partitionToPath(delete.partition()), true))
+        .map(delete -> SerializableDeleteFile.from(delete, table.specs(), true))
         .collect(Collectors.toList());
   }
 

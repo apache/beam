@@ -21,7 +21,7 @@ import java.util.TreeMap
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.1"
+  id("org.nosphere.apache.rat") version "0.9.0"
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -278,6 +278,10 @@ tasks.register("javaPreCommit") {
   dependsOn(":runners:java-fn-execution:build")
   dependsOn(":runners:java-job-service:build")
   dependsOn(":runners:jet:build")
+  // Only when the opt-in flag put it in the build; see settings.gradle.kts.
+  if (findProject(":runners:kafka-streams") != null) {
+    dependsOn(":runners:kafka-streams:build")
+  }
   dependsOn(":runners:local-java:build")
   dependsOn(":runners:portability:java:build")
   dependsOn(":runners:prism:java:build")
@@ -392,6 +396,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
+  dependsOn(":sdks:java:extensions:sql:delta:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
@@ -761,15 +766,15 @@ tasks.register("validateChanges") {
             println("  No bracketed language reference found")
           }
 
-          // Rule 2: Check if each entry has an issue link
-          val issueLinkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/issues/[0-9a-zA-Z]+\\)\\)"
-          val issueLinkRegex = Regex(issueLinkPattern)
+          // Rule 2: Check if each entry links an issue or a PR
+          val linkPattern = "\\(\\[#[0-9a-zA-Z]+\\]\\(https://github\\.com/apache/beam/(?:issues|pull)/[0-9a-zA-Z]+\\)\\)"
+          val linkRegex = Regex(linkPattern)
 
-          val hasIssueLink = issueLinkRegex.containsMatchIn(line)
-          println("  Has issue link: $hasIssueLink")
+          val hasLink = linkRegex.containsMatchIn(line)
+          println("  Has issue link: $hasLink")
 
-          if (!hasIssueLink) {
-            val error = "Line ${i+1}: Missing or malformed issue link. Each entry should end with ([#X](https://github.com/apache/beam/issues/X)): $line"
+          if (!hasLink) {
+            val error = "Line ${i+1}: Missing or malformed issue link. Each entry must end with a reference to an Issue or a PR, for example: ([#X](https://github.com/apache/beam/issues/X)): $line"
             println("  Adding error: $error")
             errors.add(error)
           }

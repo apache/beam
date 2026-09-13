@@ -717,7 +717,9 @@ public class FnApiDoFnRunnerTest implements Serializable {
           fakeClient.getData());
     }
 
-    /** @return a test MetricUpdate for expected metrics to compare against */
+    /**
+     * @return a test MetricUpdate for expected metrics to compare against
+     */
     public MetricUpdate create(String stepName, MetricName name, long value) {
       return MetricUpdate.create(MetricKey.create(stepName, name), value);
     }

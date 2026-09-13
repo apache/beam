@@ -38,9 +38,20 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 class CreateReadTasksDoFn extends DoFn<String, DeltaReadTask> {
   private static final long MAX_TASK_SIZE_BYTES = 1024L * 1024L * 1024L; // 1 GB
   private final @Nullable Map<String, String> hadoopConfig;
+  private final @Nullable Long version;
+  private final @Nullable String timestamp;
 
   public CreateReadTasksDoFn(@Nullable Map<String, String> hadoopConfig) {
+    this(hadoopConfig, null, null);
+  }
+
+  public CreateReadTasksDoFn(
+      @Nullable Map<String, String> hadoopConfig,
+      @Nullable Long version,
+      @Nullable String timestamp) {
     this.hadoopConfig = hadoopConfig;
+    this.version = version;
+    this.timestamp = timestamp;
   }
 
   @ProcessElement
@@ -54,7 +65,17 @@ class CreateReadTasksDoFn extends DoFn<String, DeltaReadTask> {
     }
     Engine engine = DefaultEngine.create(conf);
     Table table = Table.forPath(engine, tablePath);
-    Snapshot snapshot = table.getLatestSnapshot(engine);
+    Snapshot snapshot;
+    Long versionVal = version;
+    String timestampVal = timestamp;
+    if (versionVal != null) {
+      snapshot = table.getSnapshotAsOfVersion(engine, versionVal);
+    } else if (timestampVal != null) {
+      long timestampMillis = java.time.Instant.parse(timestampVal).toEpochMilli();
+      snapshot = table.getSnapshotAsOfTimestamp(engine, timestampMillis);
+    } else {
+      snapshot = table.getLatestSnapshot(engine);
+    }
     Scan scan = snapshot.getScanBuilder().build();
     Row scanState = scan.getScanState(engine);
     SerializableRow serializableScanState = new SerializableRow(scanState);

@@ -174,7 +174,8 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
         row.set("req", ImmutableList.of("43", "44"));
       }
       return row;
-    };
+    }
+    ;
   }
 
   @Test

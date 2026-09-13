@@ -46,8 +46,7 @@ public class SpannerAccessorTest {
   @Test
   public void testCreateOnlyOnce() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
@@ -71,16 +70,14 @@ public class SpannerAccessorTest {
   @Test
   public void testRefCountedSpannerAccessorDifferentDbsOnlyOnce() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
             .setDatabaseId(StaticValueProvider.of("test1"))
             .build();
     SpannerConfig config2 =
-        config1
-            .toBuilder()
+        config1.toBuilder()
             .setInstanceId(StaticValueProvider.of("test2"))
             .setDatabaseId(StaticValueProvider.of("test2"))
             .build();
@@ -107,8 +104,7 @@ public class SpannerAccessorTest {
   @Test
   public void testCreateWithValidDatabaseRole() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
@@ -128,8 +124,7 @@ public class SpannerAccessorTest {
   @Test
   public void testCreateWithEmptyDatabaseRole() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
@@ -150,8 +145,7 @@ public class SpannerAccessorTest {
   public void testBuildSpannerOptionsWithCredential() {
     TestCredential testCredential = new TestCredential();
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test-instance"))
@@ -171,8 +165,7 @@ public class SpannerAccessorTest {
   @Test
   public void testBuildSpannerOptionsWithNoHost() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setProjectId(StaticValueProvider.of("project"))
             .setInstanceId(StaticValueProvider.of("test1"))
@@ -187,8 +180,7 @@ public class SpannerAccessorTest {
   @Test
   public void testBuildSpannerOptionsWithNullHost() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setHost((StaticValueProvider<String>) null)
             .setProjectId(StaticValueProvider.of("project"))
@@ -204,8 +196,7 @@ public class SpannerAccessorTest {
   @Test
   public void testBuildSpannerOptionsWithNullHostValue() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setHost(StaticValueProvider.of((String) null))
             .setProjectId(StaticValueProvider.of("project"))
@@ -221,8 +212,7 @@ public class SpannerAccessorTest {
   @Test
   public void testBuildSpannerOptionsWithEmptyHost() {
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setHost(StaticValueProvider.of(""))
             .setProjectId(StaticValueProvider.of("project"))
@@ -239,8 +229,7 @@ public class SpannerAccessorTest {
   public void testBuildSpannerOptionsWithCustomHost() {
     final String host = "https://alternative-host.example.org";
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setHost(StaticValueProvider.of(host))
             .setProjectId(StaticValueProvider.of("project"))
@@ -265,8 +254,7 @@ public class SpannerAccessorTest {
                             .setType(DirectedReadOptions.ReplicaSelection.Type.READ_ONLY)))
             .build();
     SpannerConfig config1 =
-        SpannerConfig.create()
-            .toBuilder()
+        SpannerConfig.create().toBuilder()
             .setServiceFactory(serviceFactory)
             .setDirectedReadOptions(StaticValueProvider.of(directedReadOptions))
             .setProjectId(StaticValueProvider.of("project"))

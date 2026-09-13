@@ -160,7 +160,9 @@ public final class FakeWindmillServer extends WindmillServerStub {
     return streamingCommitsToOffer;
   }
 
-  /** @param commitStatus status to return to multiKeyCommits */
+  /**
+   * @param commitStatus status to return to multiKeyCommits
+   */
   public void setMultiKeyCommitStatus(CommitStatus commitStatus) {
     this.multiKeyCommitStatusToOffer.set(commitStatus);
   }

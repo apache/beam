@@ -88,37 +88,44 @@ public class ParDoTranslation {
    */
   public static final String REQUIRES_STATEFUL_PROCESSING_URN =
       "beam:requirement:pardo:stateful:v1";
+
   /**
    * This requirement indicates the requests_finalization field of ParDo transform payloads must be
    * inspected.
    */
   public static final String REQUIRES_BUNDLE_FINALIZATION_URN =
       "beam:requirement:pardo:finalization:v1";
+
   /**
    * This requirement indicates the requires_stable_input field of ParDo transform payloads must be
    * inspected.
    */
   public static final String REQUIRES_STABLE_INPUT_URN = "beam:requirement:pardo:stable_input:v1";
+
   /**
    * This requirement indicates the requires_time_sorted_input field of ParDo transform payloads
    * must be inspected.
    */
   public static final String REQUIRES_TIME_SORTED_INPUT_URN =
       "beam:requirement:pardo:time_sorted_input:v1";
+
   /**
    * This requirement indicates the restriction_coder_id field of ParDo transform payloads must be
    * inspected.
    */
   public static final String REQUIRES_SPLITTABLE_DOFN_URN =
       "beam:requirement:pardo:splittable_dofn:v1";
+
   /** This requirement indicates that the ParDo requires a callback on each window expiration. */
   public static final String REQUIRES_ON_WINDOW_EXPIRATION_URN =
       "beam:requirement:pardo:on_window_expiration:v1";
 
   /** Represents a user state specification that supports a bag. */
   public static final String BAG_USER_STATE = "beam:user_state:bag:v1";
+
   /** Represents a user state specification that supports a multimap. */
   public static final String MULTIMAP_USER_STATE = "beam:user_state:multimap:v1";
+
   /** Represents a user state specification that supports an ordered list. */
   public static final String ORDERED_LIST_USER_STATE = "beam:user_state:ordered_list:v1";
 
@@ -149,8 +156,10 @@ public class ParDoTranslation {
 
   /** The URN for an unknown Java {@link DoFn}. */
   public static final String CUSTOM_JAVA_DO_FN_URN = "beam:dofn:javasdk:0.1";
+
   /** The URN for an unknown Java {@link ViewFn}. */
   public static final String CUSTOM_JAVA_VIEW_FN_URN = "beam:viewfn:javasdk:0.1";
+
   /** The URN for an unknown Java {@link WindowMappingFn}. */
   public static final String CUSTOM_JAVA_WINDOW_MAPPING_FN_URN = "beam:windowmappingfn:javasdk:0.1";
 

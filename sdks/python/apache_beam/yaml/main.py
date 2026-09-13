@@ -61,7 +61,17 @@ def _preparse_jinja_flags(argv):
     return argv
 
   jinja_variable_parser = argparse.ArgumentParser(allow_abbrev=False)
+  # Guard against jinja_variable_flags colliding with pipeline options.
+  # If a flag collides with a known pipeline option, skip it and require
+  # the variable to be provided via --jinja_variables JSON instead.
+  try:
+    from apache_beam.options.pipeline_options import PipelineOptions
+    _pipeline_option_names = set(PipelineOptions([]).get_all_options().keys())
+  except Exception:
+    _pipeline_option_names = set()
   for flag_name in jinja_args.jinja_variable_flags:
+    if flag_name.replace('-', '_') in _pipeline_option_names:
+      continue
     jinja_variable_parser.add_argument('--' + flag_name)
   jinja_flag_variables, pipeline_args = jinja_variable_parser.parse_known_args(
       other_args)

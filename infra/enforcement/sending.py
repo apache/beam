@@ -228,7 +228,7 @@ class SendingClient:
             self.logger.info("No compliance issues to report to Github.")
             return
 
-        issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
+        issue_title = "[IAC_DRIFT_SA_KEY] Action Required: Unmanaged Service Account Keys Detected"
         #markdown body
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
         new_report = f"### Unmanaged Keys Audit Report ({timestamp})\n"
@@ -238,6 +238,12 @@ class SendingClient:
             new_report += f"- {issue_text}\n"
 
         new_report += "\n*Please investigate and revoke these keys if they are not part of the official rotation system.*"
+        remediation = "\n\n### Remediation\n"
+        remediation += "1. Delete all reported keys as soon as possible.\n"
+        remediation += "2. Replace the deleted keys using the official Beam key rotation system. It creates the service account key and registers its key ID and private key in the corresponding managed Secret Manager secret (`<service-account-id>-key`). Do not create replacement keys manually in IAM.\n"
+        remediation += "3. Run the audit again to confirm that the reported keys have been removed and the replacement keys are managed by the rotation system.\n"
+        remediation += "\nFor more information, consult `infra/keys/README.md`."
+        new_report += remediation
         open_issues = self._get_open_issues(issue_title)
 
         if open_issues:
@@ -272,7 +278,7 @@ class SendingClient:
         Finds any open security issues regarding rogue keys and automatically closes them
         if the infrastructure is now healthy.
         """
-        issue_title = "[SECURITY] Action Required: Unmanaged Service Account Keys Detected"
+        issue_title = "[IAC_DRIFT_SA_KEY] Action Required: Unmanaged Service Account Keys Detected"
         open_issues = self._get_open_issues(issue_title)
         if open_issues:
             target_issue = open_issues[0]

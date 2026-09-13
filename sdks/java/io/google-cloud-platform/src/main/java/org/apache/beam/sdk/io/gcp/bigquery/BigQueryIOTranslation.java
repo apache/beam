@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.fromByteArray;
 import static org.apache.beam.sdk.util.construction.TransformUpgrader.toByteArray;
 
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.RowWriterFactory.AvroRowWriterFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.schemas.Schema;
@@ -73,7 +75,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@SuppressWarnings({"rawtypes", "nullness", "AutoValueSubclassLeaked"})
+@SuppressWarnings({"rawtypes", "AutoValueSubclassLeaked"})
 public class BigQueryIOTranslation {
 
   private static final Logger LOG = LoggerFactory.getLogger(BigQueryIOTranslation.class);
@@ -119,9 +121,18 @@ public class BigQueryIOTranslation {
       return BIGQUERY_READ_TRANSFORM_URN;
     }
 
+    // The 'application' parameter below carries a narrowly scoped "nullness" suppression: the
+    // Checker Framework cannot verify that the captured wildcards of
+    // AppliedPTransform<?, ?, TypedRead<?>> satisfy the F-bounded declaration
+    // 'TransformT extends PTransform<? super InputT, OutputT>'. The signature is dictated by the
+    // TransformPayloadTranslator interface so it cannot be reformulated here, and no annotation on
+    // the type arguments can express the missing capture constraint.
+    // See https://github.com/typetools/checker-framework/issues/3791, which is also the reason
+    // PubSubPayloadTranslation is listed in 'classesTriggerCheckerBugs' in build.gradle.
     @Override
     public RunnerApi.@Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, TypedRead<?>> application, SdkComponents components)
+        @SuppressWarnings("nullness") AppliedPTransform<?, ?, TypedRead<?>> application,
+        SdkComponents components)
         throws IOException {
       // Setting an empty payload since BigQuery transform payload is not actually used by runners
       // currently.
@@ -133,37 +144,54 @@ public class BigQueryIOTranslation {
     public Row toConfigRow(TypedRead<?> transform) {
       Map<String, Object> fieldValues = new HashMap<>();
 
-      if (transform.getJsonTableRef() != null) {
-        fieldValues.put("json_table_ref", transform.getJsonTableRef().get());
+      ValueProvider<String> jsonTableRef = transform.getJsonTableRef();
+      if (jsonTableRef != null) {
+        fieldValues.put("json_table_ref", jsonTableRef.get());
       }
-      if (transform.getQuery() != null) {
-        fieldValues.put("query", transform.getQuery().get());
+      ValueProvider<String> query = transform.getQuery();
+      if (query != null) {
+        fieldValues.put("query", query.get());
       }
       fieldValues.put("validate", transform.getValidate());
-      fieldValues.put("flatten_results", transform.getFlattenResults());
-      fieldValues.put("use_legacy_sql", transform.getUseLegacySql());
+      // 'flatten_results' and 'use_legacy_sql' are nullable properties of the transform and the
+      // corresponding schema fields are nullable. Omitting the field value is equivalent to
+      // setting it to null.
+      Boolean flattenResults = transform.getFlattenResults();
+      if (flattenResults != null) {
+        fieldValues.put("flatten_results", flattenResults);
+      }
+      Boolean useLegacySql = transform.getUseLegacySql();
+      if (useLegacySql != null) {
+        fieldValues.put("use_legacy_sql", useLegacySql);
+      }
       fieldValues.put("with_template_compatibility", transform.getWithTemplateCompatibility());
 
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
-      if (transform.getParseFn() != null) {
-        fieldValues.put("parse_fn", toByteArray(transform.getParseFn()));
+      Object parseFn = transform.getParseFn();
+      if (parseFn != null) {
+        fieldValues.put("parse_fn", toByteArray(parseFn));
       }
-      if (transform.getDatumReaderFactory() != null) {
-        fieldValues.put("datum_reader_factory", toByteArray(transform.getDatumReaderFactory()));
+      Object datumReaderFactory = transform.getDatumReaderFactory();
+      if (datumReaderFactory != null) {
+        fieldValues.put("datum_reader_factory", toByteArray(datumReaderFactory));
       }
-      if (transform.getQueryPriority() != null) {
-        fieldValues.put("query_priority", toByteArray(transform.getQueryPriority()));
+      QueryPriority queryPriority = transform.getQueryPriority();
+      if (queryPriority != null) {
+        fieldValues.put("query_priority", toByteArray(queryPriority));
       }
-      if (transform.getQueryLocation() != null) {
-        fieldValues.put("query_location", transform.getQueryLocation());
+      String queryLocation = transform.getQueryLocation();
+      if (queryLocation != null) {
+        fieldValues.put("query_location", queryLocation);
       }
-      if (transform.getQueryTempDataset() != null) {
-        fieldValues.put("query_temp_dataset", transform.getQueryTempDataset());
+      String queryTempDataset = transform.getQueryTempDataset();
+      if (queryTempDataset != null) {
+        fieldValues.put("query_temp_dataset", queryTempDataset);
       }
-      if (transform.getQueryTempProject() != null) {
-        fieldValues.put("query_temp_project", transform.getQueryTempProject());
+      String queryTempProject = transform.getQueryTempProject();
+      if (queryTempProject != null) {
+        fieldValues.put("query_temp_project", queryTempProject);
       }
       if (transform.getMethod() != null) {
         fieldValues.put("method", toByteArray(transform.getMethod()));
@@ -171,32 +199,41 @@ public class BigQueryIOTranslation {
       if (transform.getFormat() != null) {
         fieldValues.put("format", toByteArray(transform.getFormat()));
       }
-      if (transform.getSelectedFields() != null && !transform.getSelectedFields().get().isEmpty()) {
-        fieldValues.put("selected_fields", transform.getSelectedFields().get());
+      ValueProvider<List<String>> selectedFields = transform.getSelectedFields();
+      if (selectedFields != null && !selectedFields.get().isEmpty()) {
+        fieldValues.put("selected_fields", selectedFields.get());
       }
-      if (transform.getRowRestriction() != null) {
-        fieldValues.put("row_restriction", transform.getRowRestriction().get());
+      ValueProvider<String> rowRestriction = transform.getRowRestriction();
+      if (rowRestriction != null) {
+        fieldValues.put("row_restriction", rowRestriction.get());
       }
-      if (transform.getCoder() != null) {
-        fieldValues.put("coder", toByteArray(transform.getCoder()));
+      Coder<?> coder = transform.getCoder();
+      if (coder != null) {
+        fieldValues.put("coder", toByteArray(coder));
       }
-      if (transform.getKmsKey() != null) {
-        fieldValues.put("kms_key", transform.getKmsKey());
+      String kmsKey = transform.getKmsKey();
+      if (kmsKey != null) {
+        fieldValues.put("kms_key", kmsKey);
       }
-      if (transform.getTypeDescriptor() != null) {
-        fieldValues.put("type_descriptor", toByteArray(transform.getTypeDescriptor()));
+      TypeDescriptor<?> typeDescriptor = transform.getTypeDescriptor();
+      if (typeDescriptor != null) {
+        fieldValues.put("type_descriptor", toByteArray(typeDescriptor));
       }
-      if (transform.getToBeamRowFn() != null) {
-        fieldValues.put("to_beam_row_fn", toByteArray(transform.getToBeamRowFn()));
+      ToBeamRowFunction<?> toBeamRowFn = transform.getToBeamRowFn();
+      if (toBeamRowFn != null) {
+        fieldValues.put("to_beam_row_fn", toByteArray(toBeamRowFn));
       }
-      if (transform.getFromBeamRowFn() != null) {
-        fieldValues.put("from_beam_row_fn", toByteArray(transform.getFromBeamRowFn()));
+      FromBeamRowFunction<?> fromBeamRowFn = transform.getFromBeamRowFn();
+      if (fromBeamRowFn != null) {
+        fieldValues.put("from_beam_row_fn", toByteArray(fromBeamRowFn));
       }
       fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
-      if (transform.getDirectReadPicosTimestampPrecision() != null) {
+      TimestampPrecision directReadPicosTimestampPrecision =
+          transform.getDirectReadPicosTimestampPrecision();
+      if (directReadPicosTimestampPrecision != null) {
         fieldValues.put(
             "direct_read_picos_timestamp_precision",
-            toByteArray(transform.getDirectReadPicosTimestampPrecision()));
+            toByteArray(directReadPicosTimestampPrecision));
       }
       fieldValues.put("projection_pushdown_applied", transform.getProjectionPushdownApplied());
       fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
@@ -354,9 +391,16 @@ public class BigQueryIOTranslation {
           builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
           builder.setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>());
         } else {
-          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+          // 'toConfigRow' always populates these two fields, so they are expected to be present in
+          // rows produced by Beam 2.55.0 and later.
+          byte[] badRecordRouter =
+              checkStateNotNull(
+                  configRow.getBytes("bad_record_router"), "Missing 'bad_record_router'");
           builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
-          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+          byte[] badRecordErrorHandler =
+              checkStateNotNull(
+                  configRow.getBytes("bad_record_error_handler"),
+                  "Missing 'bad_record_error_handler'");
           builder.setBadRecordErrorHandler(
               (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
         }
@@ -448,9 +492,12 @@ public class BigQueryIOTranslation {
       return BIGQUERY_WRITE_TRANSFORM_URN;
     }
 
+    // See the comment on BigQueryIOReadTranslator#translate for why the 'application' parameter
+    // below carries a narrowly scoped "nullness" suppression.
     @Override
     public @Nullable FunctionSpec translate(
-        AppliedPTransform<?, ?, Write<?>> application, SdkComponents components)
+        @SuppressWarnings("nullness") AppliedPTransform<?, ?, Write<?>> application,
+        SdkComponents components)
         throws IOException {
       // Setting an empty payload since BigQuery transform payload is not actually used by runners
       // currently.
@@ -463,27 +510,31 @@ public class BigQueryIOTranslation {
 
       Map<String, Object> fieldValues = new HashMap<>();
 
-      if (transform.getJsonTableRef() != null) {
-        fieldValues.put("json_table_ref", transform.getJsonTableRef().get());
+      ValueProvider<String> jsonTableRef = transform.getJsonTableRef();
+      if (jsonTableRef != null) {
+        fieldValues.put("json_table_ref", jsonTableRef.get());
       }
-      if (transform.getTableFunction() != null) {
-        fieldValues.put("table_function", toByteArray(transform.getTableFunction()));
+      Object tableFunction = transform.getTableFunction();
+      if (tableFunction != null) {
+        fieldValues.put("table_function", toByteArray(tableFunction));
       }
-      if (transform.getFormatFunction() != null) {
-        fieldValues.put("format_function", toByteArray(transform.getFormatFunction()));
+      Object formatFunction = transform.getFormatFunction();
+      if (formatFunction != null) {
+        fieldValues.put("format_function", toByteArray(formatFunction));
       }
-      if (transform.getFormatRecordOnFailureFunction() != null) {
+      Object formatRecordOnFailureFunction = transform.getFormatRecordOnFailureFunction();
+      if (formatRecordOnFailureFunction != null) {
         fieldValues.put(
-            "format_record_on_failure_function",
-            toByteArray(transform.getFormatRecordOnFailureFunction()));
+            "format_record_on_failure_function", toByteArray(formatRecordOnFailureFunction));
       }
-      if (transform.getAvroRowWriterFactory() != null) {
-        fieldValues.put(
-            "avro_row_writer_factory", toByteArray(transform.getAvroRowWriterFactory()));
+      Object avroRowWriterFactory = transform.getAvroRowWriterFactory();
+      if (avroRowWriterFactory != null) {
+        fieldValues.put("avro_row_writer_factory", toByteArray(avroRowWriterFactory));
       }
       fieldValues.put("use_avro_logical_types", transform.getUseAvroLogicalTypes());
-      if (transform.getDynamicDestinations() != null) {
-        fieldValues.put("dynamic_destinations", toByteArray(transform.getDynamicDestinations()));
+      Object dynamicDestinations = transform.getDynamicDestinations();
+      if (dynamicDestinations != null) {
+        fieldValues.put("dynamic_destinations", toByteArray(dynamicDestinations));
       }
       if (transform.getSchemaFromView() != null) {
         // Property 'getSchemaFromView' cannot be used in a portable way across pipelines since it
@@ -493,15 +544,17 @@ public class BigQueryIOTranslation {
                 + "portable row based config due to 'withSchemaFromView' property being set. Please "
                 + "retry without setting this property when configuring your transform");
       }
-      if (transform.getJsonSchema() != null) {
-        fieldValues.put("json_schema", transform.getJsonSchema().get());
+      ValueProvider<String> jsonSchema = transform.getJsonSchema();
+      if (jsonSchema != null) {
+        fieldValues.put("json_schema", jsonSchema.get());
       }
-      if (transform.getJsonTimePartitioning() != null) {
-        fieldValues.put(
-            "json_time_partitioning", toByteArray(transform.getJsonTimePartitioning().get()));
+      ValueProvider<String> jsonTimePartitioning = transform.getJsonTimePartitioning();
+      if (jsonTimePartitioning != null) {
+        fieldValues.put("json_time_partitioning", toByteArray(jsonTimePartitioning.get()));
       }
-      if (transform.getJsonClustering() != null) {
-        fieldValues.put("clustering", transform.getJsonClustering().get());
+      ValueProvider<String> jsonClustering = transform.getJsonClustering();
+      if (jsonClustering != null) {
+        fieldValues.put("clustering", jsonClustering.get());
       }
       if (transform.getCreateDisposition() != null) {
         fieldValues.put("create_disposition", toByteArray(transform.getCreateDisposition()));
@@ -517,21 +570,25 @@ public class BigQueryIOTranslation {
                 .collect(Collectors.toList());
         fieldValues.put("schema_update_options", schemUpdateOptionsData);
       }
-      if (transform.getTableDescription() != null) {
-        fieldValues.put("table_description", transform.getTableDescription());
+      String tableDescription = transform.getTableDescription();
+      if (tableDescription != null) {
+        fieldValues.put("table_description", tableDescription);
       }
-      if (transform.getBigLakeConfiguration() != null) {
-        fieldValues.put("biglake_configuration", transform.getBigLakeConfiguration());
+      Map<String, String> bigLakeConfiguration = transform.getBigLakeConfiguration();
+      if (bigLakeConfiguration != null) {
+        fieldValues.put("biglake_configuration", bigLakeConfiguration);
       }
       fieldValues.put("validate", transform.getValidate());
       if (transform.getBigQueryServices() != null) {
         fieldValues.put("bigquery_services", toByteArray(transform.getBigQueryServices()));
       }
-      if (transform.getMaxFilesPerBundle() != null) {
-        fieldValues.put("max_files_per_bundle", transform.getMaxFilesPerBundle());
+      Integer maxFilesPerBundle = transform.getMaxFilesPerBundle();
+      if (maxFilesPerBundle != null) {
+        fieldValues.put("max_files_per_bundle", maxFilesPerBundle);
       }
-      if (transform.getMaxFileSize() != null) {
-        fieldValues.put("max_file_size", transform.getMaxFileSize());
+      Long maxFileSize = transform.getMaxFileSize();
+      if (maxFileSize != null) {
+        fieldValues.put("max_file_size", maxFileSize);
       }
       fieldValues.put("num_file_shards", transform.getNumFileShards());
       fieldValues.put("num_storage_write_api_streams", transform.getNumStorageWriteApiStreams());
@@ -543,23 +600,24 @@ public class BigQueryIOTranslation {
           toByteArray(transform.getPropagateSuccessfulStorageApiWritesPredicate()));
       fieldValues.put("max_files_per_partition", transform.getMaxFilesPerPartition());
       fieldValues.put("max_bytes_per_partition", transform.getMaxBytesPerPartition());
-      if (transform.getTriggeringFrequency() != null) {
-        fieldValues.put(
-            "triggering_frequency",
-            Duration.ofMillis(transform.getTriggeringFrequency().getMillis()));
+      org.joda.time.Duration triggeringFrequency = transform.getTriggeringFrequency();
+      if (triggeringFrequency != null) {
+        fieldValues.put("triggering_frequency", Duration.ofMillis(triggeringFrequency.getMillis()));
       }
       if (transform.getMethod() != null) {
         fieldValues.put("method", toByteArray(transform.getMethod()));
       }
-      if (transform.getLoadJobProjectId() != null) {
-        fieldValues.put("load_job_project_id", transform.getLoadJobProjectId());
+      ValueProvider<String> loadJobProjectId = transform.getLoadJobProjectId();
+      if (loadJobProjectId != null) {
+        fieldValues.put("load_job_project_id", loadJobProjectId);
       }
-      if (transform.getFailedInsertRetryPolicy() != null) {
-        fieldValues.put(
-            "failed_insert_retry_policy", toByteArray(transform.getFailedInsertRetryPolicy()));
+      InsertRetryPolicy failedInsertRetryPolicy = transform.getFailedInsertRetryPolicy();
+      if (failedInsertRetryPolicy != null) {
+        fieldValues.put("failed_insert_retry_policy", toByteArray(failedInsertRetryPolicy));
       }
-      if (transform.getCustomGcsTempLocation() != null) {
-        fieldValues.put("custom_gcs_temp_location", transform.getCustomGcsTempLocation().get());
+      ValueProvider<String> customGcsTempLocation = transform.getCustomGcsTempLocation();
+      if (customGcsTempLocation != null) {
+        fieldValues.put("custom_gcs_temp_location", customGcsTempLocation.get());
       }
       fieldValues.put("extended_error_info", transform.getExtendedErrorInfo());
       fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
@@ -567,11 +625,13 @@ public class BigQueryIOTranslation {
       fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
       fieldValues.put("max_retry_jobs", transform.getMaxRetryJobs());
       fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
-      if (transform.getKmsKey() != null) {
-        fieldValues.put("kms_key", transform.getKmsKey());
+      String kmsKey = transform.getKmsKey();
+      if (kmsKey != null) {
+        fieldValues.put("kms_key", kmsKey);
       }
-      if (transform.getPrimaryKey() != null) {
-        fieldValues.put("primary_key", transform.getPrimaryKey());
+      List<String> primaryKey = transform.getPrimaryKey();
+      if (primaryKey != null) {
+        fieldValues.put("primary_key", primaryKey);
       }
       if (transform.getDefaultMissingValueInterpretation() != null) {
         fieldValues.put(
@@ -582,20 +642,22 @@ public class BigQueryIOTranslation {
       fieldValues.put("use_beam_schema", transform.getUseBeamSchema());
       fieldValues.put("auto_sharding", transform.getAutoSharding());
       fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
-      if (transform.getWriteProtosClass() != null) {
-        fieldValues.put("write_protos_class", toByteArray(transform.getWriteProtosClass()));
+      Class<?> writeProtosClass = transform.getWriteProtosClass();
+      if (writeProtosClass != null) {
+        fieldValues.put("write_protos_class", toByteArray(writeProtosClass));
       }
       fieldValues.put("direct_write_protos", transform.getDirectWriteProtos());
-      if (transform.getDeterministicRecordIdFn() != null) {
-        fieldValues.put(
-            "deterministic_record_id_fn", toByteArray(transform.getDeterministicRecordIdFn()));
+      Object deterministicRecordIdFn = transform.getDeterministicRecordIdFn();
+      if (deterministicRecordIdFn != null) {
+        fieldValues.put("deterministic_record_id_fn", toByteArray(deterministicRecordIdFn));
       }
-      if (transform.getWriteTempDataset() != null) {
-        fieldValues.put("write_temp_dataset", toByteArray(transform.getWriteTempDataset()));
+      String writeTempDataset = transform.getWriteTempDataset();
+      if (writeTempDataset != null) {
+        fieldValues.put("write_temp_dataset", toByteArray(writeTempDataset));
       }
-      if (transform.getRowMutationInformationFn() != null) {
-        fieldValues.put(
-            "row_mutation_information_fn", toByteArray(transform.getRowMutationInformationFn()));
+      Object rowMutationInformationFn = transform.getRowMutationInformationFn();
+      if (rowMutationInformationFn != null) {
+        fieldValues.put("row_mutation_information_fn", toByteArray(rowMutationInformationFn));
       }
       fieldValues.put("bad_record_router", toByteArray(transform.getBadRecordRouter()));
       fieldValues.put(
@@ -872,9 +934,17 @@ public class BigQueryIOTranslation {
         }
         byte[] writeProtosClasses = configRow.getBytes("write_protos_class");
         if (writeProtosClasses != null) {
+          // NOTE: this deserializes 'defaultMissingValueInterpretationsBytes' rather than
+          // 'writeProtosClasses'. This looks like a copy/paste mistake, but it is preserved here
+          // as-is because changing it would alter the pipeline update compatibility behavior of
+          // already released Beam versions.
           builder =
               builder.setWriteProtosClass(
-                  (Class) fromByteArray(defaultMissingValueInterpretationsBytes));
+                  (Class)
+                      fromByteArray(
+                          checkStateNotNull(
+                              defaultMissingValueInterpretationsBytes,
+                              "Missing 'default_missing_value_interpretation'")));
         }
         Boolean directWriteProtos = configRow.getBoolean("direct_write_protos");
         if (directWriteProtos != null) {
@@ -904,9 +974,16 @@ public class BigQueryIOTranslation {
           builder.setBadRecordRouter(BadRecordRouter.THROWING_ROUTER);
           builder.setBadRecordErrorHandler(new ErrorHandler.DefaultErrorHandler<>());
         } else {
-          byte[] badRecordRouter = configRow.getBytes("bad_record_router");
+          // 'toConfigRow' always populates these two fields, so they are expected to be present in
+          // rows produced by Beam 2.55.0 and later.
+          byte[] badRecordRouter =
+              checkStateNotNull(
+                  configRow.getBytes("bad_record_router"), "Missing 'bad_record_router'");
           builder.setBadRecordRouter((BadRecordRouter) fromByteArray(badRecordRouter));
-          byte[] badRecordErrorHandler = configRow.getBytes("bad_record_error_handler");
+          byte[] badRecordErrorHandler =
+              checkStateNotNull(
+                  configRow.getBytes("bad_record_error_handler"),
+                  "Missing 'bad_record_error_handler'");
           builder.setBadRecordErrorHandler(
               (ErrorHandler<BadRecord, ?>) fromByteArray(badRecordErrorHandler));
         }

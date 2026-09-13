@@ -107,16 +107,24 @@ tasks.register("prepareExpansionServicesForYamlDocs") {
 
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:snowflake:expansion-service:shadowJar"
 
   doLast {
     // Copy expansion service jar into cache path (.apache_beam/cache/jars/).
     copy {
       from project.tasks.findByPath(":sdks:java:extensions:schemaio-expansion-service:shadowJar")
       from project.tasks.findByPath(":sdks:java:extensions:sql:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:amazon-web-services2:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:debezium:expansion-service:shadowJar")
       from project.tasks.findByPath(":sdks:java:io:expansion-service:shadowJar")
       from project.tasks.findByPath(":sdks:java:io:google-cloud-platform:expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:messaging-expansion-service:shadowJar")
+      from project.tasks.findByPath(":sdks:java:io:snowflake:expansion-service:shadowJar")
       into "${System.getProperty('user.home')}/.apache_beam/cache/jars/"
     }
   }
@@ -149,9 +157,9 @@ tasks.register("yamlIntegrationTests") {
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
-  dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:messaging-expansion-service:shadowJar"
 
   doLast {
     exec {
@@ -169,9 +177,10 @@ tasks.register("postCommitYamlIntegrationTests") {
   // grep -oh 'sdk.*Jar' sdks/python/apache_beam/yaml/*.yaml | sort | uniq
   dependsOn ":sdks:java:extensions:schemaio-expansion-service:shadowJar"
   dependsOn ":sdks:java:extensions:sql:expansion-service:shadowJar"
-  dependsOn ":sdks:java:io:expansion-service:build"
-  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:build"
+  dependsOn ":sdks:java:io:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:google-cloud-platform:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:debezium:expansion-service:shadowJar"
+  dependsOn ":sdks:java:io:snowflake:expansion-service:shadowJar"
   dependsOn ":sdks:java:io:amazon-web-services2:expansion-service:shadowJar"
 
   doLast {
@@ -213,12 +222,13 @@ def platform_identifiers_map = [
 ]
 
 platform_identifiers_map.each { platform, idsuffix ->
-  def archs = 'auto'
+  def archs = project.rootProject.findProperty('cibwArchs') ?: 'auto'
   // note: A fix for arm64 platform in gradle environment. For some reason the
   // task fails with "Invalid archs option {<Architecture.arm64: 'arm64'>}."
   // even though os.arch is 'aarch64'
   // Running cibuildwheel command directly in shell it succeeded, however
-  if (platform == 'linux' && 'aarch64'.equalsIgnoreCase(System.getProperty("os.arch"))) {
+  if (archs == 'auto' && platform == 'linux' &&
+      'aarch64'.equalsIgnoreCase(System.getProperty("os.arch"))) {
     archs = 'aarch64'
   }
   getVersionsAsList('python_versions').each { it ->

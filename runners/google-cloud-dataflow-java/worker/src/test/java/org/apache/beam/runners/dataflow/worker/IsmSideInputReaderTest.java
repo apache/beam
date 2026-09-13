@@ -1773,7 +1773,7 @@ public class IsmSideInputReaderTest {
     Source source = new Source();
     source.setCodec(
         CloudObjects.asCloudObject(
-            WindowedValues.getFullCoder(coder, GLOBAL_WINDOW_CODER), /*sdkComponents=*/ null));
+            WindowedValues.getFullCoder(coder, GLOBAL_WINDOW_CODER), /* sdkComponents= */ null));
     source.setSpec(new HashMap<String, Object>());
     source.getSpec().put(PropertyNames.OBJECT_TYPE_NAME, "IsmSource");
     source.getSpec().put(WorkerPropertyNames.FILENAME, tmpFilePath);

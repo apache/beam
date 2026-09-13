@@ -34,8 +34,7 @@ public interface LineageOptions extends PipelineOptions {
           + "lineage. The class must implement LineageBase and have a public constructor accepting "
           + "(PipelineOptions, Lineage.LineageDirection). "
           + "If not specified, the default Metrics-based lineage is used.")
-  @Nullable
-  Class<? extends LineageBase> getLineageType();
+  @Nullable Class<? extends LineageBase> getLineageType();
 
   void setLineageType(@Nullable Class<? extends LineageBase> lineageClass);
 }

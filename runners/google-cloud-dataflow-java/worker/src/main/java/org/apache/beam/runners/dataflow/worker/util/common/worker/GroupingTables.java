@@ -150,6 +150,7 @@ public class GroupingTables {
 
   // How many bytes a word in the JVM has.
   static final int BYTES_PER_JVM_WORD = getBytesPerJvmWord();
+
   /**
    * The number of bytes of overhead to store an entry in the grouping table (a {@code
    * HashMap<StructuralByteArray, KeyAndValues>}), ignoring the actual number of bytes in the keys

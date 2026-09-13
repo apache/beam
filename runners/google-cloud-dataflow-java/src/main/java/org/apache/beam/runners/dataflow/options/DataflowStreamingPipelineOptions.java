@@ -133,14 +133,18 @@ public interface DataflowStreamingPipelineOptions extends PipelineOptions {
 
   void setWindmillMessagesBetweenIsReadyChecks(int value);
 
-  /** @deprecated since 2.73.0 */
+  /**
+   * @deprecated since 2.73.0
+   */
   @Deprecated
   @Description("Unused flag.")
   Boolean getUseWindmillIsolatedChannels();
 
   void setUseWindmillIsolatedChannels(Boolean value);
 
-  /** @deprecated since beam 2.73.0 */
+  /**
+   * @deprecated since beam 2.73.0
+   */
   @Deprecated
   @Description("Unused Flag")
   Boolean getUseSeparateWindmillHeartbeatStreams();

@@ -365,6 +365,7 @@ def clean_pubsub_topics():
     prefixes = [
         "psit_topic_input",
         "psit_topic_output",
+        "psit_topic_ordering",
         "wc_topic_input",
         "wc_topic_output",
         "leader_board_it_input_topic",
@@ -421,6 +422,12 @@ def clean_pubsub_subscriptions():
     # Restrict subscription cleanup to the NYC taxi prefix only.
     prefixes = [
         "taxirides-realtime_beam_",
+        "pubsub_io_performance",
+        "psit_sub_input",
+        "psit_sub_output",
+        "psit_sub_ordering",
+        "wc_subscription_input",
+        "wc_subscription_output",
     ]
 
     # Create a PubSubSubscriptionCleaner instance

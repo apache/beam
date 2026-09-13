@@ -39,39 +39,49 @@ public class PartitionMetadataAdminDao {
 
   /** Metadata table column name for the partition token. */
   public static final String COLUMN_PARTITION_TOKEN = "PartitionToken";
+
   /** Metadata table column name for parent partition tokens. */
   public static final String COLUMN_PARENT_TOKENS = "ParentTokens";
+
   /**
    * Metadata table column name for the timestamp to start the change stream query of the partition.
    */
   public static final String COLUMN_START_TIMESTAMP = "StartTimestamp";
+
   /**
    * Metadata table column name for the timestamp to end the change stream query of the partition.
    */
   public static final String COLUMN_END_TIMESTAMP = "EndTimestamp";
+
   /** Metadata table column name for the change stream query heartbeat interval in millis. */
   public static final String COLUMN_HEARTBEAT_MILLIS = "HeartbeatMillis";
+
   /**
    * Metadata table column name for the state that the partition is currently in. Possible states
    * can be seen in {@link
    * org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State}.
    */
   public static final String COLUMN_STATE = "State";
+
   /** Metadata table column name for the current watermark of the partition. */
   public static final String COLUMN_WATERMARK = "Watermark";
+
   /** Metadata table column name for the timestamp at which the partition row was first created. */
   public static final String COLUMN_CREATED_AT = "CreatedAt";
+
   /**
    * Metadata table column name for the timestamp at which the partition was scheduled by the {@link
    * org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.DetectNewPartitionsDoFn} SDF.
    */
   public static final String COLUMN_SCHEDULED_AT = "ScheduledAt";
+
   /**
    * Metadata table column name for the timestamp at which the partition was marked as running by
    * the {@link org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn}
    * SDF.
    */
   public static final String COLUMN_RUNNING_AT = "RunningAt";
+
   /**
    * Metadata table column name for the timestamp at which the partition was marked as finished by
    * the {@link org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn.ReadChangeStreamPartitionDoFn}

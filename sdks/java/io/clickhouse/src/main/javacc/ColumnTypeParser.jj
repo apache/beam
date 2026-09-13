@@ -81,6 +81,11 @@ TOKEN :
   | < DATE           : "DATE" >
   | < DATETIME64     : "DATETIME64" >
   | < DATETIME       : "DATETIME" >
+  | < DECIMAL256     : "DECIMAL256" >
+  | < DECIMAL128     : "DECIMAL128" >
+  | < DECIMAL64      : "DECIMAL64" >
+  | < DECIMAL32      : "DECIMAL32" >
+  | < DECIMAL        : "DECIMAL" >
   | < ENUM8          : "ENUM8" >
   | < ENUM16         : "ENUM16" >
   | < FIXEDSTRING    : "FIXEDSTRING" >
@@ -218,6 +223,8 @@ private ColumnType primitive() :
       }
     |
       (ct = dateTime64()) { return ct; }
+    |
+      (ct = decimal()) { return ct; }
     )
 
 }
@@ -243,6 +250,42 @@ private ColumnType dateTime64() :
         }
         return ColumnType.dateTime64(Integer.parseInt(precision));
     }
+}
+
+private ColumnType decimal() :
+{
+    String precision = null;
+    String scale = null;
+}
+{
+    (
+        <DECIMAL>
+        (
+            <LPAREN> ( precision = integer() )
+            ( <COMMA> ( scale = integer() ) )?
+            <RPAREN>
+        )?
+        {
+            // Bare Decimal is Decimal(10, 0) and Decimal(P) is Decimal(P, 0), matching ClickHouse.
+            int p = precision == null
+                ? ColumnType.DEFAULT_DECIMAL_PRECISION : Integer.parseInt(precision);
+            int s = scale == null ? ColumnType.DEFAULT_DECIMAL_SCALE : Integer.parseInt(scale);
+            return ColumnType.decimal(p, s);
+        }
+    |
+        // The width aliases pin the precision to the maximum of their storage width.
+        (<DECIMAL32> <LPAREN> ( scale = integer() ) <RPAREN>)
+        { return ColumnType.decimal(9, Integer.parseInt(scale)); }
+    |
+        (<DECIMAL64> <LPAREN> ( scale = integer() ) <RPAREN>)
+        { return ColumnType.decimal(18, Integer.parseInt(scale)); }
+    |
+        (<DECIMAL128> <LPAREN> ( scale = integer() ) <RPAREN>)
+        { return ColumnType.decimal(38, Integer.parseInt(scale)); }
+    |
+        (<DECIMAL256> <LPAREN> ( scale = integer() ) <RPAREN>)
+        { return ColumnType.decimal(76, Integer.parseInt(scale)); }
+    )
 }
 
 private ColumnType nullable() :

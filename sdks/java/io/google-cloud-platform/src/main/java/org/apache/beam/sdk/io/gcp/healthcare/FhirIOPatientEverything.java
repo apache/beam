@@ -57,6 +57,7 @@ public class FhirIOPatientEverything
 
   /** The tag for the main output of FHIR Resources from a GetPatientEverything request. */
   public static final TupleTag<JsonArray> OUT = new TupleTag<JsonArray>() {};
+
   /** The tag for the deadletter output of FHIR Resources from a GetPatientEverything request. */
   public static final TupleTag<HealthcareIOError<String>> DEAD_LETTER =
       new TupleTag<HealthcareIOError<String>>() {};
@@ -74,6 +75,7 @@ public class FhirIOPatientEverything
      * projects/{p}/locations/{l}/datasets/{d}/fhirStores/{f}/fhir/{resourceType}/{id}.
      */
     abstract String getResourceName();
+
     /** Optional filters for the request, eg. start, end, _type, _since, _count */
     abstract @Nullable Map<String, String> getFilters();
 
