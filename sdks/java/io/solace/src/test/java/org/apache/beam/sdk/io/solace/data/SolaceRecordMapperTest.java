@@ -26,9 +26,13 @@ import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.TextMessage;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.io.solace.broker.MessageProducerUtils;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.Solace.Record.PayloadType;
@@ -145,6 +149,34 @@ public class SolaceRecordMapperTest {
   }
 
   @Test
+  public void testMapMessageUserProperties() throws Exception {
+    BytesXMLMessage message = JCSMPFactory.onlyInstance().createBytesXMLMessage();
+    message.setApplicationMessageId("id");
+    SDTMap properties = JCSMPFactory.onlyInstance().createMap();
+    properties.putString("contentType", "application/json");
+    properties.putInteger("attempt", 3);
+    properties.putString("null", null);
+    message.setProperties(properties);
+
+    Record record = Solace.SolaceRecordMapper.toRecord(message);
+
+    Map<String, String> expected = new HashMap<>();
+    expected.put("contentType", "application/json");
+    expected.put("attempt", "3");
+    assertEquals(expected, record.getUserProperties());
+  }
+
+  @Test
+  public void testMapWithEmptyMessageUserProperties() {
+    BytesXMLMessage message = JCSMPFactory.onlyInstance().createBytesXMLMessage();
+    message.setApplicationMessageId("id");
+
+    Record record = Solace.SolaceRecordMapper.toRecord(message);
+
+    assertTrue(record.getUserProperties().isEmpty());
+  }
+
+  @Test
   public void testMapTextRecord() {
     Record record =
         Record.builder().setMessageId("id").setText("héllo").setSenderTimestamp(1L).build();
@@ -257,9 +289,52 @@ public class SolaceRecordMapperTest {
     assertNull(msg.getCorrelationKey());
   }
 
+  @Test
+  public void testMapRecordUserProperties() throws Exception {
+    Record record =
+        Record.builder()
+            .setMessageId("id")
+            .setText("hello")
+            .setSenderTimestamp(1L)
+            .setUserProperties(Collections.singletonMap("contentType", "application/json"))
+            .build();
+
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
+
+    assertEquals("application/json", msg.getProperties().getString("contentType"));
+  }
+
+  @Test
+  public void testMapWithEmptyRecordUserProperties() {
+    Record record =
+        Record.builder().setMessageId("id").setText("hello").setSenderTimestamp(1L).build();
+
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
+
+    assertNull(msg.getProperties());
+  }
+
   // ---------------------------------------------------------------------------
   // round-trip
   // ---------------------------------------------------------------------------
+  @Test
+  public void testRoundTripUserProperties() {
+    Record original =
+        Record.builder()
+            .setMessageId("id")
+            .setText("hello")
+            .setSenderTimestamp(1L)
+            .setUserProperties(Collections.singletonMap("contentType", "application/json"))
+            .build();
+
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(original);
+    msg.setApplicationMessageId("id");
+    Record decoded = Solace.SolaceRecordMapper.toRecord(msg);
+
+    assertEquals(
+        Collections.singletonMap("contentType", "application/json"), decoded.getUserProperties());
+  }
+
   @Test
   public void testRoundTripTextPayload() {
     Record original =
