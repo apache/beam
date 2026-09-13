@@ -62,7 +62,6 @@ import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.auth.Credentials;
 import com.google.auth.http.HttpCredentialsAdapter;
-import com.google.auth.oauth2.GoogleCredentials;
 import com.google.cloud.bigquery.storage.v1.AppendRowsRequest;
 import com.google.cloud.bigquery.storage.v1.AppendRowsResponse;
 import com.google.cloud.bigquery.storage.v1.BatchCommitWriteStreamsRequest;
@@ -1753,29 +1752,9 @@ public class BigQueryServicesImpl implements BigQueryServices {
     }
   }
 
-  /**
-   * Returns credentials with the quota project applied, if one is configured and the credentials
-   * support it. The quota project sets the {@code X-Goog-User-Project} header so that BigQuery API
-   * requests are billed against that project's quota.
-   */
-  @VisibleForTesting
-  static @Nullable Credentials maybeWithQuotaProjectId(
-      @Nullable Credentials credential, @Nullable String quotaProjectId) {
-    if (Strings.isNullOrEmpty(quotaProjectId) || credential == null) {
-      return credential;
-    }
-    if (credential instanceof GoogleCredentials) {
-      return ((GoogleCredentials) credential).createWithQuotaProject(quotaProjectId);
-    }
-    LOG.warn(
-        "Credentials of type {} do not support a quota project. "
-            + "The bigQueryQuotaProjectId option will be ignored.",
-        credential.getClass().getName());
-    return credential;
-  }
-
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+  @VisibleForTesting
+  static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
     // Do not log 404. It clutters the output and is possibly even required by the
     // caller.
     RetryHttpRequestInitializer httpRequestInitializer =
@@ -1784,8 +1763,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
     httpRequestInitializer.setReadTimeout(options.getHTTPReadTimeout());
     httpRequestInitializer.setWriteTimeout(options.getHTTPWriteTimeout());
     ImmutableList.Builder<HttpRequestInitializer> initBuilder = ImmutableList.builder();
-    Credentials credential =
-        maybeWithQuotaProjectId(options.getGcpCredential(), options.getBigQueryQuotaProjectId());
+    Credentials credential = options.getGcpCredential();
     initBuilder.add(
         credential == null
             ? new NullCredentialInitializer()
@@ -1794,6 +1772,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
     initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
 
     initBuilder.add(httpRequestInitializer);
+    // Set the quota project as a request header instead of deriving credentials: a derived
+    // credential inherits the shared credential's cached request metadata, which lacks
+    // x-goog-user-project until the next token refresh. Applied by an execute interceptor so it
+    // is re-applied on every attempt; HttpCredentialsAdapter re-initializes the request headers
+    // from the credential after a 401 refresh, which would otherwise override it.
+    @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+    if (!Strings.isNullOrEmpty(quotaProjectId)) {
+      initBuilder.add(
+          request ->
+              request.setInterceptor(
+                  r -> r.getHeaders().set("x-goog-user-project", quotaProjectId)));
+    }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
             Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));
