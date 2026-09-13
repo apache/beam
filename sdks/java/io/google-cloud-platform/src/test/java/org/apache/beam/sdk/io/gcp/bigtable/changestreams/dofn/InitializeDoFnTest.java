@@ -34,6 +34,7 @@ import com.google.cloud.bigtable.data.v2.models.RowMutation;
 import com.google.cloud.bigtable.emulator.v2.BigtableEmulatorRule;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
+import java.util.UUID;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO;
 import org.apache.beam.sdk.io.gcp.bigtable.BigtableIO.ExistingPipelineOptions;
 import org.apache.beam.sdk.io.gcp.bigtable.changestreams.dao.DaoFactory;
@@ -84,7 +85,7 @@ public class InitializeDoFnTest {
 
   @Before
   public void setUp() throws IOException {
-    String changeStreamName = "changeStreamName";
+    String changeStreamName = "changeStreamName-" + UUID.randomUUID();
     metadataTableAdminDao =
         spy(new MetadataTableAdminDao(adminClient, null, changeStreamName, tableId));
     metadataTableAdminDao.createMetadataTable();
@@ -180,6 +181,7 @@ public class InitializeDoFnTest {
   public void testInitializeResumeWithDNP() throws IOException {
     Instant resumeTime = Instant.now().minus(Duration.standardSeconds(10000));
     metadataTableDao.updateDetectNewPartitionWatermark(resumeTime);
+    metadataTableDao.writePipelineRunId("previous-pipeline-run");
     long nowMicros = Instant.now().getMillis() * 1000L;
     dataClient.mutateRow(
         RowMutation.create(
