@@ -37,7 +37,9 @@ public abstract class Sink<T> {
     /** Adds a value to the sink. Returns the size in bytes of the data written. */
     public long add(ElemT value) throws IOException;
 
-    /** Called when all elements for a specific key have been processed. Called only for Streaming */
+    /**
+     * Called when all elements for a specific key have been processed. Called only for Streaming
+     */
     public void finishKey(@Nullable Object key) throws IOException;
 
     /**
