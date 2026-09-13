@@ -48,6 +48,7 @@ from apache_beam.coders import coder_impl
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker.channel_factory import GRPCChannelFactory
+from apache_beam.runners.worker.worker_id_interceptor import DataStreamIdInterceptor
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 from apache_beam.utils.byte_limited_queue import ByteLimitedQueue
 
@@ -804,12 +805,14 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
     self._lock = threading.Lock()
     self._connections_by_worker_id = collections.defaultdict(
         lambda: _GrpcDataChannel(data_buffer_time_limit_ms)
-    )  # type: DefaultDict[str, _GrpcDataChannel]
+    )  # type: DefaultDict[Tuple[str, str], _GrpcDataChannel]
 
-  def get_conn_by_worker_id(self, worker_id):
-    # type: (str) -> _GrpcDataChannel
+  def get_conn_by_worker_id(
+      self,
+      worker_id: str,
+      data_stream_id: Optional[str] = None) -> _GrpcDataChannel:
     with self._lock:
-      return self._connections_by_worker_id[worker_id]
+      return self._connections_by_worker_id[(worker_id, data_stream_id or '')]
 
   def Data(
       self,
@@ -817,8 +820,10 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
       context  # type: Any
   ):
     # type: (...) -> Iterator[beam_fn_api_pb2.Elements]
-    worker_id = dict(context.invocation_metadata())['worker_id']
-    data_conn = self.get_conn_by_worker_id(worker_id)
+    metadata = dict(context.invocation_metadata())
+    worker_id = metadata['worker_id']
+    data_stream_id = metadata.get('data_stream_id', '')
+    data_conn = self.get_conn_by_worker_id(worker_id, data_stream_id)
     data_conn.set_inputs(elements_iterator)
     for elements in data_conn._write_outputs():
       yield elements
@@ -827,16 +832,18 @@ class BeamFnDataServicer(beam_fn_api_pb2_grpc.BeamFnDataServicer):
 class DataChannelFactory(metaclass=abc.ABCMeta):
   """An abstract factory for creating ``DataChannel``."""
   @abc.abstractmethod
-  def create_data_channel(self, remote_grpc_port):
-    # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
-
+  def create_data_channel(
+      self,
+      remote_grpc_port: beam_fn_api_pb2.RemoteGrpcPort,
+      data_stream_id: Optional[str] = None) -> DataChannel:
     """Returns a ``DataChannel`` from the given RemoteGrpcPort."""
     raise NotImplementedError(type(self))
 
   @abc.abstractmethod
-  def create_data_channel_from_url(self, url):
-    # type: (str) -> Optional[GrpcClientDataChannel]
-
+  def create_data_channel_from_url(
+      self,
+      url: str,
+      data_stream_id: Optional[str] = None) -> Optional[DataChannel]:
     """Returns a ``DataChannel`` from the given url."""
     raise NotImplementedError(type(self))
 
@@ -857,7 +864,7 @@ class DataChannelFactory(metaclass=abc.ABCMeta):
 class GrpcClientDataChannelFactory(DataChannelFactory):
   """A factory for ``GrpcClientDataChannel``.
 
-  Caches the created channels by ``data descriptor url``.
+  Caches the created channels by ``(data descriptor url, data_stream_id)``.
   """
   def __init__(
       self,
@@ -866,7 +873,8 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       data_buffer_time_limit_ms=0  # type: int
   ):
     # type: (...) -> None
-    self._data_channel_cache = {}  # type: Dict[str, GrpcClientDataChannel]
+    self._data_channel_cache = {
+    }  # type: Dict[Tuple[str, str], GrpcClientDataChannel]
     self._lock = threading.Lock()
     self._credentials = None
     self._worker_id = worker_id
@@ -875,14 +883,21 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
       _LOGGER.info('Using secure channel creds.')
       self._credentials = credentials
 
-  def create_data_channel_from_url(self, url):
-    # type: (str) -> Optional[GrpcClientDataChannel]
+  def create_data_channel_from_url(
+      self,
+      url: str,
+      data_stream_id: Optional[str] = None) -> Optional[GrpcClientDataChannel]:
     if not url:
       return None
-    if url not in self._data_channel_cache:
+    data_stream_id = data_stream_id or ''
+    cache_key = (url, data_stream_id)
+    if cache_key not in self._data_channel_cache:
       with self._lock:
-        if url not in self._data_channel_cache:
-          _LOGGER.info('Creating client data channel for %s', url)
+        if cache_key not in self._data_channel_cache:
+          _LOGGER.info(
+              'Creating client data channel for %s (data_stream_id: %s)',
+              url,
+              data_stream_id)
           # Options to have no limits (-1) on the size of the messages
           # received or sent over the data plane. The actual buffer size
           # is controlled in a layer above.
@@ -897,22 +912,26 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
             grpc_channel = GRPCChannelFactory.secure_channel(
                 url, self._credentials, options=channel_options)
           _LOGGER.info('Data channel established.')
-          # Add workerId to the grpc channel
-          grpc_channel = grpc.intercept_channel(
-              grpc_channel, WorkerIdInterceptor(self._worker_id))
-          self._data_channel_cache[url] = GrpcClientDataChannel(
+          # Add workerId and optional data_stream_id to the grpc channel
+          interceptors = [WorkerIdInterceptor(self._worker_id)]
+          if data_stream_id:
+            interceptors.append(DataStreamIdInterceptor(data_stream_id))
+          grpc_channel = grpc.intercept_channel(grpc_channel, *interceptors)
+          self._data_channel_cache[cache_key] = GrpcClientDataChannel(
               beam_fn_api_pb2_grpc.BeamFnDataStub(grpc_channel),
               self._data_buffer_time_limit_ms)
 
-    return self._data_channel_cache[url]
+    return self._data_channel_cache[cache_key]
 
-  def create_data_channel(self, remote_grpc_port):
-    # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
+  def create_data_channel(
+      self,
+      remote_grpc_port: beam_fn_api_pb2.RemoteGrpcPort,
+      data_stream_id: Optional[str] = None) -> GrpcClientDataChannel:
     url = remote_grpc_port.api_service_descriptor.url
     # TODO(https://github.com/apache/beam/issues/19737): this can return None
     #  if url is falsey, but this seems incorrect, as code that calls this
     #  method seems to always expect non-Optional values.
-    return self.create_data_channel_from_url(url)  # type: ignore[return-value]
+    return self.create_data_channel_from_url(url, data_stream_id=data_stream_id)  # type: ignore[return-value]
 
   def close(self):
     # type: () -> None
@@ -930,15 +949,17 @@ class GrpcClientDataChannelFactory(DataChannelFactory):
 class InMemoryDataChannelFactory(DataChannelFactory):
   """A singleton factory for ``InMemoryDataChannel``."""
   def __init__(self, in_memory_data_channel):
-    # type: (GrpcClientDataChannel) -> None
+    # type: (DataChannel) -> None
     self._in_memory_data_channel = in_memory_data_channel
 
-  def create_data_channel(self, unused_remote_grpc_port):
-    # type: (beam_fn_api_pb2.RemoteGrpcPort) -> GrpcClientDataChannel
+  def create_data_channel(
+      self,
+      unused_remote_grpc_port: beam_fn_api_pb2.RemoteGrpcPort,
+      data_stream_id: Optional[str] = None) -> DataChannel:
     return self._in_memory_data_channel
 
-  def create_data_channel_from_url(self, url):
-    # type: (Any) -> GrpcClientDataChannel
+  def create_data_channel_from_url(
+      self, url: Any, data_stream_id: Optional[str] = None) -> DataChannel:
     return self._in_memory_data_channel
 
   def close(self):

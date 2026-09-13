@@ -20,6 +20,7 @@
 
 import random
 import unittest
+from unittest import mock
 
 import apache_beam as beam
 from apache_beam.coders import StrUtf8Coder
@@ -734,6 +735,81 @@ class OrderedListStateTest(unittest.TestCase):
     self.assertEqual([A2, A7, B7], list(self.state.read_range(T2, T8)))
 
     self.assertEqual([A1, A2, A7, B7, A8], list(self.state.read()))
+
+
+class NamedDataStreamsTest(unittest.TestCase):
+  def test_named_data_streams_routing(self):
+    descriptor = beam_fn_api_pb2.ProcessBundleDescriptor(id='descriptor_id')
+
+    # Coders
+    CODER_ID = 'coder'
+    descriptor.coders[
+        CODER_ID].spec.urn = common_urns.StandardCoders.Enum.BYTES.urn
+
+    # PCollections
+    PCOLLECTION_IN = 'pcoll_in'
+    descriptor.pcollections[PCOLLECTION_IN].unique_name = PCOLLECTION_IN
+    descriptor.pcollections[PCOLLECTION_IN].coder_id = CODER_ID
+
+    PCOLLECTION_OUT = 'pcoll_out'
+    descriptor.pcollections[PCOLLECTION_OUT].unique_name = PCOLLECTION_OUT
+    descriptor.pcollections[PCOLLECTION_OUT].coder_id = CODER_ID
+
+    # Source transform
+    SOURCE_ID = 'source'
+    source_transform = descriptor.transforms[SOURCE_ID]
+    source_transform.spec.urn = bundle_processor.DATA_INPUT_URN
+    source_port = beam_fn_api_pb2.RemoteGrpcPort(coder_id=CODER_ID)
+    source_port.api_service_descriptor.url = 'localhost:123'
+    source_transform.spec.payload = source_port.SerializeToString()
+    source_transform.outputs['None'] = PCOLLECTION_IN
+
+    # Sink transform
+    SINK_ID = 'sink'
+    sink_transform = descriptor.transforms[SINK_ID]
+    sink_transform.spec.urn = bundle_processor.DATA_OUTPUT_URN
+    sink_port = beam_fn_api_pb2.RemoteGrpcPort(coder_id=CODER_ID)
+    sink_port.api_service_descriptor.url = 'localhost:123'
+    sink_transform.spec.payload = sink_port.SerializeToString()
+    sink_transform.inputs['None'] = PCOLLECTION_IN
+    sink_transform.outputs['None'] = PCOLLECTION_OUT
+
+    data_channel_factory = mock.MagicMock()
+    mock_channel_default = mock.MagicMock()
+    mock_channel_named = mock.MagicMock()
+
+    def get_channel(port, data_stream_id):
+      if data_stream_id == 'named_stream':
+        return mock_channel_named
+      return mock_channel_default
+
+    data_channel_factory.create_data_channel.side_effect = get_channel
+
+    mock_channel_default.input_elements.return_value = []
+    mock_channel_named.input_elements.return_value = []
+
+    processor = BundleProcessor(
+        frozenset(), descriptor, None, data_channel_factory)
+
+    # Process on default stream
+    processor.process_bundle('inst_1')
+    data_channel_factory.create_data_channel.assert_any_call(
+        source_port, None)
+    data_channel_factory.create_data_channel.assert_any_call(
+        sink_port, None)
+    mock_channel_default.output_stream.assert_called_once_with(
+        'inst_1', SINK_ID)
+
+    processor.reset()
+
+    # Process on named stream
+    processor.process_bundle('inst_2', data_stream_id='named_stream')
+
+    data_channel_factory.create_data_channel.assert_any_call(
+        source_port, data_stream_id='named_stream')
+    data_channel_factory.create_data_channel.assert_any_call(
+        sink_port, data_stream_id='named_stream')
+    mock_channel_named.output_stream.assert_called_once_with('inst_2', SINK_ID)
 
 
 if __name__ == '__main__':

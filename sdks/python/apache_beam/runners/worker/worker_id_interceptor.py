@@ -61,12 +61,49 @@ class WorkerIdInterceptor(grpc.UnaryUnaryClientInterceptor,
     metadata = []
     if client_call_details.metadata is not None:
       metadata = list(client_call_details.metadata)
-    if 'worker_id' in metadata:
+    if any(k == 'worker_id' for k, _ in metadata):
       raise RuntimeError('Header metadata already has a worker_id.')
     metadata.append(('worker_id', self._worker_id))
+
     new_client_details = _ClientCallDetails(
         client_call_details.method,
         client_call_details.timeout,
         metadata,
         client_call_details.credentials)
     return continuation(new_client_details, request)
+
+
+class DataStreamIdInterceptor(grpc.UnaryUnaryClientInterceptor,
+                              grpc.StreamStreamClientInterceptor):
+  """Client Interceptor to inject data_stream_id into metadata."""
+  def __init__(self, data_stream_id: Optional[str] = None) -> None:
+    self._data_stream_id = data_stream_id
+
+  def intercept_unary_unary(self, continuation, client_call_details, request):
+    return self._intercept(continuation, client_call_details, request)
+
+  def intercept_unary_stream(self, continuation, client_call_details, request):
+    return self._intercept(continuation, client_call_details, request)
+
+  def intercept_stream_unary(self, continuation, client_call_details, request):
+    return self._intercept(continuation, client_call_details, request)
+
+  def intercept_stream_stream(
+      self, continuation, client_call_details, request_iterator):
+    return self._intercept(continuation, client_call_details, request_iterator)
+
+  def _intercept(self, continuation, client_call_details, request):
+    if self._data_stream_id:
+      metadata = []
+      if client_call_details.metadata is not None:
+        metadata = list(client_call_details.metadata)
+      if any(k == 'data_stream_id' for k, _ in metadata):
+        raise RuntimeError('Header metadata already has a data_stream_id.')
+      metadata.append(('data_stream_id', self._data_stream_id))
+      new_client_details = _ClientCallDetails(
+          client_call_details.method,
+          client_call_details.timeout,
+          metadata,
+          client_call_details.credentials)
+      return continuation(new_client_details, request)
+    return continuation(client_call_details, request)
