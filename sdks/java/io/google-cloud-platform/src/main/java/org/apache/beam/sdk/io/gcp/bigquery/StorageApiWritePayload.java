@@ -62,7 +62,6 @@ public abstract class StorageApiWritePayload {
 
   public abstract Builder toBuilder();
 
-  @SuppressWarnings("nullness")
   static StorageApiWritePayload of(
       byte[] payload, @Nullable TableRow unknownFields, @Nullable TableRow failsafeTableRow)
       throws IOException {

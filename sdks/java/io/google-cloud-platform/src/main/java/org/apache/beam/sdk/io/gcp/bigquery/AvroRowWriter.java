@@ -29,9 +29,6 @@ class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
   private final Schema schema;
   private final SerializableFunction<AvroWriteRequest<T>, AvroT> toAvroRecord;
 
-  @SuppressWarnings({
-    "nullness" // calling superclass method in constructor flagged as error; TODO: fix
-  })
   AvroRowWriter(
       String basename,
       Schema schema,
@@ -42,8 +39,12 @@ class AvroRowWriter<AvroT, T> extends BigQueryRowWriter<T> {
 
     this.schema = schema;
     this.toAvroRecord = toAvroRecord;
-    this.writer =
+    // getOutputStream() is established by the superclass constructor, which the checker
+    // cannot see through the partially-initialized receiver.
+    @SuppressWarnings("nullness")
+    DataFileWriter<AvroT> initializedWriter =
         new DataFileWriter<>(writerFactory.apply(schema)).create(schema, getOutputStream());
+    this.writer = initializedWriter;
   }
 
   @Override

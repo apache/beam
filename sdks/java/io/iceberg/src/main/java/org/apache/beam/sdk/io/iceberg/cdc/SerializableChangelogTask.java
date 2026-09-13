@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg.cdc;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
@@ -267,13 +266,10 @@ public abstract class SerializableChangelogTask {
 
   private static List<SerializableDeleteFile> toSerializableDeletes(
       List<DeleteFile> dfs, Map<Integer, PartitionSpec> specs, boolean includeMetrics) {
+    // Serialize each delete file against its own spec (looked up by its spec id): a delete file may
+    // carry a different spec id than the data file it applies to.
     return dfs.stream()
-        .map(
-            df ->
-                SerializableDeleteFile.from(
-                    df,
-                    checkStateNotNull(specs.get(df.specId())).partitionToPath(df.partition()),
-                    includeMetrics))
+        .map(df -> SerializableDeleteFile.from(df, specs, includeMetrics))
         .collect(Collectors.toList());
   }
 }

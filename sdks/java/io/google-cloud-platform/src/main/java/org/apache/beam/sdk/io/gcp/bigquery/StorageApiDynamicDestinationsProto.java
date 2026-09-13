@@ -39,7 +39,7 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
   private final DescriptorProtos.DescriptorProto descriptorProto;
   private final @Nullable BigQueryIO.TableRowFormatFunction<T> formatRecordOnFailureFunction;
 
-  @SuppressWarnings({"unchecked", "nullness"})
+  @SuppressWarnings("unchecked")
   StorageApiDynamicDestinationsProto(
       DynamicDestinations<T, DestinationT> inner,
       Class<T> protoClass,
@@ -47,11 +47,12 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
     super(inner);
     try {
       this.formatRecordOnFailureFunction = formatRecordOnFailureFunction;
+      // Method.invoke takes a null receiver for a static method; that is not expressible
+      // against the JDK's annotations.
+      @SuppressWarnings("nullness")
+      Object rawDescriptor = protoClass.getMethod("getDescriptor").invoke(null);
       this.descriptorProto =
-          fixNestedTypes(
-              (Descriptors.Descriptor)
-                  Preconditions.checkStateNotNull(protoClass.getMethod("getDescriptor"))
-                      .invoke(null));
+          fixNestedTypes((Descriptors.Descriptor) Preconditions.checkStateNotNull(rawDescriptor));
     } catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
       throw new IllegalArgumentException(e);
     }
@@ -118,7 +119,6 @@ class StorageApiDynamicDestinationsProto<T extends Message, DestinationT extends
           formatRecordOnFailureFunction != null ? toFailsafeTableRow(element) : null);
     }
 
-    @SuppressWarnings("nullness")
     @Override
     public TableRow toFailsafeTableRow(T element) {
       if (formatRecordOnFailureFunction != null) {

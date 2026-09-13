@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.transforms;
+package org.apache.beam.sdk.extensions.gcp.transforms;
 
 import com.google.cloud.kms.v1.CryptoKey;
 import com.google.cloud.kms.v1.CryptoKeyName;
@@ -28,18 +28,28 @@ import com.google.cloud.secretmanager.v1.SecretPayload;
 import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.security.SecureRandom;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
+import org.apache.beam.sdk.extensions.gcp.util.GcpHsmGeneratedSecret;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
-import org.apache.beam.sdk.util.GcpHsmGeneratedSecret;
+import org.apache.beam.sdk.transforms.Combine;
+import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.GroupByKey;
+import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.transforms.Redistribute;
+import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.TypeDescriptor;
+import org.apache.beam.sdk.values.TypeDescriptors;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -50,7 +60,7 @@ import org.junit.runners.JUnit4;
 
 /** Integration test for GroupByKey transforms and some other transforms which use GBK. */
 @RunWith(JUnit4.class)
-public class GroupByKeyIT {
+public class GcpGroupByKeyIT {
   @Rule public ExpectedException thrown = ExpectedException.none();
 
   private static final String PROJECT_ID = "apache-beam-testing";
@@ -136,6 +146,22 @@ public class GroupByKeyIT {
     }
   }
 
+  private static <K, V extends Comparable<? super V>> PCollection<KV<K, List<V>>> sortGroupedValues(
+      PCollection<KV<K, Iterable<V>>> input,
+      TypeDescriptor<K> keyType,
+      TypeDescriptor<V> valueType) {
+
+    return input.apply(
+        MapElements.into(TypeDescriptors.kvs(keyType, TypeDescriptors.lists(valueType)))
+            .via(
+                kv -> {
+                  List<V> values = new ArrayList<>();
+                  kv.getValue().forEach(values::add);
+                  Collections.sort(values);
+                  return KV.of(kv.getKey(), values);
+                }));
+  }
+
   @Test
   public void testGroupByKeyWithValidGcpSecretOption() throws Exception {
     if (gcpSecretVersionName == null) {
@@ -160,13 +186,17 @@ public class GroupByKeyIT {
             Create.of(ungroupedPairs)
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+    PCollection<KV<String, List<Integer>>> normalizedOutput =
+        sortGroupedValues(
+            input.apply(GroupByKey.create()),
+            TypeDescriptors.strings(),
+            TypeDescriptors.integers());
 
-    PAssert.that(output)
+    PAssert.that(normalizedOutput)
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
@@ -196,13 +226,17 @@ public class GroupByKeyIT {
             Create.of(ungroupedPairs)
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+    PCollection<KV<String, List<Integer>>> normalizedOutput =
+        sortGroupedValues(
+            input.apply(GroupByKey.create()),
+            TypeDescriptors.strings(),
+            TypeDescriptors.integers());
 
-    PAssert.that(output)
+    PAssert.that(normalizedOutput)
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();
@@ -235,13 +269,17 @@ public class GroupByKeyIT {
             Create.of(ungroupedPairs)
                 .withCoder(KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of())));
 
-    PCollection<KV<String, Iterable<Integer>>> output = input.apply(GroupByKey.create());
+    PCollection<KV<String, List<Integer>>> normalizedOutput =
+        sortGroupedValues(
+            input.apply(GroupByKey.create()),
+            TypeDescriptors.strings(),
+            TypeDescriptors.integers());
 
-    PAssert.that(output)
+    PAssert.that(normalizedOutput)
         .containsInAnyOrder(
             KV.of("k1", Arrays.asList(3, 4)),
-            KV.of("k5", Arrays.asList(Integer.MAX_VALUE, Integer.MIN_VALUE)),
-            KV.of("k2", Arrays.asList(66, -33)),
+            KV.of("k5", Arrays.asList(Integer.MIN_VALUE, Integer.MAX_VALUE)),
+            KV.of("k2", Arrays.asList(-33, 66)),
             KV.of("k3", Arrays.asList(0)));
 
     p.run();

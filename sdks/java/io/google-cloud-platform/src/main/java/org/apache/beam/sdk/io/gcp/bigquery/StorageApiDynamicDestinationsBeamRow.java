@@ -99,7 +99,6 @@ class StorageApiDynamicDestinationsBeamRow<T, DestinationT extends @NonNull Obje
     }
 
     @Override
-    @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
         T element,
         @Nullable RowMutationInformation rowMutationInformation,

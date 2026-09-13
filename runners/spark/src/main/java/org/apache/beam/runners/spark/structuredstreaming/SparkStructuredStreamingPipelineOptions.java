@@ -64,6 +64,15 @@ public interface SparkStructuredStreamingPipelineOptions extends SparkCommonPipe
   void setMaxBatchDurationMillis(long value);
 
   @Description(
+      "Idle time in milliseconds after which an executor closes a cached unbounded reader. Must "
+          + "exceed the longest gap between two micro-batches, a closed reader's last checkpoint "
+          + "mark is not finalized and the source redelivers (streaming mode only).")
+  @Default.Long(600_000)
+  long getReaderIdleTimeoutMillis();
+
+  void setReaderIdleTimeoutMillis(long value);
+
+  @Description(
       "Test-oriented: gracefully stop streaming queries after this many consecutive empty "
           + "micro-batches. Disabled if negative (streaming mode only).")
   @Default.Integer(-1)

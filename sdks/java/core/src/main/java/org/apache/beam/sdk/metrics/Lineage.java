@@ -19,6 +19,7 @@ package org.apache.beam.sdk.metrics;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -122,6 +123,10 @@ public class Lineage {
   }
 
   /** {@link Lineage} representing sources and optionally side inputs. */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Every reporter writes into the same metric cell, so all callers need the one shared instance. A copy would drop the lineage it records.")
   public static Lineage getSources() {
     Lineage localSources = sources;
     if (localSources == null) {
@@ -131,6 +136,10 @@ public class Lineage {
   }
 
   /** {@link Lineage} representing sinks. */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Every reporter writes into the same metric cell, so all callers need the one shared instance. A copy would drop the lineage it records.")
   public static Lineage getSinks() {
     Lineage localSinks = sinks;
     if (localSinks == null) {

@@ -31,3 +31,7 @@ export const BOT_NAME = "github-actions";
 export const REVIEWERS_ACTION = "Reviewers";
 export const SLOW_REVIEW_LABEL = "slow-review";
 export const NO_MATCHING_LABEL = "no-matching-label";
+export const REASSIGNED_REVIEWERS_LABEL = "reassigned-reviewers";
+export const AWAITING_TRIAGE_LABEL = "awaiting triage";
+export const NEXT_ACTION_REVIEWERS_LABEL = "Next Action: Reviewers";
+export const PR_STATE_DIR = "state/pr-state";
