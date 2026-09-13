@@ -380,11 +380,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void close() throws IOException {
-      if (context.multiKeyBundleEnabled()) {
-        flush(/* bundleLevel= */ true);
-      } else {
-        flush(/* bundleLevel= */ false);
-      }
+      flush(/* bundleLevel= */ context.multiKeyBundleEnabled());
     }
 
     @Override
