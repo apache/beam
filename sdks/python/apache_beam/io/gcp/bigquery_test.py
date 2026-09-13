@@ -1102,31 +1102,12 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
     mock_create_client.assert_called_once_with('my-billing-project')
 
   @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
-  def test_create_bq_storage_client_raises_on_failure(self, mock_bq_storage):
-    """An explicit quota project must fail loudly rather than fall back to a
-    client that bills a different project."""
-    from google.auth import exceptions as auth_exceptions
-    with mock.patch(
-        'google.auth.default',
-        side_effect=auth_exceptions.DefaultCredentialsError('Auth error')):
-      with self.assertRaises(auth_exceptions.DefaultCredentialsError):
-        beam_bq._create_bq_storage_client('my-billing-project')
-
-    mock_bq_storage.BigQueryReadClient.assert_not_called()
-
-  @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
   def test_create_bq_storage_client_with_quota_project(self, mock_bq_storage):
-    """Test _create_bq_storage_client applies quota project to credentials."""
-    mock_creds = mock.MagicMock(spec=['with_quota_project'])
-    mock_new_creds = mock.MagicMock()
-    mock_creds.with_quota_project.return_value = mock_new_creds
-
-    with mock.patch('google.auth.default', return_value=(mock_creds, 'proj')):
-      beam_bq._create_bq_storage_client('my-billing-project')
-
-    mock_creds.with_quota_project.assert_called_once_with('my-billing-project')
+    """The quota project is passed as a client option; the client applies it
+    to the credentials it resolves itself."""
+    beam_bq._create_bq_storage_client('my-billing-project')
     mock_bq_storage.BigQueryReadClient.assert_called_once_with(
-        credentials=mock_new_creds)
+        client_options={'quota_project_id': 'my-billing-project'})
 
   @mock.patch('apache_beam.io.gcp.bigquery.bq_storage')
   def test_create_bq_storage_client_without_quota_project(

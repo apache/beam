@@ -354,6 +354,28 @@ def _quota_project_id_from_options(pipeline_options):
   return pipeline_options.view_as(GoogleCloudOptions).quota_project_id
 
 
+class _HttpWithHeaders(object):
+  """Wraps an httplib2.Http to add fixed headers to every request.
+
+  Sits below the credentials layer, so the headers are applied on every
+  attempt and take precedence over headers set by the credentials.
+  """
+  def __init__(self, http, headers):
+    object.__setattr__(self, '_http', http)
+    object.__setattr__(self, '_headers', headers)
+
+  def request(self, uri, method='GET', body=None, headers=None, **kwargs):
+    headers = dict(headers or {})
+    headers.update(self._headers)
+    return self._http.request(uri, method, body=body, headers=headers, **kwargs)
+
+  def __getattr__(self, name):
+    return getattr(self._http, name)
+
+  def __setattr__(self, name, value):
+    setattr(self._http, name, value)
+
+
 class BigQueryWrapper(object):
   """BigQuery client wrapper with utilities for querying.
 
@@ -1470,10 +1492,21 @@ class BigQueryWrapper(object):
     # Use explicit quota_project_id if provided, otherwise get from options
     quota_project_id = quota_project_id or _quota_project_id_from_options(
         pipeline_options)
+    http = get_new_http()
     if quota_project_id:
-      credentials = auth.with_quota_project(credentials, quota_project_id)
+      if credentials is None:
+        # Ignoring the request would silently bill a different project.
+        raise ValueError(
+            'quota_project_id was set to %r, but no credentials were found to '
+            'apply it to.' % quota_project_id)
+      # Send the quota project as a request header rather than deriving new
+      # credentials: credentials.with_quota_project() returns a copy without
+      # the cached token, and this keeps the shared credentials untouched.
+      # The header is set below the credentials layer so that it is applied on
+      # every attempt and wins over a quota project the credentials carry.
+      http = _HttpWithHeaders(http, {'x-goog-user-project': quota_project_id})
     return bigquery.BigqueryV2(
-        http=get_new_http(),
+        http=http,
         credentials=credentials,
         response_encoding='utf8',
         additional_http_headers={
@@ -1484,21 +1517,14 @@ class BigQueryWrapper(object):
   def _gcp_bigquery_client(quota_project_id: str = None):
     """Create a google-cloud-bigquery Client with optional quota project.
 
-    Raises:
-      Exception: If a quota project was requested but could not be applied.
-        Falling back to the default credentials would silently bill a
-        different project than the one the user asked for.
+    The client applies the quota project to the credentials it resolves
+    itself, so no credentials are derived here.
     """
-    credentials = None
-
+    client_options = None
     if quota_project_id:
-      # Get default credentials and apply quota project
-      import google.auth
-      credentials, _ = google.auth.default()
-      credentials = auth.with_quota_project(credentials, quota_project_id)
-
+      client_options = {'quota_project_id': quota_project_id}
     return gcp_bigquery.Client(
-        credentials=credentials,
+        client_options=client_options,
         client_info=ClientInfo(
             user_agent="apache-beam-%s" % apache_beam.__version__))
 

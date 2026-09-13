@@ -1459,6 +1459,106 @@ class TestBigQueryWrapperQuotaProject(unittest.TestCase):
 
     self.assertIsNone(wrapper.quota_project_id)
 
+  def test_http_with_headers_sets_headers_and_delegates(self):
+    from apache_beam.io.gcp.bigquery_tools import _HttpWithHeaders
+    inner = mock.MagicMock()
+    inner.request.return_value = ('response', b'content')
+    inner.redirect_codes = {301, 302}
+    http = _HttpWithHeaders(inner, {'x-goog-user-project': 'p'})
+
+    result = http.request(
+        'https://example.com',
+        method='GET',
+        headers={
+            'x-goog-user-project': 'other', 'accept': 'json'
+        },
+        redirections=3)
+
+    self.assertEqual(result, ('response', b'content'))
+    inner.request.assert_called_once_with(
+        'https://example.com',
+        'GET',
+        body=None,
+        headers={
+            'x-goog-user-project': 'p', 'accept': 'json'
+        },
+        redirections=3)
+    # Attribute reads and writes reach the wrapped http.
+    self.assertEqual(http.redirect_codes, {301, 302})
+    http.redirect_codes = {301}
+    self.assertEqual(inner.redirect_codes, {301})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.auth.get_service_credentials')
+  def test_bigquery_client_raises_without_credentials(
+      self, mock_get_credentials):
+    """An explicit quota project must fail loudly rather than fall back to
+    apitools' own credential discovery, which would bill another project."""
+    from apache_beam.options.pipeline_options import PipelineOptions
+    mock_get_credentials.return_value = None
+
+    with self.assertRaisesRegex(ValueError, 'no credentials were found'):
+      BigQueryWrapper._bigquery_client(
+          PipelineOptions(), quota_project_id='requested-project')
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.get_new_http')
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.auth.get_service_credentials')
+  def test_bigquery_client_quota_project_wins_over_credentials(
+      self, mock_get_credentials, mock_get_new_http):
+    """The requested quota project must reach every request, including the
+    retry after a 401 refresh, even when the credentials carry their own."""
+    import httplib2
+    from google.auth import credentials as ga_credentials
+
+    from apache_beam.internal.gcp import auth
+    from apache_beam.options.pipeline_options import PipelineOptions
+
+    class CredentialsWithQuotaProject(ga_credentials.Credentials):
+      def __init__(self):
+        super().__init__()
+        self._quota_project_id = 'adc-project'
+
+      def refresh(self, request):
+        self.token = 'token'
+
+    seen_headers = []
+    statuses = iter([401, 200])
+
+    class FakeHttp(object):
+      connections = {}
+      redirect_codes = set()
+
+      def request(self, uri, method='GET', body=None, headers=None, **kwargs):
+        seen_headers.append(dict(headers))
+        response = httplib2.Response({
+            'status': next(statuses), 'content-type': 'application/json'
+        })
+        return response, b'{}'
+
+    mock_get_new_http.return_value = FakeHttp()
+    mock_get_credentials.return_value = auth._ApitoolsCredentialsAdapter(
+        CredentialsWithQuotaProject())
+
+    client = BigQueryWrapper._bigquery_client(
+        PipelineOptions(), quota_project_id='requested-project')
+    client.projects.List(bigquery.BigqueryProjectsListRequest())
+
+    self.assertEqual(len(seen_headers), 2)
+    for headers in seen_headers:
+      self.assertEqual(headers['x-goog-user-project'], 'requested-project')
+      self.assertEqual(headers['authorization'], 'Bearer token')
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
+  def test_gcp_bigquery_client_passes_quota_project(self, mock_client):
+    BigQueryWrapper._gcp_bigquery_client(quota_project_id='my-billing-project')
+    self.assertEqual(
+        mock_client.call_args.kwargs['client_options'],
+        {'quota_project_id': 'my-billing-project'})
+
+  @mock.patch('apache_beam.io.gcp.bigquery_tools.gcp_bigquery.Client')
+  def test_gcp_bigquery_client_no_quota_project_by_default(self, mock_client):
+    BigQueryWrapper._gcp_bigquery_client()
+    self.assertIsNone(mock_client.call_args.kwargs['client_options'])
+
 
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)

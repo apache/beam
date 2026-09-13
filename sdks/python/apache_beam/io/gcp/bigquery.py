@@ -376,7 +376,6 @@ from objsize import get_deep_size
 import apache_beam as beam
 from apache_beam import coders
 from apache_beam import pvalue
-from apache_beam.internal.gcp import auth
 from apache_beam.internal.gcp.json_value import from_json_value
 from apache_beam.internal.gcp.json_value import to_json_value
 from apache_beam.io import range_trackers
@@ -1017,22 +1016,15 @@ def _create_bq_storage_client(quota_project_id=None):
 
   Args:
     quota_project_id: Optional GCP project ID to use for quota and billing.
+      The client applies it to the credentials it resolves itself.
 
   Returns:
     A BigQueryReadClient instance.
-
-  Raises:
-    Exception: If a quota project was requested but could not be applied.
-      Falling back to the default client would silently bill a different
-      project than the one the user asked for.
   """
   if not quota_project_id:
     return bq_storage.BigQueryReadClient()
-
-  import google.auth
-  credentials, _ = google.auth.default()
   return bq_storage.BigQueryReadClient(
-      credentials=auth.with_quota_project(credentials, quota_project_id))
+      client_options={'quota_project_id': quota_project_id})
 
 
 class _CustomBigQueryStorageSource(BoundedSource):
