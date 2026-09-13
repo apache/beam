@@ -1753,7 +1753,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
   }
 
   /** Returns a BigQuery client builder using the specified {@link BigQueryOptions}. */
-  private static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
+  @VisibleForTesting
+  static Bigquery.Builder newBigQueryClient(BigQueryOptions options) {
     // Do not log 404. It clutters the output and is possibly even required by the
     // caller.
     RetryHttpRequestInitializer httpRequestInitializer =
@@ -1771,6 +1772,18 @@ public class BigQueryServicesImpl implements BigQueryServices {
     initBuilder.add(new LatencyRecordingHttpRequestInitializer(API_METRIC_LABEL));
 
     initBuilder.add(httpRequestInitializer);
+    // Set the quota project as a request header instead of deriving credentials: a derived
+    // credential inherits the shared credential's cached request metadata, which lacks
+    // x-goog-user-project until the next token refresh. Applied by an execute interceptor so it
+    // is re-applied on every attempt; HttpCredentialsAdapter re-initializes the request headers
+    // from the credential after a 401 refresh, which would otherwise override it.
+    @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+    if (!Strings.isNullOrEmpty(quotaProjectId)) {
+      initBuilder.add(
+          request ->
+              request.setInterceptor(
+                  r -> r.getHeaders().set("x-goog-user-project", quotaProjectId)));
+    }
     HttpRequestInitializer chainInitializer =
         new ChainingHttpRequestInitializer(
             Iterables.toArray(initBuilder.build(), HttpRequestInitializer.class));
@@ -1800,6 +1813,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         builder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        builder.setQuotaProjectId(quotaProjectId);
       }
       return BigQueryWriteClient.create(
           builder
@@ -1925,6 +1942,10 @@ public class BigQueryServicesImpl implements BigQueryServices {
       @Nullable String endpoint = options.getBigQueryEndpoint();
       if (!Strings.isNullOrEmpty(endpoint)) {
         settingsBuilder.setEndpoint(trimSchemaIfNecessary(endpoint));
+      }
+      @Nullable String quotaProjectId = options.getBigQueryQuotaProjectId();
+      if (!Strings.isNullOrEmpty(quotaProjectId)) {
+        settingsBuilder.setQuotaProjectId(quotaProjectId);
       }
 
       UnaryCallSettings.Builder<CreateReadSessionRequest, ReadSession> createReadSessionSettings =
