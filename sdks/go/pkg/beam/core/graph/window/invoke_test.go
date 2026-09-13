@@ -1,0 +1,175 @@
+// Licensed to the Apache Software Foundation (ASF) under one or more
+// contributor license agreements.  See the NOTICE file distributed with
+// this work for additional information regarding copyright ownership.
+// The ASF licenses this file to You under the Apache License, Version 2.0
+// (the "License"); you may not use this file except in compliance with
+// the License.  You may obtain a copy of the License at
+//
+//    http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package window
+
+import (
+	"testing"
+
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/typex"
+)
+
+// elemAwareAnyWindowFn accepts an element typed as any, so the invoker can
+// reach it through an interface assertion.
+type elemAwareAnyWindowFn struct {
+	SizeMs int64
+}
+
+func (f *elemAwareAnyWindowFn) AssignWindows(ts typex.EventTime, _ any) []typex.Window {
+	size := typex.EventTime(f.SizeMs)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
+}
+
+// elemAwareConcreteWindowFn accepts a concrete element type, so the invoker
+// has to dispatch through reflect.
+type elemAwareConcreteWindowFn struct {
+	DefaultSizeMs int64
+}
+
+func (f *elemAwareConcreteWindowFn) AssignWindows(ts typex.EventTime, elem int64) []typex.Window {
+	size := typex.EventTime(elem)
+	if size <= 0 {
+		size = typex.EventTime(f.DefaultSizeMs)
+	}
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
+}
+
+// kvConcreteWindowFn takes a KV element as concrete key and value types.
+type kvConcreteWindowFn struct{}
+
+func (f *kvConcreteWindowFn) AssignWindows(ts typex.EventTime, k string, v int64) []typex.Window {
+	size := typex.EventTime(v)
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
+}
+
+// kvAnyWindowFn takes a KV element as any, reaching the interface fast path.
+type kvAnyWindowFn struct{}
+
+func (f *kvAnyWindowFn) AssignWindows(ts typex.EventTime, k, v any) []typex.Window {
+	size := typex.EventTime(v.(int64))
+	start := ts - ((ts%size)+size)%size
+	return []typex.Window{IntervalWindow{Start: start, End: start + size}}
+}
+
+func init() {
+	RegisterWindowFn[*elemAwareAnyWindowFn]()
+	RegisterWindowFn[*elemAwareConcreteWindowFn]()
+	RegisterWindowFn[*kvConcreteWindowFn]()
+	RegisterWindowFn[*kvAnyWindowFn]()
+}
+
+// TestWindowFnInvoker_KV checks that a KV element reaches AssignWindows as a
+// separate key and value, the way a DoFn receives its main input.
+func TestWindowFnInvoker_KV(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   any
+	}{
+		{"concrete key and value", &kvConcreteWindowFn{}},
+		{"key and value as any", &kvAnyWindowFn{}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			inv := mustInvoker(t, tc.fn)
+
+			windows := inv.Invoke(7500, "key", int64(5000))
+			if len(windows) != 1 {
+				t.Fatalf("got %d windows, want 1", len(windows))
+			}
+			want := IntervalWindow{Start: 5000, End: 10000}
+			if !windows[0].Equals(want) {
+				t.Errorf("Invoke(7500, key, 5000) = %v, want %v", windows[0], want)
+			}
+		})
+	}
+}
+
+func TestWindowFnInvoker_TimestampOnly(t *testing.T) {
+	fn := &testWindowFn{BucketSize: 3000}
+	inv := mustInvoker(t, fn)
+
+	windows := inv.Invoke(1500, nil, nil)
+	if len(windows) != 1 {
+		t.Fatalf("got %d windows, want 1", len(windows))
+	}
+	want := IntervalWindow{Start: 0, End: 3000}
+	if !windows[0].Equals(want) {
+		t.Errorf("Invoke(1500, nil) = %v, want %v", windows[0], want)
+	}
+}
+
+func TestWindowFnInvoker_AnyElem(t *testing.T) {
+	fn := &elemAwareAnyWindowFn{SizeMs: 5000}
+	inv := mustInvoker(t, fn)
+
+	windows := inv.Invoke(7500, "ignored", nil)
+	if len(windows) != 1 {
+		t.Fatalf("got %d windows, want 1", len(windows))
+	}
+	want := IntervalWindow{Start: 5000, End: 10000}
+	if !windows[0].Equals(want) {
+		t.Errorf("Invoke(7500, ignored) = %v, want %v", windows[0], want)
+	}
+}
+
+func TestWindowFnInvoker_ConcreteElem(t *testing.T) {
+	fn := &elemAwareConcreteWindowFn{DefaultSizeMs: 1000}
+	inv := mustInvoker(t, fn)
+
+	// Element provides window size of 5000ms.
+	windows := inv.Invoke(7500, int64(5000), nil)
+	if len(windows) != 1 {
+		t.Fatalf("got %d windows, want 1", len(windows))
+	}
+	want := IntervalWindow{Start: 5000, End: 10000}
+	if !windows[0].Equals(want) {
+		t.Errorf("Invoke(7500, 5000) = %v, want %v", windows[0], want)
+	}
+
+	// Element <= 0: falls back to default.
+	windows = inv.Invoke(1500, int64(0), nil)
+	if len(windows) != 1 {
+		t.Fatalf("got %d windows, want 1", len(windows))
+	}
+	want = IntervalWindow{Start: 1000, End: 2000}
+	if !windows[0].Equals(want) {
+		t.Errorf("Invoke(1500, 0) = %v, want %v", windows[0], want)
+	}
+}
+
+func TestWindowFnInvoker_ErrorOnUnregistered(t *testing.T) {
+	type unregisteredFn struct{}
+	if _, err := NewWindowFnInvoker(&unregisteredFn{}); err == nil {
+		t.Error("NewWindowFnInvoker succeeded on an unregistered type, want error")
+	}
+}
+
+func TestWindowFnInvoker_ErrorOnNil(t *testing.T) {
+	if _, err := NewWindowFnInvoker(nil); err == nil {
+		t.Error("NewWindowFnInvoker(nil) succeeded, want error")
+	}
+}
+
+func mustInvoker(t *testing.T, fn any) *WindowFnInvoker {
+	t.Helper()
+	inv, err := NewWindowFnInvoker(fn)
+	if err != nil {
+		t.Fatalf("NewWindowFnInvoker(%T) failed: %v", fn, err)
+	}
+	return inv
+}
