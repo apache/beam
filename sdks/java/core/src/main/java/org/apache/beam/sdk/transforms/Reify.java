@@ -32,6 +32,7 @@ import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.TimestampedValue.TimestampedValueCoder;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 
@@ -39,9 +40,6 @@ import org.joda.time.Instant;
  * {@link PTransform PTransforms} for converting between explicit and implicit form of various Beam
  * values.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Reify {
   private static class ReifyView<K, V> extends PTransform<PCollection<K>, PCollection<KV<K, V>>> {
     private final PCollectionView<V> view;
@@ -80,7 +78,7 @@ public class Reify {
     @Override
     public PCollection<V> expand(PBegin input) {
       return input
-          .apply(Create.of((Void) null).withCoder(VoidCoder.of()))
+          .apply(Create.<@Nullable Void>of((@Nullable Void) null).withCoder(VoidCoder.of()))
           .apply(Reify.viewAsValues(view, coder))
           .apply(Values.create());
     }

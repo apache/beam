@@ -61,9 +61,6 @@ import org.joda.time.Duration;
  *
  * @param <T> the type of the elements of the input and output {@code PCollection}s
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
 
   /**
@@ -148,10 +145,10 @@ public class Distinct<T> extends PTransform<PCollection<T>, PCollection<T>> {
   public static class WithRepresentativeValues<T, IdT>
       extends PTransform<PCollection<T>, PCollection<T>> {
     private final SerializableFunction<T, IdT> fn;
-    private final TypeDescriptor<IdT> representativeType;
+    private final @Nullable TypeDescriptor<IdT> representativeType;
 
     private WithRepresentativeValues(
-        SerializableFunction<T, IdT> fn, TypeDescriptor<IdT> representativeType) {
+        SerializableFunction<T, IdT> fn, @Nullable TypeDescriptor<IdT> representativeType) {
       this.fn = fn;
       this.representativeType = representativeType;
     }
