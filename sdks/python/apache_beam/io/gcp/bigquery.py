@@ -3295,7 +3295,9 @@ class ReadFromBigQuery(PTransform):
                 bigquery_dataset_labels=self.bigquery_dataset_labels,
                 *self._args,
                 **self._kwargs))
-        | _PassThroughThenCleanupTempDatasets(project_to_cleanup_pcoll))
+        | _PassThroughThenCleanupTempDatasets(
+            project_to_cleanup_pcoll,
+            quota_project_id=self._kwargs.get('quota_project_id')))
 
 
 class ReadFromBigQueryRequest:

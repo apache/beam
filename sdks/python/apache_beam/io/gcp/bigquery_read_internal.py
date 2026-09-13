@@ -142,11 +142,13 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
 
     Utilizes readiness of PCollection to trigger DoFn.
   """
-  def __init__(self, side_input=None):
+  def __init__(self, side_input=None, quota_project_id=None):
     self.side_input = side_input
+    self.quota_project_id = quota_project_id
 
   def expand(self, input):
     pipeline_options = input.pipeline.options
+    quota_project_id = self.quota_project_id
 
     class PassThrough(beam.DoFn):
       def process(self, element):
@@ -154,8 +156,9 @@ class _PassThroughThenCleanupTempDatasets(PTransform):
 
     class CleanUpProjects(beam.DoFn):
       def process(self, unused_element, unused_signal, pipeline_details):
-        bq = bigquery_tools.BigQueryWrapper.from_pipeline_options(
-            pipeline_options)
+        bq = bigquery_tools.BigQueryWrapper(
+            pipeline_options=pipeline_options,
+            quota_project_id=quota_project_id)
         pipeline_details = pipeline_details[0]
         if 'temp_table_ref' in pipeline_details.keys():
           temp_table_ref = pipeline_details['temp_table_ref']

@@ -53,6 +53,7 @@ from apache_beam.io.gcp.bigquery import WriteToBigQuery
 from apache_beam.io.gcp.bigquery import _StreamToBigQuery
 from apache_beam.io.gcp.bigquery_read_internal import _BigQueryReadSplit
 from apache_beam.io.gcp.bigquery_read_internal import _JsonToDictCoder
+from apache_beam.io.gcp.bigquery_read_internal import _PassThroughThenCleanupTempDatasets
 from apache_beam.io.gcp.bigquery_read_internal import bigquery_export_destination_uri
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
@@ -980,6 +981,40 @@ class TestReadFromBigQueryQuotaProject(unittest.TestCase):
 
     self.assertEqual(
         mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
+
+  @mock.patch.object(bigquery_tools, 'BigQueryWrapper')
+  def test_direct_read_cleanup_passes_quota_to_client(self, mock_wrapper):
+    """The DIRECT_READ temp-dataset cleanup is a BigQuery API call of this
+    transform, so it must be attributed to the quota project as well."""
+    pipeline_details = {
+        'project_id': 'project', 'bigquery_dataset_labels': {
+            'k': 'v'
+        }
+    }
+    with TestPipeline() as p:
+      side_input = beam.pvalue.AsList(
+          p | 'Details' >> beam.Create([pipeline_details]))
+      _ = (
+          p | beam.Create([1])
+          | _PassThroughThenCleanupTempDatasets(
+              side_input, quota_project_id='my-billing-project'))
+
+    self.assertEqual(
+        mock_wrapper.call_args.kwargs['quota_project_id'], 'my-billing-project')
+    self.assertIsNotNone(mock_wrapper.call_args.kwargs['pipeline_options'])
+
+  @mock.patch('apache_beam.io.gcp.bigquery._PassThroughThenCleanupTempDatasets')
+  def test_direct_read_wires_quota_project_into_cleanup(self, mock_cleanup):
+    mock_cleanup.return_value = beam.Map(lambda x: x)
+    transform = ReadFromBigQuery(
+        table='project:dataset.table',
+        method=ReadFromBigQuery.Method.DIRECT_READ,
+        quota_project_id='my-billing-project')
+    p = TestPipeline()
+    transform._expand_direct_read(beam.pvalue.PBegin(p))
+
+    self.assertEqual(
+        mock_cleanup.call_args.kwargs['quota_project_id'], 'my-billing-project')
 
   def test_quota_project_id_in_export_source_display_data(self):
     """Test that quota_project_id appears in display data for export source."""
