@@ -33,6 +33,8 @@ from apache_beam.portability.api import schema_pb2
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
+from apache_beam.typehints.schemas import _SCHEMA_OPTION_STATIC_ENCODING
+from apache_beam.typehints.schemas import _static_encoding_option_pb2
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.typehints.schemas import typing_to_runner_api
 from apache_beam.utils.timestamp import Timestamp
@@ -509,6 +511,47 @@ class RowCoderTest(unittest.TestCase):
               dest, coder_impl.create_InputStream(seq_out.get())))
       for field, a in columnar.items():
         assert_array_equal(a[:n], dest[field][:n])
+
+  def test_row_coder_with_tuples(self):
+    class TupleRecord(typing.NamedTuple):
+      key: str
+      fixed_tuple: typing.Tuple[str, int]
+      var_tuple: typing.Tuple[int, ...]
+      homo_tuple: typing.Tuple[str, str]
+
+    coder = RowCoder(typing_to_runner_api(TupleRecord).row_type.schema)
+    record = TupleRecord("k1", ("hello", 42), (1, 2, 3), ("a", "b"))
+    encoded = coder.encode(record)
+    decoded = coder.decode(encoded)
+
+    self.assertEqual(record, decoded)
+    self.assertIsInstance(decoded.fixed_tuple, tuple)
+    self.assertIsInstance(decoded.var_tuple, tuple)
+    self.assertIsInstance(decoded.homo_tuple, tuple)
+    # Verify hashability as dict keys
+    d = {decoded.homo_tuple: "val1", decoded.fixed_tuple: "val2"}
+    self.assertEqual(d[("a", "b")], "val1")
+    self.assertEqual(d[("hello", 42)], "val2")
+
+  def test_static_encoding(self):
+    schema = schema_pb2.Schema(
+        fields=[
+            schema_pb2.Field(
+                name="f_int32",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.INT32)),
+            schema_pb2.Field(
+                name="f_string",
+                type=schema_pb2.FieldType(atomic_type=schema_pb2.STRING)),
+        ],
+        options=[_static_encoding_option_pb2()])
+    RowType = named_tuple_from_schema(schema)
+    row = RowType(f_int32=42, f_string="hello world!")
+    coder = RowCoder(schema)
+    encoded = coder.encode(row)
+    # VarInt(42) = 1 byte, String("hello world!") = 1 byte len + 12 chars = 13 bytes.
+    # Total = 14 bytes (0 envelope overhead, matching TupleCoder)
+    self.assertEqual(14, len(encoded))
+    self.assertEqual(row, coder.decode(encoded))
 
 
 if __name__ == "__main__":

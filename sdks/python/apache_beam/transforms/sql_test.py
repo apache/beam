@@ -57,6 +57,10 @@ UserTypeRow = typing.NamedTuple(
     "UserTypeRow", [("id", int), ("arb", Aribitrary), ("complex", complex)])
 coders.registry.register_coder(UserTypeRow, coders.RowCoder)
 
+TupleRow = typing.NamedTuple(
+    "TupleRow", [("id", int), ("coords", typing.Tuple[str, int])])
+coders.registry.register_coder(TupleRow, coders.RowCoder)
+
 
 @pytest.mark.xlang_sql_expansion_service
 @unittest.skipIf(
@@ -66,19 +70,12 @@ coders.registry.register_coder(UserTypeRow, coders.RowCoder)
 class SqlTransformTest(unittest.TestCase):
   """Tests that exercise the cross-language SqlTransform (implemented in java).
 
-  Note this test must be executed with pipeline options that run jobs on a local
-  job server. The easiest way to accomplish this is to run the
-  `validatesCrossLanguageRunnerPythonUsingSql` gradle target for a particular
-  job server, which will start the runner and job server for you. For example,
-  `:runners:flink:1.13:job-server:validatesCrossLanguageRunnerPythonUsingSql` to
-  test on Flink 1.13.
-
-  Alternatively, you may be able to iterate faster if you run the tests directly
-  using a runner like `FlinkRunner`, which can start a local Flink cluster and
-  job server for you:
-    $ pip install -e './sdks/python[gcp,test]'
+  To run these tests locally using PrismRunner, build the SQL expansion service
+  and prism binary first:
+    $ ./gradlew :sdks:java:extensions:sql:expansion-service:shadowJar
+    $ ./gradlew :runners:prism:build
     $ pytest apache_beam/transforms/sql_test.py \\
-        --test-pipeline-options="--runner=FlinkRunner"
+        --test-pipeline-options="--runner=PrismRunner"
   """
   _multiprocess_can_split_ = True
 
@@ -228,6 +225,19 @@ class SqlTransformTest(unittest.TestCase):
 
       # Verify the output matches the query (unaffected by the SET DDL)
       assert_that(out, equal_to([(3, 30)]))
+
+  def test_tuple_field(self):
+    with TestPipeline() as p:
+      out = (
+          p
+          | beam.Create([
+              TupleRow(1, ("foo", 100)),
+              TupleRow(2, ("bar", 200)),
+          ])
+          | SqlTransform(
+              "SELECT t.id, t.coords.f0 AS `name`, t.coords.f1 AS `val`, t.coords "
+              "FROM PCOLLECTION t WHERE t.coords.f1 > 150"))
+      assert_that(out, equal_to([(2, "bar", 200, ("bar", 200))]))
 
 
 if __name__ == "__main__":
