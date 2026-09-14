@@ -65,7 +65,7 @@ jobs:
         with:
           java-version: |
             21
-            11
+            17
           disable-cache: true
       - name: Auth on snapshot repository
         run: |
