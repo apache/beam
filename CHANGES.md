@@ -92,6 +92,7 @@
 
 ## Bugfixes
 
+* (Java) Fixed BigQuery Storage Write API failed-row timestamp conversion, preserving microsecond precision and UTC formatting ([#40110](https://github.com/apache/beam/issues/40110)).
 * (Java) Fixed the Spark runner firing processing-time timers in reverse timestamp order ([#39824](https://github.com/apache/beam/issues/39824)).
 * (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).

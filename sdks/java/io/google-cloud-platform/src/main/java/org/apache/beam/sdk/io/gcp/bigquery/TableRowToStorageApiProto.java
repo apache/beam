@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toSet;
+import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.BIGQUERY_TIMESTAMP_MICROS_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.DATETIME_SPACE_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 
@@ -56,6 +57,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import java.time.temporal.ChronoUnit;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1990,7 +1992,7 @@ public class TableRowToStorageApiProto {
           long epochSeconds = epochMicros / 1_000_000L;
           long nanoAdjustment = (epochMicros % 1_000_000L) * 1_000L;
           Instant instant = Instant.ofEpochSecond(epochSeconds, nanoAdjustment);
-          return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
+          return BIGQUERY_TIMESTAMP_MICROS_FORMATTER.format(instant);
         } else if (fieldDescriptor.getType().equals(FieldDescriptor.Type.MESSAGE)) {
           Message message = (Message) fieldValue;
           String messageName = fieldDescriptor.getMessageType().getName();
@@ -2000,7 +2002,8 @@ public class TableRowToStorageApiProto {
             long seconds = (long) message.getField(descriptor.findFieldByName("seconds"));
             int nanos = (int) message.getField(descriptor.findFieldByName("nanos"));
             Instant instant = Instant.ofEpochSecond(seconds, nanos);
-            return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
+            return BIGQUERY_TIMESTAMP_MICROS_FORMATTER.format(
+                instant.truncatedTo(ChronoUnit.MICROS));
           } else if (messageName.equals("TimestampPicos")) {
             Descriptor descriptor = message.getDescriptorForType();
             long seconds = (long) message.getField(descriptor.findFieldByName("seconds"));

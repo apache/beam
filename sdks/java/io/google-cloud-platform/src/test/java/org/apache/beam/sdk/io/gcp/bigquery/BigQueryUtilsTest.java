@@ -1183,6 +1183,67 @@ public class BigQueryUtilsTest {
   }
 
   @Test
+  public void testTimestampInputCompatibility() {
+    Schema schema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
+    java.time.Instant expected = java.time.Instant.parse("2026-09-03T18:51:43.417123Z");
+    for (Object input :
+        Arrays.asList(
+            "2026-09-03 18:51:43.417123 UTC",
+            "2026-09-03T18:51:43.417123Z",
+            "2026-09-03t18:51:43.417123z",
+            "2026-09-03T20:51:43.417123+02:00",
+            "1788461503417123",
+            1788461503417123L)) {
+      assertEquals(
+          input.toString(),
+          expected,
+          BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", input)).getValue("ts"));
+    }
+    assertEquals(
+        java.time.Instant.parse("1969-12-31T23:59:59.999999Z"),
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", -1L)).getValue("ts"));
+    assertEquals(
+        java.time.Instant.EPOCH,
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "1970-01-01 00:00:00 UTC"))
+            .getValue("ts"));
+    assertThrows(
+        java.time.format.DateTimeParseException.class,
+        () -> BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "not a timestamp")));
+    assertThrows(
+        java.time.format.DateTimeParseException.class,
+        () -> BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "2026-02-30 00:00:00 UTC")));
+  }
+
+  @Test
+  public void testDateTimeTimestampInputCompatibility() {
+    Schema schema = Schema.builder().addDateTimeField("ts").build();
+    for (Object input :
+        Arrays.asList("2026-09-03 18:51:43.417123 UTC", "1788461503.417123", 1788461503.417123)) {
+      assertEquals(
+          input.toString(),
+          1788461503417L,
+          BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", input))
+              .getDateTime("ts")
+              .getMillis());
+    }
+    assertEquals(
+        1000L,
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", 1L))
+            .getDateTime("ts")
+            .getMillis());
+    assertEquals(
+        0L,
+        BigQueryUtils.toBeamRow(schema, new TableRow().set("ts", "-0.000001"))
+            .getDateTime("ts")
+            .getMillis());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            BigQueryUtils.toBeamRow(
+                schema, new TableRow().set("ts", "2026-09-03 18:51:43.417123456 UTC")));
+  }
+
+  @Test
   public void testToTableSpec() {
     TableReference withProject =
         new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");

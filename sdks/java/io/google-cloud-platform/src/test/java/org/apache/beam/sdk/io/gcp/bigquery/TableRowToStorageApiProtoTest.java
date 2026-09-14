@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
-import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -42,13 +41,12 @@ import com.google.protobuf.Descriptors.DescriptorValidationException;
 import com.google.protobuf.Descriptors.FieldDescriptor;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.Int64Value;
+import com.google.protobuf.Message;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -59,6 +57,9 @@ import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaInformation;
+import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Functions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
@@ -1507,11 +1508,20 @@ public class TableRowToStorageApiProtoTest {
                   TYPE_MAP_PROTO_CONVERTERS.get(schemaInformation.getType()).apply("", value);
           return BaseEncoding.base64().encode(byteString.toByteArray());
         case TIMESTAMP:
-          long timestampLongValue = (long) convertedValue;
-          long epochSeconds = timestampLongValue / 1_000_000L;
-          long nanoAdjustment = (timestampLongValue % 1_000_000L) * 1_000L;
-          Instant instant = Instant.ofEpochSecond(epochSeconds, nanoAdjustment);
-          return LocalDateTime.ofInstant(instant, ZoneOffset.UTC).format(TIMESTAMP_FORMATTER);
+          Map<Long, String> expectedTimestamps =
+              ImmutableMap.<Long, String>builder()
+                  .put(43L, "1970-01-01 00:00:00.000043 UTC")
+                  .put(-3600000000L, "1969-12-31 23:00:00 UTC")
+                  .put(1234567000L, "1970-01-01 00:20:34.567 UTC")
+                  .put(343L, "1970-01-01 00:00:00.000343 UTC")
+                  .put(18000123456L, "1970-01-01 05:00:00.123456 UTC")
+                  .put(123000L, "1970-01-01 00:00:00.123 UTC")
+                  .put(253402300799999999L, "9999-12-31 23:59:59.999999 UTC")
+                  .build();
+          assertTrue(
+              "Missing literal timestamp expectation: " + value,
+              expectedTimestamps.containsKey(convertedValue));
+          return expectedTimestamps.get(convertedValue);
         case DATE:
           int daysInt = (int) convertedValue;
           return LocalDate.ofEpochDay(daysInt).toString();
@@ -1597,6 +1607,235 @@ public class TableRowToStorageApiProtoTest {
     assertEquals(
         withF ? BASE_ROW_EXPECTED_NAME_OVERRIDES : BASE_ROW_NO_F_EXPECTED_NAME_OVERRIDES,
         overriddenNames);
+  }
+
+  @Test
+  public void testTimestampRoundTrip() throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("ts").setType("TIMESTAMP")));
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
+    DynamicMessage message =
+        DynamicMessage.newBuilder(descriptor)
+            .setField(descriptor.findFieldByName("ts"), 1788461503417123L)
+            .build();
+    TableRow recovered =
+        TableRowToStorageApiProto.tableRowFromMessage(
+            information, message, true, Predicates.alwaysTrue());
+    assertEquals("2026-09-03 18:51:43.417123 UTC", recovered.get("ts"));
+    Schema beamSchema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
+    assertEquals(
+        Instant.parse("2026-09-03T18:51:43.417123Z"),
+        BigQueryUtils.toBeamRow(beamSchema, recovered).getValue("ts"));
+  }
+
+  @Test
+  public void testIntegerTimestampBoundaries() throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("ts").setType("TIMESTAMP")));
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    long[] micros = {
+      0L, -1L, -1000001L, 43L, 1788461503417000L, -62135596800000000L, 253402300799999999L
+    };
+    String[] expected = {
+      "1970-01-01 00:00:00 UTC",
+      "1969-12-31 23:59:59.999999 UTC",
+      "1969-12-31 23:59:58.999999 UTC",
+      "1970-01-01 00:00:00.000043 UTC",
+      "2026-09-03 18:51:43.417 UTC",
+      "0001-01-01 00:00:00 UTC",
+      "9999-12-31 23:59:59.999999 UTC"
+    };
+    for (int i = 0; i < micros.length; i++) {
+      Message message =
+          DynamicMessage.newBuilder(descriptor)
+              .setField(descriptor.findFieldByName("ts"), micros[i])
+              .build();
+      assertTimestampConsumers(
+          schema,
+          message,
+          expected[i],
+          Instant.ofEpochSecond(
+              Math.floorDiv(micros[i], 1000000L), Math.floorMod(micros[i], 1000000L) * 1000L));
+    }
+  }
+
+  @Test
+  public void testProtoTimestampTruncatesToMicros() throws Exception {
+    DescriptorProto proto =
+        DescriptorProto.newBuilder()
+            .setName("Row")
+            .addField(
+                FieldDescriptorProto.newBuilder()
+                    .setName("ts")
+                    .setNumber(1)
+                    .setType(FieldDescriptorProto.Type.TYPE_MESSAGE)
+                    .setTypeName(".google.protobuf.Timestamp"))
+            .build();
+    Descriptor descriptor =
+        com.google.protobuf.Descriptors.FileDescriptor.buildFrom(
+                DescriptorProtos.FileDescriptorProto.newBuilder()
+                    .setName("timestamp_test.proto")
+                    .addDependency("google/protobuf/timestamp.proto")
+                    .addMessageType(proto)
+                    .build(),
+                new com.google.protobuf.Descriptors.FileDescriptor[] {
+                  com.google.protobuf.Timestamp.getDescriptor().getFile()
+                })
+            .findMessageTypeByName("Row");
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("ts").setType("TIMESTAMP")));
+    long[] seconds = {1788461503L, -1L, 0L};
+    int[] nanos = {417123456, 999999999, 999};
+    String[] expected = {
+      "2026-09-03 18:51:43.417123 UTC", "1969-12-31 23:59:59.999999 UTC", "1970-01-01 00:00:00 UTC"
+    };
+    for (int i = 0; i < seconds.length; i++) {
+      Message message =
+          DynamicMessage.newBuilder(descriptor)
+              .setField(
+                  descriptor.findFieldByName("ts"),
+                  com.google.protobuf.Timestamp.newBuilder()
+                      .setSeconds(seconds[i])
+                      .setNanos(nanos[i])
+                      .build())
+              .build();
+      assertTimestampConsumers(
+          schema, message, expected[i], Instant.ofEpochSecond(seconds[i], nanos[i] / 1000 * 1000));
+    }
+  }
+
+  private static void assertTimestampConsumers(
+      TableSchema schema, Message message, String expected, Instant instant) throws Exception {
+    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
+    TableRow recovered =
+        TableRowToStorageApiProto.tableRowFromMessage(
+            information, message, true, Predicates.alwaysTrue());
+    assertEquals(expected, recovered.get("ts"));
+    Schema microsSchema = Schema.builder().addLogicalTypeField("ts", SqlTypes.TIMESTAMP).build();
+    Schema millisSchema = Schema.builder().addDateTimeField("ts").build();
+    assertEquals(instant, BigQueryUtils.toBeamRow(microsSchema, recovered).getValue("ts"));
+    assertEquals(
+        instant.toEpochMilli(),
+        BigQueryUtils.toBeamRow(millisSchema, recovered).getDateTime("ts").getMillis());
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    DynamicMessage roundTrip =
+        TableRowToStorageApiProto.messageFromTableRow(
+            information,
+            descriptor,
+            recovered,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    assertEquals(toEpochMicros(instant), roundTrip.getField(descriptor.findFieldByName("ts")));
+  }
+
+  @Test
+  public void testTimestampPicosPreservesPrecision() throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("ts")
+                        .setType("TIMESTAMP")
+                        .setTimestampPrecision(12L)));
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
+    TableRow input = new TableRow().set("ts", "2024-01-15T10:30:45.123456789012Z");
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            information,
+            descriptor,
+            input,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    assertEquals(
+        input,
+        TableRowToStorageApiProto.tableRowFromMessage(
+            information, message, true, Predicates.alwaysTrue()));
+  }
+
+  @Test
+  public void testNestedRepeatedAndNullTimestamps() throws Exception {
+    TableSchema nested =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("ts").setType("TIMESTAMP"),
+                    new TableFieldSchema().setName("missing").setType("TIMESTAMP"),
+                    new TableFieldSchema()
+                        .setName("times")
+                        .setType("TIMESTAMP")
+                        .setMode("REPEATED")));
+    TableSchema schema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("nested")
+                        .setType("STRUCT")
+                        .setFields(nested.getFields())));
+    Schema nestedBeam =
+        Schema.builder()
+            .addLogicalTypeField("ts", SqlTypes.TIMESTAMP)
+            .addNullableField("missing", Schema.FieldType.logicalType(SqlTypes.TIMESTAMP))
+            .addArrayField("times", Schema.FieldType.logicalType(SqlTypes.TIMESTAMP))
+            .build();
+    Schema beam = Schema.builder().addRowField("nested", nestedBeam).build();
+    TableRow input =
+        new TableRow()
+            .set(
+                "nested",
+                new TableRow()
+                    .set("ts", "2026-09-03T18:51:43.417123Z")
+                    .set("missing", null)
+                    .set(
+                        "times",
+                        ImmutableList.of("1969-12-31T23:59:59.999999Z", "1970-01-01T00:00:00Z")));
+    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            information,
+            descriptor,
+            input,
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+    TableRow recovered =
+        TableRowToStorageApiProto.tableRowFromMessage(
+            information, message, true, Predicates.alwaysTrue());
+    assertEquals(
+        Row.withSchema(beam)
+            .addValue(
+                Row.withSchema(nestedBeam)
+                    .addValues(
+                        Instant.parse("2026-09-03T18:51:43.417123Z"),
+                        null,
+                        ImmutableList.of(
+                            Instant.parse("1969-12-31T23:59:59.999999Z"), Instant.EPOCH))
+                    .build())
+            .build(),
+        BigQueryUtils.toBeamRow(beam, recovered));
   }
 
   @Test
