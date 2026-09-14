@@ -4,7 +4,8 @@
     "python": "shunping"
   },
   "nextAction": "Reviewers",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": false,
+  "reviewersAssignedAt": 0
 }
