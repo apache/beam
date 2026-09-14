@@ -51,12 +51,6 @@ import org.junit.runners.JUnit4;
  * round-trips (including the empty-list cases), and — the invariant that made direct transport
  * viable at all — that a partition value survives the coder and reconstructs into an identical
  * Iceberg partition tuple, including values a rendered partition <i>path</i> could not round-trip.
- *
- * <p>There is deliberately no wire-version case: unlike its staged-manifest predecessor, whose
- * payload was an opaque Iceberg-format blob, this type is schema-coded over its own fields and
- * evolves by adding fields. See the class Javadoc. That argument is only sound if the field numbers
- * themselves are stable, which is what {@link #schemaFieldNumbersArePinned} and {@link
- * #windowedCommitSchemaFieldNumbersArePinned} exist to guarantee.
  */
 @RunWith(JUnit4.class)
 public class ShardDeltaFilesTest {
