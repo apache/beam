@@ -254,10 +254,11 @@ public abstract class UnboundedSolaceWriter
       }
     }
     if (!messageIdsToAck.isEmpty()) {
-      LOG.warn(
-          "SolaceIO.Write: Timed out waiting for ACKs of {} messages. Outstanding message IDs: {}",
-          messageIdsToAck.size(),
-          messageIdsToAck);
+      String errorMessage =
+          String.format(
+              "SolaceIO.Write: Timed out waiting for ACKs of %d messages. Outstanding message IDs: %s",
+              messageIdsToAck.size(), messageIdsToAck);
+      throw new RuntimeException(errorMessage);
     }
   }
 
