@@ -74,10 +74,10 @@ import org.joda.time.Duration;
  */
 final class CommitWindows
     extends PTransform<
-        PCollection<KV<KV<String, Integer>, KV<byte[], CdcRecord>>>, CommitWindows.Result> {
+        PCollection<KV<DestinationShard, KV<byte[], CdcRecord>>>, CommitWindows.Result> {
 
-  private static final TupleTag<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>>
-      ON_TIME_TAG = new TupleTag<>("onTime");
+  private static final TupleTag<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> ON_TIME_TAG =
+      new TupleTag<>("onTime");
   private static final TupleTag<Row> DEAD_LETTER_TAG = new TupleTag<>("deadLetter");
 
   private final CdcWriteConfig config;
@@ -92,13 +92,13 @@ final class CommitWindows
   }
 
   @Override
-  public Result expand(PCollection<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> input) {
+  public Result expand(PCollection<KV<DestinationShard, KV<byte[], CdcRecord>>> input) {
     Schema deadLetterSchema = SplitLateData.deadLetterSchema(dataSchemaOf(input.getCoder()));
 
-    PCollection<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> windowed = applyCommitWindow(input);
+    PCollection<KV<DestinationShard, KV<byte[], CdcRecord>>> windowed = applyCommitWindow(input);
 
     // Exactly one group per (destination, shard, window)
-    PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> grouped =
+    PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> grouped =
         windowed.apply("GroupByShardKey", GroupByKey.create());
 
     // Late-data split before sorting anything
@@ -107,7 +107,7 @@ final class CommitWindows
             "SplitLateData",
             ParDo.of(new SplitLateData(deadLetterSchema, ON_TIME_TAG, DEAD_LETTER_TAG))
                 .withOutputTags(ON_TIME_TAG, TupleTagList.of(DEAD_LETTER_TAG)));
-    PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> onTimeUnsorted =
+    PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> onTimeUnsorted =
         split.get(ON_TIME_TAG).setCoder(grouped.getCoder());
     PCollection<Row> deadLetter =
         split.get(DEAD_LETTER_TAG).setCoder(RowCoder.of(deadLetterSchema));
@@ -115,7 +115,7 @@ final class CommitWindows
     // Sort each surviving group's records by the byte sort key. The secondary key is byte[] +
     // ByteArrayCoder, so SortValues compares the raw CdcSortKey bytes (no coder framing):
     // each primary key's records come out contiguous, in (seq, kind) order within the key.
-    PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> sorted =
+    PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> sorted =
         onTimeUnsorted.apply(
             "SortBySeqKind",
             SortValues.create(
@@ -124,19 +124,22 @@ final class CommitWindows
     return new Result(input.getPipeline(), sorted, deadLetter, deadLetterSchema);
   }
 
-  /** Applies the commit-window assignment for the input's boundedness; see the class Javadoc. */
-  private PCollection<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> applyCommitWindow(
-      PCollection<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> input) {
+  /**
+   * Applies the commit-window assignment: single {@link GlobalWindows} for bounded, and event-time
+   * {@link FixedWindows} for unbounded.
+   */
+  private PCollection<KV<DestinationShard, KV<byte[], CdcRecord>>> applyCommitWindow(
+      PCollection<KV<DestinationShard, KV<byte[], CdcRecord>>> input) {
     if (input.isBounded() == IsBounded.BOUNDED) {
       return input.apply(
           "GlobalWindows",
-          Window.<KV<KV<String, Integer>, KV<byte[], CdcRecord>>>into(new GlobalWindows())
+          Window.<KV<DestinationShard, KV<byte[], CdcRecord>>>into(new GlobalWindows())
               .triggering(DefaultTrigger.of())
               .discardingFiredPanes());
     }
     return input.apply(
         "EventTimeWindows",
-        Window.<KV<KV<String, Integer>, KV<byte[], CdcRecord>>>into(
+        Window.<KV<DestinationShard, KV<byte[], CdcRecord>>>into(
                 FixedWindows.of(
                     checkStateNotNull(
                         triggeringFrequency,
@@ -171,14 +174,13 @@ final class CommitWindows
   public static final class Result implements POutput {
 
     private final Pipeline pipeline;
-    private final PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>>
-        sortedGroups;
+    private final PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> sortedGroups;
     private final PCollection<Row> deadLetterRows;
     private final Schema deadLetterSchema;
 
     private Result(
         Pipeline pipeline,
-        PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> sortedGroups,
+        PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> sortedGroups,
         PCollection<Row> deadLetterRows,
         Schema deadLetterSchema) {
       this.pipeline = pipeline;
@@ -188,7 +190,7 @@ final class CommitWindows
     }
 
     /** The surviving sorted groups: one per {@code (destination, shard, window)}. */
-    public PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> getSortedGroups() {
+    public PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> getSortedGroups() {
       return sortedGroups;
     }
 

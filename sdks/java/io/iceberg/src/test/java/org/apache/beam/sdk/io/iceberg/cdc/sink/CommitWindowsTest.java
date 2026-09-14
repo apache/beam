@@ -29,8 +29,6 @@ import java.util.Set;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -82,9 +80,9 @@ public class CommitWindowsTest {
           .build();
 
   /** The stage-1 ({@link AssignCdcKeys#KEYED}) element coder. */
-  private static final KvCoder<KV<String, Integer>, KV<byte[], CdcRecord>> INPUT_CODER =
+  private static final KvCoder<DestinationShard, KV<byte[], CdcRecord>> INPUT_CODER =
       KvCoder.of(
-          KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+          DestinationShard.coder(),
           KvCoder.of(ByteArrayCoder.of(), CdcRecordCoder.of(DATA_SCHEMA)));
 
   /** The streaming commit-window size. */
@@ -117,22 +115,22 @@ public class CommitWindowsTest {
   /** One primary key shared by every element, so a group's records sort purely by (seq, kind). */
   private static final byte[] PK = {42};
 
-  /** Builds one stage-1 output element: {@code KV<KV<dest, shard>, KV<sortKey, CdcRecord>>}. */
-  private static KV<KV<String, Integer>, KV<byte[], CdcRecord>> element(
+  /** Builds one stage-1 output element: {@code KV<DestinationShard, KV<sortKey, CdcRecord>>}. */
+  private static KV<DestinationShard, KV<byte[], CdcRecord>> element(
       String dest, int shard, int id, String name, long seq, ValueKind kind) {
     return KV.of(
-        KV.of(dest, shard),
+        DestinationShard.of(dest, shard),
         KV.of(CdcSortKey.encode(PK, seq, kind), CdcRecord.of(data(id, name), kind, seq)));
   }
 
   /** A {@link TimestampedValue} wrapping {@link #element}, for use with {@link TestStream}. */
-  private static TimestampedValue<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> at(
+  private static TimestampedValue<KV<DestinationShard, KV<byte[], CdcRecord>>> at(
       Instant ts, String dest, int shard, int id, String name, long seq, ValueKind kind) {
     return TimestampedValue.of(element(dest, shard, id, name, seq, kind), ts);
   }
 
   /** Sequence numbers, in encounter order, of a group's {@link CdcRecord}s. */
-  private static List<Long> seqsOf(KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> group) {
+  private static List<Long> seqsOf(KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> group) {
     List<Long> seqs = new ArrayList<>();
     for (KV<byte[], CdcRecord> kv : group.getValue()) {
       seqs.add(kv.getValue().getSequenceNumber());
@@ -142,7 +140,7 @@ public class CommitWindowsTest {
 
   /** Change kinds, in encounter order, of a group's {@link CdcRecord}s. */
   private static List<ValueKind> kindsOf(
-      KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> group) {
+      KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> group) {
     List<ValueKind> kinds = new ArrayList<>();
     for (KV<byte[], CdcRecord> kv : group.getValue()) {
       kinds.add(kv.getValue().getKind());
@@ -151,8 +149,7 @@ public class CommitWindowsTest {
   }
 
   /** Data-row {@code name} values, in encounter order, of a group's {@link CdcRecord}s. */
-  private static List<String> namesOf(
-      KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> group) {
+  private static List<String> namesOf(KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> group) {
     List<String> names = new ArrayList<>();
     for (KV<byte[], CdcRecord> kv : group.getValue()) {
       names.add(kv.getValue().getData().getString("name"));
@@ -186,7 +183,7 @@ public class CommitWindowsTest {
     // Records deliberately out of order, including an equal-seq (9, 9) pair where the
     // UPDATE_AFTER is added BEFORE the UPDATE_BEFORE: the byte sort key must order by seq,
     // then before-image (UPDATE_BEFORE) ahead of after-image (UPDATE_AFTER) at an equal seq.
-    List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> input =
+    List<KV<DestinationShard, KV<byte[], CdcRecord>>> input =
         ImmutableList.of(
             element("db.t", 0, 1, "b7", 7L, ValueKind.UPDATE_AFTER),
             element("db.t", 0, 1, "a5", 5L, ValueKind.INSERT),
@@ -198,9 +195,9 @@ public class CommitWindowsTest {
     PAssert.that(r.getSortedGroups())
         .satisfies(
             groups -> {
-              KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> g =
+              KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> g =
                   Iterables.getOnlyElement(groups);
-              assertThat(g.getKey(), equalTo(KV.of("db.t", 0)));
+              assertThat(g.getKey(), equalTo(DestinationShard.of("db.t", 0)));
               assertThat(seqsOf(g), contains(5L, 7L, 9L, 9L));
               assertThat(
                   kindsOf(g),
@@ -221,7 +218,7 @@ public class CommitWindowsTest {
 
   @Test
   public void differentShardsProduceSeparateGroups() {
-    List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> input =
+    List<KV<DestinationShard, KV<byte[], CdcRecord>>> input =
         ImmutableList.of(
             element("db.t", 0, 1, "a", 1L, ValueKind.INSERT),
             element("db.t", 1, 2, "b", 2L, ValueKind.INSERT));
@@ -231,12 +228,15 @@ public class CommitWindowsTest {
     PAssert.that(r.getSortedGroups())
         .satisfies(
             groups -> {
-              List<KV<String, Integer>> keys = new ArrayList<>();
-              for (KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> g : groups) {
+              List<DestinationShard> keys = new ArrayList<>();
+              for (KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> g : groups) {
                 keys.add(g.getKey());
                 assertThat(Iterables.size(g.getValue()), equalTo(1));
               }
-              assertThat(keys, containsInAnyOrder(KV.of("db.t", 0), KV.of("db.t", 1)));
+              assertThat(
+                  keys,
+                  containsInAnyOrder(
+                      DestinationShard.of("db.t", 0), DestinationShard.of("db.t", 1)));
               return null;
             });
     PAssert.that(r.getDeadLetterRows()).empty();
@@ -250,7 +250,7 @@ public class CommitWindowsTest {
   @Test
   public void streamingWindowsProduceSeparateSortedGroups() {
     Instant t0 = new Instant(0);
-    TestStream<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> stream =
+    TestStream<KV<DestinationShard, KV<byte[], CdcRecord>>> stream =
         TestStream.create(INPUT_CODER)
             // Window [0, 60s): two records added out of sequence order.
             .addElements(
@@ -276,8 +276,8 @@ public class CommitWindowsTest {
         .satisfies(
             groups -> {
               Set<List<Long>> seqGroups = new HashSet<>();
-              for (KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> g : groups) {
-                assertThat(g.getKey(), equalTo(KV.of("db.t", 0)));
+              for (KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> g : groups) {
+                assertThat(g.getKey(), equalTo(DestinationShard.of("db.t", 0)));
                 seqGroups.add(seqsOf(g));
               }
               assertThat(
@@ -296,7 +296,7 @@ public class CommitWindowsTest {
   @Test
   public void lateNonFirstPaneDivertsToReplayableDeadLetters() {
     Instant t0 = new Instant(0);
-    TestStream<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> stream =
+    TestStream<KV<DestinationShard, KV<byte[], CdcRecord>>> stream =
         TestStream.create(INPUT_CODER)
             // On-time element; the watermark then closes window [0, 60s) and fires its
             // on-time pane.
@@ -324,9 +324,9 @@ public class CommitWindowsTest {
     PAssert.that(r.getSortedGroups())
         .satisfies(
             groups -> {
-              KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> g =
+              KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> g =
                   Iterables.getOnlyElement(groups);
-              assertThat(g.getKey(), equalTo(KV.of("db.t", 0)));
+              assertThat(g.getKey(), equalTo(DestinationShard.of("db.t", 0)));
               assertThat(seqsOf(g), contains(1L)); // only the on-time record
               return null;
             });
@@ -360,7 +360,7 @@ public class CommitWindowsTest {
   @Test
   public void firstLatePaneIsAlsoDivertedToDeadLetters() {
     Instant t0 = new Instant(0);
-    TestStream<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> stream =
+    TestStream<KV<DestinationShard, KV<byte[], CdcRecord>>> stream =
         TestStream.create(INPUT_CODER)
             // The watermark passes the end of window [0, 60s) with NO data for this key ...
             .advanceWatermarkTo(t0.plus(Duration.standardSeconds(70)))
@@ -390,7 +390,7 @@ public class CommitWindowsTest {
   @Test
   public void equalSortKeysBothSurviveSort() {
     // Identical (seq, kind) -> byte-identical sort keys; the sort must keep both records.
-    List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> input =
+    List<KV<DestinationShard, KV<byte[], CdcRecord>>> input =
         ImmutableList.of(
             element("db.t", 0, 1, "first", 5L, ValueKind.INSERT),
             element("db.t", 0, 2, "second", 5L, ValueKind.INSERT));
@@ -400,7 +400,7 @@ public class CommitWindowsTest {
     PAssert.that(r.getSortedGroups())
         .satisfies(
             groups -> {
-              KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> g =
+              KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> g =
                   Iterables.getOnlyElement(groups);
               assertThat(seqsOf(g), contains(5L, 5L));
               assertThat(namesOf(g), containsInAnyOrder("first", "second"));

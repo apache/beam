@@ -43,8 +43,8 @@ import org.apache.beam.sdk.values.TupleTag;
  */
 final class SplitLateData
     extends DoFn<
-        KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>,
-        KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> {
+        KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>,
+        KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> {
 
   static final String DL_RECORD = "record";
   static final String DL_CHANGE_TYPE = "change_type";
@@ -55,12 +55,12 @@ final class SplitLateData
       Metrics.counter(SplitLateData.class, "deadLetterRecords");
 
   private final Schema deadLetterSchema;
-  private final TupleTag<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> onTimeTag;
+  private final TupleTag<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> onTimeTag;
   private final TupleTag<Row> deadLetterTag;
 
   SplitLateData(
       Schema deadLetterSchema,
-      TupleTag<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> onTimeTag,
+      TupleTag<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> onTimeTag,
       TupleTag<Row> deadLetterTag) {
     this.deadLetterSchema = deadLetterSchema;
     this.onTimeTag = onTimeTag;
@@ -78,11 +78,11 @@ final class SplitLateData
 
   @ProcessElement
   public void process(
-      @Element KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> group,
+      @Element KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> group,
       PaneInfo pane,
       MultiOutputReceiver out) {
     if (pane.getTiming() == PaneInfo.Timing.LATE) {
-      String dest = group.getKey().getKey();
+      String dest = group.getKey().getDestination();
       for (KV<byte[], CdcRecord> kv : group.getValue()) {
         CdcRecord record = kv.getValue();
         Row deadLetter =
