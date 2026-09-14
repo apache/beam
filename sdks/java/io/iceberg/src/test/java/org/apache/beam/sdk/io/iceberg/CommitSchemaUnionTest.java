@@ -572,6 +572,24 @@ public class CommitSchemaUnionTest {
     assertEquals(before, metadataLocation(load()));
   }
 
+  /** A wide schema's JSON is truncated in the message; the reason stays whole. */
+  @Test
+  public void testIncompatibleMessageTruncatesWideSchemaJson() {
+    List<Types.NestedField> fields = new ArrayList<>();
+    // id as string conflicts with the table's long: incompatible under every option
+    fields.add(required(1, "id", Types.StringType.get()));
+    for (int i = 2; i <= 60; i++) {
+      fields.add(optional(i, "very_long_column_name_number_" + i, Types.StringType.get()));
+    }
+    Schema wide = new Schema(fields);
+    IncompatibleSchemaException e =
+        assertThrows(
+            IncompatibleSchemaException.class,
+            () -> commit(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, files(wide, 1)));
+    assertTrue(e.getMessage(), e.getMessage().contains("chars truncated)"));
+    assertFalse(e.getMessage(), e.getMessage().contains("very_long_column_name_number_60"));
+  }
+
   @Test
   public void testRouteToErrorsSkipsIncompatibleAndCommitsTheRest() {
     Schema good =

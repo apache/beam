@@ -24,6 +24,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.SchemaParser;
 import org.apache.iceberg.Table;
@@ -39,6 +43,7 @@ import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,8 +91,21 @@ final class CommitSchemaUnion {
 
     @Override
     public String toString() {
-      return files + " file(s) with schema " + schemaJson + ": " + reason;
+      return files + " file(s) with schema " + truncate(schemaJson) + ": " + reason;
     }
+  }
+
+  /** Canonical JSON of a wide schema runs to hundreds of KB; the reason is what matters. */
+  private static final int MAX_SCHEMA_JSON_CHARS = 1024;
+
+  private static String truncate(String json) {
+    if (json.length() <= MAX_SCHEMA_JSON_CHARS) {
+      return json;
+    }
+    return json.substring(0, MAX_SCHEMA_JSON_CHARS)
+        + "... ("
+        + (json.length() - MAX_SCHEMA_JSON_CHARS)
+        + " chars truncated)";
   }
 
   private CommitSchemaUnion() {}
@@ -104,11 +122,25 @@ final class CommitSchemaUnion {
       SchemaEvolutionConfig config,
       IncompatibleSchemaHandling handling,
       Committer committer) {
+    // The catalog is already under contention when a retry fires; back off (jittered by
+    // FluentBackoff) instead of piling on. Iceberg's own metadata retries (commit.retry.*)
+    // sit below this loop.
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withMaxRetries(MAX_ATTEMPTS - 1)
+            .withInitialBackoff(Duration.millis(100))
+            .withMaxBackoff(Duration.standardSeconds(2))
+            .backoff();
     for (int attempt = 1; ; attempt++) {
       try {
         return commitOnce(catalog, tableId, schemas, config, handling, committer);
       } catch (CommitFailedException e) {
-        if (attempt >= MAX_ATTEMPTS) {
+        try {
+          if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
+            throw e;
+          }
+        } catch (InterruptedException interrupted) {
+          Thread.currentThread().interrupt();
           throw e;
         }
         LOG.info(
@@ -163,11 +195,15 @@ final class CommitSchemaUnion {
       // One union replays the fold's net effect (additions, promotions, relaxations) so the
       // table gains a single schema version instead of one per folded schema.
       txn.updateSchema().unionByNameWith(merged).commit();
+      // toString of the args runs only on failure
+      Schema foldResult = TypeUtil.assignIncreasingFreshIds(merged);
+      Schema replayResult = TypeUtil.assignIncreasingFreshIds(txn.table().schema());
       checkState(
-          TypeUtil.assignIncreasingFreshIds(txn.table().schema())
-              .sameSchema(TypeUtil.assignIncreasingFreshIds(merged)),
-          "replaying the folded schema union for %s diverged from the fold",
-          tableId);
+          replayResult.sameSchema(foldResult),
+          "replaying the folded schema union for %s diverged from the fold; fold: %s replay: %s",
+          tableId,
+          foldResult,
+          replayResult);
     }
     boolean staged = folded;
     staged |= stageNameMapping(txn);
@@ -249,6 +285,9 @@ final class CommitSchemaUnion {
       Transaction txn = newTransactionOn(table, base, tableId);
       Accepted failed = null;
       for (Accepted item : accepted) {
+        // Both caught types carry staging conflicts: ValidationException from Schema
+        // construction at apply ("multiple fields for name"), IllegalArgumentException from
+        // SchemaUpdate preconditions ("Cannot change column type").
         try {
           stage(txn, item);
         } catch (ValidationException | IllegalArgumentException e) {
