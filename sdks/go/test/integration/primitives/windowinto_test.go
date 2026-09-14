@@ -97,3 +97,18 @@ func TestTriggerOrFinally(t *testing.T) {
 	integration.CheckFilters(t)
 	ptest.BuildAndRun(t, TriggerOrFinally)
 }
+
+func TestWindowSums_Custom(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, WindowSums_Custom)
+}
+
+func TestValidateCustomWindowedSideInputs(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, ValidateCustomWindowedSideInputs)
+}
+
+func TestWindowSums_ElementAware(t *testing.T) {
+	integration.CheckFilters(t)
+	ptest.BuildAndRun(t, WindowSums_ElementAware)
+}
