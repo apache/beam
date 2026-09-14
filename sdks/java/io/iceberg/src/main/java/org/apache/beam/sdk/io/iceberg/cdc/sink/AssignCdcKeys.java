@@ -25,8 +25,6 @@ import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.metrics.Counter;
@@ -52,7 +50,7 @@ import org.joda.time.Instant;
 
 /**
  * Assigns a sort key to input {@link Row}s and groups by destination and shard keys, outputting
- * {@code KV<KV<destination, shard>, KV<sortKey, CdcRecord>>}.
+ * {@code KV<DestinationShard, KV<sortKey, CdcRecord>>}.
  *
  * <p>For each element this:
  *
@@ -77,7 +75,7 @@ import org.joda.time.Instant;
  */
 final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple> {
 
-  static final TupleTag<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> KEYED = new TupleTag<>() {};
+  static final TupleTag<KV<DestinationShard, KV<byte[], CdcRecord>>> KEYED = new TupleTag<>() {};
   static final TupleTag<Row> FAILED = new TupleTag<Row>() {};
 
   private final IcebergCatalogConfig catalogConfig;
@@ -115,7 +113,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         .get(KEYED)
         .setCoder(
             KvCoder.of(
-                KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+                DestinationShard.coder(),
                 KvCoder.of(ByteArrayCoder.of(), CdcRecordCoder.of(cdcDataSchema))));
     outputs.get(FAILED).setCoder(RowCoder.of(errorSchema));
     return outputs;
@@ -123,7 +121,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
 
   /** Per-record entry point, running the eight steps listed in the main javadoc above. */
   private static final class AssignFn
-      extends DoFn<Row, KV<KV<String, Integer>, KV<byte[], CdcRecord>>> {
+      extends DoFn<Row, KV<DestinationShard, KV<byte[], CdcRecord>>> {
 
     private final TableSetup tableSetup;
     private final CdcWriteConfig config;
@@ -188,7 +186,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         out.get(KEYED)
             .output(
                 KV.of(
-                    KV.of(destString, shardFor(dest, data, pkBytes)),
+                    DestinationShard.of(destString, shardFor(dest, data, pkBytes)),
                     KV.of(CdcSortKey.encode(pkBytes, seq, kind), CdcRecord.of(data, kind, seq))));
       } catch (TableSetup.TableConfigException e) {
         throw e;
