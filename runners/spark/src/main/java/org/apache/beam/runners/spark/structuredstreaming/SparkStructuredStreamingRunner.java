@@ -150,15 +150,7 @@ public final class SparkStructuredStreamingRunner
     final boolean releaseSession = !options.getUseActiveSparkSession();
     final SparkSession sparkSession = SparkSessionFactory.acquire(options);
     final SparkContext sc = sparkSession.sparkContext();
-    final MetricsAccumulator metrics;
-    try {
-      metrics = MetricsAccumulator.getInstance(sparkSession);
-    } catch (RuntimeException e) {
-      if (releaseSession) {
-        SparkSessionFactory.release(sparkSession);
-      }
-      throw e;
-    }
+    final MetricsAccumulator metrics = MetricsAccumulator.getInstance(sparkSession);
 
     // Null until translation completes.
     final AtomicReference<EvaluationContext> ctxRef = new AtomicReference<>();
@@ -169,9 +161,7 @@ public final class SparkStructuredStreamingRunner
     final Runnable cancelSparkJobs =
         () -> {
           try {
-            if (!sc.isStopped()) {
-              sc.cancelJobGroup(jobGroupId);
-            }
+            sc.cancelJobGroup(jobGroupId);
           } catch (IllegalStateException e) {
             // Context stopped concurrently.
           }
@@ -181,6 +171,7 @@ public final class SparkStructuredStreamingRunner
         runAsync(
             () -> {
               try {
+                // Interrupts running tasks on cancel, as Spark's StreamExecution does.
                 sc.setJobGroup(jobGroupId, "Beam " + jobName, true);
                 EvaluationContext ctx = translatePipeline(sparkSession, pipeline);
                 ctxRef.set(ctx);
@@ -188,9 +179,6 @@ public final class SparkStructuredStreamingRunner
                   ctx.evaluate();
                 }
               } finally {
-                if (!sc.isStopped()) {
-                  sc.clearJobGroup();
-                }
                 if (releaseSession) {
                   SparkSessionFactory.release(sparkSession);
                 }

@@ -44,7 +44,6 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
-import org.junit.After;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -74,28 +73,21 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
 
   // Shared with the DoFn running in Spark's local executor threads, reset per test.
   private static volatile CountDownLatch started = new CountDownLatch(1);
-  private static volatile CountDownLatch release = new CountDownLatch(1);
 
-  /** Signals started, then blocks until the task is interrupted or release is counted down. */
+  /** Signals started, then blocks until the task is killed. */
   private static class BlockingDoFn extends DoFn<String, String> {
     @ProcessElement
     public void processElement(ProcessContext c) throws InterruptedException {
       started.countDown();
-      while (!TaskContext.get().isInterrupted() && !release.await(50, TimeUnit.MILLISECONDS)) {
-        // wait for cancel
+      while (!TaskContext.get().isInterrupted()) {
+        Thread.sleep(50);
       }
       c.output(c.element());
     }
   }
 
-  @After
-  public void releaseBlockedDoFn() {
-    release.countDown();
-  }
-
   private SparkStructuredStreamingPipelineResult runBlockingPipeline() throws InterruptedException {
     started = new CountDownLatch(1);
-    release = new CountDownLatch(1);
     Pipeline pipeline = Pipeline.create(getBatchOptions());
     pipeline.apply(Create.of("one", "two")).apply(ParDo.of(new BlockingDoFn()));
     SparkStructuredStreamingPipelineResult result =
@@ -298,7 +290,6 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     secondPipeline.apply(Create.of("a", "b")).apply(printParDo("second"));
     SparkStructuredStreamingPipelineResult second =
         (SparkStructuredStreamingPipelineResult) secondPipeline.run();
-    release.countDown();
     assertThat(first.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
     assertThat(second.waitUntilFinish(), is(PipelineResult.State.DONE));
     assertTrue("session not stopped", SparkSession.getDefaultSession().isEmpty());

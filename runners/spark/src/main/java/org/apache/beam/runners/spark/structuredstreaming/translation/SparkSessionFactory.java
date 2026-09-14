@@ -156,18 +156,6 @@ public class SparkSessionFactory {
     session.stop();
   }
 
-  /**
-   * @deprecated Use {@link #acquire} and {@link #release}. Returns the active or default session
-   *     when usable, otherwise a new one, never tracked by the runner.
-   */
-  @Deprecated
-  public static SparkSession getOrCreateSession(SparkStructuredStreamingPipelineOptions options) {
-    if (options.getUseActiveSparkSession()) {
-      return SparkSession.active();
-    }
-    return sessionBuilder(options.getSparkMaster(), options).getOrCreate();
-  }
-
   private static boolean isUsable(Option<SparkSession> session) {
     return session.isDefined() && !session.get().sparkContext().isStopped();
   }

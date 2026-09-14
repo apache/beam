@@ -131,6 +131,10 @@ public class EvaluationContext {
     stopped = true;
   }
 
+  protected boolean isStopped() {
+    return stopped;
+  }
+
   public SparkSession getSparkSession() {
     return session;
   }

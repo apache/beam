@@ -33,7 +33,6 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.util.UserCodeException;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.spark.SparkException;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
@@ -114,9 +113,7 @@ public class SparkStructuredStreamingPipelineResult implements PipelineResult {
       // ignore.
     } catch (final ExecutionException e) {
       if (cancelRequested.get()) {
-        LOG.info(
-            "Pipeline execution ended with an exception after cancel: {}",
-            String.valueOf(Throwables.getRootCause(e).getMessage()));
+        LOG.warn("Pipeline execution failed after cancel", e.getCause());
         state = State.CANCELLED;
         return state;
       }
