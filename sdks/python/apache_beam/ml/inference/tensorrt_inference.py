@@ -98,6 +98,9 @@ def _import_cuda_driver():
 
 def _load_engine(engine_path):
   import tensorrt as trt
+  # Checked before deserializing, because an engine built by a newer TensorRT
+  # fails to deserialize with an opaque error that hides the real cause.
+  _check_trt_version()
   file = FileSystems.open(engine_path, 'rb')
   runtime = trt.Runtime(TRT_LOGGER)
   engine = runtime.deserialize_cuda_engine(file.read())
