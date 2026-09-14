@@ -225,14 +225,13 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(2));
               Set<Integer> shards = new HashSet<>();
               Set<ValueKind> kinds = new HashSet<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : list) {
-                assertThat(kv.getKey().getKey(), equalTo(dest));
-                int shard = kv.getKey().getValue();
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : list) {
+                assertThat(kv.getKey().getDestination(), equalTo(dest));
+                int shard = kv.getKey().getShard();
                 assertThat(shard, greaterThanOrEqualTo(0));
                 assertThat(shard, lessThan(NUM_SHARDS));
                 shards.add(shard);
@@ -292,11 +291,10 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(3));
               List<ValueKind> kinds = new ArrayList<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : list) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : list) {
                 CdcRecord record = kv.getValue().getValue();
                 kinds.add(record.getKind());
                 // The change-type column is stripped by projection.
@@ -332,8 +330,7 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(1));
               assertThat(list.get(0).getValue().getValue().getKind(), equalTo(ValueKind.DELETE));
               return null;
@@ -456,7 +453,7 @@ public class AssignCdcKeysTest {
         .satisfies(
             iter -> {
               Map<Integer, ValueKind> kindById = new HashMap<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
                 CdcRecord record = kv.getValue().getValue();
                 kindById.put(record.getData().getInt32("id"), record.getKind());
               }
@@ -555,8 +552,7 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(1));
               CdcRecord record = list.get(0).getValue().getValue();
               assertThat(record.getKind(), equalTo(ValueKind.UPDATE_AFTER));
@@ -619,7 +615,7 @@ public class AssignCdcKeysTest {
         .satisfies(
             iter -> {
               Map<ValueKind, byte[]> keyByKind = new HashMap<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
                 keyByKind.put(kv.getValue().getValue().getKind(), kv.getValue().getKey());
               }
               assertThat(
@@ -668,7 +664,7 @@ public class AssignCdcKeysTest {
         .satisfies(
             iter -> {
               int count = 0;
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
                 count++;
                 byte[] key = kv.getValue().getKey();
                 CdcRecord record = kv.getValue().getValue();
@@ -784,13 +780,11 @@ public class AssignCdcKeysTest {
    * by partition value.
    */
   private static Map<String, Set<Integer>> shardsByPartition(
-      Iterable<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> keyed) {
+      Iterable<KV<DestinationShard, KV<byte[], CdcRecord>>> keyed) {
     Map<String, Set<Integer>> shards = new HashMap<>();
-    for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : keyed) {
+    for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : keyed) {
       String region = checkStateNotNull(kv.getValue().getValue().getData().getString("region"));
-      shards
-          .computeIfAbsent(region.substring(0, 2), k -> new HashSet<>())
-          .add(kv.getKey().getValue());
+      shards.computeIfAbsent(region.substring(0, 2), k -> new HashSet<>()).add(kv.getKey().getShard());
     }
     return shards;
   }
@@ -886,12 +880,11 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(4));
               Set<Integer> shards = new HashSet<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : list) {
-                shards.add(kv.getKey().getValue());
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : list) {
+                shards.add(kv.getKey().getShard());
               }
               assertThat(shards, hasSize(1));
               return null;
@@ -952,12 +945,12 @@ public class AssignCdcKeysTest {
         .satisfies(
             iter -> {
               Set<Integer> shards = new HashSet<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
                 // Identical to the primary-key shard: the cap was ignored, not applied.
                 assertThat(
-                    kv.getKey().getValue(),
+                    kv.getKey().getShard(),
                     equalTo(pkShardForId(kv.getValue().getValue().getData().getInt32("id"))));
-                shards.add(kv.getKey().getValue());
+                shards.add(kv.getKey().getShard());
               }
               // The plain primary-key spread, not one funnelled shard.
               assertThat(shards.size(), greaterThan(1));
@@ -1006,8 +999,8 @@ public class AssignCdcKeysTest {
         .satisfies(
             iter -> {
               Set<Integer> shards = new HashSet<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
-                shards.add(kv.getKey().getValue());
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
+                shards.add(kv.getKey().getShard());
               }
               // Exactly spp distinct shards, and they are {base..base+spp-1} (mod numShards).
               assertThat(shards, equalTo(expectedShards));
@@ -1052,9 +1045,9 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
                 int rowId = checkStateNotNull(kv.getValue().getValue().getData().getInt32("id"));
-                assertThat(kv.getKey().getValue(), equalTo(expectedShardById.get(rowId)));
+                assertThat(kv.getKey().getShard(), equalTo(expectedShardById.get(rowId)));
               }
               return null;
             });
@@ -1101,10 +1094,9 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(1));
-              assertThat(list.get(0).getKey().getValue(), equalTo(expectedShard));
+              assertThat(list.get(0).getKey().getShard(), equalTo(expectedShard));
               return null;
             });
   }
@@ -1180,14 +1172,13 @@ public class AssignCdcKeysTest {
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))
         .satisfies(
             iter -> {
-              List<KV<KV<String, Integer>, KV<byte[], CdcRecord>>> list =
-                  ImmutableList.copyOf(iter);
+              List<KV<DestinationShard, KV<byte[], CdcRecord>>> list = ImmutableList.copyOf(iter);
               assertThat(list, hasSize(2));
               // Bind each record to its destination: row id=1 routed to tableA, id=2 to tableB.
               Map<String, Integer> idByDest = new HashMap<>();
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : list) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : list) {
                 idByDest.put(
-                    kv.getKey().getKey(), kv.getValue().getValue().getData().getInt32("id"));
+                    kv.getKey().getDestination(), kv.getValue().getValue().getData().getInt32("id"));
               }
               assertThat(idByDest, equalTo(ImmutableMap.of("db." + tableA, 1, "db." + tableB, 2)));
               return null;
@@ -1237,10 +1228,10 @@ public class AssignCdcKeysTest {
               Map<Integer, Set<Integer>> shardsByPk = new HashMap<>();
               Set<Integer> allShards = new HashSet<>();
               int count = 0;
-              for (KV<KV<String, Integer>, KV<byte[], CdcRecord>> kv : iter) {
+              for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : iter) {
                 count++;
                 int pk = kv.getValue().getValue().getData().getInt32("id");
-                int shard = kv.getKey().getValue();
+                int shard = kv.getKey().getShard();
                 shardsByPk.computeIfAbsent(pk, unused -> new HashSet<>()).add(shard);
                 allShards.add(shard);
               }
