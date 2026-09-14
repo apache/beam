@@ -54,7 +54,7 @@ require (
 	github.com/tetratelabs/wazero v1.12.0
 	github.com/xitongsys/parquet-go v1.6.2
 	github.com/xitongsys/parquet-go-source v0.0.0-20241021075129-b732d2ac9c9b
-	go.mongodb.org/mongo-driver v1.17.9
+	go.mongodb.org/mongo-driver v1.17.10
 	golang.org/x/net v0.58.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.23.0
