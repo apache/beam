@@ -174,7 +174,7 @@ public class RedisIOTest {
     PCollection<KV<byte[], byte[]>> read =
         p.apply(
             "Read",
-            RedisIO.readBytes().withEndpoint(REDIS_HOST, port).withKeyPattern("binaryread*"));
+            RedisIO.readBytes().withEndpoint(redisHost, port).withKeyPattern("binaryread*"));
 
     // Verify actual byte content
     PAssert.that(read)
@@ -346,7 +346,7 @@ public class RedisIOTest {
 
     byte[] newValue = {2};
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(KV.of(key, newValue)));
-    write.apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.SET));
+    write.apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.SET));
     p.run();
 
     assertArrayEquals(newValue, client.get(key));
@@ -363,7 +363,7 @@ public class RedisIOTest {
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(KV.of(key, newValue)));
     write.apply(
         RedisIO.writeBytes()
-            .withEndpoint(REDIS_HOST, port)
+            .withEndpoint(redisHost, port)
             .withMethod(Method.SET)
             .withExpireTime(10_000L));
     p.run();
@@ -382,7 +382,7 @@ public class RedisIOTest {
 
     byte[] newValue = {2};
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(KV.of(key, newValue)));
-    write.apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.LPUSH));
+    write.apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.LPUSH));
     p.run();
 
     List<byte[]> values = client.lrange(key, 0, -1);
@@ -401,7 +401,7 @@ public class RedisIOTest {
 
     byte[] newValue = {2};
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(KV.of(key, newValue)));
-    write.apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.RPUSH));
+    write.apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.RPUSH));
     p.run();
 
     List<byte[]> values = client.lrange(key, 0, -1);
@@ -428,7 +428,7 @@ public class RedisIOTest {
     List<KV<byte[], byte[]>> data = buildConstantKeyList(key, values);
 
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(data));
-    write.apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.SADD));
+    write.apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.SADD));
     p.run();
 
     Set<byte[]> members = client.smembers(key);
@@ -452,7 +452,7 @@ public class RedisIOTest {
     List<KV<byte[], byte[]>> data = buildConstantKeyList(key, values);
 
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(data));
-    write.apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.PFADD));
+    write.apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.PFADD));
     p.run();
 
     long count = client.pfcount(key);
@@ -478,7 +478,7 @@ public class RedisIOTest {
     PCollection<KV<byte[], byte[]>> write = p.apply(Create.of(data));
     write.apply(
         RedisIO.writeBytes()
-            .withEndpoint(REDIS_HOST, port)
+            .withEndpoint(redisHost, port)
             .withMethod(Method.PFADD)
             .withExpireTime(10_000L));
     p.run();
@@ -500,7 +500,7 @@ public class RedisIOTest {
     List<KV<byte[], byte[]>> data = buildConstantKeyList(key, values);
 
     p.apply(Create.of(data))
-        .apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.INCRBY));
+        .apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.INCRBY));
 
     p.run();
 
@@ -520,7 +520,7 @@ public class RedisIOTest {
     List<KV<byte[], byte[]>> data = buildConstantKeyList(key, values);
 
     p.apply(Create.of(data))
-        .apply(RedisIO.writeBytes().withEndpoint(REDIS_HOST, port).withMethod(Method.DECRBY));
+        .apply(RedisIO.writeBytes().withEndpoint(redisHost, port).withMethod(Method.DECRBY));
 
     p.run();
 
@@ -594,7 +594,7 @@ public class RedisIOTest {
                     KvCoder.of(
                         ByteArrayCoder.of(),
                         MapCoder.of(ByteArrayCoder.of(), ByteArrayCoder.of()))));
-    write.apply(RedisIO.writeStreamsBytes().withEndpoint(REDIS_HOST, port));
+    write.apply(RedisIO.writeStreamsBytes().withEndpoint(redisHost, port));
     p.run();
 
     for (byte[] key : redisKeys) {
