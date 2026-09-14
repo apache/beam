@@ -82,6 +82,10 @@ from google.cloud.bigtable import client
 from google.cloud.bigtable_admin_v2.types import instance
 
 try:
+  from google.cloud import firestore
+except ImportError:
+  firestore = None
+try:
   from google.cloud import secretmanager
 except ImportError:
   secretmanager = None
@@ -163,6 +167,56 @@ def temp_spanner_table(project, prefix='temp_spanner_db_'):
   finally:
     logging.info("Deleting Spanner database: %s", database)
     spanner_client._delete_database()
+
+
+@contextlib.contextmanager
+def temp_firestore_collection(
+    project='apache-beam-testing',
+    database='firestoredb',
+    prefix='yaml_firestore_it_'):
+  """Context manager for an isolated Firestore collection used in YAML ITs.
+
+  Uses the shared Beam test project and the ``firestoredb`` database, matching
+  the Java Firestore integration tests.
+
+  Args:
+    project (str): GCP project id.
+    database (str): Firestore database id.
+    prefix (str): Prefix for the temporary collection name.
+
+  Yields:
+    dict: Keys ``PROJECT``, ``DATABASE``, and ``COLLECTION``.
+  """
+  if firestore is None:
+    raise RuntimeError("google-cloud-firestore is not installed.")
+
+  client = firestore.Client(project=project, database=database)
+  collection_id = f'{prefix}{uuid.uuid4().hex}'
+  logging.info(
+      'Using Firestore collection %s in project %s database %s',
+      collection_id,
+      project,
+      database)
+  try:
+    yield {
+        'PROJECT': project,
+        'DATABASE': database,
+        'COLLECTION': collection_id,
+    }
+  finally:
+    logging.info('Deleting documents in Firestore collection %s', collection_id)
+    collection_ref = client.collection(collection_id)
+    batch = client.batch()
+    pending = 0
+    for doc in collection_ref.stream():
+      batch.delete(doc.reference)
+      pending += 1
+      if pending >= 400:
+        batch.commit()
+        batch = client.batch()
+        pending = 0
+    if pending:
+      batch.commit()
 
 
 @contextlib.contextmanager

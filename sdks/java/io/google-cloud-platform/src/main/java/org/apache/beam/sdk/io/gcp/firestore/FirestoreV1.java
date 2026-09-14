@@ -743,7 +743,12 @@ public final class FirestoreV1 {
               "listDocuments",
               ParDo.of(
                   new ListDocumentsFn(
-                      clock, firestoreStatefulComponentFactory, rpcQosOptions, readTime)))
+                      clock,
+                      firestoreStatefulComponentFactory,
+                      rpcQosOptions,
+                      readTime,
+                      projectId,
+                      databaseId)))
           .apply(ParDo.of(new ListDocumentsResponseToDocument()))
           .apply(Reshuffle.viaRandomKey());
     }

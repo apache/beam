@@ -119,6 +119,15 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
 class TestBigtableDirectRowToBeamRow(unittest.TestCase):
   doFn = bigtableio.WriteToBigTable._DirectRowMutationsToBeamRow()
 
+  @staticmethod
+  def _get_mutation_pbs(direct_row):
+    # In google-cloud-bigtable >= 2.44.0, _get_mutations() returns Python
+    # dataclass objects instead of protobuf messages; use _get_mutation_pbs()
+    # to retrieve Mutation protobuf messages.
+    if hasattr(direct_row, '_get_mutation_pbs'):
+      return direct_row._get_mutation_pbs()
+    return direct_row._get_mutations()
+
   def test_set_cell(self):
     # create some set cell mutations
     direct_row: DirectRow = DirectRow('key-1')
@@ -144,7 +153,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     # sort both lists of mutations for convenience
     beam_row_mutations = sorted(beam_row.mutations, key=lambda m: m['value'])
     bt_row_mutations = sorted(
-        direct_row._get_mutations(), key=lambda m: m.set_cell.value)
+        self._get_mutation_pbs(direct_row), key=lambda m: m.set_cell.value)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 
@@ -186,7 +195,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     beam_row_mutations = sorted(
         beam_row.mutations, key=lambda m: m['column_qualifier'])
     bt_row_mutations = sorted(
-        direct_row._get_mutations(),
+        self._get_mutation_pbs(direct_row),
         key=lambda m: m.delete_from_column.column_qualifier)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
@@ -232,8 +241,8 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
     beam_row_mutations = sorted(
         beam_row.mutations, key=lambda m: m['family_name'])
     bt_row_mutations = sorted(
-        direct_row._get_mutations(),
-        key=lambda m: m.delete_from_column.family_name)
+        self._get_mutation_pbs(direct_row),
+        key=lambda m: m.delete_from_family.family_name)
     self.assertEqual(beam_row.key, direct_row.row_key)
     self.assertEqual(len(beam_row_mutations), len(bt_row_mutations))
 

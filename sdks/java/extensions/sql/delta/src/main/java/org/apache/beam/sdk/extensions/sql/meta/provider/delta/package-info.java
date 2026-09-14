@@ -15,20 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.util;
 
-import com.google.auto.service.AutoService;
-import java.util.Map;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
-
-/** {@link AutoService} registrar for the {@link GcpSecret}. */
-@AutoService(SecretRegistrar.class)
-public class GcpSecretRegistrar implements SecretRegistrar {
-
-  @Override
-  public Map<String, SecretFactory> getSecretFactories() {
-    return ImmutableMap.of(
-        "GoogleCloudSecretManager", GcpSecret::fromMap,
-        "GcpSecret", GcpSecret::fromMap);
-  }
-}
+/** Table schema for Delta Lake. */
+package org.apache.beam.sdk.extensions.sql.meta.provider.delta;

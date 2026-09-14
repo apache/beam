@@ -214,6 +214,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
         runTest(5, Duration.ZERO, Integer.MAX_VALUE, Duration.millis(100));
     assertFalse(res.getContinuation().shouldResume());
     assertNull(res.getResidualRestriction());
+    assertEquals(0.0, res.getBacklogBytes(), 0.001);
   }
 
   @Test
@@ -273,5 +274,17 @@ public class OutputAndTimeBoundedSplittableProcessElementInvokerTest {
     // GetSizeFn claims 3 elements and then takes a checkpoint.
     assertEquals(7.0, res.getBacklogBytes(), 0.001);
     assertEquals(new OffsetRange(3, 10), res.getResidualRestriction());
+  }
+
+  @Test
+  public void testBacklogBytesWhenDone() throws Exception {
+    GetSizeFn fn = new GetSizeFn();
+    OffsetRange initialRestriction = new OffsetRange(0, 2);
+    // Set a high checkpoint duration to prevent flakiness caused by early checkpointing.
+    SplittableProcessElementInvoker<Void, String, OffsetRange, Long, Void>.Result res =
+        runTest(fn, initialRestriction, Duration.standardMinutes(3));
+    // GetSizeFn claims 2 elements and finishes.
+    assertEquals(0.0, res.getBacklogBytes(), 0.001);
+    assertNull(res.getResidualRestriction());
   }
 }

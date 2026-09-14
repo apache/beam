@@ -97,6 +97,9 @@ public abstract class SerializableTableSpec implements Serializable {
   @SchemaFieldNumber("11")
   public abstract List<String> getEncryptedKeyJsons();
 
+  @SchemaFieldNumber("12")
+  public abstract long getLastUpdatedMillis();
+
   private transient volatile @MonotonicNonNull Map<Integer, Schema> cachedSchemas;
   private transient volatile @MonotonicNonNull Map<Integer, PartitionSpec> cachedPartitionSpecs;
   private transient volatile @MonotonicNonNull Map<Integer, SortOrder> cachedSortOrders;
@@ -285,6 +288,8 @@ public abstract class SerializableTableSpec implements Serializable {
 
     public abstract Builder setEncryptedKeyJsons(List<String> encryptedKeyJsons);
 
+    public abstract Builder setLastUpdatedMillis(long lastUpdatedMillis);
+
     @SchemaIgnore
     public Builder setFileIO(FileIO fileIO) {
       return setFileIoJson(FileIOParser.toJson(fileIO));
@@ -324,6 +329,7 @@ public abstract class SerializableTableSpec implements Serializable {
     }
 
     TableMetadata metadata = ((HasTableOperations) table).operations().current();
+    long lastUpdatedMillis = metadata != null ? metadata.lastUpdatedMillis() : 0L;
     List<String> encryptedKeyJsons = Collections.emptyList();
     if (metadata != null && metadata.encryptionKeys() != null) {
       encryptedKeyJsons =
@@ -360,6 +366,7 @@ public abstract class SerializableTableSpec implements Serializable {
         .setProperties(table.properties())
         .setFileIoJson(FileIOParser.toJson(table.io()))
         .setEncryptedKeyJsons(encryptedKeyJsons)
+        .setLastUpdatedMillis(lastUpdatedMillis)
         .build();
   }
 
