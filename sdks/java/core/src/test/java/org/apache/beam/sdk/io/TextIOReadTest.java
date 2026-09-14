@@ -37,7 +37,6 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
-import static org.junit.Assume.assumeFalse;
 
 import java.io.BufferedWriter;
 import java.io.File;
@@ -98,7 +97,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream;
 import org.apache.commons.compress.compressors.deflate.DeflateCompressorOutputStream;
-import org.apache.commons.lang3.SystemUtils;
 import org.joda.time.Duration;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1054,11 +1052,10 @@ public class TextIOReadTest {
 
     @Test
     public void testInitialSplitAutoModeGz() throws Exception {
-      // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20470
-      assumeFalse(SystemUtils.IS_OS_WINDOWS);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
-      long desiredBundleSize = 1000;
       File largeGz = writeToFile(LARGE, tempFolder, "large.gz", GZIP);
+      // Gzip output size varies across platforms, so derive a bundle size from the actual file.
+      long desiredBundleSize = largeGz.length() / 3;
       // Sanity check: file is at least 2 bundles long.
       assertThat(largeGz.length(), greaterThan(2 * desiredBundleSize));
 
