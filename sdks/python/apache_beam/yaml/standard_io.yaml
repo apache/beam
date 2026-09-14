@@ -514,6 +514,33 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# Firestore
+- type: renaming
+  transforms:
+    'ReadFromFirestore': 'ReadFromFirestore'
+    'WriteToFirestore': 'WriteToFirestore'
+  config:
+    mappings:
+      'ReadFromFirestore':
+        project: 'project_id'
+        database: 'database_id'
+        collection: 'collection_id'
+        schema: 'schema'
+        error_handling: 'error_handling'
+      'WriteToFirestore':
+        project: 'project_id'
+        database: 'database_id'
+        collection: 'collection_id'
+        document_id_field: 'document_id_field'
+        error_handling: 'error_handling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromFirestore': 'beam:schematransform:org.apache.beam:firestore_read:v1'
+        'WriteToFirestore': 'beam:schematransform:org.apache.beam:firestore_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
 # TFRecord
 - type: renaming
   transforms:
