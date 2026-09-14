@@ -81,6 +81,10 @@
 * Portable Java SDK now encodes SchemaCoders in a portable way ([#34672](https://github.com/apache/beam/issues/34672)).
   - Original custom Java coder encoding can still be obtained using [StreamingOptions.setUpdateCompatibilityVersion("2.76")](https://github.com/apache/beam/blob/2cf0930e7ae1aa389c26ce6639b584877a3e31d9/sdks/java/core/src/main/java/org/apache/beam/sdk/options/StreamingOptions.java#L47) ([#34672](https://github.com/apache/beam/issues/34672)).
   - Fixes ([#36496](https://github.com/apache/beam/issues/36496)), ([#30276](https://github.com/apache/beam/issues/30276)), ([#29245](https://github.com/apache/beam/issues/29245)).
+* (Python) `TensorRTEngineHandlerNumPy` now requires TensorRT 10 or later. TensorRT 8.x is no longer supported, since TensorRT 10 removed the engine binding API the handler was written against ([#36306](https://github.com/apache/beam/issues/36306)).
+  - Engines serialized by TensorRT 8.x must be rebuilt, as an engine can only be deserialized by the major version that built it.
+  - TensorRT 10 and later require a GPU with compute capability 7.5 or higher, which excludes NVIDIA Pascal and Volta GPUs.
+  - If dropping TensorRT 8.x support is a hard blocker for you, please comment on ([#36306](https://github.com/apache/beam/issues/36306)).
 
 ## Deprecations
 
@@ -94,7 +98,6 @@
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
-* (Python) `TensorRTEngineHandlerNumPy` now works with TensorRT 10 and later ([#36306](https://github.com/apache/beam/issues/36306)).
 * (Python) Fixed `TensorRTEngineHandlerNumPy` failing with `CUDA_ERROR_INVALID_VALUE` on models with a single-element input or output tensor ([#36306](https://github.com/apache/beam/issues/36306)).
 
 ## Security Fixes

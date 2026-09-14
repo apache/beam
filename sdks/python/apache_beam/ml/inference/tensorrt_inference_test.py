@@ -19,6 +19,7 @@
 
 import os
 import unittest
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -38,9 +39,8 @@ try:
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy
   from apache_beam.ml.inference.tensorrt_inference import _assign_or_fail
+  from apache_beam.ml.inference.tensorrt_inference import _check_trt_version
   from apache_beam.ml.inference.tensorrt_inference import _import_cuda_driver
-  from apache_beam.ml.inference.tensorrt_inference import _network_creation_flags
-  from apache_beam.ml.inference.tensorrt_inference import _trt_major_version
 except ImportError:
   raise unittest.SkipTest('TensorRT dependencies are not installed')
 
@@ -115,10 +115,7 @@ def _custom_tensorRT_inference_fn(batch, engine, inference_args):
             host_input.ctypes.data,
             inputs[0]['size'],
             stream))
-    if _trt_major_version() >= 10:
-      context.execute_async_v3(stream)
-    else:
-      context.execute_async_v2(gpu_allocations, stream)
+    context.execute_async_v3(stream)
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
@@ -182,7 +179,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4, max_batch_size=4)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(flags=_network_creation_flags())
+    network = builder.create_network()
     input_tensor = network.add_input(
         name="input", dtype=trt.float32, shape=(4, 1))
     weight_const = network.add_constant(
@@ -219,7 +216,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
         max_batch_size=4,
         inference_fn=_custom_tensorRT_inference_fn)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(flags=_network_creation_flags())
+    network = builder.create_network()
     input_tensor = network.add_input(
         name="input", dtype=trt.float32, shape=(4, 1))
     weight_const = network.add_constant(
@@ -254,7 +251,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4, max_batch_size=4)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(flags=_network_creation_flags())
+    network = builder.create_network()
     input_tensor = network.add_input(
         name="input", dtype=trt.float32, shape=(4, 2))
     weight_const = network.add_constant(
@@ -341,28 +338,24 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     self.assertEqual(
         'BeamML_TensorRT', inference_runner.get_metrics_namespace())
 
-  def test_version_check_matches_installed_api(self):
-    """The branch taken must match the API the installed TensorRT exposes.
+  def test_supported_tensorrt_exposes_expected_api(self):
+    """The installed TensorRT must expose the API this module is written to.
 
     TensorRT 10 removed the index based binding API in favour of the name
-    based tensor API. This guards against the version check drifting away
-    from the API it selects.
+    based tensor API. _check_trt_version() rejects anything older, so a passing
+    version check and a missing API would mean the two have drifted apart.
     """
-    if _trt_major_version() >= 10:
-      self.assertTrue(hasattr(trt.ICudaEngine, 'num_io_tensors'))
-      self.assertTrue(hasattr(trt.IExecutionContext, 'execute_async_v3'))
-    else:
-      self.assertTrue(hasattr(trt.ICudaEngine, 'num_bindings'))
-      self.assertTrue(hasattr(trt.IExecutionContext, 'execute_async_v2'))
+    _check_trt_version()
+    self.assertTrue(hasattr(trt.ICudaEngine, 'num_io_tensors'))
+    self.assertTrue(hasattr(trt.IExecutionContext, 'execute_async_v3'))
 
-  def test_network_creation_flags(self):
-    """Explicit batch must only be requested on TensorRT 8.x."""
-    if _trt_major_version() >= 10:
-      self.assertEqual(0, _network_creation_flags())
-    else:
-      self.assertEqual(
-          1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH),
-          _network_creation_flags())
+  def test_version_check_rejects_unsupported_tensorrt(self):
+    """An unsupported TensorRT must fail with a clear message."""
+    with mock.patch.object(trt, '__version__', '8.6.1'):
+      _check_trt_version.cache_clear()
+      with self.assertRaisesRegex(RuntimeError, 'requires TensorRT 10'):
+        _check_trt_version()
+    _check_trt_version.cache_clear()
 
 
 @pytest.mark.uses_tensorrt
@@ -414,10 +407,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
                   host_input.ctypes.data,
                   inputs[0]['size'],
                   stream))
-          if _trt_major_version() >= 10:
-            context.execute_async_v3(stream)
-          else:
-            context.execute_async_v2(gpu_allocations, stream)
+          context.execute_async_v3(stream)
           for output in range(len(cpu_allocations)):
             _assign_or_fail(
                 cuda.cuMemcpyDtoHAsync(

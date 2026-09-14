@@ -49,24 +49,33 @@ except ModuleNotFoundError:
     'runner has tensorrt dependencies installed.'
   LOGGER.warning(msg)
 
+MIN_TRT_MAJOR_VERSION = 10
+
 
 @functools.lru_cache(maxsize=1)
-def _trt_major_version() -> int:
-  """Returns the major version of the installed TensorRT.
+def _check_trt_version() -> None:
+  """Fails fast if the installed TensorRT is older than we support.
 
-  TensorRT 10 replaced the index based "binding" API with a name based
-  "tensor" API, so the major version selects which code path to take.
+  TensorRT 10 removed the index based "binding" API this module used to be
+  written against. Without this check the failure surfaces as an obscure
+  AttributeError deep inside engine setup.
 
-  Cached rather than resolved at import time because the module is importable
+  Cached rather than checked at import time because the module is importable
   without TensorRT, so that jobs can be submitted from a machine that does not
   have it installed.
   """
   import tensorrt as trt
   try:
-    return int(trt.__version__.split('.')[0])
+    major = int(trt.__version__.split('.')[0])
   except (AttributeError, IndexError, ValueError):
     # Fall back to probing for an attribute that only exists from 10 onwards.
-    return 10 if hasattr(trt.ICudaEngine, 'num_io_tensors') else 8
+    major = 10 if hasattr(trt.ICudaEngine, 'num_io_tensors') else 8
+  if major < MIN_TRT_MAJOR_VERSION:
+    raise RuntimeError(
+        'RunInference requires TensorRT %d or later, but found %s. Support '
+        'for TensorRT 8.x was removed because TensorRT 10 replaced the '
+        'engine binding API this handler depends on.' %
+        (MIN_TRT_MAJOR_VERSION, getattr(trt, '__version__', 'unknown')))
 
 
 @functools.lru_cache(maxsize=1)
@@ -96,25 +105,13 @@ def _load_engine(engine_path):
   return engine
 
 
-def _network_creation_flags() -> int:
-  """Returns the ``create_network`` flags for the installed TensorRT.
-
-  Explicit batch is the only supported mode from TensorRT 10 onwards, where
-  the flag is first deprecated and then removed, so it is only passed to
-  TensorRT 8.x.
-  """
-  import tensorrt as trt
-  explicit_batch = getattr(
-      trt.NetworkDefinitionCreationFlag, 'EXPLICIT_BATCH', None)
-  if explicit_batch is None or _trt_major_version() >= 10:
-    return 0
-  return 1 << int(explicit_batch)
-
-
 def _load_onnx(onnx_path):
   import tensorrt as trt
+  _check_trt_version()
   builder = trt.Builder(TRT_LOGGER)
-  network = builder.create_network(flags=_network_creation_flags())
+  # Explicit batch is the only supported mode from TensorRT 10 onwards, so no
+  # network creation flags are needed.
+  network = builder.create_network()
   parser = trt.OnnxParser(network, TRT_LOGGER)
   with FileSystems.open(onnx_path) as f:
     if not parser.parse(f.read()):
@@ -163,6 +160,7 @@ class TensorRTEngine:
       engine: trt.ICudaEngine object that contains TensorRT engine
     """
     import tensorrt as trt
+    _check_trt_version()
     cuda = _import_cuda_driver()
     self.engine = engine
     self.context = engine.create_execution_context()
@@ -172,59 +170,28 @@ class TensorRTEngine:
     self.gpu_allocations = []
     self.cpu_allocations = []
 
-    # Setup I/O bindings.
-    if _trt_major_version() >= 10:
-      # TensorRT 10 removed the index based binding API in favour of a name
-      # based tensor API. Device addresses are bound to the context once here
-      # because execute_async_v3 takes no allocation list at execution time.
-      for i in range(self.engine.num_io_tensors):
-        name = self.engine.get_tensor_name(i)
-        dtype = self.engine.get_tensor_dtype(name)
-        shape = self.engine.get_tensor_shape(name)
-        size = trt.volume(shape) * dtype.itemsize
-        allocation = _assign_or_fail(cuda.cuMemAlloc(size))
-        binding = {
-            'index': i,
-            'name': name,
-            'dtype': np.dtype(trt.nptype(dtype)),
-            'shape': list(shape),
-            'allocation': allocation,
-            'size': size
-        }
-        self.gpu_allocations.append(allocation)
-        self.context.set_tensor_address(name, int(allocation))
-        if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
-          self.inputs.append(binding)
-        else:
-          self.outputs.append(binding)
-    else:
-      # TODO(https://github.com/NVIDIA/TensorRT/issues/2557):
-      # Clean up when the TensorRT 8.x path is dropped.
-      try:
-        _ = np.bool
-      except AttributeError:
-        # numpy >= 1.24.0
-        np.bool = np.bool_  # type: ignore
-
-      for i in range(self.engine.num_bindings):
-        name = self.engine.get_binding_name(i)
-        dtype = self.engine.get_binding_dtype(i)
-        shape = self.engine.get_binding_shape(i)
-        size = trt.volume(shape) * dtype.itemsize
-        allocation = _assign_or_fail(cuda.cuMemAlloc(size))
-        binding = {
-            'index': i,
-            'name': name,
-            'dtype': np.dtype(trt.nptype(dtype)),
-            'shape': list(shape),
-            'allocation': allocation,
-            'size': size
-        }
-        self.gpu_allocations.append(allocation)
-        if self.engine.binding_is_input(i):
-          self.inputs.append(binding)
-        else:
-          self.outputs.append(binding)
+    # Setup I/O tensors. Device addresses are bound to the context once here
+    # because execute_async_v3 takes no allocation list at execution time.
+    for i in range(self.engine.num_io_tensors):
+      name = self.engine.get_tensor_name(i)
+      dtype = self.engine.get_tensor_dtype(name)
+      shape = self.engine.get_tensor_shape(name)
+      size = trt.volume(shape) * dtype.itemsize
+      allocation = _assign_or_fail(cuda.cuMemAlloc(size))
+      binding = {
+          'index': i,
+          'name': name,
+          'dtype': np.dtype(trt.nptype(dtype)),
+          'shape': list(shape),
+          'allocation': allocation,
+          'size': size
+      }
+      self.gpu_allocations.append(allocation)
+      self.context.set_tensor_address(name, int(allocation))
+      if self.engine.get_tensor_mode(name) == trt.TensorIOMode.INPUT:
+        self.inputs.append(binding)
+      else:
+        self.outputs.append(binding)
 
     assert self.context
     assert len(self.inputs) > 0
@@ -286,11 +253,8 @@ def _default_tensorRT_inference_fn(
             host_input.ctypes.data,
             inputs[0]['size'],
             stream))
-    if _trt_major_version() >= 10:
-      # Tensor addresses were bound when the engine was created.
-      context.execute_async_v3(stream)
-    else:
-      context.execute_async_v2(gpu_allocations, stream)
+    # Tensor addresses were bound when the engine was created.
+    context.execute_async_v3(stream)
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
