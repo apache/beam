@@ -45,6 +45,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -134,7 +135,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         Metrics.counter(AssignCdcKeys.class, "upsertUpdateBeforeDropped");
 
     /** The control columns' positions in the current source schema. */
-    private @Nullable ControlColumns controls;
+    private transient @MonotonicNonNull ControlColumns controls;
 
     AssignFn(
         TableSetup tableSetup,
