@@ -784,7 +784,9 @@ public class AssignCdcKeysTest {
     Map<String, Set<Integer>> shards = new HashMap<>();
     for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : keyed) {
       String region = checkStateNotNull(kv.getValue().getValue().getData().getString("region"));
-      shards.computeIfAbsent(region.substring(0, 2), k -> new HashSet<>()).add(kv.getKey().getShard());
+      shards
+          .computeIfAbsent(region.substring(0, 2), k -> new HashSet<>())
+          .add(kv.getKey().getShard());
     }
     return shards;
   }
@@ -1178,7 +1180,8 @@ public class AssignCdcKeysTest {
               Map<String, Integer> idByDest = new HashMap<>();
               for (KV<DestinationShard, KV<byte[], CdcRecord>> kv : list) {
                 idByDest.put(
-                    kv.getKey().getDestination(), kv.getValue().getValue().getData().getInt32("id"));
+                    kv.getKey().getDestination(),
+                    kv.getValue().getValue().getData().getInt32("id"));
               }
               assertThat(idByDest, equalTo(ImmutableMap.of("db." + tableA, 1, "db." + tableB, 2)));
               return null;
