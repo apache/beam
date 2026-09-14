@@ -230,6 +230,7 @@ public abstract class UnboundedSolaceWriter
     }
   }
 
+
   public void waitForAcks(BeamContextWrapper context, Set<String> messageIdsToAck) {
     BlockingQueue<PublishResult> queue =
         solaceSessionServiceWithProducer().getPublishedResultsQueue();
@@ -254,10 +255,11 @@ public abstract class UnboundedSolaceWriter
       }
     }
     if (!messageIdsToAck.isEmpty()) {
-      LOG.warn(
-          "SolaceIO.Write: Timed out waiting for ACKs of {} messages. Outstanding message IDs: {}",
-          messageIdsToAck.size(),
-          messageIdsToAck);
+      String errorMessage =
+          String.format(
+              "SolaceIO.Write: Timed out waiting for ACKs of %d messages. Outstanding message IDs: %s",
+              messageIdsToAck.size(), messageIdsToAck);
+      throw new RuntimeException(errorMessage);
     }
   }
 
