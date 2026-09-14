@@ -46,8 +46,7 @@ public interface CatalogManager {
   Catalog currentCatalog();
 
   /** Attempts to fetch the catalog with this name. May produce null if it does not exist. */
-  @Nullable
-  Catalog getCatalog(String name);
+  @Nullable Catalog getCatalog(String name);
 
   /** Drops the catalog with this name. No-op if the catalog already does not exist. */
   void dropCatalog(String name);

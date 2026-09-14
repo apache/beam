@@ -277,7 +277,8 @@ public class SplittableParDoViaKeyedWorkItems {
     private transient @Nullable StateInternalsFactory<byte[]> stateInternalsFactory;
     private transient @Nullable TimerInternalsFactory<byte[]> timerInternalsFactory;
     private transient @Nullable SideInputReader sideInputReader;
-    private transient @Nullable SplittableProcessElementInvoker<
+    private transient @Nullable
+        SplittableProcessElementInvoker<
             InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
         processElementInvoker;
 
@@ -672,6 +673,9 @@ public class SplittableParDoViaKeyedWorkItems {
         restrictionState.clear();
         watermarkEstimatorState.clear();
         holdState.clear();
+        if (backlogBytesCallback != null) {
+          backlogBytesCallback.accept(0.0);
+        }
         return;
       }
 

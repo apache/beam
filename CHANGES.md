@@ -67,6 +67,7 @@
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 * Added `schema_update_options` to `WriteToBigQuery` file loads, allowing BigQuery load jobs to add nullable fields or relax required fields when appending data (Python) ([#21141](https://github.com/apache/beam/issues/21141)).
 * BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part `project.catalog.namespace.table` identifiers (or a `TableReference` with a composite `catalog.namespace` dataset id). Previously such references were silently mis-parsed (Java) ([#39597](https://github.com/apache/beam/issues/39597)) .
+* SolaceIO now supports reading and writing binary and text content data payload (Java) ([#39875](https://github.com/apache/beam/issues/39875)).
 * ClickHouseIO: support writing `Decimal(P, S)` / `Decimal32/64/128/256` columns (Java) ([#39840](https://github.com/apache/beam/issues/39840)).
 
 ## New Features / Improvements
@@ -75,6 +76,9 @@
 * (Java/Python) `Watch` can bound its deduplication state by event time, retiring an output key once the greatest emitted timestamp has moved more than the allowed lateness past it. Java adds `Watch.growthOf(...).withTimestampCursor()`. Python adds `allowed_lateness` for the existing `timestamp_cursor` option ([#18459](https://github.com/apache/beam/issues/18459)).
 * (Java) Spark Structured Streaming runner: stateful ParDo with state, timers, `@RequiresTimeSortedInput` and tagged outputs is now supported in batch mode ([#39779](https://github.com/apache/beam/issues/39779)).
 * (Python) Added support for Vertex AI Model Monitoring V2 in RunInference ([#39738](https://github.com/apache/beam/issues/39738)).
+* [Flink Runner] Added opt-in static round-robin split assignment for small bounded sources via the new `sourceStaticSplitThresholdMb` pipeline option. The default of 0 keeps the existing lazy pull-based assignment ([#39873](https://github.com/apache/beam/issues/39873)).
+* Added automatic caching of bounded, single-pane side-input views for classic Java Flink DataStream execution ([#39866](https://github.com/apache/beam/issues/39866)).
+* (Python) Added `Sample.Any`, the Python equivalent of Java's `Sample.any`, which returns up to n arbitrary elements from a PCollection ([#18552](https://github.com/apache/beam/issues/18552)).
 
 ## Breaking Changes
 
@@ -92,12 +96,12 @@
 
 ## Bugfixes
 
-* (Java) Restored binary compatibility for `CoderTranslatorRegistrar` implementations compiled against Beam 2.76 and earlier ([#38714](https://github.com/apache/beam/issues/38714)).
 * (Java) Fixed the Spark runner firing processing-time timers in reverse timestamp order ([#39824](https://github.com/apache/beam/issues/39824)).
 * (Python) Fixed incorrect profiler options handling on portable runners ([#39613](https://github.com/apache/beam/issues/39613)).
 * (Java) KafkaIO dynamic reads no longer require the obsolete `beam_fn_api` experiment ([#29998](https://github.com/apache/beam/issues/29998)).
 * (Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin ([#39848](https://github.com/apache/beam/issues/39848)).
 * (Java) MongoDbIO read splitting now preserves non-ObjectId `_id` types (e.g. string ids) instead of failing to parse the generated range filters ([#39900](https://github.com/apache/beam/issues/39900)).
+* (Go) Fixed GCS glob matching silently dropping objects when the glob pattern contains multi-byte characters ([#39969](https://github.com/apache/beam/issues/39969)).
 * (Python) Fixed `TensorRTEngineHandlerNumPy` failing with `CUDA_ERROR_INVALID_VALUE` on models with a single-element input or output tensor ([#36306](https://github.com/apache/beam/issues/36306)).
 
 ## Security Fixes
@@ -109,14 +113,20 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.76.0] - 2026-08-??
+# [2.76.0] - 2026-08-31
+
+## Highlights
+
+* Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
+* (Java) Added per-element OpenTelemetry trace propagation across stages in the Dataflow Streaming Runner. Enable it with `--experiments=enable_otel_defaults,element_metadata_supported,disable_portable_worker`. Cloud Trace incurs additional cost. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry header propagation support for both reads and writes in KafkaIO and PubSubIO. ([#33176](https://github.com/apache/beam/issues/33176))
+* (Java) Added OpenTelemetry tracing support for SpannerIO change streams ([#33176](https://github.com/apache/beam/issues/33176))
+* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
 
 ## I/Os
 
 * Upgraded Iceberg dependency to 1.11.0 (Java) ([#38925](https://github.com/apache/beam/issues/38925)).
 * Add ArrowFlight IO (Java) ([#20116](https://github.com/apache/beam/issues/20116)).
-* (Python) JmsIO (IBM MQ, ActiveMQ, and other providers) is now supported in Python via cross-language ([#30716](https://github.com/apache/beam/issues/30716)).
-* Added a full Iceberg batch and streaming changelog source (CDC) ([#38831](https://github.com/apache/beam/issues/38831))
 * Added a Delta Lake batch changelog source (CDC) ([#39492](https://github.com/apache/beam/issues/39492))
 
 ## New Features / Improvements
@@ -141,10 +151,6 @@
 * (Python) Added `Watch`, a transform that polls a growing set of outputs for each input element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
   ([#21521](https://github.com/apache/beam/issues/21521)).
 * (Python) Added support to analyze core dumps created after python worker segmentation faults with `pystack` (or `gdb` if installed) using the `--profiler_agent=coredump` pipeline option. ([#39484](https://github.com/apache/beam/issues/39484)).
-* (Python) Added `Sample.Any`, the Python equivalent of Java's `Sample.any`, which returns up to n arbitrary elements from a PCollection ([#18552](https://github.com/apache/beam/issues/18552)).
-* (Java) Added per-element OpenTelemetry trace propagation across stages in the Dataflow Streaming Runner. Enable it with `--experiments=enable_otel_defaults,element_metadata_supported,disable_portable_worker`. Cloud Trace incurs additional cost. ([#33176](https://github.com/apache/beam/issues/33176))
-* (Java) Added OpenTelemetry header propagation support for both reads and writes in KafkaIO and PubSubIO. ([#33176](https://github.com/apache/beam/issues/33176))
-* (Java) Added OpenTelemetry tracing support for SpannerIO change streams ([#33176](https://github.com/apache/beam/issues/33176))
 
 ## Breaking Changes
 
@@ -159,9 +165,6 @@
   Use pipeline option `--updateCompatibilityVersion=2.75.0` (or any older version) to keep the old behavior ([#39344](https://github.com/apache/beam/issues/39344)).
 * `DoFn.process` returning a `str`, `bytes`, or `dict` (instead of an iterable wrapping one) now raises a `TypeError` rather than silently iterating per-character/byte/key (Python) ([#18712](https://github.com/apache/beam/issues/18712)).
 * (Java) Added `DRAINING` and `DRAINED` states to `PipelineResult`, including runner state mappings and Dataflow update handling ([#39020](https://github.com/apache/beam/issues/39020)).
-* (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
-  use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
-  However fixing forward is recommended.
 * (Java) IcebergIO and projects that use it must now be built with Java 17 or later as a result of Iceberg 1.11.0 upgrade ([#38925](https://github.com/apache/beam/issues/38925)).
 
 ## Bugfixes

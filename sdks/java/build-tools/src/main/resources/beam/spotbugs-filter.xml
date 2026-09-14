@@ -57,7 +57,6 @@
 
   <!-- TODO(https://github.com/apache/beam/issues/35312) resolve findings-->
   <Bug pattern="CT_CONSTRUCTOR_THROW"/>
-  <Bug pattern="MS_EXPOSE_REP"/>
 
   <!--
     Many test classes are captured by lambdas and marked `implements Serializable`. They are not

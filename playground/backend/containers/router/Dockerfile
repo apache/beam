@@ -16,15 +16,15 @@
 # limitations under the License.
 ###############################################################################
 #Dokerfile to set up the Beam Go SDK
-ARG BASE_IMAGE=golang:1-bullseye
+ARG BASE_IMAGE=golang:1-bookworm
 #Two-stage assembly
 FROM $BASE_IMAGE AS build
 ARG GIT_COMMIT="<unknown>"
 ARG GIT_TIMESTAMP="0"
 
 # Setup Go Environment
-ENV GOPATH /go
-ENV PATH $GOPATH/bin:$PATH
+ENV GOPATH=/go
+ENV PATH=$GOPATH/bin:$PATH
 RUN mkdir -p "$GOPATH/src" "$GOPATH/bin" && chmod -R 777 "$GOPATH"
 
 # Prepare Application
@@ -44,18 +44,13 @@ RUN cd cmd/migration_tool &&\
     go build -o /go/bin/migration_tool
 
 # Null image
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 ENV DEBIAN_FRONTEND=noninteractive
 # Install deps being used by sh files
 RUN set -eux; \
-  # 1) use existing HTTP sources to bootstrap CAs
   apt-get update; \
-  apt-get install -y --no-install-recommends ca-certificates; \
-  # 2) now it’s safe to use HTTPS
-  sed -ri 's|http://deb\.debian\.org|https://deb.debian.org|g' /etc/apt/sources.list; \
-  apt-get update; \
-  apt-get install -y --no-install-recommends curl; \
+  apt-get install -y --no-install-recommends ca-certificates curl; \
   rm -rf /var/lib/apt/lists/*
 
 # Set Environment

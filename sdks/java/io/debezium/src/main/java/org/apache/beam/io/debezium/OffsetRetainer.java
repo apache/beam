@@ -52,8 +52,7 @@ public interface OffsetRetainer extends Serializable {
    * Implementations should handle transient I/O errors gracefully and return {@code null} on
    * failure rather than propagating an exception.
    */
-  @Nullable
-  Map<String, Object> loadOffset();
+  @Nullable Map<String, Object> loadOffset();
 
   /**
    * Persists the given offset so it can be recovered after a pipeline restart.

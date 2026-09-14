@@ -289,6 +289,7 @@ class ElasticsearchIOTestUtils {
       RestClient restClient, String index, String type, int backendVersion) throws IOException {
     return refreshIndexAndGetCurrentNumDocs(restClient, index, type, backendVersion, null);
   }
+
   /**
    * Forces a refresh of the given index to make recently inserted documents available for search.
    *

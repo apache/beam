@@ -642,8 +642,7 @@ public class BigtableIO {
       BigtableReadOptions bigtableReadOptions = getBigtableReadOptions();
       return toBuilder()
           .setBigtableReadOptions(
-              bigtableReadOptions
-                  .toBuilder()
+              bigtableReadOptions.toBuilder()
                   .setMaxBufferElementCount(maxBufferElementCount)
                   .build())
           .build();
@@ -794,7 +793,7 @@ public class BigtableIO {
     static SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
         enableBulkApiConfigurator(
             final @Nullable SerializableFunction<BigtableOptions.Builder, BigtableOptions.Builder>
-                    userConfigurator) {
+                userConfigurator) {
       return optionsBuilder -> {
         if (userConfigurator != null) {
           optionsBuilder = userConfigurator.apply(optionsBuilder);
@@ -1142,14 +1141,18 @@ public class BigtableIO {
           .build();
     }
 
-    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    /**
+     * @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect.
+     */
     @Deprecated
     public Write withThrottlingTargetMs(int throttlingTargetMs) {
       LOG.warn("withThrottlingTargetMs has been removed and does not have effect.");
       return this;
     }
 
-    /** @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect. */
+    /**
+     * @deprecated This method has been deprecated in Beam 2.60.0. It does not have an effect.
+     */
     @Deprecated
     public Write withThrottlingReportTargetMs(int throttlingReportTargetMs) {
       LOG.warn("withThrottlingReportTargetMs has been removed and does not have an effect.");
@@ -1264,8 +1267,7 @@ public class BigtableIO {
                       new BigtableWriterFn(
                           factory,
                           bigtableConfig,
-                          bigtableWriteOptions
-                              .toBuilder()
+                          bigtableWriteOptions.toBuilder()
                               .setCloseWaitTimeout(closeWaitTimeout)
                               .build(),
                           input.getCoder(),
@@ -2125,6 +2127,7 @@ public class BigtableIO {
       return record;
     }
   }
+
   /**
    * Overwrite options to determine what to do if change stream name is being reused and there
    * exists metadata of the same change stream name.

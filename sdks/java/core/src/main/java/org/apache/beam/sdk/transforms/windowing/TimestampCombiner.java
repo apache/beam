@@ -33,7 +33,6 @@ import org.joda.time.Instant;
  * <p>In particular, these govern the timestamp on the output of a grouping transform such as {@link
  * GroupByKey} or {@link Combine}.
  */
-@SuppressWarnings({"nullness", "keyfor"}) // TODO(https://github.com/apache/beam/issues/20497)
 public enum TimestampCombiner {
   /**
    * The policy of taking at the earliest of a set of timestamps.

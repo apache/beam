@@ -204,6 +204,7 @@ public final class DefaultFilenamePolicy extends FilenamePolicy {
   }
 
   private final Params params;
+
   /**
    * Constructs a new {@link DefaultFilenamePolicy}.
    *

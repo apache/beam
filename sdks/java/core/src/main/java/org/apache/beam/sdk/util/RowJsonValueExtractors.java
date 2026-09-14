@@ -113,10 +113,17 @@ class RowJsonValueExtractors {
                     || (jsonNode.isFloatingPointNumber()
                         && jsonNode.doubleValue() == (double) (float) jsonNode.doubleValue())
 
-                    // Or an integer number which allows lossless conversion to float
+                    // Or an integral number which allows lossless conversion to float.
+                    // Compared through BigDecimal for the same reason as the double branch
+                    // below: narrowing an out-of-range float back to int saturates rather than
+                    // overflowing, so Integer.MAX_VALUE survives an int round-trip even though
+                    // the float it went through is 2147483648.
                     || (jsonNode.isIntegralNumber()
                         && jsonNode.canConvertToInt()
-                        && jsonNode.asInt() == (int) (float) jsonNode.asInt()))
+                        && jsonNode
+                                .decimalValue()
+                                .compareTo(BigDecimal.valueOf(jsonNode.floatValue()))
+                            == 0))
         .build();
   }
 
@@ -132,10 +139,17 @@ class RowJsonValueExtractors {
             jsonNode ->
                 jsonNode.isDouble()
 
-                    // Either a long number which allows lossless conversion to float
+                    // Either an integral number which allows lossless conversion to double.
+                    // Compared through BigDecimal, the same way the decimal branch below is: a
+                    // long round-trip cannot express this, because narrowing an out-of-range
+                    // double back to long saturates rather than overflowing, so Long.MAX_VALUE
+                    // would look like it survived the trip when it did not.
                     || (jsonNode.isIntegralNumber()
                         && jsonNode.canConvertToLong()
-                        && jsonNode.asLong() == (long) (double) jsonNode.asInt())
+                        && jsonNode
+                                .decimalValue()
+                                .compareTo(BigDecimal.valueOf(jsonNode.doubleValue()))
+                            == 0)
 
                     // Or a decimal number which allows lossless conversion to float
                     || (jsonNode.isFloatingPointNumber()

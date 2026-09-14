@@ -294,9 +294,7 @@ public class External {
               .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
       expandedComponents =
-          response
-              .getComponents()
-              .toBuilder()
+          response.getComponents().toBuilder()
               .putAllEnvironments(resolveArtifacts(newEnvironmentsWithDependencies, endpoint))
               .build();
       expandedTransform = response.getTransform();
@@ -373,8 +371,7 @@ public class External {
         ArtifactRetrievalServiceGrpc.ArtifactRetrievalServiceBlockingStub retrievalStub,
         RunnerApi.Environment environment)
         throws IOException {
-      return environment
-          .toBuilder()
+      return environment.toBuilder()
           .clearDependencies()
           .addAllDependencies(resolveArtifacts(retrievalStub, environment.getDependenciesList()))
           .build();
@@ -403,8 +400,7 @@ public class External {
           }
         }
         resolved.add(
-            artifact
-                .toBuilder()
+            artifact.toBuilder()
                 .setTypeUrn("beam:artifact:type:file:v1")
                 .setTypePayload(
                     RunnerApi.ArtifactFilePayload.newBuilder()

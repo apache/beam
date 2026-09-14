@@ -53,6 +53,7 @@ public class CatalogSchema implements Schema {
   private final JdbcConnection connection;
   private final Catalog catalog;
   private final Map<String, BeamCalciteSchema> subSchemas = new HashMap<>();
+
   /**
    * Creates a Calcite {@link Schema} representing a {@link CatalogManager}. This will typically be
    * the root node of a pipeline.

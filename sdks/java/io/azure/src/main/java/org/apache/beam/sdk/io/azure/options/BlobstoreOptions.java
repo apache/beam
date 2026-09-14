@@ -41,8 +41,7 @@ public interface BlobstoreOptions extends AzureOptions {
       Class<? extends BlobstoreClientBuilderFactory> blobstoreClientFactoryClass);
 
   @Description("Adds a pipeline policy to apply on each request sent to the blob service client.")
-  @Nullable
-  HttpPipelinePolicy getPipelinePolicy();
+  @Nullable HttpPipelinePolicy getPipelinePolicy();
 
   void setPipelinePolicy(HttpPipelinePolicy pipelinePolicy);
 
@@ -74,21 +73,18 @@ public interface BlobstoreOptions extends AzureOptions {
 
   /** The Azure Blobstore service endpoint used by the Blob service client. */
   @Description("Sets the blob service endpoint, additionally parses it for information (SAS token)")
-  @Nullable
-  String getBlobServiceEndpoint();
+  @Nullable String getBlobServiceEndpoint();
 
   void setBlobServiceEndpoint(String endpoint);
 
   @Description(
       "Sets the HttpClient to use for sending a receiving requests to and from the service.")
-  @Nullable
-  HttpClient getHttpClient();
+  @Nullable HttpClient getHttpClient();
 
   void setHttpClient(HttpClient httpClient);
 
   @Description("Sets the HttpPipeline to use for the service client.")
-  @Nullable
-  HttpPipeline getHttpPipeline();
+  @Nullable HttpPipeline getHttpPipeline();
 
   void setHttpPipeline(HttpPipeline httpPipeline);
 }

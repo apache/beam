@@ -21,6 +21,8 @@
   <suppress checks="JavadocPackage" files=".*[\\\/]maven-archetypes[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]examples[\\\/].*"/>
   <suppress checks="JavadocPackage" files=".*[\\\/]build[\\\/]source-overrides[\\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]runners[\\\/]flink[\\\/].*"/>
+  <suppress checks="JavadocPackage" files=".*[\\\/]runners[\\\/]spark[\\\/].*"/>
   
   <suppress checks="JavadocMethod" files=".*Test\.java"/>
   <suppress checks="JavadocMethod" files=".*[\\\/]src[\\\/]test[\\\/].*"/>
@@ -56,11 +58,9 @@
   <!-- gRPC/protobuf exceptions -->
   <!-- Non-vendored gRPC/protobuf imports are allowed for files that depend on libraries that expose gRPC/protobuf in its public API -->
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*protobuf.*" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GcpHsmGeneratedSecret.*" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByEncryptedKeyTest.*" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByKeyTest.*" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*GroupByKeyIT.*" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*core.*ValidateRunnerXlangTest.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*gcp.*GcpHsmGeneratedSecret.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*gcp.*GcpGroupByEncryptedKeyTest.*" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*gcp.*GcpGroupByKeyIT.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*extensions.*ml.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*components.*ratelimiter.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*sdk.*io.*gcp.*" />

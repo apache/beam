@@ -122,17 +122,22 @@ public class NexmarkLauncher<OptionT extends NexmarkOptions> {
 
   /** Minimum number of samples needed for 'stead-state' rate calculation. */
   private static final int MIN_SAMPLES = 9;
+
   /** Minimum length of time over which to consider samples for 'steady-state' rate calculation. */
   private static final Duration MIN_WINDOW = Duration.standardMinutes(2);
+
   /** Delay between perf samples. */
   private static final Duration PERF_DELAY = Duration.standardSeconds(15);
+
   /**
    * How long to let streaming pipeline run after all events have been generated and we've seen no
    * activity.
    */
   private static final Duration DONE_DELAY = Duration.standardMinutes(1);
+
   /** How long to allow no activity at sources and sinks without warning. */
   private static final Duration STUCK_WARNING_DELAY = Duration.standardMinutes(10);
+
   /**
    * How long to let streaming pipeline run after we've seen no activity at sources or sinks, even
    * if all events have not been generated.

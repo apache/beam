@@ -30,6 +30,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Configuration for writing to BigQuery with SchemaTransforms. Used by {@link
@@ -44,6 +45,7 @@ public abstract class BigQueryWriteConfiguration {
   @AutoValue
   public abstract static class ErrorHandling {
     @SchemaFieldDescription("The name of the output PCollection containing failed writes.")
+    @Pure
     public abstract String getOutput();
 
     public static Builder builder() {
@@ -122,12 +124,14 @@ public abstract class BigQueryWriteConfiguration {
 
   @SchemaFieldDescription(
       "The bigquery table to write to. Format: [${PROJECT}:]${DATASET}.${TABLE}")
+  @Pure
   public abstract String getTable();
 
   @SchemaFieldDescription(
       "Optional field that specifies whether the job is allowed to create new tables. "
           + "The following values are supported: CREATE_IF_NEEDED (the job may create the table), CREATE_NEVER ("
           + "the job must fail if the table does not exist already).")
+  @Pure
   @Nullable
   public abstract String getCreateDisposition();
 
@@ -137,36 +141,43 @@ public abstract class BigQueryWriteConfiguration {
           + "WRITE_TRUNCATE (overwrites the table data), "
           + "WRITE_APPEND (append the data to the table), "
           + "WRITE_EMPTY (job must fail if the table is not empty).")
+  @Pure
   @Nullable
   public abstract String getWriteDisposition();
 
   @SchemaFieldDescription(
       "Determines how often to 'commit' progress into BigQuery. Default is every 5 seconds.")
+  @Pure
   @Nullable
   public abstract Long getTriggeringFrequencySeconds();
 
   @SchemaFieldDescription(
       "This option enables lower latency for insertions to BigQuery but may ocassionally "
           + "duplicate data elements.")
+  @Pure
   @Nullable
   public abstract Boolean getUseAtLeastOnceSemantics();
 
   @SchemaFieldDescription(
       "This option enables using a dynamically determined number of Storage Write API streams to write to "
           + "BigQuery. Only applicable to unbounded data.")
+  @Pure
   @Nullable
   public abstract Boolean getAutoSharding();
 
   @SchemaFieldDescription(
       "Specifies the number of write streams that the Storage API sink will use.")
+  @Pure
   @Nullable
   public abstract Integer getNumStreams();
 
   @SchemaFieldDescription("Use this Cloud KMS key to encrypt your data")
+  @Pure
   @Nullable
   public abstract String getKmsKey();
 
   @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+  @Pure
   @Nullable
   public abstract ErrorHandling getErrorHandling();
 
@@ -175,31 +186,37 @@ public abstract class BigQueryWriteConfiguration {
           + " should contain Beam Rows with a schema wrapping the record to be inserted and"
           + " adding the CDC info similar to: {row_mutation_info: {mutation_type:\"...\", "
           + "change_sequence_number:\"...\"}, record: {...}}")
+  @Pure
   @Nullable
   public abstract Boolean getUseCdcWrites();
 
   @SchemaFieldDescription(
       "If CREATE_IF_NEEDED disposition is set, BigQuery table(s) will be created with this"
           + " columns as primary key. Required when CDC writes are enabled with CREATE_IF_NEEDED.")
+  @Pure
   @Nullable
   public abstract List<String> getPrimaryKey();
 
   @SchemaFieldDescription(
       "A list of field names to keep in the input record. All other fields are dropped before writing. "
           + "Is mutually exclusive with 'drop' and 'only'.")
+  @Pure
   public abstract @Nullable List<String> getKeep();
 
   @SchemaFieldDescription(
       "A list of field names to drop from the input record before writing. "
           + "Is mutually exclusive with 'keep' and 'only'.")
+  @Pure
   public abstract @Nullable List<String> getDrop();
 
   @SchemaFieldDescription(
       "The name of a single record field that should be written. "
           + "Is mutually exclusive with 'keep' and 'drop'.")
+  @Pure
   public abstract @Nullable String getOnly();
 
   @SchemaFieldDescription("A list of columns to cluster the BigQuery table by.")
+  @Pure
   public abstract @Nullable List<String> getClusteringFields();
 
   @SchemaFieldDescription(
@@ -208,6 +225,7 @@ public abstract class BigQueryWriteConfiguration {
           + "\n - storageUri (REQUIRED): the path to your GCS folder where data will be written to,"
           + "\n - fileFormat (OPTIONAL): defaults to 'parquet',"
           + "\n - tableFormat (OPTIONAL): defaults to 'iceberg'.")
+  @Pure
   public abstract java.util.@Nullable Map<String, String> getBigLakeConfiguration();
 
   /** Builder for {@link BigQueryWriteConfiguration}. */

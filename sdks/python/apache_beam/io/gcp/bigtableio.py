@@ -283,7 +283,13 @@ class WriteToBigTable(beam.PTransform):
     def process(self, direct_row):
       args = {"key": direct_row.row_key, "mutations": []}
       # start accumulating mutations in a list
-      for mutation in direct_row._get_mutations():
+      # In google-cloud-bigtable >= 2.44.0, _get_mutations() returns Python
+      # dataclass objects (RowMutationEntry) instead of protobuf messages.
+      # Use _get_mutation_pbs() to retrieve Mutation protobuf objects.
+      mutations = (
+          direct_row._get_mutation_pbs() if hasattr(
+              direct_row, '_get_mutation_pbs') else direct_row._get_mutations())
+      for mutation in mutations:
         if mutation.__contains__("set_cell"):
           mutation_dict = {
               "type": b'SetCell',

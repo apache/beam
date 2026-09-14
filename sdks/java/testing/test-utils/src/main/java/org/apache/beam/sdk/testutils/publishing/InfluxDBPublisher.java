@@ -121,7 +121,9 @@ public final class InfluxDBPublisher {
         measurement, tags, fields, timestamp, timestampUnit);
   }
 
-  /** @deprecated Use {@link #publish} instead. */
+  /**
+   * @deprecated Use {@link #publish} instead.
+   */
   @Deprecated
   public static void publishNexmarkResults(
       final Collection<Map<String, Object>> results,
@@ -165,7 +167,9 @@ public final class InfluxDBPublisher {
     }
   }
 
-  /** @deprecated To be removed, kept for legacy interface {@link #publishNexmarkResults} */
+  /**
+   * @deprecated To be removed, kept for legacy interface {@link #publishNexmarkResults}
+   */
   @VisibleForTesting
   @Deprecated
   static String nexmarkDataPoints(

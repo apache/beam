@@ -40,18 +40,9 @@ public class MessageProducerUtils {
    * @param deliveryMode The {@link DeliveryMode} used to publish the message.
    * @return A {@link BytesXMLMessage} that can be sent to Solace "as is".
    */
-  public static BytesXMLMessage createBytesXMLMessage(
+  public static BytesXMLMessage createMessage(
       Solace.Record record, boolean useCorrelationKeyLatency, DeliveryMode deliveryMode) {
-    JCSMPFactory jcsmpFactory = JCSMPFactory.onlyInstance();
-    BytesXMLMessage msg = jcsmpFactory.createBytesXMLMessage();
-    byte[] payload = record.getPayload();
-    msg.writeBytes(payload);
-
-    Long senderTimestamp = record.getSenderTimestamp();
-    if (senderTimestamp == null) {
-      senderTimestamp = System.currentTimeMillis();
-    }
-    msg.setSenderTimestamp(senderTimestamp);
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
     msg.setDeliveryMode(deliveryMode);
     if (useCorrelationKeyLatency) {
       Solace.CorrelationKey key =
@@ -64,7 +55,6 @@ public class MessageProducerUtils {
       // Use only a string as correlation key
       msg.setCorrelationKey(record.getMessageId());
     }
-    msg.setApplicationMessageId(record.getMessageId());
     return msg;
   }
 
@@ -100,7 +90,7 @@ public class MessageProducerUtils {
       JCSMPSendMultipleEntry entry =
           JCSMPFactory.onlyInstance()
               .createSendMultipleEntry(
-                  createBytesXMLMessage(record, useCorrelationKeyLatency, deliveryMode),
+                  createMessage(record, useCorrelationKeyLatency, deliveryMode),
                   destinationFn.apply(record));
       entries[i] = entry;
     }

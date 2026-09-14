@@ -130,6 +130,7 @@ public class WordCount {
           });
     }
   }
+
   // [END extract_words_fn]
 
   /** A SimpleFunction that converts a Word and Count into a printable string. */
@@ -163,6 +164,7 @@ public class WordCount {
       return wordCounts;
     }
   }
+
   // [END count_words]
 
   /**
@@ -194,6 +196,7 @@ public class WordCount {
 
     void setOutput(String value);
   }
+
   // [END wordcount_options]
 
   static void runWordCount(WordCountOptions options) {

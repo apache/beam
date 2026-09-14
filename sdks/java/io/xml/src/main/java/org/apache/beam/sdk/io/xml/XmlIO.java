@@ -252,7 +252,9 @@ public class XmlIO {
       abstract Read<T> build();
     }
 
-    /** @deprecated Use {@link Compression} instead. */
+    /**
+     * @deprecated Use {@link Compression} instead.
+     */
     @Deprecated
     public enum CompressionType {
       /** See {@link Compression#AUTO}. */
@@ -340,7 +342,9 @@ public class XmlIO {
       return toBuilder().setMinBundleSize(minBundleSize).build();
     }
 
-    /** @deprecated use {@link #withCompression}. */
+    /**
+     * @deprecated use {@link #withCompression}.
+     */
     @Deprecated
     public Read<T> withCompressionType(CompressionType compressionType) {
       return withCompression(compressionType.canonical);

@@ -143,6 +143,69 @@ func TestCPUCountHint_Payload(t *testing.T) {
 	}
 }
 
+func TestCPUCountHint_String(t *testing.T) {
+	tests := []struct {
+		value uint64
+		want  string
+	}{
+		{0, "cpu_count=0"},
+		{1, "cpu_count=1"},
+		{4, "cpu_count=4"},
+		{128, "cpu_count=128"},
+	}
+
+	for _, test := range tests {
+		h := CPUCountHint{value: test.value}
+		if got, want := h.String(), test.want; got != want {
+			t.Errorf("%v.String() = %v, want %v", h, got, want)
+		}
+	}
+}
+
+func TestParseCPUCount(t *testing.T) {
+	tests := []struct {
+		value   string
+		payload string
+	}{
+		{"0", "0"},
+		{"1", "1"},
+		{"2", "2"},
+		{"4", "4"},
+		{"11", "11"},
+		{"2003", "2003"},
+		{"12000000", "12000000"},
+		{"18446744073709551615", "18446744073709551615"},
+	}
+
+	for _, test := range tests {
+		h := ParseCPUCount(test.value)
+		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
+			t.Errorf("%v.Payload() = %v, want %v", h, string(got), string(want))
+		}
+	}
+}
+
+func TestParseCPUCount_panic(t *testing.T) {
+	tests := []string{
+		"a bad cpu string",
+		"-1",
+		"1.5",
+		"",
+		"18446744073709551616",
+	}
+
+	for _, test := range tests {
+		t.Run(test, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("want ParseCPUCount(%q) to panic", test)
+				}
+			}()
+			ParseCPUCount(test)
+		})
+	}
+}
+
 func TestMaxActiveBundlesPerWorkerHint_MergeWith(t *testing.T) {
 	low := maxActiveBundlesPerWorkerHint{value: 2}
 	high := maxActiveBundlesPerWorkerHint{value: 4}

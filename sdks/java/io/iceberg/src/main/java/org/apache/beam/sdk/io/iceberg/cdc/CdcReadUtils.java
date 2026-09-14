@@ -286,8 +286,7 @@ public final class CdcReadUtils {
     // matches).
     DeleteReader.PreloadedDeletes preloadedDeletes = DeleteReader.PreloadedDeletes.empty();
     if (!posFiles.isEmpty()) {
-      @Nullable
-      PositionPushdownResult pushdown =
+      @Nullable PositionPushdownResult pushdown =
           tryPositionByteRangePushdown(
               task, table, scanConfig, outputSchema, posFiles, eqFiles, addedDeletes);
       if (pushdown != null) {

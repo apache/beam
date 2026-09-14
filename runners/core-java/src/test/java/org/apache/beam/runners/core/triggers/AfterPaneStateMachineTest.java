@@ -36,6 +36,7 @@ import org.junit.runners.JUnit4;
 public class AfterPaneStateMachineTest {
 
   SimpleTriggerStateMachineTester<IntervalWindow> tester;
+
   /**
    * Tests that the trigger does fire when enough elements are in a window, and that it only fires
    * that window (no leakage).

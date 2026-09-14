@@ -18,6 +18,7 @@ package code_processing
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/google/go-cmp/cmp"
 	"io/fs"
@@ -1304,10 +1305,10 @@ func Test_processSetupError(t *testing.T) {
 		{
 			name: "Error during HSet operation",
 			mocks: func() {
-				mock.ExpectHSet(pipelineId.String(), "MOCK_VALUE").SetErr(fmt.Errorf(errorMessage))
+				mock.ExpectHSet(pipelineId.String(), "MOCK_VALUE").SetErr(errors.New(errorMessage))
 			},
 			args: args{
-				err:        fmt.Errorf(errorMessage),
+				err:        errors.New(errorMessage),
 				pipelineId: pipelineId,
 				cacheService: &redis.Cache{
 					Client: client,
@@ -1351,11 +1352,11 @@ func Test_processErrorWithSavingOutput(t *testing.T) {
 		{
 			name: "Error during HSet operation",
 			mocks: func() {
-				mock.ExpectHSet(pipelineId.String(), subKey).SetErr(fmt.Errorf(errorMessage))
+				mock.ExpectHSet(pipelineId.String(), subKey).SetErr(errors.New(errorMessage))
 			},
 			args: args{
 				ctx:          context.Background(),
-				err:          fmt.Errorf(errorMessage),
+				err:          errors.New(errorMessage),
 				errorOutput:  nil,
 				pipelineId:   pipelineId,
 				subKey:       subKey,
@@ -1382,7 +1383,7 @@ func Test_processRunError(t *testing.T) {
 	errorMessage := "MOCK_ERROR"
 	subKey := cache.RunError
 	errorChannel := make(chan error, 1)
-	errorChannel <- fmt.Errorf(errorMessage)
+	errorChannel <- errors.New(errorMessage)
 	type args struct {
 		ctx                   context.Context
 		errorChannel          chan error
@@ -1401,7 +1402,7 @@ func Test_processRunError(t *testing.T) {
 		{
 			name: "Error during HSet operation",
 			mocks: func() {
-				mock.ExpectHSet(pipelineId.String(), subKey).SetErr(fmt.Errorf(errorMessage))
+				mock.ExpectHSet(pipelineId.String(), subKey).SetErr(errors.New(errorMessage))
 			},
 			args: args{
 				ctx:                   context.Background(),

@@ -69,8 +69,7 @@ public abstract class AbstractSimulator<InputT, OutputT extends KnownSize> {
   }
 
   /** Called by implementors of {@link #run}: Fetch the next input element. */
-  @Nullable
-  TimestampedValue<InputT> nextInput() {
+  @Nullable TimestampedValue<InputT> nextInput() {
     if (!input.hasNext()) {
       return null;
     }

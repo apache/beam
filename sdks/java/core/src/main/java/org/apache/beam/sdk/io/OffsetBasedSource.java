@@ -219,7 +219,9 @@ public abstract class OffsetBasedSource<T> extends BoundedSource<T> {
     /** The {@link OffsetRangeTracker} managing the range and current position of the source. */
     private final OffsetRangeTracker rangeTracker;
 
-    /** @param source the {@link OffsetBasedSource} to be read by the current reader. */
+    /**
+     * @param source the {@link OffsetBasedSource} to be read by the current reader.
+     */
     public OffsetBasedReader(OffsetBasedSource<T> source) {
       this.source = source;
       this.rangeTracker = new OffsetRangeTracker(source.getStartOffset(), source.getEndOffset());

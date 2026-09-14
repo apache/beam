@@ -31,20 +31,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public interface SchemaProvider extends Serializable {
 
   /** Lookup a schema for the given type. If no schema exists, returns null. */
-  @Nullable
-  <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor);
+  @Nullable <T> Schema schemaFor(TypeDescriptor<T> typeDescriptor);
 
   /**
    * Given a type, return a function that converts that type to a {@link Row} object If no schema
    * exists, returns null.
    */
-  @Nullable
-  <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor);
+  @Nullable <T> SerializableFunction<T, Row> toRowFunction(TypeDescriptor<T> typeDescriptor);
 
   /**
    * Given a type, returns a function that converts from a {@link Row} object to that type. If no
    * schema exists, returns null.
    */
-  @Nullable
-  <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor);
+  @Nullable <T> SerializableFunction<Row, T> fromRowFunction(TypeDescriptor<T> typeDescriptor);
 }

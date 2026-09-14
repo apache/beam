@@ -128,10 +128,13 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
 
   /** Map of preparationId to preparation. */
   private final ConcurrentHashMap<String, JobPreparation> preparations;
+
   /** Map of preparationId to staging token. */
   private final ConcurrentHashMap<String, String> stagingSessionTokens;
+
   /** Map of invocationId to invocation. */
   private final ConcurrentHashMap<String, JobInvocation> invocations;
+
   /** InvocationIds of completed invocations in least-recently-completed order. */
   private final ConcurrentLinkedDeque<String> completedInvocationsIds;
 
@@ -311,8 +314,7 @@ public class InMemoryJobService extends JobServiceGrpc.JobServiceImplBase implem
         newSubEnvs.add(
             subEnv.getDependenciesCount() == 0
                 ? subEnv
-                : subEnv
-                    .toBuilder()
+                : subEnv.toBuilder()
                     .clearDependencies()
                     .addAllDependencies(resolvedDependencies.get(i + ":" + entry.getKey()))
                     .build());

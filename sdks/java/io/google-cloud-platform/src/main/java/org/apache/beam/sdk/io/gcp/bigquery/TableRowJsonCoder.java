@@ -70,7 +70,8 @@ public class TableRowJsonCoder extends AtomicCoder<TableRow> {
 
   // FAIL_ON_EMPTY_BEANS is disabled in order to handle null values in
   // TableRow.
-  private static final ObjectMapper MAPPER;;
+  private static final ObjectMapper MAPPER;
+  ;
   private static final TableRowJsonCoder INSTANCE;
   private static final TypeDescriptor<TableRow> TYPE_DESCRIPTOR;
 

@@ -642,6 +642,7 @@ public class MetadataTableDaoTest {
   public void readAndWriteInvalidMissingPartitionsDuration() {
     HashMap<ByteStringRange, Instant> missingPartitionsDuration = new HashMap<>();
 
+    long nowMicros = Instant.now().getMillis() * 1000L;
     RowMutation rowMutation =
         RowMutation.create(
                 metadataTableAdminDao.getTableId(),
@@ -651,6 +652,7 @@ public class MetadataTableDaoTest {
             .setCell(
                 MetadataTableAdminDao.CF_MISSING_PARTITIONS,
                 ByteString.copyFromUtf8(MetadataTableAdminDao.QUALIFIER_DEFAULT),
+                nowMicros,
                 ByteString.copyFromUtf8("Invalid serialization"));
     dataClient.mutateRow(rowMutation);
 

@@ -185,8 +185,7 @@ public class AvroUtils {
       // getClassLoader returns @Nullable Classloader, but it's ok, as ReflectData constructor
       // actually tolerates null classloader argument despite lacking the @Nullable annotation
       @SuppressWarnings("nullness")
-      @NonNull
-      ClassLoader classLoader = clazz.getClassLoader();
+      @NonNull ClassLoader classLoader = clazz.getClassLoader();
       return new ReflectData(classLoader);
     }
 

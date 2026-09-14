@@ -229,7 +229,8 @@ public class ByteBuddyUtils {
     private static boolean overridePackage(@Nullable String targetPackage) {
       return targetPackage != null && !targetPackage.startsWith("java.");
     }
-  };
+  }
+  ;
 
   static class IfNullElse implements StackManipulation {
     private final StackManipulation readValue;

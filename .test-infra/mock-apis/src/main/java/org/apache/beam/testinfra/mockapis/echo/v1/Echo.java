@@ -54,6 +54,7 @@ public final class Echo {
      * @return The id.
      */
     java.lang.String getId();
+
     /**
      * <code>string id = 1 [json_name = "id"];</code>
      *
@@ -68,6 +69,7 @@ public final class Echo {
      */
     com.google.protobuf.ByteString getPayload();
   }
+
   /**
    *
    *
@@ -82,6 +84,7 @@ public final class Echo {
       // @@protoc_insertion_point(message_implements:proto.echo.v1.EchoRequest)
       EchoRequestOrBuilder {
     private static final long serialVersionUID = 0L;
+
     // Use EchoRequest.newBuilder() to construct.
     private EchoRequest(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
       super(builder);
@@ -122,6 +125,7 @@ public final class Echo {
 
     @SuppressWarnings("serial")
     private volatile java.lang.Object id_ = "";
+
     /**
      * <code>string id = 1 [json_name = "id"];</code>
      *
@@ -139,6 +143,7 @@ public final class Echo {
         return s;
       }
     }
+
     /**
      * <code>string id = 1 [json_name = "id"];</code>
      *
@@ -159,6 +164,7 @@ public final class Echo {
 
     public static final int PAYLOAD_FIELD_NUMBER = 2;
     private com.google.protobuf.ByteString payload_ = com.google.protobuf.ByteString.EMPTY;
+
     /**
      * <code>bytes payload = 2 [json_name = "payload"];</code>
      *
@@ -339,6 +345,7 @@ public final class Echo {
       Builder builder = new Builder(parent);
       return builder;
     }
+
     /**
      *
      *
@@ -542,6 +549,7 @@ public final class Echo {
       private int bitField0_;
 
       private java.lang.Object id_ = "";
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -558,6 +566,7 @@ public final class Echo {
           return (java.lang.String) ref;
         }
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -574,6 +583,7 @@ public final class Echo {
           return (com.google.protobuf.ByteString) ref;
         }
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -589,6 +599,7 @@ public final class Echo {
         onChanged();
         return this;
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -600,6 +611,7 @@ public final class Echo {
         onChanged();
         return this;
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -618,6 +630,7 @@ public final class Echo {
       }
 
       private com.google.protobuf.ByteString payload_ = com.google.protobuf.ByteString.EMPTY;
+
       /**
        * <code>bytes payload = 2 [json_name = "payload"];</code>
        *
@@ -627,6 +640,7 @@ public final class Echo {
       public com.google.protobuf.ByteString getPayload() {
         return payload_;
       }
+
       /**
        * <code>bytes payload = 2 [json_name = "payload"];</code>
        *
@@ -642,6 +656,7 @@ public final class Echo {
         onChanged();
         return this;
       }
+
       /**
        * <code>bytes payload = 2 [json_name = "payload"];</code>
        *
@@ -730,6 +745,7 @@ public final class Echo {
      * @return The id.
      */
     java.lang.String getId();
+
     /**
      * <code>string id = 1 [json_name = "id"];</code>
      *
@@ -744,6 +760,7 @@ public final class Echo {
      */
     com.google.protobuf.ByteString getPayload();
   }
+
   /**
    *
    *
@@ -758,6 +775,7 @@ public final class Echo {
       // @@protoc_insertion_point(message_implements:proto.echo.v1.EchoResponse)
       EchoResponseOrBuilder {
     private static final long serialVersionUID = 0L;
+
     // Use EchoResponse.newBuilder() to construct.
     private EchoResponse(com.google.protobuf.GeneratedMessageV3.Builder<?> builder) {
       super(builder);
@@ -798,6 +816,7 @@ public final class Echo {
 
     @SuppressWarnings("serial")
     private volatile java.lang.Object id_ = "";
+
     /**
      * <code>string id = 1 [json_name = "id"];</code>
      *
@@ -815,6 +834,7 @@ public final class Echo {
         return s;
       }
     }
+
     /**
      * <code>string id = 1 [json_name = "id"];</code>
      *
@@ -835,6 +855,7 @@ public final class Echo {
 
     public static final int PAYLOAD_FIELD_NUMBER = 2;
     private com.google.protobuf.ByteString payload_ = com.google.protobuf.ByteString.EMPTY;
+
     /**
      * <code>bytes payload = 2 [json_name = "payload"];</code>
      *
@@ -1015,6 +1036,7 @@ public final class Echo {
       Builder builder = new Builder(parent);
       return builder;
     }
+
     /**
      *
      *
@@ -1218,6 +1240,7 @@ public final class Echo {
       private int bitField0_;
 
       private java.lang.Object id_ = "";
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -1234,6 +1257,7 @@ public final class Echo {
           return (java.lang.String) ref;
         }
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -1250,6 +1274,7 @@ public final class Echo {
           return (com.google.protobuf.ByteString) ref;
         }
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -1265,6 +1290,7 @@ public final class Echo {
         onChanged();
         return this;
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -1276,6 +1302,7 @@ public final class Echo {
         onChanged();
         return this;
       }
+
       /**
        * <code>string id = 1 [json_name = "id"];</code>
        *
@@ -1294,6 +1321,7 @@ public final class Echo {
       }
 
       private com.google.protobuf.ByteString payload_ = com.google.protobuf.ByteString.EMPTY;
+
       /**
        * <code>bytes payload = 2 [json_name = "payload"];</code>
        *
@@ -1303,6 +1331,7 @@ public final class Echo {
       public com.google.protobuf.ByteString getPayload() {
         return payload_;
       }
+
       /**
        * <code>bytes payload = 2 [json_name = "payload"];</code>
        *
@@ -1318,6 +1347,7 @@ public final class Echo {
         onChanged();
         return this;
       }
+
       /**
        * <code>bytes payload = 2 [json_name = "payload"];</code>
        *

@@ -207,6 +207,7 @@ public abstract class Coder<T> implements Serializable {
       throws Exception {
     return target.getEncodedElementByteSize(value);
   }
+
   /**
    * Verifies all of the provided coders are deterministic. If any are not, throws a {@link
    * NonDeterministicException} for the {@code target} {@link Coder}.

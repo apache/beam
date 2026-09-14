@@ -24,6 +24,5 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** Construct an oauth credential to be used by the SDK and the SDK workers. */
 public interface CredentialFactory {
-  @Nullable
-  Credentials getCredential() throws IOException, GeneralSecurityException;
+  @Nullable Credentials getCredential() throws IOException, GeneralSecurityException;
 }

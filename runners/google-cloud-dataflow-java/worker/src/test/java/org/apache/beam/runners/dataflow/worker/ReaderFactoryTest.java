@@ -128,7 +128,7 @@ public class ReaderFactoryTest {
     Source cloudSource = new Source();
     cloudSource.setSpec(spec);
     cloudSource.setCodec(
-        CloudObjects.asCloudObject(BigEndianIntegerCoder.of(), /*sdkComponents=*/ null));
+        CloudObjects.asCloudObject(BigEndianIntegerCoder.of(), /* sdkComponents= */ null));
 
     PipelineOptions options = PipelineOptionsFactory.create();
     ReaderRegistry registry =
@@ -148,7 +148,8 @@ public class ReaderFactoryTest {
     CloudObject spec = CloudObject.forClassName("UnknownSource");
     Source cloudSource = new Source();
     cloudSource.setSpec(spec);
-    cloudSource.setCodec(CloudObjects.asCloudObject(StringUtf8Coder.of(), /*sdkComponents=*/ null));
+    cloudSource.setCodec(
+        CloudObjects.asCloudObject(StringUtf8Coder.of(), /* sdkComponents= */ null));
     try {
       PipelineOptions options = PipelineOptionsFactory.create();
       ReaderRegistry.defaultRegistry()

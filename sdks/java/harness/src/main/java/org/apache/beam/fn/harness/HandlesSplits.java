@@ -31,8 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 public interface HandlesSplits {
 
   /** Returns null if the split was unsuccessful. */
-  @Nullable
-  SplitResult trySplit(double fractionOfRemainder);
+  @Nullable SplitResult trySplit(double fractionOfRemainder);
 
   /** Returns the current progress of the active element as a fraction between 0.0 and 1.0. */
   double getProgress();

@@ -76,7 +76,9 @@ public abstract class SerializableDataFile {
   @SchemaFieldNumber("3")
   public abstract long getFileSizeInBytes();
 
-  /** @deprecated Use {@link #getJsonPartition()} instead. */
+  /**
+   * @deprecated Use {@link #getJsonPartition()} instead.
+   */
   @SchemaFieldNumber("4")
   @Deprecated
   public abstract String getPartitionPath();

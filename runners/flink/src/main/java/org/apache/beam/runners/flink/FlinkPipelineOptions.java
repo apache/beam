@@ -209,7 +209,9 @@ public interface FlinkPipelineOptions
           + "Defaults to the flink cluster's state.backend configuration.")
   Class<? extends FlinkStateBackendFactory> getStateBackendFactory();
 
-  /** @deprecated Please use setStateBackend below. */
+  /**
+   * @deprecated Please use setStateBackend below.
+   */
   @Deprecated
   void setStateBackendFactory(Class<? extends FlinkStateBackendFactory> stateBackendFactory);
 
@@ -379,6 +381,17 @@ public interface FlinkPipelineOptions
   Long getFileInputSplitMaxSizeMB();
 
   void setFileInputSplitMaxSizeMB(Long fileInputSplitMaxSizeMB);
+
+  @Description(
+      "Static split assignment threshold in MiB per source reader for bounded sources in Flink "
+          + "DataStream mode. The default of 0 always uses lazy assignment. A positive value "
+          + "selects static round-robin assignment for sources with a known, positive estimate "
+          + "below the threshold and lazy assignment otherwise. Any negative value always uses "
+          + "static assignment.")
+  @Default.Long(0)
+  Long getSourceStaticSplitThresholdMb();
+
+  void setSourceStaticSplitThresholdMb(Long thresholdMb);
 
   @Description(
       "Allow drain operation for flink pipelines that contain RequiresStableInput operator. Note that at time of draining,"

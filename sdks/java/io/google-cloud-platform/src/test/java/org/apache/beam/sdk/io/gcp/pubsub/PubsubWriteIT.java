@@ -165,8 +165,7 @@ public class PubsubWriteIT {
 
       for (IncomingMessage incomingMessage : incomingMessages) {
         com.google.pubsub.v1.PubsubMessage message = incomingMessage.message();
-        @Nullable
-        PubsubMessage outgoingMessage =
+        @Nullable PubsubMessage outgoingMessage =
             outgoingMessages.remove(message.getAttributesMap().get("id"));
         if (outgoingMessage != null) {
           emptyOrDuplicatePull = false;

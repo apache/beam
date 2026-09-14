@@ -110,7 +110,9 @@ public class SplittableTruncateSizedRestrictionsDoFnRunnerTest implements Serial
 
     public static final String TEST_TRANSFORM_ID = "pTransformId";
 
-    /** @return a test MetricUpdate for expected metrics to compare against */
+    /**
+     * @return a test MetricUpdate for expected metrics to compare against
+     */
     public MetricUpdate create(String stepName, MetricName name, long value) {
       return MetricUpdate.create(MetricKey.create(stepName, name), value);
     }

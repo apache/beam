@@ -750,8 +750,7 @@ public class IcebergIO {
 
       Table table = TableCache.get(getCatalogConfig(), tableId);
 
-      @Nullable
-      String updateCompatibilityVersion =
+      @Nullable String updateCompatibilityVersion =
           input
               .getPipeline()
               .getOptions()

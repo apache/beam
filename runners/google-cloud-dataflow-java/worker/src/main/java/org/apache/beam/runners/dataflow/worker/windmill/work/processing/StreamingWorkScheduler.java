@@ -289,8 +289,7 @@ public class StreamingWorkScheduler {
       Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
       // Compute shuffle and state byte statistics these will be flushed asynchronously.
       long stateBytesWritten =
-          commit
-              .toBuilder()
+          commit.toBuilder()
               .clearOutputMessages()
               .clearPerWorkItemLatencyAttributions()
               .build()
@@ -415,8 +414,7 @@ public class StreamingWorkScheduler {
       Windmill.WorkItemCommitRequest commit = workItemCommits.get(i);
       Work w = workBatch.get(i);
       multiKeyBuilder.addRequests(
-          commit
-              .toBuilder()
+          commit.toBuilder()
               .addAllPerWorkItemLatencyAttributions(w.getLatencyAttributions(sampler))
               .build());
     }
@@ -438,8 +436,7 @@ public class StreamingWorkScheduler {
       ComputationState computationState, Work work, Windmill.WorkItemCommitRequest commitRequest) {
     work.setState(Work.State.COMMIT_QUEUED);
     Windmill.WorkItemCommitRequest commitRequestWithAttributions =
-        commitRequest
-            .toBuilder()
+        commitRequest.toBuilder()
             .addAllPerWorkItemLatencyAttributions(work.getLatencyAttributions(sampler))
             .build();
     work.queueCommit(commitRequestWithAttributions, computationState);

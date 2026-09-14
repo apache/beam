@@ -106,6 +106,7 @@ import org.joda.time.Instant;
  */
 public class WindowedWordCount {
   static final int WINDOW_SIZE = 10; // Default window duration in minutes
+
   /**
    * Concept #2: A DoFn that sets the data element timestamp. This is a silly method, just for this
    * example, for the bounded data case.

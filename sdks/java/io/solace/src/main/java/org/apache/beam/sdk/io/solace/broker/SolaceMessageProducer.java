@@ -17,8 +17,8 @@
  */
 package org.apache.beam.sdk.io.solace.broker;
 
-import static org.apache.beam.sdk.io.solace.broker.MessageProducerUtils.createBytesXMLMessage;
 import static org.apache.beam.sdk.io.solace.broker.MessageProducerUtils.createJCSMPSendMultipleEntry;
+import static org.apache.beam.sdk.io.solace.broker.MessageProducerUtils.createMessage;
 
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
@@ -50,7 +50,7 @@ public class SolaceMessageProducer implements MessageProducer {
       Destination topicOrQueue,
       boolean useCorrelationKeyLatency,
       DeliveryMode deliveryMode) {
-    BytesXMLMessage msg = createBytesXMLMessage(record, useCorrelationKeyLatency, deliveryMode);
+    BytesXMLMessage msg = createMessage(record, useCorrelationKeyLatency, deliveryMode);
     Callable<Integer> publish =
         () -> {
           producer.send(msg, topicOrQueue);
