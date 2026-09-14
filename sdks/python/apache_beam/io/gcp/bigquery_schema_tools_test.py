@@ -512,6 +512,151 @@ class TestTypeOverridesSchemaTools(unittest.TestCase):
         bq_field_to_type("GEOGRAPHY", "REQUIRED", overrides), bytes)
 
 
+class TestBeamSchemaToBqTableSchema(unittest.TestCase):
+  """Tests for beam_schema_to_bq_table_schema, the reverse of
+  generate_user_type_from_bq_schema, used to auto-infer a destination
+  table's schema from a schema'd PCollection (e.g. for FILE_LOADS)."""
+  def test_atomic_types(self):
+    import decimal
+
+    class MyRow(typing.NamedTuple):
+      name: str
+      age: np.int64
+      score: float
+      active: bool
+      raw: bytes
+      amount: decimal.Decimal
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    bq_schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+    self.assertEqual(
+        bq_schema,
+        {
+            'fields': [
+                {
+                    'name': 'name', 'type': 'STRING', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'age', 'type': 'INT64', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'score', 'type': 'FLOAT64', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'active', 'type': 'BOOL', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'raw', 'type': 'BYTES', 'mode': 'REQUIRED'
+                },
+                {
+                    'name': 'amount', 'type': 'NUMERIC', 'mode': 'REQUIRED'
+                },
+            ]
+        })
+
+  def test_timestamp_type(self):
+    from apache_beam.utils.timestamp import Timestamp
+
+    class MyRow(typing.NamedTuple):
+      when: Timestamp
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    bq_schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+    self.assertEqual(
+        bq_schema,
+        {'fields': [{
+            'name': 'when', 'type': 'TIMESTAMP', 'mode': 'REQUIRED'
+        }]})
+
+  def test_nullable_field(self):
+    class MyRow(typing.NamedTuple):
+      name: typing.Optional[str]
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    bq_schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+    self.assertEqual(
+        bq_schema,
+        {'fields': [{
+            'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+        }]})
+
+  def test_repeated_field(self):
+    class MyRow(typing.NamedTuple):
+      tags: typing.Sequence[str]
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    bq_schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+    self.assertEqual(
+        bq_schema,
+        {'fields': [{
+            'name': 'tags', 'type': 'STRING', 'mode': 'REPEATED'
+        }]})
+
+  def test_nested_record(self):
+    class Nested(typing.NamedTuple):
+      x: np.int64
+      y: typing.Optional[str]
+
+    class MyRow(typing.NamedTuple):
+      nested: Nested
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    bq_schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+    self.assertEqual(
+        bq_schema,
+        {
+            'fields': [{
+                'name': 'nested',
+                'type': 'STRUCT',
+                'mode': 'REQUIRED',
+                'fields': [
+                    {
+                        'name': 'x', 'type': 'INT64', 'mode': 'REQUIRED'
+                    },
+                    {
+                        'name': 'y', 'type': 'STRING', 'mode': 'NULLABLE'
+                    },
+                ]
+            }]
+        })
+
+  def test_repeated_record(self):
+    class Nested(typing.NamedTuple):
+      x: np.int64
+
+    class MyRow(typing.NamedTuple):
+      nested_list: typing.Sequence[Nested]
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    bq_schema = bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+    self.assertEqual(
+        bq_schema,
+        {
+            'fields': [{
+                'name': 'nested_list',
+                'type': 'STRUCT',
+                'mode': 'REPEATED',
+                'fields': [{
+                    'name': 'x', 'type': 'INT64', 'mode': 'REQUIRED'
+                }]
+            }]
+        })
+
+  def test_map_type_raises(self):
+    class MyRow(typing.NamedTuple):
+      attrs: typing.Mapping[str, str]
+
+    schema = beam.typehints.schemas.schema_from_element_type(MyRow)
+    with self.assertRaises(ValueError):
+      bigquery_schema_tools.beam_schema_to_bq_table_schema(schema)
+
+
 if __name__ == '__main__':
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
