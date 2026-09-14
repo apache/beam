@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.avro.io;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import com.google.auto.service.AutoService;
 import java.io.Serializable;
 import org.apache.avro.generic.GenericRecord;
@@ -45,9 +47,6 @@ import org.joda.time.Duration;
  */
 @Internal
 @AutoService(SchemaIOProvider.class)
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class AvroSchemaIOProvider implements SchemaIOProvider {
   /** Returns an id that uniquely represents this IO. */
   @Override
@@ -69,8 +68,10 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
    * resides there, and some IO-specific configuration object.
    */
   @Override
-  public AvroSchemaIO from(String location, Row configuration, Schema dataSchema) {
-    return new AvroSchemaIO(location, dataSchema, configuration);
+  public AvroSchemaIO from(String location, Row configuration, @Nullable Schema dataSchema) {
+    // requiresDataSchema() is true, so callers must supply a data schema
+    return new AvroSchemaIO(
+        location, checkArgumentNotNull(dataSchema, "dataSchema is required"), configuration);
   }
 
   @Override
@@ -94,11 +95,8 @@ public class AvroSchemaIOProvider implements SchemaIOProvider {
     private AvroSchemaIO(String location, Schema dataSchema, Row configuration) {
       this.dataSchema = dataSchema;
       this.location = location;
-      if (configuration.getInt64("writeWindowSizeSeconds") != null) {
-        windowSize = Duration.standardSeconds(configuration.getInt64("writeWindowSizeSeconds"));
-      } else {
-        windowSize = null;
-      }
+      Long windowSizeSeconds = configuration.getInt64("writeWindowSizeSeconds");
+      windowSize = windowSizeSeconds == null ? null : Duration.standardSeconds(windowSizeSeconds);
     }
 
     @Override
