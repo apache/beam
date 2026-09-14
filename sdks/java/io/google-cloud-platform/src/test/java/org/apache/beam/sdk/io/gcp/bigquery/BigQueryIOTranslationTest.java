@@ -20,6 +20,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.bigquery.model.Clustering;
@@ -274,6 +275,70 @@ public class BigQueryIOTranslationTest {
     assertEquals(
         BigQueryHelpers.toJsonString(testClustering),
         writeTransformFromRow.getJsonClustering().get());
+  }
+
+  @Test
+  public void testReCreateWriteTransformDropsLegacyMaxRetryJobsDefault() {
+    // an SDK older than 2.77.0 put 1000 in every config row, so this is what a pipeline that never
+    // called withMaxRetryJobs looks like once one of those versions has serialized it
+    BigQueryIO.Write<?> writeTransform =
+        BigQueryIO.write()
+            .to("dummyproject:dummydataset.dummytable")
+            .withMaxRetryJobs(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED);
+
+    BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOWriteTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.76.0");
+    BigQueryIO.Write<?> writeTransformFromRow =
+        (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
+
+    // unset, so a bounded write falls back to BatchLoads' default of 3 as it did before the
+    // upgrade, rather than jumping to 1000
+    assertNull(writeTransformFromRow.getMaxRetryJobs());
+  }
+
+  @Test
+  public void testReCreateWriteTransformKeepsLegacyMaxRetryJobsOtherThanDefault() {
+    BigQueryIO.Write<?> writeTransform =
+        BigQueryIO.write().to("dummyproject:dummydataset.dummytable").withMaxRetryJobs(7);
+
+    BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOWriteTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.76.0");
+    BigQueryIO.Write<?> writeTransformFromRow =
+        (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
+
+    // 7 was never a default in any version, so the pipeline must have asked for it
+    assertEquals(Integer.valueOf(7), writeTransformFromRow.getMaxRetryJobs());
+  }
+
+  @Test
+  public void testReCreateWriteTransformKeepsMaxRetryJobsFromCurrentVersion() {
+    BigQueryIO.Write<?> writeTransform =
+        BigQueryIO.write()
+            .to("dummyproject:dummydataset.dummytable")
+            .withMaxRetryJobs(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED);
+
+    BigQueryIOTranslation.BigQueryIOWriteTranslator translator =
+        new BigQueryIOTranslation.BigQueryIOWriteTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.77.0");
+    BigQueryIO.Write<?> writeTransformFromRow =
+        (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
+
+    // 2.77.0 and later only write this field when the pipeline set it, so 1000 is a real choice
+    // here
+    assertEquals(
+        Integer.valueOf(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED),
+        writeTransformFromRow.getMaxRetryJobs());
   }
 
   @Test

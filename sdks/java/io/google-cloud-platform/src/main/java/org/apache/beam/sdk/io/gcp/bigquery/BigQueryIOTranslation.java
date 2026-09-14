@@ -892,8 +892,18 @@ public class BigQueryIOTranslation {
         if (ignoreInsertIds != null) {
           builder = builder.setIgnoreInsertIds(ignoreInsertIds);
         }
+        // before 2.77.0 BigQueryIO.write() always seeded maxRetryJobs with 1000, whether or not the
+        // pipeline ever called withMaxRetryJobs, and a bounded write ignored the value and used
+        // BatchLoads' own default of 3. so a row from one of those versions that holds exactly 1000
+        // tells us nothing about what the user asked for. leaving it unset makes both modes fall
+        // back to the same numbers they used before the upgrade, 3 for bounded and 1000 for
+        // unbounded. any other value was chosen deliberately and is carried over
         Integer maxRetryJobs = configRow.getInt32("max_retry_jobs");
-        if (maxRetryJobs != null) {
+        boolean isPreservedLegacyDefault =
+            TransformUpgrader.compareVersions(updateCompatibilityBeamVersion, "2.77.0") < 0
+                && Integer.valueOf(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED)
+                    .equals(maxRetryJobs);
+        if (maxRetryJobs != null && !isPreservedLegacyDefault) {
           builder = builder.setMaxRetryJobs(maxRetryJobs);
         }
         String kmsKey = configRow.getString("kms_key");

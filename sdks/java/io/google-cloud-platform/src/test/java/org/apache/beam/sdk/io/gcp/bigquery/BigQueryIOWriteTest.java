@@ -2154,8 +2154,36 @@ public class BigQueryIOWriteTest implements Serializable {
 
     thrown.expect(RuntimeException.class);
     thrown.expectMessage("Failed to create job with prefix");
-    thrown.expectMessage("reached max retries");
+    // a bounded write that never calls withMaxRetryJobs keeps BatchLoads' own default of 3
+    thrown.expectMessage("reached max retries: 3");
     thrown.expectMessage("last failed job");
+
+    p.run();
+  }
+
+  @Test
+  public void testWriteFailedJobsRespectsMaxRetryJobsWhenBounded() throws Exception {
+    assumeTrue(!useStorageApi);
+    assumeTrue(!useStreaming);
+    p.apply(
+            Create.of(
+                    new TableRow().set("name", "a").set("number", 1),
+                    new TableRow().set("name", "b").set("number", 2),
+                    new TableRow().set("name", "c").set("number", 3))
+                .withCoder(TableRowJsonCoder.of()))
+        .apply(
+            BigQueryIO.writeTableRows()
+                .to("dataset-id.table-id")
+                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+                .withMaxRetryJobs(1)
+                .withTestServices(fakeBqServices)
+                .withoutValidation());
+
+    thrown.expect(RuntimeException.class);
+    // the load job fails on every attempt because the destination table does not exist, and the
+    // failure message reports the retry limit that was actually applied. a bounded pipeline used to
+    // drop withMaxRetryJobs on the floor, so this used to read "reached max retries: 3"
+    thrown.expectMessage("reached max retries: 1");
 
     p.run();
   }
@@ -3019,7 +3047,7 @@ public class BigQueryIOWriteTest implements Serializable {
             .withSchemaUpdateOptions(
                 EnumSet.of(BigQueryIO.Write.SchemaUpdateOption.ALLOW_FIELD_ADDITION))
             .withMaxRetryJobs(500);
-    assertEquals(500, write.getMaxRetryJobs());
+    assertEquals(Integer.valueOf(500), write.getMaxRetryJobs());
   }
 
   @Test
