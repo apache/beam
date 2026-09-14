@@ -59,7 +59,7 @@ import org.apache.iceberg.util.PropertyUtil;
  */
 final class WriteDeltas
     extends PTransform<
-        PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>>,
+        PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>>,
         PCollection<ShardDeltaFiles>> {
 
   private final IcebergCatalogConfig catalogConfig;
@@ -80,7 +80,7 @@ final class WriteDeltas
 
   @Override
   public PCollection<ShardDeltaFiles> expand(
-      PCollection<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> input) {
+      PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> input) {
     Schema dataSchema = dataSchemaOf(input.getCoder());
     return input
         .apply(
@@ -133,7 +133,7 @@ final class WriteDeltas
    */
   @VisibleForTesting
   static final class WriteDeltasFn
-      extends DoFn<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>, ShardDeltaFiles> {
+      extends DoFn<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>, ShardDeltaFiles> {
 
     private final TableSetup tableSetup;
     private final CdcWriteConfig config;
@@ -150,12 +150,12 @@ final class WriteDeltas
 
     @ProcessElement
     public void process(
-        @Element KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> group,
+        @Element KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> group,
         BoundedWindow window,
         OutputReceiver<ShardDeltaFiles> out)
         throws IOException {
-      String destString = group.getKey().getKey();
-      int shardId = group.getKey().getValue();
+      String destString = group.getKey().getDestination();
+      int shardId = group.getKey().getShard();
       TableSetup.Dest dest = tableSetup.get(destString, dataSchema);
       Table table = dest.table();
       PartitionSpec spec = dest.spec();
