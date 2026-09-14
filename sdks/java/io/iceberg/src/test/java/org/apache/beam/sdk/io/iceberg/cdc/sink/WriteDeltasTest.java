@@ -51,8 +51,6 @@ import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
-import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
@@ -148,10 +146,10 @@ public class WriteDeltasTest {
         catalogConfig(), cfg(), DynamicDestinations.singleTable(id, dataSchema), "px");
   }
 
-  private static Coder<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> groupCoder(
+  private static Coder<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> groupCoder(
       org.apache.beam.sdk.schemas.Schema dataSchema) {
     return KvCoder.of(
-        KvCoder.of(StringUtf8Coder.of(), VarIntCoder.of()),
+        DestinationShard.coder(),
         IterableCoder.of(KvCoder.of(ByteArrayCoder.of(), CdcRecordCoder.of(dataSchema))));
   }
 
@@ -187,7 +185,7 @@ public class WriteDeltasTest {
   private List<ShardDeltaFiles> runAndCollect(
       TableIdentifier id,
       org.apache.beam.sdk.schemas.Schema dataSchema,
-      List<KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>>> groups) {
+      List<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> groups) {
     String collectKey = id + "-" + System.nanoTime();
     COLLECTED.put(collectKey, Collections.synchronizedList(new ArrayList<>()));
     p.apply(Create.of(groups).withCoder(groupCoder(dataSchema)))
@@ -289,7 +287,8 @@ public class WriteDeltasTest {
             kv(row(dataSchema, 3, "c", "z"), 9L, ValueKind.INSERT));
 
     List<ShardDeltaFiles> out =
-        runAndCollect(id, dataSchema, ImmutableList.of(KV.of(KV.of(id.toString(), 0), sorted)));
+        runAndCollect(
+            id, dataSchema, ImmutableList.of(KV.of(DestinationShard.of(id.toString(), 0), sorted)));
 
     assertThat(out, hasSize(1));
     ShardDeltaFiles files = out.get(0);
@@ -328,7 +327,8 @@ public class WriteDeltasTest {
             kv(row(dataSchema, 2, "b", "y"), 7L, ValueKind.INSERT));
 
     List<ShardDeltaFiles> out =
-        runAndCollect(id, dataSchema, ImmutableList.of(KV.of(KV.of(id.toString(), 0), sorted)));
+        runAndCollect(
+            id, dataSchema, ImmutableList.of(KV.of(DestinationShard.of(id.toString(), 0), sorted)));
 
     assertThat(out, hasSize(1));
     ShardDeltaFiles files = out.get(0);
@@ -378,7 +378,8 @@ public class WriteDeltasTest {
             kv(row(dataSchema, 2, ts2, "b"), 2L, ValueKind.INSERT));
 
     List<ShardDeltaFiles> out =
-        runAndCollect(id, dataSchema, ImmutableList.of(KV.of(KV.of(id.toString(), 0), sorted)));
+        runAndCollect(
+            id, dataSchema, ImmutableList.of(KV.of(DestinationShard.of(id.toString(), 0), sorted)));
 
     assertThat(out, hasSize(1));
     List<DataFile> files = dataFilesOf(t, out.get(0));
@@ -433,7 +434,8 @@ public class WriteDeltasTest {
             kv(row(dataSchema, 2, d2, "b"), 2L, ValueKind.INSERT));
 
     List<ShardDeltaFiles> out =
-        runAndCollect(id, dataSchema, ImmutableList.of(KV.of(KV.of(id.toString(), 0), sorted)));
+        runAndCollect(
+            id, dataSchema, ImmutableList.of(KV.of(DestinationShard.of(id.toString(), 0), sorted)));
 
     assertThat(out, hasSize(1));
     List<DataFile> files = dataFilesOf(t, out.get(0));
@@ -474,7 +476,8 @@ public class WriteDeltasTest {
         ImmutableList.of(kv(row(dataSchema, 1, "a/b", "x"), 1L, ValueKind.INSERT));
 
     List<ShardDeltaFiles> out =
-        runAndCollect(id, dataSchema, ImmutableList.of(KV.of(KV.of(id.toString(), 0), sorted)));
+        runAndCollect(
+            id, dataSchema, ImmutableList.of(KV.of(DestinationShard.of(id.toString(), 0), sorted)));
 
     assertThat(out, hasSize(1));
     List<DataFile> files = dataFilesOf(t, out.get(0));
@@ -548,7 +551,7 @@ public class WriteDeltasTest {
     Iterable<KV<byte[], CdcRecord>> emptyGroup = ImmutableList.of();
     PCollection<ShardDeltaFiles> out =
         p.apply(
-                Create.of(KV.of(KV.of(id.toString(), 0), emptyGroup))
+                Create.of(KV.of(DestinationShard.of(id.toString(), 0), emptyGroup))
                     .withCoder(groupCoder(dataSchema)))
             .apply(transform(id, dataSchema));
 
@@ -614,7 +617,8 @@ public class WriteDeltasTest {
 
     Iterable<KV<byte[], CdcRecord>> sorted = thousandValidRecords(dataSchema);
     List<ShardDeltaFiles> out =
-        runAndCollect(id, dataSchema, ImmutableList.of(KV.of(KV.of(id.toString(), 0), sorted)));
+        runAndCollect(
+            id, dataSchema, ImmutableList.of(KV.of(DestinationShard.of(id.toString(), 0), sorted)));
 
     assertThat(out, hasSize(1));
     assertThat(out.get(0).getDataFiles(), not(empty()));
@@ -638,7 +642,10 @@ public class WriteDeltasTest {
     sortedBySortKey(records);
 
     p.apply(
-            Create.of(KV.of(KV.of(id.toString(), 0), (Iterable<KV<byte[], CdcRecord>>) records))
+            Create.of(
+                    KV.of(
+                        DestinationShard.of(id.toString(), 0),
+                        (Iterable<KV<byte[], CdcRecord>>) records))
                 .withCoder(groupCoder(dataSchema)))
         .apply(transform(id, dataSchema));
 
@@ -732,7 +739,8 @@ public class WriteDeltasTest {
             id,
             dataSchema,
             ImmutableList.of(
-                KV.of(KV.of(id.toString(), 0), shard0), KV.of(KV.of(id.toString(), 1), shard1)));
+                KV.of(DestinationShard.of(id.toString(), 0), shard0),
+                KV.of(DestinationShard.of(id.toString(), 1), shard1)));
 
     assertThat(out, hasSize(2));
     Set<String> dataFilePaths = new HashSet<>();
@@ -779,9 +787,9 @@ public class WriteDeltasTest {
     dest.table().refresh();
     assertThat(dest.table().spec().specId(), not(equalTo(resolvedSpecId)));
 
-    KV<KV<String, Integer>, Iterable<KV<byte[], CdcRecord>>> group =
+    KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>> group =
         KV.of(
-            KV.of(id.toString(), 0),
+            DestinationShard.of(id.toString(), 0),
             ImmutableList.of(kv(row(dataSchema, 1, "a", "x"), 1L, ValueKind.INSERT)));
 
     List<ShardDeltaFiles> out = new ArrayList<>();
