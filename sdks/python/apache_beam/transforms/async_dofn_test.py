@@ -27,6 +27,7 @@ from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
+from apache_beam.transforms.window import GlobalWindows
 
 
 class BasicDofn(beam.DoFn):
@@ -532,6 +533,84 @@ class AsyncTest(unittest.TestCase):
       )
     else:
       self.assertEqual(p.exitcode, 0)
+
+  def _schedule_lifecycle_item(self, dofn):
+    wrapper = async_lib.AsyncWrapper(
+        dofn, parallelism=1, use_asyncio=self.use_asyncio)
+    wrapper.setup()
+    state, timer = FakeBagState([]), FakeTimer(0)
+    wrapper.process(('key', 7), to_process=state, timer=timer)
+    self.wait_for_empty(wrapper)
+    return wrapper, state, timer
+
+  def test_finish_bundle_flushes_generator_process(self):
+    class BufferedWriter(beam.DoFn):
+      def __init__(self):
+        self.persisted = []
+
+      def start_bundle(self):
+        self.pending = []
+
+      def process(self, element):
+        self.pending.append(element)
+        yield from ()
+
+      def finish_bundle(self):
+        self.persisted.extend(self.pending)
+        self.pending.clear()
+
+    dofn = BufferedWriter()
+    wrapper, state, timer = self._schedule_lifecycle_item(dofn)
+    self.assertEqual([], wrapper.commit_finished_items(state, timer))
+    self.assertEqual([], state.items)
+    self.assertEqual([('key', 7)], dofn.persisted)
+    self.assertEqual([], dofn.pending)
+
+  def test_process_accepts_non_generator_iterables(self):
+    for iterable_type in (list, tuple, iter):
+      with self.subTest(iterable_type=iterable_type):
+
+        class IterableOutput(beam.DoFn):
+          def process(self, element):
+            return iterable_type([element, element])
+
+        wrapper, state, timer = self._schedule_lifecycle_item(IterableOutput())
+        self.assertEqual([('key', 7), ('key', 7)],
+                         wrapper.commit_finished_items(state, timer))
+        self.assertEqual([], state.items)
+
+  def test_finish_bundle_accepts_list_output(self):
+    output = GlobalWindows.windowed_value(('key', 'finished'))
+
+    class ListFinishOutput(beam.DoFn):
+      def process(self, element):
+        return None
+
+      def finish_bundle(self):
+        return [output]
+
+    wrapper, state, timer = self._schedule_lifecycle_item(ListFinishOutput())
+    self.assertEqual([output], wrapper.commit_finished_items(state, timer))
+    self.assertEqual([], state.items)
+
+  def test_generator_failure_does_not_finish_bundle(self):
+    class FailingProcess(beam.DoFn):
+      def __init__(self):
+        self.finished = False
+
+      def process(self, element):
+        yield element
+        raise RuntimeError('process iteration failed')
+
+      def finish_bundle(self):
+        self.finished = True
+
+    dofn = FailingProcess()
+    wrapper, state, timer = self._schedule_lifecycle_item(dofn)
+    with self.assertRaisesRegex(RuntimeError, 'process iteration failed'):
+      wrapper.commit_finished_items(state, timer)
+    self.assertEqual([('key', 7)], state.items)
+    self.assertFalse(dofn.finished)
 
   def test_transient_rpc_failure_retry(self):
     # Verify DoFn exceptions wipe local active state so retries reschedule work.
