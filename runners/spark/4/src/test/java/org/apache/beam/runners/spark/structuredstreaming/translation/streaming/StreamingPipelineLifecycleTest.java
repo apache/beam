@@ -33,6 +33,7 @@ import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.joda.time.Duration;
 import org.junit.ClassRule;
 import org.junit.Rule;
 import org.junit.Test;
@@ -121,6 +122,41 @@ public class StreamingPipelineLifecycleTest implements Serializable {
     assertEquals(PipelineResult.State.CANCELLED, result.getState());
 
     awaitActiveQueries(count -> count == 0, "the streaming query did not stop after cancel");
+  }
+
+  @Test
+  public void timeoutKeepsRunningState() throws Exception {
+    String tag = "lifecycle-timeout";
+    String collectorId = StreamingTestUtils.newCollectorId(tag);
+
+    SparkStructuredStreamingPipelineOptions options =
+        StreamingTestUtils.streamingOptions(checkpointDir);
+    options.setStreamingStopAfterIdleBatches(-1);
+    Pipeline pipeline = Pipeline.create(options);
+
+    pipeline
+        .apply("ReadUnbounded", Read.from(new TestUnboundedSource(tag, 1, 10)))
+        .apply("Collect", ParDo.of(new StreamingTestUtils.CollectDoFn<>(collectorId)));
+
+    PipelineResult result = pipeline.run();
+    try {
+      assertEquals(PipelineResult.State.RUNNING, result.getState());
+
+      awaitActiveQueries(count -> count > 0, "no streaming query started");
+
+      PipelineResult.State stateAfterTimeout = result.waitUntilFinish(Duration.millis(1));
+      assertEquals(PipelineResult.State.RUNNING, stateAfterTimeout);
+      assertEquals(PipelineResult.State.RUNNING, result.getState());
+
+      PipelineResult.State cancelledState = result.cancel();
+      assertEquals(PipelineResult.State.CANCELLED, cancelledState);
+      assertEquals(PipelineResult.State.CANCELLED, result.getState());
+    } finally {
+      if (result.getState() == PipelineResult.State.RUNNING) {
+        result.cancel();
+      }
+      awaitActiveQueries(count -> count == 0, "the streaming query did not stop after cancel");
+    }
   }
 
   /** A failure in any leaf query surfaces through waitUntilFinish. */
