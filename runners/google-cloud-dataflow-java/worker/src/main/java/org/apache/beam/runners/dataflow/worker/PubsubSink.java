@@ -135,22 +135,29 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
   @Override
   public SinkWriter<WindowedValue<T>> writer() {
-    return new PubsubWriter(topic);
+    return new PubsubWriter();
   }
 
   /** The SinkWriter for a PubsubSink. */
   class PubsubWriter implements SinkWriter<WindowedValue<T>> {
+    // 1MB: flush threshold for finishKey in multi-key bundles.
+    private static final long MAX_PUBSUB_BUNDLE_BYTES = 1024 * 1024;
+
     private Windmill.PubSubMessageBundle.Builder outputBuilder;
     private ByteStringOutputStream stream; // Kept across adds for buffer reuse.
+    private long bufferedBytes = 0;
 
-    private PubsubWriter(String topic) {
-      outputBuilder =
-          Windmill.PubSubMessageBundle.newBuilder()
-              .setTopic(topic)
-              .setTimestampLabel(timestampLabel)
-              .setIdLabel(idLabel)
-              .setWithAttributes(withAttributes);
+    private PubsubWriter() {
+      outputBuilder = createOutputBuilder();
       stream = new ByteStringOutputStream();
+    }
+
+    private Windmill.PubSubMessageBundle.Builder createOutputBuilder() {
+      return Windmill.PubSubMessageBundle.newBuilder()
+          .setTopic(topic)
+          .setTimestampLabel(timestampLabel)
+          .setIdLabel(idLabel)
+          .setWithAttributes(withAttributes);
     }
 
     @Override
@@ -183,22 +190,44 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
               .setData(byteString)
               .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
               .build());
+      bufferedBytes += byteString.size();
 
       return byteString.size();
     }
 
+    private void flush(boolean bundleLevel) {
+      try {
+        Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
+        if (pubsubMessages.getMessagesCount() > 0) {
+          if (bundleLevel) {
+            context.addBundlePubsubMessages(pubsubMessages);
+          } else {
+            context.getOutputBuilder().addPubsubMessages(pubsubMessages);
+          }
+        }
+      } finally {
+        outputBuilder = createOutputBuilder();
+        bufferedBytes = 0;
+      }
+    }
+
+    @Override
+    public void finishKey(@Nullable Object key) throws IOException {
+      if (context.multiKeyBundleEnabled() && bufferedBytes >= MAX_PUBSUB_BUNDLE_BYTES) {
+        flush(/* bundleLevel= */ false);
+      }
+    }
+
     @Override
     public void close() throws IOException {
-      Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
-      if (pubsubMessages.getMessagesCount() > 0) {
-        context.getOutputBuilder().addPubsubMessages(pubsubMessages);
-      }
-      outputBuilder.clear();
+      flush(/* bundleLevel= */ context.multiKeyBundleEnabled());
     }
 
     @Override
     public void abort() throws IOException {
-      close();
+      outputBuilder = createOutputBuilder();
+      stream.reset();
+      bufferedBytes = 0;
     }
   }
 

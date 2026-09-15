@@ -31,6 +31,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A sink that writes Avro files. Records are written to the Avro file as a series of byte arrays.
@@ -71,6 +72,9 @@ public class AvroByteSink<T> extends Sink<T> {
       fileWriter.append(encodedBuffer);
       return encodedElem.length;
     }
+
+    @Override
+    public void finishKey(@Nullable Object key) throws IOException {}
 
     @Override
     public void close() throws IOException {

@@ -49,6 +49,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A {@link Sink} that writes Ism files.
@@ -294,6 +295,9 @@ public class IsmSink<V> extends Sink<WindowedValue<IsmRecord<V>>> {
       FooterCoder.of()
           .encode(Footer.of(startOfIndex, startOfBloomFilter, numberOfKeysWritten), out);
     }
+
+    @Override
+    public void finishKey(@Nullable Object key) throws IOException {}
 
     @Override
     public void close() throws IOException {

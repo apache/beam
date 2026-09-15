@@ -452,6 +452,9 @@ public class IntrinsicMapTaskExecutorFactoryTest {
       }
 
       @Override
+      public void finishKey(@Nullable Object key) throws IOException {}
+
+      @Override
       public void close() {}
 
       @Override

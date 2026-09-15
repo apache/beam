@@ -252,10 +252,15 @@ public class StreamingWorkScheduler {
           executeWork(work, stageInfo, computationState, handle, keyTransitionListener);
       List<Work> workBatch = handle.getWorkBatch();
       List<Windmill.WorkItemCommitRequest> workItemCommits = executeWorkResult.workItemCommits();
+      List<Windmill.OutputMessageBundle> bundleOutputMessages =
+          executeWorkResult.bundleOutputMessages();
+      List<Windmill.PubSubMessageBundle> bundlePubsubMessages =
+          executeWorkResult.bundlePubsubMessages();
 
       commitFinalizer.cacheCommitFinalizers(executeWorkResult.finalizationCallbacks());
 
-      commitWorkBatch(computationState, workBatch, workItemCommits);
+      commitWorkBatch(
+          computationState, workBatch, workItemCommits, bundleOutputMessages, bundlePubsubMessages);
 
       recordProcessingStats(workBatch, workItemCommits, executeWorkResult.stateBytesRead());
       LOG.debug("Processing done for work batch size: {}", workBatch.size());
@@ -327,6 +332,8 @@ public class StreamingWorkScheduler {
           work, workExecutor, handle, keyTransitionListener, onFailedWorkHandler);
 
       List<Windmill.WorkItemCommitRequest> workItemCommits;
+      List<Windmill.OutputMessageBundle> bundleOutputMessages;
+      List<Windmill.PubSubMessageBundle> bundlePubsubMessages;
       Map<Long, Pair<Instant, Runnable>> finalizationCallbacks;
       long stateBytesRead;
       {
@@ -336,6 +343,8 @@ public class StreamingWorkScheduler {
         context.flushState();
 
         workItemCommits = context.getWorkItemCommits();
+        bundleOutputMessages = context.getBundleOutputMessages();
+        bundlePubsubMessages = context.getBundlePubsubMessages();
         finalizationCallbacks = context.getFinalizationCallbacks();
         stateBytesRead = context.getStateBytesRead();
 
@@ -345,7 +354,12 @@ public class StreamingWorkScheduler {
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
       computationWorkExecutor = null;
 
-      return ExecuteWorkResult.create(workItemCommits, finalizationCallbacks, stateBytesRead);
+      return ExecuteWorkResult.create(
+          workItemCommits,
+          bundleOutputMessages,
+          bundlePubsubMessages,
+          finalizationCallbacks,
+          stateBytesRead);
     } catch (Throwable t) {
       if (computationWorkExecutor != null) {
         // If processing failed due to a thrown exception, close the executionState. Do not
@@ -380,13 +394,22 @@ public class StreamingWorkScheduler {
   private void commitWorkBatch(
       ComputationState computationState,
       List<Work> workBatch,
-      List<Windmill.WorkItemCommitRequest> workItemCommits) {
+      List<Windmill.WorkItemCommitRequest> workItemCommits,
+      List<Windmill.OutputMessageBundle> bundleOutputMessages,
+      List<Windmill.PubSubMessageBundle> bundlePubsubMessages) {
     if (workBatch.isEmpty()) {
       return;
     }
     if (workBatch.size() > 1 || multiKeyBundleOptions.multiKeyBundleEnabled()) {
-      commitMultiKeyWorkBatch(computationState, workBatch, workItemCommits);
+      commitMultiKeyWorkBatch(
+          computationState, workBatch, workItemCommits, bundleOutputMessages, bundlePubsubMessages);
     } else {
+      checkState(
+          bundleOutputMessages.isEmpty(),
+          "bundleOutputMessages should be empty when calling commitSingleKeyWork");
+      checkState(
+          bundlePubsubMessages.isEmpty(),
+          "bundlePubsubMessages should be empty when calling commitSingleKeyWork");
       commitSingleKeyWork(computationState, workBatch.get(0), workItemCommits.get(0));
     }
   }
@@ -394,11 +417,19 @@ public class StreamingWorkScheduler {
   private void commitMultiKeyWorkBatch(
       ComputationState computationState,
       List<Work> workBatch,
-      List<Windmill.WorkItemCommitRequest> workItemCommits) {
+      List<Windmill.WorkItemCommitRequest> workItemCommits,
+      List<Windmill.OutputMessageBundle> bundleOutputMessages,
+      List<Windmill.PubSubMessageBundle> bundlePubsubMessages) {
     checkState(!workBatch.isEmpty());
     checkState(workBatch.size() == workItemCommits.size());
     Windmill.MultiKeyWorkItemCommitRequest.Builder multiKeyBuilder =
         Windmill.MultiKeyWorkItemCommitRequest.newBuilder();
+    if (!bundleOutputMessages.isEmpty()) {
+      multiKeyBuilder.addAllOutputMessages(bundleOutputMessages);
+    }
+    if (!bundlePubsubMessages.isEmpty()) {
+      multiKeyBuilder.addAllPubsubMessages(bundlePubsubMessages);
+    }
 
     Work primaryWork = workBatch.get(0);
     Work.KeyGroup keyGroup = primaryWork.getKeyGroup();
@@ -511,13 +542,23 @@ public class StreamingWorkScheduler {
   abstract static class ExecuteWorkResult {
     static ExecuteWorkResult create(
         List<Windmill.WorkItemCommitRequest> workItemCommits,
+        List<Windmill.OutputMessageBundle> bundleOutputMessages,
+        List<Windmill.PubSubMessageBundle> bundlePubsubMessages,
         Map<Long, Pair<Instant, Runnable>> finalizationCallbacks,
         long stateBytesRead) {
       return new AutoValue_StreamingWorkScheduler_ExecuteWorkResult(
-          workItemCommits, finalizationCallbacks, stateBytesRead);
+          workItemCommits,
+          bundleOutputMessages,
+          bundlePubsubMessages,
+          finalizationCallbacks,
+          stateBytesRead);
     }
 
     abstract List<Windmill.WorkItemCommitRequest> workItemCommits();
+
+    abstract List<Windmill.OutputMessageBundle> bundleOutputMessages();
+
+    abstract List<Windmill.PubSubMessageBundle> bundlePubsubMessages();
 
     // Map<finalizerId, Pair<callbackExpiration, callback>>
     abstract Map<Long, Pair<Instant, Runnable>> finalizationCallbacks();
