@@ -53,7 +53,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -245,7 +245,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                         .via(
                             (storageError) ->
                                 Row.withSchema(errorSchema)
-                                    .withFieldValue("error_message", storageError.getErrorMessage())
+                                    // "error_message" is a non-nullable field of errorSchema, so a
+                                    // null error message would fail Row validation anyway.
+                                    .withFieldValue(
+                                        "error_message",
+                                        checkStateNotNull(
+                                            storageError.getErrorMessage(),
+                                            "Failed BigQuery insert has no error message."))
                                     .withFieldValue(
                                         "failed_row",
                                         BigQueryUtils.toBeamRow(inputSchema, storageError.getRow()))
