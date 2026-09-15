@@ -41,7 +41,7 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
 
   static <ElementT, DestinationT> RowWriterFactory<ElementT, DestinationT> tableRows(
       BigQueryIO.TableRowFormatFunction<ElementT> toRow,
-      BigQueryIO.TableRowFormatFunction<ElementT> toFailsafeRow) {
+      BigQueryIO.@Nullable TableRowFormatFunction<ElementT> toFailsafeRow) {
     return new TableRowWriterFactory<ElementT, DestinationT>(toRow, toFailsafeRow);
   }
 
@@ -49,11 +49,11 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
       extends RowWriterFactory<ElementT, DestinationT> {
 
     private final BigQueryIO.TableRowFormatFunction<ElementT> toRow;
-    private final BigQueryIO.TableRowFormatFunction<ElementT> toFailsafeRow;
+    private final BigQueryIO.@Nullable TableRowFormatFunction<ElementT> toFailsafeRow;
 
     private TableRowWriterFactory(
         BigQueryIO.TableRowFormatFunction<ElementT> toRow,
-        BigQueryIO.TableRowFormatFunction<ElementT> toFailsafeRow) {
+        BigQueryIO.@Nullable TableRowFormatFunction<ElementT> toFailsafeRow) {
       this.toRow = toRow;
       this.toFailsafeRow = toFailsafeRow;
     }
@@ -75,7 +75,6 @@ abstract class RowWriterFactory<ElementT, DestinationT> implements Serializable 
     }
 
     @Override
-    @SuppressWarnings("nullness")
     public BigQueryRowWriter<ElementT> createRowWriter(
         String tempFilePrefix, DestinationT destination) throws Exception {
       return new TableRowWriter<>(tempFilePrefix, toRow.toSerializableFunction());

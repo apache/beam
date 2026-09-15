@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryHelpers.resolveTempLoc
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryResourceNaming.createTempTableReference;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.BAD_RECORD_TAG;
 import static org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.RECORDING_ROUTER;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -555,10 +557,7 @@ import org.slf4j.LoggerFactory;
  * the table is not previously created and CREATE_IF_NEEDED is used, a primary key must be specified
  * using {@link Write#withPrimaryKey}.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20506),
-  "SameNameButDifferent"
-})
+@SuppressWarnings({"SameNameButDifferent"})
 public class BigQueryIO {
 
   /**
@@ -652,8 +651,12 @@ public class BigQueryIO {
   static final SerializableFunction<org.apache.avro.Schema, DatumWriter<GenericRecord>>
       GENERIC_DATUM_WRITER_FACTORY = schema -> new GenericDatumWriter<>();
 
-  private static final SerializableFunction<TableSchema, org.apache.avro.Schema>
-      DEFAULT_AVRO_SCHEMA_FACTORY = BigQueryAvroUtils::toGenericAvroSchema;
+  private static final SerializableFunction<@Nullable TableSchema, org.apache.avro.Schema>
+      DEFAULT_AVRO_SCHEMA_FACTORY =
+          tableSchema ->
+              BigQueryAvroUtils.toGenericAvroSchema(
+                  checkArgumentNotNull(
+                      tableSchema, "A table schema is required to generate an Avro schema."));
 
   static final String CONNECTION_ID = "connectionId";
   static final String STORAGE_URI = "storageUri";
@@ -761,7 +764,7 @@ public class BigQueryIO {
 
     @Override
     public T read(T reuse, Decoder in) throws IOException {
-      GenericRecord record = (GenericRecord) this.reader.read(reuse, in);
+      GenericRecord record = (GenericRecord) checkStateNotNull(this.reader.read(reuse, in));
       return parseFn.apply(new SchemaAndRecord(record, this.tableSchema.get()));
     }
   }
@@ -800,8 +803,8 @@ public class BigQueryIO {
                         (writer, reader) ->
                             new GenericDatumTransformer<>(parseFn, jsonTableSchema, writer);
                   } catch (IOException e) {
-                    LOG.warn("Error while converting table schema {} to JSON!", input, e);
-                    return null;
+                    throw new RuntimeException(
+                        "Error while converting table schema " + input + " to JSON!", e);
                   }
                 })
         // TODO: Remove setParseFn once https://github.com/apache/beam/issues/21076 is fixed.
@@ -868,9 +871,9 @@ public class BigQueryIO {
 
     abstract DataFormat getFormat();
 
-    abstract @Nullable SerializableFunction<SchemaAndRecord, T> getParseFn();
+    abstract SerializableFunction<SchemaAndRecord, T> getParseFn();
 
-    abstract @Nullable Coder<T> getOutputCoder();
+    abstract Coder<T> getOutputCoder();
 
     abstract boolean getProjectionPushdownApplied();
 
@@ -988,9 +991,9 @@ public class BigQueryIO {
           BigQueryStorageQuerySource<T> querySource =
               BigQueryStorageQuerySource.create(
                   kv.getKey(),
-                  StaticValueProvider.of(descriptor.getQuery()),
-                  descriptor.getFlattenResults(),
-                  descriptor.getUseLegacySql(),
+                  StaticValueProvider.of(checkStateNotNull(descriptor.getQuery())),
+                  checkStateNotNull(descriptor.getFlattenResults()),
+                  checkStateNotNull(descriptor.getUseLegacySql()),
                   TypedRead.QueryPriority.INTERACTIVE,
                   getQueryLocation(),
                   getQueryTempDataset(),
@@ -1002,7 +1005,8 @@ public class BigQueryIO {
                   getBigQueryServices());
           // due to retry, table may already exist, remove it to ensure correctness
           querySource.removeDestinationIfExists(options.as(BigQueryOptions.class));
-          Table queryResultTable = querySource.getTargetTable(options.as(BigQueryOptions.class));
+          Table queryResultTable =
+              checkStateNotNull(querySource.getTargetTable(options.as(BigQueryOptions.class)));
 
           BigQueryStorageTableSource<T> output =
               BigQueryStorageTableSource.create(
@@ -1090,7 +1094,7 @@ public class BigQueryIO {
       return this.inner.getValidate();
     }
 
-    ValueProvider<String> getQuery() {
+    @Nullable ValueProvider<String> getQuery() {
       return this.inner.getQuery();
     }
 
@@ -1363,12 +1367,15 @@ public class BigQueryIO {
 
     @VisibleForTesting
     Coder<T> inferCoder(CoderRegistry coderRegistry) {
-      if (getCoder() != null) {
-        return getCoder();
+      Coder<T> coder = getCoder();
+      if (coder != null) {
+        return coder;
       }
 
       try {
-        return coderRegistry.getCoder(TypeDescriptors.outputOf(getParseFn()));
+        return coderRegistry.getCoder(
+            TypeDescriptors.outputOf(
+                checkStateNotNull(getParseFn(), "Either withCoder() or a parseFn is required")));
       } catch (CannotProvideCoderException e) {
         throw new IllegalArgumentException(
             "Unable to infer coder for output of parseFn. Specify it explicitly using withCoder().",
@@ -1377,46 +1384,48 @@ public class BigQueryIO {
     }
 
     private BigQuerySourceDef createSourceDef() {
-      BigQuerySourceDef sourceDef;
-      if (getQuery() == null) {
-        sourceDef = BigQueryTableSourceDef.create(getBigQueryServices(), getTableProvider());
-      } else {
-        sourceDef =
-            BigQueryQuerySourceDef.create(
-                getBigQueryServices(),
-                getQuery(),
-                getFlattenResults(),
-                getUseLegacySql(),
-                MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
-                getQueryLocation(),
-                getQueryTempDataset(),
-                getQueryTempProject(),
-                getKmsKey());
+      ValueProvider<String> query = getQuery();
+      if (query == null) {
+        return BigQueryTableSourceDef.create(
+            getBigQueryServices(),
+            checkStateNotNull(getTableProvider(), "Either from() or fromQuery() is required"));
       }
-      return sourceDef;
+      return BigQueryQuerySourceDef.create(
+          getBigQueryServices(),
+          query,
+          checkStateNotNull(
+              getFlattenResults(), "flattenResults should not be null if query is set"),
+          checkStateNotNull(getUseLegacySql(), "useLegacySql should not be null if query is set"),
+          MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
+          getQueryLocation(),
+          getQueryTempDataset(),
+          getQueryTempProject(),
+          getKmsKey());
     }
 
     private BigQueryStorageQuerySource<T> createStorageQuerySource(
         String stepUuid, Coder<T> outputCoder) {
       return BigQueryStorageQuerySource.create(
           stepUuid,
-          getQuery(),
-          getFlattenResults(),
-          getUseLegacySql(),
+          checkStateNotNull(getQuery(), "Either from() or fromQuery() is required"),
+          checkStateNotNull(
+              getFlattenResults(), "flattenResults should not be null if query is set"),
+          checkStateNotNull(getUseLegacySql(), "useLegacySql should not be null if query is set"),
           MoreObjects.firstNonNull(getQueryPriority(), QueryPriority.BATCH),
           getQueryLocation(),
           getQueryTempDataset(),
           getQueryTempProject(),
           getKmsKey(),
           getFormat(),
-          getParseFn(),
+          checkStateNotNull(getParseFn(), "A parseFn is required"),
           outputCoder,
           getBigQueryServices(),
           getDirectReadPicosTimestampPrecision());
     }
 
     @Override
-    public void validate(PipelineOptions options) {
+    public void validate(@Nullable PipelineOptions maybeOptions) {
+      PipelineOptions options = checkArgumentNotNull(maybeOptions);
       // Even if existence validation is disabled, we need to make sure that the BigQueryIO
       // read is properly specified.
       BigQueryOptions bqOptions = options.as(BigQueryOptions.class);
@@ -1444,6 +1453,7 @@ public class BigQueryIO {
       }
 
       ValueProvider<TableReference> table = getTableProvider();
+      ValueProvider<String> query = getQuery();
 
       // Note that a table or query check can fail if the table or dataset are created by
       // earlier stages of the pipeline or if a query depends on earlier stages of a pipeline.
@@ -1458,32 +1468,38 @@ public class BigQueryIO {
             // Check for source table presence for early failure notification.
             BigQueryHelpers.verifyDatasetPresence(datasetService, table.get());
             BigQueryHelpers.verifyTablePresence(datasetService, table.get());
-          } else if (getQuery() != null) {
+          } else if (query != null) {
             checkArgument(
-                getQuery().isAccessible(), "Cannot call validate if query is dynamically set.");
+                query.isAccessible(), "Cannot call validate if query is dynamically set.");
             JobService jobService = getBigQueryServices().getJobService(bqOptions);
+            // JobConfigurationQuery accepts null for both of these, but the generated API client
+            // is not annotated.
+            @SuppressWarnings("nullness")
+            JobConfigurationQuery queryConfig =
+                new JobConfigurationQuery()
+                    .setQuery(query.get())
+                    .setFlattenResults(getFlattenResults())
+                    .setUseLegacySql(getUseLegacySql());
             try {
               jobService.dryRunQuery(
                   bqOptions.getBigQueryProject() == null
                       ? bqOptions.getProject()
                       : bqOptions.getBigQueryProject(),
-                  new JobConfigurationQuery()
-                      .setQuery(getQuery().get())
-                      .setFlattenResults(getFlattenResults())
-                      .setUseLegacySql(getUseLegacySql()),
+                  queryConfig,
                   getQueryLocation());
             } catch (Exception e) {
               throw new IllegalArgumentException(
                   String.format(
                       "Validation of query \"%1$s\" failed. If the query depends on an earlier stage of the"
                           + " pipeline, This validation can be disabled using #withoutValidation.",
-                      getQuery().get()),
+                      query.get()),
                   e);
             }
 
             // If the user provided a temp dataset, check if the dataset exists before launching the
             // query
-            if (getQueryTempDataset() != null) {
+            String queryTempDataset = getQueryTempDataset();
+            if (queryTempDataset != null) {
               // The temp table is only used for dataset and project id validation, not for table
               // name
               // validation
@@ -1497,7 +1513,7 @@ public class BigQueryIO {
               TableReference tempTable =
                   new TableReference()
                       .setProjectId(project)
-                      .setDatasetId(getQueryTempDataset())
+                      .setDatasetId(queryTempDataset)
                       .setTableId("dummy table");
               BigQueryHelpers.verifyDatasetPresence(datasetService, tempTable);
             }
@@ -1558,8 +1574,9 @@ public class BigQueryIO {
         }
         BigQueryUtils.SchemaConversionOptions.Builder builder =
             BigQueryUtils.SchemaConversionOptions.builder();
-        if (getDirectReadPicosTimestampPrecision() != null) {
-          builder.setPicosecondTimestampMapping(getDirectReadPicosTimestampPrecision());
+        TimestampPrecision picosPrecision = getDirectReadPicosTimestampPrecision();
+        if (picosPrecision != null) {
+          builder.setPicosecondTimestampMapping(picosPrecision);
         }
         beamSchema = BigQueryUtils.fromTableSchema(tableSchema, builder.build());
       }
@@ -1594,7 +1611,11 @@ public class BigQueryIO {
             p.apply(
                 org.apache.beam.sdk.io.Read.from(
                     sourceDef.toSource(
-                        staticJobUuid, coder, getDatumReaderFactory(), getUseAvroLogicalTypes())));
+                        staticJobUuid,
+                        coder,
+                        checkStateNotNull(
+                            getDatumReaderFactory(), "A readerDatumFactory is required"),
+                        getUseAvroLogicalTypes())));
       } else {
         // Create a singleton job ID token at execution time.
         jobIdTokenCollection =
@@ -1624,7 +1645,9 @@ public class BigQueryIO {
                                 sourceDef.toSource(
                                     jobUuid,
                                     coder,
-                                    getDatumReaderFactory(),
+                                    checkStateNotNull(
+                                        getDatumReaderFactory(),
+                                        "A readerDatumFactory is required"),
                                     getUseAvroLogicalTypes());
                             BigQueryOptions options =
                                 c.getPipelineOptions().as(BigQueryOptions.class);
@@ -1660,7 +1683,9 @@ public class BigQueryIO {
                                     sourceDef.toSource(
                                         jobUuid,
                                         coder,
-                                        getDatumReaderFactory(),
+                                        checkStateNotNull(
+                                            getDatumReaderFactory(),
+                                            "A readerDatumFactory is required"),
                                         getUseAvroLogicalTypes());
                                 List<BoundedSource<T>> sources =
                                     source.createSources(
@@ -1719,15 +1744,20 @@ public class BigQueryIO {
       if (beamSchema != null) {
         rows.setSchema(
             beamSchema,
-            getTypeDescriptor(),
-            getToBeamRowFn().apply(beamSchema),
-            getFromBeamRowFn().apply(beamSchema));
+            checkStateNotNull(getTypeDescriptor()),
+            checkStateNotNull(getToBeamRowFn()).apply(beamSchema),
+            checkStateNotNull(getFromBeamRowFn()).apply(beamSchema));
       }
       return rows;
     }
 
     private PCollection<T> expandForDirectRead(
-        PBegin input, Coder<T> outputCoder, Schema beamSchema, BigQueryOptions bqOptions) {
+        PBegin input,
+        Coder<T> outputCoder,
+        @Nullable Schema beamSchema,
+        BigQueryOptions bqOptions) {
+      SerializableFunction<SchemaAndRecord, T> parseFn =
+          checkStateNotNull(getParseFn(), "A parseFn is required");
       ValueProvider<TableReference> tableProvider = getTableProvider();
       Pipeline p = input.getPipeline();
       if (tableProvider != null) {
@@ -1743,7 +1773,7 @@ public class BigQueryIO {
                           getFormat(),
                           getSelectedFields(),
                           getRowRestriction(),
-                          getParseFn(),
+                          parseFn,
                           outputCoder,
                           getBigQueryServices(),
                           getProjectionPushdownApplied(),
@@ -1751,9 +1781,9 @@ public class BigQueryIO {
           if (beamSchema != null) {
             rows.setSchema(
                 beamSchema,
-                getTypeDescriptor(),
-                getToBeamRowFn().apply(beamSchema),
-                getFromBeamRowFn().apply(beamSchema));
+                checkStateNotNull(getTypeDescriptor()),
+                checkStateNotNull(getToBeamRowFn()).apply(beamSchema),
+                checkStateNotNull(getFromBeamRowFn()).apply(beamSchema));
           }
           return rows;
         } else {
@@ -1765,7 +1795,7 @@ public class BigQueryIO {
                   getFormat(),
                   getSelectedFields(),
                   getRowRestriction(),
-                  getParseFn(),
+                  parseFn,
                   outputCoder,
                   getBigQueryServices(),
                   getProjectionPushdownApplied(),
@@ -1793,7 +1823,7 @@ public class BigQueryIO {
               p.apply(Create.of(sources))
                   .apply(
                       "Read Storage Table Source",
-                      ParDo.of(new ReadTableSource<T>(rowTag, getParseFn(), getBadRecordRouter()))
+                      ParDo.of(new ReadTableSource<T>(rowTag, parseFn, getBadRecordRouter()))
                           .withOutputTags(rowTag, TupleTagList.of(BAD_RECORD_TAG)));
           getBadRecordErrorHandler()
               .addErrorCollection(
@@ -1916,9 +1946,9 @@ public class BigQueryIO {
       if (beamSchema != null) {
         rows.setSchema(
             beamSchema,
-            getTypeDescriptor(),
-            getToBeamRowFn().apply(beamSchema),
-            getFromBeamRowFn().apply(beamSchema));
+            checkStateNotNull(getTypeDescriptor()),
+            checkStateNotNull(getToBeamRowFn()).apply(beamSchema),
+            checkStateNotNull(getFromBeamRowFn()).apply(beamSchema));
       }
       return rows.apply(new PassThroughThenCleanup<>(cleanupOperation, jobIdTokenView));
     }
@@ -1986,7 +2016,8 @@ public class BigQueryIO {
                           // the destination table created to hold the results.
                           BigQueryStorageQuerySource<T> querySource =
                               createStorageQuerySource(jobUuid, outputCoder);
-                          Table queryResultTable = querySource.getTargetTable(options);
+                          Table queryResultTable =
+                              checkStateNotNull(querySource.getTargetTable(options));
 
                           // Create a read session without specifying a desired stream count and
                           // let the BigQuery storage server pick the number of streams.
@@ -2032,7 +2063,7 @@ public class BigQueryIO {
         implements SerializableFunction<SchemaAndRecord, T> {
       private final SerializableFunction<SchemaAndRecord, T> parseFn;
 
-      private transient SchemaAndRecord schemaAndRecord = null;
+      private transient @Nullable SchemaAndRecord schemaAndRecord = null;
 
       private ErrorHandlingParseFn(SerializableFunction<SchemaAndRecord, T> parseFn) {
         this.parseFn = parseFn;
@@ -2049,7 +2080,7 @@ public class BigQueryIO {
       }
 
       public SchemaAndRecord getSchemaAndRecord() {
-        return schemaAndRecord;
+        return checkStateNotNull(schemaAndRecord, "apply() has not been called yet");
       }
     }
 
@@ -2084,7 +2115,8 @@ public class BigQueryIO {
                               ReadStream readStream = c.element();
 
                               ErrorHandlingParseFn<T> errorHandlingParseFn =
-                                  new ErrorHandlingParseFn<T>(getParseFn());
+                                  new ErrorHandlingParseFn<T>(
+                                      checkStateNotNull(getParseFn(), "A parseFn is required"));
 
                               BigQueryStorageStreamSource<T> streamSource =
                                   BigQueryStorageStreamSource.create(
@@ -2127,13 +2159,13 @@ public class BigQueryIO {
       // the same order.
       BoundedSource.BoundedReader<T> reader = streamSource.createReader(options);
 
-      T current = null;
-      boolean hasCurrent = false;
+      @Nullable T current = null;
       try {
         if (reader.start()) {
-          current =
-              java.util.Objects.requireNonNull(reader.getCurrent(), "Reader returned null element");
-          hasCurrent = true;
+          current = reader.getCurrent();
+          if (current == null) {
+            throw new IllegalStateException("Reader returned null element");
+          }
         } else {
           return;
         }
@@ -2146,17 +2178,15 @@ public class BigQueryIO {
             (Exception) e.getCause(),
             "Unable to parse record reading from BigQuery");
       }
-      if (hasCurrent) {
+      if (current != null) {
         outputReceiver.get(rowTag).output(current);
       }
 
       while (true) {
         current = null;
-        hasCurrent = false;
         try {
           if (reader.advance()) {
             current = reader.getCurrent();
-            hasCurrent = true;
           } else {
             return;
           }
@@ -2169,7 +2199,7 @@ public class BigQueryIO {
               (Exception) e.getCause(),
               "Unable to parse record reading from BigQuery");
         }
-        if (hasCurrent) {
+        if (current != null) {
           outputReceiver.get(rowTag).output(current);
         }
       }
@@ -2212,9 +2242,10 @@ public class BigQueryIO {
 
     /** See {@link Read#getTableProvider()}. */
     public @Nullable ValueProvider<TableReference> getTableProvider() {
-      return getJsonTableRef() == null
+      ValueProvider<String> jsonTableRef = getJsonTableRef();
+      return jsonTableRef == null
           ? null
-          : NestedValueProvider.of(getJsonTableRef(), new JsonTableRefToTableRef());
+          : NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
     }
 
     /** See {@link Read#getTable()}. */
@@ -2627,7 +2658,7 @@ public class BigQueryIO {
   }
 
   private static class FormatProto<T extends Message> extends TableRowFormatFunction<T> {
-    transient TableRowToStorageApiProto.SchemaInformation inferredSchemaInformation;
+    transient TableRowToStorageApiProto.@Nullable SchemaInformation inferredSchemaInformation;
     final Class<T> protoMessageClass;
 
     FormatProto(Class<T> protoMessageClass) {
@@ -2637,11 +2668,12 @@ public class BigQueryIO {
     TableRowToStorageApiProto.SchemaInformation inferSchemaInformation() {
       try {
         if (inferredSchemaInformation == null) {
+          // Method.invoke takes a null receiver for a static method; that is not expressible
+          // against the JDK's annotations.
+          @SuppressWarnings("nullness")
+          Object rawDescriptor = protoMessageClass.getMethod("getDescriptor").invoke(null);
           Descriptors.Descriptor descriptor =
-              (Descriptors.Descriptor)
-                  org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-                          protoMessageClass.getMethod("getDescriptor"))
-                      .invoke(null);
+              (Descriptors.Descriptor) checkStateNotNull(rawDescriptor);
           Descriptors.Descriptor convertedDescriptor =
               TableRowToStorageApiProto.wrapDescriptorProto(
                   ProtoSchemaConverter.convert(descriptor).getProtoDescriptor());
@@ -2663,7 +2695,8 @@ public class BigQueryIO {
     }
 
     @Override
-    public TableRow apply(TableRowToStorageApiProto.SchemaInformation schemaInformation, T input) {
+    public TableRow apply(
+        TableRowToStorageApiProto.@Nullable SchemaInformation schemaInformation, T input) {
       TableRowToStorageApiProto.SchemaInformation localSchemaInformation =
           schemaInformation != null ? schemaInformation : inferSchemaInformation();
       return TableRowToStorageApiProto.tableRowFromMessage(
@@ -2720,7 +2753,7 @@ public class BigQueryIO {
     abstract @Nullable ValueProvider<String> getJsonTableRef();
 
     abstract @Nullable
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> getTableFunction();
+        SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> getTableFunction();
 
     abstract @Nullable TableRowFormatFunction<T> getFormatFunction();
 
@@ -2837,7 +2870,7 @@ public class BigQueryIO {
       abstract Builder<T> setJsonTableRef(ValueProvider<String> jsonTableRef);
 
       abstract Builder<T> setTableFunction(
-          SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction);
+          SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction);
 
       abstract Builder<T> setFormatFunction(TableRowFormatFunction<T> formatFunction);
 
@@ -2936,7 +2969,7 @@ public class BigQueryIO {
       abstract Builder<T> setDirectWriteProtos(boolean direct);
 
       abstract Builder<T> setDeterministicRecordIdFn(
-          SerializableFunction<T, String> toUniqueIdFunction);
+          @Nullable SerializableFunction<T, String> toUniqueIdFunction);
 
       abstract Builder<T> setWriteTempDataset(String writeTempDataset);
 
@@ -3071,7 +3104,7 @@ public class BigQueryIO {
      * encoded and decoded.
      */
     public Write<T> to(
-        SerializableFunction<ValueInSingleWindow<T>, TableDestination> tableFunction) {
+        SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction) {
       checkArgument(tableFunction != null, "tableFunction can not be null");
       return toBuilder().setTableFunction(tableFunction).build();
     }
@@ -3715,12 +3748,16 @@ public class BigQueryIO {
     }
 
     @Override
-    public void validate(PipelineOptions pipelineOptions) {
-      BigQueryOptions options = pipelineOptions.as(BigQueryOptions.class);
+    public void validate(@Nullable PipelineOptions maybeOptions) {
+      BigQueryOptions options =
+          org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(maybeOptions)
+              .as(BigQueryOptions.class);
 
       // The user specified a table.
-      if (getJsonTableRef() != null && getJsonTableRef().isAccessible() && getValidate()) {
-        TableReference table = getTableWithDefaultProject(options).get();
+      ValueProvider<String> jsonTableRef = getJsonTableRef();
+      if (jsonTableRef != null && jsonTableRef.isAccessible() && getValidate()) {
+        TableReference table =
+            checkStateNotNull(getTableWithDefaultProject(options), "table is required").get();
         try (DatasetService datasetService = getBigQueryServices().getDatasetService(options)) {
           // Check for destination table presence and emptiness for early failure notification.
           // Note that a presence check can fail when the table or dataset is created by an earlier
@@ -3759,12 +3796,14 @@ public class BigQueryIO {
           : Write.Method.FILE_LOADS;
     }
 
-    private Duration getStorageApiTriggeringFrequency(BigQueryOptions options) {
-      if (getTriggeringFrequency() != null) {
-        return getTriggeringFrequency();
+    private @Nullable Duration getStorageApiTriggeringFrequency(BigQueryOptions options) {
+      Duration triggeringFrequency = getTriggeringFrequency();
+      if (triggeringFrequency != null) {
+        return triggeringFrequency;
       }
-      if (options.getStorageWriteApiTriggeringFrequencySec() != null) {
-        return Duration.standardSeconds(options.getStorageWriteApiTriggeringFrequencySec());
+      Integer frequencySec = options.getStorageWriteApiTriggeringFrequencySec();
+      if (frequencySec != null) {
+        return Duration.standardSeconds(frequencySec);
       }
       return null;
     }
@@ -3890,10 +3929,11 @@ public class BigQueryIO {
         if (getWriteDisposition() == WriteDisposition.WRITE_TRUNCATE) {
           LOG.error("The Storage API sink does not support the WRITE_TRUNCATE write disposition.");
         }
-        if (getBigLakeConfiguration() != null) {
+        Map<String, String> bigLakeConfiguration = getBigLakeConfiguration();
+        if (bigLakeConfiguration != null) {
           checkArgument(
               Arrays.stream(new String[] {CONNECTION_ID, STORAGE_URI})
-                  .allMatch(getBigLakeConfiguration()::containsKey),
+                  .allMatch(bigLakeConfiguration::containsKey),
               String.format(
                   "bigLakeConfiguration must contain keys '%s' and '%s'",
                   CONNECTION_ID, STORAGE_URI));
@@ -3935,44 +3975,49 @@ public class BigQueryIO {
 
       DynamicDestinations<T, ?> dynamicDestinations = getDynamicDestinations();
       if (dynamicDestinations == null) {
-        if (getJsonTableRef() != null) {
-          dynamicDestinations =
+        ValueProvider<String> jsonTableRef = getJsonTableRef();
+        SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction =
+            getTableFunction();
+        ValueProvider<String> jsonClustering = getJsonClustering();
+        DynamicDestinations<T, TableDestination> tableDestinations;
+        if (jsonTableRef != null) {
+          tableDestinations =
               DynamicDestinationsHelpers.ConstantTableDestinations.fromJsonTableRef(
-                  getJsonTableRef(), getTableDescription(), getJsonClustering() != null);
-        } else if (getTableFunction() != null) {
-          dynamicDestinations =
-              new TableFunctionDestinations<>(getTableFunction(), getJsonClustering() != null);
+                  jsonTableRef, getTableDescription(), jsonClustering != null);
+        } else {
+          // Checked above: exactly one of jsonTableRef, tableFunction or dynamicDestinations is
+          // set.
+          tableDestinations =
+              new TableFunctionDestinations<>(
+                  checkStateNotNull(tableFunction), jsonClustering != null);
         }
 
         // Wrap with a DynamicDestinations class that will provide a schema. There might be no
         // schema provided if the create disposition is CREATE_NEVER.
-        if (getJsonSchema() != null) {
-          dynamicDestinations =
-              new ConstantSchemaDestinations<>(
-                  (DynamicDestinations<T, TableDestination>) dynamicDestinations, getJsonSchema());
-        } else if (getSchemaFromView() != null) {
-          dynamicDestinations =
-              new SchemaFromViewDestinations<>(
-                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
-                  getSchemaFromView());
+        ValueProvider<String> jsonSchema = getJsonSchema();
+        PCollectionView<Map<String, String>> schemaFromView = getSchemaFromView();
+        if (jsonSchema != null) {
+          tableDestinations = new ConstantSchemaDestinations<>(tableDestinations, jsonSchema);
+        } else if (schemaFromView != null) {
+          tableDestinations = new SchemaFromViewDestinations<>(tableDestinations, schemaFromView);
         }
 
         // Wrap with a DynamicDestinations class that will provide the proper TimePartitioning.
-        if (getJsonTimePartitioning() != null || (getJsonClustering() != null)) {
-          dynamicDestinations =
+        ValueProvider<String> jsonTimePartitioning = getJsonTimePartitioning();
+        if (jsonTimePartitioning != null || jsonClustering != null) {
+          tableDestinations =
               new ConstantTimePartitioningClusteringDestinations<>(
-                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
-                  getJsonTimePartitioning(),
-                  getJsonClustering());
+                  tableDestinations, jsonTimePartitioning, jsonClustering);
         }
-        if (getPrimaryKey() != null) {
-          dynamicDestinations =
+        List<String> primaryKey = getPrimaryKey();
+        if (primaryKey != null) {
+          tableDestinations =
               new DynamicDestinationsHelpers.ConstantTableConstraintsDestinations<>(
-                  (DynamicDestinations<T, TableDestination>) dynamicDestinations,
+                  tableDestinations,
                   new TableConstraints()
-                      .setPrimaryKey(
-                          new TableConstraints.PrimaryKey().setColumns(getPrimaryKey())));
+                      .setPrimaryKey(new TableConstraints.PrimaryKey().setColumns(primaryKey)));
         }
+        dynamicDestinations = tableDestinations;
       }
       return expandTyped(input, dynamicDestinations);
     }
@@ -4019,12 +4064,12 @@ public class BigQueryIO {
       } else if (writeProtoClass != null) {
         if (!hasSchema) {
           try {
-            @SuppressWarnings({"unchecked", "nullness"})
+            // Method.invoke takes a null receiver for a static method; that is not expressible
+            // against the JDK's annotations.
+            @SuppressWarnings("nullness")
+            Object rawDescriptor = writeProtoClass.getMethod("getDescriptor").invoke(null);
             Descriptors.Descriptor descriptor =
-                (Descriptors.Descriptor)
-                    org.apache.beam.sdk.util.Preconditions.checkStateNotNull(
-                            writeProtoClass.getMethod("getDescriptor"))
-                        .invoke(null);
+                (Descriptors.Descriptor) checkStateNotNull(rawDescriptor);
             TableSchema tableSchema =
                 TableRowToStorageApiProto.protoSchemaToTableSchema(
                     TableRowToStorageApiProto.tableSchemaFromDescriptor(descriptor));
@@ -4085,15 +4130,16 @@ public class BigQueryIO {
         checkArgument(
             avroRowWriterFactory == null,
             "When using a formatFunction, the AvroRowWriterFactory should be null");
-        checkArgument(
-            formatFunction != null,
-            "A function must be provided to convert the input type into a TableRow or "
-                + "GenericRecord. Use BigQueryIO.Write.withFormatFunction or "
-                + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting function. "
-                + "A format function is not required if Beam schemas are used.");
-
         rowWriterFactory =
-            RowWriterFactory.tableRows(formatFunction, formatRecordOnFailureFunction);
+            RowWriterFactory.tableRows(
+                checkArgumentNotNull(
+                    formatFunction,
+                    "A function must be provided to convert the input type into a TableRow or "
+                        + "GenericRecord. Use BigQueryIO.Write.withFormatFunction or "
+                        + "BigQueryIO.Write.withAvroFormatFunction to provide a formatting "
+                        + "function. A format function is not required if Beam schemas are "
+                        + "used."),
+                formatRecordOnFailureFunction);
       }
 
       PCollection<KV<DestinationT, T>> rowsWithDestination =
@@ -4184,8 +4230,9 @@ public class BigQueryIO {
 
         // Batch load handles wrapped json string value differently than the other methods. Raise a
         // warning when applies.
-        if (getJsonSchema() != null && getJsonSchema().isAccessible()) {
-          JsonElement schema = JsonParser.parseString(getJsonSchema().get());
+        ValueProvider<String> jsonSchema = getJsonSchema();
+        if (jsonSchema != null && jsonSchema.isAccessible()) {
+          JsonElement schema = JsonParser.parseString(jsonSchema.get());
           if (!schema.getAsJsonObject().keySet().isEmpty() && hasJsonTypeInSchema(schema)) {
             if (rowWriterFactory.getOutputType() == OutputType.JsonTableRow) {
               LOG.warn(
@@ -4226,11 +4273,13 @@ public class BigQueryIO {
         if (getSchemaUpdateOptions() != null) {
           batchLoads.setSchemaUpdateOptions(getSchemaUpdateOptions());
         }
-        if (getMaxFilesPerBundle() != null) {
-          batchLoads.setMaxNumWritersPerBundle(getMaxFilesPerBundle());
+        Integer maxFilesPerBundle = getMaxFilesPerBundle();
+        if (maxFilesPerBundle != null) {
+          batchLoads.setMaxNumWritersPerBundle(maxFilesPerBundle);
         }
-        if (getMaxFileSize() != null) {
-          batchLoads.setMaxFileSize(getMaxFileSize());
+        Long maxFileSize = getMaxFileSize();
+        if (maxFileSize != null) {
+          batchLoads.setMaxFileSize(maxFileSize);
         }
         batchLoads.setMaxFilesPerPartition(getMaxFilesPerPartition());
         batchLoads.setMaxBytesPerPartition(getMaxBytesPerPartition());
@@ -4248,8 +4297,8 @@ public class BigQueryIO {
         }
         return input.apply(batchLoads);
       } else if (method == Method.STORAGE_WRITE_API || method == Method.STORAGE_API_AT_LEAST_ONCE) {
-        boolean useSchemaUpdate =
-            getSchemaUpdateOptions() != null && !getSchemaUpdateOptions().isEmpty();
+        Set<SchemaUpdateOption> schemaUpdateOptions = getSchemaUpdateOptions();
+        boolean useSchemaUpdate = schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty();
         if (useSchemaUpdate) {
           checkArgument(
               !getAutoSchemaUpdate() && !getIgnoreUnknownValues(),
@@ -4266,11 +4315,12 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               new StorageApiDynamicDestinationsBeamRow<>(
                   dynamicDestinations,
-                  elementSchema,
-                  elementToRowFunction,
+                  checkStateNotNull(elementSchema),
+                  checkStateNotNull(elementToRowFunction),
                   getFormatRecordOnFailureFunction(),
                   getRowMutationInformationFn() != null);
         } else if (getWriteProtosClass() != null && getDirectWriteProtos()) {
+          Class<T> writeProtosClass = checkStateNotNull(getWriteProtosClass());
           checkArgument(
               !useSchemaUpdate, "SchemaUpdateOptions are not supported when writing protos");
 
@@ -4295,9 +4345,7 @@ public class BigQueryIO {
           storageApiDynamicDestinations =
               (StorageApiDynamicDestinations<T, DestinationT>)
                   new StorageApiDynamicDestinationsProto(
-                      dynamicDestinations,
-                      getWriteProtosClass(),
-                      getFormatRecordOnFailureFunction());
+                      dynamicDestinations, writeProtosClass, getFormatRecordOnFailureFunction());
         } else if (getAvroRowWriterFactory() != null) {
           checkArgument(
               !useSchemaUpdate, "SchemaUpdateOptions are not supported when writing avros");
@@ -4337,9 +4385,7 @@ public class BigQueryIO {
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate(),
-                  getSchemaUpdateOptions() == null
-                      ? Collections.emptySet()
-                      : getSchemaUpdateOptions());
+                  schemaUpdateOptions == null ? Collections.emptySet() : schemaUpdateOptions);
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);
@@ -4370,7 +4416,7 @@ public class BigQueryIO {
                 getBigLakeConfiguration(),
                 getBadRecordRouter(),
                 getBadRecordErrorHandler(),
-                !getSchemaUpdateOptions().isEmpty());
+                useSchemaUpdate);
         return input.apply("StorageApiLoads", storageApiLoads);
       } else {
         throw new RuntimeException("Unexpected write method " + method);
@@ -4412,9 +4458,11 @@ public class BigQueryIO {
         builder.add(DisplayData.item("schema", "Custom Schema Function").withLabel("Table Schema"));
       }
 
-      if (getTableFunction() != null) {
+      SerializableFunction<@Nullable ValueInSingleWindow<T>, TableDestination> tableFunction =
+          getTableFunction();
+      if (tableFunction != null) {
         builder.add(
-            DisplayData.item("tableFn", getTableFunction().getClass())
+            DisplayData.item("tableFn", tableFunction.getClass())
                 .withLabel("Table Reference Function"));
       }
 
@@ -4470,9 +4518,10 @@ public class BigQueryIO {
 
     /** Returns the table reference, or {@code null}. */
     public @Nullable ValueProvider<TableReference> getTable() {
-      return getJsonTableRef() == null
+      ValueProvider<String> jsonTableRef = getJsonTableRef();
+      return jsonTableRef == null
           ? null
-          : NestedValueProvider.of(getJsonTableRef(), new JsonTableRefToTableRef());
+          : NestedValueProvider.of(jsonTableRef, new JsonTableRefToTableRef());
     }
   }
 

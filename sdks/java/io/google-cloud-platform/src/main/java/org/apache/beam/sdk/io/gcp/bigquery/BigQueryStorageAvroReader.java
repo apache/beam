@@ -48,9 +48,8 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   public void processReadRowsResponse(ReadRowsResponse readRowsResponse) {
     AvroRows avroRows = readRowsResponse.getAvroRows();
     rowCount = avroRows.getRowCount();
-    @SuppressWarnings({
-      "nullness" // reused decoder can be null but avro not annotated
-    })
+    // Avro accepts a null decoder to reuse but is not annotated.
+    @SuppressWarnings("nullness")
     BinaryDecoder newDecoder =
         DecoderFactory.get()
             .binaryDecoder(avroRows.getSerializedBinaryRows().toByteArray(), decoder);
@@ -65,10 +64,9 @@ class BigQueryStorageAvroReader implements BigQueryStorageReader {
   @Override
   public GenericRecord readSingleRecord() throws IOException {
     Preconditions.checkStateNotNull(decoder);
-    @SuppressWarnings({
-      "nullness" // reused record is null but avro not annotated
-    })
-    // record should not be reused, mutating outputted values is unsafe
+    // The record should not be reused; mutating outputted values is unsafe. Avro accepts a
+    // null reuse argument but is not annotated.
+    @SuppressWarnings("nullness")
     GenericRecord newRecord = datumReader.read(/* reuse= */ null, decoder);
     return newRecord;
   }

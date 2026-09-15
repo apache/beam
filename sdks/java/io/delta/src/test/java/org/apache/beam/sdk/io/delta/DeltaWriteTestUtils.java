@@ -31,11 +31,13 @@ import io.delta.kernel.engine.Engine;
 import io.delta.kernel.internal.data.GenericRow;
 import io.delta.kernel.types.BooleanType;
 import io.delta.kernel.types.DataType;
+import io.delta.kernel.types.DateType;
 import io.delta.kernel.types.LongType;
 import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import io.delta.kernel.utils.CloseableIterable;
 import io.delta.kernel.utils.CloseableIterator;
@@ -50,10 +52,9 @@ import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
-import org.joda.time.Instant;
 
 /** Utility class for writing test commits (appends and CDC actions) to Delta tables in tests. */
-final class DeltaWriteTestUtils {
+public final class DeltaWriteTestUtils {
 
   private DeltaWriteTestUtils() {}
 
@@ -134,16 +135,61 @@ final class DeltaWriteTestUtils {
 
       @Override
       public int getInt(int rowId) {
+        if (dataType instanceof DateType) {
+          Object val = rows.get(rowId).getValue(fieldIndex);
+          if (val instanceof java.time.LocalDate) {
+            return (int) ((java.time.LocalDate) val).toEpochDay();
+          }
+        }
         return rows.get(rowId).getInt32(fieldIndex);
       }
 
       @Override
       public long getLong(int rowId) {
         if (dataType instanceof TimestampType) {
-          Instant instant = rows.get(rowId).getDateTime(fieldIndex).toInstant();
-          return instant.getMillis() * 1000L;
+          Object val = rows.get(rowId).getValue(fieldIndex);
+          if (val instanceof java.time.Instant) {
+            java.time.Instant inst = (java.time.Instant) val;
+            return inst.getEpochSecond() * 1_000_000L + inst.getNano() / 1000L;
+          } else {
+            throw new RuntimeException(
+                "Unexpected value for field " + rowId + " of type 'TimestampType': " + val);
+          }
+        }
+        if (dataType instanceof TimestampNTZType) {
+          Object val = rows.get(rowId).getValue(fieldIndex);
+          if (val instanceof java.time.LocalDateTime) {
+            java.time.Instant inst =
+                ((java.time.LocalDateTime) val).toInstant(java.time.ZoneOffset.UTC);
+            return inst.getEpochSecond() * 1_000_000L + inst.getNano() / 1000L;
+          }
         }
         return rows.get(rowId).getInt64(fieldIndex);
+      }
+
+      @Override
+      public double getDouble(int rowId) {
+        return rows.get(rowId).getDouble(fieldIndex);
+      }
+
+      @Override
+      public float getFloat(int rowId) {
+        return rows.get(rowId).getFloat(fieldIndex);
+      }
+
+      @Override
+      public short getShort(int rowId) {
+        return rows.get(rowId).getInt16(fieldIndex);
+      }
+
+      @Override
+      public byte getByte(int rowId) {
+        return rows.get(rowId).getByte(fieldIndex);
+      }
+
+      @Override
+      public byte[] getBinary(int rowId) {
+        return rows.get(rowId).getBytes(fieldIndex);
       }
 
       @Override
@@ -165,7 +211,7 @@ final class DeltaWriteTestUtils {
    * @return the list of names of the written Parquet data files
    * @throws Exception if any error occurs during write or commit
    */
-  static List<String> writeAppendCommit(
+  public static List<String> writeAppendCommit(
       Engine engine,
       String tablePath,
       long expectedVersion,
@@ -262,7 +308,7 @@ final class DeltaWriteTestUtils {
    * @param cdcWriteSchema the schema used for writing the CDC files
    * @throws Exception if any error occurs during write or commit
    */
-  static void writeCdcCommit(
+  public static void writeCdcCommit(
       Engine engine,
       String tablePath,
       long expectedVersion,

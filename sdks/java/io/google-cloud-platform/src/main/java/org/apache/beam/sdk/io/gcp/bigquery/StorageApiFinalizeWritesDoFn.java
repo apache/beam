@@ -157,9 +157,6 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
               new RetryManager<>(Duration.standardSeconds(1), Duration.standardMinutes(1), 3);
       retryManager.addOperation(
           c -> {
-            @SuppressWarnings({
-              "nullness" // unsure why s is inferred to be @Nullable
-            })
             Iterable<String> streamsToCommit =
                 Iterables.filter(streamNames, s -> !alreadyCommittedStreams.contains(s));
             batchCommitOperationsSent.inc();
@@ -188,9 +185,6 @@ class StorageApiFinalizeWritesDoFn extends DoFn<KV<String, String>, Void> {
                   alreadyCommittedStreams.add(storageError.getEntity());
                 }
               }
-              @SuppressWarnings({
-                "nullness" // unsure why s is inferred to be @Nullable
-              })
               Iterable<String> streamsToCommit =
                   Iterables.filter(streamNames, s -> !alreadyCommittedStreams.contains(s));
               // If there are no more streams left to commit, then report this operation as having

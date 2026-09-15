@@ -61,13 +61,13 @@ public class PortableBigQueryDestinations extends DynamicDestinations<Row, Strin
     this.primaryKey = configuration.getPrimaryKey();
     RowFilter rf = new RowFilter(rowSchema);
     if (configuration.getDrop() != null) {
-      rf = rf.drop(checkStateNotNull(configuration.getDrop()));
+      rf = rf.drop(configuration.getDrop());
     }
     if (configuration.getKeep() != null) {
-      rf = rf.keep(checkStateNotNull(configuration.getKeep()));
+      rf = rf.keep(configuration.getKeep());
     }
     if (configuration.getOnly() != null) {
-      rf = rf.only(checkStateNotNull(configuration.getOnly()));
+      rf = rf.only(configuration.getOnly());
     }
     this.rowFilter = rf;
   }

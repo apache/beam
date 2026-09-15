@@ -28,10 +28,103 @@ from apache_beam.portability import common_urns
 from apache_beam.portability.api import beam_runner_api_pb2
 from apache_beam.runners.pipeline_utils import merge_common_environments
 from apache_beam.runners.pipeline_utils import merge_superset_dep_environments
+from apache_beam.runners.pipeline_utils import validate_pipeline_graph
 from apache_beam.runners.portability.expansion_service_test import FibTransform
 
 
 class PipelineUtilitiesTest(unittest.TestCase):
+  @staticmethod
+  def _pipeline_with_gbk_coders(
+      input_key_coder='key_coder',
+      output_key_coder='key_coder',
+      output_values_coder_urn=common_urns.coders.ITERABLE.urn,
+      input_value_coder='input_value_coder',
+      output_value_coder='input_value_coder'):
+    leaf_coders = {
+        coder_id: beam_runner_api_pb2.Coder(
+            spec=beam_runner_api_pb2.FunctionSpec(
+                urn=common_urns.coders.BYTES.urn))
+        for coder_id in {
+            input_key_coder,
+            output_key_coder,
+            input_value_coder,
+            output_value_coder, }
+    }
+    output_values_coder = beam_runner_api_pb2.Coder(
+        spec=beam_runner_api_pb2.FunctionSpec(urn=output_values_coder_urn),
+        component_coder_ids=([output_value_coder] if output_values_coder_urn
+                             == common_urns.coders.ITERABLE.urn else []))
+    return beam_runner_api_pb2.Pipeline(
+        components=beam_runner_api_pb2.Components(
+            coders={
+                **leaf_coders,
+                'input_coder': beam_runner_api_pb2.Coder(
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.coders.KV.urn),
+                    component_coder_ids=[input_key_coder, input_value_coder]),
+                'output_coder': beam_runner_api_pb2.Coder(
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.coders.KV.urn),
+                    component_coder_ids=[
+                        output_key_coder, 'output_values_coder'
+                    ]),
+                'output_values_coder': output_values_coder,
+            },
+            pcollections={
+                'input': beam_runner_api_pb2.PCollection(
+                    coder_id='input_coder'),
+                'output': beam_runner_api_pb2.PCollection(
+                    coder_id='output_coder'),
+            },
+            transforms={
+                'gbk': beam_runner_api_pb2.PTransform(
+                    spec=beam_runner_api_pb2.FunctionSpec(
+                        urn=common_urns.primitives.GROUP_BY_KEY.urn),
+                    inputs={'input': 'input'},
+                    outputs={'output': 'output'}),
+            }),
+        root_transform_ids=['gbk'])
+
+  def test_validate_pipeline_graph_accepts_valid_gbk_coders(self):
+    validate_pipeline_graph(self._pipeline_with_gbk_coders())
+
+  def test_validate_pipeline_graph_reports_gbk_key_coder_mismatch(self):
+    pipeline = self._pipeline_with_gbk_coders(
+        input_key_coder='input_key_coder', output_key_coder='output_key_coder')
+
+    with self.assertRaises(ValueError) as error:
+      validate_pipeline_graph(pipeline)
+
+    self.assertEqual(
+        str(error.exception),
+        'Input key coder input_key_coder does not match output key coder '
+        'output_key_coder for transform gbk')
+
+  def test_validate_pipeline_graph_reports_non_iterable_gbk_output(self):
+    pipeline = self._pipeline_with_gbk_coders(
+        output_values_coder_urn=common_urns.coders.BYTES.urn)
+
+    with self.assertRaises(ValueError) as error:
+      validate_pipeline_graph(pipeline)
+
+    self.assertEqual(
+        str(error.exception),
+        'Output value coder output_values_coder for transform gbk must be an '
+        'iterable coder, but uses URN beam:coder:bytes:v1')
+
+  def test_validate_pipeline_graph_reports_gbk_value_coder_mismatch(self):
+    pipeline = self._pipeline_with_gbk_coders(
+        input_value_coder='input_value_coder',
+        output_value_coder='output_value_coder')
+
+    with self.assertRaises(ValueError) as error:
+      validate_pipeline_graph(pipeline)
+
+    self.assertEqual(
+        str(error.exception),
+        'Input value coder input_value_coder does not match output value coder '
+        'output_value_coder for transform gbk')
+
   def test_equal_environments_merged(self):
     pipeline_proto = merge_common_environments(
         beam_runner_api_pb2.Pipeline(

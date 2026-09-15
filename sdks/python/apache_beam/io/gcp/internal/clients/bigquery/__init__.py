@@ -18,6 +18,7 @@
 """Common imports for generated bigquery client library."""
 # pylint:disable=wildcard-import
 
+import logging
 import pkgutil
 
 # Protect against environments where apitools library is not available.
@@ -28,6 +29,9 @@ try:
   from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_client import *
   from apache_beam.io.gcp.internal.clients.bigquery.bigquery_v2_messages import *
 except ImportError:
+  logging.warning(
+      "apitools not found, and bigquery client libraries are not "
+      "available despite the import not raising an ImportError.")
   pass
 # pylint: enable=wrong-import-order, wrong-import-position
 

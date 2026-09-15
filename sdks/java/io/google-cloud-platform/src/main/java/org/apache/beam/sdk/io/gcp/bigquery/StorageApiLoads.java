@@ -44,6 +44,7 @@ import org.apache.beam.sdk.transforms.errorhandling.BadRecordRouter.ThrowingBadR
 import org.apache.beam.sdk.transforms.errorhandling.ErrorHandler;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindows;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.ShardedKey;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -68,8 +69,8 @@ public class StorageApiLoads<DestinationT, ElementT>
 
   private final @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn;
   private final CreateDisposition createDisposition;
-  private final String kmsKey;
-  private final Duration triggeringFrequency;
+  private final @Nullable String kmsKey;
+  private final @Nullable Duration triggeringFrequency;
   private final BigQueryServices bqServices;
   private final int numShards;
   private final boolean allowInconsistentWrites;
@@ -79,7 +80,7 @@ public class StorageApiLoads<DestinationT, ElementT>
   private final boolean usesCdc;
 
   private final AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation;
-  private final Map<String, String> bigLakeConfiguration;
+  private final @Nullable Map<String, String> bigLakeConfiguration;
 
   private final BadRecordRouter badRecordRouter;
 
@@ -92,8 +93,8 @@ public class StorageApiLoads<DestinationT, ElementT>
       StorageApiDynamicDestinations<ElementT, DestinationT> dynamicDestinations,
       @Nullable SerializableFunction<ElementT, RowMutationInformation> rowUpdateFn,
       CreateDisposition createDisposition,
-      String kmsKey,
-      Duration triggeringFrequency,
+      @Nullable String kmsKey,
+      @Nullable Duration triggeringFrequency,
       BigQueryServices bqServices,
       int numShards,
       boolean allowInconsistentWrites,
@@ -104,7 +105,7 @@ public class StorageApiLoads<DestinationT, ElementT>
       Predicate<String> propagateSuccessfulStorageApiWritesPredicate,
       boolean usesCdc,
       AppendRowsRequest.MissingValueInterpretation defaultMissingValueInterpretation,
-      Map<String, String> bigLakeConfiguration,
+      @Nullable Map<String, String> bigLakeConfiguration,
       BadRecordRouter badRecordRouter,
       ErrorHandler<BadRecord, ?> badRecordErrorHandler,
       boolean hasSchemaUpdateOptions) {
@@ -231,6 +232,10 @@ public class StorageApiLoads<DestinationT, ElementT>
       PCollection<KV<DestinationT, ElementT>> input,
       Coder<KV<DestinationT, StorageApiWritePayload>> successCoder,
       Coder<StorageApiWritePayload> payloadCoder) {
+    // Only reached when a triggering frequency is configured; see expand().
+    Duration triggeringFrequency =
+        Preconditions.checkStateNotNull(
+            this.triggeringFrequency, "A triggering frequency is required for triggered loads");
     // Handle triggered, low-latency loads into BigQuery.
     PCollection<KV<DestinationT, ElementT>> inputInGlobalWindow =
         input.apply("rewindowIntoGlobal", Window.into(new GlobalWindows()));
