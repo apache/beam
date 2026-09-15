@@ -60,7 +60,7 @@ onnx_inputs, onnx_outputs = transformers.onnx.export(
         output=Path(&#34;bert-sst2-model.onnx&#34;)
 )
 </code></pre><h3 id=from-onnx-to-tensorrt-engine>From ONNX to TensorRT engine</h3><p>To convert an ONNX model to a TensorRT engine, use the following command from the <code>CLI</code>:</p><pre tabindex=0><code>trtexec --onnx=&lt;path to onnx model&gt; --saveEngine=&lt;path to save TensorRT engine&gt; --useCudaGraph --verbose
-</code></pre><p>To use <code>trtexec</code>, follow the steps in the blog post <a href=https://developer.nvidia.com/blog/simplifying-and-accelerating-machine-learning-predictions-in-apache-beam-with-nvidia-tensorrt/>Simplifying and Accelerating Machine Learning Predictions in Apache Beam with NVIDIA TensorRT</a>. The post explains how to build a docker image from a DockerFile that can be used for conversion. We use the following Docker file, which is similar to the file used in the blog post:</p><pre tabindex=0><code>ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:22.05-py3
+</code></pre><p>To use <code>trtexec</code>, follow the steps in the blog post <a href=https://developer.nvidia.com/blog/simplifying-and-accelerating-machine-learning-predictions-in-apache-beam-with-nvidia-tensorrt/>Simplifying and Accelerating Machine Learning Predictions in Apache Beam with NVIDIA TensorRT</a>. The post explains how to build a docker image from a DockerFile that can be used for conversion. We use the following Docker file, which is similar to the file used in the blog post:</p><pre tabindex=0><code>ARG BUILD_IMAGE=nvcr.io/nvidia/tensorrt:26.06-py3
 
 FROM ${BUILD_IMAGE}
 
@@ -69,11 +69,11 @@ ENV PATH=&#34;/usr/src/tensorrt/bin:${PATH}&#34;
 WORKDIR /workspace
 
 RUN apt-get update -y &amp;&amp; apt-get install -y python3-venv
-RUN pip install --no-cache-dir apache-beam[gcp]==2.44.0
-COPY --from=apache/beam_python3.8_sdk:2.44.0 /opt/apache/beam /opt/apache/beam
+RUN pip install --no-cache-dir apache-beam[gcp]==2.76.0
+COPY --from=apache/beam_python3.12_sdk:2.76.0 /opt/apache/beam /opt/apache/beam
 
 RUN pip install --upgrade pip \
-    &amp;&amp; pip install torch==1.13.1 \
+    &amp;&amp; pip install torch==2.13.0 \
     &amp;&amp; pip install torchvision&gt;=0.8.2 \
     &amp;&amp; pip install pillow&gt;=8.0.0 \
     &amp;&amp; pip install transformers&gt;=4.18.0 \
