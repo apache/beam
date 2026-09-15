@@ -2898,6 +2898,7 @@ class StorageWriteToBigQuery(PTransform):
   # fields for rows sent to Storage API with dynamic destinations
   DESTINATION = "destination"
   RECORD = "record"
+  SCHEMA = "schema"
   # field names for rows sent to Storage API for CDC functionality
   CDC_INFO = "row_mutation_info"
   CDC_MUTATION_TYPE = "mutation_type"
@@ -3160,6 +3161,12 @@ class StorageWriteToBigQuery(PTransform):
       record_schema = self.schema(dest, *schema_side_inputs)
       self._create_table_if_needed(dest, record_schema)
 
+      if record_schema is None or record_schema == SCHEMA_AUTODETECT:
+        schema_json = ''
+      else:
+        schema_dict = bigquery_tools.get_dict_table_schema(record_schema)
+        schema_json = json.dumps(schema_dict)
+
       record_row = bigquery_tools.beam_row_from_dict(dict_row, record_schema)
       if self.union_field_names:
         record_dict = record_row._asdict()
@@ -3171,6 +3178,7 @@ class StorageWriteToBigQuery(PTransform):
       yield beam.Row(
           **{
               StorageWriteToBigQuery.DESTINATION: dest,
+              StorageWriteToBigQuery.SCHEMA: schema_json,
               StorageWriteToBigQuery.RECORD: record_row
           })
 
@@ -3262,10 +3270,17 @@ class StorageWriteToBigQuery(PTransform):
     def with_output_types(self):
       record_hint = self._get_record_type_hint()
       if self.dynamic_destinations:
-        type_hint = RowTypeConstraint.from_fields([
-            (StorageWriteToBigQuery.DESTINATION, str),
-            (StorageWriteToBigQuery.RECORD, record_hint)
-        ])
+        if callable(self.schema):
+          type_hint = RowTypeConstraint.from_fields([
+              (StorageWriteToBigQuery.DESTINATION, str),
+              (StorageWriteToBigQuery.SCHEMA, str),
+              (StorageWriteToBigQuery.RECORD, record_hint)
+          ])
+        else:
+          type_hint = RowTypeConstraint.from_fields([
+              (StorageWriteToBigQuery.DESTINATION, str),
+              (StorageWriteToBigQuery.RECORD, record_hint)
+          ])
       else:
         type_hint = record_hint
 

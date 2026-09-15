@@ -17,6 +17,7 @@
 
 """Unit tests for BigQuery Storage Write API dynamic schemas."""
 
+import json
 import unittest
 from unittest import mock
 
@@ -89,8 +90,14 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
       res = p | "CreateInput" >> beam.Create(input_data) | converter
 
       expected_rows = [
-          beam.Row(destination='table1', record=beam.Row(id=1, name='foo')),
-          beam.Row(destination='table2', record=beam.Row(id=2, score=3.14)),
+          beam.Row(
+              destination='table1',
+              schema=json.dumps(bigquery_tools.get_dict_table_schema(schema1)),
+              record=beam.Row(id=1, name='foo')),
+          beam.Row(
+              destination='table2',
+              schema=json.dumps(bigquery_tools.get_dict_table_schema(schema2)),
+              record=beam.Row(id=2, score=3.14)),
       ]
       assert_that(res, equal_to(expected_rows))
 
@@ -141,8 +148,14 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
       res = p | "CreateInput" >> beam.Create(input_data) | converter
 
       expected_rows = [
-          beam.Row(destination='table1', record=beam.Row(id=1, name='foo')),
-          beam.Row(destination='table2', record=beam.Row(id=2, score=3.14)),
+          beam.Row(
+              destination='table1',
+              schema=json.dumps(bigquery_tools.get_dict_table_schema(schema1)),
+              record=beam.Row(id=1, name='foo')),
+          beam.Row(
+              destination='table2',
+              schema=json.dumps(bigquery_tools.get_dict_table_schema(schema2)),
+              record=beam.Row(id=2, score=3.14)),
       ]
       assert_that(res, equal_to(expected_rows))
 
@@ -170,6 +183,7 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
         type_hint_dyn._fields,
         (
             (bigquery.StorageWriteToBigQuery.DESTINATION, str),
+            (bigquery.StorageWriteToBigQuery.SCHEMA, str),
             (
                 bigquery.StorageWriteToBigQuery.RECORD,
                 RowTypeConstraint.from_fields([])),
@@ -191,12 +205,15 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
         type_hint_dyn._fields[0],
         (bigquery.StorageWriteToBigQuery.DESTINATION, str))
     self.assertEqual(
-        type_hint_dyn._fields[1][0], bigquery.StorageWriteToBigQuery.RECORD)
+        type_hint_dyn._fields[1],
+        (bigquery.StorageWriteToBigQuery.SCHEMA, str))
+    self.assertEqual(
+        type_hint_dyn._fields[2][0], bigquery.StorageWriteToBigQuery.RECORD)
     expected_record_hint = RowTypeConstraint.from_fields(
         bigquery_tools.get_beam_typehints_from_tableschema(
             'id:INTEGER,name:STRING'))
     self.assertEqual(
-        type_hint_dyn._fields[1][1]._fields, expected_record_hint._fields)
+        type_hint_dyn._fields[2][1]._fields, expected_record_hint._fields)
 
   def test_convert_to_beam_rows_union_schema_fills_missing_attributes(
       self, mock_expansion_service):
@@ -230,10 +247,14 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
         if r1.destination == 'dest_scores':
           r1, r2 = r2, r1
         assert r1.destination == 'dest_users'
+        assert r1.schema == json.dumps(
+            bigquery_tools.get_dict_table_schema('id:INTEGER,name:STRING'))
         assert r1.record.id == 1
         assert r1.record.name == 'alice'
         assert r1.record.score is None
         assert r2.destination == 'dest_scores'
+        assert r2.schema == json.dumps(
+            bigquery_tools.get_dict_table_schema('id:INTEGER,score:INTEGER'))
         assert r2.record.id == 2
         assert r2.record.name is None
         assert r2.record.score == 95
