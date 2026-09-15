@@ -139,14 +139,8 @@ class AssignDestinationsAndPartitions
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
 
-      String canonicalTableId;
-      try {
-        canonicalTableId =
-            IcebergUtils.tableIdentifierToString(
-                IcebergUtils.parseTableIdentifier(tableIdentifier));
-      } catch (Exception e) {
-        canonicalTableId = tableIdentifier.trim();
-      }
+      String canonicalTableId =
+          IcebergUtils.tableIdentifierToString(IcebergUtils.parseTableIdentifier(tableIdentifier));
 
       SerializableTableSpec tableSpec = null;
       if (metadataView != null) {
@@ -187,15 +181,15 @@ class AssignDestinationsAndPartitions
         @Nullable IcebergTableCreateConfig createConfig =
             dynamicDestinations.instantiateDestination(tableIdentifier).getTableCreateConfig();
 
-        if (createConfig != null && createConfig.getPartitionFields() != null) {
-          spec =
-              PartitionUtils.toPartitionSpec(createConfig.getPartitionFields(), data.getSchema());
-        } else if (tableSpec != null) {
+        if (tableSpec != null) {
           spec = tableSpec.getPartitionSpec();
           if (data.getSchema().getFieldCount() == tableSpec.getSchema().columns().size()) {
             schema = tableSpec.getSchema();
           }
           checkStateNotNull(cachedSpecIds).put(tableIdentifier, tableSpec.getSpecId());
+        } else if (createConfig != null && createConfig.getPartitionFields() != null) {
+          spec =
+              PartitionUtils.toPartitionSpec(createConfig.getPartitionFields(), data.getSchema());
         } else {
           try {
             // see if table already exists with a spec
