@@ -21,17 +21,17 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPFactory;
-import com.solacesystems.jcsmp.SDTException;
-import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.TextMessage;
+import java.io.Serializable;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.io.solace.broker.SolaceUserPropertiesMapper;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -88,10 +88,135 @@ public class Solace {
     UNKNOWN
   }
 
+  /** An immutable, typed value carried by a user-property map. */
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class UserPropertyValue {
+    public enum Kind {
+      NONE,
+      BOOLEAN,
+      BYTE,
+      SHORT,
+      INTEGER,
+      LONG,
+      FLOAT,
+      DOUBLE,
+      CHARACTER,
+      STRING,
+      BYTES,
+      DESTINATION
+    }
+
+    public abstract Kind getKind();
+
+    public abstract @Nullable Boolean getBoolean();
+
+    public abstract @Nullable Byte getByte();
+
+    public abstract @Nullable Short getShort();
+
+    public abstract @Nullable Integer getInteger();
+
+    public abstract @Nullable Long getLong();
+
+    public abstract @Nullable Float getFloat();
+
+    public abstract @Nullable Double getDouble();
+
+    public abstract @Nullable Character getCharacter();
+
+    public abstract @Nullable String getString();
+
+    public abstract @Nullable List<Byte> getBytes();
+
+    public abstract @Nullable Destination getDestination();
+
+    public static UserPropertyValue of() {
+      return builder(Kind.NONE).build();
+    }
+
+    public static UserPropertyValue of(Boolean value) {
+      return builder(Kind.BOOLEAN).setBoolean(value).build();
+    }
+
+    public static UserPropertyValue of(Byte value) {
+      return builder(Kind.BYTE).setByte(value).build();
+    }
+
+    public static UserPropertyValue of(Short value) {
+      return builder(Kind.SHORT).setShort(value).build();
+    }
+
+    public static UserPropertyValue of(Integer value) {
+      return builder(Kind.INTEGER).setInteger(value).build();
+    }
+
+    public static UserPropertyValue of(Long value) {
+      return builder(Kind.LONG).setLong(value).build();
+    }
+
+    public static UserPropertyValue of(Float value) {
+      return builder(Kind.FLOAT).setFloat(value).build();
+    }
+
+    public static UserPropertyValue of(Double value) {
+      return builder(Kind.DOUBLE).setDouble(value).build();
+    }
+
+    public static UserPropertyValue of(Character value) {
+      return builder(Kind.CHARACTER).setCharacter(value).build();
+    }
+
+    public static UserPropertyValue of(String value) {
+      return builder(Kind.STRING).setString(value).build();
+    }
+
+    public static UserPropertyValue of(List<Byte> value) {
+      return builder(Kind.BYTES).setBytes(List.copyOf(value)).build();
+    }
+
+    public static UserPropertyValue of(Destination destination) {
+      return builder(Kind.DESTINATION).setDestination(destination).build();
+    }
+
+    private static Builder builder(Kind kind) {
+      return new AutoValue_Solace_UserPropertyValue.Builder().setKind(kind);
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setKind(Kind value);
+
+      abstract Builder setBoolean(@Nullable Boolean value);
+
+      abstract Builder setByte(@Nullable Byte value);
+
+      abstract Builder setShort(@Nullable Short value);
+
+      abstract Builder setInteger(@Nullable Integer value);
+
+      abstract Builder setLong(@Nullable Long value);
+
+      abstract Builder setFloat(@Nullable Float value);
+
+      abstract Builder setDouble(@Nullable Double value);
+
+      abstract Builder setCharacter(@Nullable Character value);
+
+      abstract Builder setString(@Nullable String value);
+
+      abstract Builder setBytes(@Nullable List<Byte> value);
+
+      abstract Builder setDestination(@Nullable Destination value);
+
+      abstract UserPropertyValue build();
+    }
+  }
+
   /** Represents a Solace message destination (either a Topic or a Queue). */
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
-  public abstract static class Destination {
+  public abstract static class Destination implements Serializable {
     /**
      * Gets the name of the destination.
      *
@@ -282,14 +407,13 @@ public class Solace {
     public abstract PayloadType getPayloadType();
 
     /**
-     * Gets the user properties of the message as a string map.
-     *
-     * <p>Mapped from {@link BytesXMLMessage#getProperties()}. Values are stringified.
+     * Gets the typed, SDK-independent user properties of the message. Non beam-schema compatible
+     * types are not supported (SDTMap and SDTStream)
      *
      * @return The user properties, or an empty map if the message carries none.
      */
     @SchemaFieldNumber("14")
-    public abstract Map<String, String> getUserProperties();
+    public abstract Map<String, UserPropertyValue> getUserProperties();
 
     /** Gets the payload decoded as UTF-8 when this record has type {@link PayloadType#TEXT}. */
     public final String getText() {
@@ -348,7 +472,7 @@ public class Solace {
 
       public abstract Builder setAttachmentBytes(byte[] attachmentBytes);
 
-      public abstract Builder setUserProperties(Map<String, String> userProperties);
+      public abstract Builder setUserProperties(Map<String, UserPropertyValue> userProperties);
 
       public abstract Record build();
     }
@@ -474,7 +598,8 @@ public class Solace {
 
       Destination replyTo = getDestination(msg.getCorrelationId(), msg.getReplyTo());
       Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
-      Map<String, String> userProperties = getUserProperties(msg.getProperties());
+      Map<String, UserPropertyValue> userProperties =
+          SolaceUserPropertiesMapper.toUserPropertyValueMap(msg.getProperties());
 
       Record.Builder recordBuilder = decodePayload(msg);
       return recordBuilder
@@ -540,7 +665,7 @@ public class Solace {
       msg.setApplicationMessageId(record.getMessageId());
 
       if (!record.getUserProperties().isEmpty()) {
-        msg.setProperties(createUserProperties(record.getUserProperties()));
+        msg.setProperties(SolaceUserPropertiesMapper.toSDTMap(record.getUserProperties()));
       }
 
       return msg;
@@ -622,48 +747,6 @@ public class Solace {
       byte[] attachment = new byte[buffer.remaining()];
       buffer.get(attachment);
       return attachment;
-    }
-
-    private static Map<String, String> getUserProperties(@Nullable SDTMap properties) {
-      if (properties == null || properties.isEmpty()) {
-        return Collections.emptyMap();
-      }
-
-      Map<String, String> userProperties = new HashMap<>();
-      for (String key : properties.keySet()) {
-        String value = stringifyUserProperty(properties, key);
-        if (value == null) {
-          LOG.warn("User property '{}' has a null value, skipping.", key);
-          continue;
-        }
-        userProperties.put(key, value);
-      }
-      return Collections.unmodifiableMap(userProperties);
-    }
-
-    private static @Nullable String stringifyUserProperty(SDTMap properties, String key) {
-      try {
-        Object value = properties.get(key);
-        if (value == null) {
-          return null;
-        }
-        return String.valueOf(value);
-      } catch (SDTException e) {
-        LOG.error("Could not read user property '{}'.", key, e);
-        return null;
-      }
-    }
-
-    private static SDTMap createUserProperties(Map<String, String> userProperties) {
-      SDTMap properties = JCSMPFactory.onlyInstance().createMap();
-      for (Map.Entry<String, String> entry : userProperties.entrySet()) {
-        try {
-          properties.putString(entry.getKey(), entry.getValue());
-        } catch (SDTException e) {
-          LOG.error("Could not write user property '{}'.", entry.getKey(), e);
-        }
-      }
-      return properties;
     }
   }
 }
