@@ -205,8 +205,7 @@ class BigQueryStorageWriteDynamicSchemaTest(unittest.TestCase):
         type_hint_dyn._fields[0],
         (bigquery.StorageWriteToBigQuery.DESTINATION, str))
     self.assertEqual(
-        type_hint_dyn._fields[1],
-        (bigquery.StorageWriteToBigQuery.SCHEMA, str))
+        type_hint_dyn._fields[1], (bigquery.StorageWriteToBigQuery.SCHEMA, str))
     self.assertEqual(
         type_hint_dyn._fields[2][0], bigquery.StorageWriteToBigQuery.RECORD)
     expected_record_hint = RowTypeConstraint.from_fields(
