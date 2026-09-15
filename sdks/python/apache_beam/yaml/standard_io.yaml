@@ -118,6 +118,7 @@
     'ReadFromMongoDB': 'apache_beam.yaml.yaml_io.read_from_mongodb'
     'WriteToMongoDB': 'apache_beam.yaml.yaml_io.write_to_mongodb'
     'ReadFromDelta': 'apache_beam.yaml.yaml_io.read_from_delta'
+    'ReadFromDeltaCDC': 'apache_beam.yaml.yaml_io.read_from_delta_cdc'
     'DicomSearch': 'apache_beam.yaml.yaml_io.dicom_search'
 
 # General File Formats

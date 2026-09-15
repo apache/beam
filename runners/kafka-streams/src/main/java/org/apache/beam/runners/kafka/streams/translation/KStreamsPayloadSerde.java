@@ -24,6 +24,7 @@ import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBufferException;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serde;
@@ -36,9 +37,9 @@ import org.apache.kafka.common.serialization.Serializer;
  *
  * <p>The wire form is the {@link KafkaStreamsPayload} protobuf message — protobuf gives compatible
  * schema evolution and compact varint encoding. The data variant carries the {@link WindowedValue}
- * encoded with the {@link Coder} supplied for the topic's PCollection; the watermark variant
- * carries the coder-independent watermark report. A {@link KStreamsPayloadSerde} is therefore
- * parameterized by the data {@link Coder} (different topics carry different element types).
+ * encoded with the {@link Coder} supplied for the topic's PCollection; the watermark and flush
+ * variants are coder-independent. A {@link KStreamsPayloadSerde} is therefore parameterized by the
+ * data {@link Coder} (different topics carry different element types).
  *
  * <p>The serde assumes non-null payloads: the topics it is used on (repartition and watermark
  * fan-out) are not log-compacted, so no tombstone (null-valued) records occur.
@@ -77,6 +78,10 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
         proto.setData(
             KafkaStreamsPayload.DataPayload.newBuilder()
                 .setValue(ByteString.copyFrom(encoded.toByteArray())));
+      } else if (payload.isFlush()) {
+        proto.setFlush(
+            KafkaStreamsPayload.FlushPayload.newBuilder()
+                .addAllTargetPartitions(payload.asFlush().getTargetPartitions()));
       } else {
         WatermarkPayload watermark = payload.asWatermark();
         proto.setWatermark(
@@ -113,6 +118,9 @@ public final class KStreamsPayloadSerde<T> implements Serde<KStreamsPayload<T>> 
               watermark.getTransformId(),
               watermark.getSourcePartition(),
               watermark.getTotalPartitions());
+        case FLUSH:
+          return KStreamsPayload.flush(
+              ImmutableSet.copyOf(proto.getFlush().getTargetPartitionsList()));
         case PAYLOAD_NOT_SET:
         default:
           throw new SerializationException(

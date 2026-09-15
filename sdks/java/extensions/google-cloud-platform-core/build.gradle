@@ -66,6 +66,7 @@ dependencies {
   implementation library.java.proto_google_cloud_secret_manager_v1
   implementation library.java.protobuf_java
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
+  testImplementation project(path: ":runners:direct-java", configuration: "shadow")
   testImplementation library.java.mockito_core
   testRuntimeOnly library.java.slf4j_jdk14
 }

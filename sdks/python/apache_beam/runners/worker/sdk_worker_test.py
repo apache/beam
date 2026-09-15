@@ -412,6 +412,26 @@ class SdkWorkerTest(unittest.TestCase):
 
     self.assertIn(instruction_id, channel._cleaned_instruction_ids)
 
+  def test_process_bundle_passes_data_stream_id(self):
+    mock_bundle_processor = mock.MagicMock()
+    mock_bundle_processor.process_bundle.return_value = ([], False)
+    mock_bundle_processor.monitoring_infos.return_value = []
+    mock_bundle_processor.state_handler.process_instruction_id.return_value = contextlib.nullcontext(
+    )
+
+    bundle_processor_cache = mock.MagicMock()
+    bundle_processor_cache.get.return_value = mock_bundle_processor
+
+    worker = SdkWorker(bundle_processor_cache)
+    instruction_id = 'instruction_id'
+    request = beam_fn_api_pb2.ProcessBundleRequest(
+        process_bundle_descriptor_id='descriptor_id',
+        data_stream_id='stream_xyz')
+
+    worker.process_bundle(request, instruction_id)
+    mock_bundle_processor.process_bundle.assert_called_once_with(
+        instruction_id, 'stream_xyz')
+
 
 class CachingStateHandlerTest(unittest.TestCase):
   def test_caching(self):

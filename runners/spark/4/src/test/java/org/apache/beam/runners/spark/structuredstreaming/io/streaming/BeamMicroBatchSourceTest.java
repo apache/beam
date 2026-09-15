@@ -28,8 +28,6 @@ import static org.junit.Assert.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
 import java.io.Serializable;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -40,11 +38,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.BooleanSupplier;
 import javax.annotation.Nullable;
@@ -58,15 +54,11 @@ import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedS
 import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamPartitionReader;
 import org.apache.beam.runners.spark.structuredstreaming.io.streaming.UnboundedSourceDataset.BeamTable;
 import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.CustomCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.io.CountingSource;
 import org.apache.beam.sdk.io.UnboundedSource;
-import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
-import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -88,7 +80,6 @@ import org.apache.spark.sql.streaming.StreamingQueryProgress;
 import org.apache.spark.sql.streaming.Trigger;
 import org.apache.spark.sql.util.CaseInsensitiveStringMap;
 import org.apache.spark.util.SerializableConfiguration;
-import org.joda.time.Instant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.BeforeClass;
@@ -123,11 +114,6 @@ public class BeamMicroBatchSourceTest implements Serializable {
 
   private static final Coder<WindowedValue<String>> CODER =
       WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
-
-  /** 2023-11-14T22:13:20Z, a plain modern timestamp with no rebase or DST subtleties. */
-  private static final long BASE_MILLIS = 1_700_000_000_000L;
-
-  private static final long INTERVAL_MILLIS = 1_000L;
 
   private static final long POLL_TIMEOUT_MILLIS = 120_000L;
 
@@ -164,7 +150,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
   public void tearDown() {
     BeamReaderCache.invalidateAll();
     BATCHES.clear();
-    TestSource.forget(tag);
+    TestUnboundedSource.forget(tag);
   }
 
   /** The {@code EventTimeWatermark} node survives typed maps in the logical and analyzed plan. */
@@ -230,12 +216,14 @@ public class BeamMicroBatchSourceTest implements Serializable {
         assertEquals(
             Collections.singletonList(GlobalWindow.INSTANCE), new ArrayList<>(value.getWindows()));
         assertEquals(
-            BASE_MILLIS + TestSource.indexOf(value.getValue()) * INTERVAL_MILLIS,
+            TestUnboundedSource.BASE_MILLIS
+                + TestUnboundedSource.indexOf(value.getValue())
+                    * TestUnboundedSource.INTERVAL_MILLIS,
             value.getTimestamp().getMillis());
       }
     }
     assertEquals(count, values.size());
-    assertEquals(TestSource.elements(tag, 1, count), new HashSet<>(values));
+    assertEquals(TestUnboundedSource.elements(tag, 1, count), new HashSet<>(values));
   }
 
   /** The default record limit is unlimited, an available source drains in one micro-batch. */
@@ -315,7 +303,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
     List<Integer> sizes = nonEmptySizes(batches(tag));
     assertFalse("no rows arrived", sizes.isEmpty());
     assertTrue("batch exceeds the shared limit: " + sizes, Collections.max(sizes) <= 10);
-    assertEquals(TestSource.elements(tag, shards, count), new HashSet<>(values(batches(tag))));
+    assertEquals(
+        TestUnboundedSource.elements(tag, shards, count), new HashSet<>(values(batches(tag))));
   }
 
   /**
@@ -353,7 +342,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
     BeamReaderCache.invalidateAll();
     List<String> firstValues = values(batches(first));
 
-    Set<String> all = TestSource.elements(tag, shards, count);
+    Set<String> all = TestUnboundedSource.elements(tag, shards, count);
     query = start(rows(shards, count, limited(limit, 1_000L)), second, checkpointDir);
     try {
       await(
@@ -377,8 +366,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
     for (int shard = 0; shard < shards; shard++) {
       int min = Integer.MAX_VALUE;
       for (String value : secondValues) {
-        if (TestSource.shardOf(value) == shard) {
-          min = Math.min(min, TestSource.indexOf(value));
+        if (TestUnboundedSource.shardOf(value) == shard) {
+          min = Math.min(min, TestUnboundedSource.indexOf(value));
         }
       }
       assertTrue("run 2 delivered nothing for shard " + shard, min < Integer.MAX_VALUE);
@@ -395,7 +384,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
     int finalizations = 0;
     for (int shard = 0; shard < 2; shard++) {
       int committed = committedPosition(checkpointDir, shard);
-      List<Integer> finalized = TestSource.finalized(tag, shard);
+      List<Integer> finalized = TestUnboundedSource.finalized(tag, shard);
       assertTrue(
           "shard " + shard + " finalized " + finalized + " beyond committed " + committed,
           finalized.isEmpty() || Collections.max(finalized) <= committed);
@@ -460,7 +449,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
 
     for (int shard = 0; shard < 2; shard++) {
       int committed = committedPosition(checkpointDir, shard);
-      List<Integer> finalized = TestSource.finalized(tag, shard);
+      List<Integer> finalized = TestUnboundedSource.finalized(tag, shard);
       assertTrue(
           "shard " + shard + " finalized " + finalized + ", committed " + committed,
           finalized.contains(committed) && Collections.max(finalized) == committed);
@@ -473,8 +462,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
     String location = sourceDir(temp.newFolder("protocol")).getAbsolutePath();
     assertEquals(shardZero(0, 1, 2), readBatch(partition(location, 0, 1)));
     assertEquals(shardZero(0, 1, 2), readBatch(partition(location, 0, 1)));
-    assertEquals(Collections.emptyList(), TestSource.finalized(tag, 0));
-    assertEquals(2, TestSource.created(tag));
+    assertEquals(Collections.emptyList(), TestUnboundedSource.finalized(tag, 0));
+    assertEquals(2, TestUnboundedSource.created(tag));
   }
 
   /** A start epoch above zero without a durable mark is an invariant violation. */
@@ -483,7 +472,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
     String location = sourceDir(temp.newFolder("protocol")).getAbsolutePath();
     assertThrows(
         IllegalStateException.class, () -> new BeamPartitionReader<>(partition(location, 5, 6)));
-    assertEquals(0, TestSource.created(tag));
+    assertEquals(0, TestUnboundedSource.created(tag));
   }
 
   /** A failed mark write fails the batch after its rows, the retry recreates the reader. */
@@ -494,8 +483,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
     String file = location.getAbsolutePath();
     assertEquals(shardZero(0, 1, 2), drainUntilFailure(partition(file, 0, 1), IOException.class));
     assertEquals(shardZero(0, 1, 2), drainUntilFailure(partition(file, 0, 1), IOException.class));
-    assertEquals(Collections.emptyList(), TestSource.finalized(tag, 0));
-    assertEquals(2, TestSource.created(tag));
+    assertEquals(Collections.emptyList(), TestUnboundedSource.finalized(tag, 0));
+    assertEquals(2, TestUnboundedSource.created(tag));
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -521,10 +510,10 @@ public class BeamMicroBatchSourceTest implements Serializable {
       int shards, int count, SparkStructuredStreamingPipelineOptions options) {
     return UnboundedSourceDataset.of(
         SESSION.getSession(),
-        new TestSource(tag, shards, count),
+        new TestUnboundedSource(tag, shards, count),
         CODER,
         options,
-        "Read(TestSource)");
+        "Read(TestUnboundedSource)");
   }
 
   /** Builds the driver side stream through the table, with the session's broadcasts. */
@@ -624,7 +613,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
   private static Set<Integer> shardsOf(List<String> values) {
     Set<Integer> shards = new HashSet<>();
     for (String value : values) {
-      shards.add(TestSource.shardOf(value));
+      shards.add(TestUnboundedSource.shardOf(value));
     }
     return shards;
   }
@@ -759,7 +748,7 @@ public class BeamMicroBatchSourceTest implements Serializable {
         new BeamSourceCheckpoint(sourceDir(checkpointDir).getAbsolutePath(), new Configuration());
     byte[] coded = checkpoint.readMark(shard, epoch);
     assertNotNull("no mark at committed epoch " + epoch + " for shard " + shard, coded);
-    return CoderUtils.decodeFromByteArray(TestSource.MARK_CODER, coded).next;
+    return CoderUtils.decodeFromByteArray(TestUnboundedSource.MARK_CODER, coded).next;
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -768,7 +757,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
 
   /** Split 0 of a single shard source of 100 elements from epoch {@code start} to {@code end}. */
   private BeamInputPartition<String> partition(String location, long start, long end) {
-    TestSource split = new TestSource(tag, 1, 100).split(1, PipelineOptionsFactory.create()).get(0);
+    TestUnboundedSource split =
+        new TestUnboundedSource(tag, 1, 100).split(1, PipelineOptionsFactory.create()).get(0);
     return new BeamInputPartition<>(
         split,
         CODER,
@@ -810,219 +800,8 @@ public class BeamMicroBatchSourceTest implements Serializable {
   private List<String> shardZero(int... indexes) {
     List<String> elements = new ArrayList<>();
     for (int index : indexes) {
-      elements.add(TestSource.element(tag, 0, index));
+      elements.add(TestUnboundedSource.element(tag, 0, index));
     }
     return elements;
-  }
-
-  // ---------------------------------------------------------------------------------------------
-  // the shared in memory UnboundedSource
-  // ---------------------------------------------------------------------------------------------
-
-  /**
-   * Splits into one sub source per shard, each over {@code count / shards} elements named {@code
-   * <tag>-<shard>-<index>} with evenly spaced timestamps. Marks are not Java serializable, they
-   * record the position they finalize under {@code <tag>/<shard>}, readers are counted per tag.
-   */
-  static final class TestSource extends UnboundedSource<String, TestSource.Mark> {
-    private static final long serialVersionUID = 1L;
-
-    static final Coder<Mark> MARK_CODER = new MarkCoder();
-
-    private static final ConcurrentMap<String, List<Integer>> FINALIZED = new ConcurrentHashMap<>();
-    private static final ConcurrentMap<String, AtomicInteger> CREATED = new ConcurrentHashMap<>();
-
-    private final String tag;
-    private final int shard;
-    private final int shards;
-    private final int perShard;
-
-    TestSource(String tag, int shards, int count) {
-      this(tag, -1, shards, count / shards);
-    }
-
-    private TestSource(String tag, int shard, int shards, int perShard) {
-      this.tag = tag;
-      this.shard = shard;
-      this.shards = shards;
-      this.perShard = perShard;
-    }
-
-    static Set<String> elements(String tag, int shards, int count) {
-      Set<String> elements = new HashSet<>();
-      for (int shard = 0; shard < shards; shard++) {
-        for (int index = 0; index < count / shards; index++) {
-          elements.add(element(tag, shard, index));
-        }
-      }
-      return elements;
-    }
-
-    static String element(String tag, int shard, int index) {
-      return tag + "-" + shard + "-" + index;
-    }
-
-    static int shardOf(String element) {
-      String head = element.substring(0, element.lastIndexOf('-'));
-      return Integer.parseInt(head.substring(head.lastIndexOf('-') + 1));
-    }
-
-    static int indexOf(String element) {
-      return Integer.parseInt(element.substring(element.lastIndexOf('-') + 1));
-    }
-
-    static List<Integer> finalized(String tag, int shard) {
-      List<Integer> positions = FINALIZED.get(key(tag, shard));
-      if (positions == null) {
-        return Collections.emptyList();
-      }
-      synchronized (positions) {
-        return new ArrayList<>(positions);
-      }
-    }
-
-    static int created(String tag) {
-      AtomicInteger created = CREATED.get(tag);
-      return created == null ? 0 : created.get();
-    }
-
-    static void forget(String tag) {
-      FINALIZED.keySet().removeIf(key -> key.startsWith(tag + "/"));
-      CREATED.remove(tag);
-    }
-
-    private static String key(String tag, int shard) {
-      return tag + "/" + shard;
-    }
-
-    @Override
-    public List<TestSource> split(int desiredNumSplits, PipelineOptions options) {
-      if (shard >= 0) {
-        return Collections.singletonList(this);
-      }
-      List<TestSource> splits = new ArrayList<>();
-      for (int i = 0; i < shards; i++) {
-        splits.add(new TestSource(tag, i, shards, perShard));
-      }
-      return splits;
-    }
-
-    @Override
-    public UnboundedReader<String> createReader(PipelineOptions options, @Nullable Mark mark) {
-      if (shard < 0) {
-        throw new IllegalStateException("split before reading");
-      }
-      CREATED.computeIfAbsent(tag, t -> new AtomicInteger()).incrementAndGet();
-      return new Reader(this, mark == null ? 0 : mark.next);
-    }
-
-    @Override
-    public Coder<Mark> getCheckpointMarkCoder() {
-      return MARK_CODER;
-    }
-
-    @Override
-    public Coder<String> getOutputCoder() {
-      return StringUtf8Coder.of();
-    }
-
-    /** Position of the next element of a shard, deliberately not {@link Serializable}. */
-    static final class Mark implements UnboundedSource.CheckpointMark {
-      private final String tag;
-      private final int shard;
-      final int next;
-
-      Mark(String tag, int shard, int next) {
-        this.tag = tag;
-        this.shard = shard;
-        this.next = next;
-      }
-
-      @Override
-      public void finalizeCheckpoint() {
-        FINALIZED
-            .computeIfAbsent(key(tag, shard), k -> Collections.synchronizedList(new ArrayList<>()))
-            .add(next);
-      }
-    }
-
-    private static final class MarkCoder extends CustomCoder<Mark> {
-      private static final long serialVersionUID = 1L;
-
-      @Override
-      public void encode(Mark mark, OutputStream out) throws IOException {
-        StringUtf8Coder.of().encode(mark.tag, out);
-        VarIntCoder.of().encode(mark.shard, out);
-        VarIntCoder.of().encode(mark.next, out);
-      }
-
-      @Override
-      public Mark decode(InputStream in) throws IOException {
-        return new Mark(
-            StringUtf8Coder.of().decode(in),
-            VarIntCoder.of().decode(in),
-            VarIntCoder.of().decode(in));
-      }
-    }
-
-    private static final class Reader extends UnboundedReader<String> {
-      private final TestSource source;
-      private int next;
-      private int current = -1;
-
-      Reader(TestSource source, int next) {
-        this.source = source;
-        this.next = next;
-      }
-
-      @Override
-      public boolean start() {
-        return advance();
-      }
-
-      @Override
-      public boolean advance() {
-        if (next < source.perShard) {
-          current = next++;
-          return true;
-        }
-        return false;
-      }
-
-      @Override
-      public String getCurrent() throws NoSuchElementException {
-        if (current < 0) {
-          throw new NoSuchElementException();
-        }
-        return element(source.tag, source.shard, current);
-      }
-
-      @Override
-      public Instant getCurrentTimestamp() throws NoSuchElementException {
-        if (current < 0) {
-          throw new NoSuchElementException();
-        }
-        return new Instant(
-            BASE_MILLIS + (source.shard * source.perShard + current) * INTERVAL_MILLIS);
-      }
-
-      @Override
-      public Instant getWatermark() {
-        return current < 0 ? BoundedWindow.TIMESTAMP_MIN_VALUE : getCurrentTimestamp();
-      }
-
-      @Override
-      public CheckpointMark getCheckpointMark() {
-        return new Mark(source.tag, source.shard, next);
-      }
-
-      @Override
-      public UnboundedSource<String, ?> getCurrentSource() {
-        return source;
-      }
-
-      @Override
-      public void close() {}
-    }
   }
 }

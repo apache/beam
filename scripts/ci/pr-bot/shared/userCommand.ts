@@ -41,7 +41,7 @@ export async function processCommand(
   commentText = commentText.toLowerCase();
 
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Notifications stopped, only "allow assign set of reviewers"
     if (commentText.indexOf("assign set of reviewers") > -1) {
       await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
@@ -187,7 +187,7 @@ async function assignReviewerSet(
   reviewerConfig: typeof ReviewerConfig
 ) {
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Restore notifications, and clear any existing reviewer set to
     // allow new reviewers to be assigned.
     prState.stopReviewerNotifications = false;

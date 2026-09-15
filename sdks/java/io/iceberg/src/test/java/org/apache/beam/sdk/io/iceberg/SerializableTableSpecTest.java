@@ -45,6 +45,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.NullOrder;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -132,6 +133,10 @@ public class SerializableTableSpecTest {
     assertNotNull(spec.getEncryptedKeyJsons());
     assertNotNull(spec.getEncryptedKeys());
     assertTrue(spec.getEncryptedKeys().isEmpty());
+    assertEquals(
+        ((HasTableOperations) table).operations().current().lastUpdatedMillis(),
+        spec.getLastUpdatedMillis());
+    assertTrue(spec.getLastUpdatedMillis() > 0);
   }
 
   @Test
@@ -279,6 +284,7 @@ public class SerializableTableSpecTest {
     assertEquals(original.getProperties(), decoded.getProperties());
     assertEquals(original.getFileIoJson(), decoded.getFileIoJson());
     assertEquals(original.getEncryptedKeyJsons(), decoded.getEncryptedKeyJsons());
+    assertEquals(original.getLastUpdatedMillis(), decoded.getLastUpdatedMillis());
     assertNotNull(decoded.getFileIO());
   }
 

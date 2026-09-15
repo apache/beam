@@ -20,16 +20,16 @@
 # All core components
 "core": # This label instructs review with scrutiny 
   - "model/**/*"
-  - "runners/core-java/**/*"
-  - "runners/java-fn-execution/**/*"
+  - "runners/core-java/src/main/**/*"
+  - "runners/java-fn-execution/src/main/**/*"
   - "sdks/go/pkg/beam/*.go"
   - "sdks/go/pkg/beam/core/**/*"
   - "sdks/go/pkg/beam/io/fileio/**/*"
   - "sdks/go/pkg/beam/io/filesystem/**/*"
   - "sdks/go/pkg/beam/transforms/**/*"
-  - "sdks/java/core/**/*"
-  - "sdks/java/extensions/google-cloud-platform-core/**/*"
-  - "sdks/java/harness/**/*"
+  - "sdks/java/core/src/main/**/*"
+  - "sdks/java/extensions/google-cloud-platform-core/src/main/**/*"
+  - "sdks/java/harness/src/main/**/*"
   - "sdks/python/apache_beam/*.py"
   - "sdks/python/apache_beam/coders/**/*"
   - "sdks/python/apache_beam/io/file*"
@@ -72,13 +72,14 @@ io:  ["sdks/go/pkg/beam/io/**/*", "sdks/java/io/**/*", "sdks/python/apache_beam/
 "aws":  ["sdks/java/io/amazon-web-services/**/*", "sdks/java/io/amazon-web-services2/**/*", "sdks/python/apache_beam/io/aws/**/*"]
 "cassandra":  ["sdks/java/io/cassandra/**/*"]
 "clickhouse":  ["sdks/java/io/clickhouse/**/*"]
-"delta":  ["sdks/java/io/delta/**/*"]
+"delta":  ["sdks/java/io/delta/**/*", "sdks/java/extensions/sql/delta/**/*"]
 "elasticsearch":  ["sdks/java/io/elasticsearch/**/*", "sdks/java/io/elasticsearch-tests/**/*"]
 "gcp":  ["sdks/go/pkg/beam/io/bigqueryio/**/*", "sdks/go/pkg/beam/io/datastoreio/**/*", "sdks/go/pkg/beam/io/pubsubio/**/*", "sdks/java/io/bigquery-io-perf-tests/**/*", "sdks/java/io/google-cloud-platform/**/*", "sdks/python/apache_beam/io/gcp/**/*", "sdks/java/extensions/google-cloud-platform-core/**/*"]
 "hadoop":  ["sdks/java/io/hadoop-common/**/*", "sdks/java/io/hadoop-file-system/**/*", "sdks/java/io/hadoop-format/**/*"]
 "hbase":  ["sdks/java/io/hbase/**/*"]
 "hcatalog":  ["sdks/java/io/hcatalog/**/*"]
 "healthcare":  ["sdks/python/apache_beam/io/gcp/healthcare/**/*", "sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/healthcare/**/*"]
+"iceberg":  ["sdks/java/io/iceberg/**/*", "sdks/java/extensions/sql/iceberg/**/*"]
 "jdbc":  ["sdks/java/io/jdbc/**/*"]
 "jms":  ["sdks/java/io/jms/**/*"]
 "kafka":  ["sdks/java/io/kafka/**/*"]

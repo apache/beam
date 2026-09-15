@@ -26,7 +26,7 @@ export interface AssignReviewerOptions {
 
 // Custom notices for specific labels
 const LABEL_NOTICES: Record<string, string> = {
-  core: "This pull request likely touches a core component (\"core\" label). Please review with scrutiny.",
+  core: 'This pull request likely touches a core component ("core" label). Please review with scrutiny.',
 };
 
 function formatNotices(
@@ -59,8 +59,7 @@ export function assignReviewer(
   labelToReviewerMapping: any,
   options?: AssignReviewerOptions
 ): string {
-  let commentString =
-    "Assigning reviewers:\n\n";
+  let commentString = "Assigning reviewers:\n\n";
 
   for (let label in labelToReviewerMapping) {
     let reviewer = labelToReviewerMapping[label];

@@ -123,3 +123,11 @@ function removeNextActionLabel(existingLabels: Label[]): string[] {
     )
     .map((label) => label.name);
 }
+
+export function hasLabel(pull: any, labelName: string): boolean {
+  return (pull?.labels || []).some(
+    (label: any) =>
+      (typeof label === "string" ? label : label?.name || "").toLowerCase() ===
+      labelName.toLowerCase()
+  );
+}

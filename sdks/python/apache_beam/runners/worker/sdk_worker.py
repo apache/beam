@@ -706,7 +706,8 @@ class SdkWorker(object):
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
           delayed_applications, requests_finalization = (
-              bundle_processor.process_bundle(instruction_id))
+              bundle_processor.process_bundle(
+                  instruction_id, getattr(request, 'data_stream_id', '')))
           monitoring_infos = bundle_processor.monitoring_infos()
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
