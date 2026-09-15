@@ -38,6 +38,7 @@ encoded.
 
 import base64
 import decimal
+import logging
 import pickle
 from functools import lru_cache
 from typing import TYPE_CHECKING
@@ -113,6 +114,8 @@ __all__ = [
     'DecimalCoder',
     'PaneInfoCoder'
 ]
+
+_LOGGER = logging.getLogger(__name__)
 
 T = TypeVar('T')
 CoderT = TypeVar('CoderT', bound='Coder')
@@ -899,6 +902,18 @@ class _MemoizingPickleCoder(_PickleCoderBase):
     return coder_impl.CallbackCoderImpl(_nonhashable_dumps, pickler.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
+    _LOGGER.warning(
+        "PickleCoder was registered for a key type in '%s', but the runner "
+        "requires a deterministic key encoding and pickle is not "
+        "deterministic. Keys in this step will be encoded with the "
+        "deterministic fallback coder instead of pickle. That coder "
+        "supports primitives, containers, protobuf messages, frozen "
+        "dataclasses, NamedTuples, enums, and classes defining both "
+        "__getstate__ and __setstate__. Any other key type will fail at "
+        "encode time. If your key type is not one of these, register a "
+        "deterministic custom Coder for it or add a type hint so the "
+        "default coder is used.",
+        step_label)
     return _update_compatible_deterministic_fast_primitives_coder(
         self, step_label)
 
@@ -915,6 +930,18 @@ class PickleCoder(_PickleCoderBase):
         lambda x: dumps(x, protocol), pickle.loads)
 
   def as_deterministic_coder(self, step_label, error_message=None):
+    _LOGGER.warning(
+        "PickleCoder was registered for a key type in '%s', but the runner "
+        "requires a deterministic key encoding and pickle is not "
+        "deterministic. Keys in this step will be encoded with the "
+        "deterministic fallback coder instead of pickle. That coder "
+        "supports primitives, containers, protobuf messages, frozen "
+        "dataclasses, NamedTuples, enums, and classes defining both "
+        "__getstate__ and __setstate__. Any other key type will fail at "
+        "encode time. If your key type is not one of these, register a "
+        "deterministic custom Coder for it or add a type hint so the "
+        "default coder is used.",
+        step_label)
     return _update_compatible_deterministic_fast_primitives_coder(
         self, step_label)
 
