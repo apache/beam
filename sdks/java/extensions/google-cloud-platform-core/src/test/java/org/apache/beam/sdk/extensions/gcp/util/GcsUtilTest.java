@@ -1731,7 +1731,10 @@ public class GcsUtilTest {
 
     @Override
     GoogleCloudStorage createGoogleCloudStorage(
-        GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
+        GoogleCloudStorageOptions options,
+        Storage storage,
+        Credentials credentials,
+        @Nullable HttpRequestInitializer httpRequestInitializer) {
       return googleCloudStorage;
     }
   }
