@@ -35,6 +35,7 @@ import org.apache.beam.runners.jobsubmission.PortablePipelineRunner;
 import org.apache.beam.runners.spark.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.translation.SparkBatchPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkContextFactory;
+import org.apache.beam.runners.spark.translation.SparkDatasetPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkStreamingPortablePipelineTranslator;
 import org.apache.beam.runners.spark.translation.SparkStreamingTranslationContext;
@@ -82,7 +83,14 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     SparkPortablePipelineTranslator translator;
     boolean isStreaming = pipelineOptions.isStreaming() || hasUnboundedPCollections(pipeline);
-    if (isStreaming) {
+    if (pipelineOptions.getUseStructuredStreaming()) {
+      // The Dataset backend evaluates its own leaves. It never starts a DStream context, and it
+      // rejects unbounded input at translation. Clear the streaming option so that everything
+      // reading it downstream, such as the metrics accumulator, agrees with how the job runs.
+      translator = new SparkDatasetPortablePipelineTranslator();
+      pipelineOptions.setStreaming(false);
+      isStreaming = false;
+    } else if (isStreaming) {
       translator = new SparkStreamingPortablePipelineTranslator();
     } else {
       translator = new SparkBatchPortablePipelineTranslator();
