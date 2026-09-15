@@ -90,7 +90,7 @@ will need to make sure the Python bindings for TensorRT are also installed corre
 TensorRT 10 or later is required. Note that a serialized TensorRT engine can only
 be deserialized by the TensorRT major version that built it, so an engine built
 with TensorRT 8.x must be rebuilt. TensorRT 10 and later also require a GPU with
-compute capability 7.5 or higher, which excludes NVIDIA Pascal and Volta GPUs
+compute capability 7.5 or higher, for example, T4, L4, A100. The NVIDIA Pascal and Volta GPUs
 such as the Tesla P4, P100 and V100.
 
 If you would like to use Docker, you can use an NGC image like:
