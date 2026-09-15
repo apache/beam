@@ -4056,13 +4056,11 @@ public class BigQueryIO {
         // TODO: If the user provided a schema, we should use that. There are things that can be
         // specified in a
         // BQ schema that don't have exact matches in a Beam schema (e.g. GEOGRAPHY types).
-        if (!hasSchema) {
-          TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
-          dynamicDestinations =
-              new ConstantSchemaDestinations<>(
-                  dynamicDestinations,
-                  StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
-        }
+        TableSchema tableSchema = BigQueryUtils.toTableSchema(input.getSchema());
+        dynamicDestinations =
+            new ConstantSchemaDestinations<>(
+                dynamicDestinations,
+                StaticValueProvider.of(BigQueryHelpers.toJsonString(tableSchema)));
       } else if (writeProtoClass != null) {
         if (!hasSchema) {
           try {
@@ -4538,7 +4536,6 @@ public class BigQueryIO {
     CreateTables.clearCreatedTables();
     TwoLevelMessageConverterCache.clear();
     StorageApiDynamicDestinationsTableRow.clearSchemaCache();
-    StorageApiDynamicDestinationsBeamRow.clearSchemaCache();
     StorageApiWriteUnshardedRecords.clearCache();
     StorageApiWritesShardedRecords.clearCache();
   }

@@ -54,7 +54,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
-import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -237,9 +236,6 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
             Schema.of(
                 Field.of("failed_row", FieldType.row(inputSchema)),
                 Field.of("error_message", FieldType.STRING));
-        boolean isDynamicDestinations = configuration.getTable().equals(DYNAMIC_DESTINATIONS);
-        @Nullable Schema recordSchema =
-            isDynamicDestinations ? inputSchema.getField(RECORD).getType().getRowSchema() : null;
         PCollection<Row> failedRowsWithErrors =
             result
                 .getFailedStorageApiInserts()
@@ -247,25 +243,13 @@ public class BigQueryStorageWriteApiSchemaTransformProvider
                     "Construct failed rows and errors",
                     MapElements.into(TypeDescriptors.rows())
                         .via(
-                            (storageError) -> {
-                              Row failedRow;
-                              if (isDynamicDestinations && recordSchema != null) {
-                                Row recordRow =
-                                    BigQueryUtils.toBeamRow(recordSchema, storageError.getRow());
-                                failedRow =
-                                    Row.withSchema(inputSchema)
-                                        .withFieldValue(DESTINATION, "")
-                                        .withFieldValue(RECORD, recordRow)
-                                        .build();
-                              } else {
-                                failedRow =
-                                    BigQueryUtils.toBeamRow(inputSchema, storageError.getRow());
-                              }
-                              return Row.withSchema(errorSchema)
-                                  .withFieldValue("error_message", storageError.getErrorMessage())
-                                  .withFieldValue("failed_row", failedRow)
-                                  .build();
-                            }))
+                            (storageError) ->
+                                Row.withSchema(errorSchema)
+                                    .withFieldValue("error_message", storageError.getErrorMessage())
+                                    .withFieldValue(
+                                        "failed_row",
+                                        BigQueryUtils.toBeamRow(inputSchema, storageError.getRow()))
+                                    .build()))
                 .setRowSchema(errorSchema);
         return PCollectionRowTuple.of("post_write", postWrite)
             .and(errorHandling.getOutput(), failedRowsWithErrors);
