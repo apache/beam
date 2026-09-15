@@ -57,13 +57,16 @@ ext.dataflowFnapiContainerVersion = 'beam-master-20260731'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
-  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+  // Filter arguments are not tracked by Gradle, so declare the tokens as an input property.
+  def resourceTokens = [
     'dataflow.legacy_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.fnapi_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
     'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
     'dataflow.container_base_repository' : project.ext.dataflowContainerBaseRepository,
   ]
+  inputs.property('resourceTokens', resourceTokens)
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: resourceTokens
 }
 
 // Exclude tests that need a runner
