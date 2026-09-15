@@ -219,6 +219,40 @@ class ApproximateUniqueTest(unittest.TestCase):
 
     self.assertRegex(e.exception.args[0], 'Runtime exception')
 
+  def test_approximate_unique_merge_accumulators_reuses_first(self):
+    sample_size = 16
+    combine_fn = ApproximateUniqueCombineFn(sample_size, coders.VarIntCoder())
+    accumulators = [combine_fn.create_accumulator() for _ in range(3)]
+    for accumulator, values in zip(
+        accumulators, [range(16), range(8, 24), range(24, 40)]):
+      for value in values:
+        accumulator.add(value)
+
+    later_accumulator_states = [(
+        list(accumulator._sample_heap),
+        set(accumulator._sample_set),
+        accumulator._min_hash) for accumulator in accumulators[1:]]
+
+    merged_accumulator = combine_fn.merge_accumulators(iter(accumulators))
+
+    self.assertIs(merged_accumulator, accumulators[0])
+    self.assertEqual(set(range(24, 40)), merged_accumulator._sample_set)
+    self.assertEqual(24, merged_accumulator._min_hash)
+    self.assertEqual(
+        later_accumulator_states,
+        [(
+            list(accumulator._sample_heap),
+            set(accumulator._sample_set),
+            accumulator._min_hash) for accumulator in accumulators[1:]])
+
+  def test_approximate_unique_merge_accumulators_empty(self):
+    combine_fn = ApproximateUniqueCombineFn(16, coders.VarIntCoder())
+
+    merged_accumulator = combine_fn.merge_accumulators(iter(()))
+
+    self.assertEqual([], merged_accumulator._sample_heap)
+    self.assertEqual(set(), merged_accumulator._sample_set)
+
   def test_get_sample_size_from_est_error(self):
     # test if get correct sample size from input error.
     assert beam.ApproximateUnique._get_sample_size_from_est_error(0.5) == 16
