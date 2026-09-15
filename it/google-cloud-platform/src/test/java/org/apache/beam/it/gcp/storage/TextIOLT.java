@@ -54,19 +54,19 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * FileBasedIO performance tests.
+ * TextIO performance tests.
  *
  * <p>Example trigger command for all tests:
  *
  * <pre>
- * mvn test -pl it/google-cloud-platform -am -Dtest="FileBasedIOLT" -Dproject=[gcpProject] \
+ * mvn test -pl it/google-cloud-platform -am -Dtest="TextIOLT" -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false
  * </pre>
  *
  * <p>Example trigger command for specific test running on direct runner:
  *
  * <pre>
- * mvn test -pl it/google-cloud-platform -am -Dtest="FileBasedIOLT#testTextIOWriteThenRead" \
+ * mvn test -pl it/google-cloud-platform -am -Dtest="TextIOLT#testTextIOWriteThenRead" \
  * -Dconfiguration=medium -Dproject=[gcpProject] -DartifactBucket=[temp bucket] -DfailIfNoTests=false
  * </pre>
  *
@@ -74,11 +74,11 @@ import org.junit.Test;
  *
  * <pre>mvn test -pl it/google-cloud-platform -am \
  * -Dconfiguration="{\"numRecords\":10000000,\"valueSizeBytes\":750,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\"}" \
- * -Dtest="FileBasedIOLT#testTextIOWriteThenRead" -Dconfiguration=local -Dproject=[gcpProject] \
+ * -Dtest="TextIOLT#testTextIOWriteThenRead" -Dconfiguration=local -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false
  * </pre>
  */
-public class FileBasedIOLT extends IOLoadTestBase {
+public class TextIOLT extends IOLoadTestBase {
 
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
 
