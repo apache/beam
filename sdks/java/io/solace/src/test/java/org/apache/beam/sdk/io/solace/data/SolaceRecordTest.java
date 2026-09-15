@@ -19,8 +19,10 @@ package org.apache.beam.sdk.io.solace.data;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.junit.Test;
 
@@ -31,6 +33,25 @@ public class SolaceRecordTest {
     Record record = Record.builder().setMessageId("id").setPayload(new byte[0]).build();
 
     assertEquals(Record.PayloadType.BYTES_XML, record.getPayloadType());
+  }
+
+  @Test
+  public void testDefaultUserPropertiesIsEmpty() {
+    Record record = Record.builder().setMessageId("id").setPayload(new byte[0]).build();
+
+    assertTrue(record.getUserProperties().isEmpty());
+  }
+
+  @Test
+  public void testSetUserProperties() {
+    Record record =
+        Record.builder()
+            .setMessageId("id")
+            .setPayload(new byte[0])
+            .setUserProperties(Collections.singletonMap("key", "value"))
+            .build();
+
+    assertEquals(Collections.singletonMap("key", "value"), record.getUserProperties());
   }
 
   @Test
