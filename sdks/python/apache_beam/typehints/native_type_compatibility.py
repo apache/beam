@@ -125,14 +125,16 @@ def _safe_issubclass(derived, parent):
     issubclass(derived, parent), or False if a TypeError was raised.
   """
   try:
-    return issubclass(derived, parent)
+    if issubclass(derived, parent):
+      return True
   except (TypeError, AttributeError):
-    if hasattr(derived, '__origin__'):
-      try:
-        return issubclass(derived.__origin__, parent)
-      except TypeError:
-        pass
-    return False
+    pass
+  if hasattr(derived, '__origin__') and derived.__origin__ is not None:
+    try:
+      return issubclass(derived.__origin__, parent)
+    except (TypeError, AttributeError):
+      pass
+  return False
 
 
 def _match_issubclass(match_against):
