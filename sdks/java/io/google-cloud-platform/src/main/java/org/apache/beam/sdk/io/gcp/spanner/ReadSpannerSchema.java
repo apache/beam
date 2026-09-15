@@ -25,7 +25,9 @@ import com.google.cloud.spanner.Statement;
 import io.opentelemetry.api.OpenTelemetry;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -93,7 +95,13 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
 
   static SpannerSchema getSpannerSchema(
       DatabaseClient databaseClient, Dialect dialect, Set<String> allowedTableNames) {
-    Set<String> allowed = allowedTableNames == null ? Collections.emptySet() : allowedTableNames;
+    // Case insensitive match via lower cased HashSet
+    Set<String> allowedLower =
+        allowedTableNames == null || allowedTableNames.isEmpty()
+            ? Collections.emptySet()
+            : allowedTableNames.stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     SpannerSchema.Builder builder = SpannerSchema.builder(dialect);
     try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
       ResultSet resultSet = readTableInfo(tx, dialect);
@@ -103,7 +111,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String columnName = resultSet.getString(1);
         String type = resultSet.getString(2);
         long cellsMutated = resultSet.getLong(3);
-        if (!isTableAllowed(allowed, tableName)) {
+        if (!isTableAllowed(allowedLower, tableName)) {
           continue;
         }
         builder.addColumn(tableName, columnName, type, cellsMutated);
@@ -114,7 +122,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
         String ordering = resultSet.getString(2);
-        if (!isTableAllowed(allowed, tableName)) {
+        if (!isTableAllowed(allowedLower, tableName)) {
           continue;
         }
         builder.addKeyPart(tableName, columnName, "DESC".equalsIgnoreCase(ordering));
@@ -123,16 +131,9 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     return builder.build();
   }
 
-  private static boolean isTableAllowed(Set<String> allowedTableNames, String tableName) {
-    if (allowedTableNames.isEmpty()) {
-      return true;
-    }
-    for (String allowed : allowedTableNames) {
-      if (allowed.equalsIgnoreCase(tableName)) {
-        return true;
-      }
-    }
-    return false;
+  private static boolean isTableAllowed(Set<String> allowedLowerTableNames, String tableName) {
+    return allowedLowerTableNames.isEmpty()
+        || allowedLowerTableNames.contains(tableName.toLowerCase(Locale.ROOT));
   }
 
   @Setup
