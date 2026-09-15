@@ -27,7 +27,6 @@ import static org.junit.Assert.fail;
 import java.io.Serializable;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.spark.io.CreateStream;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SparkSessionFactory;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -36,15 +35,11 @@ import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
-import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SimpleFunction;
-import org.apache.beam.sdk.values.PBegin;
-import org.apache.beam.sdk.values.PCollection;
 import org.apache.spark.TaskContext;
 import org.apache.spark.sql.SparkSession;
 import org.joda.time.Duration;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
@@ -107,21 +102,6 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
         });
   }
 
-  private PTransform<PBegin, PCollection<String>> getValues(
-      final SparkStructuredStreamingPipelineOptions options) {
-    final boolean doNotSyncWithWatermark = false;
-    return options.isStreaming()
-        ? CreateStream.of(StringUtf8Coder.of(), Duration.millis(1), doNotSyncWithWatermark)
-            .nextBatch("one", "two")
-        : Create.of("one", "two");
-  }
-
-  private SparkStructuredStreamingPipelineOptions getStreamingOptions() {
-    options.setRunner(SparkStructuredStreamingRunner.class);
-    options.setStreaming(true);
-    return options;
-  }
-
   private SparkStructuredStreamingPipelineOptions getBatchOptions() {
     options.setRunner(SparkStructuredStreamingRunner.class);
     options.setStreaming(false); // explicit because options is reused throughout the test.
@@ -131,9 +111,9 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
   private Pipeline getPipeline(final SparkStructuredStreamingPipelineOptions options) {
 
     final Pipeline pipeline = Pipeline.create(options);
-    final String name = testName.getMethodName() + "(isStreaming=" + options.isStreaming() + ")";
+    final String name = testName.getMethodName();
 
-    pipeline.apply(getValues(options)).setCoder(StringUtf8Coder.of()).apply(printParDo(name));
+    pipeline.apply(Create.of("one", "two")).setCoder(StringUtf8Coder.of()).apply(printParDo(name));
 
     return pipeline;
   }
@@ -146,7 +126,7 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     try {
       final Pipeline pipeline = Pipeline.create(options);
       pipeline
-          .apply(getValues(options))
+          .apply(Create.of("one", "two"))
           .setCoder(StringUtf8Coder.of())
           .apply(
               MapElements.via(
@@ -216,21 +196,9 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     assertThat(result.waitUntilFinish(), is(PipelineResult.State.CANCELLED));
   }
 
-  @Ignore("TODO: Reactivate with streaming.")
-  @Test
-  public void testStreamingPipelineRunningState() throws Exception {
-    testRunningPipeline(getStreamingOptions());
-  }
-
   @Test
   public void testBatchPipelineRunningState() throws Exception {
     testRunningPipeline(getBatchOptions());
-  }
-
-  @Ignore("TODO: Reactivate with streaming.")
-  @Test
-  public void testStreamingPipelineCanceledState() throws Exception {
-    testCanceledPipeline(getStreamingOptions());
   }
 
   @Test
@@ -238,21 +206,9 @@ public class StructuredStreamingPipelineStateTest implements Serializable {
     testCanceledPipeline(getBatchOptions());
   }
 
-  @Ignore("TODO: Reactivate with streaming.")
-  @Test
-  public void testStreamingPipelineFailedState() throws Exception {
-    testFailedPipeline(getStreamingOptions());
-  }
-
   @Test
   public void testBatchPipelineFailedState() throws Exception {
     testFailedPipeline(getBatchOptions());
-  }
-
-  @Ignore("TODO: Reactivate with streaming.")
-  @Test
-  public void testStreamingPipelineTimeoutState() throws Exception {
-    testTimeoutPipeline(getStreamingOptions());
   }
 
   @Test
