@@ -139,17 +139,11 @@ class AssignDestinationsAndPartitions
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
 
-      String canonicalTableId =
-          IcebergUtils.tableIdentifierToString(IcebergUtils.parseTableIdentifier(tableIdentifier));
-
       SerializableTableSpec tableSpec = null;
       if (metadataView != null) {
         Map<String, SerializableTableSpec> viewMap = c.sideInput(metadataView);
         if (viewMap != null) {
-          tableSpec = viewMap.get(canonicalTableId);
-          if (tableSpec == null) {
-            tableSpec = viewMap.get(tableIdentifier);
-          }
+          tableSpec = viewMap.get(tableIdentifier);
         }
       }
 
