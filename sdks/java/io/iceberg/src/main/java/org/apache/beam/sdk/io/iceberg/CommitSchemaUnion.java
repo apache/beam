@@ -242,7 +242,7 @@ final class CommitSchemaUnion {
       return table.schema().schemaId();
     }
     committer.commit(txn);
-    table.refresh();
+    long schemaId = txn.table().schema().schemaId();
     long acceptedFiles = 0;
     for (Accepted item : accepted) {
       acceptedFiles += item.files;
@@ -252,8 +252,8 @@ final class CommitSchemaUnion {
         tableId,
         accepted.size(),
         acceptedFiles,
-        table.schema().schemaId());
-    return table.schema().schemaId();
+        schemaId);
+    return schemaId;
   }
 
   /**
@@ -333,7 +333,9 @@ final class CommitSchemaUnion {
   /**
    * Creates the table from the union of the window's schemas, with every column optional at every
    * level so that one lucky file cannot impose required columns on the table - except pinned
-   * columns and their ancestors, which are created required.
+   * columns and their ancestors, which are created required. Columns come out in the read side's
+   * canonical order (sorted by name at every level), not in any file's declared order; later unions
+   * append after them.
    */
   private static long create(
       Catalog catalog,
@@ -348,9 +350,13 @@ final class CommitSchemaUnion {
       return NO_TABLE;
     }
     List<Incompatible> incompatible = new ArrayList<>();
-    Schema merged = foldForCreate(catalog, tableId, schemas, incompatible);
+    @Nullable Schema merged = foldForCreate(catalog, tableId, schemas, incompatible);
     if (!incompatible.isEmpty()) {
       reportIncompatible(tableId, incompatible, handling, "no table was created");
+    }
+    if (merged == null) {
+      LOG.info("Table {} does not exist and no file schema can seed it; not creating it", tableId);
+      return NO_TABLE;
     }
     // The real table is built from the folded result directly.
     Schema created = createdSchema(merged, config);
@@ -366,13 +372,13 @@ final class CommitSchemaUnion {
             .createTransaction();
     stageNameMapping(txn);
     committer.commit(txn);
-    Table table = catalog.loadTable(tableId);
+    long schemaId = txn.table().schema().schemaId();
     LOG.info(
         "Created table {} from {} file schema(s), schema id {}",
         tableId,
         schemas.size() - incompatible.size(),
-        table.schema().schemaId());
-    return table.schema().schemaId();
+        schemaId);
+    return schemaId;
   }
 
   /**
@@ -380,17 +386,33 @@ final class CommitSchemaUnion {
    * seeded by the most common schema; conflicts move to {@code incompatible} and the fold restarts
    * without the offender.
    */
-  private static Schema foldForCreate(
+  private static @Nullable Schema foldForCreate(
       Catalog catalog,
       TableIdentifier tableId,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       List<Incompatible> incompatible) {
-    Schema seed = SchemaParser.fromJson(schemas.get(0).getSchemaJson());
-    List<Accepted> rest = new ArrayList<>();
-    for (CollectDistinctSchemas.SchemaGroup group : schemas.subList(1, schemas.size())) {
+    // The evolve path refuses names no table can absorb (dotted, empty, differing only in case
+    // within one file) as conflicts in classify; a table must not be born with them either.
+    List<Accepted> valid = new ArrayList<>();
+    for (CollectDistinctSchemas.SchemaGroup group : schemas) {
       Schema fileSchema = SchemaParser.fromJson(group.getSchemaJson());
-      rest.add(new Accepted(fileSchema, group.getSchemaJson(), group.getFiles(), null));
+      List<SchemaChange> invalidNames = new ArrayList<>();
+      ColumnNameChecks.findInvalidNames(fileSchema.asStruct(), "", invalidNames);
+      if (!invalidNames.isEmpty()) {
+        incompatible.add(
+            new Incompatible(
+                group.getSchemaJson(),
+                group.getFiles(),
+                "file schema has column names no table can hold: " + describe(invalidNames)));
+        continue;
+      }
+      valid.add(new Accepted(fileSchema, group.getSchemaJson(), group.getFiles(), null));
     }
+    if (valid.isEmpty()) {
+      return null;
+    }
+    Schema seed = valid.get(0).schema;
+    List<Accepted> rest = new ArrayList<>(valid.subList(1, valid.size()));
     while (true) {
       Transaction scratch = catalog.buildTable(tableId, seed).createTransaction();
       Accepted failed = stageAll(scratch, rest, incompatible);
@@ -446,7 +468,8 @@ final class CommitSchemaUnion {
    * guarantee the per-file pin check enforces (a null ancestor nulls the pinned leaf). Map key
    * subtrees keep their declared shape (keys are required by definition; pins inside them are not
    * honored). Nothing depends on a created table's schema yet, so this is the schema-authoring
-   * moment; evolution never tightens columns afterwards.
+   * moment; evolution never tightens columns afterwards. Column order is the union's, which is the
+   * canonical (name-sorted) order of the file schemas.
    */
   static Schema createdSchema(Schema merged, SchemaEvolutionConfig config) {
     Pins pins = new Pins(config.getRequiredColumns());
@@ -458,7 +481,7 @@ final class CommitSchemaUnion {
   }
 
   private static Types.NestedField createdField(Types.NestedField field, String path, Pins pins) {
-    boolean required = pins.isPinned(path) || pins.pinnedColumnBeneath(path) != null;
+    boolean required = pins.isPinnedOrAncestorOfPin(path);
     return Types.NestedField.from(field)
         .ofType(createdType(field.type(), path, pins))
         .isOptional(!required)
@@ -477,8 +500,7 @@ final class CommitSchemaUnion {
       Types.ListType list = type.asListType();
       String elementPath = path + ".element";
       Type elementType = createdType(list.elementType(), elementPath, pins);
-      boolean required =
-          pins.isPinned(elementPath) || pins.pinnedColumnBeneath(elementPath) != null;
+      boolean required = pins.isPinnedOrAncestorOfPin(elementPath);
       return required
           ? Types.ListType.ofRequired(list.elementId(), elementType)
           : Types.ListType.ofOptional(list.elementId(), elementType);
@@ -487,7 +509,7 @@ final class CommitSchemaUnion {
       Types.MapType map = type.asMapType();
       String valuePath = path + ".value";
       Type valueType = createdType(map.valueType(), valuePath, pins);
-      boolean required = pins.isPinned(valuePath) || pins.pinnedColumnBeneath(valuePath) != null;
+      boolean required = pins.isPinnedOrAncestorOfPin(valuePath);
       return required
           ? Types.MapType.ofRequired(map.keyId(), map.valueId(), map.keyType(), valueType)
           : Types.MapType.ofOptional(map.keyId(), map.valueId(), map.keyType(), valueType);
@@ -536,6 +558,19 @@ final class CommitSchemaUnion {
   private static @Nullable Accepted stageAll(
       Transaction txn, List<Accepted> accepted, List<Incompatible> incompatible) {
     for (Accepted item : accepted) {
+      // classify checked each schema against the base table only; a column that differs only in
+      // case from one an EARLIER schema of the window added would union as a second column.
+      List<SchemaChange> collisions = new ArrayList<>();
+      ColumnNameChecks.findCaseCollisions(
+          txn.table().schema().asStruct(), item.schema.asStruct(), "", collisions);
+      if (!collisions.isEmpty()) {
+        incompatible.add(
+            new Incompatible(
+                item.json,
+                item.files,
+                "conflicts with another file schema in the same window: " + describe(collisions)));
+        return item;
+      }
       // Both caught types carry staging conflicts: ValidationException from Schema
       // construction at apply ("multiple fields for name"), IllegalArgumentException from
       // SchemaUpdate preconditions ("Cannot change column type").
@@ -552,6 +587,14 @@ final class CommitSchemaUnion {
       }
     }
     return null;
+  }
+
+  private static String describe(List<SchemaChange> changes) {
+    List<String> descriptions = new ArrayList<>();
+    for (SchemaChange change : changes) {
+      descriptions.add(change.description);
+    }
+    return String.join("; ", descriptions);
   }
 
   /**

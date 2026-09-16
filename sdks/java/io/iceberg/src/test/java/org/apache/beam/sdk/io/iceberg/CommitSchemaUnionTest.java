@@ -1169,4 +1169,114 @@ public class CommitSchemaUnionTest {
         CommitSchemaUnion.DEFAULT_COMMITTER);
     assertEquals(before, metadataLocation(load()));
   }
+
+  /** The create path refuses the same column names classify refuses on the evolve path. */
+  @Test
+  public void testInvalidColumnNamesCannotSeedACreatedTable() {
+    TableIdentifier id = missing();
+    Schema dotted = new Schema(optional(1, "a.b", Types.LongType.get()));
+    Schema caseDuplicate =
+        new Schema(
+            optional(1, "Id", Types.LongType.get()), optional(2, "id", Types.LongType.get()));
+    IncompatibleSchemaException e =
+        assertThrows(
+            IncompatibleSchemaException.class,
+            () ->
+                commitTo(
+                    id,
+                    ALL,
+                    IncompatibleSchemaHandling.FAIL_PIPELINE,
+                    NO_CREATION,
+                    files(dotted, 1)));
+    assertTrue(e.getMessage(), e.getMessage().contains("contains '.'"));
+    assertFalse(catalog.tableExists(id));
+
+    // nothing valid to seed from: routed, and no table
+    long none =
+        commitTo(
+            id,
+            ALL,
+            IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+            NO_CREATION,
+            files(dotted, 1),
+            files(caseDuplicate, 2));
+    assertEquals(CommitSchemaUnion.NO_TABLE, none);
+    assertFalse(catalog.tableExists(id));
+
+    // the valid schema alone seeds the table
+    Schema valid = new Schema(required(1, "id", Types.LongType.get()));
+    commitTo(
+        id,
+        ALL,
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        NO_CREATION,
+        files(dotted, 1),
+        files(caseDuplicate, 2),
+        files(valid, 1));
+    assertSameSchema(
+        new Schema(optional(1, "id", Types.LongType.get())), catalog.loadTable(id).schema());
+  }
+
+  private static final Schema WITH_EMAIL_UPPER =
+      new Schema(
+          required(1, "id", Types.LongType.get()),
+          optional(2, "name", Types.StringType.get()),
+          optional(3, "score", Types.FloatType.get()),
+          required(4, "region", Types.StringType.get()),
+          optional(5, "Email", Types.StringType.get()));
+  private static final Schema WITH_EMAIL_LOWER =
+      new Schema(
+          required(1, "id", Types.LongType.get()),
+          optional(2, "name", Types.StringType.get()),
+          optional(3, "score", Types.FloatType.get()),
+          required(4, "region", Types.StringType.get()),
+          optional(5, "email", Types.StringType.get()));
+
+  /**
+   * Each schema is fine against the base table; against each other they differ only in case, which
+   * the fold must refuse like classify refuses it against the table. The later schema loses.
+   */
+  @Test
+  public void testCaseCollidingSchemasInOneWindowKeepTheFirst() {
+    IncompatibleSchemaException e =
+        assertThrows(
+            IncompatibleSchemaException.class,
+            () ->
+                commit(
+                    ALL,
+                    IncompatibleSchemaHandling.FAIL_PIPELINE,
+                    files(WITH_EMAIL_UPPER, 3),
+                    files(WITH_EMAIL_LOWER, 2)));
+    assertTrue(e.getMessage(), e.getMessage().contains("differs only in case"));
+    assertTrue(e.getMessage(), e.getMessage().contains("another file schema in the same window"));
+    assertSameSchema(TABLE, load().schema());
+
+    commit(
+        ALL,
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        files(WITH_EMAIL_UPPER, 3),
+        files(WITH_EMAIL_LOWER, 2));
+    assertSameSchema(WITH_EMAIL_UPPER, load().schema());
+  }
+
+  @Test
+  public void testCaseCollidingSchemasOnCreateKeepTheFirst() {
+    TableIdentifier id = missing();
+    commitTo(
+        id,
+        ALL,
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        NO_CREATION,
+        files(WITH_EMAIL_UPPER, 3),
+        files(WITH_EMAIL_LOWER, 2));
+    // created columns: all optional, canonical (name-sorted, upper case first) order
+    assertSameSchema(
+        new Schema(
+            optional(1, "Email", Types.StringType.get()),
+            optional(2, "id", Types.LongType.get()),
+            optional(3, "name", Types.StringType.get()),
+            optional(4, "region", Types.StringType.get()),
+            optional(5, "score", Types.FloatType.get())),
+        catalog.loadTable(id).schema());
+  }
 }
