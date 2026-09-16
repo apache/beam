@@ -331,6 +331,7 @@ public class StreamingWorkScheduler {
       if (context.workIsFailed()) {
         throw new WorkItemCancelledException(work.getWorkItem().getShardingKey());
       }
+      // Don't use context after this.
       ExecuteWorkResult executeWorkResult = context.flushStateAndReset();
 
       // Release the execution state for another thread to use.
