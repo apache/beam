@@ -80,15 +80,16 @@ final class FileSchemas {
   }
 
   /**
-   * The footer's own null count for one dotted column of the file's schema, or null when the footer
-   * cannot prove it. Pin evidence must come from the file itself, not from the Metrics built for
-   * the DataFile: the table's write.metadata.metrics configuration shapes those and must not be
-   * able to turn pin enforcement off. Reads the same evidence as {@link #tighten}, by the same
-   * rules: a leaf's count is summed over row groups and unknown when any non-empty row group lacks
-   * it; a struct counts 0 when a leaf beneath it (struct nesting only) has none, since a null
-   * struct nulls every leaf, and is unknown otherwise, since a leaf's nulls include its ancestors'
-   * and cannot be attributed; a column under a list or map is unknown; a file with no rows proves
-   * every column.
+   * The file's own null count for one dotted column of its schema, or null when the file cannot
+   * prove it. Pin evidence must come from the file itself, not from the Metrics built for the
+   * DataFile: the table's write.metadata.metrics configuration shapes those and must not be able to
+   * turn pin enforcement off. A column the schema declares required, with every ancestor required,
+   * counts 0 without any statistic: Parquet's repetition is structural, so such a column cannot
+   * encode a null. Otherwise the footer's counts are read by the {@link #tighten} rules: a leaf's
+   * count is summed over row groups and unknown when any non-empty row group lacks it; a struct
+   * counts 0 when a leaf beneath it (struct nesting only) has none, since a null struct nulls every
+   * leaf, and is unknown otherwise, since a leaf's nulls include its ancestors' and cannot be
+   * attributed; a column under a list or map is unknown; a file with no rows proves every column.
    */
   static @Nullable Long nullCount(ParquetMetadata footer, Schema fileSchema, String column) {
     if (rowCount(footer) == 0) {
@@ -97,6 +98,9 @@ final class FileSchemas {
     Types.NestedField field = fileSchema.findField(column);
     if (field == null) {
       return null;
+    }
+    if (requiredAlongPath(fileSchema, column)) {
+      return 0L;
     }
     List<String> path = new ArrayList<>(Arrays.asList(column.split("\\.", -1)));
     Map<List<String>, @Nullable Long> counts = nullCountsByLeaf(footer);
@@ -206,6 +210,19 @@ final class FileSchemas {
       rows += block.getRowCount();
     }
     return rows;
+  }
+
+  /** Whether the column and each of its ancestors are required: no null can be encoded there. */
+  private static boolean requiredAlongPath(Schema schema, String column) {
+    String prefix = "";
+    for (String segment : column.split("\\.", -1)) {
+      prefix = prefix.isEmpty() ? segment : prefix + "." + segment;
+      Types.NestedField field = schema.findField(prefix);
+      if (field == null || field.isOptional()) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /** Leaf paths proven null-free: the one source of null evidence for tighten and for pins. */

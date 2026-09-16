@@ -371,6 +371,49 @@ public class FileSchemasTest {
     assertNull(nullCount(write(10, 1, true, Nulls.NONE), "missing"));
   }
 
+  // root: required id, optional group home {required city}, required group office {required city}
+  private static final MessageType REQUIRED_LEAVES =
+      org.apache.parquet.schema.Types.buildMessage()
+          .required(PrimitiveTypeName.INT64)
+          .named("id")
+          .addField(
+              org.apache.parquet.schema.Types.buildGroup(Repetition.OPTIONAL)
+                  .required(PrimitiveTypeName.BINARY)
+                  .as(LogicalTypeAnnotation.stringType())
+                  .named("city")
+                  .named("home"))
+          .addField(
+              org.apache.parquet.schema.Types.buildGroup(Repetition.REQUIRED)
+                  .required(PrimitiveTypeName.BINARY)
+                  .as(LogicalTypeAnnotation.stringType())
+                  .named("city")
+                  .named("office"))
+          .named("root");
+
+  /** A declared-required path cannot encode a null, so it needs no statistics to be proven. */
+  @Test
+  public void testNullCountTrustsDeclaredRequiredPathsWithoutStatistics() throws IOException {
+    File file = new File(tmp.getRoot(), "required.parquet");
+    try (ParquetWriter<Group> writer =
+        ExampleParquetWriter.builder(new Path(file.getAbsolutePath()))
+            .withType(REQUIRED_LEAVES)
+            .withStatisticsEnabled(false)
+            .build()) {
+      Group group = new SimpleGroupFactory(REQUIRED_LEAVES).newGroup();
+      group.add("id", 1L);
+      group.addGroup("office").add("city", "c");
+      writer.write(group);
+    }
+    ParquetMetadata footer = ParquetFooters.read(file.getAbsolutePath());
+
+    assertEquals(Long.valueOf(0), nullCount(footer, "id"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "office"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "office.city"));
+    // required only relative to an optional parent: a null home nulls city, and no count says
+    assertNull(nullCount(footer, "home"));
+    assertNull(nullCount(footer, "home.city"));
+  }
+
   /** A struct is proven exactly when tighten would mark it required. */
   @Test
   public void testNullCountOfStructFollowsTighten() throws IOException {

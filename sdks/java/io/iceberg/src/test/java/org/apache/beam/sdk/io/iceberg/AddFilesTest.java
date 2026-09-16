@@ -1177,6 +1177,13 @@ public class AddFilesTest {
   }
 
   // ---- pinned columns
+  //
+  // A pin is enforced in two layers. A pinned column the table holds as REQUIRED is protected by
+  // the coverage check: a file that declares it optional with nulls, or lacks it, needs a
+  // relaxation of a pinned column, which SchemaDelta refuses, so the file is routed there
+  // (testPinnedRequiredColumnIsProtectedByCoverage). The per-file pin walk is reached only for
+  // pinned columns the table holds as OPTIONAL: columns the pre-pass added (it never creates them
+  // required) or pre-existing optional ones. The tests below therefore pin optional columns.
 
   private static SchemaEvolutionConfig pinned(String column) {
     return SchemaEvolutionConfig.builder()
@@ -1214,6 +1221,28 @@ public class AddFilesTest {
   private String writeWithoutName(String name) throws IOException {
     return writeWithSchema(
         name, WITHOUT_NAME, GenericRecord.create(WITHOUT_NAME).copy("id", 1, "age", 1));
+  }
+
+  @Test
+  public void testPinnedRequiredColumnIsProtectedByCoverage() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String withNull = writeOneNullName("nulls.parquet");
+    String absent = writeWithoutName("noname.parquet");
+
+    PCollectionTuple out = convert(pinned("name"), withNull, absent);
+
+    PAssert.that(out.get(AddFiles.ConvertToDataFile.DATA_FILES)).empty();
+    PAssert.that(out.get(AddFiles.ConvertToDataFile.ERRORS))
+        .satisfies(
+            rows -> {
+              assertEquals(2, Iterables.size(rows));
+              for (Row row : rows) {
+                assertThat(row.getString("error"), containsString("does not cover the file"));
+                assertThat(row.getString("error"), containsString("pinned as required"));
+              }
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
@@ -1385,6 +1414,39 @@ public class AddFilesTest {
       writer.write(record);
     }
     return file.getAbsolutePath();
+  }
+
+  private static final org.apache.avro.Schema AVRO_REQUIRED_NAME =
+      org.apache.avro.SchemaBuilder.record("r")
+          .fields()
+          .requiredInt("id")
+          .requiredString("name")
+          .requiredInt("age")
+          .endRecord();
+
+  /** Parquet cannot encode a null in a required column, so no statistics are needed to prove it. */
+  @Test
+  public void testPinnedColumnDeclaredRequiredRegistersWithoutStatistics() throws Exception {
+    catalog.createTable(tableId, OPTIONAL_NAME);
+    File file = new File(temp.getRoot(), "required_nostats.parquet");
+    try (org.apache.parquet.hadoop.ParquetWriter<Object> writer =
+        org.apache.parquet.avro.AvroParquetWriter.builder(
+                new org.apache.hadoop.fs.Path(file.getAbsolutePath()))
+            .withSchema(AVRO_REQUIRED_NAME)
+            .withStatisticsEnabled(false)
+            .build()) {
+      org.apache.avro.generic.GenericData.Record record =
+          new org.apache.avro.generic.GenericData.Record(AVRO_REQUIRED_NAME);
+      record.put("id", 1);
+      record.put("name", "a");
+      record.put("age", 1);
+      writer.write(record);
+    }
+
+    PCollectionTuple out = convert(pinned("name"), file.getAbsolutePath());
+
+    assertRegisters(out, 1);
+    pipeline.run().waitUntilFinish();
   }
 
   @Test
