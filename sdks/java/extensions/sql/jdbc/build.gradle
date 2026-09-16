@@ -63,9 +63,12 @@ dependencies {
 }
 
 processResources {
-  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+  // Filter arguments are not tracked by Gradle, so declare the tokens as an input property.
+  def resourceTokens = [
           'beam.version': version,
   ]
+  inputs.property('resourceTokens', resourceTokens)
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: resourceTokens
 }
 
 shadowJar {
