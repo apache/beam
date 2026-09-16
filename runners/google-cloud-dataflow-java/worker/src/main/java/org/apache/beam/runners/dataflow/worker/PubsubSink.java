@@ -195,6 +195,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
         Windmill.PubSubMessageBundle pubsubMessages = outputBuilder.build();
         if (pubsubMessages.getMessagesCount() > 0) {
           if (bundleLevel) {
+            // If/when we add support for ordering keys, the flush needs to happen at the key level
             context.addBundlePubsubMessages(pubsubMessages);
           } else {
             context.getOutputBuilder().addPubsubMessages(pubsubMessages);

@@ -82,6 +82,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -195,12 +196,12 @@ public class StreamingModeExecutionContext
   private @Nullable KeyTransitionListener keyTransitionListener;
   private @Nullable FailedWorkHandler onFailedWorkHandler;
 
-  private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
-  private List<Windmill.OutputMessageBundle> bundleOutputMessages = Collections.emptyList();
-  private List<Windmill.PubSubMessageBundle> bundlePubsubMessages = Collections.emptyList();
+  private @Nullable List<Windmill.WorkItemCommitRequest> workItemCommits = null;
+  private @Nullable List<Windmill.OutputMessageBundle> bundleOutputMessages = null;
+  private @Nullable List<Windmill.PubSubMessageBundle> bundlePubsubMessages = null;
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
-  private Map<Long, Pair<Instant, Runnable>> finalizationCallbacks = Collections.emptyMap();
+  private @Nullable Map<Long, Pair<Instant, Runnable>> finalizationCallbacks = null;
   private AtomicBoolean workBatchFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
@@ -322,10 +323,10 @@ public class StreamingModeExecutionContext
   public void reset() {
     // these lists and maps are returned to callers after processing
     // don't clear and reuse, instead reset the reference.
-    this.outputBuilders = Collections.emptyList();
-    this.bundleOutputMessages = Collections.emptyList();
-    this.bundlePubsubMessages = Collections.emptyList();
-    this.finalizationCallbacks = Collections.emptyMap();
+    this.workItemCommits = null;
+    this.bundleOutputMessages = null;
+    this.bundlePubsubMessages = null;
+    this.finalizationCallbacks = null;
     // Work from prior bundles might have a reference to the old workBatchFailed.
     // If the work gets retried it'll get the new workBatchFailed to notify failure.
     this.workBatchFailed = new AtomicBoolean(false);
@@ -357,10 +358,6 @@ public class StreamingModeExecutionContext
       FailedWorkHandler onFailedWorkHandler)
       throws CoderException {
     reset();
-    this.outputBuilders = new ArrayList<>();
-    this.bundleOutputMessages = new ArrayList<>();
-    this.bundlePubsubMessages = new ArrayList<>();
-    this.finalizationCallbacks = new HashMap<>();
     this.keyCoder = keyCoder;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;
@@ -447,9 +444,28 @@ public class StreamingModeExecutionContext
     }
   }
 
-  public void flushState() {
-    checkState(finishKeyCalled, "finishKey must be called before flushState");
+  public ExecuteWorkResult flushStateAndReset() {
+    checkState(finishKeyCalled, "finishKey must be called before flushStateAndReset");
     flushStateInternal();
+
+    List<Windmill.WorkItemCommitRequest> workItemCommits =
+        this.workItemCommits != null ? this.workItemCommits : Collections.emptyList();
+    List<Windmill.OutputMessageBundle> bundleOutputMessages =
+        this.bundleOutputMessages != null ? this.bundleOutputMessages : Collections.emptyList();
+    List<Windmill.PubSubMessageBundle> bundlePubsubMessages =
+        this.bundlePubsubMessages != null ? this.bundlePubsubMessages : Collections.emptyList();
+    Map<Long, Pair<Instant, Runnable>> finalizationCallbacks =
+        this.finalizationCallbacks != null ? this.finalizationCallbacks : Collections.emptyMap();
+    long stateBytesRead = this.stateBytesRead;
+
+    reset();
+
+    return ExecuteWorkResult.create(
+        workItemCommits,
+        bundleOutputMessages,
+        bundlePubsubMessages,
+        finalizationCallbacks,
+        stateBytesRead);
   }
 
   /**
@@ -618,25 +634,27 @@ public class StreamingModeExecutionContext
   }
 
   private void flushStateInternal() {
-    Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
-
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
-      for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer :
-          stepContext.flushBundleFinalizerCallbacks()) {
-        long id = ThreadLocalRandom.current().nextLong();
-        callbacks.put(
-            id,
-            Pair.of(
-                bundleFinalizer.getLeft(),
-                () -> {
-                  try {
-                    bundleFinalizer.getRight().onBundleSuccess();
-                  } catch (Exception e) {
-                    throw new RuntimeException("Exception while running bundle finalizer", e);
-                  }
-                }));
-        getOutputBuilder().addFinalizeIds(id);
+      List<Pair<Instant, BundleFinalizer.Callback>> stepCallbacks =
+          stepContext.flushBundleFinalizerCallbacks();
+      if (!stepCallbacks.isEmpty()) {
+        Map<Long, Pair<Instant, Runnable>> targetMap = getOrCreateFinalizationCallbacks();
+        for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : stepCallbacks) {
+          long id = ThreadLocalRandom.current().nextLong();
+          targetMap.put(
+              id,
+              Pair.of(
+                  bundleFinalizer.getLeft(),
+                  () -> {
+                    try {
+                      bundleFinalizer.getRight().onBundleSuccess();
+                    } catch (Exception e) {
+                      throw new RuntimeException("Exception while running bundle finalizer", e);
+                    }
+                  }));
+          getOutputBuilder().addFinalizeIds(id);
+        }
       }
     }
 
@@ -648,17 +666,18 @@ public class StreamingModeExecutionContext
       final Instant watermark = reader.getWatermark();
       long id = ThreadLocalRandom.current().nextLong();
       sourceStateBuilder.addFinalizeIds(id);
-      callbacks.put(
-          id,
-          Pair.of(
-              Instant.now().plus(Duration.standardMinutes(5)),
-              () -> {
-                try {
-                  checkpointMark.finalizeCheckpoint();
-                } catch (IOException e) {
-                  throw new RuntimeException("Exception while finalizing checkpoint", e);
-                }
-              }));
+      getOrCreateFinalizationCallbacks()
+          .put(
+              id,
+              Pair.of(
+                  Instant.now().plus(Duration.standardMinutes(5)),
+                  () -> {
+                    try {
+                      checkpointMark.finalizeCheckpoint();
+                    } catch (IOException e) {
+                      throw new RuntimeException("Exception while finalizing checkpoint", e);
+                    }
+                  }));
 
       @SuppressWarnings("unchecked")
       Coder<UnboundedSource.CheckpointMark> checkpointCoder =
@@ -701,12 +720,13 @@ public class StreamingModeExecutionContext
       getOutputBuilder().setSourceBacklogBytes(backlogBytes);
     }
 
-    this.finalizationCallbacks.putAll(callbacks);
-
     getOutputBuilder()
         .setSourceBytesProcessed(computeSourceBytesProcessed(sourceBytesProcessCounterName));
 
     validateCommitRequestSize();
+
+    getOrCreateWorkItemCommits().add(getOutputBuilder().build());
+    this.outputBuilder = null;
   }
 
   private void validateCommitRequestSize() {
@@ -839,7 +859,6 @@ public class StreamingModeExecutionContext
     this.computationKey = WindmillComputationKey.create(computationId, newWork.getShardedKey());
 
     this.outputBuilder = createOutputBuilder(newWork);
-    this.outputBuilders.add(this.outputBuilder);
     newWork.setOnFailureListener(this.workBatchFailed);
 
     logHotKeyIfDetected(newWork, this.key);
@@ -867,43 +886,45 @@ public class StreamingModeExecutionContext
     }
   }
 
-  // Returns state bytes read during the bundle execution
-  public long getStateBytesRead() {
-    return stateBytesRead;
-  }
-
-  // Returns list of commit requests from the bundle
-  public List<Windmill.WorkItemCommitRequest> getWorkItemCommits() {
-    List<Windmill.WorkItemCommitRequest> commits = new ArrayList<>(outputBuilders.size());
-    for (Windmill.WorkItemCommitRequest.Builder builder : outputBuilders) {
-      commits.add(builder.build());
-    }
-    return commits;
-  }
-
   public void addBundleOutputMessages(Windmill.OutputMessageBundle outputBundle) {
-    this.bundleOutputMessages.add(outputBundle);
-  }
-
-  public List<Windmill.OutputMessageBundle> getBundleOutputMessages() {
-    return bundleOutputMessages;
+    getOrCreateBundleOutputMessages().add(outputBundle);
   }
 
   public void addBundlePubsubMessages(Windmill.PubSubMessageBundle pubsubBundle) {
-    this.bundlePubsubMessages.add(pubsubBundle);
+    getOrCreateBundlePubsubMessages().add(pubsubBundle);
   }
 
-  public List<Windmill.PubSubMessageBundle> getBundlePubsubMessages() {
-    return bundlePubsubMessages;
+  private List<Windmill.OutputMessageBundle> getOrCreateBundleOutputMessages() {
+    if (this.bundleOutputMessages == null) {
+      this.bundleOutputMessages = new ArrayList<>();
+    }
+    return this.bundleOutputMessages;
+  }
+
+  private List<Windmill.PubSubMessageBundle> getOrCreateBundlePubsubMessages() {
+    if (this.bundlePubsubMessages == null) {
+      this.bundlePubsubMessages = new ArrayList<>();
+    }
+    return this.bundlePubsubMessages;
+  }
+
+  private List<Windmill.WorkItemCommitRequest> getOrCreateWorkItemCommits() {
+    if (this.workItemCommits == null) {
+      this.workItemCommits =
+          multiKeyBundleOptions.multiKeyBundleEnabled() ? new ArrayList<>() : new ArrayList<>(1);
+    }
+    return this.workItemCommits;
+  }
+
+  private Map<Long, Pair<Instant, Runnable>> getOrCreateFinalizationCallbacks() {
+    if (this.finalizationCallbacks == null) {
+      this.finalizationCallbacks = new HashMap<>();
+    }
+    return this.finalizationCallbacks;
   }
 
   public boolean multiKeyBundleEnabled() {
     return multiKeyBundleOptions.multiKeyBundleEnabled();
-  }
-
-  // Returns finalization callbacks recorded during the bundle execution
-  public Map<Long, Pair<Instant, Runnable>> getFinalizationCallbacks() {
-    return finalizationCallbacks;
   }
 
   // Returns the current key being processed or null if an unkeyed stage.

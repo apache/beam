@@ -78,6 +78,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
@@ -243,10 +244,10 @@ public class StreamingModeExecutionContextTest {
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
-    Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
+    Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
+    Windmill.Timer timer = commitRequest.getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
     assertThat(timer.getTimestamp(), equalTo(TimeUnit.MILLISECONDS.toMicros(5000)));
     assertThat(timer.getType(), equalTo(Windmill.Timer.Type.WATERMARK));
@@ -497,9 +498,9 @@ public class StreamingModeExecutionContextTest {
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
+    assertEquals(1234, result.workItemCommits().get(0).getSourceBacklogBytes());
   }
 
   @Test
@@ -866,7 +867,7 @@ public class StreamingModeExecutionContextTest {
     StateInternals stateInternals = stepContext.stateInternals();
 
     executionContext.finishKey();
-    executionContext.flushState();
+    executionContext.flushStateAndReset();
 
     // Verify timerInternals is poisoned
     try {

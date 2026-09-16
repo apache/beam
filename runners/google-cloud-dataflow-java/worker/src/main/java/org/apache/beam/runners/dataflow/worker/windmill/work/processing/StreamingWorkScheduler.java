@@ -20,17 +20,14 @@ package org.apache.beam.runners.dataflow.worker.windmill.work.processing;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.api.services.dataflow.model.MapTask;
-import com.google.auto.value.AutoValue;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.concurrent.ThreadSafe;
-import org.apache.beam.repackaged.core.org.apache.commons.lang3.tuple.Pair;
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionStateSampler;
 import org.apache.beam.runners.dataflow.worker.DataflowMapTaskExecutorFactory;
@@ -331,35 +328,16 @@ public class StreamingWorkScheduler {
       computationWorkExecutor.executeWork(
           work, workExecutor, handle, keyTransitionListener, onFailedWorkHandler);
 
-      List<Windmill.WorkItemCommitRequest> workItemCommits;
-      List<Windmill.OutputMessageBundle> bundleOutputMessages;
-      List<Windmill.PubSubMessageBundle> bundlePubsubMessages;
-      Map<Long, Pair<Instant, Runnable>> finalizationCallbacks;
-      long stateBytesRead;
-      {
-        if (context.workIsFailed()) {
-          throw new WorkItemCancelledException(work.getWorkItem().getShardingKey());
-        }
-        context.flushState();
-
-        workItemCommits = context.getWorkItemCommits();
-        bundleOutputMessages = context.getBundleOutputMessages();
-        bundlePubsubMessages = context.getBundlePubsubMessages();
-        finalizationCallbacks = context.getFinalizationCallbacks();
-        stateBytesRead = context.getStateBytesRead();
-
-        context.reset(); // Don't use context after this.
+      if (context.workIsFailed()) {
+        throw new WorkItemCancelledException(work.getWorkItem().getShardingKey());
       }
+      ExecuteWorkResult executeWorkResult = context.flushStateAndReset();
+
       // Release the execution state for another thread to use.
       computationState.releaseComputationWorkExecutor(computationWorkExecutor);
       computationWorkExecutor = null;
 
-      return ExecuteWorkResult.create(
-          workItemCommits,
-          bundleOutputMessages,
-          bundlePubsubMessages,
-          finalizationCallbacks,
-          stateBytesRead);
+      return executeWorkResult;
     } catch (Throwable t) {
       if (computationWorkExecutor != null) {
         // If processing failed due to a thrown exception, close the executionState. Do not
@@ -536,33 +514,5 @@ public class StreamingWorkScheduler {
         newWork.setProcessingThreadName(Thread.currentThread().getName());
       }
     };
-  }
-
-  @AutoValue
-  abstract static class ExecuteWorkResult {
-    static ExecuteWorkResult create(
-        List<Windmill.WorkItemCommitRequest> workItemCommits,
-        List<Windmill.OutputMessageBundle> bundleOutputMessages,
-        List<Windmill.PubSubMessageBundle> bundlePubsubMessages,
-        Map<Long, Pair<Instant, Runnable>> finalizationCallbacks,
-        long stateBytesRead) {
-      return new AutoValue_StreamingWorkScheduler_ExecuteWorkResult(
-          workItemCommits,
-          bundleOutputMessages,
-          bundlePubsubMessages,
-          finalizationCallbacks,
-          stateBytesRead);
-    }
-
-    abstract List<Windmill.WorkItemCommitRequest> workItemCommits();
-
-    abstract List<Windmill.OutputMessageBundle> bundleOutputMessages();
-
-    abstract List<Windmill.PubSubMessageBundle> bundlePubsubMessages();
-
-    // Map<finalizerId, Pair<callbackExpiration, callback>>
-    abstract Map<Long, Pair<Instant, Runnable>> finalizationCallbacks();
-
-    abstract long stateBytesRead();
   }
 }

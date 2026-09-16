@@ -105,6 +105,7 @@ import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
@@ -660,18 +661,19 @@ public class WorkerCustomSourcesTest {
     ByteString state = ByteString.EMPTY;
     for (int i = 0; i < 10 * maxElements;
     /* Incremented in inner loop */ ) {
+      Windmill.WorkItem workItem =
+          Windmill.WorkItem.newBuilder()
+              .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
+              .setWorkToken(i) // Must be increasing across activations for cache to be used.
+              .setCacheToken(1)
+              .setSourceState(
+                  Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
+              .build();
       // Initialize streaming context with state from previous iteration.
       startContext(
           context,
           createMockWork(
-              Windmill.WorkItem.newBuilder()
-                  .setKey(ByteString.copyFromUtf8("0000000000000001")) // key is zero-padded index.
-                  .setWorkToken(i) // Must be increasing across activations for cache to be used.
-                  .setCacheToken(1)
-                  .setSourceState(
-                      Windmill.SourceState.newBuilder().setState(state).build()) // Source state.
-                  .build(),
-              Watermarks.builder().setInputDataWatermark(new Instant(0)).build()));
+              workItem, Watermarks.builder().setInputDataWatermark(new Instant(0)).build()));
 
       @SuppressWarnings({"unchecked", "rawtypes"})
       NativeReader<WindowedValue<ValueWithRecordId<KV<Integer, Integer>>>> reader =
@@ -706,21 +708,20 @@ public class WorkerCustomSourcesTest {
           numReadOnThisIteration, lessThanOrEqualTo(debugOptions.getUnboundedReaderMaxElements()));
 
       // Extract and verify state modifications.
-      context.flushState();
-      state = context.getOutputBuilder().getSourceStateUpdates().getState();
+      context.finishKey();
+      WindmillComputationKey computationKey = context.getComputationKey();
+      ExecuteWorkResult result = context.flushStateAndReset();
+      Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
+      state = commitRequest.getSourceStateUpdates().getState();
       // CountingSource's watermark is the last record + 1.  i is now one past the last record,
       // so the expected watermark is i millis.
-      assertEquals(
-          TimeUnit.MILLISECONDS.toMicros(i), context.getOutputBuilder().getSourceWatermark());
-      assertEquals(
-          1, context.getOutputBuilder().getSourceStateUpdates().getFinalizeIdsList().size());
+      assertEquals(TimeUnit.MILLISECONDS.toMicros(i), commitRequest.getSourceWatermark());
+      assertEquals(1, commitRequest.getSourceStateUpdates().getFinalizeIdsList().size());
 
       assertNotNull(
           readerCache.acquireReader(
-              context.getComputationKey(),
-              context.getWorkItem().getCacheToken(),
-              context.getWorkToken() + 1));
-      assertEquals(7L, context.getBacklogBytes());
+              computationKey, workItem.getCacheToken(), workItem.getWorkToken() + 1));
+      assertEquals(7L, commitRequest.getSourceBacklogBytes());
     }
   }
 
