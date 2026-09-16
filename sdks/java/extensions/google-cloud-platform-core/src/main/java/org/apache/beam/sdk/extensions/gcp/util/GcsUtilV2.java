@@ -58,11 +58,24 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
 import java.util.regex.Pattern;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.ServiceCallMetric;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.channels.CountingSeekableByteChannel;
+import org.apache.beam.sdk.extensions.gcp.util.channels.CountingWritableByteChannel;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -86,6 +99,12 @@ class GcsUtilV2 {
 
   private final @Nullable Integer uploadBufferSizeBytes;
 
+  private final GcsUtilV1.GcsCountersOptions gcsCountersOptions;
+
+  private final boolean gcsPerformanceMetrics;
+
+  private final @Nullable String projectId;
+
   /** Maximum number of items to retrieve per Objects.List request. */
   private static final long MAX_LIST_BLOBS_PER_CALL = 1024;
 
@@ -100,8 +119,9 @@ class GcsUtilV2 {
 
   GcsUtilV2(PipelineOptions options) {
     GcsOptions gcsOptions = options.as(GcsOptions.class);
+    this.projectId = options.as(GcpOptions.class).getProject();
     StorageOptions.Builder storageOptionsBuilder =
-        StorageOptions.newBuilder().setProjectId(options.as(GcpOptions.class).getProject());
+        StorageOptions.newBuilder().setProjectId(this.projectId);
 
     // Use the pipeline's configured credentials rather than falling back to application default
     // credentials, so that --gcpCredentialFactoryClass, impersonation and explicit service account
@@ -120,6 +140,87 @@ class GcsUtilV2 {
 
     storage = storageOptionsBuilder.build().getService();
     uploadBufferSizeBytes = gcsOptions.getGcsUploadBufferSizeBytes();
+    this.gcsCountersOptions =
+        GcsUtilV1.GcsCountersOptions.create(
+            gcsOptions.getEnableBucketReadMetricCounter()
+                ? gcsOptions.getGcsReadCounterPrefix()
+                : null,
+            gcsOptions.getEnableBucketWriteMetricCounter()
+                ? gcsOptions.getGcsWriteCounterPrefix()
+                : null);
+    this.gcsPerformanceMetrics = Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics());
+  }
+
+  /**
+   * Creates an integer consumer that updates the counter identified by a prefix and a bucket name.
+   */
+  private static Consumer<Integer> createCounterConsumer(String counterNamePrefix, String bucket) {
+    return Metrics.counter(GcsUtil.class, String.format("%s_%s", counterNamePrefix, bucket))::inc;
+  }
+
+  /** Returns the {@link MetricsContainer} to attribute wire-byte counters to, if enabled. */
+  private @Nullable MetricsContainer performanceMetricsContainer() {
+    return gcsPerformanceMetrics ? MetricsEnvironment.getCurrentContainer() : null;
+  }
+
+  private WritableByteChannel wrapInCounting(
+      WritableByteChannel writableByteChannel,
+      String bucket,
+      @Nullable MetricsContainer container) {
+    Consumer<Integer> writeConsumer =
+        Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
+            .map(prefix -> createCounterConsumer(prefix, bucket))
+            .orElse(null);
+
+    if (container != null) {
+      Counter perfWriteCounter =
+          container.getCounter(
+              MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_write_wire_bytes_sent"));
+      Consumer<Integer> perfConsumer = perfWriteCounter::inc;
+      writeConsumer = writeConsumer == null ? perfConsumer : writeConsumer.andThen(perfConsumer);
+    }
+
+    if (writeConsumer == null) {
+      return writableByteChannel;
+    }
+    return new CountingWritableByteChannel(writableByteChannel, writeConsumer);
+  }
+
+  private SeekableByteChannel wrapInCounting(
+      SeekableByteChannel seekableByteChannel,
+      String bucket,
+      @Nullable MetricsContainer container) {
+    Consumer<Integer> readConsumer =
+        Optional.ofNullable(gcsCountersOptions.getReadCounterPrefix())
+            .map(prefix -> createCounterConsumer(prefix, bucket))
+            .orElse(null);
+
+    if (container != null) {
+      Counter perfReadCounter =
+          container.getCounter(
+              MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_wire_bytes_received"));
+      Consumer<Integer> perfConsumer = perfReadCounter::inc;
+      readConsumer = readConsumer == null ? perfConsumer : readConsumer.andThen(perfConsumer);
+    }
+
+    if (readConsumer == null) {
+      return seekableByteChannel;
+    }
+    return CountingSeekableByteChannel.createWithBytesReadConsumer(
+        seekableByteChannel, readConsumer);
+  }
+
+  /** Builds the API request metric for {@code method} (e.g. {@code GcsGet}) on {@code bucket}. */
+  private ServiceCallMetric serviceCallMetric(String method, String bucket) {
+    HashMap<String, String> baseLabels = new HashMap<>();
+    baseLabels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    baseLabels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    baseLabels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    baseLabels.put(
+        MonitoringInfoConstants.Labels.RESOURCE, GcpResourceIdentifiers.cloudStorageBucket(bucket));
+    baseLabels.put(MonitoringInfoConstants.Labels.GCS_PROJECT_ID, String.valueOf(projectId));
+    baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, bucket);
+    return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
   }
 
   /** Returns the {@code scheme://host[:port]} prefix of {@code endpoint}, discarding any path. */
@@ -596,11 +697,21 @@ class GcsUtilV2 {
 
   public SeekableByteChannel open(GcsPath path, BlobSourceOption... sourceOptions)
       throws IOException {
-    Blob blob = getBlob(path, BlobGetOption.fields(BlobField.SIZE));
-    ReadChannel reader = blob.getStorage().reader(blob.getBlobId(), sourceOptions);
-    // disable internal buffering, and make the channel non-blocking
-    reader.setChunkSize(0);
-    return new GcsSeekableByteChannel(reader, blob.getSize());
+    ServiceCallMetric serviceCallMetric = serviceCallMetric("GcsGet", path.getBucket());
+    try {
+      Blob blob = getBlob(path, BlobGetOption.fields(BlobField.SIZE));
+      ReadChannel reader = blob.getStorage().reader(blob.getBlobId(), sourceOptions);
+      // disable internal buffering, and make the channel non-blocking
+      reader.setChunkSize(0);
+      serviceCallMetric.call("ok");
+      return wrapInCounting(
+          new GcsSeekableByteChannel(reader, blob.getSize()),
+          path.getBucket(),
+          performanceMetricsContainer());
+    } catch (StorageException e) {
+      serviceCallMetric.call(e.getCode());
+      throw translateStorageException(path, e);
+    }
   }
 
   /** A bridge that allows a GCS WriteChannel to behave as a WritableByteChannel. */
@@ -636,6 +747,7 @@ class GcsUtilV2 {
   public WritableByteChannel create(
       GcsPath path, GcsUtilV1.CreateOptions options, BlobWriteOption... writeOptions)
       throws IOException {
+    ServiceCallMetric serviceCallMetric = serviceCallMetric("GcsInsert", path.getBucket());
     try {
       // Define the metadata for the new object
       BlobInfo.Builder builder = BlobInfo.newBuilder(path.getBucket(), path.getObject());
@@ -670,10 +782,15 @@ class GcsUtilV2 {
         writer.setChunkSize(uploadBufferSizeBytes);
       }
 
+      serviceCallMetric.call("ok");
       // Return the bridge wrapper
-      return new GcsWritableByteChannel(writer, path);
+      return wrapInCounting(
+          new GcsWritableByteChannel(writer, path),
+          path.getBucket(),
+          performanceMetricsContainer());
 
     } catch (StorageException e) {
+      serviceCallMetric.call(e.getCode());
       throw translateStorageException(path, e);
     }
   }
