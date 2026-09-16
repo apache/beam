@@ -104,7 +104,7 @@ import org.junit.runners.MethodSorters;
  *   <li>{@code compressionCodec = UNCOMPRESSED}, for the same reason.
  *   <li>{@code numShards} pinned, so that the number and the size of the GCS objects is identical
  *       across runs.
- *   <li>The Dataflow worker pool is pinned: autoscaling off, 5 workers, {@code e2-standard-2}. An
+ *   <li>The Dataflow worker pool is pinned: autoscaling off, 3 workers, {@code e2-standard-2}. An
  *       autoscaled pool would give a cheap shape fewer workers than an expensive one, so the
  *       throughput of the two could not be compared.
  * </ul>
@@ -158,20 +158,20 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
    * Size of the worker pool every Dataflow run gets. Frozen, see {@link #launchConfig}: the runs
    * are only comparable if they all have the same amount of cpu, memory and network bandwidth.
    */
-  private static final int DATAFLOW_NUM_WORKERS = 5;
+  private static final int DATAFLOW_NUM_WORKERS = 3;
 
   /** Machine type every Dataflow worker runs on. Frozen for the same reason. */
   private static final String DATAFLOW_MACHINE_TYPE = "e2-standard-2";
 
   /**
    * Dataset size every shape preset generates, so that the shapes are comparable. {@link
-   * #parseSizeToBytes} is binary, so this is 53,687,091,200 bytes.
+   * #parseSizeToBytes} is binary, so this is 42,949,672,960 bytes.
    */
-  private static final String MATRIX_TOTAL_BYTES = "50GB";
+  private static final String MATRIX_TOTAL_BYTES = "40GB";
 
   /**
    * Wall clock budget for a matrix run. Sized from measured runs: 10GB takes roughly 5 minutes of
-   * worker time on the pinned pool, so 50GB needs about 25, and the read pipeline has to stay long
+   * worker time on the pinned pool, so 40GB needs about 20, and the read pipeline has to stay long
    * enough for Cloud Monitoring to have ingested more than just its last data point.
    */
   private static final int MATRIX_PIPELINE_TIMEOUT_MINUTES = 60;
