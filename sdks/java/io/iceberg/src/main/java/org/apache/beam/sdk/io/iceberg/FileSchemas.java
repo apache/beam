@@ -214,11 +214,13 @@ final class FileSchemas {
 
   /** Whether the column and each of its ancestors are required: no null can be encoded there. */
   private static boolean requiredAlongPath(Schema schema, String column) {
-    String prefix = "";
-    for (String segment : column.split("\\.", -1)) {
-      prefix = prefix.isEmpty() ? segment : prefix + "." + segment;
-      Types.NestedField field = schema.findField(prefix);
-      if (field == null || field.isOptional()) {
+    Types.NestedField field = schema.findField(column);
+    if (field == null) {
+      return false;
+    }
+    Map<Integer, Integer> parents = TypeUtil.indexParents(schema.asStruct());
+    for (@Nullable Integer id = field.fieldId(); id != null; id = parents.get(id)) {
+      if (schema.findField(id).isOptional()) {
         return false;
       }
     }
