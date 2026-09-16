@@ -19,9 +19,12 @@ package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
 import com.google.auto.value.AutoValue;
 import java.util.List;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.io.iceberg.SerializableDataFile;
 import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
+import org.apache.beam.sdk.schemas.NoSuchSchemaException;
+import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
 import org.apache.iceberg.DataFile;
@@ -34,6 +37,14 @@ import org.apache.iceberg.DeleteFile;
 @AutoValue
 @DefaultSchema(AutoValueSchema.class)
 public abstract class ShardDeltaFiles {
+
+  static Coder<ShardDeltaFiles> coder() {
+    try {
+      return SchemaRegistry.createDefault().getSchemaCoder(ShardDeltaFiles.class);
+    } catch (NoSuchSchemaException e) {
+      throw new RuntimeException("Could not build a coder for ShardDeltaFiles.", e);
+    }
+  }
 
   @SchemaFieldNumber("0")
   public abstract String getTableIdentifierString();

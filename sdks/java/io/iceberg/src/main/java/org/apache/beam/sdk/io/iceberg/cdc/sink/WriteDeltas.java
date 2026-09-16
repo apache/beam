@@ -18,23 +18,17 @@
 package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamRowToIcebergRecord;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.beam.sdk.coders.Coder;
-import org.apache.beam.sdk.coders.IterableCoder;
-import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.SerializableDataFile;
 import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
-import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
-import org.apache.beam.sdk.schemas.SchemaRegistry;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -65,65 +59,32 @@ final class WriteDeltas
   private final IcebergCatalogConfig catalogConfig;
   private final CdcWriteConfig config;
   private final DynamicDestinations destinations;
-  private final String filePrefix;
+  private final String runId;
 
   WriteDeltas(
       IcebergCatalogConfig catalogConfig,
       CdcWriteConfig config,
       DynamicDestinations destinations,
-      String filePrefix) {
+      String runId) {
     this.catalogConfig = catalogConfig;
     this.config = config;
     this.destinations = destinations;
-    this.filePrefix = filePrefix;
+    this.runId = runId;
   }
 
   @Override
   public PCollection<ShardDeltaFiles> expand(
       PCollection<KV<DestinationShard, Iterable<KV<byte[], CdcRecord>>>> input) {
-    Schema dataSchema = dataSchemaOf(input.getCoder());
     return input
         .apply(
             "WriteDeltas",
             ParDo.of(
                 new WriteDeltasFn(
-                    new TableSetup(catalogConfig, config, destinations, filePrefix),
+                    new TableSetup(catalogConfig, config, destinations, runId),
                     config,
-                    filePrefix,
-                    dataSchema)))
-        .setCoder(shardDeltaFilesCoder());
-  }
-
-  static Coder<ShardDeltaFiles> shardDeltaFilesCoder() {
-    try {
-      return SchemaRegistry.createDefault().getSchemaCoder(ShardDeltaFiles.class);
-    } catch (NoSuchSchemaException e) {
-      throw new RuntimeException("Could not build a coder for ShardDeltaFiles.", e);
-    }
-  }
-
-  /** Extracts the CDC data schema carried by the input's nested {@link CdcRecordCoder}. */
-  private static Schema dataSchemaOf(Coder<?> inputCoder) {
-    checkArgument(
-        inputCoder instanceof KvCoder,
-        "expected a KvCoder input element coder, got %s",
-        inputCoder);
-    Coder<?> groupCoder = ((KvCoder<?, ?>) inputCoder).getValueCoder();
-    checkArgument(
-        groupCoder instanceof IterableCoder,
-        "expected an IterableCoder input value coder, got %s",
-        groupCoder);
-    Coder<?> elementCoder = ((IterableCoder<?>) groupCoder).getElemCoder();
-    checkArgument(
-        elementCoder instanceof KvCoder,
-        "expected a KvCoder group element coder, got %s",
-        elementCoder);
-    Coder<?> recordCoder = ((KvCoder<?, ?>) elementCoder).getValueCoder();
-    checkArgument(
-        recordCoder instanceof CdcRecordCoder,
-        "expected a CdcRecordCoder input record coder, got %s",
-        recordCoder);
-    return ((CdcRecordCoder) recordCoder).getDataSchema();
+                    runId,
+                    destinations.getDataSchema())))
+        .setCoder(ShardDeltaFiles.coder());
   }
 
   /**
@@ -137,14 +98,13 @@ final class WriteDeltas
 
     private final TableSetup tableSetup;
     private final CdcWriteConfig config;
-    private final String filePrefix;
+    private final String runId;
     private final Schema dataSchema;
 
-    WriteDeltasFn(
-        TableSetup tableSetup, CdcWriteConfig config, String filePrefix, Schema dataSchema) {
+    WriteDeltasFn(TableSetup tableSetup, CdcWriteConfig config, String runId, Schema dataSchema) {
       this.tableSetup = tableSetup;
       this.config = config;
-      this.filePrefix = filePrefix;
+      this.runId = runId;
       this.dataSchema = dataSchema;
     }
 
@@ -173,7 +133,7 @@ final class WriteDeltas
               .format(dataFormat)
               .defaultSpec(spec)
               .operationId(
-                  filePrefix + "-" + window.maxTimestamp().getMillis() + "-" + UUID.randomUUID())
+                  runId + "-" + window.maxTimestamp().getMillis() + "-" + UUID.randomUUID())
               .build();
       RecordDeltaTaskWriter writer =
           RecordDeltaTaskWriter.create(

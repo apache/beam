@@ -66,10 +66,6 @@ public class ShardDeltaFilesTest {
 
   private static final Map<Integer, PartitionSpec> SPECS = ImmutableMap.of(SPEC.specId(), SPEC);
 
-  private static Coder<ShardDeltaFiles> coder() {
-    return WriteDeltas.shardDeltaFilesCoder();
-  }
-
   /** The partition tuple {@code SPEC} produces for a row whose {@code name} is {@code value}. */
   private static PartitionKey partitionFor(String value) {
     GenericRecord record = GenericRecord.create(ICEBERG_SCHEMA);
@@ -128,7 +124,7 @@ public class ShardDeltaFilesTest {
                 SerializableDeleteFile.from(
                     deletionVector("/tmp/dv-1.puffin", "/tmp/d-1.parquet", "a"), SPEC)));
 
-    Coder<ShardDeltaFiles> coder = coder();
+    Coder<ShardDeltaFiles> coder = ShardDeltaFiles.coder();
     CoderProperties.coderDecodeEncodeEqual(coder, files);
 
     ShardDeltaFiles decoded =
@@ -166,7 +162,7 @@ public class ShardDeltaFilesTest {
             ImmutableList.of(SerializableDataFile.from(original, SPEC)),
             ImmutableList.of(SerializableDeleteFile.from(originalDv, SPEC)));
 
-    Coder<ShardDeltaFiles> coder = coder();
+    Coder<ShardDeltaFiles> coder = ShardDeltaFiles.coder();
     ShardDeltaFiles decoded =
         CoderUtils.decodeFromByteArray(coder, CoderUtils.encodeToByteArray(coder, files));
 
