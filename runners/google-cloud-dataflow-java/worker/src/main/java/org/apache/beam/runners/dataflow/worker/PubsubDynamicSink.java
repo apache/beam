@@ -93,12 +93,8 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
   }
 
   class PubsubWriter implements Sink.SinkWriter<WindowedValue<PubsubMessage>> {
-    // 1MB: flush threshold for finishKey in multi-key bundles.
-    private static final long MAX_PUBSUB_BUNDLE_BYTES = 1024 * 1024;
-
     private final Map<String, Windmill.PubSubMessageBundle.Builder> outputBuilders;
     private final ByteStringOutputStream stream; // Kept across adds for buffer reuse.
-    private long bufferedBytes = 0;
 
     PubsubWriter() {
       outputBuilders = Maps.newHashMap();
@@ -140,7 +136,6 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
               .setData(byteString)
               .setTimestamp(WindmillTimeUtils.harnessToWindmillTimestamp(data.getTimestamp()))
               .build());
-      bufferedBytes += byteString.size();
 
       return byteString.size();
     }
@@ -159,14 +154,6 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
         }
       } finally {
         outputBuilders.clear();
-        bufferedBytes = 0;
-      }
-    }
-
-    @Override
-    public void finishKey(@Nullable Object key) throws IOException {
-      if (context.multiKeyBundleEnabled() && bufferedBytes >= MAX_PUBSUB_BUNDLE_BYTES) {
-        flush(/* bundleLevel= */ false);
       }
     }
 
@@ -179,7 +166,6 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
     public void abort() throws IOException {
       outputBuilders.clear();
       stream.reset();
-      bufferedBytes = 0;
     }
   }
 

@@ -228,35 +228,8 @@ public class PubsubSinkTest {
     assertEquals("e1", bundle.getMessages(1).getData().toStringUtf8());
   }
 
-  private static class MultiKeyTestCase {
-    final String testName;
-    final List<String> key1Messages;
-    final List<String> key2Messages;
-    final List<String> finishBundleMessages;
-    final int expectedKey1FlushedMessages;
-    final int expectedKey2FlushedMessages;
-    final int expectedBundleFlushedMessages;
-
-    MultiKeyTestCase(
-        String testName,
-        List<String> key1Messages,
-        List<String> key2Messages,
-        List<String> finishBundleMessages,
-        int expectedKey1FlushedMessages,
-        int expectedKey2FlushedMessages,
-        int expectedBundleFlushedMessages) {
-      this.testName = testName;
-      this.key1Messages = key1Messages;
-      this.key2Messages = key2Messages;
-      this.finishBundleMessages = finishBundleMessages;
-      this.expectedKey1FlushedMessages = expectedKey1FlushedMessages;
-      this.expectedKey2FlushedMessages = expectedKey2FlushedMessages;
-      this.expectedBundleFlushedMessages = expectedBundleFlushedMessages;
-    }
-  }
-
-  private void runMultiKeyTest(MultiKeyTestCase testCase) throws Exception {
-    MockitoAnnotations.initMocks(this);
+  @Test
+  public void testMultiKey_flushesAllMessagesToBundleLevelAtClose() throws Exception {
     when(mockContext.multiKeyBundleEnabled()).thenReturn(true);
 
     Windmill.WorkItemCommitRequest.Builder outputBuilderKey1 =
@@ -288,134 +261,64 @@ public class PubsubSinkTest {
     Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
 
     // 1. Process Key 1 messages
-    for (String msg : testCase.key1Messages) {
-      writer.add(WindowedValues.timestampedValueInGlobalWindow(msg, new Instant(0)));
-    }
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("k1-msg1", new Instant(0)));
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("k1-msg2", new Instant(10)));
     writer.finishKey("key1");
 
-    // Verify Key 1 flush expectations
-    if (testCase.expectedKey1FlushedMessages > 0) {
-      assertEquals(testCase.testName, 1, outputBuilderKey1.getPubsubMessagesCount());
-      assertEquals(
-          testCase.testName,
-          testCase.expectedKey1FlushedMessages,
-          outputBuilderKey1.getPubsubMessages(0).getMessagesCount());
-    } else {
-      assertEquals(testCase.testName, 0, outputBuilderKey1.getPubsubMessagesCount());
-    }
+    // In multi-key mode, finishKey does not flush to key-level commit
+    assertEquals(0, outputBuilderKey1.getPubsubMessagesCount());
 
     // 2. Process Key 2 messages
     when(mockContext.getOutputBuilder()).thenReturn(outputBuilderKey2);
-    for (String msg : testCase.key2Messages) {
-      writer.add(WindowedValues.timestampedValueInGlobalWindow(msg, new Instant(100)));
-    }
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("k2-msg1", new Instant(100)));
     writer.finishKey("key2");
 
-    // Verify Key 2 flush expectations
-    if (testCase.expectedKey2FlushedMessages > 0) {
-      assertEquals(testCase.testName, 1, outputBuilderKey2.getPubsubMessagesCount());
-      assertEquals(
-          testCase.testName,
-          testCase.expectedKey2FlushedMessages,
-          outputBuilderKey2.getPubsubMessages(0).getMessagesCount());
-    } else {
-      assertEquals(testCase.testName, 0, outputBuilderKey2.getPubsubMessagesCount());
-    }
+    // In multi-key mode, finishKey does not flush to key-level commit
+    assertEquals(0, outputBuilderKey2.getPubsubMessagesCount());
 
     // 3. Process finishBundle messages and close
-    for (String msg : testCase.finishBundleMessages) {
-      writer.add(WindowedValues.timestampedValueInGlobalWindow(msg, new Instant(200)));
-    }
+    writer.add(WindowedValues.timestampedValueInGlobalWindow("bundle-msg", new Instant(200)));
     writer.close();
 
-    // Verify Bundle-level flush expectations
-    if (testCase.expectedBundleFlushedMessages > 0) {
-      ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
-          ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
-      verify(mockContext).addBundlePubsubMessages(captor.capture());
-      Windmill.PubSubMessageBundle bundleLevel = captor.getValue();
-      assertEquals(testCase.testName, "topic", bundleLevel.getTopic());
-      assertEquals(
-          testCase.testName,
-          testCase.expectedBundleFlushedMessages,
-          bundleLevel.getMessagesCount());
-    } else {
-      verify(mockContext, org.mockito.Mockito.never())
-          .addBundlePubsubMessages(org.mockito.ArgumentMatchers.any());
-    }
+    // Verify all messages across keys and finishBundle flush to bundle level at close
+    ArgumentCaptor<Windmill.PubSubMessageBundle> captor =
+        ArgumentCaptor.forClass(Windmill.PubSubMessageBundle.class);
+    verify(mockContext).addBundlePubsubMessages(captor.capture());
+    Windmill.PubSubMessageBundle bundleLevel = captor.getValue();
+    assertEquals("topic", bundleLevel.getTopic());
+    assertEquals(4, bundleLevel.getMessagesCount());
+    assertEquals("k1-msg1", bundleLevel.getMessages(0).getData().toStringUtf8());
+    assertEquals("k1-msg2", bundleLevel.getMessages(1).getData().toStringUtf8());
+    assertEquals("k2-msg1", bundleLevel.getMessages(2).getData().toStringUtf8());
+    assertEquals("bundle-msg", bundleLevel.getMessages(3).getData().toStringUtf8());
   }
 
   @Test
-  public void testMultiKey_parameterizedCombinations() throws Exception {
-    String largePayload = "a".repeat(1024 * 1024); // 1MB exact
-    String p100K = "b".repeat(100 * 1024); // 100KB
-    String p200K = "c".repeat(200 * 1024); // 200KB
-    String p600K_1 = "d".repeat(600 * 1024); // 600KB
-    String p600K_2 = "e".repeat(600 * 1024); // 600KB
-    String boundaryBelow1MB = "f".repeat(1024 * 1024 - 1); // 1MB - 1 byte
+  public void testMultiKey_emptyBundleFlushesNothing() throws Exception {
+    when(mockContext.multiKeyBundleEnabled()).thenReturn(true);
 
-    List<MultiKeyTestCase> testCases =
-        List.of(
-            // 1. Key 1 Large (>= 1MB), Key 2 Small (< 1MB)
-            new MultiKeyTestCase(
-                "Key1 Large, Key2 Small",
-                /* key1Messages= */ List.of(largePayload),
-                /* key2Messages= */ List.of("key2-small"),
-                /* finishBundleMessages= */ List.of("bundle-msg"),
-                /* expectedKey1FlushedMessages= */ 1,
-                /* expectedKey2FlushedMessages= */ 0,
-                /* expectedBundleFlushedMessages= */ 2),
-            // 2. Key 1 Small (< 1MB), Key 2 Large (>= 1MB) -> accumulated >= 1MB flushes both to
-            // Key 2
-            new MultiKeyTestCase(
-                "Key1 Small, Key2 Large",
-                /* key1Messages= */ List.of("key1-small"),
-                /* key2Messages= */ List.of(largePayload),
-                /* finishBundleMessages= */ List.of(),
-                /* expectedKey1FlushedMessages= */ 0,
-                /* expectedKey2FlushedMessages= */ 2,
-                /* expectedBundleFlushedMessages= */ 0),
-            // 3. Both Small, sum < 1MB -> flushes to bundle level at close
-            new MultiKeyTestCase(
-                "Both Small, sum < 1MB",
-                /* key1Messages= */ List.of(p100K),
-                /* key2Messages= */ List.of(p200K),
-                /* finishBundleMessages= */ List.of("bundle-tail"),
-                /* expectedKey1FlushedMessages= */ 0,
-                /* expectedKey2FlushedMessages= */ 0,
-                /* expectedBundleFlushedMessages= */ 3),
-            // 4. Both Small, sum >= 1MB (600KB + 600KB = 1.2MB) -> flushes both to Key 2
-            new MultiKeyTestCase(
-                "Both Small, sum >= 1MB",
-                /* key1Messages= */ List.of(p600K_1),
-                /* key2Messages= */ List.of(p600K_2),
-                /* finishBundleMessages= */ List.of(),
-                /* expectedKey1FlushedMessages= */ 0,
-                /* expectedKey2FlushedMessages= */ 2,
-                /* expectedBundleFlushedMessages= */ 0),
-            // 5. Both Large (>= 1MB each) -> each flushes independently to its own key
-            new MultiKeyTestCase(
-                "Both Large, each >= 1MB",
-                /* key1Messages= */ List.of(largePayload),
-                /* key2Messages= */ List.of(largePayload),
-                /* finishBundleMessages= */ List.of(),
-                /* expectedKey1FlushedMessages= */ 1,
-                /* expectedKey2FlushedMessages= */ 1,
-                /* expectedBundleFlushedMessages= */ 0),
-            // 6. Exact 1MB Boundary: 1MB - 1 byte does not flush; second key adds element pushing
-            // >= 1MB
-            new MultiKeyTestCase(
-                "1MB boundary: below threshold on Key 1, crossed on Key 2",
-                /* key1Messages= */ List.of(boundaryBelow1MB),
-                /* key2Messages= */ List.of("x"),
-                /* finishBundleMessages= */ List.of(),
-                /* expectedKey1FlushedMessages= */ 0,
-                /* expectedKey2FlushedMessages= */ 2,
-                /* expectedBundleFlushedMessages= */ 0));
+    Map<String, Object> spec = new HashMap<>();
+    spec.put(PropertyNames.OBJECT_TYPE_NAME, "");
+    spec.put(PropertyNames.PUBSUB_TOPIC, "topic");
+    spec.put(PropertyNames.PUBSUB_TIMESTAMP_ATTRIBUTE, "ts");
+    spec.put(PropertyNames.PUBSUB_ID_ATTRIBUTE, "id");
+    CloudObject cloudSinkSpec = CloudObject.fromSpec(spec);
+    PubsubSink.Factory factory = new PubsubSink.Factory();
+    PubsubSink<String> sink =
+        (PubsubSink<String>)
+            factory.create(
+                cloudSinkSpec,
+                WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder()),
+                null,
+                mockContext,
+                null);
 
-    for (MultiKeyTestCase testCase : testCases) {
-      runMultiKeyTest(testCase);
-    }
+    Sink.SinkWriter<WindowedValue<String>> writer = sink.writer();
+    writer.finishKey("key1");
+    writer.close();
+
+    verify(mockContext, org.mockito.Mockito.never())
+        .addBundlePubsubMessages(org.mockito.ArgumentMatchers.any());
   }
 
   @Test

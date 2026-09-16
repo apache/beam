@@ -39,7 +39,6 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Ints;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A sink that writes to a shuffle dataset.
@@ -300,9 +299,6 @@ public class ShuffleSink<T> extends Sink<WindowedValue<T>> {
       perDatasetBytesCounter.addValue(bytes);
       return bytes;
     }
-
-    @Override
-    public void finishKey(@Nullable Object key) throws IOException {}
 
     @Override
     public void close() throws IOException {

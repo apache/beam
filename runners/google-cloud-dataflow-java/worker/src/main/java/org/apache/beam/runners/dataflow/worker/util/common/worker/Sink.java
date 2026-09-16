@@ -40,7 +40,7 @@ public abstract class Sink<T> {
     /**
      * Called when all elements for a specific key have been processed. Called only for Streaming
      */
-    public void finishKey(@Nullable Object key) throws IOException;
+    public default void finishKey(@Nullable Object key) throws IOException {}
 
     /**
      * {@inheritDoc}
