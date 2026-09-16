@@ -18,10 +18,14 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
 import org.apache.beam.runners.core.DoFnRunner;
+import org.joda.time.Instant;
 
 /** An interface for elements buffered during a checkpoint when using @RequiresStableInput. */
 public interface BufferedElement {
 
   /** Processes this element with the provided DoFnRunner. */
   <InputT, OutputT> void processWith(DoFnRunner<InputT, OutputT> doFnRunner);
+
+  /** Returns the timestamp associated with this buffered element */
+  Instant getTimestamp();
 }

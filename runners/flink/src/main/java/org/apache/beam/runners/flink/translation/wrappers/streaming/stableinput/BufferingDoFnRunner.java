@@ -299,7 +299,12 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
         bufferingElementsHandler.clear();
       }
     }
-    minBufferedElementTimestamp = Long.MAX_VALUE;
+    minBufferedElementTimestamp =
+        currentBufferingElementsHandler
+            .getElements()
+            .mapToLong(e -> e.getTimestamp().getMillis())
+            .min()
+            .orElse(Long.MAX_VALUE);
   }
 
   public long getOutputWatermarkHold() {
