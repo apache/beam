@@ -40,6 +40,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.SerializableTable;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.io.OutputFileFactory;
@@ -117,7 +118,8 @@ final class WriteDeltas
       String destString = group.getKey().getDestination();
       int shardId = group.getKey().getShard();
       TableSetup.Dest dest = tableSetup.get(destString, dataSchema);
-      Table table = dest.table();
+      // Get a frozen view of the table
+      Table table = SerializableTable.copyOf(dest.table());
       PartitionSpec spec = dest.spec();
 
       FileFormat dataFormat = RecordDeltaTaskWriter.dataFileFormat(table);
@@ -146,7 +148,6 @@ final class WriteDeltas
               dataFormat,
               deleteFormat);
 
-      org.apache.iceberg.Schema tableSchema = table.schema();
       long minSeq = Long.MAX_VALUE;
       long maxSeq = Long.MIN_VALUE;
       try {
@@ -157,7 +158,7 @@ final class WriteDeltas
           CdcRecord record = keyed.getValue();
           writer.write(
               keyed.getKey(),
-              beamRowToIcebergRecord(tableSchema, record.getData()),
+              beamRowToIcebergRecord(table.schema(), record.getData()),
               record.getKind());
           minSeq = Math.min(minSeq, record.getSequenceNumber());
           maxSeq = Math.max(maxSeq, record.getSequenceNumber());
