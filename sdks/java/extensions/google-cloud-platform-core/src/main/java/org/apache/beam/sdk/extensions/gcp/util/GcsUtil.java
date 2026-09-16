@@ -297,7 +297,7 @@ public class GcsUtil {
 
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     if (delegateV2 != null) {
-      delegateV2.create(path, options.delegate);
+      return delegateV2.create(path, options.delegate);
     }
     return delegate.create(path, options.delegate);
   }
