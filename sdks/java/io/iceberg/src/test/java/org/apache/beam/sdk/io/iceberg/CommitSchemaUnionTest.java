@@ -1262,6 +1262,20 @@ public class CommitSchemaUnionTest {
   @Test
   public void testCaseCollidingSchemasOnCreateKeepTheFirst() {
     TableIdentifier id = missing();
+    IncompatibleSchemaException e =
+        assertThrows(
+            IncompatibleSchemaException.class,
+            () ->
+                commitTo(
+                    id,
+                    ALL,
+                    IncompatibleSchemaHandling.FAIL_PIPELINE,
+                    NO_CREATION,
+                    files(WITH_EMAIL_UPPER, 3),
+                    files(WITH_EMAIL_LOWER, 2)));
+    assertTrue(e.getMessage(), e.getMessage().contains("differs only in case"));
+    assertFalse(catalog.tableExists(id));
+
     commitTo(
         id,
         ALL,
