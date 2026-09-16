@@ -22,7 +22,9 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.api.gax.paging.Page;
+import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
+import com.google.cloud.NoCredentials;
 import com.google.cloud.ReadChannel;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.storage.Blob;
@@ -47,6 +49,8 @@ import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
@@ -95,9 +99,40 @@ class GcsUtilV2 {
   private static final long MEGABYTES_COPIED_PER_CHUNK = 2048L;
 
   GcsUtilV2(PipelineOptions options) {
-    String projectId = options.as(GcpOptions.class).getProject();
-    storage = StorageOptions.newBuilder().setProjectId(projectId).build().getService();
-    uploadBufferSizeBytes = options.as(GcsOptions.class).getGcsUploadBufferSizeBytes();
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    StorageOptions.Builder storageOptionsBuilder =
+        StorageOptions.newBuilder().setProjectId(options.as(GcpOptions.class).getProject());
+
+    // Use the pipeline's configured credentials rather than falling back to application default
+    // credentials, so that --gcpCredentialFactoryClass, impersonation and explicit service account
+    // keys are honored. A null credential means the pipeline opted out of authentication
+    // (e.g. NoopCredentialFactory), which maps to NoCredentials for this client.
+    Credentials credentials = gcsOptions.getGcpCredential();
+    storageOptionsBuilder.setCredentials(
+        credentials != null ? credentials : NoCredentials.getInstance());
+
+    // GcsOptions#getGcsEndpoint may carry a service path (as the JSON client in Transport expects),
+    // but this client derives its own path, so only the root is applicable here.
+    String endpoint = gcsOptions.getGcsEndpoint();
+    if (endpoint != null) {
+      storageOptionsBuilder.setHost(rootUrlOf(endpoint));
+    }
+
+    storage = storageOptionsBuilder.build().getService();
+    uploadBufferSizeBytes = gcsOptions.getGcsUploadBufferSizeBytes();
+  }
+
+  /** Returns the {@code scheme://host[:port]} prefix of {@code endpoint}, discarding any path. */
+  private static String rootUrlOf(String endpoint) {
+    try {
+      URL url = new URL(endpoint);
+      return url.getProtocol()
+          + "://"
+          + url.getHost()
+          + (url.getPort() > 0 ? ":" + url.getPort() : "");
+    } catch (MalformedURLException e) {
+      throw new IllegalArgumentException("Invalid gcsEndpoint URL: " + endpoint, e);
+    }
   }
 
   @SuppressWarnings({
