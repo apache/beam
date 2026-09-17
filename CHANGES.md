@@ -69,6 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1` and `beam:logical_type:micros_instant:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
 
 ## Breaking Changes
 

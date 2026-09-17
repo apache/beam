@@ -435,3 +435,23 @@ type typeDecoderFieldReflect struct {
 	// of the field value (i.e. &foo.bar) and not the field value (i.e. foo.bar).
 	addr bool
 }
+
+// fieldDecoderForType returns a decoder for values of t, using the encoding
+// of t as a row field.
+func (b *RowDecoderBuilder) fieldDecoderForType(t reflect.Type) (func(io.Reader) (any, error), error) {
+	decf, err := b.decoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
+	return func(r io.Reader) (any, error) {
+		rv := reflect.New(t)
+		v := rv.Elem()
+		if decf.addr {
+			v = rv
+		}
+		if err := decf.decode(v, r); err != nil {
+			return nil, err
+		}
+		return rv.Elem().Interface(), nil
+	}, nil
+}
