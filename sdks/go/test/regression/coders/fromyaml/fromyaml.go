@@ -53,7 +53,6 @@ var unimplementedCoders = map[string]bool{
 
 var filteredCases = []struct{ filter, reason string }{
 	{"30ea5a25-dcd8-4cdb-abeb-5332d15ab4b9", "https://github.com/apache/beam/issues/21206: Support encoding position."},
-	{"beam:logical_type:timestamp:v1", "https://github.com/apache/beam/issues/39684: Support timestamp."},
 }
 
 // Coder is a representation a serialized beam coder.
@@ -187,6 +186,35 @@ var cmpOpts = []cmp.Option{
 	cmp.Comparer(func(a, b schema.Decimal) bool {
 		return a.String() == b.String()
 	}),
+	cmp.Comparer(func(a, b schema.TimestampMillis) bool {
+		return a.Time().Equal(b.Time())
+	}),
+	cmp.Comparer(func(a, b schema.TimestampMicros) bool {
+		return a.Time().Equal(b.Time())
+	}),
+	cmp.Comparer(func(a, b schema.TimestampNanos) bool {
+		return a.Time().Equal(b.Time())
+	}),
+}
+
+// timestampFromYAML builds a timestamp:v1 value from its seconds and
+// subseconds example fields, with the subseconds in units of
+// 10^-precision seconds.
+func timestampFromYAML(v any, precision int) time.Time {
+	var seconds, subseconds int64
+	for _, f := range v.(yaml.MapSlice) {
+		switch f.Key.(string) {
+		case "seconds":
+			seconds = int64(f.Value.(int))
+		case "subseconds":
+			subseconds = int64(f.Value.(int))
+		}
+	}
+	unit := int64(1)
+	for i := precision; i < 9; i++ {
+		unit *= 10
+	}
+	return time.Unix(seconds, subseconds*unit).UTC()
 }
 
 // latin1Bytes returns the bytes that a yaml string denotes. The yaml strings
@@ -499,6 +527,15 @@ func setValue(rv reflect.Value, v any) error {
 			return err
 		}
 		rv.Set(reflect.ValueOf(d))
+		return nil
+	case reflect.TypeOf(schema.TimestampMillis{}):
+		rv.Set(reflect.ValueOf(schema.TimestampMillis(timestampFromYAML(v, 3))))
+		return nil
+	case reflect.TypeOf(schema.TimestampMicros{}):
+		rv.Set(reflect.ValueOf(schema.TimestampMicros(timestampFromYAML(v, 6))))
+		return nil
+	case reflect.TypeOf(schema.TimestampNanos{}):
+		rv.Set(reflect.ValueOf(schema.TimestampNanos(timestampFromYAML(v, 9))))
 		return nil
 	}
 	switch rv.Kind() {

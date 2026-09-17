@@ -69,7 +69,7 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
-* (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1`, `beam:logical_type:micros_instant:v1`, `beam:logical_type:millis_instant:v1`, `beam:logical_type:decimal:v1`, `beam:logical_type:fixed_char:v1`, `beam:logical_type:var_char:v1`, `beam:logical_type:fixed_bytes:v1` and `beam:logical_type:var_bytes:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
+* (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1`, `beam:logical_type:micros_instant:v1`, `beam:logical_type:millis_instant:v1`, `beam:logical_type:decimal:v1`, `beam:logical_type:fixed_char:v1`, `beam:logical_type:var_char:v1`, `beam:logical_type:fixed_bytes:v1`, `beam:logical_type:var_bytes:v1` and `beam:logical_type:timestamp:v1` (precisions 3, 6 and 9) logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
 
 ## Breaking Changes
 

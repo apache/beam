@@ -111,6 +111,7 @@ func registerStandardLogicalTypes(r *Registry) {
 	r.RegisterPassThroughLogicalType(URNVarChar, reflectx.String)
 	r.RegisterPassThroughLogicalType(URNFixedBytes, reflectx.ByteSlice)
 	r.RegisterPassThroughLogicalType(URNVarBytes, reflectx.ByteSlice)
+	registerTimestampLogicalTypes(r)
 }
 
 // URNs of the standard logical types that pass through as their
