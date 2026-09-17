@@ -61,17 +61,24 @@ type Registry struct {
 	logicalTypeProviders  map[reflect.Type]LogicalTypeProvider
 	logicalTypeInterfaces []reflect.Type
 
-	// Maps logical type identifiers to their reflect.Type and the schema representation.
-	// the type identifier is the reflect.Type name, and included in the proto as well.
+	// logicalTypes maps registered logical types by identifier and argument.
+	// The identifier is included in the proto as the logical type URN.
 	// We don't treat all types as "logical" types.
-	// ... why don't we treat all types as Logical types?
-	logicalTypes           map[string]LogicalType
-	logicalTypeIdentifiers map[reflect.Type]string
+	logicalTypes map[logicalTypeKey]LogicalType
+	// logicalTypeByGoType maps Go types to their registered logical type.
+	logicalTypeByGoType map[reflect.Type]LogicalType
 
 	// toReconcile contains a list of types that have been registered
 	// but not yet processed. Registration actually happens on first
 	// call to ToType or FromType or once Initialize is called on beam.Init.
 	toReconcile []reflect.Type
+}
+
+// logicalTypeKey identifies a registered logical type. argument is nil for
+// logical types without an argument, and the argument value otherwise.
+type logicalTypeKey struct {
+	identifier string
+	argument   any
 }
 
 // NewRegistry creates an initialized LogicalTypeRegistry.
@@ -81,9 +88,9 @@ func NewRegistry() *Registry {
 		idToType:        map[string]reflect.Type{},
 		syntheticToUser: map[reflect.Type]reflect.Type{},
 
-		logicalTypes:           map[string]LogicalType{},
-		logicalTypeIdentifiers: map[reflect.Type]string{},
-		logicalTypeProviders:   map[reflect.Type]LogicalTypeProvider{},
+		logicalTypes:         map[logicalTypeKey]LogicalType{},
+		logicalTypeByGoType:  map[reflect.Type]LogicalType{},
+		logicalTypeProviders: map[reflect.Type]LogicalTypeProvider{},
 	}
 }
 
@@ -98,9 +105,30 @@ func (r *Registry) RegisterLogicalType(lt LogicalType) {
 	if len(lt.ID()) == 0 {
 		panic(fmt.Sprintf("invalid logical type, bad id: %v -> %v", lt.GoType(), lt.StorageType()))
 	}
+	if lt.argT != nil {
+		if _, _, err := atomicValueToProto(lt.argV); err != nil {
+			panic(fmt.Sprintf("LogicalType[%v] has an invalid argument %v: %v", lt.ID(), lt.argV, err))
+		}
+		if !lt.argV.Comparable() || !lt.argV.Equal(lt.argV) {
+			panic(fmt.Sprintf("LogicalType[%v] has the argument %v which does not compare equal to itself", lt.ID(), lt.argV))
+		}
+	}
 	// TODO add duplication checks.
-	r.logicalTypeIdentifiers[lt.GoType()] = lt.ID()
-	r.logicalTypes[lt.ID()] = lt
+	r.logicalTypeByGoType[lt.GoType()] = lt
+	r.logicalTypes[lt.key()] = lt
+}
+
+// lookupLogicalType returns the logical type registered for identifier and,
+// when argument is valid, that argument. A logical type registered without an
+// argument matches any argument.
+func (r *Registry) lookupLogicalType(identifier string, argument reflect.Value) (LogicalType, bool) {
+	if argument.IsValid() && argument.Comparable() {
+		if lt, ok := r.logicalTypes[logicalTypeKey{identifier: identifier, argument: argument.Interface()}]; ok {
+			return lt, true
+		}
+	}
+	lt, ok := r.logicalTypes[logicalTypeKey{identifier: identifier}]
+	return lt, ok
 }
 
 // RegisterLogicalTypeProvider allows registration of providers for interface types.
@@ -160,6 +188,29 @@ func (l *LogicalType) StorageType() reflect.Type {
 // ToLogicalType creates a LogicalType, indicating that there's a conversion from one to the other.
 func ToLogicalType(identifier string, goType, storageType reflect.Type) LogicalType {
 	return LogicalType{identifier: identifier, goT: goType, storageT: storageType}
+}
+
+// ToLogicalTypeWithArgument creates a LogicalType with an argument, for
+// parameterized logical types such as a fixed length string and its length.
+// The argument is included in the schema representation of the logical type,
+// and must be a value of a built in Go type with an atomic schema type other
+// than []byte. It is matched by equality, so a floating point NaN is not a
+// valid argument.
+func ToLogicalTypeWithArgument(identifier string, goType, storageType reflect.Type, argument any) LogicalType {
+	lt := ToLogicalType(identifier, goType, storageType)
+	if argument != nil {
+		lt.argT = reflect.TypeOf(argument)
+		lt.argV = reflect.ValueOf(argument)
+	}
+	return lt
+}
+
+// key returns the registry key of the logical type.
+func (l *LogicalType) key() logicalTypeKey {
+	if l.argT == nil {
+		return logicalTypeKey{identifier: l.identifier}
+	}
+	return logicalTypeKey{identifier: l.identifier, argument: l.argV.Interface()}
 }
 
 func preRegLogicalTypes(r *Registry) {
