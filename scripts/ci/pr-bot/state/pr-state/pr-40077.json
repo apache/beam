@@ -3,8 +3,9 @@
   "reviewersAssignedForLabels": {
     "java": "kennknowles"
   },
-  "nextAction": "Reviewers",
+  "nextAction": "Author",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": false,
+  "reviewersAssignedAt": 0
 }
