@@ -569,7 +569,7 @@ public class IcebergIO {
      * side-input cache. Any tables exceeding this limit fall back to worker-local catalog loading.
      *
      * <p><b>Note:</b> This option is only supported for bounded (batch) pipelines. Calling this on
-     * an unbounded streaming pipeline will throw an exception at pipeline execution.
+     * an unbounded streaming pipeline will throw an exception at pipeline construction.
      */
     public WriteRows withMaximumCacheSize(int maximumCacheSize) {
       Preconditions.checkArgument(maximumCacheSize > 0, "maximumCacheSize must be greater than 0");
