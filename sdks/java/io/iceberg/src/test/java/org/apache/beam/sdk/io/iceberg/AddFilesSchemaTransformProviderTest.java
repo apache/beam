@@ -42,7 +42,7 @@ public class AddFilesSchemaTransformProviderTest {
   }
 
   @Test
-  public void testNoEvolutionSettingsGiveNull() {
+  public void testNoEvolutionSettingsMeanEvolutionDisabled() {
     assertNull(base().build().getSchemaEvolution());
     assertNull(
         base().setSchemaEvolutionOptions(Collections.emptyList()).build().getSchemaEvolution());
@@ -81,7 +81,7 @@ public class AddFilesSchemaTransformProviderTest {
   }
 
   @Test
-  public void testUnverifiableFileHandlingParsed() {
+  public void testUnverifiableFileHandlingParsedAndDefaultsToReject() {
     SchemaEvolutionConfig config =
         base()
             .setSchemaEvolutionOptions(Arrays.asList("ALLOW_FIELD_ADDITION"))
@@ -102,23 +102,6 @@ public class AddFilesSchemaTransformProviderTest {
   }
 
   @Test
-  public void testUnverifiableFileHandlingWithoutOptionsRejected() {
-    IllegalArgumentException e =
-        assertThrows(
-            IllegalArgumentException.class,
-            () -> base().setUnverifiableFileHandling("ACCEPT").build().getSchemaEvolution());
-    assertTrue(e.getMessage(), e.getMessage().contains("schema_evolution_options"));
-    assertThrows(
-        IllegalArgumentException.class,
-        () ->
-            base()
-                .setSchemaEvolutionOptions(Arrays.asList("ALLOW_FIELD_ADDITION"))
-                .setUnverifiableFileHandling("trust")
-                .build()
-                .getSchemaEvolution());
-  }
-
-  @Test
   public void testInvalidOptionListsValidValues() {
     IllegalArgumentException e =
         assertThrows(
@@ -133,7 +116,7 @@ public class AddFilesSchemaTransformProviderTest {
   }
 
   @Test
-  public void testInvalidHandlingRejected() {
+  public void testInvalidHandlingValuesRejected() {
     assertThrows(
         IllegalArgumentException.class,
         () ->
@@ -142,14 +125,30 @@ public class AddFilesSchemaTransformProviderTest {
                 .setIncompatibleSchemaHandling("ignore")
                 .build()
                 .getSchemaEvolution());
+    assertThrows(
+        IllegalArgumentException.class,
+        () ->
+            base()
+                .setSchemaEvolutionOptions(Arrays.asList("ALLOW_FIELD_ADDITION"))
+                .setUnverifiableFileHandling("trust")
+                .build()
+                .getSchemaEvolution());
   }
 
+  /** The config's "needs options" rule, reported under the YAML key the user must set. */
   @Test
-  public void testPinsWithoutOptionsRejected() {
-    IllegalArgumentException e =
+  public void testSettingsWithoutOptionsRejectedNamingTheOptionsKey() {
+    IllegalArgumentException pins =
         assertThrows(
             IllegalArgumentException.class,
             () -> base().setRequiredColumns(Arrays.asList("id")).build().getSchemaEvolution());
-    assertTrue(e.getMessage(), e.getMessage().contains("schema_evolution_options"));
+    IllegalArgumentException unverifiable =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> base().setUnverifiableFileHandling("ACCEPT").build().getSchemaEvolution());
+
+    assertTrue(pins.getMessage(), pins.getMessage().contains("schema_evolution_options"));
+    assertTrue(
+        unverifiable.getMessage(), unverifiable.getMessage().contains("schema_evolution_options"));
   }
 }
