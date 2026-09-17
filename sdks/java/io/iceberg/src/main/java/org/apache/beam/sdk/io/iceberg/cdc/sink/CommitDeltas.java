@@ -163,7 +163,7 @@ class CommitDeltas
     boolean streaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
     return input
         .apply("KeyByDestination", WithKeys.of(ShardDeltaFiles::getTableIdentifierString))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), WriteDeltas.shardDeltaFilesCoder()))
+        .setCoder(KvCoder.of(StringUtf8Coder.of(), ShardDeltaFiles.coder()))
         // One element per (dest, window): every shard's output for the pair.
         .apply("GatherShardsPerWindow", GroupByKey.create())
         .apply("CaptureWindowEnd", ParDo.of(new CaptureWindowEndFn()))
@@ -519,8 +519,8 @@ class CommitDeltas
       // keeps committer state but regenerates the runId. We drop the pin if it's stale (if the
       // construction-time runId doesn't match the preserved state's pinnedRunId). Doing this lets
       // the new run re-pin onto the current live spec.
-      @Nullable
-      Integer currentSpecId = runId.equals(pinnedRunId.read()) ? pinnedSpecId.read() : null;
+      @Nullable Integer currentSpecId =
+          runId.equals(pinnedRunId.read()) ? pinnedSpecId.read() : null;
       for (WindowedCommit wc : committable) {
         CommitSummary summary;
         try {
@@ -982,14 +982,18 @@ class CommitDeltas
         for (DataFile f : files.dataFiles) {
           dataRecords += f.recordCount();
           bytes += f.fileSizeInBytes();
-          firstSpecId = firstSpecId == null ? f.specId() : firstSpecId;
+          if (firstSpecId == null) {
+            firstSpecId = f.specId();
+          }
           specIds.add(f.specId());
         }
         long equalityDeleteRecords = 0;
         boolean hasEqualityDeletes = false;
         for (DeleteFile f : files.deleteFiles) {
           bytes += f.fileSizeInBytes();
-          firstSpecId = firstSpecId == null ? f.specId() : firstSpecId;
+          if (firstSpecId == null) {
+            firstSpecId = f.specId();
+          }
           specIds.add(f.specId());
           if (f.content() == FileContent.EQUALITY_DELETES) {
             equalityDeleteRecords += f.recordCount();
