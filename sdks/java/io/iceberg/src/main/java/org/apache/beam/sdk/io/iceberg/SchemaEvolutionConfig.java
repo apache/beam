@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -110,12 +111,13 @@ public abstract class SchemaEvolutionConfig implements Serializable {
 
   public abstract UnverifiableFileHandling getUnverifiableFileHandling();
 
-  public IncompatibleSchemaHandling incompatibleSchemaHandling(boolean bounded) {
+  /** The handling to apply: the configured one, or the default for the input's mode when unset. */
+  public IncompatibleSchemaHandling incompatibleSchemaHandlingFor(PCollection.IsBounded mode) {
     IncompatibleSchemaHandling handling = getIncompatibleSchemaHandling();
     if (handling != null) {
       return handling;
     }
-    return bounded
+    return mode == PCollection.IsBounded.BOUNDED
         ? IncompatibleSchemaHandling.FAIL_PIPELINE
         : IncompatibleSchemaHandling.ROUTE_TO_ERRORS;
   }

@@ -43,6 +43,7 @@ import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.schemas.Schema;
@@ -330,6 +331,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         input.apply("PrePassGlobalWindow", Window.into(new GlobalWindows()));
     CommitSchemaUnion.TableCreation creation =
         new CommitSchemaUnion.TableCreation(partitionFields, sortFields, tableProps);
+    // unset handling follows the mode (fail the job in batch, route in streaming); the pre-pass
+    // only runs on bounded input, see expand
+    IncompatibleSchemaHandling onIncompatible =
+        evolution.incompatibleSchemaHandlingFor(input.isBounded());
     PCollection<Long> signal =
         windowed
             .apply("ReadFooterSchema", ParDo.of(new ReadFooterSchema()))
@@ -344,7 +349,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                         catalogConfig,
                         tableIdentifier,
                         evolution,
-                        evolution.incompatibleSchemaHandling(true),
+                        onIncompatible,
                         creation,
                         committer)));
     return windowed.apply("WaitForSchemaCommit", Wait.on(signal));
