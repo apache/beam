@@ -56,9 +56,9 @@ import org.joda.time.Instant;
  * <p>For each element this:
  *
  * <ol>
- *   <li>resolves the destination string from the raw element;
  *   <li>resolves the element's {@link ValueKind};
  *   <li>in upsert mode, drops {@code UPDATE_BEFORE} records;
+ *   <li>resolves the destination string from the raw element;
  *   <li>reads the sequence number from {@link CdcWriteConfig#getSequenceNumberColumn()};
  *   <li>takes the row to write from {@link DynamicDestinations#getData}, which excludes the control
  *       columns read above;
@@ -160,26 +160,39 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         MultiOutputReceiver out) {
       try {
         Schema schema = element.getSchema();
-        String destString =
-            destinations.getTableStringIdentifier(
-                ValueInSingleWindow.of(element, timestamp, window, pane));
-
-        // Resolve the control columns' positions once per source schema. (The local lets the
-        // nullness checker prove non-nullness, which it cannot for the field.)
+        // Resolve the control columns' positions once per source schema
         ControlColumns cols = controls;
         if (cols == null || !cols.matches(schema)) {
           cols = ControlColumns.of(schema, config);
           controls = cols;
         }
 
+        // Drop UPDATE_BEFORE as soon as we can
         ValueKind kind = resolveKind(element, cols, elementKind);
         if (config.getUpsert() && kind == ValueKind.UPDATE_BEFORE) {
           upsertUpdateBeforeDropped.inc();
           return;
         }
+
+        String destString;
+        try {
+          destString =
+              destinations.getTableStringIdentifier(
+                  ValueInSingleWindow.of(element, timestamp, window, pane));
+        } catch (RuntimeException e) {
+          throw new CdcRecordException(
+              "Failed to get destination for record: " + e.getMessage(), e);
+        }
+
         long seq = readSeq(element, cols, kind);
 
-        Row data = destinations.getData(element);
+        Row data;
+        try {
+          data = destinations.getData(element);
+        } catch (RuntimeException e) {
+          throw new CdcRecordException("Failed to get projection for record: " + e.getMessage(), e);
+        }
+
         TableSetup.Dest dest = tableSetup.get(destString, data.getSchema());
         requireNonNullEqualityValues(dest, data);
         byte[] pkBytes = encodePk(dest, data);
@@ -189,9 +202,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
                 KV.of(
                     DestinationShard.of(destString, shardFor(dest, data, pkBytes)),
                     KV.of(CdcSortKey.encode(pkBytes, seq, kind), CdcRecord.of(data, kind, seq))));
-      } catch (TableSetup.TableConfigException e) {
-        throw e;
-      } catch (RuntimeException e) {
+      } catch (CdcRecordException e) {
         if (!config.getErrorHandling()) {
           throw e;
         }
@@ -201,9 +212,9 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
     }
 
     /**
-     * Resolves this element's {@link ValueKind}. When configured, uses the {@code
-     * change_type_column} value (mapped via {@code change_type_map} when configured). Otherwise,
-     * uses the element's native kind.
+     * Resolves this element's {@link ValueKind}. Uses the {@code change_type_column} value when
+     * configured. Uses {@code change_type_map} to translate to ValueKind if configured. Otherwise,
+     * uses the element's native ValueKind.
      */
     private ValueKind resolveKind(Row element, ControlColumns cols, ValueKind elementKind) {
       @Nullable String changeTypeColumn = config.getChangeTypeColumn();
@@ -211,7 +222,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         return elementKind;
       }
       if (cols.changeTypeIndex < 0) {
-        throw new IllegalArgumentException(
+        throw new CdcRecordException(
             "change_type_column '"
                 + changeTypeColumn
                 + "' not found in element schema "
@@ -219,7 +230,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
       }
       @Nullable String raw = element.getString(cols.changeTypeIndex);
       if (raw == null) {
-        throw new IllegalArgumentException(
+        throw new CdcRecordException(
             "change_type_column '" + changeTypeColumn + "' is null for element " + element);
       }
       @Nullable Map<String, String> changeTypeMap = config.getChangeTypeMap();
@@ -228,7 +239,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         return ValueKind.valueOf(name);
       } catch (IllegalArgumentException e) {
         String mappedClause = name.equals(raw) ? "" : " (mapped to '" + name + "')";
-        throw new IllegalArgumentException(
+        throw new CdcRecordException(
             "change_type '"
                 + raw
                 + "'"
@@ -248,7 +259,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
       try {
         value = cols.seqIndex < 0 ? null : element.getInt64(cols.seqIndex);
       } catch (ClassCastException e) {
-        throw new IllegalArgumentException(
+        throw new CdcRecordException(
             "sequence_number_column '"
                 + seqColumn
                 + "' must be INT64 (was: "
@@ -257,7 +268,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
             e);
       }
       if (value == null) {
-        throw new IllegalArgumentException(
+        throw new CdcRecordException(
             "sequence_number_column '"
                 + seqColumn
                 + "' is missing or null for a "
@@ -286,7 +297,11 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
         return TableSetup.shardFor(pkBytes, numShards);
       }
       int offset = Math.floorMod(TableSetup.pkHash(pkBytes), shardsPerPartition);
-      return partitionShardPlan.shardFor(data, offset, numShards);
+      try {
+        return partitionShardPlan.shardFor(data, offset, numShards);
+      } catch (RuntimeException e) {
+        throw new CdcRecordException("Could not compute shard for record: " + e.getMessage(), e);
+      }
     }
 
     /**
@@ -298,7 +313,7 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
       int[] positions = dest.pkFieldPositions();
       for (int i = 0; i < positions.length; i++) {
         if (data.getValue(positions[i]) == null) {
-          throw new IllegalArgumentException(
+          throw new CdcRecordException(
               "null value in equality column '"
                   + dest.pkSchema().getField(i).getName()
                   + "'; equality columns must be non-null to define row identity. Row: "
@@ -318,7 +333,8 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
       try {
         return CoderUtils.encodeToByteArray(dest.pkCoder(), pk);
       } catch (CoderException e) {
-        throw new RuntimeException("Failed to encode primary key " + pk, e);
+        throw new CdcRecordException(
+            "Failed to encode primary key " + pk + ": " + e.getMessage(), e);
       }
     }
   }
@@ -356,6 +372,21 @@ final class AssignCdcKeys extends PTransform<PCollection<Row>, PCollectionTuple>
     @SuppressWarnings("ReferenceEquality")
     boolean matches(Schema other) {
       return schema == other || schema.equals(other);
+    }
+  }
+
+  /**
+   * A record-level failure: this record cannot be written, but its destination can still accept
+   * other records. Diverted to the failed-rows output under {@code withErrorHandling()} and
+   * rethrown otherwise.
+   */
+  static final class CdcRecordException extends RuntimeException {
+    CdcRecordException(String message) {
+      super(message);
+    }
+
+    CdcRecordException(String message, Throwable cause) {
+      super(message, cause);
     }
   }
 }

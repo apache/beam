@@ -47,7 +47,6 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
-import org.apache.beam.sdk.io.iceberg.PortableIcebergDestinations;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -65,7 +64,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.UnsignedBytes;
-import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -1159,16 +1157,7 @@ public class AssignCdcKeysTest {
                 new AssignCdcKeys(
                     catalogConfig,
                     cdcWriteConfig().build(),
-                    new PortableIcebergDestinations(
-                        "db.{dest}",
-                        FileFormat.PARQUET.name(),
-                        inputSchema,
-                        null,
-                        null,
-                        null,
-                        ImmutableList.of(SEQ_COL),
-                        null,
-                        null),
+                    CdcSinkTestUtils.templatedDestinations("db.{dest}", inputSchema, SEQ_COL),
                     "test-runId"));
 
     PAssert.that(outputs.get(AssignCdcKeys.KEYED))

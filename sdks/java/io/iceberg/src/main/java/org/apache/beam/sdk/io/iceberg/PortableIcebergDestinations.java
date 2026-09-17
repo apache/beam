@@ -27,7 +27,7 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-public class PortableIcebergDestinations implements DynamicDestinations {
+class PortableIcebergDestinations implements DynamicDestinations {
   private final RowFilter rowFilter;
   private final RowStringInterpolator interpolator;
   private final String fileFormat;
