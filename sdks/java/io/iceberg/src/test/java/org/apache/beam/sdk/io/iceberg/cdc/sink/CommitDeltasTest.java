@@ -255,7 +255,7 @@ public class CommitDeltasTest {
   }
 
   private static Coder<ShardDeltaFiles> filesCoder() {
-    return WriteDeltas.shardDeltaFilesCoder();
+    return ShardDeltaFiles.coder();
   }
 
   private static long committedThroughMs(Snapshot s, String sinkId) {
