@@ -3729,7 +3729,12 @@ In Java, a logical type is specified as a subclass of the `LogicalType` class. A
 {{< paragraph class="language-go">}}
 In Go, a logical type is specified with a custom implementation of the `beam.SchemaProvider` interface.
 For example, the logical type provider representing nanosecond timestamps
-might be implemented as follows
+might be implemented as follows.
+A logical type shared with other SDKs is identified by a URN and is
+registered with `schema.RegisterLogicalTypeConversion` from the
+`github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx/schema` package,
+which takes the URN and the two functions converting between the Go type and
+its storage type, and builds the row coder from the storage type.
 {{< /paragraph >}}
 
 {{< paragraph class="language-typescript">}}
@@ -3784,8 +3789,15 @@ other than to handle `MicrosInstant`.
 {{< /paragraph >}}
 
 {{< paragraph class="language-go">}}
-Currently the Go SDK provides minimal convenience logical types,
-other than to handle additional integer primitives, and `time.Time`.
+The Go SDK registers Go types for the standard logical types of the Beam
+schema model in the `schema` package: `schema.Date`, `schema.MillisInstant`,
+`schema.MicrosInstant`, `schema.TimestampMillis`, `schema.TimestampMicros`,
+`schema.TimestampNanos` and `schema.Decimal`. The fixed and variable length
+string and bytes logical types map to `string` and `[]byte`. A struct field of
+one of these types produces the standard logical type in the schema, and rows
+from other SDKs with these logical types decode into them. `time.Time` keeps
+its Go specific encoding, so use one of the timestamp types for a field shared
+with another SDK.
 {{< /paragraph >}}
 
 ##### **EnumerationType**
