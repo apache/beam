@@ -582,7 +582,8 @@ class GcsUtilV1 {
 
     if (this.gcsPerformanceMetrics && container != null) {
       Counter perfWriteCounter =
-          container.getCounter(MetricName.named("GcsHttp", "gcs_http_write_wire_bytes_sent"));
+          container.getCounter(
+              MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_write_wire_bytes_sent"));
       Consumer<Integer> perfConsumer = perfWriteCounter::inc;
       writeConsumer = writeConsumer == null ? perfConsumer : writeConsumer.andThen(perfConsumer);
     }
@@ -621,7 +622,8 @@ class GcsUtilV1 {
 
     if (this.gcsPerformanceMetrics && container != null) {
       Counter perfReadCounter =
-          container.getCounter(MetricName.named("GcsHttp", "gcs_http_read_wire_bytes_received"));
+          container.getCounter(
+              MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_wire_bytes_received"));
       Consumer<Integer> perfConsumer = perfReadCounter::inc;
       readConsumer = readConsumer == null ? perfConsumer : readConsumer.andThen(perfConsumer);
     }

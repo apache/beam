@@ -162,29 +162,37 @@ public class Transport {
 
     // Pre-resolve counters on the calling thread (e.g. DoFn thread) while it is in the target step
     Counter requestCount =
-        container.getCounter(MetricName.named("GcsHttp", prefix + "request_count"));
+        container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "request_count"));
     Counter rangeRequestCount =
         isWrite
             ? null
-            : container.getCounter(MetricName.named("GcsHttp", prefix + "request_count_ranged"));
+            : container.getCounter(
+                MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "request_count_ranged"));
     Counter unboundedStreamCount =
         isWrite
             ? null
-            : container.getCounter(MetricName.named("GcsHttp", prefix + "request_count_unbounded"));
+            : container.getCounter(
+                MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "request_count_unbounded"));
     // Requests that are not a GET, so that the shape counters above add up to request_count.
     Counter otherRequestCount =
         isWrite
             ? null
-            : container.getCounter(MetricName.named("GcsHttp", prefix + "request_count_other"));
-    Counter status2xx = container.getCounter(MetricName.named("GcsHttp", prefix + "status_2xx"));
+            : container.getCounter(
+                MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "request_count_other"));
+    Counter status2xx =
+        container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "status_2xx"));
     // 3xx is not an error for GCS: a resumable upload answers 308 to every chunk but the last.
-    Counter status3xx = container.getCounter(MetricName.named("GcsHttp", prefix + "status_3xx"));
-    Counter status4xx = container.getCounter(MetricName.named("GcsHttp", prefix + "status_4xx"));
-    Counter status5xx = container.getCounter(MetricName.named("GcsHttp", prefix + "status_5xx"));
+    Counter status3xx =
+        container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "status_3xx"));
+    Counter status4xx =
+        container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "status_4xx"));
+    Counter status5xx =
+        container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "status_5xx"));
     Counter statusOther =
-        container.getCounter(MetricName.named("GcsHttp", prefix + "status_other"));
+        container.getCounter(MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "status_other"));
     Counter noResponse =
-        container.getCounter(MetricName.named("GcsHttp", prefix + "request_no_response"));
+        container.getCounter(
+            MetricName.named(GcsUtil.METRIC_NAMESPACE, prefix + "request_no_response"));
 
     return request -> {
       base.initialize(request);
