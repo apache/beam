@@ -36,6 +36,7 @@ from typing import Optional
 from typing import Union
 
 from apache_beam.metrics import cells
+from apache_beam.metrics import execution
 from apache_beam.metrics.cells import HistogramCellFactory
 from apache_beam.metrics.execution import MetricResult
 from apache_beam.metrics.execution import MetricUpdater
@@ -46,16 +47,74 @@ from apache_beam.metrics.metricbase import Gauge
 from apache_beam.metrics.metricbase import Histogram
 from apache_beam.metrics.metricbase import MetricName
 from apache_beam.metrics.metricbase import StringSet
+from apache_beam.options.pipeline_options import DebugOptions
 
 if TYPE_CHECKING:
   from apache_beam.internal.metrics.metric import MetricLogger
   from apache_beam.metrics.execution import MetricKey
   from apache_beam.metrics.metricbase import Metric
+  from apache_beam.options.pipeline_options import PipelineOptions
   from apache_beam.utils.histogram import BucketType
 
 __all__ = ['Metrics', 'MetricsFilter', 'Lineage']
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class MetricsFlag(object):
+  """Process-wide switches that stop kinds of user metrics from being reported.
+
+  High throughput jobs may want to turn off metrics that put pressure on the
+  metrics backend. Mirroring the Java SDK, the ``disableCounterMetrics``,
+  ``disableStringSetMetrics`` and ``disableBoundedTrieMetrics`` experiments make
+  the corresponding ``Metrics.counter``, ``Metrics.string_set`` and
+  ``Metrics.bounded_trie`` updates no-ops. The metric objects themselves are
+  unchanged, so code that holds on to them keeps working.
+  """
+  _EXPERIMENTS = (
+      ('disableCounterMetrics', cells.CounterCell, 'Counter'),
+      ('disableStringSetMetrics', cells.StringSetCell, 'StringSet'),
+      ('disableBoundedTrieMetrics', cells.BoundedTrieCell, 'BoundedTrie'),
+  )
+  _initialized = False
+
+  @classmethod
+  def set_default_pipeline_options(cls, options: 'PipelineOptions') -> None:
+    """Initializes the flags from ``options`` if not already done so.
+
+    Called when a ``Pipeline`` is constructed and at SDK worker harness
+    start-up.
+    As in the Java SDK, the first call wins so that user code running on a
+    worker cannot change the flags the harness was started with.
+    """
+    if cls._initialized:
+      return
+    debug_options = options.view_as(DebugOptions)
+    disabled = set()
+    for experiment, cell_type, kind in cls._EXPERIMENTS:
+      if debug_options.lookup_experiment(experiment):
+        disabled.add(cell_type)
+        _LOGGER.info('%s metrics are disabled.', kind)
+    execution.set_disabled_cell_types(disabled)
+    cls._initialized = True
+
+  @classmethod
+  def counter_disabled(cls) -> bool:
+    return execution.is_cell_type_disabled(cells.CounterCell)
+
+  @classmethod
+  def string_set_disabled(cls) -> bool:
+    return execution.is_cell_type_disabled(cells.StringSetCell)
+
+  @classmethod
+  def bounded_trie_disabled(cls) -> bool:
+    return execution.is_cell_type_disabled(cells.BoundedTrieCell)
+
+  @classmethod
+  def reset(cls) -> None:
+    """Clears the flags so the next ``set_default_pipeline_options`` applies."""
+    execution.set_disabled_cell_types(())
+    cls._initialized = False
 
 
 class Metrics(object):

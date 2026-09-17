@@ -31,6 +31,7 @@ cdef class _TypedMetricName(object):
 
 
 cdef object _DEFAULT
+cdef set _DISABLED_CELL_TYPES
 
 
 cdef class MetricUpdater(object):
