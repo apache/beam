@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashSet;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
+import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -66,11 +67,32 @@ public class SchemaEvolutionConfigTest {
     SchemaEvolutionConfig.Builder handlingOnly =
         SchemaEvolutionConfig.builder()
             .setIncompatibleSchemaHandling(IncompatibleSchemaHandling.ROUTE_TO_ERRORS);
+    SchemaEvolutionConfig.Builder acceptOnly =
+        SchemaEvolutionConfig.builder()
+            .setUnverifiableFileHandling(UnverifiableFileHandling.ACCEPT);
 
     IllegalArgumentException e = assertThrows(IllegalArgumentException.class, pinsOnly::build);
     assertThrows(IllegalArgumentException.class, handlingOnly::build);
+    assertThrows(IllegalArgumentException.class, acceptOnly::build);
 
     assertTrue(e.getMessage(), e.getMessage().contains("at least one schema evolution option"));
+  }
+
+  @Test
+  public void testUnverifiableFileHandlingDefaultsToReject() {
+    SchemaEvolutionConfig unset =
+        SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION);
+    SchemaEvolutionConfig accepting =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .setUnverifiableFileHandling(UnverifiableFileHandling.ACCEPT)
+            .build();
+
+    assertEquals(UnverifiableFileHandling.REJECT, unset.getUnverifiableFileHandling());
+    assertEquals(
+        UnverifiableFileHandling.REJECT,
+        SchemaEvolutionConfig.disabled().getUnverifiableFileHandling());
+    assertEquals(UnverifiableFileHandling.ACCEPT, accepting.getUnverifiableFileHandling());
   }
 
   @Test
