@@ -45,6 +45,7 @@ import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.BucketTargetOption;
 import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
@@ -705,9 +706,27 @@ class GcsUtilV2 {
     return bucket.getProject().longValue();
   }
 
-  public void createBucket(BucketInfo bucketInfo) throws IOException {
+  public void createBucket(BucketInfo bucketInfo, BucketTargetOption... options)
+      throws IOException {
+    createBucket(null, bucketInfo, options);
+  }
+
+  /**
+   * As {@link #createBucket(BucketInfo, BucketTargetOption...)}, but creates the bucket in the
+   * given project instead of the one this instance is configured with.
+   */
+  public void createBucket(
+      @Nullable String projectId, BucketInfo bucketInfo, BucketTargetOption... options)
+      throws IOException {
+    Storage client = storage;
+    if (projectId != null && !projectId.equals(this.projectId)) {
+      // The owning project is a property of the client rather than of the insert request, so
+      // asking for a different one means deriving a client for it. The derived client shares the
+      // credentials, host and transport of the original.
+      client = storage.getOptions().toBuilder().setProjectId(projectId).build().getService();
+    }
     try {
-      storage.create(bucketInfo);
+      client.create(bucketInfo, options);
     } catch (StorageException e) {
       throw translateStorageException(bucketInfo.getName(), null, e);
     }

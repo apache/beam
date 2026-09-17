@@ -55,6 +55,7 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpRequest;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.api.client.util.BackOff;
+import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.Storage;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
@@ -67,6 +68,9 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
+import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage.BucketTargetOption;
+import com.google.cloud.storage.Storage.PredefinedAcl;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -1886,5 +1890,201 @@ public class GcsUtilTest {
   /** A helper to wrap a {@link GenericJson} object in a content stream. */
   private static InputStream toStream(String content) throws IOException {
     return new ByteArrayInputStream(content.getBytes(StandardCharsets.UTF_8));
+  }
+
+  // The tests below cover the routing that the GcsUtil facade performs for the legacy typed
+  // methods once the use_gcsutil_v2 experiment installs a GcsUtilV2 delegate. Both delegates are
+  // mocked, so they assert both that V2 is used and that V1 is left alone.
+
+  private GcsUtilV1 mockDelegate;
+  private GcsUtilV2 mockDelegateV2;
+
+  private GcsUtil gcsUtilRoutingToV2() {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+    mockDelegate = Mockito.mock(GcsUtilV1.class);
+    mockDelegateV2 = Mockito.mock(GcsUtilV2.class);
+    gcsUtil.delegate = mockDelegate;
+    gcsUtil.delegateV2 = mockDelegateV2;
+    return gcsUtil;
+  }
+
+  private static com.google.cloud.storage.Blob mockBlob(String bucket, String object) {
+    com.google.cloud.storage.Blob blob = Mockito.mock(com.google.cloud.storage.Blob.class);
+    when(blob.getBucket()).thenReturn(bucket);
+    when(blob.getName()).thenReturn(object);
+    return blob;
+  }
+
+  @Test
+  public void testCopyIsRoutedToV2AsAnUnconditionalOverwrite() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+
+    gcsUtil.copy(ImmutableList.of("gs://bucket/from"), ImmutableList.of("gs://bucket/to"));
+
+    verify(mockDelegateV2)
+        .copy(
+            ImmutableList.of(GcsPath.fromUri("gs://bucket/from")),
+            ImmutableList.of(GcsPath.fromUri("gs://bucket/to")),
+            GcsUtilV2.OverwriteStrategy.ALWAYS_OVERWRITE);
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testRenameWithoutOptionsIsRoutedToV2AsAnUnconditionalOverwrite() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+
+    gcsUtil.rename(ImmutableList.of("gs://bucket/from"), ImmutableList.of("gs://bucket/to"));
+
+    verify(mockDelegateV2)
+        .move(
+            ImmutableList.of(GcsPath.fromUri("gs://bucket/from")),
+            ImmutableList.of(GcsPath.fromUri("gs://bucket/to")),
+            GcsUtilV2.MissingStrategy.FAIL_IF_MISSING,
+            GcsUtilV2.OverwriteStrategy.ALWAYS_OVERWRITE);
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testRenameMoveOptionsAreTranslatedForV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+
+    gcsUtil.rename(
+        ImmutableList.of("gs://bucket/from"),
+        ImmutableList.of("gs://bucket/to"),
+        StandardMoveOptions.IGNORE_MISSING_FILES,
+        StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+
+    verify(mockDelegateV2)
+        .move(
+            ImmutableList.of(GcsPath.fromUri("gs://bucket/from")),
+            ImmutableList.of(GcsPath.fromUri("gs://bucket/to")),
+            GcsUtilV2.MissingStrategy.SKIP_IF_MISSING,
+            GcsUtilV2.OverwriteStrategy.SKIP_IF_EXISTS);
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testRemoveIsRoutedToV2AndToleratesMissingFiles() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+
+    gcsUtil.remove(ImmutableList.of("gs://bucket/one", "gs://bucket/two"));
+
+    verify(mockDelegateV2)
+        .remove(
+            ImmutableList.of(
+                GcsPath.fromUri("gs://bucket/one"), GcsPath.fromUri("gs://bucket/two")),
+            GcsUtilV2.MissingStrategy.SKIP_IF_MISSING);
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testGetObjectsIsRoutedToV2AndConvertsBlobs() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    com.google.cloud.storage.Blob blob = mockBlob("bucket", "found");
+    when(blob.getSize()).thenReturn(42L);
+    when(blob.getMd5()).thenReturn("md5==");
+    when(blob.getGeneration()).thenReturn(7L);
+    when(blob.getUpdateTimeOffsetDateTime())
+        .thenReturn(java.time.Instant.ofEpochMilli(1234L).atOffset(java.time.ZoneOffset.UTC));
+    FileNotFoundException notFound = new FileNotFoundException("gs://bucket/missing");
+    List<GcsPath> paths =
+        ImmutableList.of(GcsPath.fromUri("gs://bucket/found"), GcsPath.fromUri("gs://bucket/miss"));
+    when(mockDelegateV2.getBlobs(paths))
+        .thenReturn(
+            ImmutableList.of(
+                GcsUtilV2.BlobResult.create(blob), GcsUtilV2.BlobResult.create(notFound)));
+
+    List<StorageObjectOrIOException> results = gcsUtil.getObjects(paths);
+
+    assertEquals(2, results.size());
+    StorageObject converted = results.get(0).storageObject();
+    assertNotNull(converted);
+    assertEquals("bucket", converted.getBucket());
+    assertEquals("found", converted.getName());
+    assertEquals(BigInteger.valueOf(42L), converted.getSize());
+    assertEquals("md5==", converted.getMd5Hash());
+    assertEquals(Long.valueOf(7L), converted.getGeneration());
+    assertEquals(1234L, converted.getUpdated().getValue());
+    assertSame(notFound, results.get(1).ioException());
+    assertNull(results.get(1).storageObject());
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testListObjectsIsRoutedToV2AndConvertsAPage() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    com.google.cloud.storage.Blob object = mockBlob("bucket", "prefix/object");
+    com.google.cloud.storage.Blob directory = mockBlob("bucket", "prefix/dir/");
+    when(directory.isDirectory()).thenReturn(true);
+    @SuppressWarnings("unchecked")
+    Page<com.google.cloud.storage.Blob> page = Mockito.mock(Page.class);
+    when(page.getValues()).thenReturn(ImmutableList.of(object, directory));
+    when(page.hasNextPage()).thenReturn(true);
+    when(page.getNextPageToken()).thenReturn("next");
+    when(mockDelegateV2.listBlobs("bucket", "prefix/", null)).thenReturn(page);
+
+    Objects objects = gcsUtil.listObjects("bucket", "prefix/", null);
+
+    assertEquals(1, objects.getItems().size());
+    assertEquals("prefix/object", objects.getItems().get(0).getName());
+    assertEquals(ImmutableList.of("prefix/dir/"), objects.getPrefixes());
+    assertEquals("next", objects.getNextPageToken());
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testListObjectsReportsTheLastPageWithANullToken() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    @SuppressWarnings("unchecked")
+    Page<com.google.cloud.storage.Blob> page = Mockito.mock(Page.class);
+    when(page.getValues()).thenReturn(ImmutableList.of());
+    // A gax page reports an empty token rather than a null one once it is exhausted. Callers of
+    // listObjects loop until the token is null, so it has to be normalized.
+    when(page.hasNextPage()).thenReturn(false);
+    when(page.getNextPageToken()).thenReturn("");
+    when(mockDelegateV2.listBlobs("bucket", "prefix/", null)).thenReturn(page);
+
+    Objects objects = gcsUtil.listObjects("bucket", "prefix/", null);
+
+    assertNull(objects.getItems());
+    assertNull(objects.getPrefixes());
+    assertNull(objects.getNextPageToken());
+  }
+
+  @Test
+  public void testCreateBucketIsRoutedToV2WithProjectPrivateAcls() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    // This is the bucket that GcpOptions.tryCreateDefaultBucketWithPrefix builds.
+    Bucket bucket =
+        new Bucket()
+            .setName("bucket")
+            .setLocation("us-central1")
+            .setSoftDeletePolicy(new Bucket.SoftDeletePolicy().setRetentionDurationSeconds(0L));
+
+    gcsUtil.createBucket("a-project", bucket);
+
+    verify(mockDelegateV2)
+        .createBucket(
+            "a-project",
+            BucketInfo.newBuilder("bucket")
+                .setLocation("us-central1")
+                .setSoftDeletePolicy(
+                    BucketInfo.SoftDeletePolicy.newBuilder()
+                        .setRetentionDuration(java.time.Duration.ZERO)
+                        .build())
+                .build(),
+            BucketTargetOption.predefinedAcl(PredefinedAcl.PROJECT_PRIVATE),
+            BucketTargetOption.predefinedDefaultObjectAcl(PredefinedAcl.PROJECT_PRIVATE));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testRemoveBucketIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+
+    gcsUtil.removeBucket(new Bucket().setName("bucket"));
+
+    verify(mockDelegateV2).removeBucket(BucketInfo.of("bucket"));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
   }
 }
