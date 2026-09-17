@@ -363,3 +363,21 @@ func (b *RowEncoderBuilder) encoderForStructReflect(t reflect.Type) (func(reflec
 		return nil
 	}, nil
 }
+
+// fieldEncoderForType returns an encoder for values of t, using the encoding
+// of t as a row field.
+func (b *RowEncoderBuilder) fieldEncoderForType(t reflect.Type) (func(any, io.Writer) error, error) {
+	encf, err := b.encoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
+	return func(v any, w io.Writer) error {
+		rv := reflect.ValueOf(v)
+		if encf.addr {
+			p := reflect.New(t)
+			p.Elem().Set(rv)
+			rv = p
+		}
+		return encf.encode(rv, w)
+	}, nil
+}

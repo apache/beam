@@ -17,9 +17,11 @@ package schema
 
 import (
 	"fmt"
+	"io"
 	"reflect"
 	"sync"
 
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/reflectx"
 	pipepb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/pipeline_v1"
 )
@@ -224,4 +226,96 @@ func preRegLogicalTypes(r *Registry) {
 
 func init() {
 	preRegLogicalTypes(defaultRegistry)
+	registerStandardLogicalTypes(defaultRegistry)
+}
+
+// RegisterLogicalTypeConversion registers a portable logical type identified
+// by urn. Values of GoT are stored in schema rows as values of StorageT,
+// converted with toStorage and fromStorage, and encoded with the row field
+// encoding of StorageT. StorageT must have a schema representation: an atomic
+// type, a struct of such types, or a registered logical type. A struct kind
+// GoT with a non row StorageT can be used as a field of a row, but not as a
+// top level schema type.
+//
+// RegisterLogicalTypeConversion must be called before beam.Init(), and
+// conventionally is called in a package init() function.
+func RegisterLogicalTypeConversion[GoT, StorageT any](urn string, toStorage func(GoT) (StorageT, error), fromStorage func(StorageT) (GoT, error)) {
+	registerLogicalTypeConversion(defaultRegistry, ToLogicalType(urn, typeOf[GoT](), typeOf[StorageT]()), toStorage, fromStorage)
+}
+
+// RegisterParameterizedLogicalTypeConversion is RegisterLogicalTypeConversion
+// for a logical type with an argument, such as a timestamp and its precision.
+// Each argument value is registered with its own Go type, and a schema field
+// with the urn and that argument maps to GoT. See ToLogicalTypeWithArgument
+// for the supported argument types.
+func RegisterParameterizedLogicalTypeConversion[GoT, StorageT any](urn string, argument any, toStorage func(GoT) (StorageT, error), fromStorage func(StorageT) (GoT, error)) {
+	registerLogicalTypeConversion(defaultRegistry, ToLogicalTypeWithArgument(urn, typeOf[GoT](), typeOf[StorageT](), argument), toStorage, fromStorage)
+}
+
+// RegisterLogicalTypeCoder registers a portable logical type identified by
+// urn whose wire encoding differs from the row field encoding of StorageT.
+// StorageT is only used as the schema representation of the logical type.
+// enc and dec produce and consume the encoded bytes of a value directly, and
+// must match the encoding of the other SDKs for the urn.
+//
+// RegisterLogicalTypeCoder must be called before beam.Init(), and
+// conventionally is called in a package init() function.
+func RegisterLogicalTypeCoder[GoT, StorageT any](urn string, enc func(GoT, io.Writer) error, dec func(io.Reader) (GoT, error)) {
+	registerLogicalTypeCoder(defaultRegistry, ToLogicalType(urn, typeOf[GoT](), typeOf[StorageT]()), enc, dec)
+}
+
+func typeOf[T any]() reflect.Type {
+	return reflect.TypeOf((*T)(nil)).Elem()
+}
+
+// registerLogicalTypeConversion registers lt with the registry and registers
+// row coder providers for its Go type, built from the row field coder of the
+// storage type and the conversion functions.
+func registerLogicalTypeConversion[GoT, StorageT any](r *Registry, lt LogicalType, toStorage func(GoT) (StorageT, error), fromStorage func(StorageT) (GoT, error)) {
+	st := lt.StorageType()
+	r.RegisterLogicalType(lt)
+	coder.RegisterSchemaProviders(lt.GoType(),
+		func(reflect.Type) (func(any, io.Writer) error, error) {
+			enc, err := coder.RowFieldEncoderForType(st)
+			if err != nil {
+				return nil, err
+			}
+			return func(v any, w io.Writer) error {
+				s, err := toStorage(v.(GoT))
+				if err != nil {
+					return err
+				}
+				return enc(s, w)
+			}, nil
+		},
+		func(reflect.Type) (func(io.Reader) (any, error), error) {
+			dec, err := coder.RowFieldDecoderForType(st)
+			if err != nil {
+				return nil, err
+			}
+			return func(rd io.Reader) (any, error) {
+				s, err := dec(rd)
+				if err != nil {
+					return nil, err
+				}
+				return fromStorage(s.(StorageT))
+			}, nil
+		})
+}
+
+// registerLogicalTypeCoder registers lt with the registry and registers enc
+// and dec as the row coder providers for its Go type.
+func registerLogicalTypeCoder[GoT any](r *Registry, lt LogicalType, enc func(GoT, io.Writer) error, dec func(io.Reader) (GoT, error)) {
+	r.RegisterLogicalType(lt)
+	coder.RegisterSchemaProviders(lt.GoType(),
+		func(reflect.Type) (func(any, io.Writer) error, error) {
+			return func(v any, w io.Writer) error {
+				return enc(v.(GoT), w)
+			}, nil
+		},
+		func(reflect.Type) (func(io.Reader) (any, error), error) {
+			return func(rd io.Reader) (any, error) {
+				return dec(rd)
+			}, nil
+		})
 }
