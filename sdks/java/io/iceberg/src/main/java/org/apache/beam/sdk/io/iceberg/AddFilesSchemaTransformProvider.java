@@ -71,7 +71,7 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
     @SchemaFieldDescription("Properties used to set up the Iceberg catalog.")
     public abstract @Nullable Map<String, String> getCatalogProperties();
 
-    @SchemaFieldDescription("Properties passed to the Hadoop ")
+    @SchemaFieldDescription("Properties passed to the Hadoop configuration the catalog uses.")
     public abstract @Nullable Map<String, String> getConfigProperties();
 
     @SchemaFieldDescription(
@@ -120,48 +120,52 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
     public abstract @Nullable List<String> getSortFields();
 
     @SchemaFieldDescription(
-        "Schema changes the transform may make so that every file's columns are covered by the"
-            + " table schema, from: ALLOW_FIELD_ADDITION (add file columns absent from the table,"
-            + " as optional), ALLOW_FIELD_RELAXATION (make a required table column optional when"
-            + " a file may contain nulls in it or lacks it), ALLOW_TYPE_PROMOTION (widen a column"
-            + " type, e.g. int to long). Empty or absent: the table schema is never changed."
-            + " With any option set, every Parquet file's footer is read and the allowed changes"
-            + " are committed before files are registered, so every registered file carries stats"
-            + " for every column it has. A file needing a change that is not allowed is"
-            + " incompatible: see incompatible_schema_handling. Only Parquet files can be checked:"
-            + " with options set, ORC and Avro files are routed to the error output unless"
-            + " unverifiable_file_handling is ACCEPT. Routed files reach the error output only"
-            + " when error_handling is set. Requires a batch pipeline; streaming with schema"
-            + " evolution is not yet supported.")
+        "Lets the transform change the table schema so that every file's columns are covered."
+            + " Values: ALLOW_FIELD_ADDITION (columns a file has and the table lacks are added, as"
+            + " optional), ALLOW_FIELD_RELAXATION (a required table column becomes optional when a"
+            + " file lacks it or may hold nulls in it), ALLOW_TYPE_PROMOTION (a column type is"
+            + " widened, for example int to long). Leave it empty to never change the table"
+            + " schema. When any option is set, the transform reads the footer of every Parquet"
+            + " file and commits the allowed changes before registering any file, so every"
+            + " registered file has statistics for all of its columns. A file that needs a change"
+            + " that is not allowed is incompatible; see incompatible_schema_handling. Only"
+            + " Parquet files can be checked: ORC and Avro files are sent to the error output"
+            + " unless unverifiable_file_handling is ACCEPT. Files sent to the error output are"
+            + " dropped unless error_handling is set. Batch pipelines only; streaming pipelines"
+            + " cannot use schema evolution yet.")
     public abstract @Nullable List<String> getSchemaEvolutionOptions();
 
     @SchemaFieldDescription(
-        "Columns (dotted paths for nested fields) that must stay required whatever the options"
-            + " say. A file that lacks such a column or holds nulls in it is routed to the error"
-            + " output (see error_handling); so is one whose footer has no null-count statistics"
-            + " for it, unless unverifiable_file_handling is ACCEPT. Only meaningful with"
-            + " schema_evolution_options.")
+        "Columns that must always be present and never null, as dotted paths for nested fields"
+            + " (for example address.city). They are never made optional, whatever the options"
+            + " allow, and are created as required when the transform creates the table. A file"
+            + " that lacks one of these columns, or holds nulls in it, is sent to the error output"
+            + " (see error_handling). So is a file whose footer marks the column as optional and"
+            + " has no null-count statistics for it, unless unverifiable_file_handling is ACCEPT."
+            + " Requires schema_evolution_options.")
     public abstract @Nullable List<String> getRequiredColumns();
 
     @SchemaFieldDescription(
-        "What to do when a file's schema is incompatible with the table (needs a change that"
-            + " is not allowed, or conflicts with the table or another file): FAIL_PIPELINE"
-            + " fails the pipeline before any schema change is committed; ROUTE_TO_ERRORS skips"
-            + " the schema and routes its files to the error output, so it requires"
-            + " error_handling. Default: FAIL_PIPELINE.")
+        "What happens when a file's schema cannot be made to fit the table: it needs a change"
+            + " that is not allowed, or it conflicts with the table or with another file."
+            + " FAIL_PIPELINE (the default) fails the pipeline before any schema change is"
+            + " committed. ROUTE_TO_ERRORS commits the changes for the other files and sends the"
+            + " incompatible files to the error output; it requires error_handling.")
     public abstract @Nullable String getIncompatibleSchemaHandling();
 
     @SchemaFieldDescription(
-        "What to do with a file the per-file checks cannot verify: an ORC or Avro file (the"
-            + " checks read Parquet footers), or a Parquet file with no null-count statistics for"
-            + " a required column (statistics disabled by the writer, or a column under a list or"
-            + " map). REJECT routes it to the error output (see error_handling); ACCEPT registers"
-            + " it unchecked, counted and logged. A file that fails a check is always routed. An"
-            + " accepted file that lacks a required column or holds nulls in it breaks reads of"
-            + " the table, not registration. Default: REJECT.")
+        "What happens to a file the checks cannot verify: an ORC or Avro file (the checks read"
+            + " Parquet footers only), or a Parquet file with no null-count statistics for a"
+            + " required column (statistics disabled by the writer, or a column under a list or"
+            + " map). REJECT (the default) sends the file to the error output (see"
+            + " error_handling). ACCEPT registers it without checks, counted and logged. A file"
+            + " that fails a check is always sent to the error output. An accepted file that"
+            + " lacks a required column, or holds nulls in it, makes reads of the table fail.")
     public abstract @Nullable String getUnverifiableFileHandling();
 
-    @SchemaFieldDescription("This option specifies whether and where to output unwritable rows.")
+    @SchemaFieldDescription(
+        "Whether and where to output the files that could not be registered, as rows with the"
+            + " file path and the error. Without it those files are dropped.")
     public abstract @Nullable ErrorHandling getErrorHandling();
 
     @AutoValue.Builder

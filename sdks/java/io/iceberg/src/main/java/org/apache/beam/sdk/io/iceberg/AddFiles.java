@@ -38,6 +38,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
@@ -148,7 +149,7 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Without options the table schema is never changed and files register as-is: columns the table
  * does not have get no stats and are not readable, and a nested column the table does not know can
- * make that file, and any scan that includes it, fail in Iceberg's reader.
+ * make that file, and any scan that includes it, fail in an Iceberg reader.
  */
 public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
   static final String OUTPUT_TAG = "snapshots";
@@ -394,6 +395,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
     private transient volatile @MonotonicNonNull Table table;
     private transient @MonotonicNonNull Set<String> warned;
+    private final AtomicBoolean refreshedThisBundle = new AtomicBoolean();
 
     // Number of parallel threads processing incoming files
     private static final int THREAD_POOL_SIZE = 10;
@@ -514,8 +516,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     /** Clears anything left behind if the runner reuses this instance after a failed bundle. */
     @StartBundle
     public void startBundle() {
-
       checkStateNotNull(tasks).cancelAll();
+      refreshedThisBundle.set(false);
     }
 
     @Teardown
@@ -732,8 +734,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
 
     /**
      * The pre-pass commits the schema before paths reach this stage, so the cached table normally
-     * covers every file. If not, refresh once (a commit may have landed since the table was cached)
-     * and report the remaining delta. Never changes the schema.
+     * covers every file. If not, refresh once per bundle (a commit may have landed since the table
+     * was cached) and report the remaining delta. Never changes the schema.
      */
     private @Nullable String uncoveredReason(org.apache.iceberg.Schema fileSchema) {
       Table table = checkStateNotNull(this.table);
@@ -741,8 +743,12 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       if (delta.isEmpty()) {
         return null;
       }
-      synchronized (this) {
-        table.refresh();
+      // a commit can land after the table was cached; one refresh per bundle is enough to see it,
+      // and a bundle full of routed files must not load the table once per file
+      if (refreshedThisBundle.compareAndSet(false, true)) {
+        synchronized (this) {
+          table.refresh();
+        }
       }
       delta = SchemaDelta.classify(table, fileSchema);
       if (delta.isEmpty()) {
