@@ -49,6 +49,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 public class GcsUtil {
+  /**
+   * Namespace for every GCS metric. The namespace is dropped when Dataflow exports counters to
+   * Cloud Monitoring, so the layer is carried by the metric name instead: {@code gcs_http_*} for
+   * transport-level counters and {@code gcs_op_*} for operation-level ones.
+   */
+  public static final String METRIC_NAMESPACE = "Gcs";
+
   @VisibleForTesting GcsUtilV1 delegate;
   @VisibleForTesting @Nullable GcsUtilV2 delegateV2;
 
