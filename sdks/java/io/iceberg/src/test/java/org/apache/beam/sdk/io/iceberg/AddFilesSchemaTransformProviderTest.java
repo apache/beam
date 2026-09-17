@@ -27,6 +27,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.EnumSet;
 import org.apache.beam.sdk.io.iceberg.AddFilesSchemaTransformProvider.Configuration;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -71,6 +72,7 @@ public class AddFilesSchemaTransformProviderTest {
             .setSchemaEvolutionOptions(Arrays.asList("ALLOW_FIELD_RELAXATION"))
             .setRequiredColumns(Arrays.asList("id", "address.city"))
             .setIncompatibleSchemaHandling("route_to_errors")
+            .setErrorHandling(ErrorHandling.builder().setOutput("errors").build())
             .build()
             .getSchemaEvolution();
     assertNotNull(config);
@@ -133,6 +135,21 @@ public class AddFilesSchemaTransformProviderTest {
                 .setUnverifiableFileHandling("trust")
                 .build()
                 .getSchemaEvolution());
+  }
+
+  @Test
+  public void testRouteToErrorsWithoutErrorHandlingRejected() {
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () ->
+                base()
+                    .setSchemaEvolutionOptions(Arrays.asList("ALLOW_FIELD_ADDITION"))
+                    .setIncompatibleSchemaHandling("ROUTE_TO_ERRORS")
+                    .build()
+                    .getSchemaEvolution());
+
+    assertTrue(e.getMessage(), e.getMessage().contains("error_handling"));
   }
 
   /** The config's "needs options" rule, reported under the YAML key the user must set. */

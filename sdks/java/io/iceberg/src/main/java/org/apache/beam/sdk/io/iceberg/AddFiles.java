@@ -140,15 +140,15 @@ import org.slf4j.LoggerFactory;
  * <pre>{@code
  * SchemaEvolutionConfig evolution =
  *     SchemaEvolutionConfig.builder()
- *         .setOptions(List.of(ALLOW_FIELD_ADDITION, ALLOW_TYPE_PROMOTION))
- *         .setRequiredColumns(List.of("id"))
+ *         .setOptions(EnumSet.of(ALLOW_FIELD_ADDITION, ALLOW_TYPE_PROMOTION))
+ *         .setRequiredColumns(Collections.singleton("id"))
  *         .build();
  * paths.apply(new AddFiles(catalog, "db.sales", null, null, null, null, null, null, evolution));
  * }</pre>
  *
- * <p>Without options the table schema is never changed and files register as-is; columns the table
+ * <p>Without options the table schema is never changed and files register as-is: columns the table
  * does not have get no stats and are not readable, and a nested column the table does not know can
- * make the table unreadable through Iceberg's reader.
+ * make that file, and any scan that includes it, fail in Iceberg's reader.
  */
 public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTuple> {
   static final String OUTPUT_TAG = "snapshots";
@@ -208,8 +208,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
    * @param sortFields sort order applied when the table is created by this transform
    * @param tableProps table properties applied when the table is created by this transform
    * @param manifestFileSize data files per manifest
-   * @param intervalTrigger streaming only: how often manifests are committed, and the width of the
-   *     schema pre-pass window
+   * @param intervalTrigger streaming only: how often manifests are committed
    * @param evolution schema evolution settings; null or no options means the schema is never
    *     changed
    */
