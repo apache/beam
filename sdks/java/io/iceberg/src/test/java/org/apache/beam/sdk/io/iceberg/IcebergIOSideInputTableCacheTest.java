@@ -30,6 +30,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
+import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.metrics.MetricNameFilter;
+import org.apache.beam.sdk.metrics.MetricQueryResults;
+import org.apache.beam.sdk.metrics.MetricResult;
+import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -110,6 +115,25 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
     return write;
   }
 
+  private long getTablesPolledCount(PipelineResult result) {
+    MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(TableMetadataDriver.class, "tablesPolled"))
+                    .build());
+    long total = 0;
+    for (MetricResult<Long> counter : metrics.getCounters()) {
+      Long val = counter.getCommitted() != null ? counter.getCommitted() : counter.getAttempted();
+      if (val != null) {
+        total += val;
+      }
+    }
+    return total;
+  }
+
   @Test
   public void testBatchSingleTableWithSideInputCache() throws Exception {
     TableIdentifier tableId =
@@ -131,7 +155,10 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .withPollingBuckets(1);
 
     input.apply("WriteToTable", applyDistribution(write));
-    testPipeline.run().waitUntilFinish();
+    PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(1L, getTablesPolledCount(result));
 
     Table table = warehouse.loadTable(tableId);
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
@@ -220,7 +247,10 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .withPollingBuckets(1);
 
     input.apply("WriteDynamic", applyDistribution(write));
-    testPipeline.run().waitUntilFinish();
+    PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(3L, getTablesPolledCount(result));
 
     Table table1 = warehouse.loadTable(table1Id);
     Table table2 = warehouse.loadTable(table2Id);
@@ -319,7 +349,10 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .withPollingBuckets(1);
 
     input.apply("WriteWithSampleCap", applyDistribution(write));
-    testPipeline.run().waitUntilFinish();
+    PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(2L, getTablesPolledCount(result));
 
     // Verify all 4 tables received data successfully
     for (TableIdentifier tId : asList(table1Id, table2Id, table3Id, table4Id)) {
@@ -361,7 +394,10 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .withPollingBuckets(1);
 
     input.apply("StreamingWrite", applyDistribution(write));
-    testPipeline.run().waitUntilFinish();
+    PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
+
+    assertThat(getTablesPolledCount(result), Matchers.greaterThanOrEqualTo(1L));
 
     Table table = warehouse.loadTable(tableId);
     List<Record> written = ImmutableList.copyOf(IcebergGenerics.read(table).build());
@@ -418,7 +454,10 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .withPollingBuckets(1);
 
     input.apply("StreamingWriteEvolved", applyDistribution(write));
-    testPipeline.run().waitUntilFinish();
+    PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
+
+    assertThat(getTablesPolledCount(result), Matchers.greaterThanOrEqualTo(1L));
 
     realTable.refresh();
     List<Record> records = ImmutableList.copyOf(IcebergGenerics.read(realTable).build());
