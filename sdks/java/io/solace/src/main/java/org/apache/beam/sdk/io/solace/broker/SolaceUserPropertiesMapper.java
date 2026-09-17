@@ -55,7 +55,7 @@ public final class SolaceUserPropertiesMapper {
 
         Solace.UserPropertyValue userPropertyValue = toUserPropertyValue(value);
         if (userPropertyValue.getKind() == Solace.UserPropertyValue.Kind.NONE) {
-          LOG.info("Unsupported user property type: {}. ", value.getClass());
+          LOG.warn("Unsupported user property type: {}. ", value.getClass());
           continue;
         }
 
