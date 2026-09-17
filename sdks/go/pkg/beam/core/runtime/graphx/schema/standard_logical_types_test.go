@@ -267,3 +267,66 @@ func TestMillisInstant_RowEncoding(t *testing.T) {
 		t.Errorf("encodeMillisInstant(1.5ms) = nil error, want error for sub millisecond precision")
 	}
 }
+
+func TestPassThroughLogicalTypes(t *testing.T) {
+	nullable := func(urn string, representation pipepb.AtomicType, length int32) *pipepb.FieldType {
+		ft := logicalFieldType(urn, atomicType(representation))
+		ft.Nullable = true
+		ft.GetLogicalType().ArgumentType = int32FieldType()
+		ft.GetLogicalType().Argument = int32FieldValue(length)
+		return ft
+	}
+	// The schema of the char, varchar, binary and varbinary case of standard_coders.yaml.
+	s := &pipepb.Schema{
+		Id: "pass-through-logical-types-test",
+		Fields: []*pipepb.Field{
+			{Name: "f_char", Type: nullable(URNFixedChar, pipepb.AtomicType_STRING, 5)},
+			{Name: "f_varchar", Type: nullable(URNVarChar, pipepb.AtomicType_STRING, 10)},
+			{Name: "f_bytes", Type: nullable(URNFixedBytes, pipepb.AtomicType_BYTES, 5)},
+			{Name: "f_varbytes", Type: nullable(URNVarBytes, pipepb.AtomicType_BYTES, 10)},
+		},
+	}
+	rt, err := ToType(s)
+	if err != nil {
+		t.Fatalf("ToType(%v) = %v, want nil error", prototext.Format(s), err)
+	}
+	stringPtr := reflect.PointerTo(typeOf[string]())
+	bytesPtr := reflect.PointerTo(typeOf[[]byte]())
+	for i, want := range []reflect.Type{stringPtr, stringPtr, bytesPtr, bytesPtr} {
+		if got := rt.Field(i).Type; got != want {
+			t.Errorf("ToType field %d type = %v, want %v", i, got, want)
+		}
+	}
+	// Decoding uses the plain string and bytes encodings, and pads nothing.
+	dec, err := coder.RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	got, err := dec(bytes.NewBufferString("\x04\x01\x06\x05null?\x04null"))
+	if err != nil {
+		t.Fatalf("dec = %v, want nil error", err)
+	}
+	rv := reflect.ValueOf(got)
+	if s := rv.Field(0).Elem().String(); s != "null?" {
+		t.Errorf("f_char = %q, want %q", s, "null?")
+	}
+	if !rv.Field(1).IsNil() || !rv.Field(2).IsNil() {
+		t.Errorf("f_varchar and f_bytes = %v, %v, want nil", rv.Field(1), rv.Field(2))
+	}
+	if b := rv.Field(3).Elem().Bytes(); string(b) != "null" {
+		t.Errorf("f_varbytes = %q, want %q", b, "null")
+	}
+	// Plain string and bytes fields keep their atomic schema types.
+	schm, err := FromType(reflect.TypeOf(struct {
+		S string
+		B []byte
+	}{}))
+	if err != nil {
+		t.Fatalf("FromType = %v, want nil error", err)
+	}
+	for i, want := range []pipepb.AtomicType{pipepb.AtomicType_STRING, pipepb.AtomicType_BYTES} {
+		if got := schm.GetFields()[i].GetType(); got.GetLogicalType() != nil || got.GetAtomicType() != want {
+			t.Errorf("FromType field %d = %v, want atomic %v", i, got, want)
+		}
+	}
+}

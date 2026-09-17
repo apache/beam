@@ -107,7 +107,25 @@ func registerStandardLogicalTypes(r *Registry) {
 	registerLogicalTypeConversion(r, ToLogicalType(URNMicrosInstant, typeOf[MicrosInstant](), typeOf[microsInstantStorage]()), microsInstantToStorage, microsInstantFromStorage)
 	registerLogicalTypeCoder(r, ToLogicalType(URNMillisInstant, typeOf[MillisInstant](), reflectx.Int64), encodeMillisInstant, decodeMillisInstant)
 	registerLogicalTypeCoder(r, ToLogicalType(URNDecimal, typeOf[Decimal](), reflectx.ByteSlice), encodeDecimal, decodeDecimal)
+	r.RegisterPassThroughLogicalType(URNFixedChar, reflectx.String)
+	r.RegisterPassThroughLogicalType(URNVarChar, reflectx.String)
+	r.RegisterPassThroughLogicalType(URNFixedBytes, reflectx.ByteSlice)
+	r.RegisterPassThroughLogicalType(URNVarBytes, reflectx.ByteSlice)
 }
+
+// URNs of the standard logical types that pass through as their
+// representation type. Their INT32 argument is the fixed or maximum length,
+// which the Go SDK does not enforce.
+const (
+	// URNFixedChar identifies the fixed length string logical type.
+	URNFixedChar = "beam:logical_type:fixed_char:v1"
+	// URNVarChar identifies the variable length string logical type.
+	URNVarChar = "beam:logical_type:var_char:v1"
+	// URNFixedBytes identifies the fixed length bytes logical type.
+	URNFixedBytes = "beam:logical_type:fixed_bytes:v1"
+	// URNVarBytes identifies the variable length bytes logical type.
+	URNVarBytes = "beam:logical_type:var_bytes:v1"
+)
 
 // URNMillisInstant identifies the MillisInstant logical type.
 const URNMillisInstant = "beam:logical_type:millis_instant:v1"

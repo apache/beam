@@ -319,3 +319,31 @@ func registerLogicalTypeCoder[GoT any](r *Registry, lt LogicalType, enc func(GoT
 			}, nil
 		})
 }
+
+// RegisterPassThroughLogicalType registers a logical type identified by urn
+// whose values are used as their representation type. A schema field with
+// the urn maps to goType and uses the row encoding of goType, and any
+// argument of the logical type is ignored. Go values of goType are not mapped
+// back to the logical type, so a struct with a goType field produces a schema
+// field of the representation type. This suits the standard fixed and
+// variable length string and bytes logical types, whose argument only
+// constrains the length.
+//
+// RegisterPassThroughLogicalType must be called before beam.Init(), and
+// conventionally is called in a package init() function.
+func RegisterPassThroughLogicalType(urn string, goType reflect.Type) {
+	defaultRegistry.RegisterPassThroughLogicalType(urn, goType)
+}
+
+// RegisterPassThroughLogicalType registers a logical type whose values are
+// used as their representation type. See the package level function.
+func (r *Registry) RegisterPassThroughLogicalType(urn string, goType reflect.Type) {
+	if len(urn) == 0 {
+		panic(fmt.Sprintf("invalid pass through logical type, bad urn for %v", goType))
+	}
+	if _, err := r.reflectTypeToFieldType(goType); err != nil {
+		panic(fmt.Sprintf("pass through LogicalType[%v] has an invalid type %v: %v", urn, goType, err))
+	}
+	lt := ToLogicalType(urn, goType, goType)
+	r.logicalTypes[lt.key()] = lt
+}
