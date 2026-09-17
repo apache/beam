@@ -199,10 +199,11 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
         excludeCategories 'org.apache.beam.sdk.testing.UsesKeyInParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesOnWindowExpiration'
         excludeCategories 'org.apache.beam.sdk.testing.UsesTestStream'
-        // TODO (https://github.com/apache/beam/issues/19468) SplittableDoFnTests
-        excludeCategories 'org.apache.beam.sdk.testing.UsesBoundedSplittableParDo'
+        // TODO (https://github.com/apache/beam/issues/19468) unbounded SDF needs residuals to
+        // survive across micro-batches, which the streaming path cannot do yet.
         excludeCategories 'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo'
         excludeCategories 'org.apache.beam.sdk.testing.UsesStrictTimerOrdering'
+        // TODO (https://github.com/apache/beam/issues/19517) bundle finalization
         excludeCategories 'org.apache.beam.sdk.testing.UsesBundleFinalizer'
       }
       testFilter = {
@@ -231,6 +232,8 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
                   "beam.spark.test.reuseSparkContext": "false",
                   "spark.ui.enabled": "false",
                   "spark.ui.showConsoleProgress": "false",
+                  // For Windows OS: additional config needed as below. See https://cwiki.apache.org/confluence/spaces/HADOOP2/pages/120730292/WindowsProblems
+                  // 'hadoop.home.dir': "${rootDir.absolutePath}\\build\\hadoop-home",
           ],
           testCategories: testCategories,
           testFilter: testFilter,

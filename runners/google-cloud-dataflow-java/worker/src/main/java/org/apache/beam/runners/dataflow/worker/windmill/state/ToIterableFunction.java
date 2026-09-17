@@ -31,6 +31,7 @@ public class ToIterableFunction<ContinuationT, ResultT>
     implements Function<ValuesAndContPosition<ResultT, ContinuationT>, Iterable<ResultT>> {
   private final StateTag<ContinuationT> stateTag;
   private final Coder<?> coder;
+
   /**
    * Reader to request continuation pages from, or {@literal null} if no continuation pages
    * required.
@@ -58,10 +59,10 @@ public class ToIterableFunction<ContinuationT, ResultT>
       // Return an iterable which knows how to come back for more.
       StateTag.Builder<ContinuationT> continuationTBuilder =
           StateTag.of(
-                  stateTag.getKind(),
-                  stateTag.getTag(),
-                  stateTag.getStateFamily(),
-                  valuesAndContPosition.getContinuationPosition())
+              stateTag.getKind(),
+              stateTag.getTag(),
+              stateTag.getStateFamily(),
+              valuesAndContPosition.getContinuationPosition())
               .toBuilder();
       if (stateTag.getSortedListRange() != null) {
         continuationTBuilder.setSortedListRange(stateTag.getSortedListRange());

@@ -17,7 +17,21 @@ limitations under the License.
 
 # Apache Flink Runner Roadmap
 
-This roadmap is in progress. In the meantime, here are available resources:
+_Last updated on Aug 2026._
 
- - [Runner documentation](/documentation/runners/flink)
- - Issues: [runner-flink](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-flink)
+## Flink versions
+
+Beam aims to support latest Flink minor versions. See [Flink Runner Support Table](/documentation/runners/flink#flink-version-compatibility)
+for current coverage.
+
+### Flink 2.x Support
+
+One of the major changes in Flink 2 is the removal of Flink DataSet API. As a result Beam Flink 2 runners switched to use DataStream API for batch mode. One area of interest is to improve the batch support of DataStream API.
+
+## Available resources
+
+Please check GitHub Issue tracker for recent developments on this topic:
+
+ - Issues: [runner-flink](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Aflink)
+
+- [Runner documentation](/documentation/runners/flink)

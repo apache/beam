@@ -251,7 +251,9 @@ public class SparkStreamingPortablePipelineTranslator
             SparkExecutableStageContextFactory.getInstance(),
             broadcastVariables,
             MetricsAccumulator.getInstance(),
-            windowCoder);
+            windowCoder,
+            getWindowedValueCoder(inputPCollectionId, components),
+            false);
     JavaDStream<RawUnionValue> staged = inputDStream.mapPartitions(function);
 
     String intermediateId = getExecutableStageIntermediateId(transformNode);

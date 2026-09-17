@@ -216,8 +216,8 @@ public final class MonitoringInfoConstants {
   }
 
   public static boolean isPerWorkerMetric(MetricName metricName) {
-    @Nullable
-    String value = metricName.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC);
+    @Nullable String value =
+        metricName.getLabels().get(MonitoringInfoConstants.Labels.PER_WORKER_METRIC);
     if (value != null && value.equals("true")) {
       return true;
     }

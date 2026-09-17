@@ -41,8 +41,7 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
       "If set, attempts to produce a pipeline compatible with this prior version of the Beam SDK."
           + " This string should be interpreted and compared per https://semver.org/."
           + " See, for example, https://cloud.google.com/dataflow/docs/guides/updating-a-pipeline.")
-  @Nullable
-  String getUpdateCompatibilityVersion();
+  @Nullable String getUpdateCompatibilityVersion();
 
   void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
 

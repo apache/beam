@@ -315,8 +315,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
         String timerId,
         String timerFamilyId,
         DoFnInvoker.ArgumentProvider<InputT, OutputT> arguments) {
-      @Nullable
-      OnTimerInvoker onTimerInvoker =
+      @Nullable OnTimerInvoker onTimerInvoker =
           timerFamilyId.isEmpty()
               ? onTimerInvokers.get(timerId)
               : onTimerFamilyInvokers.get(timerFamilyId);
@@ -690,8 +689,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (ClassInjector.UsingLookup.isAvailable()) {
         @SuppressWarnings(
             "nullness") // Method.invoke not annotated to allow null receiver, so we lie
-        @NonNull
-        Object nullObjectForStaticMethodInvocation = null;
+        @NonNull Object nullObjectForStaticMethodInvocation = null;
 
         Class<?> methodHandles = Class.forName("java.lang.invoke.MethodHandles");
         Object lookup =
@@ -845,6 +843,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
   static class DoFnMethodDelegation implements Implementation {
     /** The {@link MethodDescription} of the wrapped {@link DoFn}'s method. */
     protected final MethodDescription targetMethod;
+
     /** Whether the target method returns non-void. */
     private final boolean targetHasReturn;
 
@@ -1554,8 +1553,7 @@ class ByteBuddyDoFnInvokerFactory implements DoFnInvokerFactory {
       if (returnVarIndex != null) {
         // Drop the return type from the locals
         @SuppressWarnings("nullness") // bytebuddy MethodVisitor not annotated, so we lie
-        @NonNull
-        String nullSignature = null;
+        @NonNull String nullSignature = null;
         mv.visitLocalVariable(
             "res", returnType.getDescriptor(), nullSignature, wrapStart, wrapEnd, returnVarIndex);
       }

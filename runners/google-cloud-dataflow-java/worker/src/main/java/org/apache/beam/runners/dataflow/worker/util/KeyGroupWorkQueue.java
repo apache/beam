@@ -20,6 +20,7 @@ package org.apache.beam.runners.dataflow.worker.util;
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.util.AbstractQueue;
 import java.util.Collection;
@@ -67,9 +68,14 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
     @Nullable Node prevKeyGroupNode;
     @Nullable Node nextKeyGroupNode;
 
+    private static boolean isMultiKeyBatchingDisabled(Runnable task) {
+      return !(task instanceof QueuedWork)
+          || ((QueuedWork) task).getWork().isMultiKeyBatchingDisabled();
+    }
+
     Node(Runnable task) {
       this.task = task;
-      if (task instanceof QueuedWork) {
+      if (!isMultiKeyBatchingDisabled(task)) {
         this.computationId = ((QueuedWork) task).getWork().getComputationId();
         this.keyGroup = ((QueuedWork) task).getWork().getKeyGroup();
       } else {
@@ -193,6 +199,10 @@ class KeyGroupWorkQueue extends AbstractQueue<Runnable> implements BlockingQueue
       if (firstNode == keyGroupWorkList.tail) {
         return null;
       }
+
+      // MultiKeyBatchingDisabled items should not be in keyGroupWorkList
+      checkState(!Node.isMultiKeyBatchingDisabled(firstNode.task));
+
       unlinkNode(firstNode);
 
       return (QueuedWork) firstNode.task;

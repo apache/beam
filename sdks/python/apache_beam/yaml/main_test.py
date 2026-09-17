@@ -145,6 +145,20 @@ class MainTest(unittest.TestCase):
             'pos_arg',
         ])
 
+  def test_preparse_jinja_flags_pipeline_option_collision(self):
+    # A jinja_variable_flags entry that collides with a known pipeline
+    # option (e.g. runner) must not swallow the pipeline flag.
+    argv = [
+        '--jinja_variable_flags=runner,var',
+        '--runner=DirectRunner',
+        '--var=my_line',
+    ]
+    self.assertCountEqual(
+        main._preparse_jinja_flags(argv), [
+            '--runner=DirectRunner',
+            '--jinja_variables=' + '{"var": "my_line"}',
+        ])
+
   def test_jinja_datetime(self):
     with tempfile.TemporaryDirectory() as tmpdir:
       out_path = os.path.join(tmpdir, 'out.txt')

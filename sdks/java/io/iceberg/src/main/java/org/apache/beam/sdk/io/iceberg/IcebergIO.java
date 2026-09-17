@@ -490,6 +490,16 @@ public class IcebergIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /**
+     * Defines properties to be passed to the Iceberg writer itself. Note that these properties are
+     * execution-scoped, meaning that they are applied to a preexisting table and will not mutate
+     * any table-level properties.
+     *
+     * <p>To set table-level properties that will be applied to dynamically created tables, use the
+     * managed Iceberg transform instead, setting the `table_properties` config property.
+     *
+     * <p>See: https://iceberg.apache.org/docs/latest/configuration/#write-properties
+     */
     public WriteRows withWriteProperties(Map<String, String> writeProperties) {
       return toBuilder().setWriteProperties(writeProperties).build();
     }
@@ -740,8 +750,7 @@ public class IcebergIO {
 
       Table table = TableCache.get(getCatalogConfig(), tableId);
 
-      @Nullable
-      String updateCompatibilityVersion =
+      @Nullable String updateCompatibilityVersion =
           input
               .getPipeline()
               .getOptions()

@@ -477,8 +477,7 @@ public class GrpcCommitWorkStreamTest {
       assertTrue(
           batcher.commitWorkItem(
               COMPUTATION_ID,
-              workItemCommitRequest(0)
-                  .toBuilder()
+              workItemCommitRequest(0).toBuilder()
                   .addBagUpdates(Windmill.TagBag.newBuilder().setTag(LARGE_BYTE_STRING).build())
                   .build(),
               commitStatus -> {
@@ -1357,8 +1356,7 @@ public class GrpcCommitWorkStreamTest {
     CompletableFuture<Windmill.CommitStatus> commitStatusFuture = new CompletableFuture<>();
 
     Windmill.WorkItemCommitRequest largeRequest =
-        workItemCommitRequest(1)
-            .toBuilder()
+        workItemCommitRequest(1).toBuilder()
             .addBagUpdates(Windmill.TagBag.newBuilder().setTag(LARGE_BYTE_STRING).build())
             .build();
 

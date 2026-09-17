@@ -100,7 +100,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v7
       with:
-        persist-credentials: false
+        persist-credentials: true
     - name: Mask PyPi password
       run: |
         # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -193,7 +193,7 @@ jobs:
         with:
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: master
-          persist-credentials: false
+          persist-credentials: true
       - name: Set git config
         run: |
           git config user.name $GITHUB_ACTOR

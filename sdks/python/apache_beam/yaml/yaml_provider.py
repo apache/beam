@@ -339,12 +339,14 @@ def beam_jar(
     managed_replacement=None,
     appendix=None,
     version=beam_version,
-    artifact_id=None):
+    artifact_id=None,
+    classpath=None):
   return ExternalJavaProvider(
       urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
           gradle_target=gradle_target, version=version, artifact_id=artifact_id
       ),
-      managed_replacement=managed_replacement)
+      managed_replacement=managed_replacement,
+      classpath=classpath)
 
 
 @ExternalProvider.register_provider_type('docker')

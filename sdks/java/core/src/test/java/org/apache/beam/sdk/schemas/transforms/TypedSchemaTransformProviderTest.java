@@ -51,7 +51,8 @@ public class TypedSchemaTransformProviderTest {
       return new AutoValue_TypedSchemaTransformProviderTest_Configuration(
           stringField, integerField);
     }
-  };
+  }
+  ;
 
   private static class FakeTypedSchemaIOProvider
       extends TypedSchemaTransformProvider<Configuration> {

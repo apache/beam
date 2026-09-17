@@ -60,19 +60,25 @@ type ProfilerConfig struct {
 	GcloudAvailable        bool
 }
 
-// setupProfilerConfig parses PipelineOptionsData and stores a resolved ProfilerConfig in the context.
-func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *PipelineOptionsData) context.Context {
-	agent := opts.Options.ProfilerAgent
-	if agent == "" {
+// setupProfilerConfig parses PipelineOptions and stores a resolved ProfilerConfig in the context.
+func setupProfilerConfig(ctx context.Context, logger *tools.Logger, po *tools.PipelineOptions) context.Context {
+	agent, err := po.GetString("profiler_agent")
+	if err != nil || agent == "" {
 		return ctx
 	}
 
-	baseTempDir := opts.Options.ProfileTempLocation
-	if baseTempDir == "" {
+	baseTempDir, err := po.GetString("profile_temp_location")
+	if err != nil || baseTempDir == "" {
 		baseTempDir = filepath.Join(*semiPersistDir, "profiles")
 	}
 
-	jobId := opts.Options.JobId
+	jobId, err := po.GetString("jobId")
+	if err != nil || jobId == "" {
+		jobId = os.Getenv("JOB_ID")
+	}
+	if jobId == "" {
+		jobId = os.Getenv("JOB_NAME")
+	}
 	if jobId == "" {
 		jobId = "BEAM_JOB"
 	}
@@ -86,8 +92,11 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 
 	var gcsDestPath string
 	gcloudAvailable := false
-	if strings.HasPrefix(opts.Options.ProfileLocation, "gs://") {
-		gcsDestPath = strings.TrimSuffix(opts.Options.ProfileLocation, "/")
+	profileLocation, err := po.GetString("profile_location")
+	if err != nil || profileLocation == "" {
+		logger.Printf(ctx, "profile_location not specified, profiles will only be stored locally.")
+	} else if strings.HasPrefix(profileLocation, "gs://") {
+		gcsDestPath = strings.TrimSuffix(profileLocation, "/")
 		if _, err := exec.LookPath("gcloud"); err == nil {
 			gcloudAvailable = true
 		} else {
@@ -95,20 +104,48 @@ func setupProfilerConfig(ctx context.Context, logger *tools.Logger, opts *Pipeli
 		}
 	}
 
+	profilerExtraArgs, err := po.GetStringSlice("profiler_extra_args")
+	if err != nil {
+		profilerExtraArgs = []string{}
+	}
+	profilerExtraEnvVars, err := po.GetStringSlice("profiler_extra_env_vars")
+	if err != nil {
+		profilerExtraEnvVars = []string{}
+	}
+
+	profileUploadIntervalSec, err := po.GetInt("profile_upload_interval_sec")
+	if err != nil {
+		profileUploadIntervalSec = 300
+		logger.Printf(ctx, "Using default profile_upload_interval_sec: %v", profileUploadIntervalSec)
+	}
+	profilerStopAfterSec, err := po.GetInt("profiler_stop_after_sec")
+	if err != nil {
+		profilerStopAfterSec = 0
+	}
+	profilerStopAfterCrash, err := po.GetBool("profiler_stop_after_crash")
+	if err != nil {
+		profilerStopAfterCrash = false
+	}
+	profilePostprocessIntervalSec, err := po.GetInt("profile_postprocess_interval_sec")
+	if err != nil {
+		profilePostprocessIntervalSec = 600
+		logger.Printf(ctx, "Using default profile_postprocess_interval_sec: %v", profilePostprocessIntervalSec)
+	}
+
 	config := &ProfilerConfig{
 		Enabled:                true,
 		Agent:                  agent,
-		ExtraArgs:              opts.Options.ProfilerExtraArgs,
-		ExtraEnvVars:           opts.Options.ProfilerExtraEnvVars,
-		Location:               opts.Options.ProfileLocation,
+		ExtraArgs:              profilerExtraArgs,
+		ExtraEnvVars:           profilerExtraEnvVars,
+		Location:               profileLocation,
 		BaseTempDir:            baseTempDir,
 		TempLocation:           tempLocation,
 		StopSentinelPath:       sentinelPath,
 		GcsDestPath:            gcsDestPath,
-		UploadIntervalSec:      opts.Options.ProfileUploadIntervalSec,
-		StopAfterSec:           opts.Options.ProfilerStopAfterSec,
-		StopAfterCrash:         opts.Options.ProfilerStopAfterCrash,
-		PostprocessIntervalSec: opts.Options.ProfilePostprocessIntervalSec,
+		UploadIntervalSec:      profileUploadIntervalSec,
+		StopAfterSec:           profilerStopAfterSec,
+		StopAfterCrash:         profilerStopAfterCrash,
+		PostprocessIntervalSec: profilePostprocessIntervalSec,
 		GcloudAvailable:        gcloudAvailable,
 	}
 

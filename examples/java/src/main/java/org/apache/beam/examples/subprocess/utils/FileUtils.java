@@ -28,6 +28,8 @@ import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.util.UUID;
 import org.apache.beam.examples.subprocess.configuration.SubProcessConfiguration;
 import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.ResolveOptions.StandardResolveOptions;
@@ -77,30 +79,36 @@ public class FileUtils {
     }
   }
 
-  public static String copyFileFromGCSToWorker(ExecutableFile execuableFile) throws Exception {
+  public static String copyFileFromGCSToWorker(ExecutableFile executableFile) throws Exception {
 
     ResourceId sourceFile =
-        FileSystems.matchNewResource(execuableFile.getSourceGCSLocation(), false);
-    ResourceId destinationFile =
-        FileSystems.matchNewResource(execuableFile.getDestinationLocation(), false);
+        FileSystems.matchNewResource(executableFile.getSourceGCSLocation(), false);
     try {
       LOG.info(
           "Moving File {} to {} ",
-          execuableFile.getSourceGCSLocation(),
-          execuableFile.getDestinationLocation());
-      Path path = Paths.get(execuableFile.getDestinationLocation());
+          executableFile.getSourceGCSLocation(),
+          executableFile.getDestinationLocation());
+      Path path = Paths.get(executableFile.getDestinationLocation());
 
       if (path.toFile().exists()) {
         LOG.warn(
             "Overwriting file {}, should only see this once per worker.",
-            execuableFile.getDestinationLocation());
+            executableFile.getDestinationLocation());
       }
-      copyFile(sourceFile, destinationFile);
-      path.toFile().setExecutable(true);
+      Path stagedFile = path.resolveSibling(".beam-executable-" + UUID.randomUUID() + ".tmp");
+      try {
+        ResourceId stagedResource = FileSystems.matchNewResource(stagedFile.toString(), false);
+        copyFile(sourceFile, stagedResource);
+        stagedFile.toFile().setExecutable(true);
+        Files.move(
+            stagedFile, path, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
+      } finally {
+        Files.deleteIfExists(stagedFile);
+      }
       return path.toString();
 
     } catch (Exception ex) {
-      LOG.error("Error moving file : {} ", execuableFile.fileName, ex);
+      LOG.error("Error moving file : {} ", executableFile.fileName, ex);
       throw ex;
     }
   }

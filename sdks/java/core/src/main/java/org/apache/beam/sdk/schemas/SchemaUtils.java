@@ -238,6 +238,13 @@ public class SchemaUtils {
   }
 
   static String toPrettyFieldValueString(Schema.FieldType fieldType, Object value, String prefix) {
+    if (value == null) {
+      // toPrettyRowString drops a row's own null fields, but a null nested inside an array, an
+      // iterable, a map or a row has a position and has to be rendered. The numeric and boolean
+      // branches below already render one as "null" via Objects.toString, so do the same for the
+      // remaining types rather than dereferencing the value.
+      return "null";
+    }
     String nextPrefix = prefix + INDENT;
     switch (fieldType.getTypeName()) {
       case BYTE:

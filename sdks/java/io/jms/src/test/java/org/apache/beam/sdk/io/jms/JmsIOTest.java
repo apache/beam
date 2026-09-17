@@ -192,7 +192,8 @@ public class JmsIOTest {
 
   @Test
   public void testAuthenticationRequired() {
-    pipeline.apply(JmsIO.read().withConnectionFactory(connectionFactory).withQueue(QUEUE));
+    // A topic produces one source, avoiding races between concurrent authentication failures.
+    pipeline.apply(JmsIO.read().withConnectionFactory(connectionFactory).withTopic(TOPIC));
     String errorMessage =
         this.connectionFactoryClass == ActiveMQConnectionFactory.class
             ? "User name [null] or password is invalid."
@@ -205,7 +206,7 @@ public class JmsIOTest {
     pipeline.apply(
         JmsIO.read()
             .withConnectionFactory(connectionFactory)
-            .withQueue(QUEUE)
+            .withTopic(TOPIC)
             .withUsername(USERNAME)
             .withPassword("BAD"));
 

@@ -33,14 +33,12 @@ public interface IOTestPipelineOptions extends TestPipelineOptions {
   void setNumberOfRecords(Integer count);
 
   @Description("BigQuery dataset to publish results to.")
-  @Nullable
-  String getBigQueryDataset();
+  @Nullable String getBigQueryDataset();
 
   void setBigQueryDataset(@Nullable String dataset);
 
   @Description("BigQuery table to publish results to.")
-  @Nullable
-  String getBigQueryTable();
+  @Nullable String getBigQueryTable();
 
   void setBigQueryTable(@Nullable String tableName);
 

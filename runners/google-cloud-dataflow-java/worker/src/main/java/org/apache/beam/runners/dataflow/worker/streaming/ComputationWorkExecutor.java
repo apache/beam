@@ -65,7 +65,8 @@ public abstract class ComputationWorkExecutor {
       Work work,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
-      KeyTransitionListener keyTransitionListener)
+      KeyTransitionListener keyTransitionListener,
+      FailedWorkHandler onFailedWorkHandler)
       throws Exception {
     context()
         .start(
@@ -74,7 +75,8 @@ public abstract class ComputationWorkExecutor {
             workQueueExecutor,
             budgetHandle,
             keyCoder().orElse(null),
-            keyTransitionListener);
+            keyTransitionListener,
+            onFailedWorkHandler);
     workExecutor().execute();
     return context();
   }

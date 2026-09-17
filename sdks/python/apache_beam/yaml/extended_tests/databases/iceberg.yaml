@@ -28,6 +28,9 @@ fixtures:
             - { id: 1, name: "label", required: true, type: "string" }
             - { id: 2, name: "rank", required: true, type: "long" }
           identifier-field-ids: [1]
+        # Required for ReadFromIcebergCDC (format version >= 2).
+        properties:
+          format-version: "2"
 
 pipelines:
   - name: write

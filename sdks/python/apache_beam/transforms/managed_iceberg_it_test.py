@@ -63,8 +63,7 @@ class ManagedIcebergIT(unittest.TestCase):
         'header.x-goog-user-project': 'apache-beam-testing',
         'rest.auth.type': 'google',
         'io-impl': 'org.apache.iceberg.gcp.gcs.GCSFileIO',
-        'header.X-Iceberg-Access-Delegation': 'vended-credentials',
-        'rest-metrics-reporting-enabled': 'false'
+        'header.X-Iceberg-Access-Delegation': 'vended-credentials'
     }
     iceberg_config = {
         "table": "test_iceberg_write_read.test_" + uuid.uuid4().hex,

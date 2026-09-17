@@ -1025,7 +1025,12 @@ class ParameterizedTimestamp(LogicalType[Timestamp,
   Timestamp to this logical type, re-register using
   :func:`~LogicalType.register_logical_type(ParameterizedTimestamp)`.
   """
-  def __init__(self, precision: int = Timestamp.MICROS_PRECISION) -> None:
+  def __init__(self, precision: Optional[int] = None) -> None:
+    if precision is None:
+      # A timestamp:v1 proto without its precision argument is malformed;
+      # decoding at a guessed precision would silently misscale subseconds.
+      raise ValueError(
+          'beam:logical_type:timestamp:v1 requires a precision argument.')
     # The argument arrives as np.int32 when decoded from a schema proto.
     precision = int(precision)
     if not 0 <= precision <= Timestamp.NANOS_PRECISION:
@@ -1077,7 +1082,8 @@ class ParameterizedTimestamp(LogicalType[Timestamp,
 
   @classmethod
   def _from_typing(cls, typ):
-    return cls()
+    # A bare Timestamp typehint has no precision; default to micros.
+    return cls(Timestamp.MICROS_PRECISION)
 
 
 @LogicalType._register_internal

@@ -149,9 +149,11 @@ func TestGetPipelineResourceHints(t *testing.T) {
 	hints.Set("accelerator=pedal_to_the_metal")
 	hints.Set("beam:resources:novel_execution:v1=jaguar")
 	hints.Set("min_ram=1GB")
+	hints.Set("cpu_count=1")
+	hints.Set("beam:resources:cpu_count:v1=4")
 	ResourceHints = hints
 
-	want := resource.NewHints(resource.ParseMinRAM("1GB"), resource.Accelerator("pedal_to_the_metal"), stringHint{
+	want := resource.NewHints(resource.ParseMinRAM("1GB"), resource.Accelerator("pedal_to_the_metal"), resource.ParseCPUCount("4"), stringHint{
 		urn:   "beam:resources:novel_execution:v1",
 		value: "jaguar",
 	})

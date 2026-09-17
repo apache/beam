@@ -64,7 +64,8 @@ public class IcebergMetastore extends InMemoryMetaStore {
       Map<String, String> props =
           TableUtils.getObjectMapper()
               .convertValue(table.getProperties(), new TypeReference<Map<String, String>>() {})
-              .entrySet().stream()
+              .entrySet()
+              .stream()
               .filter(p -> !p.getKey().startsWith("beam."))
               .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
       try {

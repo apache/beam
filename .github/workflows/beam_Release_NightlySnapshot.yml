@@ -82,6 +82,7 @@ jobs:
       - name: run Publish script
         run: |
           ./gradlew publish --max-workers=8 -Ppublishing -PskipCheckerFramework \
+          -Pwith-kafka-streams-runner \
           -Pjava21Home=$JAVA_HOME_21_X64 \
           --continue -Dorg.gradle.jvmargs=-Xms2g -Dorg.gradle.jvmargs=-Xmx6g \
           -Dorg.gradle.vfs.watch=false -Pdocker-pull-licenses \

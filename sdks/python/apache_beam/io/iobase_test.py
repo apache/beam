@@ -261,5 +261,26 @@ class UseSdfUnboundedSourcesTests(unittest.TestCase):
     self.assertTrue(read_transforms[0].subtransforms)
 
 
+class RestrictionProgressTest(unittest.TestCase):
+  def test_restriction_progress(self):
+    # Total work == 0 edge cases (avoids ZeroDivisionError)
+    progress_zero_int = iobase.RestrictionProgress(completed=0, remaining=0)
+    self.assertEqual(progress_zero_int.fraction_completed, 1.0)
+    self.assertEqual(progress_zero_int.fraction_remaining, 0.0)
+
+    # Progress with completed and remaining
+    progress_work = iobase.RestrictionProgress(completed=25, remaining=75)
+    self.assertEqual(progress_work.completed_work, 25)
+    self.assertEqual(progress_work.remaining_work, 75)
+    self.assertEqual(progress_work.total_work, 100)
+    self.assertEqual(progress_work.fraction_completed, 0.25)
+    self.assertEqual(progress_work.fraction_remaining, 0.75)
+
+    # Progress with fraction
+    progress_frac = iobase.RestrictionProgress(fraction=0.4)
+    self.assertEqual(progress_frac.fraction_completed, 0.4)
+    self.assertAlmostEqual(progress_frac.fraction_remaining, 0.6)
+
+
 if __name__ == '__main__':
   unittest.main()

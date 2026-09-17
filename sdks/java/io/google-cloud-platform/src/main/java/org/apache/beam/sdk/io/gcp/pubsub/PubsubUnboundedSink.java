@@ -288,14 +288,12 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
     }
 
     @VisibleForTesting
-    @Nullable
-    String getIdAttribute() {
+    @Nullable String getIdAttribute() {
       return idAttribute;
     }
 
     @VisibleForTesting
-    @Nullable
-    ValueProvider<TopicPath> getTopic() {
+    @Nullable ValueProvider<TopicPath> getTopic() {
       return topic;
     }
 
@@ -566,6 +564,7 @@ public class PubsubUnboundedSink extends PTransform<PCollection<PubsubMessage>, 
         RecordIdMethod.RANDOM,
         pubsubRootUrl);
   }
+
   /** Get the topic being written to. */
   public @Nullable TopicPath getTopic() {
     return topic != null ? topic.get() : null;

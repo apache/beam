@@ -175,7 +175,9 @@ public class SparkNativePipelineVisitor extends SparkRunner.Evaluator {
 
     private String replaceFnString(
         Class<? extends PTransform> transformClass, String transformString, String fnFieldName)
-        throws IllegalAccessException, InvocationTargetException, NoSuchMethodException,
+        throws IllegalAccessException,
+            InvocationTargetException,
+            NoSuchMethodException,
             NoSuchFieldException {
       Object fn =
           transformClass.getMethod("get" + StringUtils.capitalize(fnFieldName)).invoke(transform);

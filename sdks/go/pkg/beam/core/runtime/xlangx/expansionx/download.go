@@ -139,6 +139,18 @@ func getLocalJar(url string) (string, error) {
 	return jarPath, nil
 }
 
+func validatePath(dest, filename string) (string, error) {
+	destPath := filepath.Join(dest, filename)
+	cleanDest := filepath.Clean(dest)
+	cleanPath := filepath.Clean(destPath)
+
+	rel, err := filepath.Rel(cleanDest, cleanPath)
+	if err != nil || strings.HasPrefix(rel, ".."+string(filepath.Separator)) || rel == ".." {
+		return "", fmt.Errorf("file path %q is outside destination directory %q", filename, dest)
+	}
+	return cleanPath, nil
+}
+
 func extractJar(source, dest string) error {
 	reader, err := zip.OpenReader(source)
 	if err != nil {
@@ -150,7 +162,10 @@ func extractJar(source, dest string) error {
 	}
 
 	for _, file := range reader.File {
-		fileName := filepath.Join(dest, file.Name)
+		fileName, err := validatePath(dest, file.Name)
+		if err != nil {
+			return fmt.Errorf("error validating file path (%s, %s): %w", dest, file.Name, err)
+		}
 		if file.FileInfo().IsDir() {
 			os.MkdirAll(fileName, 0700)
 			continue

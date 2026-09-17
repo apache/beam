@@ -55,6 +55,8 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO;
+import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.TypedRead.Method;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.managed.Managed;
@@ -127,6 +129,7 @@ import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.LocalDate;
 import org.joda.time.LocalTime;
+import org.joda.time.ReadableInstant;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
@@ -168,6 +171,18 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   public abstract Map<String, Object> managedIcebergConfig(String tableId);
 
   public abstract String type();
+
+  /**
+   * Catalogs whose tables are also queryable with BigQuery return the BigQuery table reference for
+   * the given Iceberg table id: either the 4-part {@code project.catalog.namespace.table} form for
+   * Lakehouse runtime catalog (BigLake metastore REST) tables, or the 3-part {@code
+   * project.dataset.table} form for the BigQuery metastore federation, where namespaces surface as
+   * datasets. Returning null (the default) disables the cross-engine read checks in {@link
+   * #testReadWithBigQueryIO()}.
+   */
+  public @Nullable String bigQueryTableSpec(String tableId) {
+    return null;
+  }
 
   public void catalogSetup() {
     ((SupportsNamespaces) catalog).createNamespace(Namespace.of(namespace()));
@@ -224,8 +239,7 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
 
-      @Nullable
-      List<StorageObject> objects =
+      @Nullable List<StorageObject> objects =
           gcsUtil
               .listObjects(
                   path.getBucket(),
@@ -736,6 +750,250 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
     assertThat(
         returnedRecords,
         containsInAnyOrder(expectedRows.stream().map(RECORD_FUNC::apply).toArray()));
+  }
+
+  /**
+   * Cross-engine consistency: rows written through the Iceberg catalog must be readable with
+   * BigQueryIO's Storage Read API using the catalog's BigQuery table reference (see {@link
+   * #bigQueryTableSpec(String)}). Exercises the full read, server-side projection + filtering
+   * push-down, and a query read with the reference embedded in SQL.
+   *
+   * <p>Rows are compared on a projection of fields whose types survive the Iceberg-to-BigQuery
+   * mapping losslessly; BigQuery widens e.g. {@code int32} to {@code INT64}, so whole-row equality
+   * against the Iceberg schema does not hold by design.
+   */
+  @Test
+  public void testReadWithBigQueryIO() throws Exception {
+    String tableSpec = bigQueryTableSpec(tableId());
+    assumeTrue("Catalog does not surface its tables in BigQuery", tableSpec != null);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    List<Row> expectedRows = populateTable(table);
+    int intCutoff = numRecords() / 2;
+
+    List<String> expectedFull =
+        expectedRows.stream()
+            .map(
+                r ->
+                    canonical(
+                        r.getString("str"),
+                        r.getInt64("modulo_5"),
+                        r.getBoolean("bool_field"),
+                        r.getInt32("int_field")))
+            .collect(Collectors.toList());
+    List<String> expectedFiltered =
+        expectedRows.stream()
+            .filter(r -> checkStateNotNull(r.getInt32("int_field")) < intCutoff)
+            .map(r -> canonical(r.getString("str"), r.getInt32("int_field")))
+            .collect(Collectors.toList());
+
+    PCollection<String> fullRead =
+        pipeline
+            .apply(
+                "BQ direct read",
+                BigQueryIO.readTableRows().from(tableSpec).withMethod(Method.DIRECT_READ))
+            .apply(
+                "canonicalize full",
+                MapElements.into(TypeDescriptors.strings())
+                    .via(
+                        tr ->
+                            canonical(
+                                tr.get("str"),
+                                tr.get("modulo_5"),
+                                tr.get("bool_field"),
+                                tr.get("int_field"))));
+    PAssert.that(fullRead).containsInAnyOrder(expectedFull);
+
+    PCollection<String> pushdownRead =
+        pipeline
+            .apply(
+                "BQ pushdown read",
+                BigQueryIO.readTableRows()
+                    .from(tableSpec)
+                    .withMethod(Method.DIRECT_READ)
+                    .withSelectedFields(Arrays.asList("str", "int_field"))
+                    .withRowRestriction("int_field < " + intCutoff))
+            .apply(
+                "canonicalize pushdown",
+                MapElements.into(TypeDescriptors.strings())
+                    .via(tr -> canonical(tr.get("str"), tr.get("int_field"))));
+    PAssert.that(pushdownRead).containsInAnyOrder(expectedFiltered);
+
+    PCollection<String> queryRead =
+        pipeline
+            .apply(
+                "BQ query read",
+                BigQueryIO.readTableRows()
+                    .fromQuery(
+                        String.format(
+                            "SELECT str, int_field FROM `%s` WHERE int_field < %d",
+                            tableSpec, intCutoff))
+                    .usingStandardSql()
+                    .withMethod(Method.DIRECT_READ))
+            .apply(
+                "canonicalize query",
+                MapElements.into(TypeDescriptors.strings())
+                    .via(tr -> canonical(tr.get("str"), tr.get("int_field"))));
+    PAssert.that(queryRead).containsInAnyOrder(expectedFiltered);
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * String canonicalization for cross-engine row comparison: {@code String.valueOf} normalizes
+   * representation differences (e.g. {@code Long} vs {@code Integer} vs numeric strings in {@code
+   * TableRow}).
+   */
+  private static String canonical(Object... values) {
+    StringBuilder sb = new StringBuilder();
+    for (Object value : values) {
+      sb.append(String.valueOf(normalize(value))).append('|');
+    }
+    return sb.toString();
+  }
+
+  /**
+   * Normalizes representation differences that are inherent to the Iceberg-to-BigQuery type mapping
+   * so that values compare equal across engines: BigQuery widens {@code float32} to {@code
+   * FLOAT64}, and the schema'd Beam Row conversion used by the Managed BigQuery read maps TIMESTAMP
+   * to Beam's DATETIME field type, a millisecond Joda instant, while the Iceberg-side rows carry
+   * microsecond {@code java.time.Instant}s. (Plain {@code readTableRows()} is not affected: its
+   * {@code TableRow} values are strings with full microsecond precision.)
+   */
+  private static Object normalize(Object value) {
+    if (value instanceof Float) {
+      return ((Float) value).doubleValue();
+    }
+    if (value instanceof java.time.Instant) {
+      return ((java.time.Instant) value).toEpochMilli();
+    }
+    if (value instanceof ReadableInstant) {
+      return ((ReadableInstant) value).getMillis();
+    }
+    return value;
+  }
+
+  /**
+   * Full-schema canonicalization for the type-fidelity check. Works on both the Iceberg-side
+   * expected rows and the BigQuery-lens rows returned by the Managed BigQuery read; {@link
+   * #normalize(Object)} absorbs the documented type widenings.
+   */
+  private static String fidelityCanonical(Row row) {
+    Row nested = checkStateNotNull(row.getRow("row"));
+    @Nullable Row nullableNested = row.getRow("nullable_row");
+    return canonical(
+        row.getValue("str"),
+        row.getValue("char"),
+        row.getValue("modulo_5"),
+        row.getValue("bool_field"),
+        row.getValue("int_field"),
+        nestedCanonical(nested),
+        (Object) row.getValue("arr_long"),
+        nullableNested == null ? "null" : nestedCanonical(nullableNested),
+        row.getValue("nullable_long"),
+        row.getValue("datetime_tz"),
+        row.getValue("datetime"),
+        row.getValue("date"),
+        row.getValue("time"));
+  }
+
+  private static String nestedCanonical(Row nested) {
+    Row doubly = checkStateNotNull(nested.getRow("nested_row"));
+    return canonical(
+        nested.getValue("nested_str"),
+        doubly.getValue("doubly_nested_str"),
+        doubly.getValue("doubly_nested_float"),
+        nested.getValue("nested_int"),
+        nested.getValue("nested_float"));
+  }
+
+  /**
+   * Type fidelity across the Iceberg-to-BigQuery read: every field of {@link #BEAM_SCHEMA}
+   * (including timestamps, datetime/date/time, arrays, and nullable nested rows) must survive the
+   * round trip with its value intact, modulo the documented widenings handled by {@link
+   * #normalize(Object)}.
+   */
+  @Test
+  public void testReadWithBigQueryIOTypeFidelity() throws Exception {
+    String tableSpec = bigQueryTableSpec(tableId());
+    assumeTrue("Catalog does not surface its tables in BigQuery", tableSpec != null);
+    Table table = catalog.createTable(TableIdentifier.parse(tableId()), ICEBERG_SCHEMA);
+    List<Row> expectedRows = populateTable(table);
+    List<String> expected =
+        expectedRows.stream()
+            .map(IcebergCatalogBaseIT::fidelityCanonical)
+            .collect(Collectors.toList());
+
+    PCollection<String> actual =
+        pipeline
+            .apply(
+                "BQ managed read",
+                Managed.read(Managed.BIGQUERY).withConfig(ImmutableMap.of("table", tableSpec)))
+            .getSinglePCollection()
+            .apply(
+                "fidelity canonicalize",
+                MapElements.into(TypeDescriptors.strings())
+                    .via(IcebergCatalogBaseIT::fidelityCanonical));
+    PAssert.that(actual).containsInAnyOrder(expected);
+    pipeline.run().waitUntilFinish();
+  }
+
+  /**
+   * Merge-on-read: BigQuery reads must apply Iceberg v2 row-level delete files. Writes an
+   * equality-delete file with the Iceberg API (as an external engine would), commits it as a row
+   * delta, and asserts the deleted rows are absent from the BigQueryIO read.
+   */
+  @Test
+  public void testReadWithBigQueryIOAfterRowLevelDeletes() throws Exception {
+    String tableSpec = bigQueryTableSpec(tableId());
+    assumeTrue("Catalog does not surface its tables in BigQuery", tableSpec != null);
+    Table table =
+        catalog.createTable(
+            TableIdentifier.parse(tableId()),
+            ICEBERG_SCHEMA,
+            PartitionSpec.unpartitioned(),
+            ImmutableMap.of("format-version", "2"));
+    List<Row> expectedRows = populateTable(table);
+    int deleteBelow = numRecords() / 2;
+
+    org.apache.iceberg.Schema deleteRowSchema = ICEBERG_SCHEMA.select("int_field");
+    OutputFile deleteOutputFile;
+    try (FileIO io = table.io()) {
+      deleteOutputFile = io.newOutputFile(table.location() + "/deletes-" + UUID.randomUUID());
+    }
+    EqualityDeleteWriter<Record> deleteWriter =
+        Parquet.writeDeletes(deleteOutputFile)
+            .createWriterFunc(GenericParquetWriter::create)
+            .overwrite()
+            .rowSchema(deleteRowSchema)
+            .withSpec(PartitionSpec.unpartitioned())
+            .equalityFieldIds(ICEBERG_SCHEMA.findField("int_field").fieldId())
+            .buildEqualityWriter();
+    try (EqualityDeleteWriter<Record> closingWriter = deleteWriter) {
+      for (int i = 0; i < deleteBelow; i++) {
+        GenericRecord deleteRecord = GenericRecord.create(deleteRowSchema);
+        deleteRecord.setField("int_field", i);
+        closingWriter.write(deleteRecord);
+      }
+    }
+    table.newRowDelta().addDeletes(deleteWriter.toDeleteFile()).commit();
+
+    List<String> expectedRemaining =
+        expectedRows.stream()
+            .filter(r -> checkStateNotNull(r.getInt32("int_field")) >= deleteBelow)
+            .map(r -> canonical(r.getString("str"), r.getInt32("int_field")))
+            .collect(Collectors.toList());
+
+    PCollection<String> afterDeletes =
+        pipeline
+            .apply(
+                "BQ read after deletes",
+                BigQueryIO.readTableRows().from(tableSpec).withMethod(Method.DIRECT_READ))
+            .apply(
+                "canonicalize after deletes",
+                MapElements.into(TypeDescriptors.strings())
+                    .via(tr -> canonical(tr.get("str"), tr.get("int_field"))));
+    PAssert.that(afterDeletes).containsInAnyOrder(expectedRemaining);
+    pipeline.run().waitUntilFinish();
   }
 
   @Test

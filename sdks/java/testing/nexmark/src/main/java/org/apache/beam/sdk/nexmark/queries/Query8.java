@@ -84,8 +84,7 @@ public class Query8 extends NexmarkQueryTransform<IdNameReserve> {
                 new DoFn<KV<Long, CoGbkResult>, IdNameReserve>() {
                   @ProcessElement
                   public void processElement(ProcessContext c) {
-                    @Nullable
-                    Person person =
+                    @Nullable Person person =
                         c.element().getValue().getOnly(NexmarkQueryUtil.PERSON_TAG, null);
                     if (person == null) {
                       // Person was not created in last window period.

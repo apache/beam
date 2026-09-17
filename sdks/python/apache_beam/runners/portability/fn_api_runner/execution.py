@@ -780,9 +780,9 @@ class FnApiRunnerExecutionContext(object):
         if transform.spec.urn == bundle_processor.DATA_INPUT_URN:
           coder_id = self.data_channel_coders[only_element(
               transform.outputs.values())]
-          coder = self.pipeline_context.coders[self.safe_coders.get(
-              coder_id, coder_id)]
           if transform.spec.payload == translations.IMPULSE_BUFFER:
+            coder = self.pipeline_context.coders[self.safe_coders.get(
+                coder_id, coder_id)]
             data_input[transform.unique_name] = ListBuffer(coder.get_impl())
             data_input[transform.unique_name].append(ENCODED_IMPULSE_VALUE)
           else:

@@ -58,6 +58,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.expressions.Literal;
 import org.apache.iceberg.types.Types;
 import org.joda.time.Instant;
 import org.junit.ClassRule;
@@ -118,6 +119,76 @@ public class IncrementalChangelogSourceTest {
         .containsInAnyOrder(
             Row.withSchema(projectedSchema).addValue(2L).build(),
             Row.withSchema(projectedSchema).addValue(3L).build());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void readsInitialDefaultFromOldFile() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tablePropertiesV3());
+    commitAppend(table, "before-schema-evolution.parquet", records(1L, "one"));
+
+    table
+        .updateSchema()
+        .addColumn(
+            "category", Types.StringType.get(), "Record category", Literal.of("default_category"))
+        .commit();
+    table.refresh();
+
+    IcebergScanConfig scanConfig =
+        baseConfigBuilder(table, tableId)
+            .setToSnapshot(table.currentSnapshot().snapshotId())
+            .build();
+    Schema outputSchema = IcebergUtils.icebergSchemaToBeamSchema(table.schema());
+
+    PCollection<Row> rows = pipeline.apply(new IncrementalChangelogSource(scanConfig));
+
+    assertEquals(outputSchema, rows.getSchema());
+    PAssert.that(rows)
+        .containsInAnyOrder(
+            Row.withSchema(outputSchema).addValues(1L, "one", "default_category").build());
+
+    pipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void overwriteUsesInitialDefaultForOldFileAndExplicitValueForNewFile() throws Exception {
+    TableIdentifier tableId = tableId();
+    Table table = warehouse.createTable(tableId, CDC_SCHEMA, null, tablePropertiesV3());
+    DataFile oldFile =
+        commitAppend(table, "before-schema-evolution.parquet", records(1L, "before"));
+
+    table
+        .updateSchema()
+        .addColumn(
+            "category", Types.StringType.get(), "Record category", Literal.of("default_category"))
+        .commit();
+    table.refresh();
+
+    Record replacement =
+        TestFixtures.createRecord(
+            table.schema(),
+            ImmutableMap.of(
+                "id", 1L,
+                "data", "after",
+                "category", "explicit_category"));
+    commitOverwrite(table, "after-schema-evolution.parquet", oldFile, replacement);
+
+    IcebergScanConfig scanConfig =
+        baseConfigBuilder(table, tableId)
+            .setFromSnapshotInclusive(table.currentSnapshot().snapshotId())
+            .setToSnapshot(table.currentSnapshot().snapshotId())
+            .build();
+
+    PCollection<String> changes =
+        pipeline
+            .apply(new IncrementalChangelogSource(scanConfig))
+            .apply("Format Defaulted Changes", ParDo.of(new FormatDefaultedChange()));
+
+    PAssert.that(changes)
+        .containsInAnyOrder(
+            "UPDATE_BEFORE:1:before:default_category", "UPDATE_AFTER:1:after:explicit_category");
 
     pipeline.run().waitUntilFinish();
   }
@@ -509,6 +580,21 @@ public class IncrementalChangelogSourceTest {
         @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
       outputReceiver.output(
           valueKind.name() + ":" + row.getInt64("id") + ":" + row.getString("data"));
+    }
+  }
+
+  private static final class FormatDefaultedChange extends DoFn<Row, String> {
+    @ProcessElement
+    public void process(
+        @Element Row row, ValueKind valueKind, OutputReceiver<String> outputReceiver) {
+      outputReceiver.output(
+          valueKind.name()
+              + ":"
+              + row.getInt64("id")
+              + ":"
+              + row.getString("data")
+              + ":"
+              + row.getString("category"));
     }
   }
 }

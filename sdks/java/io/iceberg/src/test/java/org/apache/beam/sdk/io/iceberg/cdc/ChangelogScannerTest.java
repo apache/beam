@@ -338,7 +338,7 @@ public class ChangelogScannerTest {
             .build();
     return SerializableChangelogTask.builder()
         .setType(SerializableChangelogTask.Type.ADDED_ROWS)
-        .setDataFile(SerializableDataFile.from(file, "", false))
+        .setDataFile(SerializableDataFile.from(file, PartitionSpec.unpartitioned(), false))
         .setSpecId(UNPARTITIONED_SPEC.specId())
         .setOperation(ChangelogOperation.INSERT)
         .setOrdinal(0)

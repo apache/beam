@@ -19,6 +19,7 @@ package org.apache.beam.runners.spark.translation;
 
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -32,10 +33,15 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleResponse;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateKey.TypeCase;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
+import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandler;
+import org.apache.beam.runners.fnexecution.control.BundleCheckpointHandlers;
+import org.apache.beam.runners.fnexecution.control.BundleFinalizationHandler;
 import org.apache.beam.runners.fnexecution.control.BundleProgressHandler;
 import org.apache.beam.runners.fnexecution.control.ExecutableStageContext;
 import org.apache.beam.runners.fnexecution.control.JobBundleFactory;
@@ -57,8 +63,10 @@ import org.apache.beam.runners.spark.util.ByteArray;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.fn.data.FnDataReceiver;
 import org.apache.beam.sdk.io.FileSystems;
+import org.apache.beam.sdk.state.MapState;
 import org.apache.beam.sdk.transforms.join.RawUnionValue;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.Timer;
 import org.apache.beam.sdk.util.construction.graph.ExecutableStage;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -95,10 +103,16 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       sideInputs;
   private final MetricsContainerStepMapAccumulator metricsAccumulator;
   private final Coder windowCoder;
+  // Coder for this stage's input, used to hold and replay splittable DoFn residuals.
+  private final Coder<WindowedValue<InputT>> inputCoder;
+  // Batch replays residuals in place. Streaming has nowhere to hold them across micro-batches yet.
+  private final boolean batch;
   private final JobInfo jobInfo;
 
   private transient InMemoryBagUserStateFactory bagUserStateHandlerFactory;
   private transient Object currentTimerKey;
+  private transient InMemoryTimerInternals sdfTimerInternals;
+  private transient StateInternals sdfStateInternals;
 
   SparkExecutableStageFunction(
       SerializablePipelineOptions pipelineOptions,
@@ -108,7 +122,9 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       SparkExecutableStageContextFactory contextFactory,
       Map<String, Tuple2<Broadcast<List<byte[]>>, WindowedValueCoder<SideInputT>>> sideInputs,
       MetricsContainerStepMapAccumulator metricsAccumulator,
-      Coder windowCoder) {
+      Coder windowCoder,
+      Coder<WindowedValue<InputT>> inputCoder,
+      boolean batch) {
     this.pipelineOptions = pipelineOptions;
     this.stagePayload = stagePayload;
     this.jobInfo = jobInfo;
@@ -117,6 +133,8 @@ class SparkExecutableStageFunction<InputT, SideInputT>
     this.sideInputs = sideInputs;
     this.metricsAccumulator = metricsAccumulator;
     this.windowCoder = windowCoder;
+    this.inputCoder = inputCoder;
+    this.batch = batch;
   }
 
   /** Call the executable stage function on the values of a PairRDD, ignoring the key. */
@@ -144,9 +162,18 @@ class SparkExecutableStageFunction<InputT, SideInputT>
         StateRequestHandler stateRequestHandler =
             getStateRequestHandler(
                 executableStage, stageBundleFactory.getProcessBundleDescriptor());
+        BundleCheckpointHandler checkpointHandler = getBundleCheckpointHandler(executableStage);
         if (executableStage.getTimers().size() == 0) {
           ReceiverFactory receiverFactory = new ReceiverFactory(collector, outputMap);
-          processElements(stateRequestHandler, receiverFactory, null, stageBundleFactory, inputs);
+          processElements(
+              stateRequestHandler,
+              receiverFactory,
+              null,
+              stageBundleFactory,
+              inputs,
+              checkpointHandler);
+          replaySdfResiduals(
+              stateRequestHandler, receiverFactory, null, stageBundleFactory, checkpointHandler);
           return collector.iterator();
         }
         // Used with Batch, we know that all the data is available for this key. We can't use the
@@ -173,7 +200,12 @@ class SparkExecutableStageFunction<InputT, SideInputT>
 
         // Process inputs.
         processElements(
-            stateRequestHandler, receiverFactory, timerReceiverFactory, stageBundleFactory, inputs);
+            stateRequestHandler,
+            receiverFactory,
+            timerReceiverFactory,
+            stageBundleFactory,
+            inputs,
+            checkpointHandler);
 
         // Finish any pending windows by advancing the input watermark to infinity.
         timerInternals.advanceInputWatermark(BoundedWindow.TIMESTAMP_MAX_VALUE);
@@ -182,19 +214,30 @@ class SparkExecutableStageFunction<InputT, SideInputT>
         timerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
 
         // Now we fire the timers and process elements generated by timers (which may be timers
-        // itself)
-        while (timerInternals.hasPendingTimers()) {
-          try (RemoteBundle bundle =
-              stageBundleFactory.getBundle(
-                  receiverFactory,
-                  timerReceiverFactory,
-                  stateRequestHandler,
-                  getBundleProgressHandler())) {
+        // itself). A replayed splittable DoFn residual can set a timer, and a fired timer can
+        // produce a residual, so alternate until neither has anything left.
+        do {
+          while (timerInternals.hasPendingTimers()) {
+            try (RemoteBundle bundle =
+                stageBundleFactory.getBundle(
+                    receiverFactory,
+                    timerReceiverFactory,
+                    stateRequestHandler,
+                    getBundleProgressHandler(),
+                    getBundleFinalizationHandler(),
+                    checkpointHandler)) {
 
-            PipelineTranslatorUtils.fireEligibleTimers(
-                timerInternals, bundle.getTimerReceivers(), currentTimerKey);
+              PipelineTranslatorUtils.fireEligibleTimers(
+                  timerInternals, bundle.getTimerReceivers(), currentTimerKey);
+            }
           }
-        }
+          replaySdfResiduals(
+              stateRequestHandler,
+              receiverFactory,
+              timerReceiverFactory,
+              stageBundleFactory,
+              checkpointHandler);
+        } while (timerInternals.hasPendingTimers());
         return collector.iterator();
       }
     }
@@ -207,19 +250,116 @@ class SparkExecutableStageFunction<InputT, SideInputT>
       ReceiverFactory receiverFactory,
       TimerReceiverFactory timerReceiverFactory,
       StageBundleFactory stageBundleFactory,
-      Iterator<WindowedValue<InputT>> inputs)
+      Iterator<WindowedValue<InputT>> inputs,
+      BundleCheckpointHandler checkpointHandler)
       throws Exception {
     try (RemoteBundle bundle =
         stageBundleFactory.getBundle(
             receiverFactory,
             timerReceiverFactory,
             stateRequestHandler,
-            getBundleProgressHandler())) {
+            getBundleProgressHandler(),
+            getBundleFinalizationHandler(),
+            checkpointHandler)) {
       FnDataReceiver<WindowedValue<?>> mainReceiver =
           Iterables.getOnlyElement(bundle.getInputReceivers().values());
       while (inputs.hasNext()) {
         WindowedValue<InputT> input = inputs.next();
         mainReceiver.accept(input);
+      }
+    }
+  }
+
+  private static boolean hasSdf(ExecutableStage executableStage) {
+    return executableStage.getTransforms().stream()
+        .anyMatch(
+            transform ->
+                transform
+                    .getTransform()
+                    .getSpec()
+                    .getUrn()
+                    .equals(
+                        PTransformTranslation
+                            .SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN));
+  }
+
+  // Holds a splittable DoFn's self-checkpoint residual in memory under a processing time timer, so
+  // it can be replayed once this stage has drained its inputs.
+  private BundleCheckpointHandler getBundleCheckpointHandler(ExecutableStage executableStage) {
+    sdfTimerInternals = null;
+    sdfStateInternals = null;
+    if (!batch) {
+      return response -> {
+        throw new UnsupportedOperationException(
+            "Splittable DoFn self-checkpointing is not supported on the portable Spark runner in "
+                + "streaming mode. For more details, please refer to "
+                + "https://github.com/apache/beam/issues/19468.");
+      };
+    }
+    if (!hasSdf(executableStage)) {
+      return response -> {
+        throw new UnsupportedOperationException(
+            "Self-checkpoint is only supported on splittable DoFn.");
+      };
+    }
+    sdfTimerInternals = new InMemoryTimerInternals();
+    sdfStateInternals = InMemoryStateInternals.forKey("sdf_state");
+    return new BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler<>(
+        key -> sdfTimerInternals, key -> sdfStateInternals, inputCoder, windowCoder);
+  }
+
+  // Bundle finalization needs the runner to have durably committed the bundle's output first, which
+  // this runner cannot report, so it is rejected rather than silently finalized early.
+  private BundleFinalizationHandler getBundleFinalizationHandler() {
+    return bundleId -> {
+      throw new UnsupportedOperationException(
+          "The portable Spark runner does not support bundle finalization. For more details, please "
+              + "refer to https://github.com/apache/beam/issues/19517.");
+    };
+  }
+
+  // Replays held residuals until the splittable DoFn stops asking to resume. Processing time is at
+  // infinity, so every residual is due immediately and a bounded restriction always runs out.
+  private void replaySdfResiduals(
+      StateRequestHandler stateRequestHandler,
+      ReceiverFactory receiverFactory,
+      TimerReceiverFactory timerReceiverFactory,
+      StageBundleFactory stageBundleFactory,
+      BundleCheckpointHandler checkpointHandler)
+      throws Exception {
+    if (sdfTimerInternals == null) {
+      return;
+    }
+    sdfTimerInternals.advanceProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    sdfTimerInternals.advanceSynchronizedProcessingTime(BoundedWindow.TIMESTAMP_MAX_VALUE);
+    while (sdfTimerInternals.hasPendingTimers()) {
+      try (RemoteBundle bundle =
+          stageBundleFactory.getBundle(
+              receiverFactory,
+              timerReceiverFactory,
+              stateRequestHandler,
+              getBundleProgressHandler(),
+              getBundleFinalizationHandler(),
+              checkpointHandler)) {
+        List<WindowedValue<InputT>> residuals = new ArrayList<>();
+        TimerInternals.TimerData timer;
+        while ((timer = sdfTimerInternals.removeNextProcessingTimer()) != null) {
+          MapState<String, WindowedValue<InputT>> residualState =
+              sdfStateInternals.state(
+                  timer.getNamespace(),
+                  BundleCheckpointHandlers.StateAndTimerBundleCheckpointHandler.residualStateTag(
+                      inputCoder));
+          WindowedValue<InputT> residual = residualState.get(timer.getTimerId()).read();
+          residualState.remove(timer.getTimerId());
+          if (residual != null) {
+            residuals.add(residual);
+          }
+        }
+        FnDataReceiver<WindowedValue<?>> mainReceiver =
+            Iterables.getOnlyElement(bundle.getInputReceivers().values());
+        for (WindowedValue<InputT> residual : residuals) {
+          mainReceiver.accept(residual);
+        }
       }
     }
   }

@@ -142,9 +142,8 @@ public class ComputationState {
     }
   }
 
-  public void invalidateStuckCommits(Instant stuckCommitDeadline) {
-    activeWorkState.invalidateStuckCommits(
-        stuckCommitDeadline, this::completeWorkAndScheduleNextWorkForKey);
+  public boolean hasStuckCommits(Instant stuckCommitDeadline) {
+    return activeWorkState.hasStuckCommits(stuckCommitDeadline);
   }
 
   private void execute(ExecutableWork executableWork) {

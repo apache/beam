@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.Min;
 import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.joda.time.format.PeriodFormat;
@@ -45,9 +46,6 @@ import org.joda.time.format.PeriodFormatter;
  */
 // This class should be inlined to subclasses and deleted, simplifying them too
 // https://github.com/apache/beam/issues/18117
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStateMachine {
 
   protected static final List<SerializableFunction<Instant, Instant>> IDENTITY = ImmutableList.of();
@@ -61,6 +59,7 @@ public abstract class AfterDelayFromFirstElementStateMachine extends TriggerStat
   private static final PeriodFormatter PERIOD_FORMATTER = PeriodFormat.wordBased(Locale.ENGLISH);
 
   /** To complete an implementation, return the desired time from the TriggerContext. */
+  @Pure
   public abstract @Nullable Instant getCurrentTime(TriggerStateMachine.TriggerContext context);
 
   /**

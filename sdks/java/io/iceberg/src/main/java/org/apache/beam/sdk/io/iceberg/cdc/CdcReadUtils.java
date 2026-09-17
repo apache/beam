@@ -135,7 +135,7 @@ public final class CdcReadUtils {
         outputSchema,
         checkStateNotNull(table.specs().get(task.getSpecId())),
         task.getDataFile().createDataFile(table.specs()),
-        task.getDataFile().getFileSequenceNumber(),
+        task.getDataFile().getDataSequenceNumber(),
         start,
         length,
         combined);
@@ -286,8 +286,7 @@ public final class CdcReadUtils {
     // matches).
     DeleteReader.PreloadedDeletes preloadedDeletes = DeleteReader.PreloadedDeletes.empty();
     if (!posFiles.isEmpty()) {
-      @Nullable
-      PositionPushdownResult pushdown =
+      @Nullable PositionPushdownResult pushdown =
           tryPositionByteRangePushdown(
               task, table, scanConfig, outputSchema, posFiles, eqFiles, addedDeletes);
       if (pushdown != null) {

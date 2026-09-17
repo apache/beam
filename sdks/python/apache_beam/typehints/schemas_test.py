@@ -879,6 +879,16 @@ class ParameterizedTimestampTest(unittest.TestCase):
     representation = logical_type.to_representation_type(millis_value)
     self.assertEqual(representation.subseconds, 500000)
 
+  def test_from_runner_api_rejects_missing_argument(self):
+    # A proto without the precision argument must be rejected; guessing a
+    # default precision would silently misscale subseconds.
+    proto = schema_pb2.LogicalType(
+        urn=common_urns.timestamp.urn,
+        representation=typing_to_runner_api(
+            schemas.ParameterizedTimestampShortRepresentation))
+    with self.assertRaises(ValueError):
+      schemas.LogicalType.from_runner_api(proto)
+
 
 class HypothesisTest(unittest.TestCase):
   # There is considerable variablility in runtime for this test, disable

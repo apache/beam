@@ -125,8 +125,7 @@ public interface WatermarkPolicyFactory extends Serializable {
     @Override
     public void update(KinesisRecord record) {
       watermarkParameters =
-          watermarkParameters
-              .toBuilder()
+          watermarkParameters.toBuilder()
               .setEventTime(
                   Ordering.natural()
                       .max(
