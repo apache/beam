@@ -39,6 +39,8 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.DoFn;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
@@ -431,9 +433,7 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .addNullableStringField("city")
             .build();
 
-    // In advance of the stream, update table in catalog to v2
     Table realTable = warehouse.loadTable(tableId);
-    realTable.updateSchema().addColumn("city", Types.StringType.get()).commit();
 
     Row v2Row = Row.withSchema(v2BeamSchema).addValues(101L, "alice", "San Francisco").build();
 
@@ -443,7 +443,13 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .advanceProcessingTime(Duration.standardSeconds(3))
             .advanceWatermarkToInfinity();
 
-    PCollection<Row> input = testPipeline.apply("StreamingEvolvedInput", testStream);
+    PCollection<Row> input =
+        testPipeline
+            .apply("StreamingEvolvedInput", testStream)
+            .apply(
+                "EvolveSchemaMidExecution",
+                ParDo.of(new EvolveSchemaMidExecutionDoFn(catalogConfig, tableId.toString())))
+            .setRowSchema(v2BeamSchema);
 
     IcebergIO.WriteRows write =
         IcebergIO.writeRows(catalogConfig)
@@ -520,5 +526,25 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
     assertEquals("100", items.get("maximumCacheSize"));
     assertEquals("600000", items.get("tableRefreshInterval"));
     assertEquals("3", items.get("pollingBuckets"));
+  }
+
+  private static class EvolveSchemaMidExecutionDoFn extends DoFn<Row, Row> {
+    private final IcebergCatalogConfig catalogConfig;
+    private final String tableIdString;
+
+    EvolveSchemaMidExecutionDoFn(IcebergCatalogConfig catalogConfig, String tableIdString) {
+      this.catalogConfig = catalogConfig;
+      this.tableIdString = tableIdString;
+    }
+
+    @ProcessElement
+    public void processElement(@Element Row row, OutputReceiver<Row> out) {
+      Table table =
+          catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(tableIdString));
+      if (table.schema().findField("city") == null) {
+        table.updateSchema().addColumn("city", Types.StringType.get()).commit();
+      }
+      out.output(row);
+    }
   }
 }
