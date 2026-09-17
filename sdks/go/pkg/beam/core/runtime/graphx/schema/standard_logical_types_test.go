@@ -213,3 +213,57 @@ func TestRegisterLogicalTypeConversion(t *testing.T) {
 		t.Errorf("dec(enc(reading{10})) diff (-want, +got): %v", d)
 	}
 }
+
+// millisRow has the fields of the millis_instant case of standard_coders.yaml.
+type millisRow struct {
+	F_timestamp MillisInstant `beam:"f_timestamp"`
+	F_string    string        `beam:"f_string"`
+	F_int       int64         `beam:"f_int"`
+}
+
+func TestMillisInstant_RowEncoding(t *testing.T) {
+	// The bytes are the millis_instant example of standard_coders.yaml.
+	want := millisRow{
+		F_timestamp: MillisInstant(time.Date(2020, 8, 13, 14, 14, 14, 123000000, time.UTC)),
+		F_string:    "2020-08-13T14:14:14.123Z",
+		F_int:       1597328054123,
+	}
+	wantBytes := []byte("\x03\x00\x80\x00\x01s\xe8+\xd7k\x182020-08-13T14:14:14.123Z\xeb\xae\xaf\xc1\xbe.")
+	rt := reflect.TypeOf(want)
+	enc, err := coder.RowEncoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowEncoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	var buf bytes.Buffer
+	if err := enc(want, &buf); err != nil {
+		t.Fatalf("enc(%v) = %v, want nil error", want, err)
+	}
+	if got := buf.Bytes(); !bytes.Equal(got, wantBytes) {
+		t.Fatalf("enc(%v) = %q, want %q", want, got, wantBytes)
+	}
+	dec, err := coder.RowDecoderForStruct(rt)
+	if err != nil {
+		t.Fatalf("RowDecoderForStruct(%v) = %v, want nil error", rt, err)
+	}
+	got, err := dec(bytes.NewBuffer(wantBytes))
+	if err != nil {
+		t.Fatalf("dec(%q) = %v, want nil error", wantBytes, err)
+	}
+	if d := cmp.Diff(want, got, cmp.Comparer(func(a, b MillisInstant) bool { return a.Time().Equal(b.Time()) })); d != "" {
+		t.Errorf("dec(enc(%v)) diff (-want, +got): %v", want, d)
+	}
+	// Timestamps before the epoch sort before the epoch in the encoding.
+	var before, epoch bytes.Buffer
+	if err := encodeMillisInstant(MillisInstant(time.UnixMilli(-1)), &before); err != nil {
+		t.Fatalf("encodeMillisInstant(-1ms) = %v, want nil error", err)
+	}
+	if err := encodeMillisInstant(MillisInstant(time.UnixMilli(0)), &epoch); err != nil {
+		t.Fatalf("encodeMillisInstant(epoch) = %v, want nil error", err)
+	}
+	if bytes.Compare(before.Bytes(), epoch.Bytes()) >= 0 {
+		t.Errorf("encoding of -1ms %x is not below the encoding of the epoch %x", before.Bytes(), epoch.Bytes())
+	}
+	if err := encodeMillisInstant(MillisInstant(time.Unix(0, 1500000)), &buf); err == nil {
+		t.Errorf("encodeMillisInstant(1.5ms) = nil error, want error for sub millisecond precision")
+	}
+}
