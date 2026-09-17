@@ -1,4 +1,150 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Mon, 31 Aug 2026 14:00:00 -0500</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Apache Beam 2.76.0</title><link>/blog/beam-2.76.0/</link><pubDate>Mon, 31 Aug 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.76.0/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 10 Sep 2026 00:00:00 +1000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: UnboundedSource and the Watch Transform in the Apache Beam Python SDK</title><link>/blog/python-unboundedsource-watch/</link><pubDate>Thu, 10 Sep 2026 00:00:00 +1000</pubDate><guid>/blog/python-unboundedsource-watch/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>The Apache Beam Python SDK now has an &lt;code>UnboundedSource&lt;/code> API for writing custom
+unbounded sources and a &lt;code>Watch&lt;/code> transform for repeatedly polling an input that
+keeps growing. I built both during my Google Summer of Code 2026 project with
+Apache Beam, mentored by Yi Hu.&lt;/p>
+&lt;p>This post describes both APIs as of Beam 2.77.0.&lt;/p>
+&lt;h2 id="motivation">Motivation&lt;/h2>
+&lt;p>Writing a connector for a message broker or database change feed means deciding
+how to read records, save a position, and resume after a failure. Python already
+supported custom streaming reads through a splittable DoFn (SDF). Using one
+also meant learning how to represent work as a restriction, hand unfinished
+work back to the runner, and report progress through a watermark estimator.
+&lt;code>UnboundedSource&lt;/code> wraps that machinery in a reader API so source authors can
+focus on their connector&amp;rsquo;s reading and checkpoint logic.&lt;/p>
+&lt;p>Polling a growing input raises a related problem: how to remember which results
+have already been emitted. Python&amp;rsquo;s &lt;code>fileio.MatchContinuously&lt;/code> could poll for
+new files, but its deduplication state grew with the number of matched paths.
+&lt;code>Watch&lt;/code> makes this polling logic reusable for other inputs, such as an API that
+lists newly available records. Its opt-in &lt;code>timestamp_cursor&lt;/code> mode lets old
+deduplication history expire when the input&amp;rsquo;s event times keep advancing.&lt;/p>
+&lt;h2 id="the-unboundedsource-api">The UnboundedSource API&lt;/h2>
+&lt;p>The first public Python
+&lt;a href="https://github.com/apache/beam/pull/38724">&lt;code>UnboundedSource&lt;/code> API&lt;/a> addresses a
+&lt;a href="https://github.com/apache/beam/issues/19137">long-standing gap&lt;/a> between the Java
+and Python SDKs. Source authors implement &lt;code>UnboundedSource&lt;/code>, &lt;code>UnboundedReader&lt;/code>,
+and &lt;code>CheckpointMark&lt;/code>, then read the source with &lt;code>beam.io.Read(MySource())&lt;/code>.&lt;/p>
+&lt;p>The reader exposes methods such as &lt;code>start()&lt;/code>, &lt;code>advance()&lt;/code>, &lt;code>get_current()&lt;/code>,
+&lt;code>get_current_timestamp()&lt;/code>, and &lt;code>get_checkpoint_mark()&lt;/code>. Reading must not block:
+returning &lt;code>False&lt;/code> from &lt;code>start()&lt;/code> or &lt;code>advance()&lt;/code> means that no record is available
+now, and the reader can resume when more data arrives. The reader also
+reports an event-time watermark through &lt;code>get_watermark()&lt;/code>, which Beam uses to
+track progress and determine when windows can close. A watermark of
+&lt;code>MAX_TIMESTAMP&lt;/code> signals that the source has permanently finished.&lt;/p>
+&lt;p>The SDK runs the reader through an SDF. The wrapper saves the reader&amp;rsquo;s
+checkpoint with the unfinished work and reports its watermark to the runner.
+This lets the same source implementation run on DirectRunner, Prism, Flink, and
+Dataflow. Sources can split their work at pipeline startup; an active read is
+not subdivided further.&lt;/p>
+&lt;p>The wrapper uses bundle finalization to invoke
+&lt;code>CheckpointMark.finalize_checkpoint&lt;/code> after the runner has durably committed
+the output. A message-queue source can use this hook to acknowledge consumed
+messages. Finalization is best effort: a mark may never be finalized, and
+retries can produce marks covering overlapping records. The hook must therefore
+be idempotent. Readers can also be reused across resumed bundles on the same
+worker, with idle readers evicted from a bounded cache, reducing the need to
+reopen connections.&lt;/p>
+&lt;p>Mentor review led me to limit how many records a reader can emit and how long
+it can run before yielding. The wrapper checks these limits between reads.
+A busy source needs to yield regularly so the runner can commit its progress
+and finalize checkpoints. The
+&lt;a href="/documentation/io/developing-io-python/#unboundedsource">Python I/O connector guide&lt;/a>
+includes an example source and explains the API&amp;rsquo;s lifecycle.&lt;/p>
+&lt;h2 id="the-watch-transform">The Watch transform&lt;/h2>
+&lt;p>The Python &lt;a href="https://github.com/apache/beam/pull/39023">&lt;code>Watch&lt;/code> transform&lt;/a> ports
+Java&amp;rsquo;s polling transform. For each input element, it calls a user-supplied poll
+function, emits newly discovered outputs, and saves progress between rounds.
+Polling stops when the poll reports completion or a termination condition fires.
+The API includes &lt;code>PollFn&lt;/code>, &lt;code>PollResult&lt;/code>, and the &lt;code>never()&lt;/code> and &lt;code>after_total_of()&lt;/code>
+termination conditions.&lt;/p>
+&lt;p>A single SDF manages each input&amp;rsquo;s polling, duplicate suppression, output,
+waiting, and termination. For example, a poll can repeatedly list files under
+a prefix while &lt;code>Watch&lt;/code> remembers which results it has already emitted. Keeping
+this lifecycle together also lets the transform save its deduplication state
+with its progress.&lt;/p>
+&lt;p>An output&amp;rsquo;s identity is the hash of its encoded key. The key defaults to the
+output itself, and &lt;code>output_key_fn&lt;/code> can select another identity. &lt;code>Watch&lt;/code> requires
+a deterministic key coder so equal keys produce the same fingerprint across
+workers and after a restart. A coder with no deterministic form is rejected
+when the pipeline is built.&lt;/p>
+&lt;p>The default deduplication mode retains a hash for every distinct output key,
+so its history grows throughout a long-running watch. This also allows the
+transform to recognize an item seen much earlier. The opt-in
+&lt;a href="https://github.com/apache/beam/pull/39090">&lt;code>timestamp_cursor&lt;/code> mode&lt;/a> addresses
+this &lt;a href="https://github.com/apache/beam/issues/18459">state-growth problem&lt;/a> by
+letting history expire as event time advances.&lt;/p>
+&lt;p>The cursor records the greatest emitted event time. Outputs more than
+&lt;code>allowed_lateness&lt;/code> behind it are skipped, including previously unseen ones,
+and hashes older than that threshold can be discarded. This suits inputs
+arriving in roughly non-decreasing event time. Increasing &lt;code>allowed_lateness&lt;/code>
+accommodates older arrivals while retaining more history. The cursor itself is
+a single timestamp; the retained hashes depend on the keys within that time
+range. In cursor mode, an item must keep its original event time across polls;
+assigning it a new timestamp on every poll can cause it to be emitted again
+after its hash expires.&lt;/p>
+&lt;p>&lt;a href="https://github.com/apache/beam/pull/39461">Refactoring &lt;code>MatchContinuously&lt;/code> onto &lt;code>Watch&lt;/code>&lt;/a>
+replaced its per-file state entries with the &lt;code>Watch&lt;/code> restriction, so continuous
+file matching can use cursor mode and stop accumulating an entry for every file
+it has ever matched. The existing implementation remains for users who disable
+duplicate suppression. The cursor design was also
+&lt;a href="https://github.com/apache/beam/pull/39746">ported back to Java&lt;/a>.&lt;/p>
+&lt;h2 id="validation-across-runners">Validation across runners&lt;/h2>
+&lt;p>I tested both transforms on DirectRunner, Prism, Flink, and Dataflow. The runs
+covered pause and resume behavior, acknowledgments, watermarks, and polling.
+The &lt;code>UnboundedSource&lt;/code> wrapper passed five end-to-end tests submitted
+as Dataflow streaming jobs. For &lt;code>MatchContinuously&lt;/code> on Flink, testing included
+killing a worker during a run and restoring from a checkpoint. Prism tests
+added files while a watch was running and checked that both deduplication modes
+emitted them once and terminated on time.&lt;/p>
+&lt;p>These runs exposed issues beyond the SDK implementations:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/39191">Flink&lt;/a> accumulated state entries
+when an SDF saved unfinished work. Reusing a state entry addressed the growth.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/39572">Prism&lt;/a> could leave downstream
+records unprocessed when a source paused and resumed without advancing its
+watermark. Consumers with new data are now scheduled in that case.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/39331">Portable Spark batch&lt;/a> gained
+support for retaining and resuming unfinished SDF work.&lt;/li>
+&lt;/ul>
+&lt;p>The work also produced a &lt;a href="https://github.com/apache/beam/pull/39580">local Flink contributor guide&lt;/a>,
+documenting the cluster setup used to reproduce and investigate streaming
+behavior.&lt;/p>
+&lt;h2 id="benchmarks">Benchmarks&lt;/h2>
+&lt;p>The &lt;a href="https://github.com/Eliaaazzz/gsoc-2026-beam#6-validation-and-benchmarks">local benchmarks&lt;/a>
+measured &lt;code>UnboundedSource&lt;/code> throughput and checkpoint cadence, and &lt;code>Watch&lt;/code>
+deduplication overhead as the polled set grew.&lt;/p>
+&lt;p>For &lt;code>UnboundedSource&lt;/code>, an in-memory source supplied one million records to
+isolate the wrapper&amp;rsquo;s overhead from external I/O. On Prism, a cap of 1,000
+records per invocation produced 1,001 self-checkpoints and about 34,000 records
+per second. Raising the cap to 10,000 reduced the self-checkpoint count to 101
+and reached about 44,000 records per second. A cap of 100,000 reduced the count
+to 11, with throughput still around 44,000 records per second. Throughput was
+measured from the first record to the last, excluding runner startup.&lt;/p>
+&lt;p>The &lt;code>Watch&lt;/code> benchmark repeatedly listed a set that gained 2,000 items per round
+for 100 rounds. Each item retained its original event time. Both modes emitted
+all 200,000 items once. Cursor mode reduced total time from 111 to 24 seconds
+on DirectRunner and from 59 to 15 seconds on Prism. These single-machine
+experiments show how checkpoint frequency and growing deduplication history
+affect the transforms; distributed benchmarks remain future work.&lt;/p>
+&lt;h2 id="remaining-work">Remaining work&lt;/h2>
+&lt;p>Both Python APIs remain experimental, and
+&lt;a href="https://github.com/apache/beam/issues/19468">Spark streaming SDF support&lt;/a> is
+still open. The &lt;a href="https://github.com/Eliaaazzz/gsoc-2026-beam">full project report&lt;/a>
+includes the contribution list, documentation, validation details, and benchmark
+methodology.&lt;/p>
+&lt;p>Thank you to my mentor, Yi Hu, and the Apache Beam community for their guidance
+and reviews throughout Google Summer of Code 2026.&lt;/p></description></item><item><title>Blog: Apache Beam 2.76.0</title><link>/blog/beam-2.76.0/</link><pubDate>Mon, 31 Aug 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.76.0/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5762,130 +5908,4 @@ alt="Quest image">&lt;/p>
 &lt;p>Individuals aren’t the only ones who can benefit from completing this quest - organizations can too! Because earning this badge represents deep knowledge of an industry leading big data library, having the badge validates your organization’s understanding of Beam. In addition, you can run the Beam library on a wide variety of runners, including Google Cloud Dataflow, Flink, Spark, and more, making knowledge about this library highly transferable. Finally, your organization can use this quest as onboarding material for new hires on big data teams, allowing teams and organizations to get their newest employees up-to-date on the latest and greatest that Apache Beam has to offer.&lt;/p>
 &lt;p>Data Processing is a key part of AI/ML workflows. Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey &lt;a href="https://www.cloudskillsboost.google/quests/310">here&lt;/a>.&lt;/p>
 &lt;p>We are currently offering this quest &lt;strong>FREE OF CHARGE&lt;/strong>. To obtain your badge for &lt;strong>FREE&lt;/strong>, use the &lt;a href="https://www.cloudskillsboost.google/catalog?qlcampaign=1h-swiss-19">Access Code&lt;/a>, create an account, and search &lt;a href="https://www.cloudskillsboost.google/course_templates/724">&amp;ldquo;Getting Started with Apache Beam&amp;rdquo;&lt;/a>. If the code does not work, please email &lt;a href="dev@beam.apache.org">dev@beam.apache.org&lt;/a> to obtain a free code.&lt;/p>
-&lt;p>PS: Once you earn your badge, please &lt;a href="https://support.google.com/qwiklabs/answer/9222527?hl=en&amp;amp;sjid=14905615709060962899-NA">share it on social media&lt;/a>!&lt;/p></description></item><item><title>Blog: Apache Beam 2.48.0</title><link>/blog/beam-2.48.0/</link><pubDate>Wed, 31 May 2023 11:30:00 -0400</pubDate><guid>/blog/beam-2.48.0/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.48.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2480-2023-05-31">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.48.0, check out the &lt;a href="https://github.com/apache/beam/milestone/12">detailed release notes&lt;/a>.&lt;/p>
-&lt;p>&lt;strong>Note: The release tag for Go SDK for this release is sdks/v2.48.2 instead of sdks/v2.48.0 because of incorrect commit attached to the release tag sdks/v2.48.0.&lt;/strong>&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>&amp;ldquo;Experimental&amp;rdquo; annotation cleanup: the annotation and concept have been removed from Beam to avoid
-the misperception of code as &amp;ldquo;not ready&amp;rdquo;. Any proposed breaking changes will be subject to
-case-by-case pro/con decision making (and generally avoided) rather than using the &amp;ldquo;Experimental&amp;rdquo;
-to allow them.&lt;/li>
-&lt;/ul>
-&lt;h2 id="ios">I/Os&lt;/h2>
-&lt;ul>
-&lt;li>Added rename for GCS and copy for local filesystem (Go) (&lt;a href="https://github.com/apache/beam/issues/26064">#25779&lt;/a>).&lt;/li>
-&lt;li>Added support for enhanced fan-out in KinesisIO.Read (Java) (&lt;a href="https://github.com/apache/beam/issues/19967">#19967&lt;/a>).
-&lt;ul>
-&lt;li>This change is not compatible with Flink savepoints created by Beam 2.46.0 applications which had KinesisIO sources.&lt;/li>
-&lt;/ul>
-&lt;/li>
-&lt;li>Added textio.ReadWithFilename transform (Go) (&lt;a href="https://github.com/apache/beam/issues/25812">#25812&lt;/a>).&lt;/li>
-&lt;li>Added fileio.MatchContinuously transform (Go) (&lt;a href="https://github.com/apache/beam/issues/26186">#26186&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="new-features--improvements">New Features / Improvements&lt;/h2>
-&lt;ul>
-&lt;li>Allow passing service name for google-cloud-profiler (Python) (&lt;a href="https://github.com/apache/beam/issues/26280">#26280&lt;/a>).&lt;/li>
-&lt;li>Dead letter queue support added to RunInference in Python (&lt;a href="https://github.com/apache/beam/issues/24209">#24209&lt;/a>).&lt;/li>
-&lt;li>Support added for defining pre/postprocessing operations on the RunInference transform (&lt;a href="https://github.com/apache/beam/issues/26308">#26308&lt;/a>)&lt;/li>
-&lt;li>Adds a Docker Compose based transform service that can be used to discover and use portable Beam transforms (&lt;a href="https://github.com/apache/beam/pull/26023">#26023&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="breaking-changes">Breaking Changes&lt;/h2>
-&lt;ul>
-&lt;li>Passing a tag into MultiProcessShared is now required in the Python SDK (&lt;a href="https://github.com/apache/beam/issues/26168">#26168&lt;/a>).&lt;/li>
-&lt;li>CloudDebuggerOptions is removed (deprecated in Beam v2.47.0) for Dataflow runner as the Google Cloud Debugger service is &lt;a href="https://cloud.google.com/debugger/docs/deprecations">shutting down&lt;/a>. (Java) (&lt;a href="https://github.com/apache/beam/issues/25959">#25959&lt;/a>).&lt;/li>
-&lt;li>AWS 2 client providers (deprecated in Beam &lt;a href="#2380---2022-04-20">v2.38.0&lt;/a>) are finally removed (&lt;a href="https://github.com/apache/beam/issues/26681">#26681&lt;/a>).&lt;/li>
-&lt;li>AWS 2 SnsIO.writeAsync (deprecated in Beam v2.37.0 due to risk of data loss) was finally removed (&lt;a href="https://github.com/apache/beam/issues/26710">#26710&lt;/a>).&lt;/li>
-&lt;li>AWS 2 coders (deprecated in Beam v2.43.0 when adding Schema support for AWS Sdk Pojos) are finally removed (&lt;a href="https://github.com/apache/beam/issues/23315">#23315&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="bugfixes">Bugfixes&lt;/h2>
-&lt;ul>
-&lt;li>Fixed Java bootloader failing with Too Long Args due to long classpaths, with a pathing jar. (Java) (&lt;a href="https://github.com/apache/beam/issues/25582">#25582&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="known-issues">Known Issues&lt;/h2>
-&lt;ul>
-&lt;li>PubsubIO writes will throw &lt;em>SizeLimitExceededException&lt;/em> for any message above 100 bytes, when used in batch (bounded) mode. (Java) (&lt;a href="https://github.com/apache/beam/issues/27000">#27000&lt;/a>).&lt;/li>
-&lt;li>Long-running Python pipelines might experience a memory leak: &lt;a href="https://github.com/apache/beam/issues/28246">#28246&lt;/a>.&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.48.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Abzal Tuganbay&lt;/p>
-&lt;p>Ahmed Abualsaud&lt;/p>
-&lt;p>Alexey Romanenko&lt;/p>
-&lt;p>Anand Inguva&lt;/p>
-&lt;p>Andrei Gurau&lt;/p>
-&lt;p>Andrey Devyatkin&lt;/p>
-&lt;p>Balázs Németh&lt;/p>
-&lt;p>Bazyli Polednia&lt;/p>
-&lt;p>Bruno Volpato&lt;/p>
-&lt;p>Chamikara Jayalath&lt;/p>
-&lt;p>Clay Johnson&lt;/p>
-&lt;p>Damon&lt;/p>
-&lt;p>Daniel Arn&lt;/p>
-&lt;p>Danny McCormick&lt;/p>
-&lt;p>Darkhan Nausharipov&lt;/p>
-&lt;p>Dip Patel&lt;/p>
-&lt;p>Dmitry Repin&lt;/p>
-&lt;p>George Novitskiy&lt;/p>
-&lt;p>Israel Herraiz&lt;/p>
-&lt;p>Jack Dingilian&lt;/p>
-&lt;p>Jack McCluskey&lt;/p>
-&lt;p>Jan Lukavský&lt;/p>
-&lt;p>Jasper Van den Bossche&lt;/p>
-&lt;p>Jeff Zhang&lt;/p>
-&lt;p>Jeremy Edwards&lt;/p>
-&lt;p>Johanna Öjeling&lt;/p>
-&lt;p>John Casey&lt;/p>
-&lt;p>Katie Liu&lt;/p>
-&lt;p>Kenneth Knowles&lt;/p>
-&lt;p>Kerry Donny-Clark&lt;/p>
-&lt;p>Kuba Rauch&lt;/p>
-&lt;p>Liam Miller-Cushon&lt;/p>
-&lt;p>MakarkinSAkvelon&lt;/p>
-&lt;p>Mattie Fu&lt;/p>
-&lt;p>Michel Davit&lt;/p>
-&lt;p>Moritz Mack&lt;/p>
-&lt;p>Nick Li&lt;/p>
-&lt;p>Oleh Borysevych&lt;/p>
-&lt;p>Pablo Estrada&lt;/p>
-&lt;p>Pranav Bhandari&lt;/p>
-&lt;p>Pranjal Joshi&lt;/p>
-&lt;p>Rebecca Szper&lt;/p>
-&lt;p>Reuven Lax&lt;/p>
-&lt;p>Ritesh Ghorse&lt;/p>
-&lt;p>Robert Bradshaw&lt;/p>
-&lt;p>Robert Burke&lt;/p>
-&lt;p>Rouslan&lt;/p>
-&lt;p>RuiLong J&lt;/p>
-&lt;p>RyujiTamaki&lt;/p>
-&lt;p>Sam Whittle&lt;/p>
-&lt;p>Sanil Jain&lt;/p>
-&lt;p>Svetak Sundhar&lt;/p>
-&lt;p>Timur Sultanov&lt;/p>
-&lt;p>Tony Tang&lt;/p>
-&lt;p>Udi Meiri&lt;/p>
-&lt;p>Valentyn Tymofieiev&lt;/p>
-&lt;p>Vishal Bhise&lt;/p>
-&lt;p>Vitaly Terentyev&lt;/p>
-&lt;p>Xinyu Liu&lt;/p>
-&lt;p>Yi Hu&lt;/p>
-&lt;p>bullet03&lt;/p>
-&lt;p>darshan-sj&lt;/p>
-&lt;p>kellen&lt;/p>
-&lt;p>liferoad&lt;/p>
-&lt;p>mokamoka03210120&lt;/p>
-&lt;p>psolomin&lt;/p></description></item></channel></rss>
+&lt;p>PS: Once you earn your badge, please &lt;a href="https://support.google.com/qwiklabs/answer/9222527?hl=en&amp;amp;sjid=14905615709060962899-NA">share it on social media&lt;/a>!&lt;/p></description></item></channel></rss>

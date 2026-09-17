@@ -1,4 +1,150 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.76.0</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>UnboundedSource and the Watch Transform in the Apache Beam Python SDK</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>The Apache Beam Python SDK now has an &lt;code>UnboundedSource&lt;/code> API for writing custom
+unbounded sources and a &lt;code>Watch&lt;/code> transform for repeatedly polling an input that
+keeps growing. I built both during my Google Summer of Code 2026 project with
+Apache Beam, mentored by Yi Hu.&lt;/p>
+&lt;p>This post describes both APIs as of Beam 2.77.0.&lt;/p>
+&lt;h2 id="motivation">Motivation&lt;/h2>
+&lt;p>Writing a connector for a message broker or database change feed means deciding
+how to read records, save a position, and resume after a failure. Python already
+supported custom streaming reads through a splittable DoFn (SDF). Using one
+also meant learning how to represent work as a restriction, hand unfinished
+work back to the runner, and report progress through a watermark estimator.
+&lt;code>UnboundedSource&lt;/code> wraps that machinery in a reader API so source authors can
+focus on their connector&amp;rsquo;s reading and checkpoint logic.&lt;/p>
+&lt;p>Polling a growing input raises a related problem: how to remember which results
+have already been emitted. Python&amp;rsquo;s &lt;code>fileio.MatchContinuously&lt;/code> could poll for
+new files, but its deduplication state grew with the number of matched paths.
+&lt;code>Watch&lt;/code> makes this polling logic reusable for other inputs, such as an API that
+lists newly available records. Its opt-in &lt;code>timestamp_cursor&lt;/code> mode lets old
+deduplication history expire when the input&amp;rsquo;s event times keep advancing.&lt;/p>
+&lt;h2 id="the-unboundedsource-api">The UnboundedSource API&lt;/h2>
+&lt;p>The first public Python
+&lt;a href="https://github.com/apache/beam/pull/38724">&lt;code>UnboundedSource&lt;/code> API&lt;/a> addresses a
+&lt;a href="https://github.com/apache/beam/issues/19137">long-standing gap&lt;/a> between the Java
+and Python SDKs. Source authors implement &lt;code>UnboundedSource&lt;/code>, &lt;code>UnboundedReader&lt;/code>,
+and &lt;code>CheckpointMark&lt;/code>, then read the source with &lt;code>beam.io.Read(MySource())&lt;/code>.&lt;/p>
+&lt;p>The reader exposes methods such as &lt;code>start()&lt;/code>, &lt;code>advance()&lt;/code>, &lt;code>get_current()&lt;/code>,
+&lt;code>get_current_timestamp()&lt;/code>, and &lt;code>get_checkpoint_mark()&lt;/code>. Reading must not block:
+returning &lt;code>False&lt;/code> from &lt;code>start()&lt;/code> or &lt;code>advance()&lt;/code> means that no record is available
+now, and the reader can resume when more data arrives. The reader also
+reports an event-time watermark through &lt;code>get_watermark()&lt;/code>, which Beam uses to
+track progress and determine when windows can close. A watermark of
+&lt;code>MAX_TIMESTAMP&lt;/code> signals that the source has permanently finished.&lt;/p>
+&lt;p>The SDK runs the reader through an SDF. The wrapper saves the reader&amp;rsquo;s
+checkpoint with the unfinished work and reports its watermark to the runner.
+This lets the same source implementation run on DirectRunner, Prism, Flink, and
+Dataflow. Sources can split their work at pipeline startup; an active read is
+not subdivided further.&lt;/p>
+&lt;p>The wrapper uses bundle finalization to invoke
+&lt;code>CheckpointMark.finalize_checkpoint&lt;/code> after the runner has durably committed
+the output. A message-queue source can use this hook to acknowledge consumed
+messages. Finalization is best effort: a mark may never be finalized, and
+retries can produce marks covering overlapping records. The hook must therefore
+be idempotent. Readers can also be reused across resumed bundles on the same
+worker, with idle readers evicted from a bounded cache, reducing the need to
+reopen connections.&lt;/p>
+&lt;p>Mentor review led me to limit how many records a reader can emit and how long
+it can run before yielding. The wrapper checks these limits between reads.
+A busy source needs to yield regularly so the runner can commit its progress
+and finalize checkpoints. The
+&lt;a href="/documentation/io/developing-io-python/#unboundedsource">Python I/O connector guide&lt;/a>
+includes an example source and explains the API&amp;rsquo;s lifecycle.&lt;/p>
+&lt;h2 id="the-watch-transform">The Watch transform&lt;/h2>
+&lt;p>The Python &lt;a href="https://github.com/apache/beam/pull/39023">&lt;code>Watch&lt;/code> transform&lt;/a> ports
+Java&amp;rsquo;s polling transform. For each input element, it calls a user-supplied poll
+function, emits newly discovered outputs, and saves progress between rounds.
+Polling stops when the poll reports completion or a termination condition fires.
+The API includes &lt;code>PollFn&lt;/code>, &lt;code>PollResult&lt;/code>, and the &lt;code>never()&lt;/code> and &lt;code>after_total_of()&lt;/code>
+termination conditions.&lt;/p>
+&lt;p>A single SDF manages each input&amp;rsquo;s polling, duplicate suppression, output,
+waiting, and termination. For example, a poll can repeatedly list files under
+a prefix while &lt;code>Watch&lt;/code> remembers which results it has already emitted. Keeping
+this lifecycle together also lets the transform save its deduplication state
+with its progress.&lt;/p>
+&lt;p>An output&amp;rsquo;s identity is the hash of its encoded key. The key defaults to the
+output itself, and &lt;code>output_key_fn&lt;/code> can select another identity. &lt;code>Watch&lt;/code> requires
+a deterministic key coder so equal keys produce the same fingerprint across
+workers and after a restart. A coder with no deterministic form is rejected
+when the pipeline is built.&lt;/p>
+&lt;p>The default deduplication mode retains a hash for every distinct output key,
+so its history grows throughout a long-running watch. This also allows the
+transform to recognize an item seen much earlier. The opt-in
+&lt;a href="https://github.com/apache/beam/pull/39090">&lt;code>timestamp_cursor&lt;/code> mode&lt;/a> addresses
+this &lt;a href="https://github.com/apache/beam/issues/18459">state-growth problem&lt;/a> by
+letting history expire as event time advances.&lt;/p>
+&lt;p>The cursor records the greatest emitted event time. Outputs more than
+&lt;code>allowed_lateness&lt;/code> behind it are skipped, including previously unseen ones,
+and hashes older than that threshold can be discarded. This suits inputs
+arriving in roughly non-decreasing event time. Increasing &lt;code>allowed_lateness&lt;/code>
+accommodates older arrivals while retaining more history. The cursor itself is
+a single timestamp; the retained hashes depend on the keys within that time
+range. In cursor mode, an item must keep its original event time across polls;
+assigning it a new timestamp on every poll can cause it to be emitted again
+after its hash expires.&lt;/p>
+&lt;p>&lt;a href="https://github.com/apache/beam/pull/39461">Refactoring &lt;code>MatchContinuously&lt;/code> onto &lt;code>Watch&lt;/code>&lt;/a>
+replaced its per-file state entries with the &lt;code>Watch&lt;/code> restriction, so continuous
+file matching can use cursor mode and stop accumulating an entry for every file
+it has ever matched. The existing implementation remains for users who disable
+duplicate suppression. The cursor design was also
+&lt;a href="https://github.com/apache/beam/pull/39746">ported back to Java&lt;/a>.&lt;/p>
+&lt;h2 id="validation-across-runners">Validation across runners&lt;/h2>
+&lt;p>I tested both transforms on DirectRunner, Prism, Flink, and Dataflow. The runs
+covered pause and resume behavior, acknowledgments, watermarks, and polling.
+The &lt;code>UnboundedSource&lt;/code> wrapper passed five end-to-end tests submitted
+as Dataflow streaming jobs. For &lt;code>MatchContinuously&lt;/code> on Flink, testing included
+killing a worker during a run and restoring from a checkpoint. Prism tests
+added files while a watch was running and checked that both deduplication modes
+emitted them once and terminated on time.&lt;/p>
+&lt;p>These runs exposed issues beyond the SDK implementations:&lt;/p>
+&lt;ul>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/39191">Flink&lt;/a> accumulated state entries
+when an SDF saved unfinished work. Reusing a state entry addressed the growth.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/39572">Prism&lt;/a> could leave downstream
+records unprocessed when a source paused and resumed without advancing its
+watermark. Consumers with new data are now scheduled in that case.&lt;/li>
+&lt;li>&lt;a href="https://github.com/apache/beam/pull/39331">Portable Spark batch&lt;/a> gained
+support for retaining and resuming unfinished SDF work.&lt;/li>
+&lt;/ul>
+&lt;p>The work also produced a &lt;a href="https://github.com/apache/beam/pull/39580">local Flink contributor guide&lt;/a>,
+documenting the cluster setup used to reproduce and investigate streaming
+behavior.&lt;/p>
+&lt;h2 id="benchmarks">Benchmarks&lt;/h2>
+&lt;p>The &lt;a href="https://github.com/Eliaaazzz/gsoc-2026-beam#6-validation-and-benchmarks">local benchmarks&lt;/a>
+measured &lt;code>UnboundedSource&lt;/code> throughput and checkpoint cadence, and &lt;code>Watch&lt;/code>
+deduplication overhead as the polled set grew.&lt;/p>
+&lt;p>For &lt;code>UnboundedSource&lt;/code>, an in-memory source supplied one million records to
+isolate the wrapper&amp;rsquo;s overhead from external I/O. On Prism, a cap of 1,000
+records per invocation produced 1,001 self-checkpoints and about 34,000 records
+per second. Raising the cap to 10,000 reduced the self-checkpoint count to 101
+and reached about 44,000 records per second. A cap of 100,000 reduced the count
+to 11, with throughput still around 44,000 records per second. Throughput was
+measured from the first record to the last, excluding runner startup.&lt;/p>
+&lt;p>The &lt;code>Watch&lt;/code> benchmark repeatedly listed a set that gained 2,000 items per round
+for 100 rounds. Each item retained its original event time. Both modes emitted
+all 200,000 items once. Cursor mode reduced total time from 111 to 24 seconds
+on DirectRunner and from 59 to 15 seconds on Prism. These single-machine
+experiments show how checkpoint frequency and growing deduplication history
+affect the transforms; distributed benchmarks remain future work.&lt;/p>
+&lt;h2 id="remaining-work">Remaining work&lt;/h2>
+&lt;p>Both Python APIs remain experimental, and
+&lt;a href="https://github.com/apache/beam/issues/19468">Spark streaming SDF support&lt;/a> is
+still open. The &lt;a href="https://github.com/Eliaaazzz/gsoc-2026-beam">full project report&lt;/a>
+includes the contribution list, documentation, validation details, and benchmark
+methodology.&lt;/p>
+&lt;p>Thank you to my mentor, Yi Hu, and the Apache Beam community for their guidance
+and reviews throughout Google Summer of Code 2026.&lt;/p></description><link>/blog/python-unboundedsource-watch/</link><pubDate>Thu, 10 Sep 2026 00:00:00 +1000</pubDate><guid>/blog/python-unboundedsource-watch/</guid><category>blog</category><category>gsoc</category></item><item><title>Apache Beam 2.76.0</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -501,41 +647,4 @@ function (un-partitioned topics, without schema support, timestamp ordered messa
 &lt;/ul>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.69.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Andrew Crites, Arun Pandian, Bryan Dang, Chamikara Jayalath, Charles Nguyen, Chenzo, Clay Johnson, Danny McCormick, David A, Derrick Williams, Enrique Calderon, Hai Joey Tran, Ian Liao, Ian Mburu, Jack McCluskey, Jiang Zhu, Joey Tran, Kenneth Knowles, Kyle Stanley, Maciej Szwaja, Minbo Bae, Mohamed Awnallah, Radek Stankiewicz, Radosław Stankiewicz, Razvan Culea, Reuven Lax, Sagnik Ghosh, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, Yilei, claudevdm, flpablo, fozzie15, johnjcasey, lim1t, parveensania, yashu&lt;/p></description><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><category>blog</category><category>release</category></item><item><title>Google Summer of Code 2025 - Enhanced Interactive Pipeline Development Environment for JupyterLab</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;h1 id="gsoc-2025-basic-information">GSoC 2025 Basic Information&lt;/h1>
-&lt;p>&lt;strong>Student:&lt;/strong> [Canyu Chen] (&lt;a href="https://github.com/Chenzo1001">@Chenzo1001&lt;/a>)
-&lt;strong>Mentors:&lt;/strong> [XQ Hu] (&lt;a href="https://github.com/liferoad">@liferoad&lt;/a>)
-&lt;strong>Organization:&lt;/strong> [Apache Beam]
-&lt;strong>Proposal Link:&lt;/strong> &lt;a href="https://drive.google.com/file/d/1gmrSUGpXMXujVnFffuj0UWQjbghWI8Oy/view?usp=sharing">Here&lt;/a>&lt;/p>
-&lt;h1 id="project-overview">Project Overview&lt;/h1>
-&lt;p>BeamVision significantly enhances the Apache Beam development experience within JupyterLab by providing a unified, visual interface for pipeline inspection and analysis. This project successfully delivered a production-ready JupyterLab extension that replaces fragmented workflows with an integrated workspace, featuring a dynamic side panel for pipeline visualization and a multi-tab interface for comparative workflow analysis.&lt;/p>
-&lt;p>Core Achievements:&lt;/p>
-&lt;p>Modernized Extension: Upgraded the JupyterLab Sidepanel to v4.x, ensuring compatibility with the latest ecosystem and releasing the package on both &lt;a href="https://www.npmjs.com/package/apache-beam-jupyterlab-sidepanel">NPM&lt;/a> and &lt;a href="https://pypi.org/project/apache-beam-jupyterlab-sidepanel/">PyPI&lt;/a>.&lt;/p>
-&lt;p>YAML Visualization Suite: Implemented a powerful visual editor for Beam YAML, combining a code editor, an interactive flow chart (built with @xyflow/react-flow), and a collapsible key-value panel for intuitive pipeline design.&lt;/p>
-&lt;p>Enhanced Accessibility &amp;amp; Stability: Added pip installation support and fixed critical bugs in Interactive Beam, improving stability and user onboarding.&lt;/p>
-&lt;p>Community Engagement: Active participation in the Beam community, including contributing to a hackathon project and successfully integrating all work into the Apache Beam codebase via merged Pull Requests.&lt;/p>
-&lt;h1 id="development-workflow">Development Workflow&lt;/h1>
-&lt;p>As early as the beginning of March, I saw Apache&amp;rsquo;s project information on the official GSoC website and came across Beam among the projects released by Apache. Since I have some interest in front-end development and wanted to truly integrate into the open-source community for development work, I contacted mentor XQ Hu via email and received positive feedback from him. In April, XQ Hu posted notes for all GSoC students on the Beam Mailing List. It was essential to keep an eye on the Mailing List promptly. Between March and May, besides completing the project proposal and preparation work, I also used my spare time to partially migrate the Beam JupyterLab Extension to version 4.0. This helped me get into the development state more quickly.&lt;/p>
-&lt;p>I also participated in the Beam Hackathon held in May. There were several topics to choose from, and I opted for the free topic. This allowed me to implement any innovative work on Beam. I combined Beam and GCP to create an &lt;a href="https://github.com/Chenzo1001/Beam_auto_emotion_analysis">Automatic Emotion Analysis Tool for comments&lt;/a>. This tool integrates Beam Pipeline, Flink, Docker, and GCP to collect and perform sentiment analysis on real-time comment stream data, storing the results in GCP&amp;rsquo;s BigQuery. This is a highly meaningful task because sentiment analysis of comments can help businesses better understand users&amp;rsquo; opinions about their products, thereby improving the products more effectively. However, the time during the Hackathon was too tight, so I haven&amp;rsquo;t fully completed this project yet, and it can be further improved later. This Hackathon gave me a deeper understanding of Beam and GCP, and also enhanced my knowledge of the development of the Beam JupyterLab Extension.&lt;/p>
-&lt;p>In June, I officially started the project development and maintained close communication with my mentor to ensure the project progressed smoothly. XQ Hu and I held a half-hour weekly meeting every Monday on Google Meet, primarily to address issues encountered during the previous week&amp;rsquo;s development and to discuss the tasks for the upcoming week. XQ Hu is an excellent mentor, and I had no communication barriers with him whatsoever. He is also very understanding; sometimes, when I needed to postpone some development tasks due to personal reasons, he was always supportive and gave me ample freedom. During this month, I improved the plugin to make it fully compatible with JupyterLab 4.0.&lt;/p>
-&lt;p>In July and August, I made some modifications to the plugin&amp;rsquo;s source code structure and published it on PyPI to facilitate user installation and promote the plugin. During this period, I also fixed several bugs. Afterwards, I began developing a new feature: the YAML visual editor (design doc &lt;a href="https://s.apache.org/beam-yaml-jupyterlab">HERE&lt;/a>). This feature is particularly meaningful because Beam&amp;rsquo;s Pipeline is described through YAML files, and a visual editor for YAML files can significantly improve developers&amp;rsquo; efficiency. In July, I published the proposal for the YAML visual editor and, after gathering feedback from the community for some time, started working on its development. Initially, I planned to use native Cytoscape to build the plugin from scratch, but the workload was too heavy, and there were many mature flow chart plugins in the open-source community that could be referenced. Therefore, I chose XYFlow as the component for flow visualization and integrated it into the plugin. In August, I further optimized the YAML visual editor and fixed some bugs.&lt;/p>
-&lt;img src="/images/blog/gsoc-25-jupyterlab-extensions/Yaml_main.png" alt="Main page of the YAML visual editor" width="100%">
-&lt;p>In September, I completed the project submission, passed Google&amp;rsquo;s review, and successfully concluded the project.&lt;/p>
-&lt;h1 id="development-conclusion">Development Conclusion&lt;/h1>
-&lt;p>Overall, collaborating with Apache Beam&amp;rsquo;s developers was a very enjoyable process. I learned a lot about Beam, and since I am a student engaged in high-performance geographic computing research, Beam may play a significant role in my future studies and work.&lt;/p>
-&lt;p>I am excited to remain an active member of the Beam community. I hope to continue contributing to its development, applying what I have learned to both my academic pursuits and future collaborative projects. The experience has strengthened my commitment to open-source innovation and has set a strong foundation for ongoing participation in Apache Beam and related technologies.&lt;/p>
-&lt;h1 id="special-thanks">Special Thanks&lt;/h1>
-&lt;p>I would like to express my sincere gratitude to my mentor XQ Hu for his guidance and support throughout the project. Without his help, I would not have been able to complete this project successfully. His professionalism, patience, and passion have been truly inspiring. As a Google employee, he consistently dedicated time each week to the open-source community and willingly assisted students like me. His selfless dedication to open source is something I deeply admire and strive to emulate. He is also an exceptionally devoted teacher who not only imparted technical knowledge but also taught me how to communicate more effectively, handle interpersonal relationships, and collaborate better in a team setting. He always patiently addressed my questions and provided invaluable advice. I am immensely grateful to him and hope to have the opportunity to work with him again in the future.&lt;/p>
-&lt;p>I also want to thank the Apache Beam community for their valuable feedback and suggestions, which have greatly contributed to the improvement of the plugin. I feel incredibly fortunate that we, as a society, have open-source communities where individuals contribute their intellect and time to drive collective technological progress and innovation. These communities provide students like me with invaluable opportunities to grow and develop rapidly.&lt;/p>
-&lt;p>Finally, I would like to thank the Google Summer of Code program for providing me with this opportunity to contribute to open-source projects and gain valuable experience. Without Google Summer of Code, I might never have had the chance to engage with so many open-source projects, take that first step into the open-source community, or experience such substantial personal and professional growth.&lt;/p></description><link>/blog/gsoc-25-jupyterlab-extensions/</link><pubDate>Tue, 14 Oct 2025 00:00:00 +0800</pubDate><guid>/blog/gsoc-25-jupyterlab-extensions/</guid><category>blog</category><category>gsoc</category></item></channel></rss>
+&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Andrew Crites, Arun Pandian, Bryan Dang, Chamikara Jayalath, Charles Nguyen, Chenzo, Clay Johnson, Danny McCormick, David A, Derrick Williams, Enrique Calderon, Hai Joey Tran, Ian Liao, Ian Mburu, Jack McCluskey, Jiang Zhu, Joey Tran, Kenneth Knowles, Kyle Stanley, Maciej Szwaja, Minbo Bae, Mohamed Awnallah, Radek Stankiewicz, Radosław Stankiewicz, Razvan Culea, Reuven Lax, Sagnik Ghosh, Sam Whittle, Shunping Huang, Steven van Rossum, Talat UYARER, Tanu Sharma, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, Yilei, claudevdm, flpablo, fozzie15, johnjcasey, lim1t, parveensania, yashu&lt;/p></description><link>/blog/beam-2.69.0/</link><pubDate>Tue, 28 Oct 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.69.0/</guid><category>blog</category><category>release</category></item></channel></rss>
