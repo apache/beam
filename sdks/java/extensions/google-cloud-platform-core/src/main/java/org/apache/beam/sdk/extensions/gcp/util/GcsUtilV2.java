@@ -118,6 +118,14 @@ class GcsUtilV2 {
   private static final int MAX_REQUESTS_PER_BATCH = 100;
 
   /**
+   * Upload chunk size applied when the pipeline does not ask for one. Mirrors gcsio's {@code
+   * AsyncWriteChannelOptions} default, which java-storage does not share.
+   */
+  @VisibleForTesting
+  static final int DEFAULT_UPLOAD_CHUNK_SIZE_BYTES =
+      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024 ? 8 * 1024 * 1024 : 3 * 8 * 1024 * 1024;
+
+  /**
    * Limit the number of bytes Cloud Storage will attempt to copy before responding to an individual
    * request. If you see Read Timeout errors, try reducing this value.
    */
@@ -892,9 +900,8 @@ class GcsUtilV2 {
           options.getUploadBufferSizeBytes() != null
               ? options.getUploadBufferSizeBytes()
               : this.uploadBufferSizeBytes;
-      if (uploadBufferSizeBytes != null) {
-        writer.setChunkSize(uploadBufferSizeBytes);
-      }
+      writer.setChunkSize(
+          uploadBufferSizeBytes != null ? uploadBufferSizeBytes : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
 
       serviceCallMetric.call("ok");
       // Return the bridge wrapper
