@@ -26,6 +26,7 @@ import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.io.iceberg.cdc.IncrementalChangelogSource;
+import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
@@ -391,6 +392,23 @@ public class IcebergIO {
         .setDistributionMode(DistributionMode.NONE)
         .setAutoSharding(false)
         .build();
+  }
+
+  /**
+   * Returns a {@link WriteCdcRows} transform: the CDC sink, applying inserts/updates/deletes from a
+   * {@code PCollection<Row>} of change records (each carrying a {@link
+   * org.apache.beam.sdk.values.ValueKind}) to one or more Iceberg V2+ tables via equality deletes;
+   * superseded rows are never written.
+   *
+   * <pre>{@code
+   * input.apply(IcebergIO.writeCdcRows(catalogConfig)
+   *     .to(tableId)
+   *     .withSequenceNumberColumn("seq")
+   *     .withTriggeringFrequency(Duration.standardMinutes(1)));
+   * }</pre>
+   */
+  public static WriteCdcRows writeCdcRows(IcebergCatalogConfig catalog) {
+    return WriteCdcRows.of(catalog);
   }
 
   @AutoValue
