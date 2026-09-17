@@ -555,16 +555,6 @@ public class IcebergIO {
     }
 
     /**
-     * Configures whether to enable expirable side-input caching of Iceberg table metadata across
-     * workers.
-     *
-     * @param enabled true to enable side-input table caching; false to disable it
-     */
-    public WriteRows withSideInputTableCache(boolean enabled) {
-      return toBuilder().setUsingSideInputTableCache(enabled).build();
-    }
-
-    /**
      * Sets the maximum number of distinct table metadata specifications to broadcast in the
      * side-input cache. Any tables exceeding this limit fall back to worker-local catalog loading.
      *
@@ -573,10 +563,7 @@ public class IcebergIO {
      */
     public WriteRows withMaximumCacheSize(int maximumCacheSize) {
       Preconditions.checkArgument(maximumCacheSize > 0, "maximumCacheSize must be greater than 0");
-      return toBuilder()
-          .setUsingSideInputTableCache(true)
-          .setMaximumCacheSize(maximumCacheSize)
-          .build();
+      return toBuilder().setMaximumCacheSize(maximumCacheSize).build();
     }
 
     /**
@@ -588,10 +575,7 @@ public class IcebergIO {
       Preconditions.checkNotNull(refreshInterval, "refreshInterval must not be null");
       Preconditions.checkArgument(
           refreshInterval.isLongerThan(Duration.ZERO), "refreshInterval must be greater than 0");
-      return toBuilder()
-          .setUsingSideInputTableCache(true)
-          .setTableRefreshInterval(refreshInterval)
-          .build();
+      return toBuilder().setTableRefreshInterval(refreshInterval).build();
     }
 
     /**
@@ -601,10 +585,7 @@ public class IcebergIO {
      */
     public WriteRows withPollingBuckets(int pollingBuckets) {
       Preconditions.checkArgument(pollingBuckets > 0, "pollingBuckets must be greater than 0");
-      return toBuilder()
-          .setUsingSideInputTableCache(true)
-          .setPollingBuckets(pollingBuckets)
-          .build();
+      return toBuilder().setPollingBuckets(pollingBuckets).build();
     }
 
     @Override
@@ -647,13 +628,6 @@ public class IcebergIO {
         Preconditions.checkArgument(
             IcebergUtils.isUnbounded(input),
             "Must only provide direct write limit for unbounded pipelines.");
-      }
-
-      boolean isStreaming = IcebergUtils.isUnbounded(input);
-
-      if (getUsingSideInputTableCache() && isStreaming && getMaximumCacheSize() != null) {
-        throw new IllegalArgumentException(
-            "maximumCacheSize is currently not supported for unbounded streaming pipelines.");
       }
 
       PCollectionView<Map<String, SerializableTableSpec>> metadataView = null;
