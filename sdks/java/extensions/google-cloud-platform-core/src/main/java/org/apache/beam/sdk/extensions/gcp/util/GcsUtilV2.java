@@ -21,12 +21,16 @@ import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.gax.paging.Page;
 import com.google.auth.Credentials;
 import com.google.auto.value.AutoValue;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.ReadChannel;
+import com.google.cloud.ServiceOptions;
+import com.google.cloud.TransportOptions;
 import com.google.cloud.WriteChannel;
+import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobId;
 import com.google.cloud.storage.BlobInfo;
@@ -172,7 +176,7 @@ class GcsUtilV2 {
             .map(prefix -> createCounterConsumer(prefix, bucket))
             .orElse(null);
 
-    if (container != null) {
+    if (this.gcsPerformanceMetrics && container != null) {
       Counter perfWriteCounter =
           container.getCounter(
               MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_write_wire_bytes_sent"));
@@ -195,7 +199,7 @@ class GcsUtilV2 {
             .map(prefix -> createCounterConsumer(prefix, bucket))
             .orElse(null);
 
-    if (container != null) {
+    if (this.gcsPerformanceMetrics && container != null) {
       Counter perfReadCounter =
           container.getCounter(
               MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_wire_bytes_received"));
@@ -221,6 +225,64 @@ class GcsUtilV2 {
     baseLabels.put(MonitoringInfoConstants.Labels.GCS_PROJECT_ID, String.valueOf(projectId));
     baseLabels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, bucket);
     return new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
+  }
+
+  /**
+   * {@link HttpTransportOptions} that wraps the request initializer so that HTTP-level counters
+   * (request counts, request shape, and status classes) are incremented against a pre-bound {@link
+   * MetricsContainer}.
+   *
+   * <p>The container is bound eagerly rather than resolved per request because requests may execute
+   * on background threads, where {@link MetricsEnvironment#getCurrentContainer} would not resolve
+   * to the step that initiated the operation.
+   */
+  private static class MetricsHttpTransportOptions extends HttpTransportOptions {
+    private static final long serialVersionUID = 1L;
+
+    // Not serializable, and only meaningful in the process that created it.
+    private final transient @Nullable MetricsContainer container;
+    private final boolean isWrite;
+
+    MetricsHttpTransportOptions(
+        HttpTransportOptions base, @Nullable MetricsContainer container, boolean isWrite) {
+      super(base.toBuilder());
+      this.container = container;
+      this.isWrite = isWrite;
+    }
+
+    @Override
+    public HttpRequestInitializer getHttpRequestInitializer(ServiceOptions<?, ?> serviceOptions) {
+      // withMetricsContainer returns the delegate unchanged when the container is null, which is
+      // also the case after deserialization.
+      return Transport.withMetricsContainer(
+          super.getHttpRequestInitializer(serviceOptions), container, isWrite);
+    }
+  }
+
+  /**
+   * Returns a client whose HTTP requests are counted against {@code container}, or the shared
+   * client when HTTP metrics are not being collected.
+   *
+   * <p>A distinct client is required because the interceptors are installed on the transport, which
+   * is fixed when the client is built. This mirrors {@code GcsUtilV1}, which likewise builds a
+   * scoped client per operation while performance metrics are enabled.
+   */
+  private Storage storageWithHttpMetrics(@Nullable MetricsContainer container, boolean isWrite) {
+    if (container == null) {
+      return storage;
+    }
+    StorageOptions options = storage.getOptions();
+    TransportOptions transportOptions = options.getTransportOptions();
+    if (!(transportOptions instanceof HttpTransportOptions)) {
+      // A non-HTTP transport (e.g. gRPC) has no HttpRequestInitializer to wrap.
+      return storage;
+    }
+    return options.toBuilder()
+        .setTransportOptions(
+            new MetricsHttpTransportOptions(
+                (HttpTransportOptions) transportOptions, container, isWrite))
+        .build()
+        .getService();
   }
 
   /** Returns the {@code scheme://host[:port]} prefix of {@code endpoint}, discarding any path. */
@@ -259,8 +321,14 @@ class GcsUtilV2 {
   }
 
   public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
+    return getBlob(storage, gcsPath, options);
+  }
+
+  /** As {@link #getBlob(GcsPath, BlobGetOption...)}, but issued through a specific client. */
+  private Blob getBlob(Storage client, GcsPath gcsPath, BlobGetOption... options)
+      throws IOException {
     try {
-      Blob blob = storage.get(gcsPath.getBucket(), gcsPath.getObject(), options);
+      Blob blob = client.get(gcsPath.getBucket(), gcsPath.getObject(), options);
       if (blob == null) {
         throw new FileNotFoundException(
             String.format("The specified file does not exist: %s", gcsPath.toString()));
@@ -698,16 +766,16 @@ class GcsUtilV2 {
   public SeekableByteChannel open(GcsPath path, BlobSourceOption... sourceOptions)
       throws IOException {
     ServiceCallMetric serviceCallMetric = serviceCallMetric("GcsGet", path.getBucket());
+    MetricsContainer container = performanceMetricsContainer();
     try {
-      Blob blob = getBlob(path, BlobGetOption.fields(BlobField.SIZE));
-      ReadChannel reader = blob.getStorage().reader(blob.getBlobId(), sourceOptions);
+      Storage client = storageWithHttpMetrics(container, false);
+      Blob blob = getBlob(client, path, BlobGetOption.fields(BlobField.SIZE));
+      ReadChannel reader = client.reader(blob.getBlobId(), sourceOptions);
       // disable internal buffering, and make the channel non-blocking
       reader.setChunkSize(0);
       serviceCallMetric.call("ok");
       return wrapInCounting(
-          new GcsSeekableByteChannel(reader, blob.getSize()),
-          path.getBucket(),
-          performanceMetricsContainer());
+          new GcsSeekableByteChannel(reader, blob.getSize()), path.getBucket(), container);
     } catch (StorageException e) {
       serviceCallMetric.call(e.getCode());
       throw translateStorageException(path, e);
@@ -748,6 +816,7 @@ class GcsUtilV2 {
       GcsPath path, GcsUtilV1.CreateOptions options, BlobWriteOption... writeOptions)
       throws IOException {
     ServiceCallMetric serviceCallMetric = serviceCallMetric("GcsInsert", path.getBucket());
+    MetricsContainer container = performanceMetricsContainer();
     try {
       // Define the metadata for the new object
       BlobInfo.Builder builder = BlobInfo.newBuilder(path.getBucket(), path.getObject());
@@ -758,13 +827,14 @@ class GcsUtilV2 {
 
       BlobInfo blobInfo = builder.build();
 
+      Storage client = storageWithHttpMetrics(container, true);
       List<BlobWriteOption> writeOptionList = new ArrayList<>(Arrays.asList(writeOptions));
       if (options.getExpectFileToNotExist()) {
         writeOptionList.add(BlobWriteOption.doesNotExist());
       } else {
         // We do not merge this check with the getExpectFileToNotExist() branch above
         // because we don't want to always make the storage.get() RPC call.
-        Blob blob = storage.get(path.getBucket(), path.getObject());
+        Blob blob = client.get(path.getBucket(), path.getObject());
         if (blob == null) {
           writeOptionList.add(BlobWriteOption.doesNotExist());
         } else {
@@ -773,7 +843,7 @@ class GcsUtilV2 {
       }
       // Open a WriteChannel from the storage service
       WriteChannel writer =
-          storage.writer(blobInfo, writeOptionList.toArray(new BlobWriteOption[0]));
+          client.writer(blobInfo, writeOptionList.toArray(new BlobWriteOption[0]));
       Integer uploadBufferSizeBytes =
           options.getUploadBufferSizeBytes() != null
               ? options.getUploadBufferSizeBytes()
@@ -784,10 +854,7 @@ class GcsUtilV2 {
 
       serviceCallMetric.call("ok");
       // Return the bridge wrapper
-      return wrapInCounting(
-          new GcsWritableByteChannel(writer, path),
-          path.getBucket(),
-          performanceMetricsContainer());
+      return wrapInCounting(new GcsWritableByteChannel(writer, path), path.getBucket(), container);
 
     } catch (StorageException e) {
       serviceCallMetric.call(e.getCode());
