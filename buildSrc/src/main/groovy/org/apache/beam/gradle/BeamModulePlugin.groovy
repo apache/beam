@@ -1263,6 +1263,30 @@ class BeamModulePlugin implements Plugin<Project> {
         if (System.getProperty("os.name").toLowerCase().contains("windows")) {
           systemProperty 'org.xerial.snappy.tempdir', System.getProperty('org.xerial.snappy.tempdir') ?: "${project.rootDir.absolutePath}/build/snappy_bin"
         }
+        // Report each test as it runs. Gradle logs only failures by default.
+        //   -PshowTests        one line per test, plus a per-task summary
+        //   -PshowTests=out    also forward test stdout/stderr
+        // A cached or up-to-date test task forks no JVM and prints nothing;
+        // add --no-build-cache --rerun to force real execution.
+        if (project.hasProperty('showTests')) {
+          testLogging {
+            events 'passed', 'skipped', 'failed'
+            exceptionFormat = 'full'
+            showExceptions = true
+            showCauses = true
+            showStackTraces = true
+            showStandardStreams = (project.property('showTests') == 'out')
+            displayGranularity = 0
+          }
+          afterSuite { desc, result ->
+            // Only the root suite of each test task, to get one summary per task.
+            if (!desc.parent) {
+              println "RESULT [${path}]: ${result.resultType} - ${result.testCount} tests, " +
+                  "${result.successfulTestCount} passed, ${result.failedTestCount} failed, " +
+                  "${result.skippedTestCount} skipped"
+            }
+          }
+        }
       }
 
       // NOTE: Use the character class "[.]" instead of an escaped "\\." to match a literal dot in
