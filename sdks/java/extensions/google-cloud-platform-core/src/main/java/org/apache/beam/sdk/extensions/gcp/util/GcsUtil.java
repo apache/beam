@@ -47,8 +47,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GcsUtil {
+  private static final Logger LOG = LoggerFactory.getLogger(GcsUtil.class);
+
   /**
    * Namespace for every GCS metric. The namespace is dropped when Dataflow exports counters to
    * Cloud Monitoring, so the layer is carried by the metric name instead: {@code gcs_http_*} for
@@ -119,8 +123,12 @@ public class GcsUtil {
     this.delegate = new GcsUtilV1.GcsUtilFactory().create(options);
     if (ExperimentalOptions.hasExperiment(options, "use_gcsutil_v2")) {
       this.delegateV2 = new GcsUtilV2.GcsUtilFactory().create(options);
+      // INFO only for V2, which is opt-in. V1 is still the default for every pipeline,
+      // so logging it at INFO would be noise.
+      LOG.info("Using GcsUtilV2 (java-storage) for GCS operations.");
     } else {
       this.delegateV2 = null;
+      LOG.debug("Using GcsUtilV1 (gcsio) for GCS operations.");
     }
   }
 
