@@ -1263,28 +1263,28 @@ class BeamModulePlugin implements Plugin<Project> {
         if (System.getProperty("os.name").toLowerCase().contains("windows")) {
           systemProperty 'org.xerial.snappy.tempdir', System.getProperty('org.xerial.snappy.tempdir') ?: "${project.rootDir.absolutePath}/build/snappy_bin"
         }
-        // Report each test as it runs. Gradle logs only failures by default.
-        //   -PshowTests        one line per test, plus a per-task summary
-        //   -PshowTests=out    also forward test stdout/stderr
+        // Report each test as it runs, plus a per-task summary. Gradle logs only
+        // failures by default, so a passing run prints nothing but "BUILD SUCCESSFUL"
+        // and gives no indication of which tests --tests actually selected.
+        // Test stdout/stderr stays off unless asked for, since it is noisy:
+        //   -PshowTestOutput   also forward test stdout/stderr
         // A cached or up-to-date test task forks no JVM and prints nothing;
         // add --no-build-cache --rerun to force real execution.
-        if (project.hasProperty('showTests')) {
-          testLogging {
-            events 'passed', 'skipped', 'failed'
-            exceptionFormat = 'full'
-            showExceptions = true
-            showCauses = true
-            showStackTraces = true
-            showStandardStreams = (project.property('showTests') == 'out')
-            displayGranularity = 0
-          }
-          afterSuite { desc, result ->
-            // Only the root suite of each test task, to get one summary per task.
-            if (!desc.parent) {
-              println "RESULT [${path}]: ${result.resultType} - ${result.testCount} tests, " +
-                  "${result.successfulTestCount} passed, ${result.failedTestCount} failed, " +
-                  "${result.skippedTestCount} skipped"
-            }
+        testLogging {
+          events 'passed', 'skipped', 'failed'
+          exceptionFormat = 'full'
+          showExceptions = true
+          showCauses = true
+          showStackTraces = true
+          showStandardStreams = project.hasProperty('showTestOutput')
+          displayGranularity = 0
+        }
+        afterSuite { desc, result ->
+          // Only the root suite of each test task, to get one summary per task.
+          if (!desc.parent) {
+            println "RESULT [${path}]: ${result.resultType} - ${result.testCount} tests, " +
+                "${result.successfulTestCount} passed, ${result.failedTestCount} failed, " +
+                "${result.skippedTestCount} skipped"
           }
         }
       }
