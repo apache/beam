@@ -669,6 +669,7 @@ def _kafka_test_preprocessor(
     'test_gcs_text_to_bigquery_yaml',
     'test_sqlserver_to_bigquery_yaml',
     'test_postgres_to_bigquery_yaml',
+    'test_cloudsql_to_bigquery_yaml',
     'test_kafka_to_iceberg_yaml',
     'test_pubsub_to_iceberg_yaml',
     'test_oracle_to_bigquery_yaml',
@@ -931,6 +932,7 @@ def __sqlserver_io_read_test_preprocessor(
 
 @YamlExamplesTestSuite.register_test_preprocessor([
     'test_postgres_to_bigquery_yaml',
+    'test_cloudsql_to_bigquery_yaml',
 ])
 def __postgres_io_read_test_preprocessor(
     test_spec: dict, expected: list[str], env: TestEnvironment):
