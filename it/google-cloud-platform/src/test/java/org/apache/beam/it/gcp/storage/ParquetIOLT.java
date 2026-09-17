@@ -57,6 +57,7 @@ import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.parquet.ParquetIO;
 import org.apache.beam.sdk.io.synthetic.SyntheticSourceOptions;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -130,6 +131,26 @@ import org.junit.runners.MethodSorters;
  * <p>Note that Runner v2 stages the locally built SDK jars, so a local SDK change is measured as
  * is, while the legacy worker runs the Beam code baked into its container image.
  *
+ * <h3>GcsUtil v1 or v2</h3>
+ *
+ * <p>{@code useGcsUtilV2} routes GCS access through the java-storage client and defaults to off,
+ * i.e. to the gcsio based GcsUtilV1 that every pipeline uses today:
+ *
+ * <pre>
+ * -Dconfiguration='{"preset":"f100_s16","useGcsUtilV2":true}'
+ * </pre>
+ *
+ * <p>On Dataflow this is sent as the {@code use_gcsutil_v2} experiment, for the other runners it is
+ * set on the pipeline options directly. Either way {@code GcsUtil} logs the version it selected at
+ * INFO, which is what to grep for to confirm a run really used the intended client.
+ *
+ * <p>The number of requests a write costs is decided by the upload chunk size, which {@code
+ * gcsUploadBufferSizeBytes} pins when a run needs to sweep it or to rule it out as a variable:
+ *
+ * <pre>
+ * -Dconfiguration='{"preset":"f100_s16","useGcsUtilV2":true,"gcsUploadBufferSizeBytes":"24MB"}'
+ * </pre>
+ *
  * <h3>Configuration</h3>
  *
  * <p>{@code -Dconfiguration} takes either the name of a preset, or a json object. The json object
@@ -151,9 +172,10 @@ import org.junit.runners.MethodSorters;
  * </pre>
  *
  * <p>Every byte count, i.e. {@code totalBytes}, {@code maxFieldSizeBytes}, {@code
- * minFieldSizeBytes} and {@code rowGroupSize}, is either a plain number of bytes or a size string
- * such as {@code "10GB"}, {@code "500MB"}, {@code "64KB"} or {@code "32B"}. The units are binary,
- * so {@code 1KB} is 1024 bytes, and {@code M}, {@code MB} and {@code MiB} are all accepted.
+ * minFieldSizeBytes}, {@code rowGroupSize} and {@code gcsUploadBufferSizeBytes}, is either a plain
+ * number of bytes or a size string such as {@code "10GB"}, {@code "500MB"}, {@code "64KB"} or
+ * {@code "32B"}. The units are binary, so {@code 1KB} is 1024 bytes, and {@code M}, {@code MB} and
+ * {@code MiB} are all accepted.
  *
  * <p>Example trigger command:
  *
@@ -184,6 +206,12 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
    * Runner v2 on its own, see {@link #dataflowWorkerExperiment()}.
    */
   private static final String LEGACY_WORKER_EXPERIMENT = "disable_runner_v2";
+
+  /** Experiment that routes GCS access through GcsUtilV2, i.e. the java-storage client. */
+  private static final String GCS_UTIL_V2_EXPERIMENT = "use_gcsutil_v2";
+
+  /** Pipeline option that pins the upload chunk size, see {@code GcsOptions}. */
+  private static final String GCS_UPLOAD_BUFFER_SIZE_OPTION = "gcsUploadBufferSizeBytes";
 
   /**
    * Size of the worker pool every Dataflow run gets. Frozen, see {@link #launchConfig}: the runs
@@ -440,6 +468,20 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     // For the other runners it runs the pipeline with the options it already has, so the flag has
     // to be set explicitly here, otherwise no gcs_* metric is reported.
     pipeline.getOptions().as(GcsOptions.class).setGcsPerformanceMetrics(true);
+    // Same reason: for a non-Dataflow runner the experiments parameter below never reaches the
+    // pipeline, so the experiment has to be added to the options directly.
+    if (configuration.useGcsUtilV2) {
+      ExperimentalOptions.addExperiment(
+          pipeline.getOptions().as(ExperimentalOptions.class), GCS_UTIL_V2_EXPERIMENT);
+    }
+    // Left unset the two clients pick different chunk sizes, which shows up as a difference in the
+    // number of write requests.
+    if (configuration.gcsUploadBufferSizeBytes > 0) {
+      pipeline
+          .getOptions()
+          .as(GcsOptions.class)
+          .setGcsUploadBufferSizeBytes(configuration.gcsUploadBufferSizeBytes);
+    }
 
     PipelineLauncher.LaunchConfig.Builder builder =
         PipelineLauncher.LaunchConfig.builder(jobName)
@@ -448,6 +490,11 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
             .addParameter("runner", configuration.runner)
             // Required for GcsUtil to report the gcs_* client metrics.
             .addParameter(GCS_PERFORMANCE_METRICS_OPTION, "true");
+
+    if (configuration.gcsUploadBufferSizeBytes > 0) {
+      builder.addParameter(
+          GCS_UPLOAD_BUFFER_SIZE_OPTION, String.valueOf(configuration.gcsUploadBufferSizeBytes));
+    }
 
     if (DATAFLOW_RUNNER.equalsIgnoreCase(configuration.runner)) {
       // The worker pool is pinned so that the runs of the different workload shapes are
@@ -669,7 +716,7 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     }
   }
 
-  /** Same as {@link ByteSize}, for the options that the Parquet API takes as an {@code int}. */
+  /** Same as {@link ByteSize}, for the options that are declared as an {@code int}. */
   static final class IntByteSize extends JsonDeserializer<Integer> {
     @Override
     public Integer deserialize(JsonParser parser, DeserializationContext context)
@@ -699,6 +746,8 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
             + "  numShards:              %d%n"
             + "  numFieldsToRead:        %s%n"
             + "  runner:                 %s%n"
+            + "  gcsUtil:                %s%n"
+            + "  uploadChunkSize:        %s%n"
             + "  dataflowWorker:         %s%n"
             + "  workerPool:             %s%n"
             + "==========================================================%n%n",
@@ -714,6 +763,10 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
         configuration.numShards,
         configuration.numFieldsToRead > 0 ? String.valueOf(configuration.numFieldsToRead) : "all",
         configuration.runner,
+        configuration.useGcsUtilV2 ? "V2 (java-storage)" : "V1 (gcsio)",
+        configuration.gcsUploadBufferSizeBytes > 0
+            ? formatBytes(configuration.gcsUploadBufferSizeBytes)
+            : "client default",
         DATAFLOW_RUNNER.equalsIgnoreCase(configuration.runner)
             ? String.format(
                 "%s (--experiments=%s)",
@@ -926,6 +979,24 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
      * service.
      */
     @JsonProperty public boolean useRunnerV2 = true;
+
+    /**
+     * {@code true} routes GCS access through GcsUtilV2, the java-storage client, instead of the
+     * default GcsUtilV1. Applies to every runner: on Dataflow it is sent as the {@code
+     * use_gcsutil_v2} experiment, elsewhere it is set on the pipeline options directly.
+     *
+     * <p>Which one a run actually used is logged by {@code GcsUtil} at INFO.
+     */
+    @JsonProperty public boolean useGcsUtilV2 = false;
+
+    /**
+     * Size of a single upload chunk, i.e. of one resumable upload request. 0 leaves the client
+     * default, which both clients derive from the heap size. Accepts a size string, e.g. "24MB".
+     * Keep it a multiple of 8MB, gcsio requires that granularity.
+     */
+    @JsonProperty
+    @JsonDeserialize(using = IntByteSize.class)
+    public int gcsUploadBufferSizeBytes = 0;
 
     /** Pipeline timeout in minutes. Must be a positive value. */
     @JsonProperty public int pipelineTimeout = 2;
