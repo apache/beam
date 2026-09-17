@@ -163,7 +163,8 @@ class GcsUtilV2 {
   }
 
   /** Returns the {@link MetricsContainer} to attribute wire-byte counters to, if enabled. */
-  private @Nullable MetricsContainer performanceMetricsContainer() {
+  @VisibleForTesting
+  @Nullable MetricsContainer performanceMetricsContainer() {
     return gcsPerformanceMetrics ? MetricsEnvironment.getCurrentContainer() : null;
   }
 
@@ -267,7 +268,8 @@ class GcsUtilV2 {
    * is fixed when the client is built. This mirrors {@code GcsUtilV1}, which likewise builds a
    * scoped client per operation while performance metrics are enabled.
    */
-  private Storage storageWithHttpMetrics(@Nullable MetricsContainer container, boolean isWrite) {
+  @VisibleForTesting
+  Storage storageWithHttpMetrics(@Nullable MetricsContainer container, boolean isWrite) {
     if (container == null) {
       return storage;
     }
