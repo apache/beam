@@ -200,13 +200,23 @@ func (b *RowEncoderBuilder) encoderForSingleTypeReflect(t reflect.Type) (typeEnc
 		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
 			return EncodeStringUTF8(rv.String(), w)
 		}}, nil
-	case reflect.Int, reflect.Int64, reflect.Int16, reflect.Int32, reflect.Int8:
+	case reflect.Int, reflect.Int64, reflect.Int32, reflect.Int8:
 		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
 			return EncodeVarInt(rv.Int(), w)
 		}}, nil
-	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16:
+	case reflect.Int16:
+		// INT16 schema fields are big endian, matching the Java and Python row coders.
+		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
+			return EncodeInt16(int16(rv.Int()), w)
+		}}, nil
+	case reflect.Uint, reflect.Uint64, reflect.Uint32:
 		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
 			return EncodeVarUint64(rv.Uint(), w)
+		}}, nil
+	case reflect.Uint16:
+		// uint16 is stored as an INT16 schema field.
+		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
+			return EncodeUint16(uint16(rv.Uint()), w)
 		}}, nil
 	case reflect.Float32:
 		return typeEncoderFieldReflect{encode: func(rv reflect.Value, w io.Writer) error {
