@@ -841,9 +841,27 @@ class GcsUtilV1 {
     getBucket(path, backoff, sleeper);
   }
 
-  // AccessDeniedException permits a null "other" argument and these exceptions permit a null detail
-  // message, but the JDK constructor stubs are not annotated for nullness.
+  // The JDK constructor stubs for these exceptions aren't annotated for nullness, but a null
+  // "other" file argument is permitted. Concentrating the suppression in these helpers.
   @SuppressWarnings("nullness")
+  private static AccessDeniedException createAccessDeniedException(
+      String file, @Nullable String reason) {
+    return new AccessDeniedException(file, null, reason);
+  }
+
+  @SuppressWarnings("nullness")
+  private static FileAlreadyExistsException createFileAlreadyExistsException(
+      String file, @Nullable String reason) {
+    return new FileAlreadyExistsException(file, null, reason);
+  }
+
+  // FileNotFoundException's message argument accepts null, but the JDK constructor stub isn't
+  // annotated for nullness.
+  @SuppressWarnings("nullness")
+  private static FileNotFoundException createFileNotFoundException(@Nullable String message) {
+    return new FileNotFoundException(message);
+  }
+
   @VisibleForTesting
   @Nullable Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
@@ -865,10 +883,10 @@ class GcsUtilV1 {
           sleeper);
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(path.toString(), null, e.getMessage());
+        throw createAccessDeniedException(path.toString(), e.getMessage());
       }
       if (errorExtractor.itemNotFound(e)) {
-        throw new FileNotFoundException(e.getMessage());
+        throw createFileNotFoundException(e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {
@@ -880,10 +898,6 @@ class GcsUtilV1 {
     }
   }
 
-  // AccessDeniedException/FileAlreadyExistsException permit a null "other" argument and these
-  // exceptions permit a null detail message, but the JDK constructor stubs are not annotated for
-  // nullness.
-  @SuppressWarnings("nullness")
   @VisibleForTesting
   void createBucket(String projectId, Bucket bucket, BackOff backoff, Sleeper sleeper)
       throws IOException {
@@ -909,10 +923,10 @@ class GcsUtilV1 {
       return;
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+        throw createAccessDeniedException(bucket.getName(), e.getMessage());
       }
       if (errorExtractor.itemAlreadyExists(e)) {
-        throw new FileAlreadyExistsException(bucket.getName(), null, e.getMessage());
+        throw createFileAlreadyExistsException(bucket.getName(), e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {
@@ -925,9 +939,6 @@ class GcsUtilV1 {
     }
   }
 
-  // AccessDeniedException permits a null "other" argument and these exceptions permit a null detail
-  // message, but the JDK constructor stubs are not annotated for nullness.
-  @SuppressWarnings("nullness")
   @VisibleForTesting
   void removeBucket(Bucket bucket, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Delete getBucket = storageClient.buckets().delete(bucket.getName());
@@ -949,10 +960,10 @@ class GcsUtilV1 {
           sleeper);
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+        throw createAccessDeniedException(bucket.getName(), e.getMessage());
       }
       if (errorExtractor.itemNotFound(e)) {
-        throw new FileNotFoundException(e.getMessage());
+        throw createFileNotFoundException(e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {

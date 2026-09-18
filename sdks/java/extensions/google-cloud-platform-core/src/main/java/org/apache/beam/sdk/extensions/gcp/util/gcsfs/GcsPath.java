@@ -235,10 +235,10 @@ public class GcsPath implements Path, Serializable {
   }
 
   @Override
-  // fs is null for paths not attached to a filesystem (e.g. created via fromUri/fromComponents);
-  // returning it preserves prior behavior. Path.getFileSystem is not annotated for nullness.
+  // fs is null for paths not attached to a filesystem. @Nullable documents the contract; the
+  // suppression covers overriding Path.getFileSystem, which the checker treats as @NonNull.
   @SuppressWarnings("nullness")
-  public FileSystem getFileSystem() {
+  public @Nullable FileSystem getFileSystem() {
     return fs;
   }
 
@@ -409,7 +409,10 @@ public class GcsPath implements Path, Serializable {
 
     if (other.startsWith(SCHEME + "://")) {
       GcsPath path = GcsPath.fromUri(other);
-      path.setFileSystem(getFileSystem());
+      @Nullable FileSystem currentFs = getFileSystem();
+      if (currentFs != null) {
+        path.setFileSystem(currentFs);
+      }
       return path;
     }
 
