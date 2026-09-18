@@ -718,7 +718,6 @@ class BeamBlobReader(BlobReader):
   unconditionally. See
   https://github.com/googleapis/google-cloud-python/issues/18423.
   """
-
   def __init__(
       self,
       blob,
