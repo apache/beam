@@ -38,7 +38,9 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import FrozenSet
+from typing import Iterable
 from typing import Optional
+from typing import Set
 from typing import Type
 from typing import Union
 from typing import cast
@@ -201,6 +203,24 @@ class _TypedMetricName(object):
 
 _DEFAULT = None  # type: Any
 
+# Metric cell types whose updates are dropped process-wide. Populated from the
+# disable*Metrics experiments by apache_beam.metrics.metric.MetricsFlag; empty
+# (the default) means every update is delivered.
+_DISABLED_CELL_TYPES = set()  # type: Set[Any]
+
+
+def set_disabled_cell_types(cell_types):
+  # type: (Iterable[Any]) -> None
+
+  """Replaces the set of metric cell types whose updates are dropped."""
+  _DISABLED_CELL_TYPES.clear()
+  _DISABLED_CELL_TYPES.update(cell_types)
+
+
+def is_cell_type_disabled(cell_type):
+  # type: (Any) -> bool
+  return cell_type in _DISABLED_CELL_TYPES
+
 
 class MetricUpdater(object):
   """A callable that updates the metric as quickly as possible."""
@@ -216,6 +236,9 @@ class MetricUpdater(object):
 
   def __call__(self, value=_DEFAULT):
     # type: (Any) -> None
+    if _DISABLED_CELL_TYPES and (self.typed_metric_name.cell_type
+                                 in _DISABLED_CELL_TYPES):
+      return
     if value is _DEFAULT:
       if self.default_value is _DEFAULT:
         raise ValueError(
