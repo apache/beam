@@ -74,7 +74,7 @@ import org.junit.Test;
  *
  * <pre>mvn test -pl it/google-cloud-platform -am \
  * -Dconfiguration="{\"numRecords\":10000000,\"valueSizeBytes\":750,\"pipelineTimeout\":20,\"runner\":\"DataflowRunner\"}" \
- * -Dtest="TextIOLT#testTextIOWriteThenRead" -Dconfiguration=local -Dproject=[gcpProject] \
+ * -Dtest="TextIOLT#testTextIOWriteThenRead" -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false
  * </pre>
  */

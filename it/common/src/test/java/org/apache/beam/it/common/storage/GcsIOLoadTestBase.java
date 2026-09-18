@@ -17,6 +17,8 @@
  */
 package org.apache.beam.it.common.storage;
 
+import static org.apache.beam.it.common.utils.ByteSizeUtils.formatBytes;
+
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Locale;
@@ -56,9 +58,6 @@ import org.slf4j.LoggerFactory;
  * <p>Results are currently only reported to standard output (see {@link #printMetrics}); nothing is
  * persisted to BigQuery or InfluxDB.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/27438)
-})
 public class GcsIOLoadTestBase extends IOLoadTestBase {
 
   private static final Logger LOG = LoggerFactory.getLogger(GcsIOLoadTestBase.class);
@@ -309,16 +308,5 @@ public class GcsIOLoadTestBase extends IOLoadTestBase {
     return metricName.contains("bytes")
         ? formatBytes(value)
         : String.format(Locale.US, "%,d", value);
-  }
-
-  private static String formatBytes(long bytes) {
-    if (bytes >= 1024L * 1024L * 1024L) {
-      return String.format(Locale.US, "%,d B (%.2f GB)", bytes, bytes / (1024.0 * 1024.0 * 1024.0));
-    } else if (bytes >= 1024L * 1024L) {
-      return String.format(Locale.US, "%,d B (%.2f MB)", bytes, bytes / (1024.0 * 1024.0));
-    } else if (bytes >= 1024L) {
-      return String.format(Locale.US, "%,d B (%.2f KB)", bytes, bytes / 1024.0);
-    }
-    return String.format(Locale.US, "%,d B", bytes);
   }
 }

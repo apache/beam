@@ -17,14 +17,11 @@
  */
 package org.apache.beam.it.gcp.storage;
 
+import static org.apache.beam.it.common.utils.ByteSizeUtils.formatBytes;
 import static org.apache.beam.it.truthmatchers.PipelineAsserts.assertThatResult;
 import static org.junit.Assert.assertEquals;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonToken;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
@@ -34,12 +31,9 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
 import org.apache.avro.generic.GenericRecord;
@@ -50,6 +44,7 @@ import org.apache.beam.it.common.TestProperties;
 import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher.PipelineMetricsType;
 import org.apache.beam.it.common.storage.GcsIOLoadTestBase;
 import org.apache.beam.it.common.storage.GcsResourceManager;
+import org.apache.beam.it.common.utils.ByteSizeUtils;
 import org.apache.beam.it.common.utils.ResourceManagerUtils;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
@@ -148,7 +143,7 @@ import org.junit.runners.MethodSorters;
  * gcsUploadBufferSizeBytes} pins when a run needs to sweep it or to rule it out as a variable:
  *
  * <pre>
- * -Dconfiguration='{"preset":"f100_s16","useGcsUtilV2":true,"gcsUploadBufferSizeBytes":"24MB"}'
+ * -Dconfiguration='{"preset":"f100_s16","useGcsUtilV2":true,"gcsUploadBufferSizeBytes":"24M"}'
  * </pre>
  *
  * <h3>Configuration</h3>
@@ -162,20 +157,19 @@ import org.junit.runners.MethodSorters;
  * -Dconfiguration=f100_s16
  *
  * # the same shape, but a cheap local run
- * -Dconfiguration='{"preset":"f100_s16","runner":"DirectRunner","totalBytes":"10MB"}'
+ * -Dconfiguration='{"preset":"f100_s16","runner":"DirectRunner","totalBytes":"10M"}'
  *
  * # the same shape, reading only the first field of each record
  * -Dconfiguration='{"preset":"f100_s16","numFieldsToRead":1}'
  *
  * # no preset at all, every unset value falls back to the Configuration defaults
- * -Dconfiguration='{"numFields":10,"maxFieldSizeBytes":"1KB","totalBytes":"1GB"}'
+ * -Dconfiguration='{"numFields":10,"maxFieldSizeBytes":"1K","totalBytes":"1G"}'
  * </pre>
  *
  * <p>Every byte count, i.e. {@code totalBytes}, {@code maxFieldSizeBytes}, {@code
- * minFieldSizeBytes}, {@code rowGroupSize} and {@code gcsUploadBufferSizeBytes}, is either a plain
- * number of bytes or a size string such as {@code "10GB"}, {@code "500MB"}, {@code "64KB"} or
- * {@code "32B"}. The units are binary, so {@code 1KB} is 1024 bytes, and {@code M}, {@code MB} and
- * {@code MiB} are all accepted.
+ * minFieldSizeBytes}, {@code rowGroupSize} and {@code gcsUploadBufferSizeBytes}, is a number of
+ * bytes, optionally suffixed with {@code K}, {@code M}, {@code G} or {@code T}. The suffixes are
+ * binary, so {@code 1K} is 1024 bytes.
  *
  * <p>Example trigger command:
  *
@@ -224,9 +218,9 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
 
   /**
    * Dataset size every shape preset generates, so that the shapes are comparable. {@link
-   * #parseSizeToBytes} is binary, so this is 42,949,672,960 bytes.
+   * ByteSizeUtils#parseSizeToBytes} is binary, so this is 42,949,672,960 bytes.
    */
-  private static final String MATRIX_TOTAL_BYTES = "40GB";
+  private static final String MATRIX_TOTAL_BYTES = "40G";
 
   /**
    * Wall clock budget for a matrix run. Sized from measured runs: 10GB takes roughly 5 minutes of
@@ -244,20 +238,20 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
           // Small run against the Configuration defaults, for local development.
           .put("local", "{}")
           // Legacy size presets: a single field, the shape the test used to have.
-          .put("medium", shape(1, "750B", "7500MB", 20))
-          .put("large", shape(1, "750B", "75GB", 80))
+          .put("medium", shape(1, "750", "7500M", 20))
+          .put("large", shape(1, "750", "75G", 80))
           // Cells of the workload matrix.
-          .put("f1_s1k", shape(1, "1KB", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
-          .put("f10_s1k", shape(10, "1KB", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
-          .put("f100_s16", shape(100, "16B", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
-          .put("f1000_s16", shape(1000, "16B", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
-          .put("f100_s1k", shape(100, "1KB", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
-          .put("f1000_s1k", shape(1000, "1KB", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
-          .put("f10_s64k", shape(10, "64KB", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f1_s1k", shape(1, "1K", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f10_s1k", shape(10, "1K", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f100_s16", shape(100, "16", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f1000_s16", shape(1000, "16", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f100_s1k", shape(100, "1K", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f1000_s1k", shape(1000, "1K", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
+          .put("f10_s64k", shape(10, "64K", MATRIX_TOTAL_BYTES, MATRIX_PIPELINE_TIMEOUT_MINUTES))
           // Blob column: a page size check every 100 rows would buffer 400 MB, so check every row.
           .put(
               "f1_s4m",
-              "{\"numFields\":1,\"maxFieldSizeBytes\":\"4MB\",\"totalBytes\":\""
+              "{\"numFields\":1,\"maxFieldSizeBytes\":\"4M\",\"totalBytes\":\""
                   + MATRIX_TOTAL_BYTES
                   + "\",\"minRowCountForPageSizeCheck\":1,\"numShards\":64,\"compressibility\":0.0,"
                   + "\"compressionCodec\":\"UNCOMPRESSED\",\"runner\":\"DataflowRunner\","
@@ -443,8 +437,8 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
                     new CreateAvroRecordFn(
                         schema.toString(),
                         configuration.numFields,
-                        (int) configuration.minFieldSizeBytes,
-                        (int) configuration.maxFieldSizeBytes,
+                        configuration.minFieldSizeBytes,
+                        configuration.maxFieldSizeBytes,
                         configuration.compressibility)))
             .setCoder(AvroCoder.of(schema));
     records.apply("Write parquet files", write);
@@ -620,112 +614,16 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
 
   /** Average number of payload bytes of a record, ignoring the Parquet overhead. */
   private static long recordBytes(Configuration configuration) {
-    long avgFieldSize = (configuration.minFieldSizeBytes + configuration.maxFieldSizeBytes) / 2;
+    // The field sizes are ints, so the arithmetic is widened to long: a wide record of large
+    // fields overflows an int.
+    long avgFieldSize =
+        ((long) configuration.minFieldSizeBytes + configuration.maxFieldSizeBytes) / 2;
     return Math.max(1L, configuration.numFields * avgFieldSize);
   }
 
   private static void checkConfig(boolean condition, String message) {
     if (!condition) {
       throw new IllegalArgumentException(message);
-    }
-  }
-
-  private static final Pattern SIZE_PATTERN =
-      Pattern.compile("^\\s*([0-9]+(?:\\.[0-9]+)?)\\s*([a-zA-Z]*)\\s*$");
-
-  /**
-   * Parses a size string such as {@code "10GB"}, {@code "500MB"}, {@code "64KB"}, {@code "32B"} or
-   * {@code "1024"} into a number of bytes. The units are binary, i.e. {@code 1KB == 1024}, and both
-   * the short and the long spelling are accepted ({@code M}, {@code MB}, {@code MiB}).
-   */
-  static long parseSizeToBytes(String sizeStr) {
-    if (sizeStr == null || sizeStr.trim().isEmpty()) {
-      throw new IllegalArgumentException("Size string cannot be null or empty");
-    }
-    Matcher matcher = SIZE_PATTERN.matcher(sizeStr.trim());
-    if (!matcher.matches()) {
-      throw new IllegalArgumentException(
-          "Invalid size string: '"
-              + sizeStr
-              + "'. Expected something like '10GB', '500MB', '64KB', '32B' or '1024'.");
-    }
-    double value = Double.parseDouble(matcher.group(1));
-    String unit = matcher.group(2).toUpperCase(Locale.ROOT);
-
-    long multiplier;
-    switch (unit) {
-      case "":
-      case "B":
-      case "BYTES":
-        multiplier = 1L;
-        break;
-      case "K":
-      case "KB":
-      case "KIB":
-        multiplier = 1024L;
-        break;
-      case "M":
-      case "MB":
-      case "MIB":
-        multiplier = 1024L * 1024L;
-        break;
-      case "G":
-      case "GB":
-      case "GIB":
-        multiplier = 1024L * 1024L * 1024L;
-        break;
-      case "T":
-      case "TB":
-      case "TIB":
-        multiplier = 1024L * 1024L * 1024L * 1024L;
-        break;
-      default:
-        throw new IllegalArgumentException(
-            "Unsupported size unit '" + unit + "' in size string: " + sizeStr);
-    }
-    return (long) (value * multiplier);
-  }
-
-  /** Formats a number of bytes as e.g. {@code 9.31 GB}. */
-  private static String formatBytes(long bytes) {
-    String[] units = {"B", "KB", "MB", "GB", "TB"};
-    double value = bytes;
-    int unit = 0;
-    while (value >= 1024.0 && unit < units.length - 1) {
-      value /= 1024.0;
-      unit++;
-    }
-    return unit == 0
-        ? String.format("%d B", bytes)
-        : String.format("%,d B (%.2f %s)", bytes, value, units[unit]);
-  }
-
-  /**
-   * Deserializes a byte count that is either a number or a size string such as {@code "10GB"}. It
-   * lets the configuration json stay readable: {@code "totalBytes":"10GB"} instead of {@code
-   * "totalBytes":10737418240}.
-   */
-  static final class ByteSize extends JsonDeserializer<Long> {
-    @Override
-    public Long deserialize(JsonParser parser, DeserializationContext context) throws IOException {
-      JsonToken token = parser.currentToken();
-      if (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT) {
-        return parser.getLongValue();
-      }
-      return parseSizeToBytes(parser.getText());
-    }
-  }
-
-  /** Same as {@link ByteSize}, for the options that are declared as an {@code int}. */
-  static final class IntByteSize extends JsonDeserializer<Integer> {
-    @Override
-    public Integer deserialize(JsonParser parser, DeserializationContext context)
-        throws IOException {
-      JsonToken token = parser.currentToken();
-      if (token == JsonToken.VALUE_NUMBER_INT || token == JsonToken.VALUE_NUMBER_FLOAT) {
-        return parser.getIntValue();
-      }
-      return Math.toIntExact(parseSizeToBytes(parser.getText()));
     }
   }
 
@@ -891,20 +789,22 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     @JsonProperty public int numFields = 1;
 
     /**
-     * SWEPT. Upper bound of a single field's payload. Either a number of bytes or a size string,
-     * e.g. {@code 1024}, {@code "1KB"} or {@code "4MB"}.
+     * SWEPT. Upper bound of a single field's payload. Either a number of bytes or a suffixed size,
+     * e.g. {@code 1024}, {@code "1K"} or {@code "4M"}. Declared as an {@code int} because a field
+     * payload is a {@code byte[]}, so a size above {@link Integer#MAX_VALUE} is rejected when the
+     * configuration is parsed.
      */
     @JsonProperty
-    @JsonDeserialize(using = ByteSize.class)
-    public long maxFieldSizeBytes = 750;
+    @JsonDeserialize(using = ByteSizeUtils.IntDeserializer.class)
+    public int maxFieldSizeBytes = 750;
 
     /**
      * FROZEN at -1, meaning a fixed size of maxFieldSizeBytes. Set it for variable size fields.
-     * Accepts a size string as well.
+     * Accepts a suffixed size as well.
      */
     @JsonProperty
-    @JsonDeserialize(using = ByteSize.class)
-    public long minFieldSizeBytes = -1;
+    @JsonDeserialize(using = ByteSizeUtils.IntDeserializer.class)
+    public int minFieldSizeBytes = -1;
 
     // --- Data content --------------------------------------------------------------------------
 
@@ -919,11 +819,11 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
 
     /**
      * Total size of the dataset. When positive, {@code numRecords} is DERIVED from it as {@code
-     * totalBytes / recordBytes}. Either a number of bytes or a size string, e.g. {@code "10GB"}.
+     * totalBytes / recordBytes}. Either a number of bytes or a suffixed size, e.g. {@code "10G"}.
      * The shape presets pin it so that every cell of the matrix moves the same number of bytes.
      */
     @JsonProperty
-    @JsonDeserialize(using = ByteSize.class)
+    @JsonDeserialize(using = ByteSizeUtils.Deserializer.class)
     public long totalBytes = 0;
 
     // --- Object and file layout ----------------------------------------------------------------
@@ -931,9 +831,11 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     /** FROZEN. Number of output shards. 0 lets the runner decide and makes runs incomparable. */
     @JsonProperty public int numShards = 4;
 
-    /** FROZEN at 0, meaning the ParquetIO default of 128 MB. Accepts a size string, e.g. "64MB". */
+    /**
+     * FROZEN at 0, meaning the ParquetIO default of 128 MB. Accepts a suffixed size, e.g. "64M".
+     */
     @JsonProperty
-    @JsonDeserialize(using = IntByteSize.class)
+    @JsonDeserialize(using = ByteSizeUtils.IntDeserializer.class)
     public int rowGroupSize = 0;
 
     /** FROZEN at UNCOMPRESSED, so that the bytes on GCS are the bytes of the dataset. */
@@ -991,11 +893,11 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
 
     /**
      * Size of a single upload chunk, i.e. of one resumable upload request. 0 leaves the client
-     * default, which both clients derive from the heap size. Accepts a size string, e.g. "24MB".
-     * Keep it a multiple of 8MB, gcsio requires that granularity.
+     * default, which both clients derive from the heap size. Accepts a suffixed size, e.g. "24M".
+     * Keep it a multiple of 8M, gcsio requires that granularity.
      */
     @JsonProperty
-    @JsonDeserialize(using = IntByteSize.class)
+    @JsonDeserialize(using = ByteSizeUtils.IntDeserializer.class)
     public int gcsUploadBufferSizeBytes = 0;
 
     /** Pipeline timeout in minutes. Must be a positive value. */
