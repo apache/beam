@@ -237,8 +237,7 @@ class GcsIO(object):
     self._rewrite_cb = None
     self.bucket_to_project_number = {}
     self._storage_client_retry = (
-        gcsio_retry.get_retry(pipeline_options)
-        if GCS_INSTALLED else None)
+        gcsio_retry.get_retry(pipeline_options) if GCS_INSTALLED else None)
     self._use_blob_generation = getattr(
         google_cloud_options, 'enable_gcsio_blob_generation', False)
 
