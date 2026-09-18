@@ -1575,6 +1575,66 @@ def side_input_slow_update(
   return pipeline, result
 
 
+def side_input_slow_update_global_window(
+    first_timestamp, last_timestamp, side_input_interval, main_input_interval):
+  # [START SideInputPatternSlowUpdateGlobalWindowSnip1]
+  from apache_beam.transforms import combiners
+  from apache_beam.transforms import trigger
+  from apache_beam.transforms import window
+  from apache_beam.transforms.periodicsequence import PeriodicImpulse
+
+  # from apache_beam.utils.timestamp import MAX_TIMESTAMP
+  # last_timestamp = MAX_TIMESTAMP to go on indefinitely
+
+  # Placeholder that represents an external service, such as a database or a
+  # configuration endpoint. Replace it with the external read of your choice.
+  def read_from_placeholder_external_service(refresh_timestamp):
+    return {'Key_A': str(refresh_timestamp)}
+
+  def enrich_with_side_input(element, config):
+    # The side input is read as an iterable rather than as a singleton,
+    # because the global window side input can hold more than one element if
+    # it fires again before the value is consumed.
+    latest_config = next(iter(config), {})
+    return element, latest_config.get('Key_A')
+
+  # Create pipeline.
+  pipeline = beam.Pipeline()
+
+  # Periodically read the external data into the global window.
+  # Repeatedly(AfterCount(1)) emits a new pane for every impulse, and the
+  # DISCARDING accumulation mode drops the previous value, so that
+  # Latest.Globally only considers the most recent element.
+  # Use Latest.Globally().without_defaults(): the variant with defaults adds
+  # its own side input, which stops the transform from emitting more than once.
+  side_input = (
+      pipeline
+      | 'SideInputImpulse' >> PeriodicImpulse(
+          first_timestamp, last_timestamp, side_input_interval)
+      | 'ReadExternalData' >> beam.Map(read_from_placeholder_external_service)
+      | 'WindowSideInput' >> beam.WindowInto(
+          window.GlobalWindows(),
+          trigger=trigger.Repeatedly(trigger.AfterCount(1)),
+          accumulation_mode=trigger.AccumulationMode.DISCARDING)
+      | 'GetLatest' >> combiners.Latest.Globally().without_defaults())
+
+  # Consume the side input from a main input that uses non-global windows.
+  # PeriodicImpulse generates test data. Use a real streaming source, such as
+  # PubSubIO or KafkaIO, in production.
+  result = (
+      pipeline
+      | 'MainInputImpulse' >> PeriodicImpulse(
+          first_timestamp,
+          last_timestamp,
+          main_input_interval,
+          apply_windowing=True)
+      | 'ApplySideInput' >> beam.Map(
+          enrich_with_side_input, config=beam.pvalue.AsIter(side_input)))
+  # [END SideInputPatternSlowUpdateGlobalWindowSnip1]
+
+  return pipeline, result
+
+
 def bigqueryio_deadletter():
   # [START BigQueryIODeadLetter]
 

@@ -1467,6 +1467,43 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
       for i in range(-1, 10, 1):
         os.unlink(src_file_pattern + str(first_ts + interval * i))
 
+  def test_side_input_slow_update_global_window(self):
+    side_input_interval = 5
+    main_input_interval = 5
+    duration = 30
+
+    first_ts = math.floor(time.time()) - duration
+    # Aligning the timestamp to get persistent results.
+    first_ts = first_ts - (
+        first_ts % (side_input_interval * main_input_interval))
+    last_ts = first_ts + duration
+
+    expected_main_input_elements = sorted(
+        first_ts + main_input_interval * i
+        for i in range(duration // main_input_interval))
+    expected_side_input_values = set(
+        str(first_ts + side_input_interval * i)
+        for i in range(duration // side_input_interval))
+
+    def check_enriched_elements(actual):
+      main_input_elements = sorted(element for element, _ in actual)
+      assert main_input_elements == expected_main_input_elements, (
+          'Expected main input elements %s, got %s' %
+          (expected_main_input_elements, main_input_elements))
+
+      side_input_values = set(value for _, value in actual)
+      assert side_input_values, 'No side input value was observed.'
+      unexpected_values = side_input_values - expected_side_input_values
+      assert not unexpected_values, (
+          'Observed side input values that the side input never produced: %s' %
+          unexpected_values)
+
+    pipeline, pipeline_result = snippets.side_input_slow_update_global_window(
+        first_ts, last_ts, side_input_interval, main_input_interval)
+
+    with pipeline:
+      assert_that(pipeline_result, check_enriched_elements)
+
 
 class ValueProviderInfoTest(unittest.TestCase):
   """Tests for accessing value provider info after run."""
