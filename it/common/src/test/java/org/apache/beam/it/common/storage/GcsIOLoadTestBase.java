@@ -17,21 +17,15 @@
  */
 package org.apache.beam.it.common.storage;
 
-import static org.apache.beam.it.common.utils.ByteSizeUtils.formatBytes;
-
 import java.io.IOException;
 import java.text.ParseException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.TreeMap;
+import java.util.regex.Pattern;
 import org.apache.beam.it.common.PipelineLauncher;
-import org.apache.beam.it.common.dataflow.DefaultPipelineLauncher;
 import org.apache.beam.it.common.dataflow.IOLoadTestBase;
-import org.apache.beam.sdk.PipelineResult;
-import org.apache.beam.sdk.metrics.DistributionResult;
-import org.apache.beam.sdk.metrics.MetricQueryResults;
-import org.apache.beam.sdk.metrics.MetricResult;
-import org.checkerframework.checker.nullness.qual.Nullable;
+import org.apache.beam.it.common.utils.MetricsReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,8 +38,8 @@ import org.slf4j.LoggerFactory;
  * with {@code --gcsPerformanceMetrics=true}.
  *
  * <p>These metrics are regular Beam SDK metrics registered under the {@code GcsHttp} namespace, so
- * they are collected in a runner agnostic way through {@code
- * PipelineResult.metrics().allMetrics()}. Examples of collected metrics include:
+ * they are collected in a runner agnostic way by {@link MetricsReport}. Examples of collected
+ * metrics include:
  *
  * <ul>
  *   <li>{@code gcs_http_read_wire_bytes_received} / {@code gcs_http_write_wire_bytes_sent}
@@ -70,6 +64,13 @@ public class GcsIOLoadTestBase extends IOLoadTestBase {
    * #GCS_METRIC_PREFIX} metrics.
    */
   public static final String GCS_PERFORMANCE_METRICS_OPTION = "gcsPerformanceMetrics";
+
+  /** Selects the metrics this class reports, i.e. every {@value #GCS_METRIC_PREFIX} metric. */
+  private static final Pattern GCS_METRICS =
+      Pattern.compile(Pattern.quote(GCS_METRIC_PREFIX) + ".*");
+
+  /** Title of the GCS section of the printed report. */
+  private static final String GCS_SECTION_TITLE = "GCS METRICS";
 
   /**
    * Returns all metrics of the job, including the GCS client performance metrics.
@@ -115,7 +116,7 @@ public class GcsIOLoadTestBase extends IOLoadTestBase {
       }
     }
     report.append("==========================================================");
-    print(report.toString());
+    System.out.println(report);
 
     // Also print the GCS specific report, which includes the per step breakdown.
     printGcsMetrics(launchInfo.jobId());
@@ -124,44 +125,11 @@ public class GcsIOLoadTestBase extends IOLoadTestBase {
   /**
    * Collects the GCS client performance metrics of the given job, aggregated over all steps.
    *
-   * <p>Counters are summed up across steps. Distributions are reported as four separate scalar
-   * metrics, suffixed with {@code _COUNT}, {@code _SUM}, {@code _MIN} and {@code _MAX}, which
-   * matches how the Dataflow launcher reports distributions.
-   *
    * @param jobId the id of the job to query
    * @return a map of GCS metric name to value, empty if no GCS metric was reported
    */
   protected Map<String, Double> getGcsMetrics(String jobId) {
-    Map<String, Double> gcsMetrics = new TreeMap<>();
-    Map<String, Map<String, Long>> counters = getGcsCountersByStep(jobId);
-    for (Map.Entry<String, Map<String, Long>> entry : counters.entrySet()) {
-      long total = entry.getValue().values().stream().mapToLong(Long::longValue).sum();
-      gcsMetrics.put(entry.getKey(), (double) total);
-    }
-
-    Map<String, Map<String, DistributionResult>> distributions = getGcsDistributionsByStep(jobId);
-    for (Map.Entry<String, Map<String, DistributionResult>> entry : distributions.entrySet()) {
-      String name = entry.getKey();
-      long count = 0;
-      long sum = 0;
-      Long min = null;
-      Long max = null;
-      for (DistributionResult distribution : entry.getValue().values()) {
-        count += distribution.getCount();
-        sum += distribution.getSum();
-        min = (min == null) ? distribution.getMin() : Math.min(min, distribution.getMin());
-        max = (max == null) ? distribution.getMax() : Math.max(max, distribution.getMax());
-      }
-      gcsMetrics.put(name + "_COUNT", (double) count);
-      gcsMetrics.put(name + "_SUM", (double) sum);
-      if (min != null) {
-        gcsMetrics.put(name + "_MIN", (double) min);
-      }
-      if (max != null) {
-        gcsMetrics.put(name + "_MAX", (double) max);
-      }
-    }
-
+    Map<String, Double> gcsMetrics = MetricsReport.collect(jobId, GCS_METRICS).toScalarMetrics();
     if (gcsMetrics.isEmpty()) {
       LOG.warn(
           "No {}* metrics found for job {}. Make sure the pipeline was launched with --{}=true.",
@@ -174,139 +142,6 @@ public class GcsIOLoadTestBase extends IOLoadTestBase {
 
   /** Prints a human readable report of the GCS metrics, including the per step breakdown. */
   protected void printGcsMetrics(String jobId) {
-    Map<String, Map<String, Long>> counters = getGcsCountersByStep(jobId);
-    Map<String, Map<String, DistributionResult>> distributions = getGcsDistributionsByStep(jobId);
-
-    StringBuilder report = new StringBuilder();
-    report.append("\n==========================================================\n");
-    report.append("                       GCS METRICS                        \n");
-    report.append("==========================================================\n");
-    if (counters.isEmpty() && distributions.isEmpty()) {
-      report.append("  No ").append(GCS_METRIC_PREFIX).append("* metrics found.\n");
-    } else {
-      for (Map.Entry<String, Map<String, Long>> entry : counters.entrySet()) {
-        String metricName = entry.getKey();
-        Map<String, Long> stepMap = entry.getValue();
-        long total = stepMap.values().stream().mapToLong(Long::longValue).sum();
-        report.append(
-            String.format(Locale.US, "  %-36s %s\n", metricName + ":", format(metricName, total)));
-        if (stepMap.size() > 1 || (!stepMap.containsKey("global") && !stepMap.isEmpty())) {
-          for (Map.Entry<String, Long> stepEntry : stepMap.entrySet()) {
-            report.append(
-                String.format(
-                    Locale.US,
-                    "    [%s]: %s\n",
-                    stepEntry.getKey(),
-                    format(metricName, stepEntry.getValue())));
-          }
-        }
-      }
-      for (Map.Entry<String, Map<String, DistributionResult>> entry : distributions.entrySet()) {
-        String metricName = entry.getKey();
-        for (Map.Entry<String, DistributionResult> stepEntry : entry.getValue().entrySet()) {
-          DistributionResult d = stepEntry.getValue();
-          report.append(
-              String.format(
-                  Locale.US,
-                  "  %-36s count=%,d, sum=%,d, min=%,d, max=%,d, mean=%.2f [%s]\n",
-                  metricName + ":",
-                  d.getCount(),
-                  d.getSum(),
-                  d.getMin(),
-                  d.getMax(),
-                  d.getMean(),
-                  stepEntry.getKey()));
-        }
-      }
-    }
-    report.append("==========================================================");
-    print(report.toString());
-  }
-
-  /** Writes the report to standard output. */
-  private static void print(String report) {
-    System.out.println(report);
-  }
-
-  private static Map<String, Map<String, Long>> getGcsCountersByStep(String jobId) {
-    Map<String, Map<String, Long>> countersByStep = new TreeMap<>();
-    MetricQueryResults metricResults = queryAllMetrics(jobId);
-    if (metricResults == null) {
-      return countersByStep;
-    }
-    for (MetricResult<Long> counter : metricResults.getCounters()) {
-      String name = counter.getName().getName();
-      if (name == null || !name.startsWith(GCS_METRIC_PREFIX)) {
-        continue;
-      }
-      Long value = getCommittedOrAttempted(counter);
-      if (value != null) {
-        countersByStep.computeIfAbsent(name, k -> new TreeMap<>()).put(stepOf(counter), value);
-      }
-    }
-    return countersByStep;
-  }
-
-  private static Map<String, Map<String, DistributionResult>> getGcsDistributionsByStep(
-      String jobId) {
-    Map<String, Map<String, DistributionResult>> distributionsByStep = new TreeMap<>();
-    MetricQueryResults metricResults = queryAllMetrics(jobId);
-    if (metricResults == null) {
-      return distributionsByStep;
-    }
-    for (MetricResult<DistributionResult> distribution : metricResults.getDistributions()) {
-      String name = distribution.getName().getName();
-      if (name == null || !name.startsWith(GCS_METRIC_PREFIX)) {
-        continue;
-      }
-      DistributionResult value = getCommittedOrAttempted(distribution);
-      if (value != null) {
-        distributionsByStep
-            .computeIfAbsent(name, k -> new TreeMap<>())
-            .put(stepOf(distribution), value);
-      }
-    }
-    return distributionsByStep;
-  }
-
-  private static @Nullable MetricQueryResults queryAllMetrics(String jobId) {
-    PipelineResult result = DefaultPipelineLauncher.getPipelineResult(jobId);
-    if (result == null) {
-      LOG.warn("No PipelineResult available for job {}, skipping GCS metrics.", jobId);
-      return null;
-    }
-    try {
-      return result.metrics().allMetrics();
-    } catch (Exception e) {
-      LOG.warn("Unable to query pipeline metrics for job {}: ", jobId, e);
-      return null;
-    }
-  }
-
-  private static String stepOf(MetricResult<?> metricResult) {
-    String step = metricResult.getKey().stepName();
-    return (step == null || step.isEmpty()) ? "global" : step;
-  }
-
-  private static <T> @Nullable T getCommittedOrAttempted(MetricResult<T> metricResult) {
-    try {
-      T committed = metricResult.getCommitted();
-      if (committed != null) {
-        return committed;
-      }
-    } catch (UnsupportedOperationException e) {
-      // Runner does not support committed metrics; fall back to attempted.
-    }
-    try {
-      return metricResult.getAttempted();
-    } catch (UnsupportedOperationException e) {
-      return null;
-    }
-  }
-
-  private static String format(String metricName, long value) {
-    return metricName.contains("bytes")
-        ? formatBytes(value)
-        : String.format(Locale.US, "%,d", value);
+    System.out.println(MetricsReport.collect(jobId, GCS_METRICS).format(GCS_SECTION_TITLE));
   }
 }
