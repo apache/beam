@@ -711,6 +711,7 @@ public class WorkerCustomSourcesTest {
       context.finishKey();
       WindmillComputationKey computationKey = context.getComputationKey();
       ExecuteWorkResult result = context.flushStateAndReset();
+      assertEquals(1, result.workItemCommits().size());
       Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
       state = commitRequest.getSourceStateUpdates().getState();
       // CountingSource's watermark is the last record + 1.  i is now one past the last record,

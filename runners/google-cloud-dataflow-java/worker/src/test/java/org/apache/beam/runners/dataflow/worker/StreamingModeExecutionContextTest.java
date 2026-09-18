@@ -246,6 +246,7 @@ public class StreamingModeExecutionContextTest {
     executionContext.finishKey();
     ExecuteWorkResult result = executionContext.flushStateAndReset();
 
+    assertEquals(1, result.workItemCommits().size());
     Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
     Windmill.Timer timer = commitRequest.getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
@@ -500,6 +501,7 @@ public class StreamingModeExecutionContextTest {
     executionContext.finishKey();
     ExecuteWorkResult result = executionContext.flushStateAndReset();
 
+    assertEquals(1, result.workItemCommits().size());
     assertEquals(1234, result.workItemCommits().get(0).getSourceBacklogBytes());
   }
 

@@ -63,7 +63,7 @@ public class PubsubDynamicSinkTest {
             .setKey(ByteString.copyFromUtf8("key"))
             .setWorkToken(0);
 
-    when(mockContext.getOutputBuilder()).thenReturn(outputBuilder);
+    when(mockContext.getKeyOutputBuilder()).thenReturn(outputBuilder);
 
     Map<String, Object> spec = new HashMap<>();
     spec.put(PropertyNames.OBJECT_TYPE_NAME, "PubsubDynamicSink");
@@ -172,7 +172,7 @@ public class PubsubDynamicSinkTest {
         Windmill.WorkItemCommitRequest.newBuilder()
             .setKey(ByteString.copyFromUtf8("key"))
             .setWorkToken(0);
-    when(mockContext.getOutputBuilder()).thenReturn(outputBuilder);
+    when(mockContext.getKeyOutputBuilder()).thenReturn(outputBuilder);
 
     Map<String, Object> spec = new HashMap<>();
     spec.put(PropertyNames.OBJECT_TYPE_NAME, "PubsubDynamicSink");
@@ -236,7 +236,7 @@ public class PubsubDynamicSinkTest {
         Windmill.WorkItemCommitRequest.newBuilder()
             .setKey(ByteString.copyFromUtf8("key2"))
             .setWorkToken(2);
-    when(mockContext.getOutputBuilder()).thenReturn(outputBuilderKey1);
+    when(mockContext.getKeyOutputBuilder()).thenReturn(outputBuilderKey1);
 
     Map<String, Object> spec = new HashMap<>();
     spec.put(PropertyNames.OBJECT_TYPE_NAME, "PubsubDynamicSink");
@@ -272,7 +272,7 @@ public class PubsubDynamicSinkTest {
     assertEquals(0, outputBuilderKey1.getPubsubMessagesCount());
 
     // 2. Process Key 2 messages (to topicB and topicC)
-    when(mockContext.getOutputBuilder()).thenReturn(outputBuilderKey2);
+    when(mockContext.getKeyOutputBuilder()).thenReturn(outputBuilderKey2);
     writer.add(
         WindowedValues.timestampedValueInGlobalWindow(
             new PubsubMessage("k2-msgB".getBytes(StandardCharsets.UTF_8), null).withTopic("topicB"),
@@ -340,7 +340,7 @@ public class PubsubDynamicSinkTest {
         Windmill.WorkItemCommitRequest.newBuilder()
             .setKey(ByteString.copyFromUtf8("key"))
             .setWorkToken(0);
-    when(mockContext.getOutputBuilder()).thenReturn(outputBuilder);
+    when(mockContext.getKeyOutputBuilder()).thenReturn(outputBuilder);
 
     Map<String, Object> spec = new HashMap<>();
     spec.put(PropertyNames.OBJECT_TYPE_NAME, "PubsubDynamicSink");

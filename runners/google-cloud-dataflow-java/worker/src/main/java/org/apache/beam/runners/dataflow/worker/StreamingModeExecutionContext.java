@@ -164,7 +164,7 @@ public class StreamingModeExecutionContext
   // be used for processing many work items and these values can change during the context's
   // lifetime. start() is called for each work item.
   private OperationalLimits operationalLimits;
-  private Windmill.WorkItemCommitRequest.@Nullable Builder outputBuilder;
+  private Windmill.WorkItemCommitRequest.@Nullable Builder keyOutputBuilder;
 
   /**
    * Current reader used for processing {@link Work}. Set by calling {@link
@@ -341,7 +341,7 @@ public class StreamingModeExecutionContext
     this.onFailedWorkHandler = null;
     this.work = null;
     this.key = null;
-    this.outputBuilder = null;
+    this.keyOutputBuilder = null;
     this.sideInputStateFetcher = null;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
@@ -579,8 +579,8 @@ public class StreamingModeExecutionContext
     return getWorkItem().getTimers().getTimersList();
   }
 
-  public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
-    return checkStateNotNull(outputBuilder);
+  public Windmill.WorkItemCommitRequest.Builder getKeyOutputBuilder() {
+    return checkStateNotNull(keyOutputBuilder);
   }
 
   /**
@@ -653,14 +653,14 @@ public class StreamingModeExecutionContext
                       throw new RuntimeException("Exception while running bundle finalizer", e);
                     }
                   }));
-          getOutputBuilder().addFinalizeIds(id);
+          getKeyOutputBuilder().addFinalizeIds(id);
         }
       }
     }
 
     UnboundedReader<?> reader = activeReader;
     if (reader != null) {
-      Windmill.WorkItemCommitRequest.Builder builder = getOutputBuilder();
+      Windmill.WorkItemCommitRequest.Builder builder = getKeyOutputBuilder();
       Windmill.SourceState.Builder sourceStateBuilder = builder.getSourceStateUpdatesBuilder();
       final UnboundedSource.CheckpointMark checkpointMark = reader.getCheckpointMark();
       final Instant watermark = reader.getWatermark();
@@ -717,21 +717,25 @@ public class StreamingModeExecutionContext
       // If activeReader is null, we might still have backlogBytes from an SDF. We ignore a reported
       // backlogBytes of 1 since older versions of the Java SDK use this value as a default when
       // RestrictionTracker.getProgress() or GetSize() are not defined.
-      getOutputBuilder().setSourceBacklogBytes(backlogBytes);
+      getKeyOutputBuilder().setSourceBacklogBytes(backlogBytes);
     }
 
-    getOutputBuilder()
+    getKeyOutputBuilder()
         .setSourceBytesProcessed(computeSourceBytesProcessed(sourceBytesProcessCounterName));
 
     validateCommitRequestSize();
 
-    getOrCreateWorkItemCommits().add(getOutputBuilder().build());
-    this.outputBuilder = null;
+    if (this.workItemCommits == null) {
+      this.workItemCommits =
+          multiKeyBundleOptions.multiKeyBundleEnabled() ? new ArrayList<>() : new ArrayList<>(1);
+    }
+    this.workItemCommits.add(getKeyOutputBuilder().build());
+    this.keyOutputBuilder = null;
   }
 
   private void validateCommitRequestSize() {
     // TODO: Validate size of outputs at MultiKeyWorkItemCommitRequest level.
-    Windmill.WorkItemCommitRequest.Builder currentBuilder = getOutputBuilder();
+    Windmill.WorkItemCommitRequest.Builder currentBuilder = getKeyOutputBuilder();
     Work currentWork = getWork();
     long byteLimit = operationalLimits.getMaxWorkItemCommitBytes();
     Windmill.WorkItemCommitRequest commitRequest = currentBuilder.build();
@@ -858,7 +862,7 @@ public class StreamingModeExecutionContext
     this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, newWork.getShardedKey());
 
-    this.outputBuilder = createOutputBuilder(newWork);
+    this.keyOutputBuilder = createOutputBuilder(newWork);
     newWork.setOnFailureListener(this.workBatchFailed);
 
     logHotKeyIfDetected(newWork, this.key);
@@ -887,33 +891,17 @@ public class StreamingModeExecutionContext
   }
 
   public void addBundleOutputMessages(Windmill.OutputMessageBundle outputBundle) {
-    getOrCreateBundleOutputMessages().add(outputBundle);
-  }
-
-  public void addBundlePubsubMessages(Windmill.PubSubMessageBundle pubsubBundle) {
-    getOrCreateBundlePubsubMessages().add(pubsubBundle);
-  }
-
-  private List<Windmill.OutputMessageBundle> getOrCreateBundleOutputMessages() {
     if (this.bundleOutputMessages == null) {
       this.bundleOutputMessages = new ArrayList<>();
     }
-    return this.bundleOutputMessages;
+    this.bundleOutputMessages.add(outputBundle);
   }
 
-  private List<Windmill.PubSubMessageBundle> getOrCreateBundlePubsubMessages() {
+  public void addBundlePubsubMessages(Windmill.PubSubMessageBundle pubsubBundle) {
     if (this.bundlePubsubMessages == null) {
       this.bundlePubsubMessages = new ArrayList<>();
     }
-    return this.bundlePubsubMessages;
-  }
-
-  private List<Windmill.WorkItemCommitRequest> getOrCreateWorkItemCommits() {
-    if (this.workItemCommits == null) {
-      this.workItemCommits =
-          multiKeyBundleOptions.multiKeyBundleEnabled() ? new ArrayList<>() : new ArrayList<>(1);
-    }
-    return this.workItemCommits;
+    this.bundlePubsubMessages.add(pubsubBundle);
   }
 
   private Map<Long, Pair<Instant, Runnable>> getOrCreateFinalizationCallbacks() {
@@ -1289,7 +1277,7 @@ public class StreamingModeExecutionContext
 
     public void flushState() {
       if (stateFamily != null) {
-        WorkItemCommitRequest.Builder builder = getOutputBuilder();
+        WorkItemCommitRequest.Builder builder = getKeyOutputBuilder();
         checkStateNotNull(stateInternals).persist(builder);
         checkStateNotNull(systemTimerInternals).persistTo(builder);
         checkStateNotNull(userTimerInternals).persistTo(builder);
@@ -1504,7 +1492,7 @@ public class StreamingModeExecutionContext
               .setData(dataStream.toByteString())
               .setStateFamily(stateFamily);
 
-      getOutputBuilder().addGlobalDataUpdates(builder.build());
+      getKeyOutputBuilder().addGlobalDataUpdates(builder.build());
     }
 
     /** Fetch the given side input asynchronously and return true if it is present. */
@@ -1522,7 +1510,7 @@ public class StreamingModeExecutionContext
       String stateFamily = checkStateNotNull(this.stateFamily, "Tried to set global data request");
       sideInput =
           Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
-      WorkItemCommitRequest.Builder builder = getOutputBuilder();
+      WorkItemCommitRequest.Builder builder = getKeyOutputBuilder();
       builder.addGlobalDataRequests(sideInput);
       builder.addGlobalDataIdRequests(sideInput.getDataId());
     }

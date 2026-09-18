@@ -198,11 +198,13 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
             // If/when we add support for ordering keys, the flush needs to happen at the key level
             context.addBundlePubsubMessages(pubsubMessages);
           } else {
-            context.getOutputBuilder().addPubsubMessages(pubsubMessages);
+            context.getKeyOutputBuilder().addPubsubMessages(pubsubMessages);
           }
         }
       } finally {
-        outputBuilder = createOutputBuilder();
+        // TODO: Set to createOutputBuilder() for if/when adding support to reuse the sink across
+        // bundles.
+        outputBuilder.clear();
       }
     }
 
@@ -213,7 +215,7 @@ class PubsubSink<T> extends Sink<WindowedValue<T>> {
 
     @Override
     public void abort() throws IOException {
-      outputBuilder = createOutputBuilder();
+      outputBuilder.clear();
       stream.reset();
     }
   }

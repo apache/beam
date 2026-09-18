@@ -150,7 +150,7 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
               // level
               context.addBundlePubsubMessages(pubsubMessages);
             } else {
-              context.getOutputBuilder().addPubsubMessages(pubsubMessages);
+              context.getKeyOutputBuilder().addPubsubMessages(pubsubMessages);
             }
           }
         }

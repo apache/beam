@@ -362,7 +362,7 @@ class WindmillSink<T> extends Sink<WindowedValue<T>> {
           if (bundleLevel) {
             context.addBundleOutputMessages(bundle);
           } else {
-            context.getOutputBuilder().addOutputMessages(bundle);
+            context.getKeyOutputBuilder().addOutputMessages(bundle);
           }
         }
       } finally {
