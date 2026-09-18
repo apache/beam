@@ -73,6 +73,7 @@
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Go) The row coder now encodes `int16` and `uint16` struct fields as 2 byte big endian INT16 values, matching the Java and Python SDKs. Rows with such fields written by earlier Go SDK versions decode differently with this version ([#40151](https://github.com/apache/beam/issues/40151)).
 
 ## Deprecations
 
