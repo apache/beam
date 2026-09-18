@@ -428,7 +428,12 @@ class SubprocessModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
 
 class SubProcessModelServer:
   """Manages the lifecycle of a generic subprocess model server."""
-  def __init__(self, handler_path: str, model_name: str, port: int = None, temp_dir: tempfile.TemporaryDirectory = None):
+  def __init__(
+      self,
+      handler_path: str,
+      model_name: str,
+      port: Optional[int] = None,
+      temp_dir: Optional[tempfile.TemporaryDirectory] = None):
     self._handler_path = handler_path
     self._model_name = model_name
     self._port = port
@@ -438,23 +443,33 @@ class SubProcessModelServer:
     self._server_process_lock = threading.RLock()
     self.start_server()
 
+  def _terminate_process(self):
+    if self._process:
+      logging.info("Terminating generic subprocess model server")
+      try:
+        self._process.terminate()
+        self._process.wait(timeout=5)
+      except Exception:
+        try:
+          self._process.kill()
+          self._process.wait(timeout=5)
+        except Exception:
+          pass
+      if self._process.stdout:
+        try:
+          self._process.stdout.close()
+        except Exception:
+          pass
+      self._process = None
+      self._port = None
+
   def start_server(self, retries=3):
     with self._server_process_lock:
       if self._process and self._process.poll() is not None:
         self._server_started = False
       if not self._server_started:
         if self._process:
-          logging.info("Terminating existing generic subprocess model server before restart")
-          try:
-            self._process.terminate()
-            self._process.wait(timeout=5)
-          except Exception:
-            try:
-              self._process.kill()
-            except Exception:
-              pass
-          self._process = None
-          self._port = None
+          self._terminate_process()
 
         from apache_beam.utils import subprocess_server
         if self._port is None:
@@ -468,17 +483,25 @@ class SubProcessModelServer:
             self._handler_path,
             '--port',
             str(self._port),
+            '--model_name',
+            self._model_name,
         ]
         logging.info("Starting generic model server with %s", cmd)
-        self._process = subprocess.Popen(
+        proc = subprocess.Popen(
             cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self._process = proc
         
         # Emit the output of this command as info level logging.
         def log_stdout():
-          line = self._process.stdout.readline()
-          while line:
-            logging.info(line.decode(errors='backslashreplace').rstrip())
-            line = self._process.stdout.readline()
+          if not proc.stdout:
+            return
+          try:
+            line = proc.stdout.readline()
+            while line:
+              logging.info(line.decode(errors='backslashreplace').rstrip())
+              line = proc.stdout.readline()
+          except (ValueError, OSError):
+            pass
 
         t = threading.Thread(target=log_stdout)
         t.daemon = True
@@ -487,52 +510,47 @@ class SubProcessModelServer:
       self.check_connectivity(retries)
 
   def get_server_port(self) -> int:
-    if not self._server_started:
+    if not self._server_started or (
+        self._process and self._process.poll() is not None):
       self.start_server()
     return self._port
 
   def check_connectivity(self, retries=3):
-    import urllib.request
-    import urllib.error
-    
-    url = f"http://localhost:{self._port}/v1/models"
-    attempts = 0
-    max_attempts = 12  # 12 * 5s = 60s timeout
-    while self._process.poll() is None and attempts < max_attempts:
-      try:
-        # Use standard library to check connectivity to avoid extra dependencies
-        req = urllib.request.Request(url, method="GET")
-        with urllib.request.urlopen(req, timeout=5) as response:
-          if response.status == 200:
-            self._server_started = True
-            return
-      except urllib.error.URLError:
-        pass
-      except Exception as e:
-        logging.warning("Error checking connectivity: %s", e)
-      attempts += 1
-      time.sleep(5)
+    with self._server_process_lock:
+      import urllib.request
+      import urllib.error
+      
+      url = f"http://localhost:{self._port}/v1/models"
+      attempts = 0
+      max_attempts = 12  # 12 * 5s = 60s timeout
+      while (self._process is not None and self._process.poll() is None and
+             attempts < max_attempts):
+        try:
+          # Use standard library to check connectivity to avoid extra dependencies
+          req = urllib.request.Request(url, method="GET")
+          with urllib.request.urlopen(req, timeout=5) as response:
+            if response.status == 200:
+              self._server_started = True
+              return
+        except urllib.error.URLError:
+          pass
+        except Exception as e:
+          logging.warning("Error checking connectivity: %s", e)
+        attempts += 1
+        time.sleep(5)
 
-    if retries == 0:
       self._server_started = False
-      raise Exception(
-          "Failed to start generic subprocess server, polling process exited with code " +
-          f"{self._process.poll()}. Next time a request is tried, the server will be restarted"
-      )
-    else:
-      self.start_server(retries - 1)
+      if retries == 0:
+        exit_code = self._process.poll() if self._process else None
+        raise Exception(
+            "Failed to start generic subprocess server, polling process exited with code " +
+            f"{exit_code}. Next time a request is tried, the server will be restarted"
+        )
+      else:
+        self.start_server(retries - 1)
 
   def __del__(self):
-    if self._process:
-      logging.info("Terminating generic subprocess model server")
-      try:
-        self._process.terminate()
-        self._process.wait(timeout=5)
-      except Exception:
-        try:
-          self._process.kill()
-        except Exception:
-          pass
+    self._terminate_process()
     if self._temp_dir:
       try:
         self._temp_dir.cleanup()
@@ -558,29 +576,35 @@ class SubProcessModel(SubprocessModelHandler[ExampleT, PredictionT, Any]):
       return self._handler.load_model()
       
     import tempfile
+    from apache_beam.internal import pickler
     temp_dir = tempfile.TemporaryDirectory(prefix="beam-subprocess-")
     self._handler_path = os.path.join(temp_dir.name, "handler.pickle")
     with open(self._handler_path, "wb") as f:
-      pickle.dump(self._handler, f)
+      f.write(pickler.dumps(self._handler))
       
     return SubProcessModelServer(self._handler_path, self._model_name, temp_dir=temp_dir)
 
   def run_inference(self, batch, model, inference_args=None):
     if isinstance(model, SubProcessModelServer):
-      return self._run_inference_via_http(batch, model.get_server_port(), inference_args)
+      try:
+        return self._run_inference_via_http(batch, model.get_server_port(), inference_args)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
     else:
       return self._handler.run_inference(batch, model, inference_args)
 
   def _run_inference_via_http(self, batch, port, inference_args):
     import urllib.request
     import urllib.error
+    from apache_beam.internal import pickler
     
     url = f"http://localhost:{port}/v1/beam/inference"
     payload = {
         "batch": batch,
         "inference_args": inference_args
     }
-    data = pickle.dumps(payload)
+    data = pickler.dumps(payload)
     
     req = urllib.request.Request(url, data=data, method="POST")
     req.add_header('Content-Type', 'application/octet-stream')
@@ -588,7 +612,7 @@ class SubProcessModel(SubprocessModelHandler[ExampleT, PredictionT, Any]):
     try:
       with urllib.request.urlopen(req, timeout=self._timeout) as response:
         resp_data = response.read()
-        results = pickle.loads(resp_data)
+        results = pickler.loads(resp_data)
         return results
     except urllib.error.HTTPError as e:
       try:

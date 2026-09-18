@@ -127,6 +127,12 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       :class:`~google.adk.sessions.BaseSessionService`. When ``None``, an
       :class:`~google.adk.sessions.InMemorySessionService` is created
       automatically.
+    underlying_model_handler: Optional :class:`~apache_beam.ml.inference.base.SubprocessModelHandler`
+      (such as :class:`~apache_beam.ml.inference.vllm_inference.VLLMCompletionsModelHandler`
+      or :class:`~apache_beam.ml.inference.base.SubProcessModel`) to deploy and
+      manage a local model server on the worker. When provided, agents configured
+      with ``model=BEAM_PLACEHOLDER_MODEL`` (or a 1-argument agent factory) will
+      be automatically wired to the local model server.
     min_batch_size: Optional minimum batch size.
     max_batch_size: Optional maximum batch size.
     max_batch_duration_secs: Optional maximum time to buffer a batch before
@@ -171,6 +177,16 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
         element_size_fn=element_size_fn,
         **kwargs)
 
+  @staticmethod
+  def _create_local_lite_llm(model_name: str, port: int) -> Any:
+    from google.adk.models.lite_llm import LiteLlm
+    return LiteLlm(
+        model=model_name,
+        api_base=f"http://localhost:{port}/v1",
+        api_key="EMPTY",
+        custom_llm_provider="openai",
+    )
+
   def load_model(self) -> "Runner":
     """Instantiates the ADK Runner on the worker.
 
@@ -188,12 +204,7 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
       underlying_model = self._underlying_model_handler.load_model()
       self._current_port = self._underlying_model_handler.get_port(underlying_model)
       model_name = self._underlying_model_handler.get_model_name()
-
-      from google.adk.models.lite_llm import LiteLlm
-      local_model = LiteLlm(
-          model=model_name,
-          api_base=f"http://localhost:{self._current_port}/v1"
-      )
+      local_model = self._create_local_lite_llm(model_name, self._current_port)
 
     # Resolve agent and inject model
     if callable(self._agent_or_factory) and not isinstance(
@@ -211,9 +222,11 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
         if local_model is None:
           raise ValueError("Agent factory expects 1 argument but no local model was configured.")
         agent = self._agent_or_factory(local_model)
+        self._set_agent_model(agent, local_model, is_root=True)
       elif len(required_params) == 0:
         if local_model is not None and len(params) > 0:
           agent = self._agent_or_factory(local_model)
+          self._set_agent_model(agent, local_model, is_root=True)
         else:
           agent = self._agent_or_factory()
           if local_model is not None:
@@ -259,21 +272,40 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
     )
     return runner
 
-  def _set_agent_model(self, agent: "Agent", model: Any, is_root: bool = False):
-    if is_root:
-      if _is_beam_placeholder_model(agent.model) or agent.model is None:
-        agent.model = model
-    else:
-      if _is_beam_placeholder_model(agent.model):
-        agent.model = model
+  def _set_agent_model(
+      self,
+      agent: "Agent",
+      model: Any,
+      is_root: bool = False,
+      visited: Optional[set[int]] = None):
+    if visited is None:
+      visited = set()
+    if id(agent) in visited:
+      return
+    visited.add(id(agent))
 
-    # Speculative propagation to subagents/tools
+    if hasattr(agent, 'model'):
+      if is_root:
+        if _is_beam_placeholder_model(agent.model) or agent.model is None:
+          agent.model = model
+      else:
+        if _is_beam_placeholder_model(agent.model):
+          agent.model = model
+
+    # Speculative propagation to sub_agents and tools
+    if getattr(agent, 'sub_agents', None) is not None:
+      for sub_agent in agent.sub_agents:
+        self._set_agent_model(
+            sub_agent, model, is_root=False, visited=visited)
+
     if getattr(agent, 'tools', None) is not None:
       for tool in agent.tools:
         if hasattr(tool, 'agent'):
-          self._set_agent_model(tool.agent, model, is_root=False)
+          self._set_agent_model(
+              tool.agent, model, is_root=False, visited=visited)
         elif isinstance(tool, Agent):
-          self._set_agent_model(tool, model, is_root=False)
+          self._set_agent_model(
+              tool, model, is_root=False, visited=visited)
 
   def run_inference(
       self,
@@ -373,20 +405,32 @@ class ADKAgentModelHandler(ModelHandler[str | genai_Content,
 
     return results
 
-  def _update_agent_port(self, agent: "Agent", port: int):
+  def _update_agent_port(
+      self,
+      agent: "Agent",
+      port: int,
+      visited: Optional[set[int]] = None):
+    if visited is None:
+      visited = set()
+    if id(agent) in visited:
+      return
+    visited.add(id(agent))
+
     if ADK_AVAILABLE:
       from google.adk.models.lite_llm import LiteLlm
       if hasattr(agent, 'model') and isinstance(agent.model, LiteLlm):
-        agent.model = LiteLlm(
-            model=agent.model.model,
-            api_base=f"http://localhost:{port}/v1"
-        )
+        agent.model = self._create_local_lite_llm(agent.model.model, port)
+
+    if getattr(agent, 'sub_agents', None) is not None:
+      for sub_agent in agent.sub_agents:
+        self._update_agent_port(sub_agent, port, visited=visited)
+
     if getattr(agent, 'tools', None) is not None:
       for tool in agent.tools:
         if hasattr(tool, 'agent'):
-          self._update_agent_port(tool.agent, port)
+          self._update_agent_port(tool.agent, port, visited=visited)
         elif isinstance(tool, Agent):
-          self._update_agent_port(tool, port)
+          self._update_agent_port(tool, port, visited=visited)
 
   def share_model_across_processes(self) -> bool:
     if self._underlying_model_handler is not None:

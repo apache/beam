@@ -17,12 +17,13 @@
 
 import argparse
 import logging
-import pickle
 import sys
 import uvicorn
 from fastapi import FastAPI, Response, Request, HTTPException
 from pydantic import BaseModel
 from typing import List, Any
+
+from apache_beam.internal import pickler
 
 # Set up logging
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +32,7 @@ logger = logging.getLogger("subprocess_server")
 app = FastAPI()
 handler = None
 model = None
+configured_model_name = "unknown"
 
 def _extract_inference(result) -> str:
   if hasattr(result, "inference"):
@@ -58,6 +60,8 @@ class CompletionRequest(BaseModel):
 @app.post("/v1/chat/completions")
 async def chat_completions(request: ChatCompletionRequest):
   logger.info("Received chat completion request")
+  if not request.messages:
+    raise HTTPException(status_code=400, detail="messages cannot be empty")
   # Map to handler input.
   # For compatibility with standard text handlers, we take the last user message content.
   # If the handler expects the full history, we might need a more complex mapping.
@@ -104,13 +108,13 @@ async def beam_inference(request: Request):
   logger.info("Received Beam raw inference request")
   try:
     body = await request.body()
-    payload = pickle.loads(body)
+    payload = pickler.loads(body)
     batch = payload["batch"]
     inference_args = payload.get("inference_args")
     
     results = handler.run_inference(batch, model, inference_args)
     results_list = list(results)
-    pickled_results = pickle.dumps(results_list)
+    pickled_results = pickler.dumps(results_list)
     return Response(content=pickled_results, media_type="application/octet-stream")
   except Exception as e:
     logger.exception("Error during raw inference")
@@ -119,7 +123,7 @@ async def beam_inference(request: Request):
 @app.get("/v1/models")
 async def list_models():
   # Endpoint to check connectivity and list models
-  model_name = getattr(handler, "_model_name", "unknown")
+  model_name = getattr(handler, "_model_name", configured_model_name)
   return {
       "data": [
           {
@@ -133,11 +137,13 @@ if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument("--handler_path", required=True)
   parser.add_argument("--port", type=int, required=True)
+  parser.add_argument("--model_name", default="unknown")
   args = parser.parse_args()
   
+  configured_model_name = args.model_name
   logger.info("Loading handler from %s", args.handler_path)
   with open(args.handler_path, "rb") as f:
-    handler = pickle.load(f)
+    handler = pickler.loads(f.read())
     
   logger.info("Loading model...")
   model = handler.load_model()

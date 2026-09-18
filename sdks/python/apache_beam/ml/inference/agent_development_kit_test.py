@@ -505,6 +505,47 @@ class TestLocalModelIntegration(unittest.TestCase):
     self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
     self.assertEqual(handler._current_port, 54321)
 
+  def test_local_model_injection_and_propagation_sub_agents(self):
+    subagent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="subagent")
+    root_agent = Agent(
+        model=BEAM_PLACEHOLDER_MODEL,
+        name="root_agent",
+        sub_agents=[subagent]
+    )
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    from google.adk.models.lite_llm import LiteLlm
+    self.assertIsInstance(subagent.model, LiteLlm)
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+
+    self.mock_handler.get_port.return_value = 54321
+    handler._run_inference_internal = mock.MagicMock(return_value=[])
+    handler.run_inference(batch=["test"], model=runner)
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
+
+  def test_end_to_end_local_subprocess_model(self):
+    from apache_beam.ml.inference.base import ModelHandler
+    from apache_beam.ml.inference.base import SubProcessModel
+
+    class LocalEchoModelHandler(ModelHandler):
+      def load_model(self):
+        return "echo_model"
+      def run_inference(self, batch, model, inference_args=None):
+        return [PredictionResult(x, f"{x}_local_echo") for x in batch]
+
+    sub_mh = SubProcessModel(LocalEchoModelHandler(), model_name="facebook/opt-125m")
+    agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="echo_agent")
+    handler = ADKAgentModelHandler(agent=agent, underlying_model_handler=sub_mh)
+    runner = handler.load_model()
+    try:
+      results = list(handler.run_inference(batch=["hello"], model=runner))
+      self.assertEqual(len(results), 1)
+      self.assertEqual(results[0].example, "hello")
+      self.assertEqual(results[0].inference, "hello_local_echo")
+    finally:
+      del runner
 
 
 if __name__ == '__main__':
