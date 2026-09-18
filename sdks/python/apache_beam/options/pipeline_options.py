@@ -1213,6 +1213,15 @@ class GoogleCloudOptions(PipelineOptions):
         'larger buffer reduces the number of requests sent to GCS at the '
         'cost of more memory per reader. When unset, the GCS client in Beam '
         'uses its default buffer size (16 MiB).')
+    parser.add_argument(
+        '--gcs_write_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when writing to GCS. Must be '
+        'a multiple of 256 KiB, since writes are performed as resumable '
+        'uploads. A larger buffer reduces the number of requests sent to GCS '
+        'at the cost of more memory per writer. When unset, the GCS client '
+        'in Beam uses its default buffer size (16 MiB).')
 
   def _create_default_gcs_bucket(self):
     try:
@@ -1327,6 +1336,18 @@ class GoogleCloudOptions(PipelineOptions):
       errors.append(
           '--gcs_read_buffer_size_bytes must be a positive number of bytes, '
           'got %s.' % self.gcs_read_buffer_size_bytes)
+
+    if self.gcs_write_buffer_size_bytes is not None:
+      # GCS resumable uploads require the chunk size to be a multiple of
+      # 256 KiB. Checking here avoids a failure deep inside the GCS client
+      # on the first flush.
+      write_buffer_size_multiple = 256 * 1024
+      if (self.gcs_write_buffer_size_bytes <= 0 or
+          self.gcs_write_buffer_size_bytes % write_buffer_size_multiple != 0):
+        errors.append(
+            '--gcs_write_buffer_size_bytes must be a positive multiple of '
+            '%d bytes, got %s.' %
+            (write_buffer_size_multiple, self.gcs_write_buffer_size_bytes))
 
     return errors
 
