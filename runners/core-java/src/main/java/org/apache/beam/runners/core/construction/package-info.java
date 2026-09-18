@@ -17,8 +17,4 @@
  */
 
 /** Internal package related to runner construction. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core.construction;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

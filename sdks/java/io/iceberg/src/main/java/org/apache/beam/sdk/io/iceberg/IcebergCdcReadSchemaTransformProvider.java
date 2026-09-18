@@ -117,7 +117,10 @@ public class IcebergCdcReadSchemaTransformProvider
               .streaming(configuration.getStreaming())
               .keeping(configuration.getKeep())
               .dropping(configuration.getDrop())
-              .withFilter(configuration.getFilter());
+              .withFilter(configuration.getFilter())
+              .withWatermarkColumn(configuration.getWatermarkColumn())
+              .withWatermarkColumnTimeUnit(configuration.getWatermarkColumnTimeUnit())
+              .withMetadataColumns(configuration.getIncludeMetadataColumns());
 
       @Nullable Integer pollIntervalSeconds = configuration.getPollIntervalSeconds();
       if (pollIntervalSeconds != null) {
@@ -193,6 +196,26 @@ public class IcebergCdcReadSchemaTransformProvider
         "A subset of column names to exclude from reading. If null or empty, all columns will be read.")
     abstract @Nullable List<String> getDrop();
 
+    @SchemaFieldDescription(
+        "Column used to derive the source's output watermark. "
+            + "Must be an existing, required, top-level column of type 'long' or 'timestamp'. "
+            + "If not set, the watermark advances according to snapshot commit timestamp.")
+    abstract @Nullable String getWatermarkColumn();
+
+    @SchemaFieldDescription(
+        "Time unit used to interpret watermark column of type LONG. One of NANOSECONDS, MICROSECONDS, "
+            + "MILLISECONDS, SECONDS, MINUTES, HOURS, DAYS. Defaults to MICROSECONDS.")
+    abstract @Nullable String getWatermarkColumnTimeUnit();
+
+    @SchemaFieldDescription(
+        "List of top-level metadata columns to include with CDC output rows. Supported columns: \n"
+            + "- `_change_type`\n"
+            + "- `_row_id`\n"
+            + "- `_last_updated_sequence_number`\n"
+            + "- `_commit_snapshot_id`\n"
+            + "- `_commit_snapshot_sequence_number`\n")
+    abstract @Nullable List<String> getIncludeMetadataColumns();
+
     @AutoValue.Builder
     abstract static class Builder {
       abstract Builder setTable(String table);
@@ -222,6 +245,12 @@ public class IcebergCdcReadSchemaTransformProvider
       abstract Builder setDrop(List<String> drop);
 
       abstract Builder setFilter(String filter);
+
+      abstract Builder setWatermarkColumn(String watermarkColumn);
+
+      abstract Builder setWatermarkColumnTimeUnit(String timeUnit);
+
+      abstract Builder setIncludeMetadataColumns(List<String> metadataColumns);
 
       abstract Configuration build();
     }

@@ -96,6 +96,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.apache.flink.api.common.JobID;
 import org.apache.flink.api.common.operators.ProcessingTimeService.ProcessingTimeCallback;
 import org.apache.flink.api.common.state.ListState;
 import org.apache.flink.api.common.state.ListStateDescriptor;
@@ -162,6 +163,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
   protected final List<TupleTag<?>> additionalOutputTags;
 
   protected final Collection<PCollectionView<?>> sideInputs;
+  private final Collection<PCollectionView<?>> cacheableSideInputs;
   protected final Map<Integer, PCollectionView<?>> sideInputTagMapping;
 
   protected final WindowingStrategy<?, ?> windowingStrategy;
@@ -197,6 +199,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
   /** Max number of elements to include in a bundle. */
   private final long maxBundleSize;
+
   /** Max duration of a bundle. */
   private final long maxBundleTimeMills;
 
@@ -221,9 +224,11 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
   /** Stores new finalizations being gathered. */
   private transient InMemoryBundleFinalizer bundleFinalizer;
+
   /** Pending bundle finalizations which have not been acknowledged yet. */
   private transient LinkedHashMap<Long, List<InMemoryBundleFinalizer.Finalization>>
       pendingFinalizations;
+
   /**
    * Keep a maximum of 32 bundle finalizations for {@link
    * BundleFinalizer.Callback#onBundleSuccess()}.
@@ -256,12 +261,16 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
    * been addressed.
    */
   private transient volatile boolean bundleStarted;
+
   /** Number of processed elements in the current bundle. */
   private transient volatile long elementCount;
+
   /** Time that the last bundle was finished (to set the timer). */
   private transient volatile long lastFinishBundleTime;
+
   /** Callback to be executed before the current bundle is started. */
   private transient volatile Runnable preBundleCallback;
+
   /** Callback to be executed after the current bundle was finished. */
   private transient volatile Runnable bundleFinishedCallback;
 
@@ -297,6 +306,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     this.additionalOutputTags = additionalOutputTags;
     this.sideInputTagMapping = sideInputTagMapping;
     this.sideInputs = sideInputs;
+    this.cacheableSideInputs = CachedSideInputReader.cacheableViews(sideInputs);
     this.serializedOptions = new SerializablePipelineOptions(options);
     this.isStreaming = serializedOptions.get().as(FlinkPipelineOptions.class).isStreaming();
     this.windowingStrategy = windowingStrategy;
@@ -466,7 +476,12 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
               serializedOptions);
 
       sideInputHandler = new SideInputHandler(sideInputs, sideInputStateInternals);
-      sideInputReader = sideInputHandler;
+      sideInputReader =
+          createSideInputReader(
+              cacheableSideInputs,
+              getContainingTask().getEnvironment().getJobID(),
+              getContainingTask().getEnvironment().getTaskInfo().getAttemptNumber(),
+              sideInputHandler);
 
       Stream<WindowedValue<InputT>> pushedBack = pushedBackElementsHandler.getElements();
       long min =
@@ -790,6 +805,27 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
     PCollectionView<?> sideInput = sideInputTagMapping.get(streamRecord.getValue().getUnionTag());
     sideInputHandler.addSideInputValue(sideInput, value);
+    // Invalidate only after the state write: a concurrent reader that re-caches between an
+    // earlier invalidation and the write would pin the previous value with no later invalidation.
+    for (BoundedWindow window : value.getWindows()) {
+      SideInputCache.invalidate(
+          getContainingTask().getEnvironment().getJobID(),
+          getContainingTask().getEnvironment().getTaskInfo().getAttemptNumber(),
+          sideInput,
+          window);
+    }
+  }
+
+  @VisibleForTesting
+  static SideInputReader createSideInputReader(
+      Collection<PCollectionView<?>> cacheableViews,
+      JobID jobId,
+      int attemptNumber,
+      SideInputReader delegate) {
+    if (!cacheableViews.isEmpty()) {
+      return CachedSideInputReader.of(jobId, attemptNumber, delegate, cacheableViews);
+    }
+    return delegate;
   }
 
   @Override
@@ -1236,6 +1272,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     private final TupleTag<OutputT> mainTag;
     private final Map<TupleTag<?>, OutputTag<WindowedValue<?>>> tagsToOutputTags;
     private final Map<TupleTag<?>, Integer> tagsToIds;
+
     /**
      * A lock to be acquired before writing to the buffer. This lock will only be acquired during
      * buffering. It will not be acquired during flushing the buffer.
@@ -1245,6 +1282,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
     private final boolean isStreaming;
 
     private Map<Integer, TupleTag<?>> idsToTags;
+
     /** Elements buffered during a snapshot, by output id. */
     @VisibleForTesting
     final PushedBackElementsHandler<KV<Integer, WindowedValue<?>>> pushedBackElementsHandler;
@@ -1253,6 +1291,7 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
 
     /** Indicates whether we are buffering data as part of snapshotState(). */
     private boolean openBuffer = false;
+
     /** For performance, to avoid having to access the state backend when the buffer is empty. */
     private boolean bufferIsEmpty = false;
 
@@ -1655,7 +1694,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+     */
     @Deprecated
     @Override
     public void deleteTimer(StateNamespace namespace, String timerId, String timerFamilyId) {
@@ -1672,7 +1713,9 @@ public class DoFnOperator<PreInputT, InputT, OutputT>
       }
     }
 
-    /** @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}. */
+    /**
+     * @deprecated use {@link #deleteTimer(StateNamespace, String, String, TimeDomain)}.
+     */
     @Override
     @Deprecated
     public void deleteTimer(TimerData timer) {

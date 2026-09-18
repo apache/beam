@@ -113,6 +113,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertEqual(pipeline_url, FAKE_PIPELINE_URL)
 
+  def test_value_provider_options_serialization(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--at_vp_arg1')
+        parser.add_value_provider_argument('--at_vp_arg2')
+
+    pipeline_options = UserOptions([
+        '--at_vp_arg2', 'provided', '--temp_location', 'gs://any-location/temp'
+    ])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+
+    recovered_options = env.proto.sdk_pipeline_options['options']
+    self.assertIsNone(recovered_options['at_vp_arg1'])
+    self.assertEqual(recovered_options['at_vp_arg2'], 'provided')
+
   def test_pipeline_proto_hash(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])

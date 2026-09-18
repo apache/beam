@@ -64,50 +64,35 @@ public class Counter<InputT, AccumT> {
    * <p>This class is essentially a visitor for counter values.
    */
   public interface CounterUpdateExtractor<UpdateT> {
-    @Nullable
-    UpdateT longSum(CounterName name, boolean delta, Long value);
+    @Nullable UpdateT longSum(CounterName name, boolean delta, Long value);
 
-    @Nullable
-    UpdateT longMin(CounterName name, boolean delta, Long value);
+    @Nullable UpdateT longMin(CounterName name, boolean delta, Long value);
 
-    @Nullable
-    UpdateT longMax(CounterName name, boolean delta, Long value);
+    @Nullable UpdateT longMax(CounterName name, boolean delta, Long value);
 
-    @Nullable
-    UpdateT longMean(CounterName name, boolean delta, CounterMean<Long> value);
+    @Nullable UpdateT longMean(CounterName name, boolean delta, CounterMean<Long> value);
 
-    @Nullable
-    UpdateT intSum(CounterName name, boolean delta, Integer value);
+    @Nullable UpdateT intSum(CounterName name, boolean delta, Integer value);
 
-    @Nullable
-    UpdateT intMin(CounterName name, boolean delta, Integer value);
+    @Nullable UpdateT intMin(CounterName name, boolean delta, Integer value);
 
-    @Nullable
-    UpdateT intMax(CounterName name, boolean delta, Integer value);
+    @Nullable UpdateT intMax(CounterName name, boolean delta, Integer value);
 
-    @Nullable
-    UpdateT intMean(CounterName name, boolean delta, CounterMean<Integer> value);
+    @Nullable UpdateT intMean(CounterName name, boolean delta, CounterMean<Integer> value);
 
-    @Nullable
-    UpdateT doubleSum(CounterName name, boolean delta, Double value);
+    @Nullable UpdateT doubleSum(CounterName name, boolean delta, Double value);
 
-    @Nullable
-    UpdateT doubleMin(CounterName name, boolean delta, Double value);
+    @Nullable UpdateT doubleMin(CounterName name, boolean delta, Double value);
 
-    @Nullable
-    UpdateT doubleMax(CounterName name, boolean delta, Double value);
+    @Nullable UpdateT doubleMax(CounterName name, boolean delta, Double value);
 
-    @Nullable
-    UpdateT doubleMean(CounterName name, boolean delta, CounterMean<Double> value);
+    @Nullable UpdateT doubleMean(CounterName name, boolean delta, CounterMean<Double> value);
 
-    @Nullable
-    UpdateT boolOr(CounterName name, boolean delta, Boolean value);
+    @Nullable UpdateT boolOr(CounterName name, boolean delta, Boolean value);
 
-    @Nullable
-    UpdateT boolAnd(CounterName name, boolean delta, Boolean value);
+    @Nullable UpdateT boolAnd(CounterName name, boolean delta, Boolean value);
 
-    @Nullable
-    UpdateT distribution(CounterName name, boolean delta, CounterDistribution value);
+    @Nullable UpdateT distribution(CounterName name, boolean delta, CounterDistribution value);
   }
 
   //////////////////////////////////////////////////////////////////////////////

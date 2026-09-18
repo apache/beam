@@ -36,7 +36,8 @@ from apache_beam.utils import retry
 
 try:
   # pylint: disable=wrong-import-order, wrong-import-position
-  # pylint: disable=ungrouped-imports
+  # pylint: disable=ungrouped-imports, unused-import
+  import boto3
   from apache_beam.io.aws.clients.s3 import boto3_client
   BOTO3_INSTALLED = True
 except ImportError:

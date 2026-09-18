@@ -163,7 +163,6 @@ task downloadPerformanceLooks(type: Exec) {
 
       export HOME=/tmp
       export CLOUDSDK_CONFIG=/tmp/gcloud
-      export GSUTIL_CONFIG_DIR=/tmp/gsutil
       export GOOGLE_APPLICATION_CREDENTIALS="${gcpCredsInContainer}"
 
       gcloud auth activate-service-account --key-file="\$GOOGLE_APPLICATION_CREDENTIALS" --no-user-output-enabled
@@ -172,7 +171,7 @@ task downloadPerformanceLooks(type: Exec) {
 
       echo "[performance_looks] Syncing looks..."
 
-      if gsutil -m rsync -r "\$SRC" "\$OUT_DIR"; then
+      if gcloud storage rsync -r "\$SRC" "\$OUT_DIR"; then
         echo "[performance_looks] Download completed successfully"
       else
         echo "[performance_looks][WARNING] Failed to sync looks from GCS"
@@ -411,7 +410,7 @@ task stageWebsite {
     shell ". ${envdir}/bin/activate && python append_index_html_to_internal_links.py ${buildContentDir('gcs')}"
 
     // Copy the build website to GCS
-    shell "gsutil -m rsync -r -d ${buildContentDir('gcs')} ${gcs_path}"
+    shell "gcloud storage rsync -r --delete-unmatched-destination-objects ${buildContentDir('gcs')} ${gcs_path}"
 
     println "Website published to http://${gcs_bucket}." +
         "storage.googleapis.com/${baseUrl}/index.html"

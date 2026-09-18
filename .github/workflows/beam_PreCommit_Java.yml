@@ -192,6 +192,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
+            -Pwith-kafka-streams-runner \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
         if: ${{ !success() }}

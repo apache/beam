@@ -236,8 +236,7 @@ public class JmsIO {
      *
      * <p>So, a {@link ConnectionFactory} implementation should be serializable.
      */
-    @Nullable
-    ConnectionFactory getConnectionFactory() {
+    @Nullable ConnectionFactory getConnectionFactory() {
       if (connectionFactory == null) {
         connectionFactory =
             Optional.ofNullable(getConnectionFactoryProviderFn())
@@ -365,6 +364,21 @@ public class JmsIO {
       checkArgument(
           connectionFactoryProviderFn != null, "connectionFactoryProviderFn cannot be null");
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
+    }
+
+    public Read<T> withConnectionConfiguration(ConnectionConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      Read<T> read =
+          this.withConnectionFactoryProviderFn(
+              (SerializableFunction<Void, ? extends ConnectionFactory>)
+                  __ -> configuration.createConnectionFactory());
+      if (configuration.getUsername() != null) {
+        read = read.withUsername(configuration.getUsername());
+      }
+      if (configuration.getPassword() != null) {
+        read = read.withPassword(configuration.getPassword());
+      }
+      return read;
     }
 
     /**
@@ -1006,8 +1020,7 @@ public class JmsIO {
 
     private @Nullable transient ConnectionFactory connectionFactory;
 
-    @Nullable
-    ConnectionFactory getConnectionFactory() {
+    @Nullable ConnectionFactory getConnectionFactory() {
       if (connectionFactory == null) {
         connectionFactory =
             Optional.ofNullable(getConnectionFactoryProviderFn())
@@ -1018,8 +1031,8 @@ public class JmsIO {
       return connectionFactory;
     }
 
-    abstract @Nullable SerializableFunction<Void, ? extends ConnectionFactory>
-        getConnectionFactoryProviderFn();
+    abstract @Nullable
+        SerializableFunction<Void, ? extends ConnectionFactory> getConnectionFactoryProviderFn();
 
     abstract @Nullable String getQueue();
 
@@ -1104,6 +1117,21 @@ public class JmsIO {
       checkArgument(
           connectionFactoryProviderFn != null, "connectionFactoryProviderFn can not be null");
       return builder().setConnectionFactoryProviderFn(connectionFactoryProviderFn).build();
+    }
+
+    public Write<EventT> withConnectionConfiguration(ConnectionConfiguration configuration) {
+      checkArgument(configuration != null, "configuration can not be null");
+      Write<EventT> write =
+          this.withConnectionFactoryProviderFn(
+              (SerializableFunction<Void, ? extends ConnectionFactory>)
+                  __ -> configuration.createConnectionFactory());
+      if (configuration.getUsername() != null) {
+        write = write.withUsername(configuration.getUsername());
+      }
+      if (configuration.getPassword() != null) {
+        write = write.withPassword(configuration.getPassword());
+      }
+      return write;
     }
 
     /**

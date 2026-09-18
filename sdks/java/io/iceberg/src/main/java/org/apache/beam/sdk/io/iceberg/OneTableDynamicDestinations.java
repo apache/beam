@@ -23,6 +23,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.util.List;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
@@ -30,6 +31,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 class OneTableDynamicDestinations implements DynamicDestinations, Externalizable {
   // TableId represented as String for serializability
@@ -37,6 +39,8 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
 
   private transient @MonotonicNonNull TableIdentifier tableId;
   private transient @MonotonicNonNull Schema rowSchema;
+  private transient @Nullable List<String> partitionFields;
+  private transient @Nullable List<String> sortFields;
 
   @VisibleForTesting
   TableIdentifier getTableIdentifier() {
@@ -46,9 +50,15 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
     return tableId;
   }
 
-  OneTableDynamicDestinations(TableIdentifier tableId, Schema rowSchema) {
+  OneTableDynamicDestinations(
+      TableIdentifier tableId,
+      Schema rowSchema,
+      @Nullable List<String> partitionFields,
+      @Nullable List<String> sortFields) {
     this.tableIdString = IcebergUtils.tableIdentifierToString(tableId);
     this.rowSchema = rowSchema;
+    this.partitionFields = partitionFields;
+    this.sortFields = sortFields;
   }
 
   @Override
@@ -68,9 +78,18 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
 
   @Override
   public IcebergDestination instantiateDestination(String unused) {
+    @Nullable IcebergTableCreateConfig createConfig = null;
+    if (partitionFields != null || sortFields != null) {
+      createConfig =
+          IcebergTableCreateConfig.builder()
+              .setSchema(checkStateNotNull(rowSchema))
+              .setPartitionFields(partitionFields)
+              .setSortFields(sortFields)
+              .build();
+    }
     return IcebergDestination.builder()
         .setTableIdentifier(getTableIdentifier())
-        .setTableCreateConfig(null)
+        .setTableCreateConfig(createConfig)
         .setFileFormat(FileFormat.PARQUET)
         .build();
   }
@@ -78,14 +97,22 @@ class OneTableDynamicDestinations implements DynamicDestinations, Externalizable
   // Need a public default constructor for custom serialization
   public OneTableDynamicDestinations() {}
 
+  @SuppressWarnings("nullness")
   @Override
   public void writeExternal(ObjectOutput out) throws IOException {
     out.writeUTF(checkStateNotNull(tableIdString));
+    out.writeObject(rowSchema);
+    out.writeObject(partitionFields);
+    out.writeObject(sortFields);
   }
 
+  @SuppressWarnings("nullness")
   @Override
-  public void readExternal(ObjectInput in) throws IOException {
+  public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
     tableIdString = in.readUTF();
     tableId = IcebergUtils.parseTableIdentifier(tableIdString);
+    rowSchema = (Schema) in.readObject();
+    partitionFields = (List<String>) in.readObject();
+    sortFields = (List<String>) in.readObject();
   }
 }

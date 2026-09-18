@@ -151,8 +151,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   public void invalidConfigurationWithParquet() {
     String to = folder(getFormat(), "configuration_with_parquet");
     FileWriteSchemaTransformConfiguration configuration =
-        buildConfiguration(to)
-            .toBuilder()
+        buildConfiguration(to).toBuilder()
             .setParquetConfiguration(
                 parquetConfigurationBuilder()
                     .setCompressionCodecName(CompressionCodecName.GZIP.name())
@@ -184,8 +183,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
   public void invalidConfigurationWithXml() {
     String to = folder(getFormat(), "configuration_with_xml");
     FileWriteSchemaTransformConfiguration configuration =
-        buildConfiguration(to)
-            .toBuilder()
+        buildConfiguration(to).toBuilder()
             .setXmlConfiguration(
                 xmlConfigurationBuilder()
                     .setRootElement("rootElement")
@@ -289,8 +287,7 @@ abstract class FileWriteSchemaTransformFormatProviderTest {
     String to = folder(getFormat(), "csv_configuration");
     FileWriteSchemaTransformProvider provider = new FileWriteSchemaTransformProvider();
     FileWriteSchemaTransformConfiguration configuration =
-        buildConfiguration(to)
-            .toBuilder()
+        buildConfiguration(to).toBuilder()
             .setCsvConfiguration(
                 csvConfigurationBuilder()
                     .setPredefinedCsvFormat(CSVFormat.Predefined.Default.name())

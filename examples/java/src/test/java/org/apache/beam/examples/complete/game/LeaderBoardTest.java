@@ -52,6 +52,7 @@ public class LeaderBoardTest implements Serializable {
   private Instant baseTime = new Instant(0);
 
   @Rule public TestPipeline p = TestPipeline.create();
+
   /** Some example users, on two separate teams. */
   private enum TestUser {
     RED_ONE("scarlet", "red"),

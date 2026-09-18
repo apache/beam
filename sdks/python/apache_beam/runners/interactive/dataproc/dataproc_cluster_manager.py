@@ -20,6 +20,7 @@
 import logging
 import re
 import time
+from typing import Any
 from typing import Optional
 
 from apache_beam import version as beam_version
@@ -170,7 +171,7 @@ class DataprocClusterManager:
     """Calls _create_cluster with a configuration that enables FlinkRunner."""
     init_action_path = self.stage_init_action()
     # https://cloud.google.com/php/docs/reference/cloud-dataproc/latest/V1.Cluster
-    cluster = {
+    cluster: dict[str, Any] = {
         'project_id': self.cluster_metadata.project_id,
         'cluster_name': self.cluster_metadata.cluster_name,
         'config': {

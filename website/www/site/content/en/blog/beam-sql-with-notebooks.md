@@ -744,7 +744,7 @@ Dataflow generates a one-shot job and it’s not interactive.
 A simple inspection of the data from the default output location:
 
 ```
-!gsutil cat 'gs://ningk-so-test/bq/staging/data_with_max_cases*'
+!gcloud storage cat 'gs://ningk-so-test/bq/staging/data_with_max_cases*'
 ```
 
 <img class="center-block"
@@ -754,7 +754,7 @@ A simple inspection of the data from the default output location:
 The text file with encoded binary data written by your `WriteToText`:
 
 ```
-!gsutil cat 'gs://ningk-so-test/bq/encoded_max_data*'
+!gcloud storage cat 'gs://ningk-so-test/bq/encoded_max_data*'
 ```
 
 <img class="center-block"

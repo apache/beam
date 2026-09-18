@@ -16,8 +16,8 @@
 package fs_content
 
 import (
-	"io/ioutil"
 	"log"
+	"os"
 
 	"gopkg.in/yaml.v3"
 )
@@ -25,7 +25,7 @@ import (
 // Could have done it in generics if 1.18 was supported in GCF
 // Fatals on error.
 func loadLearningPathInfo(path string) (info learningPathInfo) {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -39,7 +39,7 @@ func loadLearningPathInfo(path string) (info learningPathInfo) {
 }
 
 func loadLearningModuleInfo(path string) (info learningModuleInfo) {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func loadLearningModuleInfo(path string) (info learningModuleInfo) {
 }
 
 func loadLearningGroupInfo(path string) (info learningGroupInfo) {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func loadLearningGroupInfo(path string) (info learningGroupInfo) {
 }
 
 func loadLearningUnitInfo(path string) (info learningUnitInfo) {
-	buf, err := ioutil.ReadFile(path)
+	buf, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal(err)
 	}

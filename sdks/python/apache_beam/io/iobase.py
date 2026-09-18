@@ -1716,15 +1716,19 @@ class RestrictionProgress(object):
   def fraction_completed(self) -> float:
     if self._fraction is not None:
       return self._fraction
-    else:
-      return float(self._completed) / self.total_work
+    total_work = self.total_work
+    if total_work == 0.:
+      return 1.0
+    return float(self._completed) / total_work
 
   @property
   def fraction_remaining(self) -> float:
     if self._fraction is not None:
       return 1 - self._fraction
-    else:
-      return float(self._remaining) / self.total_work
+    total_work = self.total_work
+    if total_work == 0.:
+      return 0.0
+    return float(self._remaining) / total_work
 
   def with_completed(self, completed: int) -> 'RestrictionProgress':
     return RestrictionProgress(

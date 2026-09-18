@@ -612,6 +612,7 @@ class PipelineOptions(HasDisplayData):
   def from_runner_api(cls, proto_options, original_options=None):
     def from_urn(key):
       assert key.startswith('beam:option:')
+      # Update sdks/go/container/tools/pipeline_options.go if :v1 part changes.
       assert key.endswith(':v1')
       return key[12:-3]
 
@@ -732,6 +733,7 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
       'apache_beam.runners.portability.flink_runner.FlinkRunner',
       'apache_beam.runners.portability.fn_api_runner.FnApiRunner',
+      'apache_beam.runners.portability.kafka_streams_runner.KafkaStreamsRunner',
       'apache_beam.runners.portability.portable_runner.PortableRunner',
       'apache_beam.runners.portability.prism_runner.PrismRunner',
       'apache_beam.runners.portability.spark_runner.SparkRunner',
@@ -1210,6 +1212,11 @@ class GoogleCloudOptions(PipelineOptions):
     except ImportError:
       _LOGGER.warning('Unable to create default GCS bucket.')
       return None
+    if not gcsio.GCS_INSTALLED:
+      _LOGGER.warning(
+          'Unable to create default GCS bucket because GCP dependencies are '
+          'not installed.')
+      return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
       return 'gs://%s/' % bucket.id
@@ -1227,6 +1234,11 @@ class GoogleCloudOptions(PipelineOptions):
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
+      if not gcsio.GCS_INSTALLED:
+        _LOGGER.warning(
+            'Unable to check soft delete policy because GCP dependencies are '
+            'not installed.')
+        return
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
@@ -1743,6 +1755,10 @@ class ProfilingOptions(PipelineOptions):
           _LOGGER.info(
               'Setting --profile_location to %s since profiling is enabled.',
               self.profile_location)
+
+      if self.profiler_agent == 'coredump':
+        debug_options = self.view_as(DebugOptions)
+        debug_options.add_experiment('core_pattern=/tmp/beam_coredump.%e.%p')
     return errors
 
 
@@ -1863,6 +1879,7 @@ class SetupOptions(PipelineOptions):
             'workers will install them in same order they were specified on '
             'the command line.'))
     parser.add_argument(
+        '--file_to_stage',
         '--files_to_stage',
         dest='files_to_stage',
         action='append',
@@ -2157,6 +2174,32 @@ class FlinkRunnerOptions(PipelineOptions):
         help='The pipeline wide maximum degree of parallelism to be used. The'
         ' maximum parallelism specifies the upper limit for dynamic scaling'
         ' and the number of key groups used for partitioned state.')
+
+
+class KafkaStreamsRunnerOptions(PipelineOptions):
+  """Options for the Kafka Streams runner.
+
+  The runner is experimental and is not production ready. It is not part of
+  any Apache Beam release: its job server is built only when the Beam build is
+  run with -Pwith-kafka-streams-runner, so using it means building that job
+  server from a Beam source tree.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bootstrap_servers',
+        default='localhost:9092',
+        help='Comma-separated list of host:port Kafka brokers the pipeline '
+        'connects to.')
+    parser.add_argument(
+        '--application_id',
+        help='Kafka Streams application.id for the pipeline. Must be unique '
+        'per pipeline, since it identifies the consumer group and the '
+        'runner\'s internal topics.')
+    parser.add_argument(
+        '--kafka_streams_job_server_jar',
+        help='Path or URL to a Beam Kafka Streams job server jar. If unset, '
+        'the jar is built from the Beam source tree.')
 
 
 class SparkRunnerOptions(PipelineOptions):

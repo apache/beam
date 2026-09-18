@@ -89,6 +89,7 @@ import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.SplittableOnl
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
 import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfileScope;
+import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FixedGlobalConfigHandle;
@@ -97,13 +98,13 @@ import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalC
 import org.apache.beam.runners.dataflow.worker.streaming.harness.StreamingCounters;
 import org.apache.beam.runners.dataflow.worker.streaming.sideinput.SideInputStateFetcherFactory;
 import org.apache.beam.runners.dataflow.worker.testing.TestCountingSource;
+import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader.NativeReaderIterator;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.WorkExecutor;
 import org.apache.beam.runners.dataflow.worker.windmill.Windmill;
 import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDataClient;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
@@ -210,19 +211,20 @@ public class WorkerCustomSourcesTest {
         Work.createProcessingContext(
             COMPUTATION_ID, new FakeGetDataClient(), ignored -> {}, mock(HeartbeatSender.class)),
         false,
-        Instant::now);
+        Instant::now,
+        ImmutableList.of());
   }
 
   private void startContext(StreamingModeExecutionContext context, Work work) {
     try {
       context.start(
           work,
-          mock(WindmillStateReader.class),
           mock(WorkExecutor.class),
-          /* workQueueExecutor= */ null,
-          /* budgetHandle= */ null,
+          /* workQueueExecutor= */ mock(BoundedQueueExecutor.class),
+          /* budgetHandle= */ mock(BoundedQueueExecutorWorkHandle.class),
           /* keyCoder= */ null,
-          /* keyTransitionListener= */ mock(KeyTransitionListener.class));
+          /* keyTransitionListener= */ mock(KeyTransitionListener.class),
+          /* onFailedWorkHandler= */ ignored -> {});
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
@@ -626,8 +628,8 @@ public class WorkerCustomSourcesTest {
             counterSet,
             COMPUTATION_ID,
             readerCache,
-            /*stateNameMap=*/ ImmutableMap.of(),
-            /*stateCache=*/ null,
+            /* stateNameMap= */ ImmutableMap.of(),
+            /* stateCache= */ null,
             StreamingStepMetricsContainer.createRegistry(),
             new DataflowExecutionStateTracker(
                 ExecutionStateSampler.newForTest(),
@@ -639,14 +641,15 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false,
+            /* throwExceptionOnLargeOutput= */ false,
             new HotKeyLogger(),
-            /*hotKeyLoggingEnabled=*/ false,
-            /*stepName=*/ "stepName",
-            /*systemName=*/ "systemName",
+            /* hotKeyLoggingEnabled= */ false,
+            /* stepName= */ "stepName",
+            /* systemName= */ "systemName",
             StreamingCounters.create(),
             mock(FailureTracker.class),
             "sourceBytesProcessCounterName",
+            MultiKeyBundleOptions.fromOptions(options),
             SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
@@ -999,7 +1002,7 @@ public class WorkerCustomSourcesTest {
             counterSet,
             COMPUTATION_ID,
             new ReaderCache(Duration.standardMinutes(1), Runnable::run),
-            /*stateNameMap=*/ ImmutableMap.of(),
+            /* stateNameMap= */ ImmutableMap.of(),
             WindmillStateCache.builder()
                 .setSizeMb(options.getWorkerCacheMb())
                 .build()
@@ -1015,14 +1018,15 @@ public class WorkerCustomSourcesTest {
             executionStateRegistry,
             globalConfigHandle,
             Long.MAX_VALUE,
-            /*throwExceptionOnLargeOutput=*/ false,
+            /* throwExceptionOnLargeOutput= */ false,
             new HotKeyLogger(),
-            /*hotKeyLoggingEnabled=*/ false,
-            /*stepName=*/ "stepName",
-            /*systemName=*/ "systemName",
+            /* hotKeyLoggingEnabled= */ false,
+            /* stepName= */ "stepName",
+            /* systemName= */ "systemName",
             StreamingCounters.create(),
             mock(FailureTracker.class),
             "sourceBytesProcessCounterName",
+            MultiKeyBundleOptions.fromOptions(options),
             SideInputStateFetcherFactory.fromOptions(options));
 
     options.setNumWorkers(5);
@@ -1050,7 +1054,8 @@ public class WorkerCustomSourcesTest {
                 ignored -> {},
                 mock(HeartbeatSender.class)),
             false,
-            Instant::now);
+            Instant::now,
+            ImmutableList.of());
     startContext(context, dummyWork);
 
     @SuppressWarnings({"unchecked", "rawtypes"})

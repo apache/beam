@@ -96,8 +96,7 @@ public abstract class DynamicDestinations<T, DestinationT> implements Serializab
   }
 
   /** Get the current PipelineOptions if set. */
-  @Nullable
-  PipelineOptions getPipelineOptions() {
+  @Nullable PipelineOptions getPipelineOptions() {
     return options;
   }
 

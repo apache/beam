@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -33,9 +35,6 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * <p>Maintainers should prefer {@link PubsubMessageSchemaCoder} over this coder when adding
  * features to {@link PubsubIO}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class PubsubMessageWithMessageIdCoder extends CustomCoder<PubsubMessage> {
   private static final Coder<byte[]> PAYLOAD_CODER = ByteArrayCoder.of();
   // A message's messageId cannot be null
@@ -48,7 +47,9 @@ public class PubsubMessageWithMessageIdCoder extends CustomCoder<PubsubMessage> 
   @Override
   public void encode(PubsubMessage value, OutputStream outStream) throws IOException {
     PAYLOAD_CODER.encode(value.getPayload(), outStream);
-    MESSAGE_ID_CODER.encode(value.getMessageId(), outStream);
+    MESSAGE_ID_CODER.encode(
+        checkArgumentNotNull(value.getMessageId(), "Cannot encode PubsubMessage without messageId"),
+        outStream);
   }
 
   @Override

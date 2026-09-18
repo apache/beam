@@ -26,8 +26,4 @@
  * <p>Each Pipeline has a {@link org.apache.beam.sdk.PipelineRunner} to specify where and how it
  * should run after pipeline construction is complete.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

@@ -18,12 +18,10 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.io.source;
 
 import java.io.Serializable;
-import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
-import org.apache.beam.runners.flink.translation.utils.SerdeUtils;
+import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.bounded.FlinkBoundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.impulse.BeamImpulseSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.unbounded.FlinkUnboundedSource;
@@ -43,7 +41,7 @@ import org.apache.flink.core.io.SimpleVersionedSerializer;
  * @param <OutputT> The data type of the records emitted by the Flink Source.
  */
 public abstract class FlinkSource<T, OutputT>
-    implements Source<OutputT, FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> {
+    implements Source<OutputT, FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> {
 
   protected final String stepName;
   protected final org.apache.beam.sdk.io.Source<T> beamSource;
@@ -102,36 +100,38 @@ public abstract class FlinkSource<T, OutputT>
   }
 
   @Override
-  public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
-      createEnumerator(SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
-    return createEnumerator(enumContext, false);
-  }
-
-  public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
-      createEnumerator(
-          SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext, boolean splitInitialized)
-          throws Exception {
-
+  public SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> createEnumerator(
+      SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
+    FlinkPipelineOptions options = serializablePipelineOptions.get().as(FlinkPipelineOptions.class);
     if (boundedness == Boundedness.BOUNDED) {
-      return new LazyFlinkSourceSplitEnumerator<>(
-          enumContext, beamSource, serializablePipelineOptions.get(), numSplits, splitInitialized);
-    } else {
-      return new FlinkSourceSplitEnumerator<>(
-          enumContext, beamSource, serializablePipelineOptions.get(), numSplits, splitInitialized);
+      long thresholdMb = options.getSourceStaticSplitThresholdMb();
+      if (thresholdMb < 0) {
+        return new FlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
+      }
+      if (thresholdMb > 0) {
+        return new SizeBasedFlinkSourceSplitEnumerator<>(
+            enumContext, (BoundedSource<T>) beamSource, options, numSplits);
+      }
+      return new LazyFlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
     }
+    return new FlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
   }
 
   @Override
-  public SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>>
-      restoreEnumerator(
-          SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext,
-          Map<Integer, List<FlinkSourceSplit<T>>> checkpoint)
-          throws Exception {
-    SplitEnumerator<FlinkSourceSplit<T>, Map<Integer, List<FlinkSourceSplit<T>>>> enumerator =
-        createEnumerator(enumContext, true);
-    checkpoint.forEach(
-        (subtaskId, splitsForSubtask) -> enumerator.addSplitsBack(splitsForSubtask, subtaskId));
-    return enumerator;
+  public SplitEnumerator<FlinkSourceSplit<T>, FlinkSourceEnumeratorState<T>> restoreEnumerator(
+      SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext,
+      FlinkSourceEnumeratorState<T> checkpoint)
+      throws Exception {
+    FlinkPipelineOptions options = serializablePipelineOptions.get().as(FlinkPipelineOptions.class);
+    if (checkpoint.getAssignmentMode() == AssignmentMode.LAZY) {
+      return new LazyFlinkSourceSplitEnumerator<>(
+          enumContext, beamSource, options, numSplits, checkpoint);
+    }
+    if (checkpoint.getAssignmentMode() == AssignmentMode.STATIC) {
+      return new FlinkSourceSplitEnumerator<>(
+          enumContext, beamSource, options, numSplits, checkpoint);
+    }
+    return createEnumerator(enumContext);
   }
 
   @Override
@@ -140,9 +140,11 @@ public abstract class FlinkSource<T, OutputT>
   }
 
   @Override
-  public SimpleVersionedSerializer<Map<Integer, List<FlinkSourceSplit<T>>>>
+  public SimpleVersionedSerializer<FlinkSourceEnumeratorState<T>>
       getEnumeratorCheckpointSerializer() {
-    return SerdeUtils.getNaiveObjectSerializer();
+    AssignmentMode legacyAssignmentMode =
+        boundedness == Boundedness.BOUNDED ? AssignmentMode.LAZY : AssignmentMode.STATIC;
+    return new FlinkSourceEnumeratorStateSerializer<>(legacyAssignmentMode);
   }
 
   public int getNumSplits() {

@@ -32,7 +32,9 @@ import static org.junit.Assume.assumeTrue;
 
 import java.io.File;
 import java.io.IOException;
+import java.time.OffsetDateTime;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,8 +43,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
+import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.io.iceberg.IcebergIO.ReadRows.StartingStrategy;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -83,6 +88,7 @@ import org.apache.iceberg.types.Types.StructType;
 import org.apache.parquet.avro.AvroParquetWriter;
 import org.apache.parquet.hadoop.ParquetWriter;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.junit.ClassRule;
 import org.junit.Rule;
@@ -729,6 +735,48 @@ public class IcebergIOReadTest {
   @Test
   public void testBatchReadBetweenTimestamps() throws IOException {
     runReadWithBoundary(false, false);
+  }
+
+  @Test
+  public void testTimestampUpdateCompat() throws IOException {
+    String val = "2026-07-15T13:18:20.053123+03:27";
+    OffsetDateTime ts = OffsetDateTime.parse(val);
+
+    TableIdentifier tableId =
+        TableIdentifier.of("default", "table" + Long.toString(UUID.randomUUID().hashCode(), 16));
+    org.apache.iceberg.Schema schema =
+        new org.apache.iceberg.Schema(
+            Collections.singletonList(required(1, "ts", Types.TimestampType.withZone())),
+            ImmutableSet.of(1));
+    Table table = warehouse.createTable(tableId, schema);
+    DataFile file =
+        warehouse.writeData(
+            "date.parquet", schema, Collections.singletonList(ImmutableMap.of("ts", ts)));
+    table.newFastAppend().appendFile(file).commit();
+
+    IcebergIO.ReadRows read = IcebergIO.readRows(catalogConfig()).from(tableId);
+    if (useIncrementalScan) {
+      read = read.withCdc().toSnapshot(table.currentSnapshot().snapshotId());
+    }
+
+    Schema expectedBeamSchema =
+        Schema.builder().addLogicalTypeField("ts", Timestamp.MICROS).build();
+    Row expectedRow = Row.withSchema(expectedBeamSchema).addValue(ts.toInstant()).build();
+
+    PCollection<Row> output = testPipeline.apply(read).apply(new PrintRow());
+    PAssert.that(output).containsInAnyOrder(expectedRow);
+    testPipeline.run().waitUntilFinish();
+
+    // test again but with older versions that require primitive DATETIME type
+    Schema expectedLegacyBeamSchema = Schema.builder().addDateTimeField("ts").build();
+    Row expectedLegacyRow =
+        Row.withSchema(expectedLegacyBeamSchema).addValue(DateTime.parse(val)).build();
+
+    Pipeline testPipeline2 = Pipeline.create();
+    testPipeline2.getOptions().as(StreamingOptions.class).setUpdateCompatibilityVersion("2.75.0");
+    PCollection<Row> outputLegacy = testPipeline2.apply(read).apply(new PrintRow());
+    PAssert.that(outputLegacy).containsInAnyOrder(expectedLegacyRow);
+    testPipeline2.run().waitUntilFinish();
   }
 
   public void runWithStartingStrategy(@Nullable StartingStrategy strategy, boolean streaming)

@@ -1,6 +1,7 @@
 name: Python Dependency Tests
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '10 2 * * *'
   pull_request:

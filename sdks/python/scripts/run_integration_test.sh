@@ -248,8 +248,14 @@ if [[ -z $PIPELINE_OPTS ]]; then
   if [[ "$ARCH" == "ARM" ]]; then
     opts+=("--machine_type=t2a-standard-1")
 
-    IMAGE_NAME="beam_python${PY_VERSION}_sdk"
-    opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
+    # Use SDK_CONTAINER_IMAGE when set (e.g. Snapshots tagged with sdk_version).
+    # Otherwise use the image built and pushed by the caller under MULTIARCH_TAG.
+    if [[ -n "${SDK_CONTAINER_IMAGE:-}" ]]; then
+      opts+=("--sdk_container_image=$SDK_CONTAINER_IMAGE")
+    elif [[ -n "${MULTIARCH_TAG:-}" ]]; then
+      IMAGE_NAME="beam_python${PY_VERSION}_sdk"
+      opts+=("--sdk_container_image=us.gcr.io/$PROJECT/$USER/$IMAGE_NAME:$MULTIARCH_TAG")
+    fi
   fi
 
   if [[ ! -z "$KMS_KEY_NAME" ]]; then

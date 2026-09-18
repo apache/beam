@@ -284,9 +284,8 @@ class PipeStream(object):
     return self.position
 
   def seek(self, offset, whence=os.SEEK_SET):
-    # The apitools library used by the gcsio.Uploader class insists on seeking
-    # to the end of a stream to do a check before completing an upload, so we
-    # must have this no-op method here in that case.
+    # Certain upload stream implementations seek to the end of a stream to check
+    # length before completing an upload, so we support a no-op seek(0, SEEK_END).
     if whence == os.SEEK_END and offset == 0:
       return
     elif whence == os.SEEK_SET:

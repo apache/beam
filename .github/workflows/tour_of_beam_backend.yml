@@ -28,6 +28,7 @@ on:
     branches: ['master', 'release-*']
     tags: 'v*'
     paths: ['learning/tour-of-beam/backend/**']
+  workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
@@ -46,8 +47,9 @@ jobs:
           persist-credentials: false
       - uses: actions/setup-go@v7
         with:
-          # pin to the biggest Go version supported by Cloud Functions runtime
-          go-version: '1.16'
+          # Pin to the biggest Go version supported by Cloud Run functions runtime
+          # Verify here - https://docs.cloud.google.com/functions/docs/release-notes 
+          go-version: '1.26'
           cache: false
       - name: Run fmt
         run: |
@@ -61,8 +63,8 @@ jobs:
         run: go test -v ./...
 
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v9
         with:
-          version: v1.49.0
+          version: v2.12.2
           working-directory: learning/tour-of-beam/backend
 

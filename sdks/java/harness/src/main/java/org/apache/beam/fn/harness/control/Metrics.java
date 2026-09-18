@@ -81,8 +81,10 @@ public class Metrics {
   private static class BundleProcessingThreadCounter implements BundleCounter {
     private final MetricName name;
     private final String shortId;
+
     /** Guarded by {@link BundleProcessor#getProgressRequestLock}. */
     private boolean hasReportedValue;
+
     /** Guarded by {@link BundleProcessor#getProgressRequestLock}. */
     private long lastReportedValue;
 

@@ -539,14 +539,12 @@ public abstract class FieldAccessDescriptor implements Serializable {
       // Resolve the field id of the field that has nested access.
       if (entry.getKey().getFieldId() == null) {
         fieldDescriptor =
-            fieldDescriptor
-                .toBuilder()
+            fieldDescriptor.toBuilder()
                 .setFieldId(schema.indexOf(fieldDescriptor.getFieldName()))
                 .build();
       } else if (entry.getKey().getFieldName() == null) {
         fieldDescriptor =
-            fieldDescriptor
-                .toBuilder()
+            fieldDescriptor.toBuilder()
                 .setFieldName(schema.nameOf(fieldDescriptor.getFieldId()))
                 .build();
       }

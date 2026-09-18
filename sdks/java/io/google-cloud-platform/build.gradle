@@ -37,6 +37,7 @@ tasks.withType(Test).configureEach {
 
 dependencies {
   implementation(enforcedPlatform(library.java.google_cloud_platform_libraries_bom))
+  implementation platform(library.java.opentelemetry_bom)
   implementation project(path: ":model:pipeline", configuration: "shadow")
   implementation project(":runners:core-java")
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -64,6 +65,8 @@ dependencies {
   implementation library.java.google_api_client
   implementation library.java.google_api_common
   implementation library.java.google_api_services_bigquery
+  implementation library.java.opentelemetry_api
+  implementation library.java.opentelemetry_context
   implementation library.java.google_api_services_healthcare
   implementation library.java.google_api_services_pubsub
   implementation library.java.google_api_services_storage
@@ -200,6 +203,7 @@ task integrationTest(type: Test, dependsOn: processTestResources) {
   outputs.upToDateWhen { false }
 
   include '**/*IT.class'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
   exclude '**/BigQueryIOReadIT.class'
   exclude '**/BigQueryIOStorageQueryIT.class'
   exclude '**/BigQueryIOStorageReadIT.class'
@@ -250,6 +254,37 @@ task integrationTestKms(type: Test) {
 }
 
 /*
+  Integration tests for BigQueryIO against managed Apache Iceberg tables. Kept out of the
+  generic integrationTest task because they need a provisioned CLOUD_RESOURCE connection;
+  override the apache-beam-testing defaults with -PgcpProject, -PbqImtConnection and
+  -PbqImtStorageUri.
+ */
+task bigQueryManagedIcebergIntegrationTest(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  def gcpProject = project.findProperty('gcpProject') ?: 'apache-beam-testing'
+  def gcpTempRoot = project.findProperty('gcpTempRoot') ?: 'gs://temp-storage-for-end-to-end-tests'
+  def bqImtConnection = project.findProperty('bqImtConnection') ?:
+          'projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete'
+  def bqImtStorageUri = project.findProperty('bqImtStorageUri') ?: 'gs://apache-beam-testing-bq-biglake'
+  systemProperty "beamTestPipelineOptions", JsonOutput.toJson([
+          "--runner=DirectRunner",
+          "--project=${gcpProject}",
+          "--tempRoot=${gcpTempRoot}",
+          "--tempLocation=${gcpTempRoot}",
+  ])
+  systemProperty "beam.bq.imt.connection", bqImtConnection
+  systemProperty "beam.bq.imt.storageUri", bqImtStorageUri
+
+  outputs.upToDateWhen { false }
+
+  include '**/BigQueryIOIcebergManagedTableIT.class'
+
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+}
+
+/*
   Integration tests for BigQueryIO that run on BigQuery's early rollout region (us-east7)
   with the intended purpose of catching breaking changes from new BigQuery releases.
   If these tests fail here but not in `Java_GCP_IO_Direct`, there may be a new BigQuery change
@@ -280,7 +315,8 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   include '**/StorageApiDirectWriteProtosIT.class'
   include '**/StorageApiSinkFailedRowsIT.class'
   include '**/StorageApiSinkRowUpdateIT.class'
-  include '**/StorageApiSinkSchemaUpdateIT.class'
+  include '**/StorageApiSinkSchemaUpdateWithInputSchemaIT.class'
+  include '**/StorageApiSinkSchemaUpdateWithoutInputSchemaIT.class'
   include '**/TableRowToStorageApiProtoIT.class'
   // file loads
   include '**/BigQuerySchemaUpdateOptionsIT.class'
@@ -354,4 +390,5 @@ task postCommit {
   description = "Integration tests of GCP connectors using the DirectRunner."
   dependsOn integrationTest
   dependsOn integrationTestKms
+  dependsOn bigQueryManagedIcebergIntegrationTest
 }

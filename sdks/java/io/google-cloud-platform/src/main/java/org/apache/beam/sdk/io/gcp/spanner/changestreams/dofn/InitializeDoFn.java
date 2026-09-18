@@ -28,6 +28,8 @@ import org.apache.beam.sdk.io.gcp.spanner.changestreams.mapper.MapperFactory;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.InitialPartition;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.model.PartitionMetadata.State;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 
 /**
@@ -59,6 +61,11 @@ public class InitializeDoFn extends DoFn<byte[], PartitionMetadata> implements S
     this.startTimestamp = startTimestamp;
     this.endTimestamp = endTimestamp;
     this.heartbeatMillis = heartbeatMillis;
+  }
+
+  @Setup
+  public void setup(PipelineOptions options) {
+    daoFactory.setOpenTelemetry(options.as(SdkHarnessOptions.class).getOpenTelemetry());
   }
 
   @ProcessElement

@@ -18,12 +18,24 @@
 package org.apache.beam.sdk.io.solace.data;
 
 import com.google.auto.value.AutoValue;
+import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.TextMessage;
+import java.io.Serializable;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import org.apache.beam.sdk.io.solace.broker.SolaceUserPropertiesMapper;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -76,10 +88,135 @@ public class Solace {
     UNKNOWN
   }
 
+  /** An immutable, typed value carried by a user-property map. */
+  @AutoValue
+  @DefaultSchema(AutoValueSchema.class)
+  public abstract static class UserPropertyValue {
+    public enum Kind {
+      NONE,
+      BOOLEAN,
+      BYTE,
+      SHORT,
+      INTEGER,
+      LONG,
+      FLOAT,
+      DOUBLE,
+      CHARACTER,
+      STRING,
+      BYTES,
+      DESTINATION
+    }
+
+    public abstract Kind getKind();
+
+    public abstract @Nullable Boolean getBoolean();
+
+    public abstract @Nullable Byte getByte();
+
+    public abstract @Nullable Short getShort();
+
+    public abstract @Nullable Integer getInteger();
+
+    public abstract @Nullable Long getLong();
+
+    public abstract @Nullable Float getFloat();
+
+    public abstract @Nullable Double getDouble();
+
+    public abstract @Nullable Character getCharacter();
+
+    public abstract @Nullable String getString();
+
+    public abstract @Nullable List<Byte> getBytes();
+
+    public abstract @Nullable Destination getDestination();
+
+    public static UserPropertyValue of() {
+      return builder(Kind.NONE).build();
+    }
+
+    public static UserPropertyValue of(Boolean value) {
+      return builder(Kind.BOOLEAN).setBoolean(value).build();
+    }
+
+    public static UserPropertyValue of(Byte value) {
+      return builder(Kind.BYTE).setByte(value).build();
+    }
+
+    public static UserPropertyValue of(Short value) {
+      return builder(Kind.SHORT).setShort(value).build();
+    }
+
+    public static UserPropertyValue of(Integer value) {
+      return builder(Kind.INTEGER).setInteger(value).build();
+    }
+
+    public static UserPropertyValue of(Long value) {
+      return builder(Kind.LONG).setLong(value).build();
+    }
+
+    public static UserPropertyValue of(Float value) {
+      return builder(Kind.FLOAT).setFloat(value).build();
+    }
+
+    public static UserPropertyValue of(Double value) {
+      return builder(Kind.DOUBLE).setDouble(value).build();
+    }
+
+    public static UserPropertyValue of(Character value) {
+      return builder(Kind.CHARACTER).setCharacter(value).build();
+    }
+
+    public static UserPropertyValue of(String value) {
+      return builder(Kind.STRING).setString(value).build();
+    }
+
+    public static UserPropertyValue of(List<Byte> value) {
+      return builder(Kind.BYTES).setBytes(List.copyOf(value)).build();
+    }
+
+    public static UserPropertyValue of(Destination destination) {
+      return builder(Kind.DESTINATION).setDestination(destination).build();
+    }
+
+    private static Builder builder(Kind kind) {
+      return new AutoValue_Solace_UserPropertyValue.Builder().setKind(kind);
+    }
+
+    @AutoValue.Builder
+    abstract static class Builder {
+      abstract Builder setKind(Kind value);
+
+      abstract Builder setBoolean(@Nullable Boolean value);
+
+      abstract Builder setByte(@Nullable Byte value);
+
+      abstract Builder setShort(@Nullable Short value);
+
+      abstract Builder setInteger(@Nullable Integer value);
+
+      abstract Builder setLong(@Nullable Long value);
+
+      abstract Builder setFloat(@Nullable Float value);
+
+      abstract Builder setDouble(@Nullable Double value);
+
+      abstract Builder setCharacter(@Nullable Character value);
+
+      abstract Builder setString(@Nullable String value);
+
+      abstract Builder setBytes(@Nullable List<Byte> value);
+
+      abstract Builder setDestination(@Nullable Destination value);
+
+      abstract UserPropertyValue build();
+    }
+  }
+
   /** Represents a Solace message destination (either a Topic or a Queue). */
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
-  public abstract static class Destination {
+  public abstract static class Destination implements Serializable {
     /**
      * Gets the name of the destination.
      *
@@ -112,6 +249,16 @@ public class Solace {
   @AutoValue
   @DefaultSchema(AutoValueSchema.class)
   public abstract static class Record {
+    /** Identifies how the record payload is represented in a JCSMP message. */
+    public enum PayloadType {
+      /** The legacy XML-data payload written with {@code BytesXMLMessage.writeBytes}. */
+      BYTES_XML,
+      /** A text payload written with {@code TextMessage.setText}. */
+      TEXT,
+      /** A binary payload written with {@code BytesMessage.setData}. */
+      BYTES;
+    }
+
     /**
      * Gets the unique identifier of the message, a string for an application-specific message
      * identifier.
@@ -255,13 +402,37 @@ public class Solace {
     @SchemaFieldNumber("12")
     public abstract byte[] getAttachmentBytes();
 
+    /** Gets the JCSMP payload representation used for this record. */
+    @SchemaFieldNumber("13")
+    public abstract PayloadType getPayloadType();
+
+    /**
+     * Gets the typed, SDK-independent user properties of the message. Non beam-schema compatible
+     * types are not supported (SDTMap and SDTStream)
+     *
+     * @return The user properties, or an empty map if the message carries none.
+     */
+    @SchemaFieldNumber("14")
+    public abstract Map<String, UserPropertyValue> getUserProperties();
+
+    /** Gets the payload decoded as UTF-8 when this record has type {@link PayloadType#TEXT}. */
+    public final String getText() {
+      if (getPayloadType() != PayloadType.TEXT) {
+        throw new IllegalStateException(
+            "Text is only available for records with payload type TEXT.");
+      }
+      return decodeUtf8(getPayload());
+    }
+
     public static Builder builder() {
       return new AutoValue_Solace_Record.Builder()
           .setExpiration(0L)
           .setPriority(-1)
           .setRedelivered(false)
           .setTimeToLive(0)
-          .setAttachmentBytes(new byte[0]);
+          .setAttachmentBytes(new byte[0])
+          .setPayloadType(PayloadType.BYTES_XML)
+          .setUserProperties(Collections.emptyMap());
     }
 
     @AutoValue.Builder
@@ -269,6 +440,14 @@ public class Solace {
       public abstract Builder setMessageId(String messageId);
 
       public abstract Builder setPayload(byte[] payload);
+
+      public abstract Builder setPayloadType(PayloadType payloadType);
+
+      /** Sets a UTF-8 text payload and selects {@link PayloadType#TEXT}. */
+      public Builder setText(String text) {
+        byte[] payload = text == null ? new byte[0] : text.getBytes(StandardCharsets.UTF_8);
+        return setPayloadType(PayloadType.TEXT).setPayload(payload);
+      }
 
       public abstract Builder setDestination(@Nullable Destination destination);
 
@@ -293,7 +472,22 @@ public class Solace {
 
       public abstract Builder setAttachmentBytes(byte[] attachmentBytes);
 
+      public abstract Builder setUserProperties(Map<String, UserPropertyValue> userProperties);
+
       public abstract Record build();
+    }
+
+    private static String decodeUtf8(byte[] payload) {
+      try {
+        return StandardCharsets.UTF_8
+            .newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(payload))
+            .toString();
+      } catch (CharacterCodingException e) {
+        throw new IllegalArgumentException("Text payload is not valid UTF-8.", e);
+      }
     }
   }
 
@@ -387,6 +581,7 @@ public class Solace {
    */
   public static class SolaceRecordMapper {
     private static final Logger LOG = LoggerFactory.getLogger(SolaceRecordMapper.class);
+
     /**
      * Maps a {@link BytesXMLMessage} (if not null) to a {@link Solace.Record}.
      *
@@ -396,35 +591,19 @@ public class Solace {
      * @param msg The Solace message to map.
      * @return A Solace Record representing the message, or null if the input message was null.
      */
-    public static @Nullable Record map(@Nullable BytesXMLMessage msg) {
+    public static @Nullable Record toRecord(@Nullable BytesXMLMessage msg) {
       if (msg == null) {
         return null;
       }
 
-      ByteArrayOutputStream payloadBytesStream = new ByteArrayOutputStream();
-      if (msg.getContentLength() != 0) {
-        try {
-          payloadBytesStream.write(msg.getBytes());
-        } catch (IOException e) {
-          LOG.error("Could not write bytes from the BytesXMLMessage to the Solace.record.", e);
-        }
-      }
-
-      ByteArrayOutputStream attachmentBytesStream = new ByteArrayOutputStream();
-      if (msg.getAttachmentContentLength() != 0) {
-        try {
-          attachmentBytesStream.write(msg.getAttachmentByteBuffer().array());
-        } catch (IOException e) {
-          LOG.error(
-              "Could not AttachmentByteBuffer from the BytesXMLMessage to the Solace.record.", e);
-        }
-      }
-
       Destination replyTo = getDestination(msg.getCorrelationId(), msg.getReplyTo());
       Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
-      return Record.builder()
+      Map<String, UserPropertyValue> userProperties =
+          SolaceUserPropertiesMapper.toUserPropertyValueMap(msg.getProperties());
+
+      Record.Builder recordBuilder = decodePayload(msg);
+      return recordBuilder
           .setMessageId(msg.getApplicationMessageId())
-          .setPayload(payloadBytesStream.toByteArray())
           .setDestination(destination)
           .setExpiration(msg.getExpiration())
           .setPriority(msg.getPriority())
@@ -438,7 +617,7 @@ public class Solace {
               msg.getReplicationGroupMessageId() != null
                   ? msg.getReplicationGroupMessageId().toString()
                   : null)
-          .setAttachmentBytes(attachmentBytesStream.toByteArray())
+          .setUserProperties(userProperties)
           .build();
     }
 
@@ -461,6 +640,113 @@ public class Solace {
         destinationBuilder.setType(DestinationType.UNKNOWN);
       }
       return destinationBuilder.build();
+    }
+
+    /**
+     * Maps a {@link Record} to a {@link BytesXMLMessage}.
+     *
+     * <p>Only the fields common to both a {@link Record} and a {@link BytesXMLMessage} are set: the
+     * payload (according to the record's {@link Record.PayloadType}), the sender timestamp
+     * (defaulting to the current time when the record does not provide one) and the application
+     * message id. Publishing-specific fields such as delivery mode or correlation key are not
+     * handled here and must be set by the caller.
+     *
+     * @param record the {@link Record} to map.
+     * @return a JCSMP {@link BytesXMLMessage} carrying the record's common fields.
+     */
+    public static BytesXMLMessage toMessage(Record record) {
+      BytesXMLMessage msg = encodePayload(record);
+
+      Long senderTimestamp = record.getSenderTimestamp();
+      if (senderTimestamp == null) {
+        senderTimestamp = System.currentTimeMillis();
+      }
+      msg.setSenderTimestamp(senderTimestamp);
+      msg.setApplicationMessageId(record.getMessageId());
+
+      if (!record.getUserProperties().isEmpty()) {
+        msg.setProperties(SolaceUserPropertiesMapper.toSDTMap(record.getUserProperties()));
+      }
+
+      return msg;
+    }
+
+    /**
+     * Reads the payload from a {@link Solace.Record} into a partially-populated {@link
+     * BytesXMLMessage}.
+     *
+     * @param record the Solace record.
+     * @return a {@link BytesXMLMessage} with the payload set based on the record's payload type.
+     */
+    private static BytesXMLMessage encodePayload(Record record) {
+      switch (record.getPayloadType()) {
+        case TEXT:
+          TextMessage text = JCSMPFactory.onlyInstance().createMessage(TextMessage.class);
+          text.setText(record.getText());
+          return text;
+        case BYTES:
+          BytesMessage bytes = JCSMPFactory.onlyInstance().createMessage(BytesMessage.class);
+          bytes.setData(record.getPayload());
+          return bytes;
+        case BYTES_XML:
+          BytesXMLMessage xml = JCSMPFactory.onlyInstance().createBytesXMLMessage();
+          xml.writeBytes(record.getPayload());
+          if (record.getAttachmentBytes().length != 0) {
+            xml.writeAttachment(record.getAttachmentBytes());
+          }
+          return xml;
+        default:
+          throw new IllegalArgumentException(
+              "Unsupported payload type: " + record.getPayloadType());
+      }
+    }
+
+    /**
+     * Reads the payload from a {@link BytesXMLMessage} into a partially-populated {@link
+     * Record.Builder}.
+     *
+     * @param msg the JCSMP message.
+     * @return a {@link Record.Builder} with the payload and payload type set based on the message
+     *     type.
+     */
+    private static Record.Builder decodePayload(@NonNull BytesXMLMessage msg) {
+      if (msg instanceof TextMessage) {
+        String text = ((TextMessage) msg).getText();
+        byte[] payload = text == null ? new byte[0] : text.getBytes(StandardCharsets.UTF_8);
+        return Record.builder().setPayloadType(Record.PayloadType.TEXT).setPayload(payload);
+      }
+
+      if (msg instanceof BytesMessage) {
+        byte[] data = ((BytesMessage) msg).getData();
+        byte[] payload = data == null ? new byte[0] : data;
+        return Record.builder().setPayloadType(Record.PayloadType.BYTES).setPayload(payload);
+      }
+
+      // BYTES_XML fallback
+      byte[] payload = readBytes(msg);
+      byte[] attachment = readAttachment(msg);
+      return Record.builder()
+          .setPayloadType(Record.PayloadType.BYTES_XML)
+          .setPayload(payload)
+          .setAttachmentBytes(attachment);
+    }
+
+    private static byte[] readBytes(BytesXMLMessage msg) {
+      if (msg.getContentLength() == 0) {
+        return new byte[0];
+      }
+      return Arrays.copyOf(msg.getBytes(), msg.getContentLength());
+    }
+
+    private static byte[] readAttachment(BytesXMLMessage msg) {
+      if (msg.getAttachmentContentLength() == 0) {
+        return new byte[0];
+      }
+
+      ByteBuffer buffer = msg.getAttachmentByteBuffer();
+      byte[] attachment = new byte[buffer.remaining()];
+      buffer.get(attachment);
+      return attachment;
     }
   }
 }

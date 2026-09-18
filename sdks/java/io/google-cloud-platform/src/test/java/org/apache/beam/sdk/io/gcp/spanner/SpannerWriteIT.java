@@ -82,8 +82,7 @@ public class SpannerWriteIT {
   public interface SpannerTestPipelineOptions extends TestPipelineOptions {
 
     @Description("Project that hosts Spanner instance")
-    @Nullable
-    String getInstanceProjectId();
+    @Nullable String getInstanceProjectId();
 
     void setInstanceProjectId(String value);
 

@@ -17,8 +17,4 @@
  */
 
 /** State machine implementations for triggers, called "triggers" because they react to events. */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.runners.core.triggers;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

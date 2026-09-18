@@ -52,18 +52,22 @@ evaluationDependsOn(":sdks:java:container:java11")
 
 ext.dataflowLegacyEnvironmentMajorVersion = '8'
 ext.dataflowFnapiEnvironmentMajorVersion = '8'
-ext.dataflowLegacyContainerVersion = 'beam-master-20260624'
-ext.dataflowFnapiContainerVersion = 'beam-master-20260624'
+// These should always be in sync to avoid issues like https://github.com/apache/beam/issues/30634
+ext.dataflowLegacyContainerVersion = 'beam-master-20260916'
+ext.dataflowFnapiContainerVersion = 'beam-master-20260916'
 ext.dataflowContainerBaseRepository = 'gcr.io/cloud-dataflow/v1beta3'
 
 processResources {
-  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+  // Filter arguments are not tracked by Gradle, so declare the tokens as an input property.
+  def resourceTokens = [
     'dataflow.legacy_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.fnapi_environment_major_version' : project.ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.legacy_container_version' : project.ext.dataflowLegacyContainerVersion,
     'dataflow.fnapi_container_version' : project.ext.dataflowFnapiContainerVersion,
     'dataflow.container_base_repository' : project.ext.dataflowContainerBaseRepository,
   ]
+  inputs.property('resourceTokens', resourceTokens)
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: resourceTokens
 }
 
 // Exclude tests that need a runner
@@ -683,6 +687,7 @@ task googleCloudPlatformLegacyWorkerIntegrationTest(type: Test, dependsOn: copyG
   exclude '**/BigQueryIODynamicReadIT.class'
   exclude '**/BigQueryIODynamicReadTableRowIT.class'
   exclude '**/BigQueryTimestampPicosIT.java'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
   exclude '**/PubsubReadIT.class'
   exclude '**/FhirIOReadIT.class'
   exclude '**/DicomIOReadIT.class'
@@ -740,6 +745,7 @@ task googleCloudPlatformRunnerV2IntegrationTest(type: Test) {
   exclude '**/BigQueryIODynamicReadIT.class'
   exclude '**/BigQueryIODynamicReadTableRowIT.class'
   exclude '**/BigQueryTimestampPicosIT.java'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
   exclude '**/SpannerWriteIT.class'
   exclude '**/*KmsKeyIT.class'
   exclude '**/FhirIOReadIT.class'

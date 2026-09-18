@@ -115,6 +115,8 @@ public abstract class SpannerConfig implements Serializable {
 
   public abstract @Nullable ValueProvider<java.time.Duration> getWaitForSessionCreationDuration();
 
+  public abstract @Nullable ValueProvider<Boolean> getEnableOpenTelemetryTracing();
+
   abstract Builder toBuilder();
 
   public static SpannerConfig create() {
@@ -204,6 +206,9 @@ public abstract class SpannerConfig implements Serializable {
 
     abstract Builder setWaitForSessionCreationDuration(
         ValueProvider<java.time.Duration> waitForSessionCreationDuration);
+
+    abstract Builder setEnableOpenTelemetryTracing(
+        ValueProvider<Boolean> enableOpenTelemetryTracing);
 
     abstract Builder setClientCertPath(ValueProvider<String> clientCertPath);
 
@@ -462,6 +467,16 @@ public abstract class SpannerConfig implements Serializable {
       java.time.Duration waitForSessionCreationDuration) {
     return withWaitForSessionCreationDuration(
         ValueProvider.StaticValueProvider.of(waitForSessionCreationDuration));
+  }
+
+  public SpannerConfig withEnableOpenTelemetryTracing(
+      ValueProvider<Boolean> enableOpenTelemetryTracing) {
+    return toBuilder().setEnableOpenTelemetryTracing(enableOpenTelemetryTracing).build();
+  }
+
+  public SpannerConfig withEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing) {
+    return withEnableOpenTelemetryTracing(
+        ValueProvider.StaticValueProvider.of(enableOpenTelemetryTracing));
   }
 
   /**

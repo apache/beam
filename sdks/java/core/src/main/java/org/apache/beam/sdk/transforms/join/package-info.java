@@ -19,8 +19,4 @@
  * Defines the {@link org.apache.beam.sdk.transforms.join.CoGroupByKey} transform for joining
  * multiple PCollections.
  */
-@DefaultAnnotation(NonNull.class)
 package org.apache.beam.sdk.transforms.join;
-
-import edu.umd.cs.findbugs.annotations.DefaultAnnotation;
-import org.checkerframework.checker.nullness.qual.NonNull;

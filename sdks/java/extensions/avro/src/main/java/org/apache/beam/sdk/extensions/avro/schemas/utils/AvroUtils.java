@@ -185,8 +185,7 @@ public class AvroUtils {
       // getClassLoader returns @Nullable Classloader, but it's ok, as ReflectData constructor
       // actually tolerates null classloader argument despite lacking the @Nullable annotation
       @SuppressWarnings("nullness")
-      @NonNull
-      ClassLoader classLoader = clazz.getClassLoader();
+      @NonNull ClassLoader classLoader = clazz.getClassLoader();
       return new ReflectData(classLoader);
     }
 
@@ -1380,7 +1379,7 @@ public class AvroUtils {
           return Days.daysBetween(Instant.EPOCH, (Instant) value).getDays();
         } else if (SqlTypes.DATE.getIdentifier().equals(identifier)) {
           // portable SqlTypes.DATE is backed by java.time.LocalDate
-          return ((java.time.LocalDate) value).toEpochDay();
+          return (int) ((java.time.LocalDate) value).toEpochDay();
         } else if ("TIME".equals(identifier)) {
           return (int) ((Instant) value).getMillis();
         } else if (SqlTypes.TIMESTAMP.getIdentifier().equals(identifier)) {

@@ -30,7 +30,7 @@ REQUIREMENTS = [
     "apache-beam[gcp]==2.40.0",
     "transformers==5.3.0",
     "torch==2.13.0",
-    "scikit-learn==1.0.2",
+    "scikit-learn==1.5.0",
 ]
 
 setuptools.setup(

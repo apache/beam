@@ -19,6 +19,7 @@
 
 import os
 import unittest
+from unittest import mock
 
 import numpy as np
 import pytest
@@ -37,11 +38,17 @@ try:
   from apache_beam.ml.inference.base import PredictionResult
   from apache_beam.ml.inference.base import RunInference
   from apache_beam.ml.inference.tensorrt_inference import TensorRTEngineHandlerNumPy
+  from apache_beam.ml.inference.tensorrt_inference import _assign_or_fail
+  from apache_beam.ml.inference.tensorrt_inference import _check_trt_version
+  from apache_beam.ml.inference.tensorrt_inference import _import_cuda_driver
 except ImportError:
   raise unittest.SkipTest('TensorRT dependencies are not installed')
 
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  if not GCS_INSTALLED:
+    GCSFileSystem = None  # type: ignore
 except ImportError:
   GCSFileSystem = None  # type: ignore
 
@@ -90,23 +97,8 @@ def _compare_prediction_result(a, b):
       for actual, expected in zip(a.inference, b.inference)))
 
 
-def _assign_or_fail(args):
-  """CUDA error checking."""
-  from cuda import cuda
-  err, ret = args[0], args[1:]
-  if isinstance(err, cuda.CUresult):
-    if err != cuda.CUresult.CUDA_SUCCESS:
-      raise RuntimeError("Cuda Error: {}".format(err))
-  else:
-    raise RuntimeError("Unknown error type: {}".format(err))
-  # Special case so that no unpacking is needed at call-site.
-  if len(ret) == 1:
-    return ret[0]
-  return ret
-
-
 def _custom_tensorRT_inference_fn(batch, engine, inference_args):
-  from cuda import cuda
+  cuda = _import_cuda_driver()
   (
       engine,
       context,
@@ -119,17 +111,18 @@ def _custom_tensorRT_inference_fn(batch, engine, inference_args):
 
   # Process I/O and execute the network
   with context_lock:
+    host_input = np.ascontiguousarray(batch)
     _assign_or_fail(
         cuda.cuMemcpyHtoDAsync(
             inputs[0]['allocation'],
-            np.ascontiguousarray(batch),
+            host_input.ctypes.data,
             inputs[0]['size'],
             stream))
-    context.execute_async_v2(gpu_allocations, stream)
+    context.execute_async_v3(stream)
     for output in range(len(cpu_allocations)):
       _assign_or_fail(
           cuda.cuMemcpyDtoHAsync(
-              cpu_allocations[output],
+              cpu_allocations[output].ctypes.data,
               outputs[output]['allocation'],
               outputs[output]['size'],
               stream))
@@ -189,8 +182,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4, max_batch_size=4)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(
-        flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    network = builder.create_network()
     input_tensor = network.add_input(
         name="input", dtype=trt.float32, shape=(4, 1))
     weight_const = network.add_constant(
@@ -227,8 +219,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
         max_batch_size=4,
         inference_fn=_custom_tensorRT_inference_fn)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(
-        flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    network = builder.create_network()
     input_tensor = network.add_input(
         name="input", dtype=trt.float32, shape=(4, 1))
     weight_const = network.add_constant(
@@ -263,8 +254,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4, max_batch_size=4)
     builder = trt.Builder(LOGGER)
-    network = builder.create_network(
-        flags=1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH))
+    network = builder.create_network()
     input_tensor = network.add_input(
         name="input", dtype=trt.float32, shape=(4, 2))
     weight_const = network.add_constant(
@@ -304,7 +294,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
         min_batch_size=4,
         max_batch_size=4,
         engine_path=
-        'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+        'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt')
     engine = inference_runner.load_model()
     predictions = inference_runner.run_inference(
         SINGLE_FEATURE_EXAMPLES, engine)
@@ -327,7 +317,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
         min_batch_size=4,
         max_batch_size=4,
         engine_path=
-        'gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
+        'gs://apache-beam-ml/models/multiple_tensor_features_engine_trt11.trt')
     engine = inference_runner.load_model()
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
@@ -349,7 +339,26 @@ class TensorRTRunInferenceTest(unittest.TestCase):
     inference_runner = TensorRTEngineHandlerNumPy(
         min_batch_size=4, max_batch_size=4)
     self.assertEqual(
-        'RunInferenceTensorRT', inference_runner.get_metrics_namespace())
+        'BeamML_TensorRT', inference_runner.get_metrics_namespace())
+
+  def test_supported_tensorrt_exposes_expected_api(self):
+    """The installed TensorRT must expose the API this module is written to.
+
+    TensorRT 10 removed the index based binding API in favour of the name
+    based tensor API. _check_trt_version() rejects anything older, so a passing
+    version check and a missing API would mean the two have drifted apart.
+    """
+    _check_trt_version()
+    self.assertTrue(hasattr(trt.ICudaEngine, 'num_io_tensors'))
+    self.assertTrue(hasattr(trt.IExecutionContext, 'execute_async_v3'))
+
+  def test_version_check_rejects_unsupported_tensorrt(self):
+    """An unsupported TensorRT must fail with a clear message."""
+    with mock.patch.object(trt, '__version__', '8.6.1'):
+      _check_trt_version.cache_clear()
+      with self.assertRaisesRegex(RuntimeError, 'requires TensorRT 10'):
+        _check_trt_version()
+    _check_trt_version.cache_clear()
 
 
 @pytest.mark.uses_tensorrt
@@ -361,7 +370,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+          'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt')
       pcoll = pipeline | 'start' >> beam.Create(
           SINGLE_FEATURE_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)
@@ -381,7 +390,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           raise Exception(
               f'Loaded engine of type {type(engine)}, was ' +
               'expecting multi_process_shared engine')
-        from cuda import cuda
+        cuda = _import_cuda_driver()
         (
             engine,
             context,
@@ -394,17 +403,18 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
 
         # Process I/O and execute the network
         with context_lock:
+          host_input = np.ascontiguousarray(batch)
           _assign_or_fail(
               cuda.cuMemcpyHtoDAsync(
                   inputs[0]['allocation'],
-                  np.ascontiguousarray(batch),
+                  host_input.ctypes.data,
                   inputs[0]['size'],
                   stream))
-          context.execute_async_v2(gpu_allocations, stream)
+          context.execute_async_v3(stream)
           for output in range(len(cpu_allocations)):
             _assign_or_fail(
                 cuda.cuMemcpyDtoHAsync(
-                    cpu_allocations[output],
+                    cpu_allocations[output].ctypes.data,
                     outputs[output]['allocation'],
                     outputs[output]['size'],
                     stream))
@@ -421,7 +431,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/single_tensor_features_engine.trt',
+          'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt',
           inference_fn=fake_inference_fn,
           large_model=True)
       pcoll = pipeline | 'start' >> beam.Create(
@@ -440,7 +450,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+          'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt')
       os.environ.pop('FOO', None)
       self.assertFalse('FOO' in os.environ)
       _ = (
@@ -458,7 +468,8 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
+          'gs://apache-beam-ml/models/multiple_tensor_features_engine_trt11.trt'
+      )
       pcoll = pipeline | 'start' >> beam.Create(
           TWO_FEATURES_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)

@@ -25,7 +25,6 @@ import org.apache.beam.runners.dataflow.worker.DataflowWorkExecutor;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
 import org.apache.beam.runners.dataflow.worker.util.BoundedQueueExecutor;
-import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateReader;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.slf4j.Logger;
@@ -53,7 +52,7 @@ public abstract class ComputationWorkExecutor {
 
   public abstract DataflowWorkExecutor workExecutor();
 
-  abstract StreamingModeExecutionContext context();
+  public abstract StreamingModeExecutionContext context();
 
   public abstract Optional<Coder<?>> keyCoder();
 
@@ -64,20 +63,20 @@ public abstract class ComputationWorkExecutor {
    */
   public final StreamingModeExecutionContext executeWork(
       Work work,
-      WindmillStateReader stateReader,
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
-      KeyTransitionListener keyTransitionListener)
+      KeyTransitionListener keyTransitionListener,
+      FailedWorkHandler onFailedWorkHandler)
       throws Exception {
     context()
         .start(
             work,
-            stateReader,
             workExecutor(),
             workQueueExecutor,
             budgetHandle,
             keyCoder().orElse(null),
-            keyTransitionListener);
+            keyTransitionListener,
+            onFailedWorkHandler);
     workExecutor().execute();
     return context();
   }

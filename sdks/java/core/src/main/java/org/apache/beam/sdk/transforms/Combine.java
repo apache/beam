@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
@@ -82,9 +83,6 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * href="https://beam.apache.org/documentation/programming-guide/#transforms-combine">documentation</a>
  * for how to use the operations in this class.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class Combine {
   private Combine() {
     // do not instantiate
@@ -142,7 +140,7 @@ public class Combine {
     return globally(fn, displayDataForFn(fn));
   }
 
-  private static <T> DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(T fn) {
+  private static DisplayData.ItemSpec<? extends Class<?>> displayDataForFn(Object fn) {
     return DisplayData.item("combineFn", fn.getClass()).withLabel("Combiner");
   }
 
@@ -533,7 +531,7 @@ public class Combine {
     @Override
     public Holder<V> addInput(Holder<V> accumulator, V input) {
       if (accumulator.present) {
-        accumulator.set(apply(accumulator.value, input));
+        accumulator.set(apply(accumulator.get(), input));
       } else {
         accumulator.set(input);
       }
@@ -551,9 +549,9 @@ public class Combine {
           Holder<V> accum = iter.next();
           if (accum.present) {
             if (running.present) {
-              running.set(apply(running.value, accum.value));
+              running.set(apply(running.get(), accum.get()));
             } else {
-              running.set(accum.value);
+              running.set(accum.get());
             }
           }
         }
@@ -562,9 +560,10 @@ public class Combine {
     }
 
     @Override
+    @SuppressWarnings("nullness") // identity() is nullable; combining an empty set may yield null
     public V extractOutput(Holder<V> accumulator) {
       if (accumulator.present) {
-        return accumulator.value;
+        return accumulator.get();
       } else {
         return identity();
       }
@@ -593,12 +592,22 @@ public class Combine {
     private Holder() {}
 
     private Holder(V value) {
-      set(value);
+      this.present = true;
+      this.value = value;
     }
 
     private void set(V value) {
       this.present = true;
       this.value = value;
+    }
+
+    /**
+     * Returns the held value, which is meaningful only when {@link #present}. The result may be
+     * null, because {@link BinaryCombineFn} supports null values.
+     */
+    @SuppressWarnings("nullness")
+    private V get() {
+      return value;
     }
 
     @Override
@@ -627,7 +636,7 @@ public class Combine {
         throws CoderException, IOException {
       if (accumulator.present) {
         outStream.write(1);
-        valueCoder.encode(accumulator.value, outStream, context);
+        valueCoder.encode(accumulator.get(), outStream, context);
       } else {
         outStream.write(0);
       }
@@ -1224,7 +1233,9 @@ public class Combine {
       PCollection<OutputT> defaultIfEmpty =
           maybeEmpty
               .getPipeline()
-              .apply("CreateVoid", Create.of((Void) null).withCoder(VoidCoder.of()))
+              .apply(
+                  "CreateVoid",
+                  Create.<@Nullable Void>of((@Nullable Void) null).withCoder(VoidCoder.of()))
               .apply(
                   "ProduceDefault",
                   ParDo.of(
@@ -1324,8 +1335,7 @@ public class Combine {
       PCollectionView<OutputT> view =
           PCollectionViews.singletonView(
               combined,
-              (TypeDescriptorSupplier<OutputT>)
-                  () -> outputCoder != null ? outputCoder.getEncodedTypeDescriptor() : null,
+              (TypeDescriptorSupplier<OutputT>) () -> outputCoder.getEncodedTypeDescriptor(),
               input.getWindowingStrategy(),
               insertDefault,
               insertDefault ? fn.defaultValue() : null,
@@ -1756,7 +1766,7 @@ public class Combine {
               @Override
               public AccumT addInput(AccumT accumulator, InputOrAccum<InputT, AccumT> value) {
                 if (value.accum == null) {
-                  return fn.addInput(accumulator, value.input);
+                  return fn.addInput(accumulator, checkStateNotNull(value.input));
                 } else {
                   return fn.mergeAccumulators(ImmutableList.of(accumulator, value.accum));
                 }
@@ -1854,7 +1864,7 @@ public class Combine {
                   InputOrAccum<InputT, AccumT> value,
                   CombineWithContext.Context c) {
                 if (value.accum == null) {
-                  return fnWithContext.addInput(accumulator, value.input, c);
+                  return fnWithContext.addInput(accumulator, checkStateNotNull(value.input), c);
                 } else {
                   return fnWithContext.mergeAccumulators(
                       ImmutableList.of(accumulator, value.accum), c);
@@ -2075,7 +2085,7 @@ public class Combine {
             inputCoder.encode(value.input, outStream, context);
           } else {
             outStream.write(1);
-            accumCoder.encode(value.accum, outStream, context);
+            accumCoder.encode(checkStateNotNull(value.accum), outStream, context);
           }
         }
 

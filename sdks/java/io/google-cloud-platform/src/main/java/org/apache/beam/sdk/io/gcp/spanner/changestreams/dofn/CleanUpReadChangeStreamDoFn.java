@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.gcp.spanner.changestreams.dofn;
 import java.io.Serializable;
 import java.util.List;
 import org.apache.beam.sdk.io.gcp.spanner.changestreams.dao.DaoFactory;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 
 public class CleanUpReadChangeStreamDoFn extends DoFn<byte[], Void> implements Serializable {
@@ -30,6 +32,11 @@ public class CleanUpReadChangeStreamDoFn extends DoFn<byte[], Void> implements S
 
   public CleanUpReadChangeStreamDoFn(DaoFactory daoFactory) {
     this.daoFactory = daoFactory;
+  }
+
+  @Setup
+  public void setup(PipelineOptions options) {
+    daoFactory.setOpenTelemetry(options.as(SdkHarnessOptions.class).getOpenTelemetry());
   }
 
   @ProcessElement

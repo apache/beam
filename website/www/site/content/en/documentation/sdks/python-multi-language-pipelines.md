@@ -203,7 +203,7 @@ export NUM_WORKERS="1"
 
 # other commands, e.g. changing into the appropriate directory
 
-gsutil rm gs://$GCS_BUCKET/javaprefix/*
+gcloud storage rm gs://$GCS_BUCKET/javaprefix/*
 
 python addprefix.py \
     --runner DataflowRunner \

@@ -45,8 +45,7 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
   @Description(
       "Set the default environment type for running user code. "
           + "Possible options are DOCKER and PROCESS.")
-  @Nullable
-  String getDefaultEnvironmentType();
+  @Nullable String getDefaultEnvironmentType();
 
   void setDefaultEnvironmentType(String environmentType);
 
@@ -57,8 +56,7 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
           + "{\"os\": \"<OS>\", \"arch\": \"<ARCHITECTURE>\", \"command\": \"<process to execute>\", "
           + "\"env\":{\"<Environment variables 1>\": \"<ENV_VAL>\"} }. "
           + "All fields in the json are optional except command.")
-  @Nullable
-  String getDefaultEnvironmentConfig();
+  @Nullable String getDefaultEnvironmentConfig();
 
   void setDefaultEnvironmentConfig(@Nullable String config);
 
@@ -91,8 +89,7 @@ public interface PortablePipelineOptions extends PipelineOptions, FileStagingOpt
   void setLoadBalanceBundles(boolean loadBalanceBundles);
 
   @Description("The output path for the executable file to be created.")
-  @Nullable
-  String getOutputExecutablePath();
+  @Nullable String getOutputExecutablePath();
 
   void setOutputExecutablePath(String outputExecutablePath);
 

@@ -20,9 +20,12 @@ package org.apache.beam.sdk.io.delta;
 import static org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.delta.DeltaReadSchemaTransformProvider.OUTPUT_TAG;
 
+import io.delta.kernel.defaults.engine.DefaultEngine;
+import io.delta.kernel.engine.Engine;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
@@ -121,6 +124,54 @@ public class DeltaReadSchemaTransformProviderTest {
             .get(OUTPUT_TAG);
 
     PAssert.that(output).containsInAnyOrder(row);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithVersion() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-provider-version");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
+
+    Configuration readConfig =
+        Configuration.builder().setTable(tableDir.getAbsolutePath()).setVersion(0L).build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaReadSchemaTransformProvider().from(readConfig))
+            .get(OUTPUT_TAG);
+
+    PAssert.that(output).containsInAnyOrder(row1, row2);
+
+    readPipeline.run().waitUntilFinish();
+  }
+
+  @Test
+  public void testReadWithTimestamp() throws Exception {
+    File tableDir = tempFolder.newFolder("delta-table-provider-timestamp");
+    Engine engine = DefaultEngine.create(new org.apache.hadoop.conf.Configuration());
+
+    List<Row> rows = DeltaWriteTestUtils.setupTwoVersionTable(engine, tableDir.getAbsolutePath());
+    Row row1 = rows.get(0);
+    Row row2 = rows.get(1);
+
+    String timestampV0 = java.time.Instant.ofEpochMilli(150000000000L).toString();
+    Configuration readConfig =
+        Configuration.builder()
+            .setTable(tableDir.getAbsolutePath())
+            .setTimestamp(timestampV0)
+            .build();
+
+    PCollection<Row> output =
+        PCollectionRowTuple.empty(readPipeline)
+            .apply(new DeltaReadSchemaTransformProvider().from(readConfig))
+            .get(OUTPUT_TAG);
+
+    PAssert.that(output).containsInAnyOrder(row1, row2);
 
     readPipeline.run().waitUntilFinish();
   }
