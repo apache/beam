@@ -212,7 +212,7 @@ public final class MetricsReport {
     report.append(
         String.format(
             Locale.US,
-            "  %-" + NAME_COLUMN_WIDTH + "s %s\n",
+            "  %-" + NAME_COLUMN_WIDTH + "s %s%n",
             metricName + ":",
             format(metricName, totalOf(byStep))));
     // A lone global step is the total that was just printed, so it is not repeated.
@@ -220,7 +220,7 @@ public final class MetricsReport {
       byStep.forEach(
           (step, value) ->
               report.append(
-                  String.format(Locale.US, "    [%s]: %s\n", step, format(metricName, value))));
+                  String.format(Locale.US, "    [%s]: %s%n", step, format(metricName, value))));
     }
   }
 
@@ -235,7 +235,7 @@ public final class MetricsReport {
                     "  %-"
                         + NAME_COLUMN_WIDTH
                         + "s count=%,d, sum=%,d, min=%,d, max=%,d,"
-                        + " mean=%.2f [%s]\n",
+                        + " mean=%.2f [%s]%n",
                     metricName + ":",
                     distribution.getCount(),
                     distribution.getSum(),
