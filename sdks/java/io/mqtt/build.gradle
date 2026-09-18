@@ -27,8 +27,7 @@ dependencies {
   implementation project(path: ":sdks:java:core", configuration: "shadow")
   implementation library.java.slf4j_api
   implementation library.java.joda_time
-  implementation "org.fusesource.mqtt-client:mqtt-client:1.15"
-  implementation "org.fusesource.hawtbuf:hawtbuf:1.11"
+  implementation "com.hivemq:hivemq-mqtt-client:1.3.15"
   testImplementation project(path: ":sdks:java:io:common")
   testImplementation library.java.activemq_broker
   testImplementation library.java.activemq_mqtt

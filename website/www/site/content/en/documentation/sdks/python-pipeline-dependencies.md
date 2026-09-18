@@ -91,9 +91,48 @@ If your pipeline uses packages that are not available publicly (e.g. packages th
 
       See the [build documentation](https://pypa-build.readthedocs.io/en/latest/index.html) for more details on this command.
 
+## Staging Individual Files {#staging-files}
+
+If your pipeline relies on one or more individual Python files or non-Python data files that do not need to be packaged as a full Python package, you can stage them individually to the remote workers.
+
+To stage individual files, run your pipeline with the `--files_to_stage` (or `--file_to_stage`) pipeline option. This option accepts a list of local file paths:
+
+        --files_to_stage="/path/to/my_module.py,/path/to/data_config.json"
+
+When the pipeline runs, the runner uploads these files and makes them available on the workers in the worker's staged files directory.
+
+### Accessing Staged Files on the Workers
+
+Staged files are downloaded onto the worker:
+
+* **Python modules**: Starting with Apache Beam 2.76.0, to make it easy to import staged Python files as modules, Beam automatically appends the worker's staged files directory to the Python interpreter's search path (`sys.path`) during startup. This means you can import them directly in your code:
+
+      import my_module
+
+* **Data or configuration files**: If you staged non-Python files (such as a JSON config), they are downloaded to the staged files directory. You can locate this directory on the worker by reading the `SEMI_PERSISTENT_DIRECTORY` environment variable, or look for `/tmp/staged` which is the default location for staged files on containerized runners:
+
+      import os
+      staged_dir = os.environ.get('SEMI_PERSISTENT_DIRECTORY', '/tmp/staged')
+      config_path = os.path.join(staged_dir, 'data_config.json')
+
+### Importing Plugins on Worker Startup
+
+You can use staged files in combination with the `--beam_plugins` pipeline option (supported starting with Apache Beam 2.76.0) to run initialization code on the workers before any processing starts.
+
+To use a staged file as a plugin:
+1. Stage the plugin file (e.g. `my_custom_plugin.py`) using `--file_to_stage`.
+2. Reference the module name in `--beam_plugins`.
+
+For example, run your pipeline with:
+
+        --file_to_stage="/path/to/my_custom_plugin.py" \
+        --beam_plugins="my_custom_plugin"
+
+This instructs the SDK worker to import `my_custom_plugin` immediately on startup, triggering any initialization logic defined in the module.
+
 ## Multiple File Dependencies {#multiple-file-dependencies}
 
-Often, your pipeline code spans multiple files. To run your project remotely, you must group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
+Often, your pipeline code spans multiple files. To run your project remotely, it is best to group these files as a Python package and specify the package when you run your pipeline. When the remote workers start, they will install your package. To group your files as a Python package and make it available remotely, perform the following steps:
 
 1. Create a [setup.py](https://pythonhosted.org/an_example_pypi_project/setuptools.html) file for your project. The following is a very basic `setup.py` file.
 

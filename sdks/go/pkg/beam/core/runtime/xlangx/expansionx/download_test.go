@@ -249,3 +249,28 @@ func TestGetPythonVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestValidatePath(t *testing.T) {
+	dest := filepath.Clean("/tmp/cache")
+	tests := []struct {
+		name     string
+		filename string
+		wantErr  bool
+	}{
+		{"valid simple file", "Foo.class", false},
+		{"valid nested file", "org/apache/beam/Foo.class", false},
+		{"traversal attack", "../../etc/passwd", true},
+		{"partial directory prefix attack", "../cache_evil/evil.sh", true},
+		{"parent directory traversal", "..", true},
+		{"nested traversal attack", "foo/bar/../../../etc/passwd", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := validatePath(dest, tc.filename)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("validatePath(%q, %q) error = %v, wantErr %v", dest, tc.filename, err, tc.wantErr)
+			}
+		})
+	}
+}

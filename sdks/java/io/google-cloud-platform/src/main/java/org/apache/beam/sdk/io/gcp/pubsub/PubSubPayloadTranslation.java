@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.pubsub;
 
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SINK;
 import static org.apache.beam.sdk.io.gcp.pubsub.PubsubIO.ENABLE_CUSTOM_PUBSUB_SOURCE;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.service.AutoService;
 import java.util.Collections;
@@ -37,16 +38,13 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.NestedValueProvider;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.sdk.util.construction.PTransformTranslation;
 import org.apache.beam.sdk.util.construction.PTransformTranslation.TransformPayloadTranslator;
 import org.apache.beam.sdk.util.construction.SdkComponents;
 import org.apache.beam.sdk.util.construction.TransformPayloadTranslatorRegistrar;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 /**
  * Utility methods for translating a {@link Unbounded} which reads from {@link
  * PubsubUnboundedSource} to {@link RunnerApi} representations.
@@ -61,7 +59,7 @@ public class PubSubPayloadTranslation {
     }
 
     @Override
-    public RunnerApi.FunctionSpec translate(
+    public RunnerApi.@Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, Unbounded<?>> transform, SdkComponents components) {
       if (ExperimentalOptions.hasExperiment(
           transform.getPipeline().getOptions(), ENABLE_CUSTOM_PUBSUB_SOURCE)) {
@@ -93,11 +91,13 @@ public class PubSubPayloadTranslation {
         }
       }
 
-      if (pubsubUnboundedSource.getTimestampAttribute() != null) {
-        payloadBuilder.setTimestampAttribute(pubsubUnboundedSource.getTimestampAttribute());
+      String timestampAttribute = pubsubUnboundedSource.getTimestampAttribute();
+      if (timestampAttribute != null) {
+        payloadBuilder.setTimestampAttribute(timestampAttribute);
       }
-      if (pubsubUnboundedSource.getIdAttribute() != null) {
-        payloadBuilder.setIdAttribute(pubsubUnboundedSource.getIdAttribute());
+      String idAttribute = pubsubUnboundedSource.getIdAttribute();
+      if (idAttribute != null) {
+        payloadBuilder.setIdAttribute(idAttribute);
       }
       payloadBuilder.setWithAttributes(
           pubsubUnboundedSource.getNeedsAttributes() || pubsubUnboundedSource.getNeedsMessageId());
@@ -116,7 +116,7 @@ public class PubSubPayloadTranslation {
     }
 
     @Override
-    public RunnerApi.FunctionSpec translate(
+    public RunnerApi.@Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubSink> transform,
         SdkComponents components) {
       if (ExperimentalOptions.hasExperiment(
@@ -125,19 +125,20 @@ public class PubSubPayloadTranslation {
       }
       PubSubWritePayload.Builder payloadBuilder = PubSubWritePayload.newBuilder();
       ValueProvider<TopicPath> topicProvider =
-          Preconditions.checkStateNotNull(transform.getTransform().outer.getTopicProvider());
+          checkStateNotNull(transform.getTransform().outer.getTopicProvider());
       if (topicProvider.isAccessible()) {
         payloadBuilder.setTopic(topicProvider.get().getFullPath());
       } else {
         payloadBuilder.setTopicRuntimeOverridden(
             ((NestedValueProvider) topicProvider).propertyName());
       }
-      if (transform.getTransform().outer.getTimestampAttribute() != null) {
-        payloadBuilder.setTimestampAttribute(
-            transform.getTransform().outer.getTimestampAttribute());
+      String timestampAttribute = transform.getTransform().outer.getTimestampAttribute();
+      if (timestampAttribute != null) {
+        payloadBuilder.setTimestampAttribute(timestampAttribute);
       }
-      if (transform.getTransform().outer.getIdAttribute() != null) {
-        payloadBuilder.setIdAttribute(transform.getTransform().outer.getIdAttribute());
+      String idAttribute = transform.getTransform().outer.getIdAttribute();
+      if (idAttribute != null) {
+        payloadBuilder.setIdAttribute(idAttribute);
       }
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))
@@ -154,7 +155,7 @@ public class PubSubPayloadTranslation {
     }
 
     @Override
-    public RunnerApi.FunctionSpec translate(
+    public RunnerApi.@Nullable FunctionSpec translate(
         AppliedPTransform<?, ?, PubsubUnboundedSink.PubsubDynamicSink> transform,
         SdkComponents components) {
       if (ExperimentalOptions.hasExperiment(
@@ -162,12 +163,13 @@ public class PubSubPayloadTranslation {
         return null;
       }
       PubSubWritePayload.Builder payloadBuilder = PubSubWritePayload.newBuilder();
-      if (transform.getTransform().outer.getTimestampAttribute() != null) {
-        payloadBuilder.setTimestampAttribute(
-            transform.getTransform().outer.getTimestampAttribute());
+      String timestampAttribute = transform.getTransform().outer.getTimestampAttribute();
+      if (timestampAttribute != null) {
+        payloadBuilder.setTimestampAttribute(timestampAttribute);
       }
-      if (transform.getTransform().outer.getIdAttribute() != null) {
-        payloadBuilder.setIdAttribute(transform.getTransform().outer.getIdAttribute());
+      String idAttribute = transform.getTransform().outer.getIdAttribute();
+      if (idAttribute != null) {
+        payloadBuilder.setIdAttribute(idAttribute);
       }
       return FunctionSpec.newBuilder()
           .setUrn(getUrn(transform.getTransform()))

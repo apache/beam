@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 })
 public class DoFnInstanceManagers {
   private static final Logger LOG = LoggerFactory.getLogger(DoFnInstanceManagers.class);
+
   /**
    * Returns a {@link DoFnInstanceManager} that returns {@link DoFnInfo} instances obtained by
    * deserializing the provided bytes. {@link DoFnInstanceManager} will call {@link DoFn.Setup} as

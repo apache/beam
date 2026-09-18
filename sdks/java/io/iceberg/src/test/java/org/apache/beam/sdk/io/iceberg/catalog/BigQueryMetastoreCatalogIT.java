@@ -50,6 +50,16 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
   }
 
   @Override
+  public String bigQueryTableSpec(String tableId) {
+    // The BigQuery metastore federation surfaces Iceberg namespaces as ordinary BigQuery
+    // datasets, so tables use plain 3-part project.dataset.table references, with the namespace
+    // as the dataset.
+    TableIdentifier identifier = TableIdentifier.parse(tableId);
+    return String.format(
+        "%s.%s.%s", OPTIONS.getProject(), identifier.namespace(), identifier.name());
+  }
+
+  @Override
   public Catalog createCatalog() {
     return CatalogUtil.loadCatalog(
         BQMS_CATALOG,
@@ -58,6 +68,7 @@ public class BigQueryMetastoreCatalogIT extends IcebergCatalogBaseIT {
             .put("gcp_project", OPTIONS.getProject())
             .put("gcp_location", "us-central1")
             .put("warehouse", warehouse)
+            .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
             .build(),
         new Configuration());
   }

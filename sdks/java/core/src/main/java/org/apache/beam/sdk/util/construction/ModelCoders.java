@@ -22,6 +22,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Set;
 import org.apache.beam.model.pipeline.v1.RunnerApi.Coder;
 import org.apache.beam.model.pipeline.v1.RunnerApi.FunctionSpec;
@@ -61,6 +62,7 @@ public class ModelCoders {
       getUrn(StandardCoders.Enum.PARAM_WINDOWED_VALUE);
 
   public static final String ROW_CODER_URN = getUrn(StandardCoders.Enum.ROW);
+  public static final String SCHEMA_CODER_URN = getUrn(StandardCoders.Enum.SCHEMA);
 
   public static final String STATE_BACKED_ITERABLE_CODER_URN =
       "beam:coder:state_backed_iterable:v1";
@@ -90,11 +92,18 @@ public class ModelCoders {
           WINDOWED_VALUE_CODER_URN,
           DOUBLE_CODER_URN,
           ROW_CODER_URN,
+          SCHEMA_CODER_URN,
           PARAM_WINDOWED_VALUE_CODER_URN,
           STATE_BACKED_ITERABLE_CODER_URN,
           SHARDED_KEY_CODER_URN,
           NULLABLE_CODER_URN);
 
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Returns a Guava ImmutableSet."
+              + " Spotbugs matches its known-immutable list by fully qualified name, so it cannot recognise collections relocated into org.apache.beam.vendor.guava."
+              + " See https://github.com/spotbugs/spotbugs/issues/1601.")
   public static Set<String> urns() {
     return MODEL_CODER_URNS;
   }

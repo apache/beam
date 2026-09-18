@@ -29,6 +29,7 @@ import org.apache.beam.it.common.PipelineLauncher.LaunchConfig;
 import org.apache.beam.it.common.PipelineLauncher.LaunchInfo;
 import org.apache.beam.it.common.PipelineLauncher.Sdk;
 import org.apache.beam.it.common.PipelineOperator.Result;
+import org.apache.beam.it.common.dataflow.IOLoadTestBase;
 import org.apache.beam.runners.dataflow.DataflowRunner;
 import org.apache.beam.sdk.io.TextIO;
 import org.apache.beam.sdk.options.PipelineOptions;

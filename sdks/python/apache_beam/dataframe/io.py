@@ -565,6 +565,7 @@ class _TruncatingFileHandle(object):
       self._buffer = self._underlying.read(size)
 
     if not self._buffer:
+      self._tracker.try_claim(self._tracker.current_restriction().stop)
       self._done = True
       return self._empty
 
@@ -736,7 +737,7 @@ class _WriteToPandasFileSink(fileio.FileSink):
     self.empty = self.header = self.footer = None
     if not self.binary:
       file_handle = TextIOWrapper(
-          file_handle, encoding=self.kwargs.get("encoding", None))
+          file_handle, encoding=self.kwargs.get("encoding", None), newline='')
     self.file_handle = file_handle
 
   def write_to(self, df, file_handle=None):

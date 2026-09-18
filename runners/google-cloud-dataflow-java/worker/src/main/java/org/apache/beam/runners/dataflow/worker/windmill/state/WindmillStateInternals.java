@@ -44,6 +44,7 @@ public class WindmillStateInternals<K> implements StateInternals {
   @VisibleForTesting
   static final ThreadLocal<Supplier<Boolean>> COMPACT_NOW =
       ThreadLocal.withInitial(ShouldCompactNowFn::new);
+
   /**
    * The key will be null when not in a keyed context, from the users perspective. There is still a
    * "key" for the Windmill computation, but it cannot be meaningfully deserialized.
@@ -54,6 +55,19 @@ public class WindmillStateInternals<K> implements StateInternals {
   private final CachingStateTable workItemState;
   private final CachingStateTable workItemDerivedState;
   private final Supplier<Closeable> scopedReadStateSupplier;
+
+  private boolean poisoned = false;
+
+  public void poison() {
+    this.poisoned = true;
+  }
+
+  private void checkNotPoisoned() {
+    if (poisoned) {
+      throw new IllegalStateException(
+          "WindmillStateInternals is poisoned and cannot be used after flushState().");
+    }
+  }
 
   public WindmillStateInternals(
       @Nullable K key,
@@ -78,6 +92,7 @@ public class WindmillStateInternals<K> implements StateInternals {
 
   @Override
   public @Nullable K getKey() {
+    checkNotPoisoned();
     return key;
   }
 
@@ -104,6 +119,7 @@ public class WindmillStateInternals<K> implements StateInternals {
   }
 
   public void persist(final Windmill.WorkItemCommitRequest.Builder commitBuilder) {
+    checkNotPoisoned();
     List<Future<WorkItemCommitRequest>> commitsToMerge = new ArrayList<>();
 
     // Call persist on each first, which may schedule some futures for reading.
@@ -126,12 +142,14 @@ public class WindmillStateInternals<K> implements StateInternals {
 
   @Override
   public <T extends State> T state(StateNamespace namespace, StateTag<T> address) {
+    checkNotPoisoned();
     return workItemState.get(namespace, address, StateContexts.nullContext());
   }
 
   @Override
   public <T extends State> T state(
       StateNamespace namespace, StateTag<T> address, StateContext<?> c) {
+    checkNotPoisoned();
     return workItemState.get(namespace, address, c);
   }
 

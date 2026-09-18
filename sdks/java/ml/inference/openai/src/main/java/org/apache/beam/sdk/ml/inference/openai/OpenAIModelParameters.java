@@ -92,6 +92,7 @@ public class OpenAIModelParameters implements BaseModelParameters {
       this.modelName = modelName;
       return this;
     }
+
     /**
      * Sets the instruction prompt for the model. This prompt provides context or instructions to
      * the model about how to process the input text.

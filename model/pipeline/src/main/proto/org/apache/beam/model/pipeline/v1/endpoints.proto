@@ -39,6 +39,9 @@ message ApiServiceDescriptor {
   AuthenticationSpec authentication = 2;
 }
 
+// Describes the authentication mechanism for connecting to a Beam API endpoint.
+// Uses a URN-based approach to allow different authentication methods (e.g. OAuth2,
+// bearer tokens) to be specified in an extensible manner.
 message AuthenticationSpec {
   // (Required) A URN that describes the accompanying payload.
   // For any URN that is not recognized (by whomever is inspecting

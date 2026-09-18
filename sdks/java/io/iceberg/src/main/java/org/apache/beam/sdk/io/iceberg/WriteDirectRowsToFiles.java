@@ -26,6 +26,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
@@ -40,24 +41,48 @@ class WriteDirectRowsToFiles
   private final IcebergCatalogConfig catalogConfig;
   private final String filePrefix;
   private final long maxBytesPerFile;
+  private final @Nullable Map<String, String> writeProperties;
+  private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
   WriteDirectRowsToFiles(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       String filePrefix,
-      long maxBytesPerFile) {
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties) {
+    this(catalogConfig, dynamicDestinations, filePrefix, maxBytesPerFile, writeProperties, null);
+  }
+
+  WriteDirectRowsToFiles(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      String filePrefix,
+      long maxBytesPerFile,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
     this.catalogConfig = catalogConfig;
     this.dynamicDestinations = dynamicDestinations;
     this.filePrefix = filePrefix;
     this.maxBytesPerFile = maxBytesPerFile;
+    this.writeProperties = writeProperties;
+    this.metadataView = metadataView;
   }
 
   @Override
   public PCollection<FileWriteResult> expand(PCollection<KV<String, Row>> input) {
-    return input.apply(
+    ParDo.SingleOutput<KV<String, Row>, FileWriteResult> parDo =
         ParDo.of(
             new WriteDirectRowsToFilesDoFn(
-                catalogConfig, dynamicDestinations, maxBytesPerFile, filePrefix)));
+                catalogConfig,
+                dynamicDestinations,
+                maxBytesPerFile,
+                filePrefix,
+                writeProperties,
+                metadataView));
+    if (metadataView != null) {
+      parDo = parDo.withSideInputs(metadataView);
+    }
+    return input.apply(parDo);
   }
 
   private static class WriteDirectRowsToFilesDoFn extends DoFn<KV<String, Row>, FileWriteResult> {
@@ -66,29 +91,45 @@ class WriteDirectRowsToFiles
     private final IcebergCatalogConfig catalogConfig;
     private final String filePrefix;
     private final long maxFileSize;
+    private final @Nullable Map<String, String> writeProperties;
+    private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
     private transient @Nullable RecordWriterManager recordWriterManager;
 
     WriteDirectRowsToFilesDoFn(
         IcebergCatalogConfig catalogConfig,
         DynamicDestinations dynamicDestinations,
         long maxFileSize,
-        String filePrefix) {
+        String filePrefix,
+        @Nullable Map<String, String> writeProperties) {
+      this(catalogConfig, dynamicDestinations, maxFileSize, filePrefix, writeProperties, null);
+    }
+
+    WriteDirectRowsToFilesDoFn(
+        IcebergCatalogConfig catalogConfig,
+        DynamicDestinations dynamicDestinations,
+        long maxFileSize,
+        String filePrefix,
+        @Nullable Map<String, String> writeProperties,
+        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
       this.catalogConfig = catalogConfig;
       this.dynamicDestinations = dynamicDestinations;
       this.filePrefix = filePrefix;
       this.maxFileSize = maxFileSize;
+      this.writeProperties = writeProperties;
+      this.metadataView = metadataView;
       this.recordWriterManager = null;
     }
 
     @StartBundle
     public void startBundle() {
       recordWriterManager =
-          new RecordWriterManager(catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE);
+          new RecordWriterManager(
+              catalogConfig, filePrefix, maxFileSize, Integer.MAX_VALUE, writeProperties);
     }
 
     @ProcessElement
     public void processElement(
-        @SuppressWarnings("unused") ProcessContext context,
+        ProcessContext context,
         @Element KV<String, Row> element,
         BoundedWindow window,
         PaneInfo paneInfo)
@@ -97,8 +138,10 @@ class WriteDirectRowsToFiles
       IcebergDestination destination = dynamicDestinations.instantiateDestination(tableIdentifier);
       WindowedValue<IcebergDestination> windowedDestination =
           WindowedValues.of(destination, window.maxTimestamp(), window, paneInfo);
+      Map<String, SerializableTableSpec> sideInputs =
+          metadataView != null ? context.sideInput(metadataView) : null;
       Preconditions.checkNotNull(recordWriterManager)
-          .write(windowedDestination, element.getValue());
+          .write(windowedDestination, element.getValue(), sideInputs);
     }
 
     @FinishBundle

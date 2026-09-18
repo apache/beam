@@ -21,15 +21,16 @@
 
 import unittest
 
-import mock
-
 import apache_beam as beam
-from apache_beam.io.concat_source import ConcatSource
-from apache_beam.io.concat_source_test import RangeSource
+import mock
 from apache_beam.io import iobase
 from apache_beam.io import range_trackers
+from apache_beam.io.concat_source import ConcatSource
+from apache_beam.io.concat_source_test import RangeSource
 from apache_beam.io.iobase import SourceBundle
 from apache_beam.options.pipeline_options import DebugOptions
+from apache_beam.portability import common_urns
+from apache_beam.portability import python_urns
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 
@@ -218,6 +219,67 @@ class UseSdfBoundedSourcesTests(unittest.TestCase):
 
   def test_sdf_wrap_range_source(self):
     self._run_sdf_wrapper_pipeline(RangeSource(0, 4), [0, 1, 2, 3])
+
+
+class UseSdfUnboundedSourcesTests(unittest.TestCase):
+  """Covers the UnboundedSource branch in
+  ``iobase.Read.expand()``. Uses ``UnboundedCountingSource`` from
+  ``unbounded_source`` as a finite fake source (no network).
+  """
+  def test_read_end_to_end_unbounded(self):
+    from apache_beam.io.unbounded_source import UnboundedCountingSource
+    with beam.Pipeline() as p:
+      out = p | beam.io.Read(UnboundedCountingSource(5))
+      assert_that(out, equal_to([0, 1, 2, 3, 4]))
+
+  def test_read_unbounded_pcollection_is_unbounded(self):
+    from apache_beam.io.unbounded_source import UnboundedCountingSource
+    p = beam.Pipeline()
+    out = p | beam.io.Read(UnboundedCountingSource(3))
+    self.assertFalse(out.is_bounded)
+
+  def test_read_unbounded_serializes_as_expanded_composite(self):
+    from apache_beam.io.unbounded_source import UnboundedCountingSource
+    p = beam.Pipeline()
+    p | 'ReadIt' >> beam.io.Read(UnboundedCountingSource(3))
+
+    proto = p.to_runner_api(use_fake_coders=True)
+    transforms = proto.components.transforms.values()
+    deprecated_reads = [
+        transform.unique_name for transform in transforms
+        if transform.spec.urn == common_urns.deprecated_primitives.READ.urn
+    ]
+    read_transforms = [
+        transform for transform in proto.components.transforms.values()
+        if transform.unique_name == 'ReadIt'
+    ]
+
+    self.assertEqual([], deprecated_reads)
+    self.assertEqual(1, len(read_transforms))
+    self.assertEqual(
+        python_urns.GENERIC_COMPOSITE_TRANSFORM, read_transforms[0].spec.urn)
+    self.assertTrue(read_transforms[0].subtransforms)
+
+
+class RestrictionProgressTest(unittest.TestCase):
+  def test_restriction_progress(self):
+    # Total work == 0 edge cases (avoids ZeroDivisionError)
+    progress_zero_int = iobase.RestrictionProgress(completed=0, remaining=0)
+    self.assertEqual(progress_zero_int.fraction_completed, 1.0)
+    self.assertEqual(progress_zero_int.fraction_remaining, 0.0)
+
+    # Progress with completed and remaining
+    progress_work = iobase.RestrictionProgress(completed=25, remaining=75)
+    self.assertEqual(progress_work.completed_work, 25)
+    self.assertEqual(progress_work.remaining_work, 75)
+    self.assertEqual(progress_work.total_work, 100)
+    self.assertEqual(progress_work.fraction_completed, 0.25)
+    self.assertEqual(progress_work.fraction_remaining, 0.75)
+
+    # Progress with fraction
+    progress_frac = iobase.RestrictionProgress(fraction=0.4)
+    self.assertEqual(progress_frac.fraction_completed, 0.4)
+    self.assertAlmostEqual(progress_frac.fraction_remaining, 0.6)
 
 
 if __name__ == '__main__':

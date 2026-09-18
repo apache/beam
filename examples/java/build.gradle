@@ -44,8 +44,8 @@ dependencies {
   if (project.findProperty('testJavaVersion') == '21' || JavaVersion.current().compareTo(JavaVersion.VERSION_21) >= 0) {
     // this dependency is a provided dependency for kafka-avro-serializer. It is not needed to compile with Java<=17
     // but needed for compile only under Java21, specifically, required for extending from AbstractKafkaAvroDeserializer
-    compileOnly library.java.kafka
-    permitUnusedDeclared library.java.kafka
+    compileOnly library.java.kafka_scala_2_12
+    permitUnusedDeclared library.java.kafka_scala_2_12
   }
   implementation library.java.kafka_clients
   implementation project(path: ":sdks:java:core", configuration: "shadow")
@@ -140,6 +140,13 @@ for (String runner : preCommitRunners) {
     forkEvery 1
     maxParallelForks 4
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(preCommitBeamTestPipelineOptions)
+    def testJavaVer = project.findProperty('testJavaVersion') ? (project.property('testJavaVersion') as int) : JavaVersion.current().majorVersion.toInteger()
+    if ("sparkRunner".equals(runner) && testJavaVer >= 17) {
+      jvmArgs "--add-opens=java.base/sun.nio.ch=ALL-UNNAMED",
+              "--add-opens=java.base/java.nio=ALL-UNNAMED",
+              "--add-opens=java.base/java.util=ALL-UNNAMED",
+              "--add-opens=java.base/java.lang.invoke=ALL-UNNAMED"
+    }
   }
 }
 

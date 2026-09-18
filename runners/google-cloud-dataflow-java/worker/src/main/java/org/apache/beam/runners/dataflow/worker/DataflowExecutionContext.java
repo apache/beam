@@ -150,6 +150,10 @@ public abstract class DataflowExecutionContext<T extends DataflowStepContext> {
     //               the state size might grow unbounded.
   }
 
+  protected final long getBytesSinked() {
+    return bytesSinked;
+  }
+
   /**
    * Sets a flag to indicate that a sink has enough data written to it. This hint is read by
    * upstream producers to stop producing if they can. Mainly used in streaming.

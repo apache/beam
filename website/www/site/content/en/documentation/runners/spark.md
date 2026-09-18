@@ -271,7 +271,7 @@ gcloud dataproc clusters create <b><i>CLUSTER_NAME</i></b> \
 2. Create a Cloud Storage bucket.
 
 <pre>
-gsutil mb <b><i>BUCKET_NAME</i></b>
+gcloud storage buckets create gs://<b><i>BUCKET_NAME</i></b>
 </pre>
 
 3. Install the necessary Python libraries for the job in your local environment.
@@ -313,7 +313,7 @@ gcloud dataproc jobs submit spark \
 6. Check that the results were written to your bucket.
 
 <pre>
-gsutil cat gs://<b><i>BUCKET_NAME</b></i>/python-wordcount-out-<b><i>SHARD_ID</b></i>
+gcloud storage cat gs://<b><i>BUCKET_NAME</b></i>/python-wordcount-out-<b><i>SHARD_ID</b></i>
 </pre>
 
 

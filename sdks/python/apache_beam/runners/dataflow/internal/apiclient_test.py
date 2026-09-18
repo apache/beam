@@ -113,6 +113,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertEqual(pipeline_url, FAKE_PIPELINE_URL)
 
+  def test_value_provider_options_serialization(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--at_vp_arg1')
+        parser.add_value_provider_argument('--at_vp_arg2')
+
+    pipeline_options = UserOptions([
+        '--at_vp_arg2', 'provided', '--temp_location', 'gs://any-location/temp'
+    ])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+
+    recovered_options = env.proto.sdk_pipeline_options['options']
+    self.assertIsNone(recovered_options['at_vp_arg1'])
+    self.assertEqual(recovered_options['at_vp_arg2'], 'provided')
+
   def test_pipeline_proto_hash(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
@@ -1030,9 +1049,12 @@ class UtilTest(unittest.TestCase):
     self.assertNotIn(
         'use_multiple_sdk_containers', environment.proto.experiments)
 
+  # Note: We mock Python to 3.11 here. Keep this mocked version aligned with a
+  # version in _PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW to prevent test failures
+  # on release (non-dev) builds.
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 9))
+      (3, 11))
   def test_get_python_sdk_name(self):
     pipeline_options = PipelineOptions([
         '--project',
@@ -1051,7 +1073,7 @@ class UtilTest(unittest.TestCase):
                                         '1',
                                         FAKE_PIPELINE_URL)
     self.assertEqual(
-        'Apache Beam Python 3.9 SDK', environment._get_python_sdk_name())
+        'Apache Beam Python 3.11 SDK', environment._get_python_sdk_name())
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',

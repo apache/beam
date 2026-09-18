@@ -47,6 +47,7 @@ const (
 	urnTimerCoder               = "beam:coder:timer:v1"
 	urnRowCoder                 = "beam:coder:row:v1"
 	urnNullableCoder            = "beam:coder:nullable:v1"
+	urnShardedKeyCoder          = "beam:coder:sharded_key:v1"
 
 	urnGlobalWindow   = "beam:coder:global_window:v1"
 	urnIntervalWindow = "beam:coder:interval_window:v1"
@@ -74,6 +75,7 @@ func knownStandardCoders() []string {
 		urnRowCoder,
 		urnNullableCoder,
 		urnTimerCoder,
+		urnShardedKeyCoder,
 	}
 }
 
@@ -378,6 +380,15 @@ func (b *CoderUnmarshaller) makeCoder(id string, c *pipepb.Coder) (*coder.Coder,
 			return nil, err
 		}
 		return coder.NewN(elm), nil
+	case urnShardedKeyCoder:
+		if len(components) != 1 {
+			return nil, errors.Errorf("could not unmarshal sharded_key coder from %v, expected one component (key) but got %d", c, len(components))
+		}
+		keyC, err := b.Coder(components[0])
+		if err != nil {
+			return nil, err
+		}
+		return coder.NewSK(keyC), nil
 	case urnIntervalWindow:
 		return coder.NewIntervalWindowCoder(), nil
 
@@ -492,6 +503,16 @@ func (b *CoderMarshaller) Add(c *coder.Coder) (string, error) {
 		// SDKs always provide iterableCoder to runners, but can receive StateBackedIterables in return.
 		stream := b.internBuiltInCoder(urnIterableCoder, value)
 		return b.internBuiltInCoder(urnKVCoder, comp[0], stream), nil
+
+	case coder.ShardedKey:
+		comp, err := b.AddMulti(c.Components)
+		if err != nil {
+			return "", errors.Wrapf(err, "failed to marshal ShardedKey coder %v", c)
+		}
+		if len(comp) != 1 {
+			return "", errors.Errorf("ShardedKey coder requires exactly 1 component (key), got %d", len(comp))
+		}
+		return b.internBuiltInCoder(urnShardedKeyCoder, comp...), nil
 
 	case coder.WindowedValue:
 		comp := []string{}

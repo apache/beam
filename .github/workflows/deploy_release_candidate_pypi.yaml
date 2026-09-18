@@ -31,6 +31,8 @@ jobs:
         echo "::add-mask::$PYPI_API_TOKEN"
     - name: Checkout
       uses: actions/checkout@v7
+      with:
+        persist-credentials: false
     - name: Setup environment
       uses: ./.github/actions/setup-environment-action
       with:
@@ -50,6 +52,8 @@ jobs:
         SCRIPT_DIR: release/src/main/scripts
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         SVN_ARTIFACTS_DIR: "beam/${{ github.event.inputs.RELEASE }}/python"
+        GITHUB_EVENT_INPUTS_RC: ${{ github.event.inputs.RC }}
+        GITHUB_EVENT_INPUTS_PYPI_API_TOKEN: ${{ github.event.inputs.PYPI_API_TOKEN }}
       run: |
         git fetch --all --tags --prune
         RELEASE_COMMIT=$(git rev-list -n 1 $RC_TAG)
@@ -61,14 +65,14 @@ jobs:
           --rc-tag "${RC_TAG}" \
           --release-commit "${RELEASE_COMMIT}" \
           --artifacts_dir "${PYTHON_ARTIFACTS_DIR}" \
-          --rc_number "${{ github.event.inputs.RC }}" \
+          --rc_number "${GITHUB_EVENT_INPUTS_RC}" \
           --yes True
 
         cd "${PYTHON_ARTIFACTS_DIR}"
         ls
 
-        echo "------Checking Hash Value for apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz-----"
-        sha512sum -c "apache_beam-${RELEASE}rc${{ github.event.inputs.RC }}.tar.gz.sha512"
+        echo "------Checking Hash Value for apache_beam-${RELEASE}rc${GITHUB_EVENT_INPUTS_RC}.tar.gz-----"
+        sha512sum -c "apache_beam-${RELEASE}rc${GITHUB_EVENT_INPUTS_RC}.tar.gz.sha512"
         
         for artifact in *.whl; do
           echo "----------Checking Hash Value for ${artifact} wheel-----------"
@@ -83,4 +87,4 @@ jobs:
         echo "Will upload the following files to PyPI:"
         ls
 
-        twine upload --verbose * -u __token__ -p "${{ github.event.inputs.PYPI_API_TOKEN }}"
+        twine upload --verbose * -u __token__ -p "${GITHUB_EVENT_INPUTS_PYPI_API_TOKEN}"

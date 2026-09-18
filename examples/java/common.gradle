@@ -36,6 +36,7 @@ configurations.sparkRunnerPreCommit {
   exclude group: "org.slf4j", module: "slf4j-jdk14"
 }
 resolveCapabilitiesConflict(configurations.flinkRunnerPreCommit, 'org.lz4:lz4-java', 'at.yawk.lz4')
+resolveCapabilitiesConflict(configurations.sparkRunnerPreCommit, 'org.lz4:lz4-java', 'at.yawk.lz4')
 
 
 dependencies {

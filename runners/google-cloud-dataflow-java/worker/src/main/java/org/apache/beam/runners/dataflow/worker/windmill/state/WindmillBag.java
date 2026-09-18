@@ -48,6 +48,7 @@ public class WindmillBag<T> extends SimpleWindmillState implements BagState<T> {
   private final Coder<T> elemCoder;
 
   private boolean cleared = false;
+
   /**
    * If non-{@literal null}, this contains the complete contents of the bag, except for any local
    * additions. If {@literal null} then we don't know if Windmill contains additional values which

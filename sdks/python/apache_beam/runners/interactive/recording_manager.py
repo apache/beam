@@ -25,6 +25,7 @@ import warnings
 from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
+from typing import Iterable
 from typing import Optional
 from typing import Union
 
@@ -86,6 +87,7 @@ class AsyncComputationResult:
             bar_style='info',
         ) if IS_IPYTHON else None)
     self._cancel_requested = False
+    self._completed_event = threading.Event()
 
     if IS_IPYTHON:
       self._cancel_button.on_click(self._cancel_clicked)
@@ -105,7 +107,7 @@ class AsyncComputationResult:
     self.cancel()
 
   def update_display(self, msg: str, progress: Optional[float] = None):
-    if not IS_IPYTHON:
+    if not IS_IPYTHON or self._output_widget is None:
       print(f'AsyncCompute: {msg}')
       return
 
@@ -151,27 +153,40 @@ class AsyncComputationResult:
     except TimeoutError:
       return None
 
-  def _on_done(self, future: Future):
-    self._env.unmark_pcollection_computing(self._pcolls)
-    self._recording_manager._async_computations.pop(self._display_id, None)
-
-    if future.cancelled():
-      self.update_display('Computation Cancelled.', 1.0)
-      return
-
-    exc = future.exception()
+  def wait_for_completion(self, timeout=None):
+    if not self._completed_event.wait(timeout=timeout):
+      raise TimeoutError(
+          'Timeout waiting for asynchronous computation completion.')
+    if self._future.cancelled():
+      raise RuntimeError('Asynchronous computation was cancelled.')
+    exc = self.exception()
     if exc:
-      self.update_display(f'Error: {exc}', 1.0)
-      _LOGGER.error('Asynchronous computation failed: %s', exc, exc_info=exc)
-    else:
-      self.update_display('Computation Finished Successfully.', 1.0)
-      res = future.result()
-      if res and res.state == PipelineState.DONE:
-        self._env.mark_pcollection_computed(self._pcolls)
+      raise exc
+
+  def _on_done(self, future: Future):
+    try:
+      if future.cancelled():
+        self.update_display('Computation Cancelled.', 1.0)
+        return
+
+      exc = future.exception()
+      if exc:
+        self.update_display(f'Error: {exc}', 1.0)
+        _LOGGER.error('Asynchronous computation failed: %s', exc, exc_info=exc)
       else:
-        _LOGGER.warning(
-            'Async computation finished but state is not DONE: %s',
-            res.state if res else 'Unknown')
+        self.update_display('Computation Finished Successfully.', 1.0)
+        res = future.result()
+        if res and res.state == PipelineState.DONE:
+          self._env.mark_pcollection_computed(self._pcolls)
+        else:
+          _LOGGER.warning(
+              'Async computation finished but state is not DONE: %s',
+              res.state if res else 'Unknown')
+    finally:
+      self._env.unmark_pcollection_computing(self._pcolls)
+      with self._recording_manager._lock:
+        self._recording_manager._async_computations.pop(self._display_id, None)
+      self._completed_event.set()
 
   def cancel(self):
     if self._future.done():
@@ -438,7 +453,9 @@ class RecordingManager:
     self._executor = ThreadPoolExecutor(max_workers=os.cpu_count())
     self._env = ie.current_env()
     self._async_computations: dict[str, AsyncComputationResult] = {}
+    self._lock = threading.Lock()
     self._pipeline_graph = None
+    self._applied_labels_snapshot = set()
 
   def _execute_pipeline_fragment(
       self,
@@ -499,24 +516,10 @@ class RecordingManager:
       pipeline_result = self._execute_pipeline_fragment(
           pcolls_to_compute, async_result, runner, options)
 
-      # if pipeline_result.state == PipelineState.DONE:
-      #   self._env.mark_pcollection_computed(pcolls_to_compute)
-      #   _LOGGER.info(
-      #       'Asynchronous computation finished successfully for'
-      #       f' {len(pcolls_to_compute)} PCollections.'
-      #   )
-      # else:
-      #   _LOGGER.error(
-      #       'Asynchronous computation failed for'
-      #       f' {len(pcolls_to_compute)} PCollections. State:'
-      #       f' {pipeline_result.state}'
-      #   )
       return pipeline_result
     except Exception as e:
       _LOGGER.exception('Exception during asynchronous computation: %s', e)
       raise
-    # finally:
-    #   self._env.unmark_pcollection_computing(pcolls_to_compute)
 
   def _watch(self, pcolls: list[beam.pvalue.PCollection]) -> None:
     """Watch any pcollections not being watched.
@@ -575,7 +578,7 @@ class RecordingManager:
     if cache_manager:
       cache_manager.cleanup()
 
-  def cancel(self: None) -> None:
+  def cancel(self) -> None:
     """Cancels the current background recording job."""
 
     bcj.attempt_to_cancel_background_caching_job(self.user_pipeline)
@@ -694,7 +697,8 @@ class RecordingManager:
       future = Future()
       async_result = AsyncComputationResult(
           future, pcolls_to_compute, self.user_pipeline, self)
-      self._async_computations[async_result._display_id] = async_result
+      with self._lock:
+        self._async_computations[async_result._display_id] = async_result
       self._env.mark_pcollection_computing(pcolls_to_compute)
 
       def task():
@@ -710,18 +714,22 @@ class RecordingManager:
       return async_result
 
   def _get_pipeline_graph(self):
-    """Lazily initializes and returns the PipelineGraph."""
-    if self._pipeline_graph is None:
+    """Lazily initializes and returns the PipelineGraph, rebuilding it
+    only if the pipeline transforms have changed.
+    """
+    if (self._pipeline_graph is None or
+        self._applied_labels_snapshot != self.user_pipeline.applied_labels):
       try:
         # Try to create the graph.
         self._pipeline_graph = PipelineGraph(self.user_pipeline)
+        self._applied_labels_snapshot = set(self.user_pipeline.applied_labels)
       except (ImportError, NameError, AttributeError):
         # If pydot is missing, PipelineGraph() might crash.
         _LOGGER.warning(
-            "Could not create PipelineGraph (pydot missing?). " \
-            "Async features disabled."
-        )
+            "Could not create PipelineGraph (pydot missing?). "
+            "Async features disabled.")
         self._pipeline_graph = None
+        self._applied_labels_snapshot = set()
     return self._pipeline_graph
 
   def _get_pcoll_id_map(self):
@@ -800,11 +808,19 @@ class RecordingManager:
     """Waits for any dependencies of the given
     PCollections that are currently being computed."""
     dependencies = self._get_all_dependencies(pcolls)
+    if async_result is None:
+      pcolls_to_check = dependencies.union(pcolls)
+    else:
+      pcolls_to_check = dependencies
     computing_deps: dict[beam.pvalue.PCollection, AsyncComputationResult] = {}
 
-    for dep in dependencies:
-      if self._env.is_pcollection_computing(dep):
-        for comp in self._async_computations.values():
+    with self._lock:
+      async_computations_copy = list(self._async_computations.values())
+
+    for dep in pcolls_to_check:
+      is_computing = self._env.is_pcollection_computing(dep)
+      if is_computing:
+        for comp in async_computations_copy:
           if dep in comp._pcolls:
             computing_deps[dep] = comp
             break
@@ -820,17 +836,16 @@ class RecordingManager:
         len(computing_deps),
         computing_deps.keys())
 
-    futures_to_wait = list(
-        set(comp._future for comp in computing_deps.values()))
+    results_to_wait = list(set(comp for comp in computing_deps.values()))
 
     try:
-      for i, future in enumerate(futures_to_wait):
+      for i, comp in enumerate(results_to_wait):
         if async_result:
           async_result.update_display(
-              f'Waiting for dependency {i + 1}/{len(futures_to_wait)}...',
-              progress=0.05 + 0.05 * (i / len(futures_to_wait)),
+              f'Waiting for dependency {i + 1}/{len(results_to_wait)}...',
+              progress=0.05 + 0.05 * (i / len(results_to_wait)),
           )
-        future.result()
+        comp.wait_for_completion()
       if async_result:
         async_result.update_display('Dependencies finished.', progress=0.1)
       _LOGGER.info('Dependencies finished successfully.')
@@ -840,6 +855,18 @@ class RecordingManager:
         async_result.update_display(f'Dependency failed: {e}')
       _LOGGER.error('Dependency computation failed: %s', e, exc_info=e)
       return False
+
+  def _get_uncomputed_pcolls(
+      self,
+      pcolls: Iterable[beam.pvalue.PCollection],
+  ) -> set[beam.pvalue.PCollection]:
+    """Filter out already computed PCollections from the environment."""
+    current_env = ie.current_env()
+    computed = {
+        pcoll
+        for pcoll in pcolls if pcoll in current_env.computed_pcollections
+    }
+    return set(pcolls).difference(computed)
 
   def record(
       self,
@@ -878,38 +905,46 @@ class RecordingManager:
     self._watch(pcolls)
     self.record_pipeline()
 
-    # Get the subset of computed PCollections. These do not to be recomputed.
-    computed_pcolls = set(
-        pcoll for pcoll in pcolls
-        if pcoll in ie.current_env().computed_pcollections)
+    # Early check and return if everything is already computed
+    uncomputed_pcolls = self._get_uncomputed_pcolls(pcolls)
+    if not uncomputed_pcolls:
+      recording = Recording(
+          self.user_pipeline, pcolls, None, max_n, max_duration_secs)
+      self._recordings.add(recording)
+      return recording
 
-    # Start a pipeline fragment to start computing the PCollections.
-    uncomputed_pcolls = set(pcolls).difference(computed_pcolls)
-    if uncomputed_pcolls:
-      if not self._wait_for_dependencies(uncomputed_pcolls):
-        raise RuntimeError(
-            'Cannot record because a dependency failed to compute'
-            ' asynchronously.')
+    # Wait for dependencies if there are uncomputed PCollections
+    if not self._wait_for_dependencies(uncomputed_pcolls):
+      raise RuntimeError(
+          'Cannot record because a dependency failed to compute'
+          ' asynchronously.')
 
-      self._clear()
+    # Re-evaluate uncomputed PCollections
+    uncomputed_pcolls = self._get_uncomputed_pcolls(pcolls)
+    if not uncomputed_pcolls:
+      recording = Recording(
+          self.user_pipeline, pcolls, None, max_n, max_duration_secs)
+      self._recordings.add(recording)
+      return recording
 
-      merged_options = pipeline_options.PipelineOptions(
-          **{
-              **self.user_pipeline.options.get_all_options(
-                  drop_default=True, retain_unknown_options=True),
-              **options.get_all_options(
-                  drop_default=True, retain_unknown_options=True)
-          }) if options else self.user_pipeline.options
+    # Flattened execution path (no indentation needed)
+    self._clear()
 
-      cache_path = ie.current_env().options.cache_root
-      is_remote_run = cache_path and ie.current_env(
-      ).options.cache_root.startswith('gs://')
-      pf.PipelineFragment(
-          list(uncomputed_pcolls), merged_options,
-          runner=runner).run(blocking=is_remote_run)
-      result = ie.current_env().pipeline_result(self.user_pipeline)
-    else:
-      result = None
+    merged_options = pipeline_options.PipelineOptions(
+        **{
+            **self.user_pipeline.options.get_all_options(
+                drop_default=True, retain_unknown_options=True),
+            **options.get_all_options(
+                drop_default=True, retain_unknown_options=True)
+        }) if options else self.user_pipeline.options
+
+    cache_path = ie.current_env().options.cache_root
+    is_remote_run = cache_path and ie.current_env(
+    ).options.cache_root.startswith('gs://')
+    pf.PipelineFragment(
+        list(uncomputed_pcolls), merged_options,
+        runner=runner).run(blocking=is_remote_run)
+    result = ie.current_env().pipeline_result(self.user_pipeline)
 
     recording = Recording(
         self.user_pipeline, pcolls, result, max_n, max_duration_secs)

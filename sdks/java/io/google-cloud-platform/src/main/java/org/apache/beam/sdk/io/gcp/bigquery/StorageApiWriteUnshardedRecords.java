@@ -410,8 +410,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         CreateTableHelpers.createTableWrapper(
             () -> {
               if (autoUpdateSchema) {
-                @Nullable
-                TableSchema streamSchema =
+                @Nullable TableSchema streamSchema =
                     Preconditions.checkStateNotNull(maybeWriteStreamService)
                         .getWriteStreamSchema(streamName);
                 if (streamSchema != null) {
@@ -792,9 +791,17 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
 
               // Maximum number of times we retry before we fail the work item.
               if (failedContext.failureCount > allowedRetry) {
-                throw new RuntimeException(
+                String errorMessage =
                     String.format(
-                        "More than %d attempts to call AppendRows failed.", allowedRetry));
+                        "More than %d attempts to call AppendRows failed. Last encountered error: %s",
+                        allowedRetry, error != null ? error.toString() : "unknown");
+                if (statusCode == Status.Code.PERMISSION_DENIED
+                    || statusCode == Status.Code.NOT_FOUND) {
+                  errorMessage +=
+                      ". Please check if the destination table exists and if the service account has the "
+                          + "bigquery.tables.updateData permission.";
+                }
+                throw new RuntimeException(errorMessage, error);
               }
 
               // The following errors are known to be persistent, so always fail the work item in
@@ -931,10 +938,9 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       void postFlush() {
         // If we got a response indicating an updated schema, recreate the client.
         if (this.appendClientInfo != null && autoUpdateSchema) {
-          @Nullable
-          StreamAppendClient streamAppendClient = appendClientInfo.getStreamAppendClient();
-          @Nullable
-          TableSchema updatedTableSchemaReturned =
+          @Nullable StreamAppendClient streamAppendClient =
+              appendClientInfo.getStreamAppendClient();
+          @Nullable TableSchema updatedTableSchemaReturned =
               (streamAppendClient != null) ? streamAppendClient.getUpdatedSchema() : null;
           if (updatedTableSchemaReturned != null) {
             Optional<TableSchema> updatedTableSchema =
@@ -1180,8 +1186,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                   pipelineOptions.as(BigQueryOptions.class)));
 
       OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
-      @Nullable
-      OutputReceiver<TableRow> successfulRowsReceiver =
+      @Nullable OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;
 
       int recordBytes = element.getValue().getPayload().length;

@@ -278,6 +278,7 @@ class KafkaExactlyOnceSink<K, V>
     @StateId(OUT_OF_ORDER_BUFFER)
     private final StateSpec<BagState<KV<Long, TimestampedValue<ProducerRecord<K, V>>>>>
         outOfOrderBufferSpec;
+
     // A random id assigned to each shard. Helps with detecting when multiple jobs are mistakenly
     // started with same groupId used for storing state on Kafka side, including the case where
     // a job is restarted with same groupId, but the metadata from previous run was not cleared.
@@ -711,8 +712,7 @@ class KafkaExactlyOnceSink<K, V>
             TimeUnit.MILLISECONDS);
       }
 
-      @Nullable
-      ShardWriter<K, V> removeIfPresent(int shard) {
+      @Nullable ShardWriter<K, V> removeIfPresent(int shard) {
         return cache.asMap().remove(shard);
       }
 

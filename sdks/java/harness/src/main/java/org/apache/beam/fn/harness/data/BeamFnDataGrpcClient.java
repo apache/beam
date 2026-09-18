@@ -119,6 +119,18 @@ public class BeamFnDataGrpcClient implements BeamFnDataClient {
   }
 
   @Override
+  public void close() {
+    for (BeamFnDataGrpcMultiplexer client : multiplexerCache.values()) {
+      try {
+        client.close();
+      } catch (Exception e) {
+        LOG.warn("Failed to close multiplexer", e);
+      }
+    }
+    multiplexerCache.clear();
+  }
+
+  @Override
   public StreamObserver<Elements> getOutboundObserver(
       ApiServiceDescriptor apiServiceDescriptor, String dataStreamId) {
     return getMultiplexer(apiServiceDescriptor, dataStreamId).getOutboundObserver();

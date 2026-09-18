@@ -140,7 +140,8 @@ public class DataflowWorkerLoggingInitializer {
         ex.printStackTrace(stream);
       }
     }
-  };
+  }
+  ;
 
   private static DataflowWorkerLoggingHandler makeLoggingHandler(
       String filepathProperty, String defaultFilePath) throws IOException {
@@ -381,6 +382,10 @@ public class DataflowWorkerLoggingInitializer {
     if (harnessOptions.getLogMdc()) {
       LOG.info("Due to logMdc option, MDC fields will be added to custom_data field of logs.");
       loggingHandler.setLogMdc(true);
+    }
+
+    if (harnessOptions.getLogOpenTelemetryTraceAndSpanId()) {
+      loggingHandler.setLogOpenTelemetryTraceAndSpanId(true);
     }
 
     if (usedDeprecated) {

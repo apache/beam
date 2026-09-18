@@ -487,6 +487,46 @@ class TestGCSIO(unittest.TestCase):
     self.assertEqual(bucket, mock_bucket)
     mock_crm_class.assert_not_called()
 
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_conflict(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_bucket = mock.Mock()
+    mock_bucket.project_number = 123456789
+    mock_gcsio.get_bucket.side_effect = [None, mock_bucket]
+
+    from google.api_core.exceptions import Conflict
+    mock_gcsio.create_bucket.side_effect = Conflict("Already owned by you")
+
+    mock_crm_client = mock_crm_class.return_value
+    mock_project_info = mock.Mock()
+    mock_project_info.name = 'projects/123456789'
+    mock_crm_client.get_project.return_value = mock_project_info
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    bucket = gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertEqual(bucket, mock_bucket)
+    self.assertEqual(mock_gcsio.get_bucket.call_count, 2)
+    mock_gcsio.create_bucket.assert_called_once()
+
+  @mock.patch('google.cloud.resourcemanager_v3.ProjectsClient')
+  @mock.patch('apache_beam.io.gcp.gcsio.GcsIO')
+  def test_get_or_create_default_gcs_bucket_conflict_reraise(
+      self, mock_gcsio_class, mock_crm_class):
+    mock_gcsio = mock_gcsio_class.return_value
+    mock_gcsio.get_bucket.side_effect = [None, None]
+
+    from google.api_core.exceptions import Conflict
+    mock_gcsio.create_bucket.side_effect = Conflict("Bucket name unavailable")
+
+    options = SampleOptions(DEFAULT_GCP_PROJECT, 'us-central1')
+    with self.assertRaises(Conflict):
+      gcsio.get_or_create_default_gcs_bucket(options)
+
+    self.assertEqual(mock_gcsio.get_bucket.call_count, 2)
+
   def test_exists(self):
     file_name = 'gs://gcsio-test/dummy_file'
     file_size = 1234

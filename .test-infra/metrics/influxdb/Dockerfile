@@ -16,14 +16,13 @@
 # limitations under the License.
 ################################################################################
 
-FROM python:3.10-slim
-
-RUN pip install --no-cache-dir gsutil
+FROM alpine:latest
 
 WORKDIR /
 
-RUN gsutil cp gs://apache-beam-testing-metrics/influxdb-backup.tar.gz . && \
-tar xzf influxdb-backup.tar.gz
+RUN apk add --no-cache curl tar && \
+    curl -sS https://storage.googleapis.com/apache-beam-testing-metrics/influxdb-backup.tar.gz -o influxdb-backup.tar.gz && \
+    tar xzf influxdb-backup.tar.gz
 
 
 FROM influxdb:1.8.0

@@ -29,12 +29,17 @@ from parameterized import parameterized
 
 import apache_beam as beam
 from apache_beam.io.restriction_trackers import OffsetRange
+from apache_beam.io.restriction_trackers import OffsetRestrictionTracker
+from apache_beam.io.watermark_estimators import ManualWatermarkEstimator
+from apache_beam.runners.sdf_utils import RestrictionTrackerView
+from apache_beam.runners.sdf_utils import ThreadsafeRestrictionTracker
 from apache_beam.testing.test_pipeline import TestPipeline
 from apache_beam.testing.util import assert_that
 from apache_beam.testing.util import equal_to
 from apache_beam.testing.util import is_empty
 from apache_beam.transforms import trigger
 from apache_beam.transforms import window
+from apache_beam.transforms.periodicsequence import ImpulseSeqGenDoFn
 from apache_beam.transforms.periodicsequence import PeriodicImpulse
 from apache_beam.transforms.periodicsequence import PeriodicSequence
 from apache_beam.transforms.periodicsequence import RebaseMode
@@ -366,6 +371,62 @@ class PeriodicImpulseTest(unittest.TestCase):
                 stop_timestamp=Timestamp.of(5),
                 fire_interval=1,
                 rebase=RebaseMode.REBASE_START))
+
+
+class ImpulseSeqGenDoFnWatermarkTest(unittest.TestCase):
+  """Drives ``ImpulseSeqGenDoFn.process`` directly to assert the reported
+  watermark when the DoFn defers because the next fire time is in the future.
+  """
+  @staticmethod
+  def _run_process(dofn, element, restriction, initial_watermark=None):
+    tracker = ThreadsafeRestrictionTracker(
+        OffsetRestrictionTracker(restriction))
+    view = RestrictionTrackerView(tracker)
+    estimator = ManualWatermarkEstimator(initial_watermark)
+    outputs = list(
+        dofn.process(
+            element, restriction_tracker=view, watermark_estimator=estimator))
+    return outputs, estimator
+
+  def test_watermark_advances_to_next_fire_on_defer(self):
+    # Regression test for https://github.com/apache/beam/issues/39026.
+    # With a long fire_interval, index 0 fires now and index 1 is scheduled far
+    # in the future, so the DoFn defers. The reported watermark must advance to
+    # the next fire time rather than stalling at the last emitted element's
+    # timestamp (which caused a saw-tooth watermark age from 2.74.0).
+    interval = 100
+    start = time.time() - 5
+    element = (start, start + 10000, interval)
+
+    outputs, estimator = self._run_process(
+        ImpulseSeqGenDoFn(), element, OffsetRange(0, 5))
+
+    self.assertEqual(len(outputs), 1)
+    last_emitted = Timestamp(start)
+    next_fire = Timestamp(start + interval)
+    self.assertEqual(outputs[0].timestamp, last_emitted)
+    # Watermark advanced past the last emitted element, up to the next fire.
+    self.assertEqual(estimator.current_watermark(), next_fire)
+    self.assertGreater(estimator.current_watermark(), last_emitted)
+
+  def test_watermark_not_advanced_past_emitted_for_pre_timestamped(self):
+    # For pre-timestamped data the provided event times may be out of order, so
+    # the watermark must not be advanced to the schedule time on defer; it stays
+    # at the latest emitted event timestamp.
+    interval = 100
+    start = time.time() - 5
+    element = (start, start + 10000, interval)
+    data = [(Timestamp(1), 'a'), (Timestamp(2), 'b'), (Timestamp(3), 'c')]
+
+    outputs, estimator = self._run_process(
+        ImpulseSeqGenDoFn(data), element, OffsetRange(0, 5))
+
+    self.assertEqual(len(outputs), 1)
+    self.assertEqual(outputs[0].value, 'a')
+    self.assertEqual(outputs[0].timestamp, Timestamp(1))
+    # Watermark stays at the emitted event time, not the future schedule time.
+    self.assertEqual(estimator.current_watermark(), Timestamp(1))
+    self.assertLess(estimator.current_watermark(), Timestamp(start + interval))
 
 
 if __name__ == '__main__':

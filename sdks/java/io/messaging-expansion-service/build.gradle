@@ -42,6 +42,9 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:expansion-service") // BEAM-11761
   implementation project(":sdks:java:io:mqtt")
   permitUnusedDeclared project(":sdks:java:io:mqtt") // BEAM-11761
+  implementation project(":sdks:java:io:jms")
+  permitUnusedDeclared project(":sdks:java:io:jms") // BEAM-11761
+  runtimeOnly library.java.activemq_client
   runtimeOnly library.java.slf4j_jdk14
 }
 

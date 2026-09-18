@@ -1569,7 +1569,7 @@ def regex_consistency(sub, base) -> bool:
 
 
 def get_yielded_type(type_hint):
-  """Obtains the type of elements yielded by an iterable.s
+  """Obtains the type of elements yielded by an iterable.
 
   Note that "iterable" here means: can be iterated over in a for loop, excluding
   strings and dicts.
@@ -1583,10 +1583,16 @@ def get_yielded_type(type_hint):
   Raises:
     ValueError if not iterable.
   """
+  type_hint = normalize(type_hint, none_as_type=True)
   if isinstance(type_hint, typing.TypeVar):
     return typing.Any
   if isinstance(type_hint, AnyTypeConstraint):
     return type_hint
+  if isinstance(type_hint, UnionConstraint):
+    yielded_types = set()
+    for typ in type_hint.inner_types():
+      yielded_types.add(get_yielded_type(typ))
+    return Union[yielded_types]
   if is_consistent_with(type_hint, Iterator[Any]):
     return type_hint.yielded_type
   if is_consistent_with(type_hint, Tuple[Any, ...]):
@@ -1595,11 +1601,6 @@ def get_yielded_type(type_hint):
     else:  # TupleSequenceConstraint
       return type_hint.inner_type
   if is_consistent_with(type_hint, Iterable[Any]):
-    if isinstance(type_hint, UnionConstraint):
-      yielded_types = set()
-      for typ in type_hint.inner_types():
-        yielded_types.add(get_yielded_type(typ))
-      return Union[yielded_types]
     return type_hint.inner_type
   raise ValueError('%s is not iterable' % type_hint)
 

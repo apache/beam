@@ -27,8 +27,10 @@ public abstract class OperationalLimits {
 
   // Maximum size of a commit from a single work item.
   public abstract long getMaxWorkItemCommitBytes();
+
   // Maximum size of a single output element's serialized key.
   public abstract long getMaxOutputKeyBytes();
+
   // Maximum size of a single output element's serialized value.
   public abstract long getMaxOutputValueBytes();
 

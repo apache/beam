@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.pubsub;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -40,13 +42,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.checkerframework.dataflow.qual.Pure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** An (abstract) helper class for talking to Pubsub via an underlying transport. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public abstract class PubsubClient implements Closeable {
   private static final Logger LOG = LoggerFactory.getLogger(PubsubClient.class);
   private static final Map<String, SerializableFunction<String, Schema>>
@@ -82,7 +82,7 @@ public abstract class PubsubClient implements Closeable {
    * Return timestamp as ms-since-unix-epoch corresponding to {@code timestamp}. Throw {@link
    * IllegalArgumentException} if timestamp cannot be recognized.
    */
-  protected static Long parseTimestampAsMsSinceEpoch(String timestamp) {
+  protected static long parseTimestampAsMsSinceEpoch(String timestamp) {
     if (timestamp.isEmpty()) {
       throw new IllegalArgumentException("Empty timestamp.");
     }
@@ -113,17 +113,12 @@ public abstract class PubsubClient implements Closeable {
       String timestampAttribute, @Nullable Map<String, String> attributes) {
     Preconditions.checkState(!timestampAttribute.isEmpty());
     String value = attributes == null ? null : attributes.get(timestampAttribute);
-    checkArgument(
-        value != null,
-        "PubSub message is missing a value for timestamp attribute %s",
-        timestampAttribute);
-    Long timestampMsSinceEpoch = parseTimestampAsMsSinceEpoch(value);
-    checkArgument(
-        timestampMsSinceEpoch != null,
-        "Cannot interpret value of attribute %s as timestamp: %s",
-        timestampAttribute,
-        value);
-    return timestampMsSinceEpoch;
+    String nonNullValue =
+        checkArgumentNotNull(
+            value,
+            "PubSub message is missing a value for timestamp attribute %s",
+            timestampAttribute);
+    return parseTimestampAsMsSinceEpoch(nonNullValue);
   }
 
   /** Path representing a cloud project id. */
@@ -386,17 +381,21 @@ public abstract class PubsubClient implements Closeable {
   public abstract static class OutgoingMessage implements Serializable {
 
     /** Underlying Message. May not have publish timestamp set. */
+    @Pure
     public abstract PubsubMessage getMessage();
 
     /** Timestamp for element (ms since epoch). */
+    @Pure
     public abstract long getTimestampMsSinceEpoch();
 
     /**
      * If using an id attribute, the record id to associate with this record's metadata so the
      * receiver can reject duplicates. Otherwise {@literal null}.
      */
+    @Pure
     public abstract @Nullable String recordId();
 
+    @Pure
     public abstract @Nullable String topic();
 
     public static OutgoingMessage of(
@@ -415,11 +414,13 @@ public abstract class PubsubClient implements Closeable {
         @Nullable String topic) {
       PubsubMessage.Builder builder =
           PubsubMessage.newBuilder().setData(ByteString.copyFrom(message.getPayload()));
-      if (message.getAttributeMap() != null) {
-        builder.putAllAttributes(message.getAttributeMap());
+      Map<String, String> attributeMap = message.getAttributeMap();
+      if (attributeMap != null) {
+        builder.putAllAttributes(attributeMap);
       }
-      if (message.getOrderingKey() != null) {
-        builder.setOrderingKey(message.getOrderingKey());
+      String orderingKey = message.getOrderingKey();
+      if (orderingKey != null) {
+        builder.setOrderingKey(orderingKey);
       }
       return of(builder.build(), timestampMsSinceEpoch, recordId, topic);
     }
@@ -435,21 +436,23 @@ public abstract class PubsubClient implements Closeable {
   public abstract static class IncomingMessage implements Serializable {
 
     /** Underlying Message. */
+    @Pure
     public abstract PubsubMessage message();
 
-    /**
-     * Timestamp for element (ms since epoch). Either Pubsub's processing time, or the custom
-     * timestamp associated with the message.
-     */
+    /** Either Pubsub's processing time, or the custom timestamp associated with the message. */
+    @Pure
     public abstract long timestampMsSinceEpoch();
 
     /** Timestamp (in system time) at which we requested the message (ms since epoch). */
+    @Pure
     public abstract long requestTimeMsSinceEpoch();
 
     /** Id to pass back to Pubsub to acknowledge receipt of this message. */
+    @Pure
     public abstract String ackId();
 
     /** Id to pass to the runner to distinguish this message from all others. */
+    @Pure
     public abstract String recordId();
 
     public static IncomingMessage of(
@@ -554,7 +557,7 @@ public abstract class PubsubClient implements Closeable {
   public abstract void deleteSchema(SchemaPath schemaPath) throws IOException;
 
   /** Return {@link SchemaPath} from {@link TopicPath} if exists. */
-  public abstract SchemaPath getSchemaPath(TopicPath topicPath) throws IOException;
+  public abstract @Nullable SchemaPath getSchemaPath(TopicPath topicPath) throws IOException;
 
   /** Return a Beam {@link Schema} from the Pub/Sub schema resource, if exists. */
   public abstract Schema getSchema(SchemaPath schemaPath) throws IOException;
@@ -567,8 +570,10 @@ public abstract class PubsubClient implements Closeable {
               "Pub/Sub schema type %s is not supported at this time", pubsubSchema.getType()));
     }
     SerializableFunction<String, Schema> definitionToSchemaFn =
-        schemaTypeToConversionFnMap.get(pubsubSchema.getType());
-    return definitionToSchemaFn.apply(pubsubSchema.getDefinition());
+        checkStateNotNull(schemaTypeToConversionFnMap.get(pubsubSchema.getType()));
+    String definition =
+        checkNotNull(pubsubSchema.getDefinition(), "Pub/Sub schema definition is null");
+    return definitionToSchemaFn.apply(definition);
   }
 
   /** Convert a {@link com.google.pubsub.v1.Schema} to a Beam {@link Schema}. */
@@ -579,7 +584,7 @@ public abstract class PubsubClient implements Closeable {
           String.format("Pub/Sub schema type %s is not supported at this time", typeName));
     }
     SerializableFunction<String, Schema> definitionToSchemaFn =
-        schemaTypeToConversionFnMap.get(typeName);
+        checkStateNotNull(schemaTypeToConversionFnMap.get(typeName));
     return definitionToSchemaFn.apply(pubsubSchema.getDefinition());
   }
 

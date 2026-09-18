@@ -33,6 +33,7 @@ import java.util.Objects;
 import java.util.Set;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.util.common.ReflectHelpers;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Joiner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -617,7 +618,7 @@ public class DisplayData implements Serializable {
       @Override
       FormattedItemValue format(Object value) {
         Class<?> clazz = checkType(value, Class.class, JAVA_CLASS);
-        return new FormattedItemValue(clazz.getName(), clazz.getSimpleName());
+        return new FormattedItemValue(clazz.getName(), ReflectHelpers.getSimpleName(clazz));
       }
     };
 
@@ -753,10 +754,10 @@ public class DisplayData implements Serializable {
       // Common case: AutoValue classes such as AutoValue_FooIO_Read. It's more useful
       // to show the user the FooIO.Read class, which is the direct superclass of the AutoValue
       // generated class.
-      if (namespace.getSimpleName().startsWith("AutoValue_")) {
+      if (ReflectHelpers.getSimpleName(namespace).startsWith("AutoValue_")) {
         namespace = namespace.getSuperclass();
       }
-      if (namespace.isSynthetic() && namespace.getSimpleName().contains("$$Lambda")) {
+      if (namespace.isSynthetic() && ReflectHelpers.getSimpleName(namespace).contains("$$Lambda")) {
         try {
           String className = namespace.getCanonicalName();
           // A local class, local interface, or anonymous class does not have a canonical name.

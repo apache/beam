@@ -49,6 +49,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.jdbc.CalcitePre
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptUtil;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.schema.Function;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlKind;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.sql.SqlOperator;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -132,6 +133,18 @@ public class BeamSqlEnv {
     return connection.getPipelineOptionsMap();
   }
 
+  /**
+   * Registers a custom {@link SqlOperator} into the current session's operator table. This allows
+   * registering functions with non-fixed operand types (e.g. VARIADIC), which the schema-function
+   * auto-wrapping mechanism cannot express.
+   *
+   * <p>Only safe to call before the first SQL query is planned in this environment (otherwise the
+   * parser/validator operator table may have already been built without it).
+   */
+  public void registerSqlOperator(SqlOperator operator) {
+    connection.getExtraOperatorTable().add(operator);
+  }
+
   public String explain(String sqlString) throws ParseException {
     try {
       return RelOptUtil.toString(planner.convertToBeamRel(sqlString, QueryParameters.ofNone()));
@@ -199,6 +212,7 @@ public class BeamSqlEnv {
       this.ruleSets = ruleSets;
       return this;
     }
+
     /** Register a UDF function which can be used in SQL expression. */
     public BeamSqlEnvBuilder addUdf(String functionName, Class<?> clazz, String method) {
       functionSet.add(new SimpleEntry<>(functionName, UdfImpl.create(clazz, method)));

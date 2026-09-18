@@ -23,6 +23,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Pr
 import com.google.auto.value.AutoValue;
 import com.mongodb.ConnectionString;
 import com.mongodb.MongoClientSettings;
+import com.mongodb.MongoDriverInformation;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCursor;
@@ -119,6 +120,9 @@ import org.joda.time.Instant;
  */
 public class MongoDbGridFSIO {
 
+  private static final MongoDriverInformation DRIVER_INFO =
+      MongoDriverInformation.builder().driverName("Apache Beam").build();
+
   /** Callback for the parser to use to submit data. */
   public interface ParserCallback<T> extends Serializable {
     /** Output the object. The default timestamp will be the GridFSFile creation timestamp. */
@@ -203,13 +207,13 @@ public class MongoDbGridFSIO {
 
     MongoClient setupMongo() {
       if (uri() == null) {
-        return MongoClients.create();
+        return MongoClients.create(MongoClientSettings.builder().build(), DRIVER_INFO);
       }
       MongoClientSettings settings =
           MongoClientSettings.builder()
               .applyConnectionString(new ConnectionString(Preconditions.checkStateNotNull(uri())))
               .build();
-      return MongoClients.create(settings);
+      return MongoClients.create(settings, DRIVER_INFO);
     }
 
     GridFSBucket setupGridFS(MongoClient mongo) {

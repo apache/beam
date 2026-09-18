@@ -138,7 +138,8 @@ async function setNextActionReviewers(
     console.log("No reviewers assigned, dont need to manipulate attention set");
     return;
   }
-  const existingLabels = payload.issue?.labels || payload.pull_request?.labels;
+  const existingLabels =
+    pull.labels || payload.issue?.labels || payload.pull_request?.labels;
   await nextActionReviewers(pull.number, existingLabels);
   let prState = await stateClient.getPrState(pull.number);
   prState.nextAction = REVIEWERS_ACTION;

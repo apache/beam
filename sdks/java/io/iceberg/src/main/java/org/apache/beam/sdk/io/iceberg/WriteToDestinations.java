@@ -41,6 +41,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionList;
 import org.apache.beam.sdk.values.PCollectionTuple;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
@@ -59,16 +60,37 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final @Nullable Duration triggeringFrequency;
   private final String filePrefix;
   private final @Nullable Integer directWriteByteLimit;
+  private final @Nullable Map<String, String> writeProperties;
+  private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
       DynamicDestinations dynamicDestinations,
       @Nullable Duration triggeringFrequency,
-      @Nullable Integer directWriteByteLimit) {
+      @Nullable Integer directWriteByteLimit,
+      @Nullable Map<String, String> writeProperties) {
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        triggeringFrequency,
+        directWriteByteLimit,
+        writeProperties,
+        null);
+  }
+
+  WriteToDestinations(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency,
+      @Nullable Integer directWriteByteLimit,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     this.directWriteByteLimit = directWriteByteLimit;
+    this.writeProperties = writeProperties;
+    this.metadataView = metadataView;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
@@ -112,7 +134,12 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     return groupedRecords.apply(
         "WriteGroupedRows",
         new WriteGroupedRowsToFiles(
-            catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+            catalogConfig,
+            dynamicDestinations,
+            filePrefix,
+            DEFAULT_MAX_BYTES_PER_FILE,
+            writeProperties,
+            metadataView));
   }
 
   private PCollection<FileWriteResult> applyUserTriggering(PCollection<FileWriteResult> input) {
@@ -157,7 +184,12 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         largeBatches.apply(
             "WriteDirectRowsToFiles",
             new WriteDirectRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+                catalogConfig,
+                dynamicDestinations,
+                filePrefix,
+                DEFAULT_MAX_BYTES_PER_FILE,
+                writeProperties,
+                metadataView));
 
     PCollection<FileWriteResult> groupedFileWrites = groupAndWriteRecords(smallBatches);
 
@@ -189,7 +221,12 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         input.apply(
             "Fast-path write rows",
             new WriteUngroupedRowsToFiles(
-                catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+                catalogConfig,
+                dynamicDestinations,
+                filePrefix,
+                DEFAULT_MAX_BYTES_PER_FILE,
+                writeProperties,
+                metadataView));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -199,7 +236,12 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             .apply(
                 "Write remaining rows to files",
                 new WriteGroupedRowsToFiles(
-                    catalogConfig, dynamicDestinations, filePrefix, DEFAULT_MAX_BYTES_PER_FILE));
+                    catalogConfig,
+                    dynamicDestinations,
+                    filePrefix,
+                    DEFAULT_MAX_BYTES_PER_FILE,
+                    writeProperties,
+                    metadataView));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)

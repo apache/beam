@@ -481,6 +481,14 @@ class BigtableServiceImpl implements BigtableService {
           segment.addRowRanges(newRange.build());
         } else {
           // Row is split, remove all read rowKeys and split RowSet at last buffered Row
+          if (rowRange.getEndKeyCase() == RowRange.EndKeyCase.END_KEY_OPEN
+              && !rowRange.getEndKeyOpen().isEmpty()) {
+            ByteString lastKeyWithNull = lastKey.concat(ByteString.copyFrom(new byte[] {0}));
+            if (ByteStringComparator.INSTANCE.compare(lastKeyWithNull, rowRange.getEndKeyOpen())
+                >= 0) {
+              continue;
+            }
+          }
           segment.addRowRanges(newRange.setStartKeyOpen(lastKey).build());
         }
       }

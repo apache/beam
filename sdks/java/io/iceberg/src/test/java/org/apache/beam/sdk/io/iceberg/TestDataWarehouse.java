@@ -64,7 +64,7 @@ public class TestDataWarehouse extends ExternalResource {
 
   protected final Configuration hadoopConf;
 
-  protected String location;
+  public String location;
   protected Catalog catalog;
   protected boolean someTableHasBeenCreated = false;
 

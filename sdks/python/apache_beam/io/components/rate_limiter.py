@@ -27,13 +27,9 @@ import threading
 import time
 
 import grpc
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptor
-from envoy_data_plane.envoy.extensions.common.ratelimit.v3 import RateLimitDescriptorEntry
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitRequest
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponse
-from envoy_data_plane.envoy.service.ratelimit.v3 import RateLimitResponseCode
 
 from apache_beam.io.components import adaptive_throttler
+from apache_beam.io.components import rate_limit_pb2
 from apache_beam.metrics import Metrics
 
 _LOGGER = logging.getLogger(__name__)
@@ -122,19 +118,18 @@ class EnvoyRateLimiter(RateLimiter):
     self._lock = threading.Lock()
 
   class RateLimitServiceStub(object):
-    """ 
-    Wrapper for gRPC stub to be compatible with envoy_data_plane messages.
-    
-    The envoy-data-plane package uses 'betterproto' which generates async stubs
-    for 'grpclib'. As Beam uses standard synchronous 'grpcio',
-    RateLimitServiceStub is a bridge class to use the betterproto Message types
-    (RateLimitRequest) with a standard grpcio Channel.
+    """
+    Minimal gRPC stub for the Envoy Rate Limit Service ShouldRateLimit method.
+
+    The method path is fixed by the Envoy RLS proto, so we bind it by hand
+    against a standard synchronous grpcio Channel using the protobuf message
+    types from rate_limit_pb2.
     """
     def __init__(self, channel):
       self.ShouldRateLimit = channel.unary_unary(
           '/envoy.service.ratelimit.v3.RateLimitService/ShouldRateLimit',
-          request_serializer=RateLimitRequest.SerializeToString,
-          response_deserializer=RateLimitResponse.FromString,
+          request_serializer=rate_limit_pb2.RateLimitRequest.SerializeToString,
+          response_deserializer=rate_limit_pb2.RateLimitResponse.FromString,
       )
 
   def init_connection(self):
@@ -171,10 +166,11 @@ class EnvoyRateLimiter(RateLimiter):
     for d in self.descriptors:
       entries = []
       for k, v in d.items():
-        entries.append(RateLimitDescriptorEntry(key=k, value=v))
-      proto_descriptors.append(RateLimitDescriptor(entries=entries))
+        entries.append(rate_limit_pb2.RateLimitDescriptor.Entry(key=k, value=v))
+      proto_descriptors.append(
+          rate_limit_pb2.RateLimitDescriptor(entries=entries))
 
-    request = RateLimitRequest(
+    request = rate_limit_pb2.RateLimitRequest(
         domain=self.domain,
         descriptors=proto_descriptors,
         hits_addend=hits_added)
@@ -205,11 +201,11 @@ class EnvoyRateLimiter(RateLimiter):
               e)
           time.sleep(_RPC_RETRY_DELAY_SECONDS)
 
-      if response.overall_code == RateLimitResponseCode.OK:
+      if response.overall_code == rate_limit_pb2.RateLimitResponse.OK:
         self.requests_allowed.inc()
         throttled = True
         break
-      elif response.overall_code == RateLimitResponseCode.OVER_LIMIT:
+      elif response.overall_code == rate_limit_pb2.RateLimitResponse.OVER_LIMIT:
         self.requests_throttled.inc()
         # Ratelimit exceeded, sleep for duration until reset and retry
         # multiple rules can be set in the RLS config, so we need to find the
@@ -217,10 +213,9 @@ class EnvoyRateLimiter(RateLimiter):
         sleep_s = 0.0
         if response.statuses:
           for status in response.statuses:
-            if status.code == RateLimitResponseCode.OVER_LIMIT:
+            if status.code == rate_limit_pb2.RateLimitResponse.OVER_LIMIT:
               dur = status.duration_until_reset
-              # duration_until_reset is converted to timedelta by betterproto
-              val = dur.total_seconds()
+              val = dur.ToTimedelta().total_seconds()
               if val > sleep_s:
                 sleep_s = val
 

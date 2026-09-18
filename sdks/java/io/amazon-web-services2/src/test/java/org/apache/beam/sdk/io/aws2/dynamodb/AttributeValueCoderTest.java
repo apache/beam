@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.coders.CoderException;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.junit.Assert;
 import org.junit.Test;
@@ -204,5 +205,69 @@ public class AttributeValueCoderTest {
     AttributeValue actual = coder.decode(in);
 
     Assert.assertEquals(expected, actual);
+  }
+
+  @Test
+  public void shouldPassForEmptyListType() throws IOException {
+    AttributeValue expected = AttributeValue.builder().l(new ArrayList<>()).build();
+
+    AttributeValue actual = roundTrip(expected);
+
+    Assert.assertEquals(expected, actual);
+    Assert.assertTrue("an empty L must decode back as a set-but-empty list", actual.hasL());
+  }
+
+  @Test
+  public void shouldPassForEmptyMapType() throws IOException {
+    AttributeValue expected = AttributeValue.builder().m(new HashMap<>()).build();
+
+    AttributeValue actual = roundTrip(expected);
+
+    Assert.assertEquals(expected, actual);
+    Assert.assertTrue("an empty M must decode back as a set-but-empty map", actual.hasM());
+  }
+
+  @Test
+  public void shouldPassForEmptyListNestedInMap() throws IOException {
+    // The realistic trigger: one empty list anywhere inside an item makes the whole item
+    // unencodable, not just that attribute.
+    Map<String, AttributeValue> item = new HashMap<>();
+    item.put("name", AttributeValue.builder().s("widget").build());
+    item.put("tags", AttributeValue.builder().l(new ArrayList<>()).build());
+    AttributeValue expected = AttributeValue.builder().m(item).build();
+
+    AttributeValue actual = roundTrip(expected);
+
+    Assert.assertEquals(expected, actual);
+    Assert.assertTrue(actual.m().get("tags").hasL());
+  }
+
+  @Test
+  public void shouldPassForEmptyMapNestedInList() throws IOException {
+    AttributeValue expected =
+        AttributeValue.builder()
+            .l(ImmutableList.of(AttributeValue.builder().m(new HashMap<>()).build()))
+            .build();
+
+    AttributeValue actual = roundTrip(expected);
+
+    Assert.assertEquals(expected, actual);
+    Assert.assertTrue(actual.l().get(0).hasM());
+  }
+
+  @Test
+  public void shouldStillRejectAnAttributeValueWithNoTypeSet() throws IOException {
+    // Control: the terminal else must keep rejecting a genuinely typeless value, so the fix does
+    // not turn "Unknown Type" into silently encoding nothing.
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    Assert.assertThrows(
+        CoderException.class,
+        () -> AttributeValueCoder.of().encode(AttributeValue.builder().build(), out));
+  }
+
+  private static AttributeValue roundTrip(AttributeValue value) throws IOException {
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    AttributeValueCoder.of().encode(value, out);
+    return AttributeValueCoder.of().decode(new ByteArrayInputStream(out.toByteArray()));
   }
 }

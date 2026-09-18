@@ -95,6 +95,16 @@ class TestCaller(unittest.TestCase):
 
     self.assertIsNotNone(output)
 
+  def test_valid_call_without_throttler(self):
+    caller = AckCaller()
+    with TestPipeline() as test_pipeline:
+      output = (
+          test_pipeline
+          | beam.Create(["sample_request"])
+          | RequestResponseIO(caller=caller, throttler=None))
+
+    self.assertIsNotNone(output)
+
   def test_call_timeout(self):
     caller = CallerWithTimeout()
     with self.assertRaisesRegex(Exception, "Timeout"):

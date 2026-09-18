@@ -87,6 +87,37 @@ func (c *reflectFunc) Call(args []any) []any {
 	return Interface(c.fn.Call(ValueOf(args)))
 }
 
+// MakeFuncWithName returns a Func that wraps fn but whose Name()
+// returns the provided name instead of the compiler-derived symbol.
+// This is essential for closures inside Go generic functions: all
+// type instantiations produce closures with the same compiler name
+// (e.g. "pkg.Func[...].func1"), so the default name-based
+// serialization cannot distinguish them. A stable, type-qualified
+// name ensures cross-worker deserialization resolves the correct
+// function.
+func MakeFuncWithName(name string, fn any) Func {
+	inner := MakeFunc(fn)
+	return &namedFunc{inner: inner, name: name}
+}
+
+type namedFunc struct {
+	inner Func
+	name  string
+}
+
+func (f *namedFunc) Name() string          { return f.name }
+func (f *namedFunc) Type() reflect.Type    { return f.inner.Type() }
+func (f *namedFunc) Call(args []any) []any { return f.inner.Call(args) }
+
+// Interface returns the original unwrapped function, which
+// runtime.RegisterFunction needs for pointer extraction.
+func (f *namedFunc) Interface() any {
+	if rf, ok := f.inner.(*reflectFunc); ok {
+		return rf.fn.Interface()
+	}
+	return nil
+}
+
 // CallNoPanic calls the given Func and catches any panic.
 func CallNoPanic(fn Func, args []any) (ret []any, err error) {
 	defer func() {

@@ -17,15 +17,12 @@
  */
 package org.apache.beam.sdk.io.solace.read;
 
-import com.solacesystems.jcsmp.BytesXMLMessage;
 import java.util.Objects;
-import java.util.Queue;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.DefaultCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.io.UnboundedSource;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,33 +36,41 @@ import org.slf4j.LoggerFactory;
 @VisibleForTesting
 public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
   private static final Logger LOG = LoggerFactory.getLogger(SolaceCheckpointMark.class);
-  private transient Queue<BytesXMLMessage> safeToAck;
+  private String readerUuid;
+  private long checkpointId;
 
   @SuppressWarnings("initialization") // Avro will set the fields by breaking abstraction
-  private SolaceCheckpointMark() {}
+  private SolaceCheckpointMark() {
+    this.readerUuid = "";
+    this.checkpointId = 0;
+  }
 
   /**
    * Creates a new {@link SolaceCheckpointMark}.
    *
-   * @param safeToAck - a queue of {@link BytesXMLMessage} to be acknowledged.
+   * @param readerUuid - the UUID of the originating reader.
+   * @param checkpointId - the unique ID of this checkpoint.
    */
-  SolaceCheckpointMark(Queue<BytesXMLMessage> safeToAck) {
-    this.safeToAck = safeToAck;
+  SolaceCheckpointMark(String readerUuid, long checkpointId) {
+    this.readerUuid = readerUuid;
+    this.checkpointId = checkpointId;
   }
 
   @Override
   public void finalizeCheckpoint() {
-    BytesXMLMessage msg;
-    while ((msg = safeToAck.poll()) != null) {
-      try {
-        msg.ackMessage();
-      } catch (IllegalStateException e) {
-        LOG.error(
-            "SolaceIO.Read: cannot acknowledge the message with applicationMessageId={}, ackMessageId={}. It will not be retried.",
-            msg.getApplicationMessageId(),
-            msg.getAckMessageId(),
-            e);
-      }
+    if (readerUuid == null || readerUuid.isEmpty()) {
+      LOG.warn("SolaceIO.Read: Checkpoint has no reader UUID, cannot finalize.");
+      return;
+    }
+    UnboundedSolaceReader<?> reader = ActiveReadersRegistry.get(readerUuid);
+    if (reader != null) {
+      reader.finalizeCheckpoint(checkpointId);
+    } else {
+      LOG.warn(
+          "SolaceIO.Read: Reader with UUID {} not found in registry. "
+              + "Checkpoint {} cannot be finalized. Messages will be redelivered if session is closed.",
+          readerUuid,
+          checkpointId);
     }
   }
 
@@ -81,14 +86,11 @@ public class SolaceCheckpointMark implements UnboundedSource.CheckpointMark {
       return false;
     }
     SolaceCheckpointMark that = (SolaceCheckpointMark) o;
-    return safeToAck == that.safeToAck
-        || (safeToAck != null
-            && that.safeToAck != null
-            && Iterables.elementsEqual(safeToAck, that.safeToAck));
+    return checkpointId == that.checkpointId && Objects.equals(readerUuid, that.readerUuid);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(safeToAck);
+    return Objects.hash(readerUuid, checkpointId);
   }
 }

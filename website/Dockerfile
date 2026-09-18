@@ -44,7 +44,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Google Cloud SDK (gsutil)
+# Install Google Cloud SDK (gcloud storage)
 RUN apt-get update \
     && apt-get install -y apt-transport-https \
     # Download the key and save it directly to the keyring file (skipping apt-key)

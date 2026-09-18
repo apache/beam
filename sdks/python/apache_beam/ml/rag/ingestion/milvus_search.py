@@ -287,16 +287,18 @@ class _MilvusSink:
     """Writes a batch of documents to the Milvus collection.
 
     Performs an upsert operation to insert new documents or update existing
-    ones based on primary key. After the upsert, flushes the collection to
-    ensure data persistence.
+    ones based on primary key, reusing the client established in ``__enter__``.
+
+    Note:
+      This submits the upsert to Milvus; it does not call ``flush()`` on the
+      collection. Newly written rows become queryable according to Milvus'
+      normal segment-sync behavior. Callers that require immediate
+      read-after-write visibility should flush the collection explicitly.
 
     Args:
       documents: List of dictionaries representing Milvus records to write.
         Each dictionary should contain fields matching the collection schema.
     """
-    self._client = MilvusClient(
-        **unpack_dataclass_with_kwargs(self._connection_params))
-
     resp = self._client.upsert(
         collection_name=self._write_config.collection_name,
         partition_name=self._write_config.partition_name,
@@ -346,3 +348,4 @@ class _MilvusSink:
     _ = exc_type, exc_val, exc_tb  # Unused parameters
     if self._client:
       self._client.close()
+      self._client = None

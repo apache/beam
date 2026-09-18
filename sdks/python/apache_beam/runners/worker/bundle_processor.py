@@ -26,6 +26,7 @@ import bisect
 import collections
 import concurrent.futures
 import copy
+import functools
 import heapq
 import itertools
 import json
@@ -136,22 +137,48 @@ class RunnerIOOperation(operations.Operation):
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
       transform_id: str,
-      data_channel: data_plane.DataChannel) -> None:
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]
+  ) -> None:
     super().__init__(name_context, None, counter_factory, state_sampler)
     self.windowed_coder = windowed_coder
     self.windowed_coder_impl = windowed_coder.get_impl()
     # transform_id represents the consumer for the bytes in the data plane for a
     # DataInputOperation or a producer of these bytes for a DataOutputOperation.
     self.transform_id = transform_id
-    self.data_channel = data_channel
+    self.data_channel_factory = data_channel_factory
     for _, consumer_ops in consumers.items():
       for consumer in consumer_ops:
         self.add_receiver(consumer, 0)
+
+  def get_data_channel(
+      self, data_stream_id: Optional[str] = None) -> data_plane.DataChannel:
+    return self.data_channel_factory(data_stream_id)
 
 
 class DataOutputOperation(RunnerIOOperation):
   """A sink-like operation that gathers outputs to be sent back to the runner.
   """
+  def __init__(
+      self,
+      operation_name: common.NameContext,
+      step_name: Any,
+      consumers: Mapping[Any, list[operations.Operation]],
+      counter_factory: counters.CounterFactory,
+      state_sampler: statesampler.StateSampler,
+      windowed_coder: coders.Coder,
+      transform_id: str,
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]
+  ) -> None:
+    super().__init__(
+        operation_name,
+        step_name,
+        consumers,
+        counter_factory,
+        state_sampler,
+        windowed_coder,
+        transform_id=transform_id,
+        data_channel_factory=data_channel_factory)
+
   def set_output_stream(
       self, output_stream: data_plane.ClosableOutputStream) -> None:
     self.output_stream = output_stream
@@ -171,13 +198,14 @@ class DataInputOperation(RunnerIOOperation):
   def __init__(
       self,
       operation_name: common.NameContext,
-      step_name,
+      step_name: Any,
       consumers: Mapping[Any, list[operations.Operation]],
       counter_factory: counters.CounterFactory,
       state_sampler: statesampler.StateSampler,
       windowed_coder: coders.Coder,
-      transform_id,
-      data_channel: data_plane.GrpcClientDataChannel) -> None:
+      transform_id: str,
+      data_channel_factory: Callable[[Optional[str]], data_plane.DataChannel]
+  ) -> None:
     super().__init__(
         operation_name,
         step_name,
@@ -186,7 +214,7 @@ class DataInputOperation(RunnerIOOperation):
         state_sampler,
         windowed_coder,
         transform_id=transform_id,
-        data_channel=data_channel)
+        data_channel_factory=data_channel_factory)
 
     self.consumer = next(iter(consumers.values()))
     self.splitting_lock = threading.Lock()
@@ -641,6 +669,8 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._value_coder = value_coder
     self._cleared = False
     self._added_elements: set[Any] = set()
+    # Track outstanding async state requests to await them at commit time.
+    self._futures = []
 
   def _compact_data(self, rewrite=True):
     accumulator = set(
@@ -650,9 +680,11 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
             self._added_elements))
 
     if rewrite and accumulator:
-      self._state_handler.clear(self._state_key)
-      self._state_handler.extend(
-          self._state_key, self._value_coder.get_impl(), accumulator)
+      # Compaction writes are asynchronous; queue them so they are not lost.
+      self._futures.append(self._state_handler.clear(self._state_key))
+      self._futures.append(
+          self._state_handler.extend(
+              self._state_key, self._value_coder.get_impl(), accumulator))
 
       # Since everthing is already committed so we can safely reinitialize
       # added_elements here.
@@ -666,7 +698,7 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
   def add(self, value: Any) -> None:
     if self._cleared:
       # This is a good time explicitly clear.
-      self._state_handler.clear(self._state_key)
+      self._futures.append(self._state_handler.clear(self._state_key))
       self._cleared = False
 
     self._added_elements.add(value)
@@ -678,15 +710,26 @@ class SynchronousSetRuntimeState(userstate.SetRuntimeState):
     self._added_elements = set()
 
   def commit(self) -> None:
-    to_await = None
     if self._cleared:
-      to_await = self._state_handler.clear(self._state_key)
+      self._futures.append(self._state_handler.clear(self._state_key))
+      self._cleared = False
     if self._added_elements:
-      to_await = self._state_handler.extend(
-          self._state_key, self._value_coder.get_impl(), self._added_elements)
-    if to_await:
-      # To commit, we need to wait on the last state request future to complete.
-      to_await.get()
+      self._futures.append(
+          self._state_handler.extend(
+              self._state_key,
+              self._value_coder.get_impl(),
+              self._added_elements))
+      self._added_elements = set()
+
+    # Block on all outstanding async state requests to ensure data is committed.
+    # We must swap and clear self._futures before awaiting them. Awaiting a future
+    # yields control, during which new futures could be appended to self._futures.
+    all_futures = self._futures
+    self._futures = []
+
+    for f in all_futures:
+      if f:
+        f.get()
 
 
 class RangeSet:
@@ -1223,7 +1266,9 @@ class BundleProcessor(object):
       op.reset()
 
   def process_bundle(
-      self, instruction_id: str
+      self,
+      instruction_id: str,
+      data_stream_id: Optional[str] = None
   ) -> tuple[list[beam_fn_api_pb2.DelayedBundleApplication], bool]:
 
     expected_input_ops: list[DataInputOperation] = []
@@ -1232,8 +1277,9 @@ class BundleProcessor(object):
       if isinstance(op, DataOutputOperation):
         # TODO(robertwb): Is there a better way to pass the instruction id to
         # the operation?
+        data_channel = op.get_data_channel(data_stream_id)
         op.set_output_stream(
-            op.data_channel.output_stream(instruction_id, op.transform_id))
+            data_channel.output_stream(instruction_id, op.transform_id))
       elif isinstance(op, DataInputOperation):
         # We must wait until we receive "end of stream" for each of these ops.
         expected_input_ops.append(op)
@@ -1259,18 +1305,27 @@ class BundleProcessor(object):
       # Add expected data inputs for each data channel.
       input_op_by_transform_id = {}
       for input_op in expected_input_ops:
-        data_channels[input_op.data_channel].append(input_op.transform_id)
+        data_channel = input_op.get_data_channel(data_stream_id)
+        data_channels[data_channel].append(input_op.transform_id)
         input_op_by_transform_id[input_op.transform_id] = input_op
 
       # Update timer_data channel with expected timer inputs.
-      if self.timer_data_channel:
-        data_channels[self.timer_data_channel].extend(
-            list(self.timers_info.keys()))
+      timer_data_channel = None
+      if self.process_bundle_descriptor.timer_api_service_descriptor.url:
+        timer_data_channel = (
+            self.data_channel_factory.create_data_channel_from_url(
+                self.process_bundle_descriptor.timer_api_service_descriptor.url,
+                data_stream_id=data_stream_id))
+      elif self.timer_data_channel:
+        timer_data_channel = self.timer_data_channel
+
+      if timer_data_channel:
+        data_channels[timer_data_channel].extend(list(self.timers_info.keys()))
 
         # Set up timer output stream for DoOperation.
         for ((transform_id, timer_family_id),
              timer_info) in self.timers_info.items():
-          output_stream = self.timer_data_channel.output_timer_stream(
+          output_stream = timer_data_channel.output_timer_stream(
               instruction_id, transform_id, timer_family_id)
           timer_info.output_stream = output_stream
           self.ops[transform_id].add_timer_info(timer_family_id, timer_info)
@@ -1617,7 +1672,8 @@ def create_source_runner(
       factory.state_sampler,
       output_coder,
       transform_id=transform_id,
-      data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
+      data_channel_factory=functools.partial(
+          factory.data_channel_factory.create_data_channel, grpc_port))
 
 
 @BeamTransformFactory.register_urn(
@@ -1637,7 +1693,8 @@ def create_sink_runner(
       factory.state_sampler,
       output_coder,
       transform_id=transform_id,
-      data_channel=factory.data_channel_factory.create_data_channel(grpc_port))
+      data_channel_factory=functools.partial(
+          factory.data_channel_factory.create_data_channel, grpc_port))
 
 
 @BeamTransformFactory.register_urn(OLD_DATAFLOW_RUNNER_HARNESS_READ_URN, None)

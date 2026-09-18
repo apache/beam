@@ -33,6 +33,8 @@ import "google/protobuf/struct.proto";
 import "org/apache/beam/model/pipeline/v1/beam_runner_api.proto";
 import "org/apache/beam/model/pipeline/v1/schema.proto";
 
+// A request to expand a single PTransform in a remote SDK. The expansion service
+// resolves the transform into its constituent subtransforms and outputs.
 message ExpansionRequest {
   // Set of components needed to interpret the transform, or which
   // may be useful for its expansion.  This includes the input
@@ -64,6 +66,8 @@ message ExpansionRequest {
   google.protobuf.Struct pipeline_options = 6;
 }
 
+// The result of expanding a PTransform, containing the expanded transform and
+// all newly created components.
 message ExpansionResponse {
   // Set of components needed to execute the expanded transform,
   // including the (original) inputs, outputs, and subtransforms.
@@ -82,9 +86,13 @@ message ExpansionResponse {
   string error = 10;
 }
 
+// A request to discover all SchemaTransformProviders registered with the expansion service.
+// This is used by cross-language pipeline construction to enumerate available transforms.
 message DiscoverSchemaTransformRequest  {
 }
 
+// Configuration metadata for a SchemaTransform, describing its inputs, outputs,
+// and configuration schema. Used to enable cross-language transform discovery.
 message SchemaTransformConfig {
   // Config schema of the SchemaTransform
   org.apache.beam.model.pipeline.v1.Schema config_schema = 1;
@@ -102,6 +110,7 @@ message SchemaTransformConfig {
   string description = 4;
 }
 
+// A response containing all discovered SchemaTransform configurations.
 message DiscoverSchemaTransformResponse {
   // A mapping from SchemaTransform ID to schema transform config of discovered
   // SchemaTransforms

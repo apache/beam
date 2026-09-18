@@ -22,8 +22,14 @@ import com.google.cloud.spanner.Dialect;
 import com.google.cloud.spanner.ReadOnlyTransaction;
 import com.google.cloud.spanner.ResultSet;
 import com.google.cloud.spanner.Statement;
+import io.opentelemetry.api.OpenTelemetry;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
+import java.util.stream.Collectors;
+import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.values.PCollectionView;
 
@@ -74,21 +80,29 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     this.allowedTableNames = allowedTableNames == null ? new HashSet<>() : allowedTableNames;
   }
 
-  @Setup
-  public void setup() throws Exception {
-    spannerAccessor = SpannerAccessor.getOrCreate(config);
+  /**
+   * Reads Spanner schema information without running a Beam pipeline.
+   *
+   * <p>Used by SchemaTransforms during expansion (including cross-language expansion services that
+   * do not ship DirectRunner).
+   */
+  public static SpannerSchema getSpannerSchema(
+      SpannerConfig config, Dialect dialect, Set<String> allowedTableNames) {
+    try (SpannerAccessor spannerAccessor = SpannerAccessor.getOrCreate(config)) {
+      return getSpannerSchema(spannerAccessor.getDatabaseClient(), dialect, allowedTableNames);
+    }
   }
 
-  @Teardown
-  public void teardown() throws Exception {
-    spannerAccessor.close();
-  }
-
-  @ProcessElement
-  public void processElement(ProcessContext c) throws Exception {
-    Dialect dialect = c.sideInput(dialectView);
+  static SpannerSchema getSpannerSchema(
+      DatabaseClient databaseClient, Dialect dialect, Set<String> allowedTableNames) {
+    // Case insensitive match via lower cased HashSet
+    Set<String> allowedLower =
+        allowedTableNames == null || allowedTableNames.isEmpty()
+            ? Collections.emptySet()
+            : allowedTableNames.stream()
+                .map(name -> name.toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
     SpannerSchema.Builder builder = SpannerSchema.builder(dialect);
-    DatabaseClient databaseClient = spannerAccessor.getDatabaseClient();
     try (ReadOnlyTransaction tx = databaseClient.readOnlyTransaction()) {
       ResultSet resultSet = readTableInfo(tx, dialect);
 
@@ -97,9 +111,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String columnName = resultSet.getString(1);
         String type = resultSet.getString(2);
         long cellsMutated = resultSet.getLong(3);
-        if (allowedTableNames.size() > 0 && !allowedTableNames.contains(tableName)) {
-          // If we want to filter out table names, and the current table name is not part
-          // of the allowed names, we exclude it.
+        if (!isTableAllowed(allowedLower, tableName)) {
           continue;
         }
         builder.addColumn(tableName, columnName, type, cellsMutated);
@@ -110,14 +122,39 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
         String tableName = resultSet.getString(0);
         String columnName = resultSet.getString(1);
         String ordering = resultSet.getString(2);
-
+        if (!isTableAllowed(allowedLower, tableName)) {
+          continue;
+        }
         builder.addKeyPart(tableName, columnName, "DESC".equalsIgnoreCase(ordering));
       }
     }
-    c.output(builder.build());
+    return builder.build();
   }
 
-  private ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
+  private static boolean isTableAllowed(Set<String> allowedLowerTableNames, String tableName) {
+    return allowedLowerTableNames.isEmpty()
+        || allowedLowerTableNames.contains(tableName.toLowerCase(Locale.ROOT));
+  }
+
+  @Setup
+  public void setup(PipelineOptions options) throws Exception {
+    OpenTelemetry otel = options.as(SdkHarnessOptions.class).getOpenTelemetry();
+    spannerAccessor = SpannerAccessor.getOrCreate(config, otel);
+  }
+
+  @Teardown
+  public void teardown() throws Exception {
+    spannerAccessor.close();
+  }
+
+  @ProcessElement
+  public void processElement(ProcessContext c) throws Exception {
+    c.output(
+        getSpannerSchema(
+            spannerAccessor.getDatabaseClient(), c.sideInput(dialectView), allowedTableNames));
+  }
+
+  private static ResultSet readTableInfo(ReadOnlyTransaction tx, Dialect dialect) {
     // retrieve schema information for all tables, as well as aggregating the
     // number of indexes that cover each column. this will be used to estimate
     // the number of cells (table column plus indexes) mutated in an upsert operation
@@ -170,7 +207,7 @@ public class ReadSpannerSchema extends DoFn<Void, SpannerSchema> {
     return tx.executeQuery(Statement.of(statement));
   }
 
-  private ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect) {
+  private static ResultSet readPrimaryKeyInfo(ReadOnlyTransaction tx, Dialect dialect) {
     String statement = "";
     switch (dialect) {
       case GOOGLE_STANDARD_SQL:

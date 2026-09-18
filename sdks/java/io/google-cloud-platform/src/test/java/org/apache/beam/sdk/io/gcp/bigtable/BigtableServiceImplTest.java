@@ -764,6 +764,87 @@ public class BigtableServiceImplTest {
   }
 
   /**
+   * This test ensures that when a range has an open end key that is equal to the start key plus a
+   * null byte (e.g. [k, k\0)), and the buffer hits the byte limit on key k, truncateRequest
+   * correctly detects that the range is exhausted and does not create an invalid range (k, k\0).
+   */
+  @Test
+  public void testReadRangeWithNullByteEndKeyAtByteLimit() throws IOException {
+    ByteString startKey = ByteString.copyFromUtf8("exact_key");
+    ByteString endKey = startKey.concat(ByteString.copyFrom(new byte[] {0}));
+    RowRange mockRowRange =
+        RowRange.newBuilder().setStartKeyClosed(startKey).setEndKeyOpen(endKey).build();
+
+    long segmentByteLimit = DEFAULT_ROW_SIZE / 2;
+
+    byte[] largeMemory = new byte[(int) DEFAULT_ROW_SIZE];
+    Row expectedRow =
+        Row.newBuilder()
+            .setKey(startKey)
+            .addFamilies(
+                Family.newBuilder()
+                    .setName("Family")
+                    .addColumns(
+                        Column.newBuilder()
+                            .setQualifier(ByteString.copyFromUtf8("LargeMemoryRow"))
+                            .addCells(
+                                Cell.newBuilder()
+                                    .setValue(ByteString.copyFrom(largeMemory))
+                                    .setTimestampMicros(System.currentTimeMillis())
+                                    .build())
+                            .build())
+                    .build())
+            .build();
+
+    List<List<Row>> expectedResults =
+        ImmutableList.of(ImmutableList.of(expectedRow), ImmutableList.of());
+
+    ServerStreamingCallable<Query, Row> mockCallable = Mockito.mock(ServerStreamingCallable.class);
+
+    StreamController mockController = Mockito.mock(StreamController.class);
+    doAnswer(
+            new Answer<Void>() {
+              @Override
+              public Void answer(InvocationOnMock invocation) throws Throwable {
+                cancelled.set(true);
+                return null;
+              }
+            })
+        .when(mockController)
+        .cancel();
+
+    doAnswer(new MultipleAnswer<Row>(expectedResults, mockController))
+        .when(mockCallable)
+        .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
+    when(mockStub.createReadRowsCallable(any(RowAdapter.class))).thenReturn(mockCallable);
+    ServerStreamingCallable<Query, Row> callable =
+        mockStub.createReadRowsCallable(new BigtableServiceImpl.BigtableRowProtoAdapter());
+    when(mockBigtableDataClient.readRowsCallable(any(RowAdapter.class))).thenReturn(callable);
+
+    BigtableService.Reader underTest =
+        new BigtableServiceImpl.BigtableSegmentReaderImpl(
+            mockBigtableDataClient,
+            bigtableDataSettings.getProjectId(),
+            bigtableDataSettings.getInstanceId(),
+            TABLE_ID,
+            RowSet.newBuilder().addRowRanges(mockRowRange).build(),
+            RowFilter.getDefaultInstance(),
+            SEGMENT_SIZE,
+            segmentByteLimit,
+            mockCallMetric);
+
+    List<Row> actualResults = new ArrayList<>();
+    Assert.assertTrue(underTest.start());
+    do {
+      actualResults.add(underTest.getCurrentRow());
+    } while (underTest.advance());
+
+    Assert.assertEquals(ImmutableList.of(expectedRow), actualResults);
+    Mockito.verify(mockCallable, Mockito.times(1))
+        .call(any(Query.class), any(ResponseObserver.class), any(ApiCallContext.class));
+  }
+
+  /**
    * This test ensures the Exception handling inside of the scanHandler. This test will check if a
    * StatusRuntimeException was thrown.
    *

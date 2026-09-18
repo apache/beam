@@ -72,12 +72,16 @@ public class Query10 extends NexmarkQueryTransform<Done> {
   private static class OutputFile implements Serializable {
     /** Maximum possible timestamp of records in file. */
     private final Instant maxTimestamp;
+
     /** Shard within window. */
     private final String shard;
+
     /** Index of file in all files in shard. */
     private final long index;
+
     /** Timing of records in this file. */
     private final PaneInfo.Timing timing;
+
     /** Path to file containing records, or {@literal null} if no output required. */
     private final @Nullable String filename;
 
@@ -147,8 +151,7 @@ public class Query10 extends NexmarkQueryTransform<Done> {
 
   /** Construct an {@link OutputFile} for {@code pane} in {@code window} for {@code shard}. */
   private OutputFile outputFileFor(BoundedWindow window, String shard, PaneInfo paneInfo) {
-    @Nullable
-    String filename =
+    @Nullable String filename =
         outputPath == null
             ? null
             : String.format(

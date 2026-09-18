@@ -489,7 +489,7 @@ class AsyncTest(unittest.TestCase):
       self.assertEqual(bag_states['key' + str(i)].items, [])
 
   @staticmethod
-  def _run_reset_state_concurrent_teardown(use_asyncio):
+  def _run_reset_state_concurrent_teardown(use_asyncio, reset_started):
     dofn = BasicDofn(sleep_time=0.5)
     async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=use_asyncio)
     async_dofn.setup()
@@ -502,15 +502,26 @@ class AsyncTest(unittest.TestCase):
 
     # Verify that calling reset_state() while background tasks are actively running
     # completes cleanly without causing lock-ordering deadlocks.
+    reset_started.set()
     async_lib.AsyncWrapper.reset_state()
 
   def test_reset_state_concurrent_teardown(self):
     # Verify concurrent teardown safety in a separate process to prevent any potential
     # regressions from freezing the main pytest process at exit.
+    reset_started = multiprocessing.Event()
     p = multiprocessing.Process(
         target=AsyncTest._run_reset_state_concurrent_teardown,
-        args=(self.use_asyncio, ))
+        args=(self.use_asyncio, reset_started))
     p.start()
+
+    # Python 3.14 uses forkserver by default on POSIX. Wait for child startup
+    # before measuring reset_state() so import and process startup time cannot
+    # be mistaken for a teardown deadlock.
+    if not reset_started.wait(timeout=30.0):
+      p.terminate()
+      p.join()
+      self.fail("child process did not reach reset_state() before timeout")
+
     p.join(timeout=10.0)
 
     if p.is_alive():
@@ -521,6 +532,53 @@ class AsyncTest(unittest.TestCase):
       )
     else:
       self.assertEqual(p.exitcode, 0)
+
+  def test_transient_rpc_failure_retry(self):
+    # Verify DoFn exceptions wipe local active state so retries reschedule work.
+    class FlakyDoFn(beam.DoFn):
+      def __init__(self):
+        self.attempts = 0
+        self.lock = Lock()
+
+      def process(self, element):
+        with self.lock:
+          self.attempts += 1
+          current_attempt = self.attempts
+        if current_attempt == 1:
+          raise RuntimeError("Transient RPC Error")
+        yield element
+
+    dofn = FlakyDoFn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    fake_bag_state = FakeBagState([])
+    fake_timer = FakeTimer(0)
+    msg = ('key1', 1)
+
+    async_dofn.process(msg, to_process=fake_bag_state, timer=fake_timer)
+    self.wait_for_empty(async_dofn)
+
+    # Attempt 1 should raise the RuntimeError stored in the future
+    with self.assertRaises(RuntimeError):
+      async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    # Verify the failed future was popped from local processing_elements
+    with async_lib.AsyncWrapper._lock:
+      self.assertNotIn(
+          async_dofn._id_fn(msg[1]),
+          async_lib.AsyncWrapper._processing_elements[async_dofn._uuid],
+      )
+
+    # Simulate runner bundle retry: commit_finished_items runs again with msg still in state.
+    # Because the dead future was popped, it will reschedule msg and succeed on Attempt 2.
+    self.wait_for_empty(async_dofn)
+    result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+    if not result:
+      self.wait_for_empty(async_dofn)
+      result = async_dofn.commit_finished_items(fake_bag_state, fake_timer)
+
+    self.check_output(result, [msg])
+    self.assertEqual(fake_bag_state.items, [])
 
 
 if __name__ == '__main__':

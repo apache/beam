@@ -68,6 +68,8 @@ jobs:
       startswith(github.event.comment.body, 'Run Java examples on Dataflow Java')
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
         with:

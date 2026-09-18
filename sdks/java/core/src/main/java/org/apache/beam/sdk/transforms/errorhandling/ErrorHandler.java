@@ -75,8 +75,7 @@ public interface ErrorHandler<ErrorT, OutputT extends POutput> extends AutoClose
 
   boolean isClosed();
 
-  @Nullable
-  OutputT getOutput();
+  @Nullable OutputT getOutput();
 
   class PTransformErrorHandler<ErrorT, OutputT extends POutput>
       implements ErrorHandler<ErrorT, OutputT> {

@@ -85,9 +85,9 @@ public class DoFnRunners {
   public static <K, InputT, OutputT, W extends BoundedWindow>
       DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> lateDataDroppingRunner(
           DoFnRunner<KeyedWorkItem<K, InputT>, KV<K, OutputT>> wrappedRunner,
-          TimerInternals timerInternals,
+          StepContext stepContext,
           WindowingStrategy<?, W> windowingStrategy) {
-    return new LateDataDroppingDoFnRunner<>(wrappedRunner, windowingStrategy, timerInternals);
+    return new LateDataDroppingDoFnRunner<>(wrappedRunner, windowingStrategy, stepContext);
   }
 
   /**

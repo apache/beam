@@ -33,6 +33,12 @@ dependencies {
   implementation library.java.slf4j_api
   implementation library.java.joda_time
   implementation "org.apache.geronimo.specs:geronimo-jms_2.0_spec:1.0-alpha-2"
+  // Don't put proprietary licensed ibm mq client into runtimeClasspath
+  // (affects expansion service shadow jar)
+  compileOnly("com.ibm.mq:com.ibm.mq.allclient:9.3.0.25") {
+    // duplicating geronimo-jms_2.0_spec
+    exclude group: "javax.jms", module: "javax.jms-api"
+  }
   testImplementation library.java.activemq_amqp
   testImplementation library.java.activemq_broker
   testImplementation library.java.activemq_jaas

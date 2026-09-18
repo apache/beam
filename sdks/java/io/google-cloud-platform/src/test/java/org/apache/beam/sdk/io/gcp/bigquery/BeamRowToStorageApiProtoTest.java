@@ -62,6 +62,11 @@ import org.junit.runners.JUnit4;
 /** Unit tests form {@link BeamRowToStorageApiProto}. */
 @RunWith(JUnit4.class)
 public class BeamRowToStorageApiProtoTest {
+  private static final LocalTime TEST_TIME_MICROS = LocalTime.of(12, 30, 45, 123_456_000);
+  private static final LocalDateTime TEST_DATETIME_MICROS =
+      LocalDateTime.of(2024, 1, 15, 12, 30, 45, 123_456_000);
+  private static final java.time.Instant TEST_INSTANT_MICROS =
+      java.time.Instant.parse("2024-01-15T12:30:45.123456Z");
   private static final java.time.Instant TEST_INSTANT_NANOS =
       java.time.Instant.parse("2024-01-15T12:30:45.123456789Z");
 
@@ -254,9 +259,9 @@ public class BeamRowToStorageApiProtoTest {
           .withFieldValue("arrayNullValue", null)
           .withFieldValue("iterableValue", ImmutableList.of("blue", "red", "two", "one"))
           .withFieldValue("sqlDateValue", LocalDate.now(ZoneOffset.UTC))
-          .withFieldValue("sqlTimeValue", LocalTime.now(ZoneOffset.UTC))
-          .withFieldValue("sqlDatetimeValue", LocalDateTime.now(ZoneOffset.UTC))
-          .withFieldValue("sqlTimestampValue", java.time.Instant.now().plus(123, ChronoUnit.MICROS))
+          .withFieldValue("sqlTimeValue", TEST_TIME_MICROS)
+          .withFieldValue("sqlDatetimeValue", TEST_DATETIME_MICROS)
+          .withFieldValue("sqlTimestampValue", TEST_INSTANT_MICROS)
           .withFieldValue("enumValue", TEST_ENUM.valueOf("RED"))
           .build();
   private static final Map<String, Object> BASE_PROTO_EXPECTED_FIELDS =

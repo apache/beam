@@ -37,5 +37,6 @@ public interface HasOffset {
    * Some {@link org.apache.spark.streaming.receiver.Receiver} support mechanism of checkpoint (e.g.
    * ack). This method should be called before stopping the receiver.
    */
-  default void setCheckpoint(Long recordsProcessed) {};
+  default void setCheckpoint(Long recordsProcessed) {}
+  ;
 }

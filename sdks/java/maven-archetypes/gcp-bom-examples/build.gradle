@@ -26,7 +26,8 @@ using the Beam Google Cloud Platform BOM"""
 
 processResources {
     dependsOn 'generateSources'
-    filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+    // Filter arguments are not tracked by Gradle, so declare the tokens as an input property.
+    def resourceTokens = [
             'project.version':  version,
             'bigquery.version': dependencies.create(project.library.java.google_api_services_bigquery).getVersion(),
             'google-api-client.version': dependencies.create(project.library.java.google_api_client).getVersion(),
@@ -48,6 +49,8 @@ processResources {
             'maven-surefire-plugin.version': dependencies.create(project.library.maven.maven_surefire_plugin).getVersion(),
             'flink.artifact.name': 'beam-runners-flink-'.concat(project(":runners:flink:${project.ext.latestFlinkVersion}").getName()),
     ]
+    inputs.property('resourceTokens', resourceTokens)
+    filter org.apache.tools.ant.filters.ReplaceTokens, tokens: resourceTokens
 }
 
 /*

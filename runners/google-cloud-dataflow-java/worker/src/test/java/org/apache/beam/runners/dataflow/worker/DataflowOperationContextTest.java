@@ -305,11 +305,13 @@ public class DataflowOperationContextTest {
 
       String infoLines =
           Joiner.on("\n").join(Iterables.filter(lines, line -> line.contains("\"INFO\"")));
+      // Match on the thread name rather than the full Thread.toString() prefix: JDK 21+ inserts
+      // the thread id (Thread[#51,backgroundThread,...] vs Thread[backgroundThread,...]).
       if (hasFullThreadDump) {
         assertThat(
             infoLines,
             Matchers.allOf(
-                Matchers.containsString("Thread[backgroundThread,"),
+                Matchers.containsString("backgroundThread,"),
                 Matchers.containsString(
                     "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"),
                 Matchers.not(Matchers.containsString(SimpleDoFnRunner.class.getName()))));
@@ -318,7 +320,7 @@ public class DataflowOperationContextTest {
             infoLines,
             Matchers.not(
                 Matchers.anyOf(
-                    Matchers.containsString("Thread[backgroundThread,"),
+                    Matchers.containsString("backgroundThread,"),
                     Matchers.containsString(
                         "org.apache.beam.runners.dataflow.worker.DataflowOperationContext"))));
       }

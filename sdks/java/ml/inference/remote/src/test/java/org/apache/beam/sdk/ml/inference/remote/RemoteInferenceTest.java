@@ -23,6 +23,7 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -44,7 +45,7 @@ public class RemoteInferenceTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();
 
   // Test input class
-  public static class TestInput implements BaseInput {
+  public static class TestInput implements BaseInput, java.io.Serializable {
     private final String value;
 
     private TestInput(String value) {
@@ -83,7 +84,7 @@ public class RemoteInferenceTest {
   }
 
   // Test output class
-  public static class TestOutput implements BaseResponse {
+  public static class TestOutput implements BaseResponse, java.io.Serializable {
     private final String result;
 
     private TestOutput(String result) {
@@ -253,6 +254,30 @@ public class RemoteInferenceTest {
     @Override
     public Iterable<PredictionResult<TestInput, TestOutput>> request(List<TestInput> input) {
       return Collections.emptyList();
+    }
+  }
+
+  // Mock handler that fails repeatedly but eventually succeeds to trigger throttling
+  public static class MockThrottlingHandler
+      implements BaseModelHandler<TestParameters, TestInput, TestOutput> {
+
+    private int requestCount = 0;
+
+    @Override
+    public void createClient(TestParameters parameters) {}
+
+    @Override
+    public Iterable<PredictionResult<TestInput, TestOutput>> request(List<TestInput> input) {
+      requestCount++;
+      // Fail 2 out of 3 requests. RetryHandler defaults to 3 max retries,
+      // so the 3rd attempt will succeed, avoiding pipeline failure while
+      // accumulating enough failures to trigger client-side throttling.
+      if (requestCount % 3 != 0) {
+        throw new RuntimeException("Intentional failure to trigger throttling");
+      }
+      return input.stream()
+          .map(i -> PredictionResult.create(i, new TestOutput("processed-" + i.getModelInput())))
+          .collect(Collectors.toList());
     }
   }
 
@@ -518,36 +543,54 @@ public class RemoteInferenceTest {
     pipeline.run().waitUntilFinish();
   }
 
-  // Temporary behaviour until we introduce java BatchElements transform
-  // to batch elements in RemoteInference
-  @Test
-  public void testMultipleInputsProduceSeparateBatches() {
-    List<TestInput> inputs = Arrays.asList(new TestInput("input1"), new TestInput("input2"));
+  private static class GenerateInputsFn
+      extends org.apache.beam.sdk.transforms.DoFn<Integer, TestInput> {
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      c.output(new TestInput("input1"));
+      c.output(new TestInput("input2"));
+    }
+  }
 
+  @Test
+  public void testBatchingProducesCombinedBatches() {
     TestParameters params = TestParameters.builder().setConfig("test-config").build();
 
+    // Use a single element to trigger generation of inputs within the same bundle,
+    // ensuring DirectRunner doesn't split them before BatchElements processes them.
     PCollection<TestInput> inputCollection =
-        pipeline.apply(
-            "CreateInputs", Create.of(inputs).withCoder(SerializableCoder.of(TestInput.class)));
+        pipeline
+            .apply("CreateTrigger", Create.of(1))
+            .apply(
+                "GenerateInputs", org.apache.beam.sdk.transforms.ParDo.of(new GenerateInputsFn()))
+            .setCoder(SerializableCoder.of(TestInput.class));
+
+    // Configure BatchElements to force a batch of exactly 2
+    org.apache.beam.sdk.transforms.BatchElements.BatchConfig batchConfig =
+        org.apache.beam.sdk.transforms.BatchElements.BatchConfig.builder()
+            .withMinBatchSize(2)
+            .withMaxBatchSize(2)
+            .build();
 
     PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
         inputCollection.apply(
             "RemoteInference",
             RemoteInference.<TestInput, TestOutput>invoke()
                 .handler(MockSuccessHandler.class)
+                .withBatchConfig(batchConfig)
                 .withParameters(params));
 
     PAssert.that(results)
         .satisfies(
             batches -> {
               int batchCount = 0;
+              int totalElements = 0;
               for (Iterable<PredictionResult<TestInput, TestOutput>> batch : batches) {
                 batchCount++;
-                int elementCount = (int) StreamSupport.stream(batch.spliterator(), false).count();
-                // Each batch should contain exactly 1 element
-                assertEquals("Each batch should contain 1 element", 1, elementCount);
+                totalElements += (int) StreamSupport.stream(batch.spliterator(), false).count();
               }
-              assertEquals("Expected 2 batches", 2, batchCount);
+              assertEquals("Expected 1 batch", 1, batchCount);
+              assertEquals("Total output elements should be 2", 2, totalElements);
               return null;
             });
 
@@ -598,5 +641,80 @@ public class RemoteInferenceTest {
     assertTrue(
         "Expected message to contain 'handler() is required', but got: " + thrown.getMessage(),
         thrown.getMessage().contains("handler() is required"));
+  }
+
+  @Test
+  public void testThrottlingBehavior() {
+    TestParameters params = TestParameters.builder().setConfig("test-config").build();
+
+    // Create enough inputs to ensure throttling probabilistically triggers
+    List<TestInput> inputs = new ArrayList<>();
+    for (int i = 0; i < 30; i++) {
+      inputs.add(new TestInput("input" + i));
+    }
+
+    PCollection<TestInput> inputCollection =
+        pipeline.apply(
+            "CreateInputs", Create.of(inputs).withCoder(SerializableCoder.of(TestInput.class)));
+
+    // Configure BatchElements to force a batch of exactly 1 so we get enough requests
+    org.apache.beam.sdk.transforms.BatchElements.BatchConfig batchConfig =
+        org.apache.beam.sdk.transforms.BatchElements.BatchConfig.builder()
+            .withMinBatchSize(1)
+            .withMaxBatchSize(1)
+            .build();
+
+    PCollection<Iterable<PredictionResult<TestInput, TestOutput>>> results =
+        inputCollection.apply(
+            "RemoteInference",
+            RemoteInference.<TestInput, TestOutput>invoke()
+                .handler(MockThrottlingHandler.class)
+                .withBatchConfig(batchConfig)
+                // Use large sample periods so the 1s retry delay doesn't flush the history
+                .withSamplePeriodMs(60000L)
+                .withSampleUpdateMs(60000L)
+                // Set to 1 second to minimize test wait time while still verifying throttling
+                .withThrottleDelaySecs(1)
+                .withOverloadRatio(1.1)
+                .withParameters(params));
+
+    PAssert.that(results)
+        .satisfies(
+            batches -> {
+              int totalElements = 0;
+              for (Iterable<PredictionResult<TestInput, TestOutput>> batch : batches) {
+                totalElements += (int) StreamSupport.stream(batch.spliterator(), false).count();
+              }
+              assertEquals("Expected all 30 elements to succeed", 30, totalElements);
+              return null;
+            });
+
+    org.apache.beam.sdk.PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+
+    // Verify that the throttling metrics were populated.
+    // The metric name is defined by Metrics.THROTTLE_TIME_COUNTER_NAME which evaluates to
+    // "cumulativeThrottlingSeconds".
+    org.apache.beam.sdk.metrics.MetricQueryResults metrics =
+        result
+            .metrics()
+            .queryMetrics(
+                org.apache.beam.sdk.metrics.MetricsFilter.builder()
+                    .addNameFilter(
+                        org.apache.beam.sdk.metrics.MetricNameFilter.named(
+                            "RemoteInference",
+                            org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME))
+                    .build());
+
+    // Throttling may not trigger if random numbers are very skewed, but with 30 elements * 2
+    // failures each = 60 failures,
+    // and overloadRatio=1.1, the chance of not throttling at least once is very small.
+    // If this test becomes flaky, increase the number of inputs.
+    boolean hasThrottled =
+        StreamSupport.stream(metrics.getCounters().spliterator(), false)
+            .anyMatch(
+                metricResult -> metricResult.getAttempted() > 0 || metricResult.getCommitted() > 0);
+
+    assertTrue("Expected client-side throttling to trigger at least once", hasThrottled);
   }
 }

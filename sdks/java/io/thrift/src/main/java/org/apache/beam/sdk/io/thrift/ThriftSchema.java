@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.thrift;
 
 import static java.util.Collections.unmodifiableMap;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
@@ -121,6 +122,10 @@ public final class ThriftSchema extends GetterBasedSchemaProviderV2 {
    *
    * @see #custom() for how to manually pass the beam type for container typedefs
    */
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "The default provider holds an empty typedef map that is never mutated. Callers needing typedefs go through custom(), which builds a separate instance.")
   public static @NonNull SchemaProvider provider() {
     return defaultProvider;
   }

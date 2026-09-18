@@ -19,12 +19,13 @@ on:
   workflow_dispatch:
     inputs:
       RELEASE:
-        description: Beam version of current release (e.g. 2.XX.0)
-        required: true
+        description: Beam version of current release (pass in empty string for nightly SNAPSHOT)
+        required: false
         default: '2.XX.0'
       SNAPSHOT_URL:
-        description: Location of the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/).
-        required: true
+        description: Location of the staged artifacts in Maven central (https://repository.apache.org/content/repositories/orgapachebeam-NNNN/ or leave empty for snapshots).
+        required: false
+        default: ''
   schedule:
     - cron: '15 16 * * *'
 
@@ -55,6 +56,8 @@ jobs:
     runs-on: [self-hosted, ubuntu-24.04, highmem]
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -72,4 +75,6 @@ jobs:
             -PmavenLocalPath='${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'
       - name: Clean up local maven
         if: steps.setup_local_maven.outcome == 'success'
-        run: rm -rf '${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}'
+        run: rm -rf '${STEPS_SETUP_LOCAL_MAVEN_OUTPUTS_NEW_TEMP_DIR}'
+        env:
+          STEPS_SETUP_LOCAL_MAVEN_OUTPUTS_NEW_TEMP_DIR: ${{ steps.setup_local_maven.outputs.NEW_TEMP_DIR }}

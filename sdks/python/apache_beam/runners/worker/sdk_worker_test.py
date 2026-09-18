@@ -296,6 +296,44 @@ class SdkWorkerTest(unittest.TestCase):
         worker.do_instruction(split_request).error,
         hc.contains_string('test message'))
 
+  def test_failed_instruction_id_cache_size_is_capped(self):
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    with mock.patch(
+        'apache_beam.runners.worker.sdk_worker.MAX_FAILED_INSTRUCTIONS', 10):
+      for i in range(15):
+        bundle_processor_cache.discard(f'inst_{i}', RuntimeError(f'error {i}'))
+
+      for i in range(5):
+        self.assertNotIn(
+            f'inst_{i}', bundle_processor_cache.failed_instruction_ids)
+      for i in range(5, 15):
+        self.assertIn(
+            f'inst_{i}', bundle_processor_cache.failed_instruction_ids)
+
+  def test_failed_instruction_tracebacks_are_truncated_when_too_long(self):
+    data_channel_factory = mock.create_autospec(
+        data_plane.GrpcClientDataChannelFactory)
+    bundle_processor_cache = BundleProcessorCache(
+        None, None, data_channel_factory, {})
+    if bundle_processor_cache.periodic_shutdown:
+      bundle_processor_cache.periodic_shutdown.cancel()
+
+    long_message = "x" * 15000
+    bundle_processor_cache.discard('instruction_id', RuntimeError(long_message))
+
+    stored_exception = bundle_processor_cache.failed_instruction_ids[
+        'instruction_id']
+    tb_str = str(stored_exception)
+
+    self.assertLessEqual(len(tb_str), 13000)
+    self.assertIn('[traceback truncated]', tb_str)
+
   def test_data_sampling_response(self):
     # Create a data sampler with some fake sampled data. This data will be seen
     # in the sample response.
@@ -373,6 +411,26 @@ class SdkWorkerTest(unittest.TestCase):
       worker.process_bundle(request, instruction_id)
 
     self.assertIn(instruction_id, channel._cleaned_instruction_ids)
+
+  def test_process_bundle_passes_data_stream_id(self):
+    mock_bundle_processor = mock.MagicMock()
+    mock_bundle_processor.process_bundle.return_value = ([], False)
+    mock_bundle_processor.monitoring_infos.return_value = []
+    mock_bundle_processor.state_handler.process_instruction_id.return_value = contextlib.nullcontext(
+    )
+
+    bundle_processor_cache = mock.MagicMock()
+    bundle_processor_cache.get.return_value = mock_bundle_processor
+
+    worker = SdkWorker(bundle_processor_cache)
+    instruction_id = 'instruction_id'
+    request = beam_fn_api_pb2.ProcessBundleRequest(
+        process_bundle_descriptor_id='descriptor_id',
+        data_stream_id='stream_xyz')
+
+    worker.process_bundle(request, instruction_id)
+    mock_bundle_processor.process_bundle.assert_called_once_with(
+        instruction_id, 'stream_xyz')
 
 
 class CachingStateHandlerTest(unittest.TestCase):

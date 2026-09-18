@@ -290,7 +290,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         extractHistogramUpdates(histograms));
   }
 
-  /** @return The MonitoringInfo metadata from the metric. */
+  /**
+   * @return The MonitoringInfo metadata from the metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder metricToMonitoringMetadata(
       MetricKey metricKey, String typeUrn, String userUrn) {
     SimpleMonitoringInfoBuilder builder = new SimpleMonitoringInfoBuilder(true);
@@ -339,7 +341,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return builder.build();
   }
 
-  /** @return The MonitoringInfo metadata from the counter metric. */
+  /**
+   * @return The MonitoringInfo metadata from the counter metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder counterToMonitoringMetadata(MetricKey metricKey) {
     return metricToMonitoringMetadata(
         metricKey,
@@ -347,7 +351,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         MonitoringInfoConstants.Urns.USER_SUM_INT64);
   }
 
-  /** @return The MonitoringInfo generated from the counter metricUpdate. */
+  /**
+   * @return The MonitoringInfo generated from the counter metricUpdate.
+   */
   private @Nullable MonitoringInfo counterUpdateToMonitoringInfo(MetricUpdate<Long> metricUpdate) {
     SimpleMonitoringInfoBuilder builder = counterToMonitoringMetadata(metricUpdate.getKey());
     if (builder == null) {
@@ -357,7 +363,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return builder.build();
   }
 
-  /** @return The MonitoringInfo metadata from the distribution metric. */
+  /**
+   * @return The MonitoringInfo metadata from the distribution metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder distributionToMonitoringMetadata(
       MetricKey metricKey) {
     return metricToMonitoringMetadata(
@@ -380,7 +388,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return builder.build();
   }
 
-  /** @return The MonitoringInfo metadata from the gauge metric. */
+  /**
+   * @return The MonitoringInfo metadata from the gauge metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder gaugeToMonitoringMetadata(MetricKey metricKey) {
     return metricToMonitoringMetadata(
         metricKey,
@@ -402,7 +412,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
     return builder.build();
   }
 
-  /** @return The MonitoringInfo metadata from the string set metric. */
+  /**
+   * @return The MonitoringInfo metadata from the string set metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder stringSetToMonitoringMetadata(MetricKey metricKey) {
     return metricToMonitoringMetadata(
         metricKey,
@@ -410,7 +422,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         MonitoringInfoConstants.Urns.USER_SET_STRING);
   }
 
-  /** @return The MonitoringInfo metadata from the string set metric. */
+  /**
+   * @return The MonitoringInfo metadata from the string set metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder boundedTrieToMonitoringMetadata(
       MetricKey metricKey) {
     return metricToMonitoringMetadata(
@@ -419,7 +433,9 @@ public class MetricsContainerImpl implements Serializable, MetricsContainer {
         MonitoringInfoConstants.Urns.USER_BOUNDED_TRIE);
   }
 
-  /** @return The MonitoringInfo metadata from the histogram metric. */
+  /**
+   * @return The MonitoringInfo metadata from the histogram metric.
+   */
   private @Nullable SimpleMonitoringInfoBuilder histogramToMonitoringMetadata(MetricKey metricKey) {
     return metricToMonitoringMetadata(
         metricKey,
