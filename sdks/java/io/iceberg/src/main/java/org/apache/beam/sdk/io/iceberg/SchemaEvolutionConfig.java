@@ -56,6 +56,19 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * decides whether that fails the pipeline before any schema commit (the batch default) or skips the
  * schema so its files reach the error output (the streaming default). Files whose footer cannot be
  * read or converted always go to the error output and never fail the pipeline.
+ *
+ * <p><b>Dry run.</b> Reports what a real run would do, per distinct file schema, on the {@code
+ * dry_run_report} output; nothing is committed or registered. The report is a PCollection like any
+ * other, so attach a sink to keep it; the rendered table is also logged at INFO and its totals are
+ * published as counters ({@code numDryRunFilesAllowed}, {@code numDryRunFilesIncompatible}, {@code
+ * numDryRunFilesUnreadable}, {@code numDryRunFilesUnchecked}, {@code numDryRunConfigProblems}).
+ * Read the summary row first: {@code allowed} is the verdict and {@code reason} the consequence;
+ * then each row with {@code allowed} false names the option or conflict to fix; a {@code create}
+ * row shows the table a real run would create. Adjust the settings, rerun until the summary is
+ * allowed, then run for real with an error output attached. Against a missing table the dry run
+ * computes the union through the catalog's create-transaction API, which a REST catalog serves as a
+ * stage-create request: the credentials need table-create permission even though no table is
+ * created.
  */
 @AutoValue
 public abstract class SchemaEvolutionConfig implements Serializable {
@@ -105,6 +118,12 @@ public abstract class SchemaEvolutionConfig implements Serializable {
   }
 
   /**
+   * Report what the pre-pass would do on the {@code dry_run_report} output (one row per distinct
+   * file schema plus a summary row per window); commit and register nothing.
+   */
+  public abstract boolean getDryRun();
+
+  /**
    * Unset resolves by mode: {@code FAIL_PIPELINE} in batch, {@code ROUTE_TO_ERRORS} in streaming.
    */
   public abstract @Nullable IncompatibleSchemaHandling getIncompatibleSchemaHandling();
@@ -144,7 +163,8 @@ public abstract class SchemaEvolutionConfig implements Serializable {
     return new AutoValue_SchemaEvolutionConfig.Builder()
         .setOptions(Collections.emptySet())
         .setRequiredColumns(Collections.emptySet())
-        .setUnverifiableFileHandling(UnverifiableFileHandling.REJECT);
+        .setUnverifiableFileHandling(UnverifiableFileHandling.REJECT)
+        .setDryRun(false);
   }
 
   @AutoValue.Builder
@@ -157,6 +177,8 @@ public abstract class SchemaEvolutionConfig implements Serializable {
         @Nullable IncompatibleSchemaHandling handling);
 
     public abstract Builder setUnverifiableFileHandling(UnverifiableFileHandling handling);
+
+    public abstract Builder setDryRun(boolean dryRun);
 
     abstract SchemaEvolutionConfig autoBuild();
 
@@ -172,10 +194,11 @@ public abstract class SchemaEvolutionConfig implements Serializable {
       Preconditions.checkArgument(
           config.isEnabled()
               || (config.getRequiredColumns().isEmpty()
+                  && !config.getDryRun()
                   && config.getIncompatibleSchemaHandling() == null
                   && config.getUnverifiableFileHandling() == UnverifiableFileHandling.REJECT),
-          "required columns, incompatible schema handling and unverifiable file handling need at"
-              + " least one schema evolution option");
+          "required columns, dry run, incompatible schema handling and unverifiable file"
+              + " handling need at least one schema evolution option");
       return config;
     }
   }

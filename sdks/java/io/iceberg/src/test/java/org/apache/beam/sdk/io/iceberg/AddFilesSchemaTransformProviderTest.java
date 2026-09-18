@@ -138,6 +138,20 @@ public class AddFilesSchemaTransformProviderTest {
   }
 
   @Test
+  public void testDryRunParsed() {
+    SchemaEvolutionConfig config =
+        base()
+            .setSchemaEvolutionOptions(Arrays.asList("ALLOW_FIELD_ADDITION"))
+            .setDryRun(true)
+            .build()
+            .getSchemaEvolution();
+    assertNotNull(config);
+    assertTrue(config.getDryRun());
+    assertThrows(
+        IllegalArgumentException.class, () -> base().setDryRun(true).build().getSchemaEvolution());
+  }
+
+  @Test
   public void testRouteToErrorsWithoutErrorHandlingRejected() {
     IllegalArgumentException e =
         assertThrows(
