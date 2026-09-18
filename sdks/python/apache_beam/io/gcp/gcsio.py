@@ -240,6 +240,10 @@ class GcsIO(object):
         gcsio_retry.get_retry(pipeline_options) if GCS_INSTALLED else None)
     self._use_blob_generation = getattr(
         google_cloud_options, 'enable_gcsio_blob_generation', False)
+    self._read_buffer_size = getattr(
+        google_cloud_options, 'gcs_read_buffer_size_bytes', None)
+    if self._read_buffer_size is None:
+      self._read_buffer_size = DEFAULT_READ_BUFFER_SIZE
 
   def get_project_number(self, bucket):
     if bucket not in self.bucket_to_project_number:
@@ -286,7 +290,7 @@ class GcsIO(object):
       self,
       filename,
       mode='r',
-      read_buffer_size=DEFAULT_READ_BUFFER_SIZE,
+      read_buffer_size=None,
       mime_type='application/octet-stream'):
     """Open a GCS file path for reading or writing.
 
@@ -294,6 +298,9 @@ class GcsIO(object):
       filename (str): GCS file path in the form ``gs://<bucket>/<object>``.
       mode (str): ``'r'`` for reading or ``'w'`` for writing.
       read_buffer_size (int): Buffer size to use during read operations.
+        Defaults to the value of the ``--gcs_read_buffer_size_bytes``
+        pipeline option, or ``DEFAULT_READ_BUFFER_SIZE`` when that option is
+        not set.
       mime_type (str): Mime type to set for write operations.
 
     Returns:
@@ -302,6 +309,9 @@ class GcsIO(object):
     Raises:
       ValueError: Invalid open file mode.
     """
+    if read_buffer_size is None:
+      read_buffer_size = self._read_buffer_size
+
     bucket_name, blob_name = parse_gcs_path(filename)
     bucket = self.client.bucket(bucket_name)
 
