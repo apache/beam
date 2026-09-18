@@ -124,6 +124,10 @@ def _safe_issubclass(derived, parent):
   Returns:
     issubclass(derived, parent), or False if a TypeError was raised.
   """
+  # Note: CPython behavior change between 3.12 and 3.13 in issubclass()
+  # with types.GenericAlias (e.g. tuple[int, str]):
+  # py<=3.12 return False; py>=3.13 throws TypeError. The following
+  # logic handles both scenario
   try:
     if issubclass(derived, parent):
       return True

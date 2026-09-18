@@ -1555,6 +1555,7 @@ class FixedTupleLogicalType(NoArgumentLogicalType[tuple, Any]):
   """Logical type representing fixed-length Python tuples backed by a Row."""
   def __init__(self, tuple_types: Sequence[type] = ()):
     self._tuple_types = tuple(tuple_types)
+    self._namedtuple_cls = _get_tuple_namedtuple(len(self._tuple_types))
 
   @classmethod
   def urn(cls):
@@ -1578,8 +1579,11 @@ class FixedTupleLogicalType(NoArgumentLogicalType[tuple, Any]):
         fields, schema_options=options)
 
   def to_representation_type(self, value):
-    cls = _get_tuple_namedtuple(len(value))
-    return cls(*value)
+    if len(value) != len(self._tuple_types):
+      raise ValueError(
+          f"Tuple length mismatch: expected {len(self._tuple_types)}, "
+          f"got {len(value)}")
+    return self._namedtuple_cls(*value)
 
   def to_language_type(self, value):
     return tuple(value)

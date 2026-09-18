@@ -532,6 +532,12 @@ class RowCoderTest(unittest.TestCase):
     d = {decoded.homo_tuple: "val1", decoded.fixed_tuple: "val2"}
     self.assertEqual(d[("a", "b")], "val1")
     self.assertEqual(d[("hello", 42)], "val2")
+    # Verify length mismatch raises ValueError instead of silent truncation
+    with self.assertRaises(ValueError):
+      coder.encode(
+          TupleRecord("k1", ("hello", 42, "extra"), (1, 2, 3), ("a", "b")))
+    with self.assertRaises(ValueError):
+      coder.encode(TupleRecord("k1", ("hello", ), (1, 2, 3), ("a", "b")))
 
   def test_static_encoding(self):
     schema = schema_pb2.Schema(
