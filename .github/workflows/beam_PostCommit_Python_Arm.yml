@@ -97,7 +97,7 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       # aarch64 wheels are built with cibuildwheel on this x86 runner.
-      - uses: docker/setup-qemu-action@1f40c72289eff860ee54a304f1438e3cff362e0a
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
         name: Set up QEMU
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
