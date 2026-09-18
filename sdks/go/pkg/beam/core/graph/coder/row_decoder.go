@@ -241,6 +241,24 @@ func reflectDecodeUint(rv reflect.Value, r io.Reader) error {
 	return nil
 }
 
+func reflectDecodeInt16(rv reflect.Value, r io.Reader) error {
+	v, err := DecodeInt16(r)
+	if err != nil {
+		return errors.Wrap(err, "error decoding int16 field")
+	}
+	rv.SetInt(int64(v))
+	return nil
+}
+
+func reflectDecodeUint16(rv reflect.Value, r io.Reader) error {
+	v, err := DecodeUint16(r)
+	if err != nil {
+		return errors.Wrap(err, "error decoding uint16 field")
+	}
+	rv.SetUint(uint64(v))
+	return nil
+}
+
 func reflectDecodeSinglePrecisionFloat(rv reflect.Value, r io.Reader) error {
 	v, err := DecodeSinglePrecisionFloat(r)
 	if err != nil {
@@ -341,10 +359,14 @@ func (b *RowDecoderBuilder) decoderForSingleTypeReflect(t reflect.Type) (typeDec
 		return typeDecoderFieldReflect{decode: reflectDecodeByte}, nil
 	case reflect.String:
 		return typeDecoderFieldReflect{decode: reflectDecodeString}, nil
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+	case reflect.Int, reflect.Int8, reflect.Int32, reflect.Int64:
 		return typeDecoderFieldReflect{decode: reflectDecodeInt}, nil
-	case reflect.Uint, reflect.Uint64, reflect.Uint32, reflect.Uint16:
+	case reflect.Int16:
+		return typeDecoderFieldReflect{decode: reflectDecodeInt16}, nil
+	case reflect.Uint, reflect.Uint64, reflect.Uint32:
 		return typeDecoderFieldReflect{decode: reflectDecodeUint}, nil
+	case reflect.Uint16:
+		return typeDecoderFieldReflect{decode: reflectDecodeUint16}, nil
 	case reflect.Float32:
 		return typeDecoderFieldReflect{decode: reflectDecodeSinglePrecisionFloat}, nil
 	case reflect.Float64:
@@ -412,4 +434,24 @@ type typeDecoderFieldReflect struct {
 	// If true the decoder is expecting us to pass it the address
 	// of the field value (i.e. &foo.bar) and not the field value (i.e. foo.bar).
 	addr bool
+}
+
+// fieldDecoderForType returns a decoder for values of t, using the encoding
+// of t as a row field.
+func (b *RowDecoderBuilder) fieldDecoderForType(t reflect.Type) (func(io.Reader) (any, error), error) {
+	decf, err := b.decoderForSingleTypeReflect(t)
+	if err != nil {
+		return nil, err
+	}
+	return func(r io.Reader) (any, error) {
+		rv := reflect.New(t)
+		v := rv.Elem()
+		if decf.addr {
+			v = rv
+		}
+		if err := decf.decode(v, r); err != nil {
+			return nil, err
+		}
+		return rv.Elem().Interface(), nil
+	}, nil
 }

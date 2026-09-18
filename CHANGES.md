@@ -69,10 +69,12 @@
 ## New Features / Improvements
 
 * X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Go) Added `schema.RegisterLogicalTypeConversion` and `schema.RegisterLogicalTypeCoder` to register portable logical types in one call, and Go types for the standard `beam:logical_type:date:v1` and `beam:logical_type:micros_instant:v1` logical types, so schemas from other SDKs with these types can be used in cross-language pipelines ([#39684](https://github.com/apache/beam/issues/39684)).
 
 ## Breaking Changes
 
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Go) The row coder now encodes `int16` and `uint16` struct fields as 2 byte big endian INT16 values, matching the Java and Python SDKs. Rows with such fields written by earlier Go SDK versions decode differently with this version ([#40151](https://github.com/apache/beam/issues/40151)).
 
 ## Deprecations
 
