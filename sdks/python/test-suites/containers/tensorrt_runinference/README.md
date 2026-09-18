@@ -32,9 +32,12 @@ The TensorRT tests load pre-built engines from `gs://apache-beam-ml/models/`:
 
 | Engine | Used by |
 | --- | --- |
-| `single_tensor_features_engine.trt` | `tensorrt_inference_test.py` |
-| `multiple_tensor_features_engine.trt` | `tensorrt_inference_test.py` |
-| `ssd_mobilenet_v2_320x320_coco17_tpu-8.trt` | the `tensorRTtests` Dataflow integration test |
+| `single_tensor_features_engine_trt11.trt` | `tensorrt_inference_test.py` |
+| `multiple_tensor_features_engine_trt11.trt` | `tensorrt_inference_test.py` |
+| `ssd_mobilenet_v2_320x320_coco17_tpu-8_trt11.trt` | the `tensorRTtests` Dataflow integration test |
+
+The unsuffixed objects next to them are the original TensorRT 8.x engines, kept for reference.
+They are not loadable by any currently supported Beam version.
 
 **A serialized TensorRT engine is not portable.** It can only be deserialized by the
 same TensorRT major version and the same GPU architecture that built it. So these files
