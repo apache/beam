@@ -30,13 +30,17 @@ import org.joda.time.Instant;
  * roughly monotonically increasing with a cap on out of order event delays (say 1 minute). The
  * watermark at any time is '({@code Min(now(), Max(event timestamp so far)) - max delay})'.
  * However, watermark is never set in future and capped to 'now - max delay'. In addition, watermark
- * advanced to 'now - max delay' when a partition is idle.
+ * advanced to 'now - max delay' when a partition is idle. This applies to a partition which is
+ * caught up but has never delivered a record too, so a quiet partition does not hold a stage's
+ * watermark at {@link BoundedWindow#TIMESTAMP_MIN_VALUE}. The watermark returned never moves
+ * backwards.
  */
 public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy<K, V> {
 
   private final Duration maxDelay;
   private final SerializableFunction<KafkaRecord<K, V>, Instant> timestampFunction;
   private Instant maxEventTimestamp;
+  private Instant lastWatermark;
 
   /**
    * A policy for custom record timestamps where timestamps are expected to be roughly monotonically
@@ -59,6 +63,7 @@ public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy
     // 'previousWatermark' is not the same as maxEventTimestamp (e.g. it could have been in future).
     // Initialize it such that watermark before reading any event same as previousWatermark.
     maxEventTimestamp = previousWatermark.orElse(BoundedWindow.TIMESTAMP_MIN_VALUE).plus(maxDelay);
+    lastWatermark = maxEventTimestamp.minus(maxDelay);
   }
 
   @Override
@@ -86,11 +91,27 @@ public class CustomTimestampPolicyWithLimitedDelay<K, V> extends TimestampPolicy
 
   @VisibleForTesting
   Instant getWatermark(PartitionContext ctx, Instant now) {
+    // The watermark must not move backwards. The idle branch answers from 'backlogCheckTime' while
+    // the fallback answers from 'maxEventTimestamp', and only the latter is advanced by records, so
+    // without this clamp a partition which advanced while idle would regress all the way back to
+    // 'maxEventTimestamp - maxDelay' the moment its first record arrived.
+    Instant candidate = candidateWatermark(ctx, now);
+    if (candidate.isAfter(lastWatermark)) {
+      lastWatermark = candidate;
+    }
+    return lastWatermark;
+  }
+
+  private Instant candidateWatermark(PartitionContext ctx, Instant now) {
     if (maxEventTimestamp.isAfter(now)) {
       return now.minus(maxDelay); // (a) above.
     } else if (ctx.getMessageBacklog() == 0
-        && ctx.getBacklogCheckTime().minus(maxDelay).isAfter(maxEventTimestamp) // Idle
-        && maxEventTimestamp.getMillis() > 0) { // Read at least one record with positive timestamp.
+        && ctx.getBacklogCheckTime().minus(maxDelay).isAfter(maxEventTimestamp)) { // Idle
+      // A zero backlog means the reader has a position and knows it is at the log end, so no
+      // unread record can arrive late regardless of whether one has ever been read. Requiring a
+      // record to have been read here as well would pin a partition which is caught up but has
+      // delivered nothing since the job started at 'maxEventTimestamp - maxDelay' forever, because
+      // only a delivered record can advance 'maxEventTimestamp'.
       return ctx.getBacklogCheckTime().minus(maxDelay);
     } else {
       return maxEventTimestamp.minus(maxDelay);
