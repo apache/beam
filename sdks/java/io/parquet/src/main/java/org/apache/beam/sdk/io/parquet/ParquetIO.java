@@ -45,6 +45,7 @@ import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.io.FileIO;
 import org.apache.beam.sdk.io.FileIO.ReadableFile;
+import org.apache.beam.sdk.io.fs.MatchResult;
 import org.apache.beam.sdk.io.hadoop.SerializableConfiguration;
 import org.apache.beam.sdk.io.parquet.ParquetIO.ReadFiles.SplitReadFn;
 import org.apache.beam.sdk.io.range.OffsetRange;
@@ -61,6 +62,7 @@ import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.hadoop.conf.Configuration;
@@ -719,6 +721,14 @@ public class ParquetIO {
 
       private final SerializableFunction<GenericRecord, T> parseFn;
 
+      /**
+       * Row group metadata of the most recently accessed file, and the metadata of the file it was
+       * read from. Guarded by {@code this}; see {@link #getRowGroups}.
+       */
+      private transient @Nullable MatchResult.Metadata cachedFileMetadata;
+
+      private transient @Nullable List<BlockMetaData> cachedRowGroups;
+
       SplitReadFn(
           GenericData model,
           Schema requestSchema,
@@ -734,6 +744,34 @@ public class ParquetIO {
       private ParquetFileReader getParquetFileReader(ReadableFile file) throws Exception {
         ParquetReadOptions options = HadoopReadOptions.builder(getConfWithModelClass()).build();
         return ParquetFileReader.open(new BeamParquetInputFile(file.openSeekable()), options);
+      }
+
+      /**
+       * Returns the row group metadata of {@code file}, reading the Parquet footer only if it is
+       * not already cached.
+       *
+       * <p>{@link #getInitialRestriction}, {@link #split}, {@link #newTracker} and {@link #getSize}
+       * all need nothing from the file but its row group metadata, and the runner may invoke them
+       * repeatedly for the same element: {@link #getSize} and {@link #newTracker} are called on
+       * every dynamic split attempt. Opening a {@link ParquetFileReader} each time re-reads the
+       * footer, which costs a round trip per call on object stores such as GCS or S3. Caching the
+       * last file's row groups reduces that to one footer read per file.
+       *
+       * <p>This is synchronized because a runner may invoke the size and tracker callbacks from a
+       * different thread than the one processing the bundle, concurrently with {@link
+       * #processElement}.
+       */
+      private synchronized List<BlockMetaData> getRowGroups(ReadableFile file) throws Exception {
+        MatchResult.Metadata fileMetadata = file.getMetadata();
+        List<BlockMetaData> rowGroups = cachedRowGroups;
+        if (rowGroups == null || !fileMetadata.equals(cachedFileMetadata)) {
+          try (ParquetFileReader reader = getParquetFileReader(file)) {
+            rowGroups = ImmutableList.copyOf(reader.getRowGroups());
+          }
+          cachedRowGroups = rowGroups;
+          cachedFileMetadata = fileMetadata;
+        }
+        return rowGroups;
       }
 
       @ProcessElement
@@ -855,9 +893,7 @@ public class ParquetIO {
 
       @GetInitialRestriction
       public OffsetRange getInitialRestriction(@Element ReadableFile file) throws Exception {
-        try (ParquetFileReader reader = getParquetFileReader(file)) {
-          return new OffsetRange(0, reader.getRowGroups().size());
-        }
+        return new OffsetRange(0, getRowGroups(file).size());
       }
 
       @SplitRestriction
@@ -866,13 +902,11 @@ public class ParquetIO {
           OutputReceiver<OffsetRange> out,
           @Element ReadableFile file)
           throws Exception {
-        try (ParquetFileReader reader = getParquetFileReader(file)) {
-          List<BlockMetaData> rowGroups = reader.getRowGroups();
-          for (OffsetRange offsetRange :
-              splitBlockWithLimit(
-                  restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
-            out.output(offsetRange);
-          }
+        List<BlockMetaData> rowGroups = getRowGroups(file);
+        for (OffsetRange offsetRange :
+            splitBlockWithLimit(
+                restriction.getFrom(), restriction.getTo(), rowGroups, SPLIT_LIMIT)) {
+          out.output(offsetRange);
         }
       }
 
@@ -918,16 +952,15 @@ public class ParquetIO {
 
       private CountAndSize getRecordCountAndSize(ReadableFile file, OffsetRange restriction)
           throws Exception {
-        try (ParquetFileReader reader = getParquetFileReader(file)) {
-          double size = 0;
-          double recordCount = 0;
-          for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
-            BlockMetaData block = reader.getRowGroups().get((int) i);
-            recordCount += block.getRowCount();
-            size += block.getTotalByteSize();
-          }
-          return CountAndSize.create(recordCount, size);
+        List<BlockMetaData> rowGroups = getRowGroups(file);
+        double size = 0;
+        double recordCount = 0;
+        for (long i = restriction.getFrom(); i < restriction.getTo(); i++) {
+          BlockMetaData block = rowGroups.get((int) i);
+          recordCount += block.getRowCount();
+          size += block.getTotalByteSize();
         }
+        return CountAndSize.create(recordCount, size);
       }
 
       @AutoValue

@@ -33,6 +33,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.text.ParseException;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -81,6 +82,12 @@ public abstract class LoadTestBase {
       Pattern.compile(
           "^All workers have finished the startup processes and began to receive work requests.*$");
   private static final Pattern WORKER_STOP_PATTERN = Pattern.compile("^Stopping worker pool.*$");
+
+  /** How often Cloud Monitoring is polled for the data of a job that just finished. */
+  private static final Duration METRICS_POLL_INTERVAL = Duration.ofSeconds(20);
+
+  /** How long Cloud Monitoring is polled at most before giving up on the data of a job. */
+  private static final Duration METRICS_POLL_TIMEOUT = Duration.ofMinutes(6);
 
   protected static final Credentials CREDENTIALS = TestProperties.googleCredentials();
   protected static final CredentialsProvider CREDENTIALS_PROVIDER =
@@ -247,7 +254,8 @@ public abstract class LoadTestBase {
     metrics.put("ElapsedTime", monitoringClient.getElapsedTime(project, launchInfo));
 
     Double dataProcessed =
-        monitoringClient.getDataProcessed(project, launchInfo, config.inputPCollection());
+        monitoringClient.getDataProcessed(
+            project, launchInfo, inputPCollectionOf(launchInfo, config));
     if (dataProcessed != null) {
       metrics.put("EstimatedDataProcessedGB", dataProcessed / 1e9d);
     }
@@ -329,18 +337,88 @@ public abstract class LoadTestBase {
 
   protected Map<String, Double> getMetrics(LaunchInfo launchInfo, MetricsConfiguration config)
       throws IOException, InterruptedException, ParseException {
-    Map<String, Double> metrics = pipelineLauncher.getMetrics(project, region, launchInfo.jobId());
     if (launchInfo.runner().contains("Dataflow")) {
-      // monitoring metrics take up to 3 minutes to show up
-      // TODO(pranavbhandari): We should use a library like http://awaitility.org/ to poll for
-      // metrics instead of hard coding X minutes.
-      LOG.info("Sleeping for 4 minutes to query Dataflow runner metrics.");
-      Thread.sleep(Duration.ofMinutes(4).toMillis());
+      // Monitoring metrics take a few minutes to show up, so wait for them to be there instead of
+      // sleeping for a fixed amount of time.
+      waitUntilMonitoringDataAvailable(launchInfo);
+      // The job metrics are queried after the wait on purpose: they are not final right when the
+      // job finishes either, and computeDataflowMetrics() dereferences some of them.
+      Map<String, Double> metrics =
+          pipelineLauncher.getMetrics(project, region, launchInfo.jobId());
       computeDataflowMetrics(metrics, launchInfo, config);
-    } else if ("DirectRunner".equalsIgnoreCase(launchInfo.runner())) {
+      return metrics;
+    }
+    Map<String, Double> metrics = pipelineLauncher.getMetrics(project, region, launchInfo.jobId());
+    if ("DirectRunner".equalsIgnoreCase(launchInfo.runner())) {
       computeDirectMetrics(metrics, launchInfo);
     }
     return metrics;
+  }
+
+  /**
+   * Waits until Cloud Monitoring has data for the given job, for at most {@link
+   * #METRICS_POLL_TIMEOUT}.
+   *
+   * <p>Cloud Monitoring ingests the metrics of a job with a delay of a few minutes, so they are
+   * usually not queryable yet when the job finishes. Polling makes the wait last only as long as
+   * needed, and a job whose data never shows up is reported instead of silently producing metrics
+   * computed out of empty time series.
+   *
+   * @param launchInfo Job info of the job
+   * @return whether the monitoring data became available before the timeout
+   */
+  private boolean waitUntilMonitoringDataAvailable(LaunchInfo launchInfo)
+      throws InterruptedException {
+    LOG.info("Waiting for the monitoring data of {} to be available.", launchInfo.jobId());
+    Instant start = Instant.now();
+    Instant deadline = start.plus(METRICS_POLL_TIMEOUT);
+    while (true) {
+      if (monitoringDataAvailable(launchInfo)) {
+        LOG.info(
+            "Monitoring data of {} became available after {} seconds.",
+            launchInfo.jobId(),
+            Duration.between(start, Instant.now()).getSeconds());
+        return true;
+      }
+      if (!Instant.now().isBefore(deadline)) {
+        LOG.warn(
+            "No monitoring data found for {} after {} minutes. The metrics of this job are"
+                + " incomplete.",
+            launchInfo.jobId(),
+            METRICS_POLL_TIMEOUT.toMinutes());
+        return false;
+      }
+      Thread.sleep(METRICS_POLL_INTERVAL.toMillis());
+    }
+  }
+
+  /**
+   * Returns whether Cloud Monitoring has data for the given job. The elapsed time is used as the
+   * probe because it is reported by every job, batch or streaming.
+   */
+  private boolean monitoringDataAvailable(LaunchInfo launchInfo) {
+    try {
+      return monitoringClient.getElapsedTime(project, launchInfo) != null;
+    } catch (ParseException | RuntimeException e) {
+      LOG.warn("Error while querying the monitoring data of {}.", launchInfo.jobId(), e);
+      return false;
+    }
+  }
+
+  /** Returns the input PCollection name to query in Cloud Monitoring for the given job. */
+  private static @Nullable String inputPCollectionOf(
+      LaunchInfo jobInfo, MetricsConfiguration config) {
+    return RUNNER_V2.equals(jobInfo.runner())
+        ? config.inputPCollectionV2()
+        : config.inputPCollection();
+  }
+
+  /** Returns the output PCollection name to query in Cloud Monitoring for the given job. */
+  private static @Nullable String outputPCollectionOf(
+      LaunchInfo jobInfo, MetricsConfiguration config) {
+    return RUNNER_V2.equals(jobInfo.runner())
+        ? config.outputPCollectionV2()
+        : config.outputPCollection();
   }
 
   /**
@@ -372,14 +450,8 @@ public abstract class LoadTestBase {
   protected Map<String, Double> getThroughputMetrics(
       LaunchInfo jobInfo, MetricsConfiguration config, TimeInterval timeInterval) {
     String jobId = jobInfo.jobId();
-    String iColl =
-        RUNNER_V2.equals(jobInfo.runner())
-            ? config.inputPCollectionV2()
-            : config.inputPCollection();
-    String oColl =
-        RUNNER_V2.equals(jobInfo.runner())
-            ? config.outputPCollectionV2()
-            : config.outputPCollection();
+    String iColl = inputPCollectionOf(jobInfo, config);
+    String oColl = outputPCollectionOf(jobInfo, config);
     List<Double> inputThroughputBytesPerSec =
         monitoringClient.getThroughputBytesPerSecond(project, jobId, iColl, timeInterval);
     List<Double> inputThroughputElementsPerSec =

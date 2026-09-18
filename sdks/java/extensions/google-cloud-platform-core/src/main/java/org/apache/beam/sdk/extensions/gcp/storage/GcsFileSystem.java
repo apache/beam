@@ -77,25 +77,58 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
 
   private final GcsOptions options;
 
-  /** Number of copy operations performed. */
-  private Counter numCopies;
+  /** The {@code _count} and {@code _msec} counter pair for a single operation. */
+  private static class OpMetrics {
+    private final Counter count;
+    private final Counter msec;
 
-  /** Number of renames operations performed. */
-  private Counter numRenames;
+    OpMetrics(String operation) {
+      this.count = Metrics.counter(GcsUtil.METRIC_NAMESPACE, "gcs_op_" + operation + "_count");
+      this.msec = Metrics.counter(GcsUtil.METRIC_NAMESPACE, "gcs_op_" + operation + "_msec");
+    }
+  }
 
-  /** Time spent performing copies. */
-  private Counter copyTimeMsec;
+  /**
+   * Per-operation metrics, or null when {@link GcsOptions#getGcsPerformanceMetrics()} is off, which
+   * is the default. Every recording site tolerates null, so nothing is emitted unless asked for.
+   *
+   * <p>For {@link #open} and {@link #create} the elapsed time covers only channel setup, not the
+   * transfer; the bytes moved are counted by the {@code gcs_http_*} wire-byte counters.
+   */
+  private @Nullable OpMetrics copyMetrics;
 
-  /** Time spent performing renames. */
-  private Counter renameTimeMsec;
+  private @Nullable OpMetrics renameMetrics;
+  private @Nullable OpMetrics deleteMetrics;
+  private @Nullable OpMetrics matchGlobMetrics;
+  private @Nullable OpMetrics matchNonGlobMetrics;
+  private @Nullable OpMetrics openMetrics;
+  private @Nullable OpMetrics createMetrics;
+
+  /** Object listing pages fetched while expanding globs. */
+  private @Nullable Counter matchGlobPages;
 
   GcsFileSystem(GcsOptions options) {
     this.options = checkNotNull(options, "options");
     if (options.getGcsPerformanceMetrics()) {
-      numCopies = Metrics.counter(GcsFileSystem.class, "num_copies");
-      copyTimeMsec = Metrics.counter(GcsFileSystem.class, "copy_time_msec");
-      numRenames = Metrics.counter(GcsFileSystem.class, "num_renames");
-      renameTimeMsec = Metrics.counter(GcsFileSystem.class, "rename_time_msec");
+      copyMetrics = new OpMetrics("copy");
+      renameMetrics = new OpMetrics("rename");
+      deleteMetrics = new OpMetrics("delete");
+      matchGlobMetrics = new OpMetrics("match_glob");
+      matchNonGlobMetrics = new OpMetrics("match_nonglob");
+      openMetrics = new OpMetrics("open");
+      createMetrics = new OpMetrics("create");
+      matchGlobPages = Metrics.counter(GcsUtil.METRIC_NAMESPACE, "gcs_op_match_glob_pages");
+    }
+  }
+
+  /**
+   * Records a finished operation. Called from a finally block so that failed operations, which are
+   * often the slow ones, are counted too.
+   */
+  private static void record(@Nullable OpMetrics metrics, long count, Stopwatch stopwatch) {
+    if (metrics != null) {
+      metrics.count.inc(count);
+      metrics.msec.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
     }
   }
 
@@ -152,12 +185,22 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
           builder.setUploadBufferSizeBytes(
               ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
     }
-    return options.getGcsUtil().create(resourceId.getGcsPath(), builder.build());
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      return options.getGcsUtil().create(resourceId.getGcsPath(), builder.build());
+    } finally {
+      record(createMetrics, 1, stopwatch);
+    }
   }
 
   @Override
   protected ReadableByteChannel open(GcsResourceId resourceId) throws IOException {
-    return options.getGcsUtil().open(resourceId.getGcsPath());
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      return options.getGcsUtil().open(resourceId.getGcsPath());
+    } finally {
+      record(openMetrics, 1, stopwatch);
+    }
   }
 
   @Override
@@ -167,19 +210,23 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
       MoveOptions... moveOptions)
       throws IOException {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    options
-        .getGcsUtil()
-        .rename(toFilenames(srcResourceIds), toFilenames(destResourceIds), moveOptions);
-    stopwatch.stop();
-    if (options.getGcsPerformanceMetrics()) {
-      numRenames.inc(srcResourceIds.size());
-      renameTimeMsec.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    try {
+      options
+          .getGcsUtil()
+          .rename(toFilenames(srcResourceIds), toFilenames(destResourceIds), moveOptions);
+    } finally {
+      record(renameMetrics, srcResourceIds.size(), stopwatch);
     }
   }
 
   @Override
   protected void delete(Collection<GcsResourceId> resourceIds) throws IOException {
-    options.getGcsUtil().remove(toFilenames(resourceIds));
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      options.getGcsUtil().remove(toFilenames(resourceIds));
+    } finally {
+      record(deleteMetrics, resourceIds.size(), stopwatch);
+    }
   }
 
   @Override
@@ -202,11 +249,10 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
   protected void copy(List<GcsResourceId> srcResourceIds, List<GcsResourceId> destResourceIds)
       throws IOException {
     Stopwatch stopwatch = Stopwatch.createStarted();
-    options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
-    stopwatch.stop();
-    if (options.getGcsPerformanceMetrics()) {
-      numCopies.inc(srcResourceIds.size());
-      copyTimeMsec.inc(stopwatch.elapsed(TimeUnit.MILLISECONDS));
+    try {
+      options.getGcsUtil().copy(toFilenames(srcResourceIds), toFilenames(destResourceIds));
+    } finally {
+      record(copyMetrics, srcResourceIds.size(), stopwatch);
     }
   }
 
@@ -265,26 +311,35 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
         prefix,
         p.toString());
 
-    String pageToken = null;
-    List<Metadata> results = new ArrayList<>();
-    do {
-      Objects objects = options.getGcsUtil().listObjects(gcsPattern.getBucket(), prefix, pageToken);
-      if (objects.getItems() == null) {
-        break;
-      }
-
-      // Filter objects based on the regex.
-      for (StorageObject o : objects.getItems()) {
-        String name = o.getName();
-        // Skip directories, which end with a slash.
-        if (p.matcher(name).matches() && !name.endsWith("/")) {
-          LOG.debug("Matched object: {}", name);
-          results.add(toMetadata(o));
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    try {
+      String pageToken = null;
+      List<Metadata> results = new ArrayList<>();
+      do {
+        Objects objects =
+            options.getGcsUtil().listObjects(gcsPattern.getBucket(), prefix, pageToken);
+        if (matchGlobPages != null) {
+          matchGlobPages.inc();
         }
-      }
-      pageToken = objects.getNextPageToken();
-    } while (pageToken != null);
-    return MatchResult.create(Status.OK, results);
+        if (objects.getItems() == null) {
+          break;
+        }
+
+        // Filter objects based on the regex.
+        for (StorageObject o : objects.getItems()) {
+          String name = o.getName();
+          // Skip directories, which end with a slash.
+          if (p.matcher(name).matches() && !name.endsWith("/")) {
+            LOG.debug("Matched object: {}", name);
+            results.add(toMetadata(o));
+          }
+        }
+        pageToken = objects.getNextPageToken();
+      } while (pageToken != null);
+      return MatchResult.create(Status.OK, results);
+    } finally {
+      record(matchGlobMetrics, 1, stopwatch);
+    }
   }
 
   /**
@@ -295,7 +350,17 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
    */
   @VisibleForTesting
   List<MatchResult> matchNonGlobs(List<GcsPath> gcsPaths) throws IOException {
-    List<StorageObjectOrIOException> results = options.getGcsUtil().getObjects(gcsPaths);
+    if (gcsPaths.isEmpty()) {
+      // match() always calls this, so recording here would bury the real calls in empty ones.
+      return ImmutableList.of();
+    }
+    Stopwatch stopwatch = Stopwatch.createStarted();
+    List<StorageObjectOrIOException> results;
+    try {
+      results = options.getGcsUtil().getObjects(gcsPaths);
+    } finally {
+      record(matchNonGlobMetrics, gcsPaths.size(), stopwatch);
+    }
 
     ImmutableList.Builder<MatchResult> ret = ImmutableList.builder();
     for (StorageObjectOrIOException result : results) {
