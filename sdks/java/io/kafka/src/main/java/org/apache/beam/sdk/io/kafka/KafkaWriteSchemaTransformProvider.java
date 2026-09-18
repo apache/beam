@@ -256,17 +256,20 @@ public class KafkaWriteSchemaTransformProvider
                                 handleErrors))
                         .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
         HashMap<String, Object> producerConfig = new HashMap<>(configOverrides);
+        KafkaIO.Write<byte[], GenericRecord> kafkaWrite =
+            KafkaIO.<byte[], GenericRecord>write()
+                .withTopic(configuration.getTopic())
+                .withBootstrapServers(configuration.getBootstrapServers())
+                .withProducerConfigUpdates(producerConfig)
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer((Class) KafkaAvroSerializer.class);
+        if (Boolean.TRUE.equals(configuration.getWithGcpAdc())) {
+          kafkaWrite = kafkaWrite.withGCPApplicationDefaultCredentials();
+        }
         outputTuple
             .get(RECORD_OUTPUT_TAG)
             .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), AvroCoder.of(avroSchema)))
-            .apply(
-                "Map Rows to GenericRecords",
-                KafkaIO.<byte[], GenericRecord>write()
-                    .withTopic(configuration.getTopic())
-                    .withBootstrapServers(configuration.getBootstrapServers())
-                    .withProducerConfigUpdates(producerConfig)
-                    .withKeySerializer(ByteArraySerializer.class)
-                    .withValueSerializer((Class) KafkaAvroSerializer.class));
+            .apply("Map Rows to GenericRecords", kafkaWrite);
       } else {
         outputTuple =
             input
@@ -278,19 +281,23 @@ public class KafkaWriteSchemaTransformProvider
                                 "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
                         .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
+        KafkaIO.Write<byte[], byte[]> kafkaWrite =
+            KafkaIO.<byte[], byte[]>write()
+                .withTopic(configuration.getTopic())
+                .withBootstrapServers(configuration.getBootstrapServers())
+                .withProducerConfigUpdates(
+                    configOverrides == null
+                        ? new HashMap<>()
+                        : new HashMap<String, Object>(configOverrides))
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer(ByteArraySerializer.class);
+        if (Boolean.TRUE.equals(configuration.getWithGcpAdc())) {
+          kafkaWrite = kafkaWrite.withGCPApplicationDefaultCredentials();
+        }
         outputTuple
             .get(OUTPUT_TAG)
             .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()))
-            .apply(
-                KafkaIO.<byte[], byte[]>write()
-                    .withTopic(configuration.getTopic())
-                    .withBootstrapServers(configuration.getBootstrapServers())
-                    .withProducerConfigUpdates(
-                        configOverrides == null
-                            ? new HashMap<>()
-                            : new HashMap<String, Object>(configOverrides))
-                    .withKeySerializer(ByteArraySerializer.class)
-                    .withValueSerializer(ByteArraySerializer.class));
+            .apply(kafkaWrite);
       }
 
       // TODO: include output from KafkaIO Write once updated from PDone
@@ -381,6 +388,13 @@ public class KafkaWriteSchemaTransformProvider
     @Nullable
     public abstract String getSchema();
 
+    @SchemaFieldDescription(
+        "Whether to use Google Cloud Platform Application Default Credentials (ADC) for"
+            + " authenticating with a Google Managed Kafka cluster.")
+    @SchemaFieldNumber("8")
+    @Nullable
+    public abstract Boolean getWithGcpAdc();
+
     public static Builder builder() {
       return new AutoValue_KafkaWriteSchemaTransformProvider_KafkaWriteSchemaTransformConfiguration
           .Builder();
@@ -403,6 +417,8 @@ public class KafkaWriteSchemaTransformProvider
       public abstract Builder setMessageName(String messageName);
 
       public abstract Builder setSchema(String schema);
+
+      public abstract Builder setWithGcpAdc(Boolean withGcpAdc);
 
       public abstract KafkaWriteSchemaTransformConfiguration build();
     }
