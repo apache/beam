@@ -31,6 +31,7 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -753,12 +754,9 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
      */
     private byte[] payload(Random random, int size) {
       byte[] payload = new byte[size];
+      random.nextBytes(payload);
       int randomBytes = (int) Math.round(size * (1.0 - compressibility));
-      if (randomBytes > 0) {
-        byte[] randomPart = new byte[randomBytes];
-        random.nextBytes(randomPart);
-        System.arraycopy(randomPart, 0, payload, 0, randomBytes);
-      }
+      Arrays.fill(payload, randomBytes, size, (byte) 0);
       return payload;
     }
   }
