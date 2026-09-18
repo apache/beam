@@ -64,6 +64,38 @@ public class FileSystemsTest {
   private LocalFileSystem localFileSystem = new LocalFileSystem();
 
   @Test
+  public void testMatchSingleFileSpecExceptionChaining() throws Exception {
+    java.io.IOException rootCause = new java.io.IOException("403 Forbidden: Fake GCS Error");
+    MatchResult failedResult = MatchResult.create(MatchResult.Status.ERROR, rootCause);
+
+    FileSystem mockFileSystem = mock(FileSystem.class);
+    when(mockFileSystem.match(org.mockito.ArgumentMatchers.anyList()))
+        .thenReturn(ImmutableList.of(failedResult));
+
+    // Use reflection to temporarily override the registered filesystems
+    java.lang.reflect.Field field = FileSystems.class.getDeclaredField("SCHEME_TO_FILESYSTEM");
+    field.setAccessible(true);
+    @SuppressWarnings("unchecked")
+    java.util.concurrent.atomic.AtomicReference<java.util.Map<String, FileSystem>> ref =
+        (java.util.concurrent.atomic.AtomicReference<java.util.Map<String, FileSystem>>)
+            field.get(null);
+
+    java.util.Map<String, FileSystem> original = ref.get();
+    try {
+      ref.set(com.google.common.collect.ImmutableMap.of("dummy", mockFileSystem));
+
+      thrown.expect(java.io.IOException.class);
+      thrown.expectMessage("Error matching file spec dummy://fake/path: status ERROR");
+      thrown.expectCause(org.hamcrest.Matchers.is(rootCause));
+
+      FileSystems.matchSingleFileSpec("dummy://fake/path");
+    } finally {
+      // Restore the original registry so we don't break other tests
+      ref.set(original);
+    }
+  }
+
+  @Test
   public void testGetLocalFileSystem() throws Exception {
     // TODO: Java core test failing on windows, https://github.com/apache/beam/issues/20484
     assumeFalse(SystemUtils.IS_OS_WINDOWS);
