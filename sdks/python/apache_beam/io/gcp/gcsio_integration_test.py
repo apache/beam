@@ -52,6 +52,8 @@ from apache_beam.transforms.combiners import Count
 
 try:
   from apache_beam.io.gcp import gcsio
+  if not gcsio.GCS_INSTALLED:
+    gcsio = None  # type: ignore
 except ImportError:
   gcsio = None  # type: ignore
 

@@ -1212,6 +1212,11 @@ class GoogleCloudOptions(PipelineOptions):
     except ImportError:
       _LOGGER.warning('Unable to create default GCS bucket.')
       return None
+    if not gcsio.GCS_INSTALLED:
+      _LOGGER.warning(
+          'Unable to create default GCS bucket because GCP dependencies are '
+          'not installed.')
+      return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
       return 'gs://%s/' % bucket.id
@@ -1229,6 +1234,11 @@ class GoogleCloudOptions(PipelineOptions):
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
+      if not gcsio.GCS_INSTALLED:
+        _LOGGER.warning(
+            'Unable to check soft delete policy because GCP dependencies are '
+            'not installed.')
+        return
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
