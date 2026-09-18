@@ -705,6 +705,19 @@ class GcsIO(object):
 
 
 class BeamBlobReader(BlobReader):
+  """A reader for GCS blobs.
+
+  Note that constructing this reader does not issue any request to GCS. Object
+  metadata is fetched lazily by the underlying ``BlobReader``, on the first
+  read or seek.
+
+  Known limitation: doubly compressed objects, i.e. those stored with both
+  "content-encoding=gzip" and "content-type=application/gzip" (or
+  "application/x-gzip"), are not supported. Detecting this up front would
+  require an extra metadata request on every open, which is too costly to do
+  unconditionally. See
+  https://github.com/googleapis/google-cloud-python/issues/18423.
+  """
   def __init__(
       self,
       blob,
@@ -717,21 +730,6 @@ class BeamBlobReader(BlobReader):
     # (https://cloud.google.com/storage/docs/transcoding).
     super().__init__(
         blob, chunk_size=chunk_size, retry=retry, raw_download=raw_download)
-    # TODO: Remove this after
-    # https://github.com/googleapis/python-storage/issues/1406 is fixed.
-    # As a workaround, we manually trigger a reload here. Otherwise, an internal
-    # call of reader.seek() will cause an exception if raw_download is set
-    # when initializing BlobReader(),
-    blob.reload()
-
-    # TODO: Currently there is a bug in GCS server side when a client requests
-    # a file with "content-encoding=gzip" and "content-type=application/gzip" or
-    # "content-type=application/x-gzip", which will lead to infinite loop.
-    # We skip the support of this type of files until the GCS bug is fixed.
-    # Internal bug id: 203845981.
-    if (blob.content_encoding == "gzip" and
-        blob.content_type in ["application/gzip", "application/x-gzip"]):
-      raise NotImplementedError("Doubly compressed files not supported.")
 
     self.enable_read_bucket_metric = enable_read_bucket_metric
     self.mode = "r"

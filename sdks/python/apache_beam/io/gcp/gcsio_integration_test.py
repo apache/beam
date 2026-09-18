@@ -281,9 +281,12 @@ class GcsIOReadGzipTest(unittest.TestCase):
   ]
 
   @parameterized.expand([
-      (gzip_test_files[0], CompressionTypes.UNCOMPRESSED, NotImplementedError),
-      (gzip_test_files[0], CompressionTypes.GZIP, NotImplementedError),
-      (gzip_test_files[0], CompressionTypes.AUTO, NotImplementedError),
+      # TODO(https://github.com/googleapis/google-cloud-python/issues/18423):
+      # Re-enable these once doubly compressed objects ("content-encoding=gzip"
+      # + "content-type=application/gzip") are handled again.
+      # (gzip_test_files[0], CompressionTypes.UNCOMPRESSED, NotImplementedError),
+      # (gzip_test_files[0], CompressionTypes.GZIP, NotImplementedError),
+      # (gzip_test_files[0], CompressionTypes.AUTO, NotImplementedError),
       (gzip_test_files[1], CompressionTypes.UNCOMPRESSED, UnicodeDecodeError),
       (gzip_test_files[1], CompressionTypes.GZIP, None),
       (gzip_test_files[1], CompressionTypes.AUTO, None),
