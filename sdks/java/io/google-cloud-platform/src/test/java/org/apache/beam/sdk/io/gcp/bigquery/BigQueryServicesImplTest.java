@@ -41,6 +41,8 @@ import com.google.api.client.googleapis.json.GoogleJsonError;
 import com.google.api.client.googleapis.json.GoogleJsonError.ErrorInfo;
 import com.google.api.client.googleapis.json.GoogleJsonErrorContainer;
 import com.google.api.client.googleapis.json.GoogleJsonResponseException;
+import com.google.api.client.http.GenericUrl;
+import com.google.api.client.http.HttpRequest;
 import com.google.api.client.http.HttpResponseException;
 import com.google.api.client.http.LowLevelHttpResponse;
 import com.google.api.client.json.GenericJson;
@@ -2171,6 +2173,58 @@ public class BigQueryServicesImplTest {
     counter.onRetryAttempt(Status.UNAVAILABLE.withDescription("Server is gone"), metadata);
     impl.reportPendingMetrics();
     assertEquals(123456, (long) container.getCounter(metricName).getCumulative());
+  }
+
+  @Test
+  public void testQuotaProjectIdOverrides() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setBigQueryQuotaProjectId("my-quota-project");
+
+    assertEquals(
+        "my-quota-project",
+        new BigQueryServicesImpl.StorageClientImpl(options)
+            .getClient()
+            .getSettings()
+            .getQuotaProjectId());
+    assertEquals(
+        "my-quota-project",
+        new BigQueryServicesImpl.WriteStreamServiceImpl(options)
+            .getClient()
+            .getSettings()
+            .getQuotaProjectId());
+  }
+
+  @Test
+  public void testQuotaProjectIdSetsRequestHeader() throws IOException {
+    BigQueryOptions options = PipelineOptionsFactory.create().as(BigQueryOptions.class);
+    options.setGcpCredential(null);
+    GenericUrl url = new GenericUrl("https://bigquery.googleapis.com/bigquery/v2/projects");
+
+    HttpRequest request =
+        BigQueryServicesImpl.newBigQueryClient(options)
+            .build()
+            .getRequestFactory()
+            .buildGetRequest(url);
+    request.getInterceptor().intercept(request);
+    assertNull(request.getHeaders().getFirstHeaderStringValue("x-goog-user-project"));
+
+    options.setBigQueryQuotaProjectId("my-quota-project");
+    request =
+        BigQueryServicesImpl.newBigQueryClient(options)
+            .build()
+            .getRequestFactory()
+            .buildGetRequest(url);
+    // The interceptor runs before every attempt, including retries.
+    request.getInterceptor().intercept(request);
+    assertEquals(
+        "my-quota-project", request.getHeaders().getFirstHeaderStringValue("x-goog-user-project"));
+
+    // Simulate HttpCredentialsAdapter re-initializing headers from a credential that carries
+    // its own quota project after a 401 refresh: the configured value must win on the retry.
+    request.getHeaders().set("x-goog-user-project", "credential-project");
+    request.getInterceptor().intercept(request);
+    assertEquals(
+        "my-quota-project", request.getHeaders().getFirstHeaderStringValue("x-goog-user-project"));
   }
 
   @Test
