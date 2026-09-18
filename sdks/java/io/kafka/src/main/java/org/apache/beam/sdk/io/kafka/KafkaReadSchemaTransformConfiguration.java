@@ -198,6 +198,21 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   @Nullable
   public abstract Boolean getRedistributeByRecordKey();
 
+  @SchemaFieldDescription(
+      "Whether to use Google Cloud Platform Application Default Credentials (ADC) for"
+          + " authenticating with a Google Managed Kafka cluster.")
+  @SchemaFieldNumber("17")
+  @Nullable
+  public abstract Boolean getWithGcpAdc();
+
+  @SchemaFieldDescription(
+      "The number of partitions to read from the Kafka topic. If specified, partitions"
+          + " 0 to numPartitions-1 will be assigned statically without querying Kafka at pipeline"
+          + " construction time.")
+  @SchemaFieldNumber("18")
+  @Nullable
+  public abstract Integer getNumPartitions();
+
   /** Builder for the {@link KafkaReadSchemaTransformConfiguration}. */
   @AutoValue.Builder
   public abstract static class Builder {
@@ -237,6 +252,10 @@ public abstract class KafkaReadSchemaTransformConfiguration {
     public abstract Builder setOffsetDeduplication(Boolean offsetDeduplication);
 
     public abstract Builder setRedistributeByRecordKey(Boolean redistributeByRecordKey);
+
+    public abstract Builder setWithGcpAdc(Boolean withGcpAdc);
+
+    public abstract Builder setNumPartitions(Integer numPartitions);
 
     /** Builds a {@link KafkaReadSchemaTransformConfiguration} instance. */
     public abstract KafkaReadSchemaTransformConfiguration build();
