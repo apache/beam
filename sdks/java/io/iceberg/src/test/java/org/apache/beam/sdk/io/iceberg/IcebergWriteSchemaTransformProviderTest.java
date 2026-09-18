@@ -941,4 +941,58 @@ public class IcebergWriteSchemaTransformProviderTest {
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertEquals(10, writtenRecords.size());
   }
+
+  @Test
+  public void testWriteWithSortOnWriteEnabled() throws Exception {
+    String identifier = "default.sorted_table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+    Schema schema = Schema.builder().addStringField("str").addInt32Field("int").build();
+
+    Map<String, Object> config =
+        ImmutableMap.<String, Object>builder()
+            .put("table", identifier)
+            .put(
+                "catalog_properties",
+                ImmutableMap.of("type", "hadoop", "warehouse", warehouse.location))
+            .put("distribution_mode", distributionMode.name())
+            .put("sort_fields", Collections.singletonList("str desc"))
+            .put("sort_on_write", true)
+            .build();
+
+    List<Row> rows =
+        Arrays.asList(
+            Row.withSchema(schema).addValues("apple", 1).build(),
+            Row.withSchema(schema).addValues("cherry", 3).build(),
+            Row.withSchema(schema).addValues("banana", 2).build());
+
+    PCollection<Row> result =
+        testPipeline
+            .apply("Records To Add", Create.of(rows))
+            .setRowSchema(schema)
+            .apply(Managed.write(Managed.ICEBERG).withConfig(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    assertTrue(table.sortOrder().isSorted());
+    for (org.apache.iceberg.FileScanTask task : table.newScan().planFiles()) {
+      String path = task.file().path().toString();
+      try (org.apache.iceberg.io.CloseableIterable<Record> reader =
+          org.apache.iceberg.parquet.Parquet.read(table.io().newInputFile(path))
+              .project(table.schema())
+              .createReaderFunc(org.apache.iceberg.data.parquet.GenericParquetReaders::buildReader)
+              .build()) {
+        List<Record> records =
+            org.apache.commons.compress.utils.Lists.newArrayList(reader.iterator());
+        for (int i = 1; i < records.size(); i++) {
+          String prev = (String) records.get(i - 1).getField("str");
+          String curr = (String) records.get(i).getField("str");
+          assertTrue(
+              "Expected descending sort order: " + prev + " >= " + curr, prev.compareTo(curr) >= 0);
+        }
+      }
+    }
+  }
 }

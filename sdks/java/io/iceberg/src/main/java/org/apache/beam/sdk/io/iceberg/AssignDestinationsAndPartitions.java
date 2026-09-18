@@ -26,6 +26,7 @@ import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.values.KV;
@@ -33,6 +34,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.PartitionKey;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
@@ -54,34 +56,86 @@ class AssignDestinationsAndPartitions
   private final DynamicDestinations dynamicDestinations;
   private final IcebergCatalogConfig catalogConfig;
   private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+  private final DistributionMode distributionMode;
+  private final @Nullable SerializableFunction<Row, Integer> distributionFunction;
 
   static final String DESTINATION = "destination";
   static final String PARTITION = "partition";
+  static final String SHARD = "shard";
 
+  /**
+   * Grouping key used for {@link DistributionMode#NONE} and {@link DistributionMode#HASH} writes.
+   *
+   * <p>This encoding is load-bearing for pipeline update compatibility: it is the key coder of the
+   * {@link org.apache.beam.sdk.transforms.GroupIntoBatches} in {@link WriteToPartitions}, so
+   * changing its shape invalidates the buffered state of in-flight streaming jobs. Do not add
+   * fields here.
+   */
   static final org.apache.beam.sdk.schemas.Schema OUTPUT_SCHEMA =
       org.apache.beam.sdk.schemas.Schema.builder()
           .addStringField(DESTINATION)
           .addStringField(PARTITION)
           .build();
 
+  /**
+   * Grouping key used for {@link DistributionMode#RANGE} writes, which additionally fan each
+   * partition out into non-overlapping shards so that every shard becomes its own sorted file.
+   */
+  static final org.apache.beam.sdk.schemas.Schema OUTPUT_SCHEMA_WITH_SHARD =
+      org.apache.beam.sdk.schemas.Schema.builder()
+          .addStringField(DESTINATION)
+          .addStringField(PARTITION)
+          .addInt32Field(SHARD)
+          .build();
+
+  /** Returns the grouping key schema that the given distribution mode emits. */
+  static org.apache.beam.sdk.schemas.Schema outputSchemaFor(DistributionMode distributionMode) {
+    return distributionMode == DistributionMode.RANGE ? OUTPUT_SCHEMA_WITH_SHARD : OUTPUT_SCHEMA;
+  }
+
   public AssignDestinationsAndPartitions(
       DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
-    this(dynamicDestinations, catalogConfig, null);
+    this(dynamicDestinations, catalogConfig, null, DistributionMode.HASH, null);
   }
 
   public AssignDestinationsAndPartitions(
       DynamicDestinations dynamicDestinations,
       IcebergCatalogConfig catalogConfig,
       @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+    this(dynamicDestinations, catalogConfig, metadataView, DistributionMode.HASH, null);
+  }
+
+  public AssignDestinationsAndPartitions(
+      DynamicDestinations dynamicDestinations,
+      IcebergCatalogConfig catalogConfig,
+      DistributionMode distributionMode,
+      @Nullable SerializableFunction<Row, Integer> distributionFunction) {
+    this(dynamicDestinations, catalogConfig, null, distributionMode, distributionFunction);
+  }
+
+  public AssignDestinationsAndPartitions(
+      DynamicDestinations dynamicDestinations,
+      IcebergCatalogConfig catalogConfig,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+      DistributionMode distributionMode,
+      @Nullable SerializableFunction<Row, Integer> distributionFunction) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.metadataView = metadataView;
+    this.distributionMode = distributionMode;
+    this.distributionFunction = distributionFunction;
   }
 
   @Override
   public PCollection<KV<Row, Row>> expand(PCollection<Row> input) {
     ParDo.SingleOutput<Row, KV<Row, Row>> parDo =
-        ParDo.of(new AssignDoFn(dynamicDestinations, catalogConfig, metadataView));
+        ParDo.of(
+            new AssignDoFn(
+                dynamicDestinations,
+                catalogConfig,
+                metadataView,
+                distributionMode,
+                distributionFunction));
     if (metadataView != null) {
       parDo = parDo.withSideInputs(metadataView);
     }
@@ -89,7 +143,8 @@ class AssignDestinationsAndPartitions
         .apply(parDo)
         .setCoder(
             KvCoder.of(
-                RowCoder.of(OUTPUT_SCHEMA), RowCoder.of(dynamicDestinations.getDataSchema())));
+                RowCoder.of(outputSchemaFor(distributionMode)),
+                RowCoder.of(dynamicDestinations.getDataSchema())));
   }
 
   static class AssignDoFn extends DoFn<Row, KV<Row, Row>> {
@@ -104,18 +159,39 @@ class AssignDestinationsAndPartitions
     private final DynamicDestinations dynamicDestinations;
     private final IcebergCatalogConfig catalogConfig;
     private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+    private final DistributionMode distributionMode;
+    private final @Nullable SerializableFunction<Row, Integer> distributionFunction;
 
     AssignDoFn(DynamicDestinations dynamicDestinations, IcebergCatalogConfig catalogConfig) {
-      this(dynamicDestinations, catalogConfig, null);
+      this(dynamicDestinations, catalogConfig, null, DistributionMode.HASH, null);
     }
 
     AssignDoFn(
         DynamicDestinations dynamicDestinations,
         IcebergCatalogConfig catalogConfig,
         @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+      this(dynamicDestinations, catalogConfig, metadataView, DistributionMode.HASH, null);
+    }
+
+    AssignDoFn(
+        DynamicDestinations dynamicDestinations,
+        IcebergCatalogConfig catalogConfig,
+        DistributionMode distributionMode,
+        @Nullable SerializableFunction<Row, Integer> distributionFunction) {
+      this(dynamicDestinations, catalogConfig, null, distributionMode, distributionFunction);
+    }
+
+    AssignDoFn(
+        DynamicDestinations dynamicDestinations,
+        IcebergCatalogConfig catalogConfig,
+        @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+        DistributionMode distributionMode,
+        @Nullable SerializableFunction<Row, Integer> distributionFunction) {
       this.dynamicDestinations = dynamicDestinations;
       this.catalogConfig = catalogConfig;
       this.metadataView = metadataView;
+      this.distributionMode = distributionMode;
+      this.distributionFunction = distributionFunction;
     }
 
     @Setup
@@ -214,10 +290,25 @@ class AssignDestinationsAndPartitions
 
       String partitionPath = partitionKey.toPath();
 
-      Row destAndPartition =
-          Row.withSchema(OUTPUT_SCHEMA).addValues(tableIdentifier, partitionPath).build();
+      Row.Builder keyBuilder =
+          Row.withSchema(outputSchemaFor(distributionMode))
+              .addValue(tableIdentifier)
+              .addValue(partitionPath);
 
-      out.output(KV.of(destAndPartition, data));
+      if (distributionMode == DistributionMode.RANGE) {
+        SerializableFunction<Row, Integer> shardFn =
+            checkStateNotNull(
+                distributionFunction,
+                "A distribution function is required when using RANGE distribution mode.");
+        keyBuilder =
+            keyBuilder.addValue(
+                checkStateNotNull(
+                    shardFn.apply(data),
+                    "The RANGE distribution function returned a null shard id. It must return a"
+                        + " non-null Integer for every row."));
+      }
+
+      out.output(KV.of(keyBuilder.build(), data));
     }
   }
 }

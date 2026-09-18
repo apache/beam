@@ -30,6 +30,7 @@ import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.SerializableFunction;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
@@ -394,6 +395,7 @@ public class IcebergIO {
         .setDistributionMode(DistributionMode.NONE)
         .setAutoSharding(false)
         .setUseSideInputTableCache(false)
+        .setSortedWrites(false)
         .build();
   }
 
@@ -429,7 +431,11 @@ public class IcebergIO {
 
     abstract DistributionMode getDistributionMode();
 
+    abstract @Nullable SerializableFunction<Row, Integer> getDistributionFunction();
+
     abstract boolean getAutoSharding();
+
+    abstract boolean getSortedWrites();
 
     abstract @Nullable Map<String, String> getWriteProperties();
 
@@ -461,7 +467,11 @@ public class IcebergIO {
 
       abstract Builder setDistributionMode(DistributionMode mode);
 
+      abstract Builder setDistributionFunction(SerializableFunction<Row, Integer> shardFn);
+
       abstract Builder setAutoSharding(boolean autoSharding);
+
+      abstract Builder setSortedWrites(boolean sortedWrites);
 
       abstract Builder setWriteProperties(Map<String, String> writeProperties);
 
@@ -510,21 +520,218 @@ public class IcebergIO {
     }
 
     /**
-     * Defines distribution of write data. Supported distributions:
+     * The default distribution mode is {@link DistributionMode#NONE}, which writes without a
+     * shuffle unless {@link #withSortedWrites()} is enabled on a table with a sort order.
      *
-     * <ol>
-     *   <li>{@link DistributionMode#NONE}: don't shuffle rows (default)
-     *   <li>{@link DistributionMode#HASH}: shuffle rows by partition key before writing data
-     * </ol>
+     * <p><b>Warning on HASH mode:</b> Utilizing {@code HASH} distribution mode (with or without
+     * auto-sharding) can suffer from large unpartitioned or skewed writes if key spaces are not
+     * uniformly distributed. This can bottleneck workers and produce fragmented layout files.
      *
-     * {@link DistributionMode#RANGE} is not supported yet
+     * <p><b>Note on RANGE mode:</b> When utilizing {@code RANGE} distribution mode, it is
+     * recommended that the custom distribution function is designed to produce adequately sized and
+     * strictly non-overlapping ranges of the sorting column to optimize downstream read
+     * performance. {@code RANGE} mode automatically enables sorted writes when the target table has
+     * a {@link org.apache.iceberg.SortOrder}.
+     *
+     * <h3>Comparison of Distribution Modes:</h3>
+     *
+     * <table border="1">
+     *   <caption>Comparison of Distribution Modes</caption>
+     *   <tr>
+     *     <td><b>Mode</b></td>
+     *     <td><b>Description</b></td>
+     *     <td><b>Pros</b></td>
+     *     <td><b>Cons</b></td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>No partition shuffle is performed by default. When {@link #withSortedWrites()} is enabled on a sorted table, records are grouped by destination shard and sorted prior to writing.</td>
+     *     <td>Highly lightweight with zero shuffle overhead for unsorted writes.</td>
+     *     <td>Writers on different workers can write to overlapping min/max key ranges across multiple files. Relies heavily on post-fact compaction or query time merges.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@link DistributionMode#HASH}</td>
+     *     <td>Data is shuffled and consolidated by partition key. All records for a partition are routed to a single worker.</td>
+     *     <td>Consolidates partition files, eliminating cross-worker file overlapping for partition keys. Excellent worker stability.</td>
+     *     <td>Can suffer from severe data skew if a single partition contains significantly more data than others (hot partitions).</td>
+     *   </tr>
+     *   <tr>
+     *     <td>{@link DistributionMode#RANGE}</td>
+     *     <td>Data is shuffled based on a user-provided shard/bucket function (e.g., hashing/binning continuous keys) and sorted within each shard.</td>
+     *     <td>Distributes writes for hot partitions across multiple workers. Eliminates skew while keeping file min/max key ranges tight and non-overlapping.</td>
+     *     <td>Requires providing a custom {@link SerializableFunction} mapping rows to integer shard/bucket IDs.</td>
+     *   </tr>
+     * </table>
+     *
+     * <h3>Recommendation Matrix (Sorting &amp; Partitioning vs. Scale):</h3>
+     *
+     * <table border="1">
+     *   <caption>Recommendation Matrix</caption>
+     *   <tr>
+     *     <td><b>Partitioning</b></td>
+     *     <td><b>Sorting</b></td>
+     *     <td><b>Scale / Volume</b></td>
+     *     <td><b>Latency Priority</b></td>
+     *     <td><b>Recommended Mode</b></td>
+     *     <td><b>Operational Impact</b></td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Small</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#HASH} + {@link #withSortedWrites()}</td>
+     *     <td>Consolidates partition files and sorts them locally. Avoids file overlaps for small volumes.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Write Latency</td>
+     *     <td>{@link DistributionMode#NONE} + {@link #withSortedWrites()}</td>
+     *     <td>Shards by destination without partition shuffle. Results in overlapping key ranges across files, which requires downstream compaction.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Read Latency</td>
+     *     <td>{@link DistributionMode#HASH} with auto-sharding + {@link #withSortedWrites()} OR {@link DistributionMode#RANGE}</td>
+     *     <td>HASH with auto-sharding scales writes for hot partitions but can result in overlapping file ranges requiring query-time sort merges. RANGE sharding distributes hot partitions into sequential, non-overlapping files to optimize reads.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Unsorted</td>
+     *     <td>Small</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#HASH}</td>
+     *     <td>Consolidates data files into single partition directories to prevent file fragmentation.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Partitioned</td>
+     *     <td>Unsorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#HASH} with auto-sharding</td>
+     *     <td>Consolidates partition files while dynamically balancing hot partition writes across parallel workers.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Small</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#NONE} + {@link #withSortedWrites()}</td>
+     *     <td>Groups by destination shard for fast, low-volume local sorting.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Write Latency</td>
+     *     <td>{@link DistributionMode#NONE} + {@link #withSortedWrites()}</td>
+     *     <td>Parallel worker writes across destination shards. Requires downstream compaction to resolve overlapping file ranges.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Sorted</td>
+     *     <td>Medium / Large</td>
+     *     <td>Low Read Latency</td>
+     *     <td>{@link DistributionMode#RANGE} (with custom sharding function)</td>
+     *     <td>Shards continuous keys into non-overlapping worker ranges. Eliminates single-worker bottlenecks and guarantees zero file overlap for fast queries.</td>
+     *   </tr>
+     *   <tr>
+     *     <td>Unpartitioned</td>
+     *     <td>Unsorted</td>
+     *     <td>Any</td>
+     *     <td>Any</td>
+     *     <td>{@link DistributionMode#NONE}</td>
+     *     <td>Direct, parallel worker writes with maximum throughput and zero network shuffle overhead.</td>
+     *   </tr>
+     * </table>
+     *
+     * <h3>Code Samples:</h3>
+     *
+     * <pre>{@code
+     * // 1. Using the default NONE distribution mode
+     * pipeline
+     *     .apply(Create.of(BEAM_ROWS))
+     *     .apply(IcebergIO.writeRows(catalogConfig)
+     *         .to(tableId));
+     *
+     * // 2. Using HASH distribution mode with sorted writes
+     * pipeline
+     *     .apply(Create.of(BEAM_ROWS))
+     *     .apply(IcebergIO.writeRows(catalogConfig)
+     *         .to(tableId)
+     *         .withDistributionMode(DistributionMode.HASH)
+     *         .withSortedWrites());
+     *
+     * // 3. Using RANGE distribution mode with a custom shard/bucket function to avoid data skew
+     * pipeline
+     *     .apply(Create.of(BEAM_ROWS))
+     *     .apply(IcebergIO.writeRows(catalogConfig)
+     *         .to(tableId)
+     *         .withDistributionMode(DistributionMode.RANGE)
+     *         .withDistributionFunction(row -> {
+     *             // Group continuous IDs into parallel, non-overlapping shards of 10,000 IDs each
+     *             long id = row.getInt64("id");
+     *             return (int) (id / 10000);
+     *         }));
+     * }</pre>
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();
     }
 
+    /**
+     * Sets the custom range-distribution function.
+     *
+     * <p>Only applicable when the distribution mode is set to {@link DistributionMode#RANGE}. The
+     * function maps a Beam {@link Row} to an Integer representing a shard/bucket ID.
+     */
+    public WriteRows withDistributionFunction(SerializableFunction<Row, Integer> shardFn) {
+      return toBuilder().setDistributionFunction(shardFn).build();
+    }
+
+    /**
+     * Enables Beam's dynamic auto-sharding when using {@link DistributionMode#HASH}.
+     *
+     * <p>When enabled, the pipeline uses {@link
+     * org.apache.beam.sdk.transforms.GroupIntoBatches#withShardedKey()} under the hood. The runner
+     * (such as Dataflow) dynamically monitors throughput per partition key. If a partition is
+     * extremely hot, the runner automatically splits it into parallel sub-shards distributed across
+     * multiple workers to prevent single-worker bottlenecks and out-of-memory (OOM) errors, while
+     * keeping the number of data files for cold partitions minimal.
+     *
+     * <p>Note that because auto-sharding distributes hot-partition data randomly across worker
+     * shards, the written data files cannot guarantee non-overlapping key ranges. Downstream
+     * queries may require read-time sort merges for overlapping file segments until an Iceberg
+     * compaction job (e.g., `rewriteDataFiles`) is executed.
+     *
+     * <p>Only applicable when using {@link DistributionMode#HASH}.
+     */
     public WriteRows withAutosharding() {
       return toBuilder().setAutoSharding(true).build();
+    }
+
+    /**
+     * Enables physically sorting records within each written data file according to the target
+     * table's {@link org.apache.iceberg.SortOrder}.
+     *
+     * <p>By default, {@link WriteRows} does not sort records unless {@link DistributionMode#RANGE}
+     * is configured, so existing pipelines writing to tables that have a metadata sort order incur
+     * no additional sorting or shuffle overhead.
+     */
+    public WriteRows withSortedWrites() {
+      return withSortedWrites(true);
+    }
+
+    /**
+     * Sets whether to physically sort records within each written data file according to the target
+     * table's {@link org.apache.iceberg.SortOrder}.
+     */
+    public WriteRows withSortedWrites(boolean sortedWrites) {
+      return toBuilder().setSortedWrites(sortedWrites).build();
     }
 
     /**
@@ -679,6 +886,8 @@ public class IcebergIO {
         metadataView = input.apply("GenerateTableMetadataView", driverBuilder.build().asView());
       }
 
+      boolean sortedWrites = getSortedWrites() || getDistributionMode() == DistributionMode.RANGE;
+
       switch (getDistributionMode()) {
         case NONE:
           Preconditions.checkArgument(
@@ -694,13 +903,18 @@ public class IcebergIO {
                       getTriggeringFrequency(),
                       getDirectWriteByteLimit(),
                       getWriteProperties(),
-                      metadataView));
+                      metadataView,
+                      sortedWrites));
         case HASH:
           return input
               .apply(
                   "AssignDestinationAndPartition",
                   new AssignDestinationsAndPartitions(
-                      destinations, getCatalogConfig(), metadataView))
+                      destinations,
+                      getCatalogConfig(),
+                      metadataView,
+                      getDistributionMode(),
+                      getDistributionFunction()))
               .apply(
                   "Write Rows to Partitions",
                   new WriteToPartitions(
@@ -709,7 +923,34 @@ public class IcebergIO {
                       getTriggeringFrequency(),
                       getAutoSharding(),
                       getWriteProperties(),
-                      metadataView));
+                      metadataView,
+                      sortedWrites));
+        case RANGE:
+          Preconditions.checkArgument(
+              !getAutoSharding(),
+              "Autosharding option is only available with 'hash' distribution mode.");
+          Preconditions.checkArgument(
+              getDistributionFunction() != null,
+              "Must provide a distribution function when using RANGE distribution mode.");
+          return input
+              .apply(
+                  "AssignDestinationAndPartitionWithRange",
+                  new AssignDestinationsAndPartitions(
+                      destinations,
+                      getCatalogConfig(),
+                      metadataView,
+                      getDistributionMode(),
+                      getDistributionFunction()))
+              .apply(
+                  "Write Rows to Partitions",
+                  new WriteToPartitions(
+                      getCatalogConfig(),
+                      destinations,
+                      getTriggeringFrequency(),
+                      getAutoSharding(),
+                      getWriteProperties(),
+                      metadataView,
+                      sortedWrites));
         default:
           throw new UnsupportedOperationException(
               "Unsupported distribution mode: " + getDistributionMode());

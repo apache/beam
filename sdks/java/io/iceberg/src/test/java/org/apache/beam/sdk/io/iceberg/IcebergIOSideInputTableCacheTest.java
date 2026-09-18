@@ -55,6 +55,7 @@ import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.SnapshotChanges;
+import org.apache.iceberg.SortOrder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IcebergGenerics;
@@ -77,10 +78,11 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
   private static final String NONE = "none";
   private static final String HASH = "hash";
   private static final String HASH_WITH_AUTOSHARDING = "hashWithAutoSharding";
+  private static final String RANGE = "range";
 
   @Parameterized.Parameters(name = "distributionMode={0}")
   public static Iterable<Object[]> data() {
-    return asList(new Object[][] {{NONE}, {HASH}, {HASH_WITH_AUTOSHARDING}});
+    return asList(new Object[][] {{NONE}, {HASH}, {HASH_WITH_AUTOSHARDING}, {RANGE}});
   }
 
   @Parameterized.Parameter(0)
@@ -118,6 +120,9 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
     }
     if (distributionMode.equals(HASH_WITH_AUTOSHARDING)) {
       write = write.withAutosharding();
+    }
+    if (distributionMode.equals(RANGE)) {
+      write = write.withDistributionMode(DistributionMode.RANGE).withDistributionFunction(row -> 0);
     }
     return write;
   }
@@ -588,6 +593,79 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
     assertEquals("100", items.get("maximumTableCacheSize"));
     assertEquals("600000", items.get("tableCacheRefreshInterval"));
     assertEquals("3", items.get("tableCachePollingBuckets"));
+  }
+
+  @Test
+  public void testSortedWritesWithSideInputCache() throws Exception {
+    TableIdentifier tableId =
+        TableIdentifier.of(
+            "default_side_input", "sorted_side_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+
+    Schema schema = Schema.builder().addInt64Field("id").addStringField("name").build();
+    org.apache.iceberg.Schema icebergSchema = IcebergUtils.beamSchemaToIcebergSchema(schema);
+
+    catalogConfig
+        .catalog()
+        .buildTable(tableId, icebergSchema)
+        .withPartitionSpec(PartitionSpec.unpartitioned())
+        .withSortOrder(SortOrder.builderFor(icebergSchema).asc("name").desc("id").build())
+        .create();
+
+    List<Row> inputRows =
+        asList(
+            Row.withSchema(schema).addValues(2L, "banana").build(),
+            Row.withSchema(schema).addValues(1L, "banana").build(),
+            Row.withSchema(schema).addValues(5L, "apple").build(),
+            Row.withSchema(schema).addValues(10L, "cherry").build());
+
+    IcebergIO.WriteRows write =
+        IcebergIO.writeRows(catalogConfig)
+            .to(tableId)
+            .withSideInputTableCache()
+            .withTableCachePollingBuckets(1)
+            .withSortedWrites();
+
+    testPipeline
+        .apply("ScrambledInput", Create.of(inputRows))
+        .setRowSchema(schema)
+        .apply("WriteSortedWithSideInput", applyDistribution(write));
+
+    PipelineResult result = testPipeline.run();
+    result.waitUntilFinish();
+
+    assertEquals(1L, getTablesPolledCount(result));
+
+    Table table = warehouse.loadTable(tableId);
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+    assertEquals(4, writtenRecords.size());
+
+    for (org.apache.iceberg.FileScanTask task : table.newScan().planFiles()) {
+      String path = task.file().path().toString();
+      try (org.apache.iceberg.io.CloseableIterable<Record> reader =
+          org.apache.iceberg.parquet.Parquet.read(table.io().newInputFile(path))
+              .project(table.schema())
+              .createReaderFunc(org.apache.iceberg.data.parquet.GenericParquetReaders::buildReader)
+              .build()) {
+        List<Record> records = ImmutableList.copyOf(reader);
+        assertTrue("File must have at least one record", !records.isEmpty());
+        for (int i = 1; i < records.size(); i++) {
+          Record prev = records.get(i - 1);
+          Record curr = records.get(i);
+          String prevName = (String) prev.getField("name");
+          String currName = (String) curr.getField("name");
+          int cmpName = prevName.compareTo(currName);
+          if (cmpName > 0) {
+            throw new AssertionError("File not sorted by name ASC: " + prevName + " > " + currName);
+          } else if (cmpName == 0) {
+            long prevId = (Long) prev.getField("id");
+            long currId = (Long) curr.getField("id");
+            if (prevId < currId) {
+              throw new AssertionError("File not sorted by id DESC: " + prevId + " < " + currId);
+            }
+          }
+        }
+      }
+    }
   }
 
   private static class EvolveSpecMidExecutionDoFn extends DoFn<Row, Row> {

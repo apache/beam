@@ -62,6 +62,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
   private final @Nullable Integer directWriteByteLimit;
   private final @Nullable Map<String, String> writeProperties;
   private final @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView;
+  private final boolean sortedWrites;
 
   WriteToDestinations(
       IcebergCatalogConfig catalogConfig,
@@ -75,7 +76,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
         triggeringFrequency,
         directWriteByteLimit,
         writeProperties,
-        null);
+        null,
+        false);
   }
 
   WriteToDestinations(
@@ -85,12 +87,31 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
       @Nullable Integer directWriteByteLimit,
       @Nullable Map<String, String> writeProperties,
       @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView) {
+    this(
+        catalogConfig,
+        dynamicDestinations,
+        triggeringFrequency,
+        directWriteByteLimit,
+        writeProperties,
+        metadataView,
+        false);
+  }
+
+  WriteToDestinations(
+      IcebergCatalogConfig catalogConfig,
+      DynamicDestinations dynamicDestinations,
+      @Nullable Duration triggeringFrequency,
+      @Nullable Integer directWriteByteLimit,
+      @Nullable Map<String, String> writeProperties,
+      @Nullable PCollectionView<Map<String, SerializableTableSpec>> metadataView,
+      boolean sortedWrites) {
     this.dynamicDestinations = dynamicDestinations;
     this.catalogConfig = catalogConfig;
     this.triggeringFrequency = triggeringFrequency;
     this.directWriteByteLimit = directWriteByteLimit;
     this.writeProperties = writeProperties;
     this.metadataView = metadataView;
+    this.sortedWrites = sortedWrites;
     // single unique prefix per write transform
     this.filePrefix = UUID.randomUUID().toString();
   }
@@ -101,7 +122,7 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
     PCollection<FileWriteResult> writtenFiles;
     if (IcebergUtils.isUnbounded(input)) {
       writtenFiles =
-          IcebergUtils.validDirectWriteLimit(directWriteByteLimit)
+          IcebergUtils.validDirectWriteLimit(directWriteByteLimit) && !sortedWrites
               ? writeTriggeredWithBundleLifting(input)
               : writeTriggered(input);
     } else {
@@ -139,7 +160,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
             filePrefix,
             DEFAULT_MAX_BYTES_PER_FILE,
             writeProperties,
-            metadataView));
+            metadataView,
+            sortedWrites));
   }
 
   private PCollection<FileWriteResult> applyUserTriggering(PCollection<FileWriteResult> input) {
@@ -226,7 +248,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                 filePrefix,
                 DEFAULT_MAX_BYTES_PER_FILE,
                 writeProperties,
-                metadataView));
+                metadataView,
+                sortedWrites));
 
     // Then write the rest by shuffling on the destination
     PCollection<FileWriteResult> writeGroupedResult =
@@ -241,7 +264,8 @@ class WriteToDestinations extends PTransform<PCollection<KV<String, Row>>, Icebe
                     filePrefix,
                     DEFAULT_MAX_BYTES_PER_FILE,
                     writeProperties,
-                    metadataView));
+                    metadataView,
+                    sortedWrites));
 
     return PCollectionList.of(writeUngroupedResult.getWrittenFiles())
         .and(writeGroupedResult)

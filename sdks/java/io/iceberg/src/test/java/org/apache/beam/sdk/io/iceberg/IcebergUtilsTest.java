@@ -356,6 +356,19 @@ public class IcebergUtilsTest {
           IcebergUtils.beamRowToIcebergRecord(RECORD_MAP_ICEBERG_SCHEMA, ROW_MAP_OF_ROWS);
       assertEquals(RECORD_MAP_OF_RECORDS, actual);
     }
+
+    @Test
+    public void testNullStringConversion() {
+      Schema beamSchema =
+          Schema.of(Schema.Field.of("v", Schema.FieldType.STRING).withNullable(true));
+      Row row = Row.withSchema(beamSchema).addValue(null).build();
+
+      org.apache.iceberg.Schema icebergSchema =
+          new org.apache.iceberg.Schema(optional(0, "v", Types.StringType.get()));
+      Record record = IcebergUtils.beamRowToIcebergRecord(icebergSchema, row);
+
+      assertEquals(null, record.getField("v"));
+    }
   }
 
   @RunWith(JUnit4.class)

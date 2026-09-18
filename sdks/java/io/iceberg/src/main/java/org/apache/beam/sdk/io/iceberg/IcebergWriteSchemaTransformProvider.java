@@ -188,9 +188,14 @@ public class IcebergWriteSchemaTransformProvider
             + "is a field name or one of the partition transforms (e.g. `bucket(col, 4)`, `day(ts)`). "
             + "Direction defaults to ascending; null order defaults to nulls-first for ascending and "
             + "nulls-last for descending. Note: this sets the table's declared sort order as metadata; "
-            + "it does not cause Beam to physically sort records before writing.\n"
+            + "to also physically sort records before writing, set `sort_on_write` to true.\n"
             + "For more information on sort orders, please visit https://iceberg.apache.org/spec/#sort-orders.")
     public abstract @Nullable List<String> getSortFields();
+
+    @SchemaFieldDescription(
+        "When true, physically sorts records within each written data file according to the target"
+            + " table's sort order. Defaults to false.")
+    public abstract @Nullable Boolean getSortOnWrite();
 
     @SchemaFieldDescription(
         "Defines distribution of write data. Supported distributions:"
@@ -309,6 +314,8 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setTableProperties(Map<String, String> tableProperties);
 
       public abstract Builder setSortFields(List<String> sortFields);
+
+      public abstract Builder setSortOnWrite(Boolean sortOnWrite);
 
       public abstract Builder setDistributionMode(String mode);
 
@@ -528,6 +535,11 @@ public class IcebergWriteSchemaTransformProvider
       @Nullable Boolean autoSharding = configuration.getAutosharding();
       if (autoSharding != null && autoSharding) {
         writeTransform = writeTransform.withAutosharding();
+      }
+
+      @Nullable Boolean sortOnWrite = configuration.getSortOnWrite();
+      if (sortOnWrite != null && sortOnWrite) {
+        writeTransform = writeTransform.withSortedWrites();
       }
 
       @Nullable Map<String, String> writeProperties = configuration.getWriteProperties();
