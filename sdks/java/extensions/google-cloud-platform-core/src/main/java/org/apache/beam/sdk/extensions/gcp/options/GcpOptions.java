@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.options;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings.isNullOrEmpty;
 
@@ -42,7 +43,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import org.apache.beam.sdk.extensions.gcp.auth.CredentialFactory;
@@ -80,9 +80,6 @@ import org.slf4j.LoggerFactory;
  * mechanisms for creating credentials.
  */
 @Description("Options used to configure Google Cloud Platform project and credentials.")
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   /** Project id to use when launching jobs. */
   @Description(
@@ -248,11 +245,11 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to infer the default project based upon the environment this application is executing
    * within. Currently this only supports getting the active project from gcloud.
    */
-  class DefaultProjectFactory implements DefaultValueFactory<String> {
+  class DefaultProjectFactory implements DefaultValueFactory<@Nullable String> {
     private static final Logger LOG = LoggerFactory.getLogger(DefaultProjectFactory.class);
 
     @Override
-    public String create(PipelineOptions options) {
+    public @Nullable String create(PipelineOptions options) {
       try {
         File configFile;
         if (getEnvironment().containsKey("CLOUDSDK_CONFIG")) {
@@ -293,7 +290,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
           } else if (section == null || "core".equals(section)) {
             matcher = projectPattern.matcher(line);
             if (matcher.matches()) {
-              String project = matcher.group(1).trim();
+              String project = checkArgumentNotNull(matcher.group(1)).trim();
               LOG.info(
                   "Inferred default GCP project '{}' from gcloud. If this is the incorrect "
                       + "project, please cancel this Pipeline and specify the command-line "
@@ -326,9 +323,9 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
    * Attempts to load the GCP credentials. See {@link CredentialFactory#getCredential()} for more
    * details.
    */
-  class GcpUserCredentialsFactory implements DefaultValueFactory<Credentials> {
+  class GcpUserCredentialsFactory implements DefaultValueFactory<@Nullable Credentials> {
     @Override
-    public Credentials create(PipelineOptions options) {
+    public @Nullable Credentials create(PipelineOptions options) {
       GcpOptions gcpOptions = options.as(GcpOptions.class);
       try {
         CredentialFactory factory =
@@ -365,7 +362,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
   void setGcpTempLocation(String value);
 
   /** Returns {@link PipelineOptions#getTempLocation} as the default GCP temp location. */
-  class GcpTempLocationFactory implements DefaultValueFactory<String> {
+  class GcpTempLocationFactory implements DefaultValueFactory<@Nullable String> {
     private static final FluentBackoff BACKOFF_FACTORY =
         FluentBackoff.DEFAULT.withMaxRetries(3).withInitialBackoff(Duration.millis(200));
     static final String DEFAULT_REGION = "us-central1";
@@ -415,7 +412,7 @@ public interface GcpOptions extends GoogleApiDebugOptions, PipelineOptions {
       GcsUtil gcsUtil = gcsOptions.getGcsUtil();
       try {
         SoftDeletePolicy policy =
-            Objects.requireNonNull(gcsUtil.getBucket(GcsPath.fromUri(tempLocation)))
+            checkArgumentNotNull(gcsUtil.getBucket(GcsPath.fromUri(tempLocation)))
                 .getSoftDeletePolicy();
         if (policy != null && policy.getRetentionDurationSeconds() > 0) {
           return true;
