@@ -112,11 +112,19 @@ import org.slf4j.LoggerFactory;
 })
 class GcsUtilV1 {
 
+  /** Describes which GCS counters this {@link GcsUtilV1} emits. */
   @AutoValue
   public abstract static class GcsCountersOptions {
     public abstract @Nullable String getReadCounterPrefix();
 
     public abstract @Nullable String getWriteCounterPrefix();
+
+    /**
+     * Whether to emit the {@code gcs_*} performance counters, which are reported under {@link
+     * GcsUtil#METRIC_NAMESPACE} and are not per bucket. Set from {@link
+     * GcsOptions#getGcsPerformanceMetrics()}.
+     */
+    public abstract boolean getPerformanceMetricsEnabled();
 
     public boolean hasAnyPrefix() {
       return getWriteCounterPrefix() != null || getReadCounterPrefix() != null;
@@ -124,7 +132,15 @@ class GcsUtilV1 {
 
     public static GcsCountersOptions create(
         @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
-      return new AutoValue_GcsUtilV1_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
+      return create(readCounterPrefix, writeCounterPrefix, false);
+    }
+
+    public static GcsCountersOptions create(
+        @Nullable String readCounterPrefix,
+        @Nullable String writeCounterPrefix,
+        boolean performanceMetricsEnabled) {
+      return new AutoValue_GcsUtilV1_GcsCountersOptions(
+          readCounterPrefix, writeCounterPrefix, performanceMetricsEnabled);
     }
   }
 
@@ -158,9 +174,9 @@ class GcsUtilV1 {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null),
-          gcsOptions.getGoogleCloudStorageReadOptions(),
-          Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics()));
+                  : null,
+              Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics())),
+          gcsOptions.getGoogleCloudStorageReadOptions());
     }
   }
 
@@ -224,8 +240,6 @@ class GcsUtilV1 {
 
   private final GcsCountersOptions gcsCountersOptions;
 
-  private final boolean gcsPerformanceMetrics;
-
   /** Rewrite operation setting. For testing purposes only. */
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
 
@@ -241,62 +255,12 @@ class GcsUtilV1 {
       @Nullable Integer uploadBufferSizeBytes,
       @Nullable Integer rewriteDataOpBatchLimit,
       GcsCountersOptions gcsCountersOptions,
-      GcsOptions gcsOptions) {
-    this(
-        storageClient,
-        httpRequestInitializer,
-        executorService,
-        shouldUseGrpc,
-        credentials,
-        uploadBufferSizeBytes,
-        rewriteDataOpBatchLimit,
-        gcsCountersOptions,
-        gcsOptions.getGoogleCloudStorageReadOptions(),
-        Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics()));
-  }
-
-  @VisibleForTesting
-  GcsUtilV1(
-      Storage storageClient,
-      HttpRequestInitializer httpRequestInitializer,
-      ExecutorService executorService,
-      Boolean shouldUseGrpc,
-      Credentials credentials,
-      @Nullable Integer uploadBufferSizeBytes,
-      @Nullable Integer rewriteDataOpBatchLimit,
-      GcsCountersOptions gcsCountersOptions,
       GoogleCloudStorageReadOptions gcsReadOptions) {
-    this(
-        storageClient,
-        httpRequestInitializer,
-        executorService,
-        shouldUseGrpc,
-        credentials,
-        uploadBufferSizeBytes,
-        rewriteDataOpBatchLimit,
-        gcsCountersOptions,
-        gcsReadOptions,
-        false);
-  }
-
-  @VisibleForTesting
-  GcsUtilV1(
-      Storage storageClient,
-      HttpRequestInitializer httpRequestInitializer,
-      ExecutorService executorService,
-      Boolean shouldUseGrpc,
-      Credentials credentials,
-      @Nullable Integer uploadBufferSizeBytes,
-      @Nullable Integer rewriteDataOpBatchLimit,
-      GcsCountersOptions gcsCountersOptions,
-      GoogleCloudStorageReadOptions gcsReadOptions,
-      boolean gcsPerformanceMetrics) {
     this.storageClient = storageClient;
     this.httpRequestInitializer = httpRequestInitializer;
     this.uploadBufferSizeBytes = uploadBufferSizeBytes;
     this.executorService = executorService;
     this.credentials = credentials;
-    this.gcsPerformanceMetrics = gcsPerformanceMetrics;
     this.maxBytesRewrittenPerCall = null;
     this.numRewriteTokensUsed = null;
     GoogleCloudStorageOptions.Builder optionsBuilder =
@@ -580,7 +544,7 @@ class GcsUtilV1 {
                 })
             .orElse(null);
 
-    if (this.gcsPerformanceMetrics && container != null) {
+    if (gcsCountersOptions.getPerformanceMetricsEnabled() && container != null) {
       Counter perfWriteCounter =
           container.getCounter(
               MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_write_wire_bytes_sent"));
@@ -620,7 +584,7 @@ class GcsUtilV1 {
                 })
             .orElse(null);
 
-    if (this.gcsPerformanceMetrics && container != null) {
+    if (gcsCountersOptions.getPerformanceMetricsEnabled() && container != null) {
       Counter perfReadCounter =
           container.getCounter(
               MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_wire_bytes_received"));
@@ -677,7 +641,7 @@ class GcsUtilV1 {
     try {
       GoogleCloudStorage gcpStorage = this.googleCloudStorage;
       MetricsContainer container = null;
-      if (this.gcsPerformanceMetrics) {
+      if (gcsCountersOptions.getPerformanceMetricsEnabled()) {
         container = MetricsEnvironment.getCurrentContainer();
         if (container != null) {
           HttpRequestInitializer scopedInitializer =
@@ -777,7 +741,7 @@ class GcsUtilV1 {
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
     HttpRequestInitializer scopedInitializer = this.httpRequestInitializer;
     MetricsContainer container = null;
-    if (this.gcsPerformanceMetrics) {
+    if (gcsCountersOptions.getPerformanceMetricsEnabled()) {
       container = MetricsEnvironment.getCurrentContainer();
       if (container != null) {
         scopedInitializer =

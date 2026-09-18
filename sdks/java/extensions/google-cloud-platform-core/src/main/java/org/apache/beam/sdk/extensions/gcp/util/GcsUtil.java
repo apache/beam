@@ -59,6 +59,13 @@ public class GcsUtil {
   @VisibleForTesting GcsUtilV1 delegate;
   @VisibleForTesting @Nullable GcsUtilV2 delegateV2;
 
+  /**
+   * @deprecated no {@link GcsUtil} API accepts this type, so an instance cannot be used for
+   *     anything. GCS counters are configured from {@link
+   *     org.apache.beam.sdk.extensions.gcp.options.GcsOptions} when the {@link GcsUtil} is
+   *     constructed. Scheduled for removal.
+   */
+  @Deprecated
   public static class GcsCountersOptions {
     final GcsUtilV1.GcsCountersOptions delegate;
 

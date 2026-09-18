@@ -1703,7 +1703,8 @@ public class GcsUtilTest {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null),
+                  : null,
+              Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics())),
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
