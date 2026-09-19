@@ -230,6 +230,16 @@ public class BigQueryUtils {
           .appendZoneRegionId()
           .toFormatter();
 
+  // TIMESTAMP_FORMATTER accepts alternate separators and must not be used for printing.
+  static final java.time.format.DateTimeFormatter BIGQUERY_TIMESTAMP_MICROS_FORMATTER =
+      new java.time.format.DateTimeFormatterBuilder()
+          .appendPattern("uuuu-MM-dd HH:mm:ss")
+          .appendFraction(java.time.temporal.ChronoField.NANO_OF_SECOND, 0, 6, true)
+          .appendLiteral(" UTC")
+          .toFormatter()
+          .withResolverStyle(java.time.format.ResolverStyle.STRICT)
+          .withZone(ZoneOffset.UTC);
+
   private static final DateTimeFormatter BIGQUERY_TIMESTAMP_PRINTER;
 
   /**
@@ -936,7 +946,11 @@ public class BigQueryUtils {
           long nanos = (micros % 1_000_000) * 1_000;
           return java.time.Instant.ofEpochSecond(seconds, nanos);
         } catch (NumberFormatException e) {
-          return java.time.Instant.parse(jsonBQString);
+          try {
+            return java.time.Instant.parse(jsonBQString);
+          } catch (DateTimeParseException e2) {
+            return BIGQUERY_TIMESTAMP_MICROS_FORMATTER.parse(jsonBQString, java.time.Instant::from);
+          }
         }
       } else if (fieldType.isLogicalType(Timestamp.IDENTIFIER)) {
         if (!jsonBQString.contains("UTC")) {

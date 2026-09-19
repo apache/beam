@@ -1335,20 +1335,12 @@ public class BigQueryIOWriteTest implements Serializable {
                 .set("strval", "test")
                 .set("longval", "1")
                 .set("doubleval", "1.0")
-                .set(
-                    "instantval",
-                    useStorageApi || useStorageApiApproximate
-                        ? "2019-01-01 T00:00:00"
-                        : "2019-01-01 00:00:00 UTC"),
+                .set("instantval", "2019-01-01 00:00:00 UTC"),
             new TableRow()
                 .set("strval", "test2")
                 .set("longval", "2")
                 .set("doubleval", "2.0")
-                .set(
-                    "instantval",
-                    useStorageApi || useStorageApiApproximate
-                        ? "2019-02-01 T00:00:00"
-                        : "2019-02-01 00:00:00 UTC")));
+                .set("instantval", "2019-02-01 00:00:00 UTC")));
   }
 
   @Test
@@ -3876,7 +3868,7 @@ public class BigQueryIOWriteTest implements Serializable {
     TableRow goodNested =
         new TableRow()
             .set("number", "42")
-            .set("timestamp", "1970-01-01 T00:00:00.000043")
+            .set("timestamp", "1970-01-01 00:00:00.000043 UTC")
             .set("time", "00:52:07.123456")
             .set("datetime", "2019-08-16T00:52:07.123456")
             .set("date", "2019-08-16")
@@ -4427,7 +4419,7 @@ public class BigQueryIOWriteTest implements Serializable {
                         .setMode("REPEATED")
                         .setFields(tableSchema.getFields())));
 
-    final String timestamp = "1970-01-01 T00:00:00.000043";
+    final String timestamp = "1970-01-01 00:00:00.000043 UTC";
     final String date = "2019-08-16";
     final String numeric = "23";
     final String bignumeric = "123456789012345678";
@@ -4585,7 +4577,7 @@ public class BigQueryIOWriteTest implements Serializable {
                         .setMode("REPEATED")
                         .setFields(tableSchema.getFields())));
 
-    final String timestamp = "1970-01-01 T00:00:00.000043";
+    final String timestamp = "1970-01-01 00:00:00.000043 UTC";
     final String date = "2019-08-16";
     final String numeric = "23";
     final String bignumeric = "123456789012345678";
@@ -4715,7 +4707,7 @@ public class BigQueryIOWriteTest implements Serializable {
                         .setMode("REPEATED")
                         .setFields(tableSchema.getFields())));
 
-    final String timestamp = "1970-01-01 T00:00:00.000043";
+    final String timestamp = "1970-01-01 00:00:00.000043 UTC";
     long timestampMicros =
         (long)
             TYPE_MAP_PROTO_CONVERTERS
