@@ -683,21 +683,37 @@ public class TableRowToStorageApiProto {
   }
 
   public static class SchemaInformation {
+    private static final int NO_FIELD_INDEX = -1;
+
     private final TableFieldSchema tableFieldSchema;
     private final List<SchemaInformation> subFields;
     private final Map<String, SchemaInformation> subFieldsByName;
     private final Iterable<SchemaInformation> parentSchemas;
 
+    /**
+     * Position of this field in its parent schema. Descriptors built by {@link
+     * TableRowToStorageApiProto#getDescriptorFromTableSchema} preserve this order, so the ordinal
+     * is a lookup hint. The name is always verified and {@link Descriptor#findFieldByName} is the
+     * fallback.
+     */
+    private final int fieldIndex;
+
     private SchemaInformation(
-        TableFieldSchema tableFieldSchema, Iterable<SchemaInformation> parentSchemas) {
+        TableFieldSchema tableFieldSchema,
+        Iterable<SchemaInformation> parentSchemas,
+        int fieldIndex) {
       this.tableFieldSchema = tableFieldSchema;
       this.subFields = Lists.newArrayList();
       this.subFieldsByName = Maps.newHashMap();
       this.parentSchemas = parentSchemas;
+      this.fieldIndex = fieldIndex;
+      int subFieldIndex = 0;
       for (TableFieldSchema field : tableFieldSchema.getFieldsList()) {
         SchemaInformation schemaInformation =
             new SchemaInformation(
-                field, Iterables.concat(this.parentSchemas, ImmutableList.of(this)));
+                field,
+                Iterables.concat(this.parentSchemas, ImmutableList.of(this)),
+                subFieldIndex++);
         subFields.add(schemaInformation);
         subFieldsByName.put(field.getName().toLowerCase(), schemaInformation);
       }
@@ -708,7 +724,9 @@ public class TableRowToStorageApiProto {
     // the new SchemaInformation is traversable upwards only.
     public SchemaInformation createDescendent(TableFieldSchema tableFieldSchema) {
       return new SchemaInformation(
-          tableFieldSchema, Iterables.concat(this.parentSchemas, ImmutableList.of(this)));
+          tableFieldSchema,
+          Iterables.concat(this.parentSchemas, ImmutableList.of(this)),
+          NO_FIELD_INDEX);
     }
 
     public String getFullName() {
@@ -762,13 +780,30 @@ public class TableRowToStorageApiProto {
       return schemaInformation;
     }
 
+    private static @Nullable FieldDescriptor getFieldDescriptor(
+        Descriptor descriptor,
+        List<FieldDescriptor> descriptorFields,
+        @Nullable SchemaInformation fieldSchema,
+        String protoFieldName) {
+      if (fieldSchema != null
+          && fieldSchema.fieldIndex != NO_FIELD_INDEX
+          && fieldSchema.fieldIndex < descriptorFields.size()) {
+        FieldDescriptor fieldDescriptor = descriptorFields.get(fieldSchema.fieldIndex);
+        if (fieldDescriptor.getName().equals(protoFieldName)) {
+          return fieldDescriptor;
+        }
+      }
+      // Preserve support for callers that supply a compatible descriptor in a different order.
+      return descriptor.findFieldByName(protoFieldName);
+    }
+
     public static SchemaInformation fromTableSchema(TableSchema tableSchema) {
       TableFieldSchema root =
           TableFieldSchema.newBuilder()
               .addAllFields(tableSchema.getFieldsList())
               .setName("root")
               .build();
-      return new SchemaInformation(root, Collections.emptyList());
+      return new SchemaInformation(root, Collections.emptyList(), NO_FIELD_INDEX);
     }
 
     static SchemaInformation fromTableSchema(
@@ -870,6 +905,9 @@ public class TableRowToStorageApiProto {
               .map(String::toLowerCase)
               .collect(toSet());
     }
+    // Descriptor#getFields() creates an unmodifiable wrapper, so call it once per message.
+    List<FieldDescriptor> descriptorFields =
+        descriptor == null ? Collections.emptyList() : descriptor.getFields();
     for (final Map.Entry<String, Object> entry : map.entrySet()) {
       String key = entry.getKey().toLowerCase();
       if (requiredFieldsRemaining != null) {
@@ -880,8 +918,13 @@ public class TableRowToStorageApiProto {
           BigQuerySchemaUtil.isProtoCompatible(key)
               ? key
               : BigQuerySchemaUtil.generatePlaceholderFieldName(key);
+      @Nullable SchemaInformation cachedFieldSchemaInformation =
+          schemaInformation.subFieldsByName.get(key);
       @Nullable FieldDescriptor fieldDescriptor =
-          (descriptor == null) ? null : descriptor.findFieldByName(protoFieldName);
+          descriptor == null
+              ? null
+              : SchemaInformation.getFieldDescriptor(
+                  descriptor, descriptorFields, cachedFieldSchemaInformation, protoFieldName);
 
       if (fieldDescriptor == null) {
         if (unknownFields != null) {
@@ -958,7 +1001,9 @@ public class TableRowToStorageApiProto {
       }
 
       SchemaInformation fieldSchemaInformation =
-          schemaInformation.getSchemaForField(entry.getKey());
+          cachedFieldSchemaInformation == null
+              ? schemaInformation.getSchemaForField(entry.getKey())
+              : cachedFieldSchemaInformation;
       try {
         Supplier<@Nullable TableRow> getNestedUnknown =
             () -> {
