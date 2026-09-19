@@ -25,19 +25,27 @@ import org.apache.kafka.common.utils.Utils;
 import org.apache.kafka.streams.processor.StreamPartitioner;
 
 /**
- * Partitions records on the GroupByKey repartition topic.
+ * Partitions records on a repartition topic.
  *
  * <ul>
  *   <li><b>data</b> records go to the single partition selected by hashing the (already encoded
  *       Beam key) Kafka record key — the same scheme Kafka's default partitioner uses — so every
  *       value of a key lands together;
  *   <li><b>watermark</b> reports are broadcast to <i>every</i> partition, so each downstream
- *       GroupByKey task observes the terminal watermark and fires its keys.
+ *       GroupByKey task observes the terminal watermark and fires its keys;
+ *   <li><b>flush</b> markers go to the partitions they name.
  * </ul>
  *
  * @param <T> the data element type carried by data payloads
  */
-class GroupByKeyBroadcastPartitioner<T> implements StreamPartitioner<byte[], KStreamsPayload<T>> {
+class KStreamsPayloadPartitioner<T> implements StreamPartitioner<byte[], KStreamsPayload<T>> {
+
+  /** The partition count the flush targets were computed for. */
+  private final int expectedPartitions;
+
+  KStreamsPayloadPartitioner(int expectedPartitions) {
+    this.expectedPartitions = expectedPartitions;
+  }
 
   @Override
   public Integer partition(String topic, byte[] key, KStreamsPayload<T> value, int numPartitions) {
@@ -55,6 +63,17 @@ class GroupByKeyBroadcastPartitioner<T> implements StreamPartitioner<byte[], KSt
         all.add(partition);
       }
       return Optional.of(all);
+    }
+    if (value.isFlush()) {
+      // Targets assume internalParallelism partitions; a topic from an earlier run may differ.
+      if (numPartitions != expectedPartitions) {
+        throw new IllegalStateException(
+            String.format(
+                "Repartition topic %s has %d partitions but the pipeline expects %d. It was"
+                    + " probably created by an earlier run with a different --internalParallelism.",
+                topic, numPartitions, expectedPartitions));
+      }
+      return Optional.of(value.asFlush().getTargetPartitions());
     }
     if (key == null) {
       // A keyless record has no partition it must go to, so leave the choice to Kafka rather than
