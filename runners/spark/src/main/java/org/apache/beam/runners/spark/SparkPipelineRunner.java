@@ -82,15 +82,14 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
   @Override
   public PortablePipelineResult run(RunnerApi.Pipeline pipeline, JobInfo jobInfo) {
     SparkPortablePipelineTranslator translator;
-    boolean isStreaming = pipelineOptions.isStreaming() || hasUnboundedPCollections(pipeline);
-    if (pipelineOptions.getUseStructuredStreaming()) {
-      // The Dataset backend evaluates its own leaves. It never starts a DStream context, and it
-      // rejects unbounded input at translation. Clear the streaming option so that everything
-      // reading it downstream, such as the metrics accumulator, agrees with how the job runs.
+    boolean useStructuredStreaming = pipelineOptions.getUseStructuredStreaming();
+    // The Dataset backend never uses the DStream translator or a streaming context.
+    boolean useDStreams =
+        !useStructuredStreaming
+            && (pipelineOptions.isStreaming() || hasUnboundedPCollections(pipeline));
+    if (useStructuredStreaming) {
       translator = new SparkDatasetPortablePipelineTranslator();
-      pipelineOptions.setStreaming(false);
-      isStreaming = false;
-    } else if (isStreaming) {
+    } else if (useDStreams) {
       translator = new SparkStreamingPortablePipelineTranslator();
     } else {
       translator = new SparkBatchPortablePipelineTranslator();
@@ -120,9 +119,10 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
 
-    // Initialize accumulators.
+    // Initialize accumulators. Only the DStream streaming path uses the metrics checkpoint.
     MetricsEnvironment.setMetricsSupported(true);
-    MetricsAccumulator.init(pipelineOptions, jsc);
+    MetricsAccumulator.init(
+        pipelineOptions, jsc, !useStructuredStreaming && pipelineOptions.isStreaming());
 
     final SparkTranslationContext context =
         translator.createTranslationContext(jsc, pipelineOptions, jobInfo);
@@ -135,7 +135,7 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
 
     LOG.info("Running job {} on Spark master {}", jobInfo.jobId(), jsc.master());
 
-    if (isStreaming) {
+    if (useDStreams) {
       final JavaStreamingContext jssc =
           ((SparkStreamingTranslationContext) context).getStreamingContext();
 

@@ -37,8 +37,8 @@ Batch only. Streaming is tracked in
 [#36841](https://github.com/apache/beam/issues/36841).
 
 The portable job server can run bounded pipelines on the Dataset-based backend
-with `--useStructuredStreaming`. That path is experimental and rejects unbounded
-input, state, and timers at translation. The
+with `--useStructuredStreaming`. That path is experimental and does not support
+unbounded input, state or timers yet. The
 `validatesPortableRunnerStructuredStreaming` task runs the streaming
 PortableValidatesRunner suite against it.
 

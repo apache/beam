@@ -54,6 +54,7 @@ import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.sdk.values.WindowedValues.WindowedValueCoder;
 import org.apache.beam.sdk.values.WindowingStrategy;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
@@ -69,11 +70,11 @@ import org.apache.spark.sql.TypedColumn;
 import scala.Tuple2;
 
 /**
- * Translates a bounded portable pipeline into Spark Dataset operations.
+ * Translates a portable pipeline into Spark Dataset operations.
  *
  * <p>Executable stages run through the Fn API bridge of {@link SparkExecutableStageFunction} inside
- * {@code mapPartitions}. Side inputs are collected and broadcast. Pipelines with unbounded input,
- * user state, or timers fail at translation.
+ * {@code mapPartitions}. Side inputs are collected and broadcast. Unbounded input, user state and
+ * timers are not supported yet and fail at translation.
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
@@ -120,8 +121,7 @@ public class SparkDatasetPortablePipelineTranslator
   public void translate(RunnerApi.Pipeline pipeline, SparkDatasetTranslationContext context) {
     if (hasUnboundedPCollections(pipeline)) {
       throw new UnsupportedOperationException(
-          "The Dataset-based portable Spark runner runs bounded pipelines only. Unbounded input"
-              + " needs a Structured Streaming query, which this backend does not build yet, see"
+          "The Dataset-based portable Spark runner does not support unbounded input yet, see"
               + " https://github.com/apache/beam/issues/36841.");
     }
     QueryablePipeline p =
@@ -157,7 +157,8 @@ public class SparkDatasetPortablePipelineTranslator
             transformNode.getId(), transformNode.getTransform().getSpec().getUrn()));
   }
 
-  private static void translateImpulse(
+  @VisibleForTesting
+  static void translateImpulse(
       PTransformNode transformNode,
       RunnerApi.Pipeline pipeline,
       SparkDatasetTranslationContext context) {
@@ -171,7 +172,8 @@ public class SparkDatasetPortablePipelineTranslator
     context.putDataset(outputId, dataset);
   }
 
-  private static <InputT, SideInputT> void translateExecutableStage(
+  @VisibleForTesting
+  static <InputT, SideInputT> void translateExecutableStage(
       PTransformNode transformNode,
       RunnerApi.Pipeline pipeline,
       SparkDatasetTranslationContext context) {
@@ -294,7 +296,8 @@ public class SparkDatasetPortablePipelineTranslator
     return ImmutableMap.copyOf(broadcasts);
   }
 
-  private static <K, V> void translateGroupByKey(
+  @VisibleForTesting
+  static <K, V> void translateGroupByKey(
       PTransformNode transformNode,
       RunnerApi.Pipeline pipeline,
       SparkDatasetTranslationContext context) {
@@ -339,7 +342,8 @@ public class SparkDatasetPortablePipelineTranslator
     context.putDataset(outputId, grouped);
   }
 
-  private static <T> void translateFlatten(
+  @VisibleForTesting
+  static <T> void translateFlatten(
       PTransformNode transformNode,
       RunnerApi.Pipeline pipeline,
       SparkDatasetTranslationContext context) {
@@ -362,7 +366,8 @@ public class SparkDatasetPortablePipelineTranslator
     context.putDataset(outputId, result);
   }
 
-  private static <T> void translateReshuffle(
+  @VisibleForTesting
+  static <T> void translateReshuffle(
       PTransformNode transformNode,
       RunnerApi.Pipeline pipeline,
       SparkDatasetTranslationContext context) {

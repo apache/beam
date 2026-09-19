@@ -17,10 +17,8 @@
  */
 package org.apache.beam.runners.spark;
 
-import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.containsString;
-import static org.hamcrest.Matchers.hasItem;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -34,16 +32,11 @@ import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.jobsubmission.JobInvocation;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.BigEndianLongCoder;
-import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
-import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.PortablePipelineOptions;
-import org.apache.beam.sdk.state.StateSpec;
-import org.apache.beam.sdk.state.StateSpecs;
-import org.apache.beam.sdk.state.ValueState;
 import org.apache.beam.sdk.testing.CrashingRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.transforms.DoFn;
@@ -66,8 +59,10 @@ import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
 /**
- * Runs portable pipelines end to end on the Dataset-based backend: job invocation, executable stage
- * translation, and execution with the embedded SDK harness.
+ * Runs one portable pipeline end to end on the Dataset-based backend through the job invoker, with
+ * {@code --streaming} and {@code --useStructuredStreaming} as the {@code
+ * validatesPortableRunnerStructuredStreaming} task sets them. The translator and its context have
+ * their own unit tests.
  */
 @RunWith(JUnit4.class)
 public class SparkDatasetPortableExecutionTest implements Serializable {
@@ -148,45 +143,8 @@ public class SparkDatasetPortableExecutionTest implements Serializable {
     List<String> messages = new CopyOnWriteArrayList<>();
     JobState.Enum state = run(p, options, "bounded", messages);
     assertEquals(String.join("\n", messages), JobState.Enum.DONE, state);
-  }
-
-  @Test(timeout = 180_000)
-  public void unboundedInputIsRejectedAtTranslation() throws Exception {
-    SparkPipelineOptions options = options();
-    Pipeline p = Pipeline.create(options);
-    p.apply("unbounded", GenerateSequence.from(0));
-
-    List<String> messages = new CopyOnWriteArrayList<>();
-    assertEquals(JobState.Enum.FAILED, run(p, options, "unbounded", messages));
-    assertThat(messages, hasItem(containsString("bounded pipelines only")));
-  }
-
-  @Test(timeout = 180_000)
-  public void statefulStageIsRejectedAtTranslation() throws Exception {
-    SparkPipelineOptions options = options();
-    Pipeline p = Pipeline.create(options);
-    p.apply("impulse", Impulse.create())
-        .apply("addKeys", WithKeys.of("foo"))
-        .setCoder(KvCoder.of(StringUtf8Coder.of(), ByteArrayCoder.of()))
-        .apply(
-            "stateful",
-            ParDo.of(
-                new DoFn<KV<String, byte[]>, Long>() {
-                  @StateId("count")
-                  private final StateSpec<ValueState<Long>> count = StateSpecs.value();
-
-                  @ProcessElement
-                  public void process(
-                      @StateId("count") ValueState<Long> count, OutputReceiver<Long> out) {
-                    long next = count.read() == null ? 1 : count.read() + 1;
-                    count.write(next);
-                    out.output(next);
-                  }
-                }));
-
-    List<String> messages = new CopyOnWriteArrayList<>();
-    assertEquals(JobState.Enum.FAILED, run(p, options, "stateful", messages));
-    assertThat(messages, hasItem(containsString("uses state or timers")));
+    // The runner leaves the streaming option as submitted.
+    assertTrue(options.isStreaming());
   }
 
   private static SparkPipelineOptions options() {
@@ -197,6 +155,7 @@ public class SparkDatasetPortableExecutionTest implements Serializable {
         .setDefaultEnvironmentType(Environments.ENVIRONMENT_EMBEDDED);
     SparkPipelineOptions sparkOptions = options.as(SparkPipelineOptions.class);
     sparkOptions.setSparkMaster("local[2]");
+    sparkOptions.setStreaming(true);
     sparkOptions.setUseStructuredStreaming(true);
     return sparkOptions;
   }
