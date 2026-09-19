@@ -1123,8 +1123,8 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         if (this.appendClientInfo != null
             && autoUpdateSchema
             && autoUpdateSchemaStrictTimeout == null) {
-          @Nullable
-          StreamAppendClient streamAppendClient = appendClientInfo.getStreamAppendClient();
+          @Nullable StreamAppendClient streamAppendClient =
+              appendClientInfo.getStreamAppendClient();
           if (streamAppendClient != null) {
             Optional<TableSchema> updatedTableSchema =
                 schemaChangeDetectorHelper.checkResponseForUpdatedSchema(
@@ -1401,7 +1401,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               BigQueryHelpers.dataCatalogSegments(
                   state.getTableDestination().getTableReference(),
                   pipelineOptions.as(BigQueryOptions.class)));
-      
+
       DoFn.OutputReceiver<BigQueryStorageApiInsertError> failedRowsReceiver = o.get(failedRowsTag);
       DoFn.@Nullable OutputReceiver<TableRow> successfulRowsReceiver =
           (successfulRowsTag != null) ? o.get(successfulRowsTag) : null;

@@ -3645,7 +3645,10 @@ public class BigQueryIO {
      * #withSchemaUpdateOptions}.
      */
     public Write<T> withAutoSchemaUpdate(boolean autoSchemaUpdate) {
-      return toBuilder().setAutoSchemaUpdate(autoSchemaUpdate).build();
+      return toBuilder()
+          .setAutoSchemaUpdate(autoSchemaUpdate)
+          .setAutoSchemaUpdateStrictTimeout(null)
+          .build();
     }
 
     /**
@@ -3671,7 +3674,10 @@ public class BigQueryIO {
         boolean autoSchemaUpdate, Duration waitForSchemaTimeout) {
       return toBuilder()
           .setAutoSchemaUpdate(autoSchemaUpdate)
-          .setAutoSchemaUpdateStrictTimeout(waitForSchemaTimeout)
+          // Never leave a strict timeout configured when auto schema update is disabled -
+          // that would half-enable the consistent code path (buffering enabled, unknown-field
+          // capture and stream-schema refresh disabled).
+          .setAutoSchemaUpdateStrictTimeout(autoSchemaUpdate ? waitForSchemaTimeout : null)
           .build();
     }
 
@@ -4425,7 +4431,6 @@ public class BigQueryIO {
           RowWriterFactory.TableRowWriterFactory<T, DestinationT> tableRowWriterFactory =
               (RowWriterFactory.TableRowWriterFactory<T, DestinationT>) rowWriterFactory;
           // Fallback behavior: convert to JSON TableRows and convert those into Beam TableRows.
-          @Nullable Set<SchemaUpdateOption> schemaUpdateOptions = getSchemaUpdateOptions();
           boolean useSchemaUpdatingTableRow =
               (schemaUpdateOptions != null && !schemaUpdateOptions.isEmpty())
                   || (getAutoSchemaUpdate() && getAutoSchemaUpdateStrictTimeout() != null);
@@ -4438,7 +4443,7 @@ public class BigQueryIO {
                   getCreateDisposition(),
                   getIgnoreUnknownValues(),
                   getAutoSchemaUpdate(),
-                useSchemaUpdatingTableRow);
+                  useSchemaUpdatingTableRow);
         }
 
         int numShards = getStorageApiNumStreams(bqOptions);

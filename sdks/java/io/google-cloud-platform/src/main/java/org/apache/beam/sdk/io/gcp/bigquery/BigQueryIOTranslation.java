@@ -644,13 +644,12 @@ public class BigQueryIOTranslation {
       fieldValues.put("auto_sharding", transform.getAutoSharding());
       fieldValues.put("auto_schema_update", transform.getAutoSchemaUpdate());
       org.joda.time.Duration autoSchemaUpdateTimeout = transform.getAutoSchemaUpdateStrictTimeout();
-      if (autoSchemaUpdateTimeout!= null) {
+      if (autoSchemaUpdateTimeout != null) {
         fieldValues.put(
-            "auto_schema_update_strict_timeout_ms",
-            autoSchemaUpdateTimeout.getMillis());
+            "auto_schema_update_strict_timeout_ms", autoSchemaUpdateTimeout.getMillis());
       }
       Class<?> writeProtosClass = transform.getWriteProtosClass();
-      if (transform.getWriteProtosClass() != null) {
+      if (writeProtosClass != null) {
         fieldValues.put("write_protos_class", toByteArray(writeProtosClass));
       }
       fieldValues.put("direct_write_protos", transform.getDirectWriteProtos());

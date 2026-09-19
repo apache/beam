@@ -34,7 +34,6 @@ import com.google.cloud.bigquery.storage.v1.TableSchema;
 import com.google.cloud.bigquery.storage.v1.WriteStream;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.DescriptorProtos;
-import com.google.protobuf.Descriptors;
 import io.grpc.Status;
 import io.grpc.Status.Code;
 import java.io.IOException;
@@ -1129,8 +1128,19 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   }
                   : e -> false;
           final byte[] currentTableSchemaHash = appendClientHolder.get().getTableSchemaHash();
-          final Descriptors.Descriptor currentDescriptorProto =
-              TableRowToStorageApiProto.wrapDescriptorProto(messageConverter.getDescriptor(false));
+          // Check payload staleness against the descriptor that will actually be used to
+          // serialize the row, i.e. the one belonging to this shard's append client.
+          //
+          // The messageConverter is shared by every shard writing to this destination, but each
+          // shard owns its own append client and its own "updatedSchema" state. When one shard
+          // detects a schema change it upgrades the shared converter, but the other shards only
+          // rebuild their append clients once their own state says the schema changed. Comparing
+          // against the converter therefore reports "no missing unknown field" for a shard that
+          // is still holding a pre-upgrade append client, so the row is treated as matching and
+          // the new column is silently dropped during serialization.
+          //
+          // Evaluated lazily rather than captured, because appendClientHolder can be invalidated
+          // and reset within the retry loop below.
           final Iterable<AppendRowsPacket> messages =
               new SplittingIterable(
                   payloadsToIterate,
@@ -1138,7 +1148,9 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
                   failedRowsHandler,
                   // Get the currently-known TableSchema hash
                   () -> currentTableSchemaHash,
-                  () -> currentDescriptorProto,
+                  () ->
+                      TableRowToStorageApiProto.wrapDescriptorProto(
+                          appendClientHolder.get().getDescriptor()),
                   elementTs,
                   appendClientHolder::get,
                   schemaChangeDetectorHelper);
