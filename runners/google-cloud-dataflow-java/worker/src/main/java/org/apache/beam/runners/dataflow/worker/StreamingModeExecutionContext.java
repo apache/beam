@@ -725,12 +725,18 @@ public class StreamingModeExecutionContext
 
     validateCommitRequestSize();
 
-    if (this.workItemCommits == null) {
-      this.workItemCommits =
-          multiKeyBundleOptions.multiKeyBundleEnabled() ? new ArrayList<>() : new ArrayList<>(1);
-    }
-    this.workItemCommits.add(getKeyOutputBuilder().build());
+    WorkItemCommitRequest workItemCommitRequest = getKeyOutputBuilder().build();
     this.keyOutputBuilder = null;
+
+    if (multiKeyBundleOptions.multiKeyBundleEnabled()) {
+      if (this.workItemCommits == null) {
+        this.workItemCommits = new ArrayList<>();
+      }
+      this.workItemCommits.add(workItemCommitRequest);
+    } else {
+      checkState(this.workItemCommits == null);
+      this.workItemCommits = Collections.singletonList(workItemCommitRequest);
+    }
   }
 
   private void validateCommitRequestSize() {
