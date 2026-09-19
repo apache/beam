@@ -16,6 +16,7 @@
 package exec
 
 import (
+	"encoding/json"
 	"fmt"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
 	"reflect"
@@ -26,6 +27,7 @@ import (
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/coder"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/graph/window"
+	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/graphx"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/util/protox"
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
@@ -510,6 +512,91 @@ func TestNewBuilder(t *testing.T) {
 				t.Errorf("got an unexpected error: %v, want: %v", err, test.outputError)
 			} else if !reflect.DeepEqual(b, test.outputBuilder) {
 				t.Errorf("The output builder is not right. newBuilder(%v) = (%v, %v), want (%v, %v)", test.inputDesc, b, err, test.outputBuilder, test.outputError)
+			}
+		})
+	}
+}
+
+// unregisteredWindowFn is known to the type registry but never passed to
+// window.RegisterWindowFn.
+type unregisteredWindowFn struct{}
+
+func init() {
+	runtime.RegisterType(reflect.TypeOf(unregisteredWindowFn{}))
+}
+
+// customWindowFnEnvelope mirrors the JSON envelope makeWindowFn writes for
+// URNCustomWindowFn.
+type customWindowFnEnvelope struct {
+	Type    string          `json:"type"`
+	Payload json.RawMessage `json:"payload"`
+}
+
+func mustEnvelope(t *testing.T, typeKey string, payload string) []byte {
+	t.Helper()
+	b, err := json.Marshal(customWindowFnEnvelope{Type: typeKey, Payload: json.RawMessage(payload)})
+	if err != nil {
+		t.Fatalf("failed to build envelope: %v", err)
+	}
+	return b
+}
+
+func TestUnmarshalWindowFnCustom(t *testing.T) {
+	registered, ok := runtime.TypeKey(reflect.TypeOf(fixedCustomWindowFn{}))
+	if !ok {
+		t.Fatal("fixedCustomWindowFn has no type key")
+	}
+	unregistered, ok := runtime.TypeKey(reflect.TypeOf(unregisteredWindowFn{}))
+	if !ok {
+		t.Fatal("unregisteredWindowFn has no type key")
+	}
+
+	tests := []struct {
+		name    string
+		payload []byte
+		want    *window.Fn
+		wantErr bool
+	}{
+		{
+			name:    "registered type",
+			payload: mustEnvelope(t, registered, `{"SizeMs":3000}`),
+			want:    window.NewCustom(&fixedCustomWindowFn{SizeMs: 3000}),
+		},
+		{
+			name:    "malformed envelope",
+			payload: []byte(`{"type":`),
+			wantErr: true,
+		},
+		{
+			name:    "unknown type key",
+			payload: mustEnvelope(t, "example.com/nope.MissingFn", `{}`),
+			wantErr: true,
+		},
+		{
+			name:    "type not registered as a WindowFn",
+			payload: mustEnvelope(t, unregistered, `{}`),
+			wantErr: true,
+		},
+		{
+			name:    "malformed inner payload",
+			payload: mustEnvelope(t, registered, `{"SizeMs":"three thousand"}`),
+			wantErr: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := unmarshalWindowFn(&pipepb.FunctionSpec{
+				Urn:     graphx.URNCustomWindowFn,
+				Payload: test.payload,
+			})
+			if (err != nil) != test.wantErr {
+				t.Fatalf("unmarshalWindowFn error = %v, want error presence %v", err, test.wantErr)
+			}
+			if test.wantErr {
+				return
+			}
+			if !got.Equals(test.want) {
+				t.Errorf("unmarshalWindowFn = %v, want %v", got, test.want)
 			}
 		})
 	}
