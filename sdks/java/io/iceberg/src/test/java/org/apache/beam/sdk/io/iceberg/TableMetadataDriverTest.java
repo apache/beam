@@ -706,7 +706,7 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testMaximumCacheSizeInStreamingThrowsUnsupportedOperationException() {
+  public void testMaximumCacheSizeInStreamingThrowsIllegalArgumentException() {
     pipeline.enableAbandonedNodeEnforcement(false);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.test_table").build();
     TestStream<Row> stream =
@@ -718,7 +718,7 @@ public class TableMetadataDriverTest implements Serializable {
     PCollection<Row> input = pipeline.apply("StreamInput", stream);
 
     assertThrows(
-        UnsupportedOperationException.class,
+        IllegalArgumentException.class,
         () ->
             input.apply(
                 TableMetadataDriver.builder()

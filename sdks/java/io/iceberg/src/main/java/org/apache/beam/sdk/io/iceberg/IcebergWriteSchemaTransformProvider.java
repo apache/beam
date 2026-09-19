@@ -163,6 +163,23 @@ public class IcebergWriteSchemaTransformProvider
             + "'write.parquet.bloom-filter-enabled.column.<col>').")
     public abstract @Nullable Map<String, String> getWriteProperties();
 
+    @SchemaFieldDescription(
+        "Enables expirable side-input caching of Iceberg table metadata across workers to reduce catalog load.")
+    public abstract @Nullable Boolean getUsingSideInputTableCache();
+
+    @SchemaFieldDescription(
+        "For a streaming pipeline, sets the interval in seconds at which table metadata is refreshed from the catalog.")
+    public abstract @Nullable Integer getTableRefreshIntervalSeconds();
+
+    @SchemaFieldDescription(
+        "For a batch pipeline, sets the maximum number of table metadata specs to cache in memory. "
+            + "Tables exceeding this limit fall back to worker-local catalog loading.")
+    public abstract @Nullable Integer getMaximumCacheSize();
+
+    @SchemaFieldDescription(
+        "Sets the number of parallel buckets/workers used to query the Iceberg catalog during refreshes. Defaults to 1.")
+    public abstract @Nullable Integer getPollingBuckets();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -194,6 +211,14 @@ public class IcebergWriteSchemaTransformProvider
       public abstract Builder setAutosharding(Boolean autosharding);
 
       public abstract Builder setWriteProperties(Map<String, String> writeProperties);
+
+      public abstract Builder setUsingSideInputTableCache(Boolean usingSideInputTableCache);
+
+      public abstract Builder setTableRefreshIntervalSeconds(Integer tableRefreshIntervalSeconds);
+
+      public abstract Builder setMaximumCacheSize(Integer maximumCacheSize);
+
+      public abstract Builder setPollingBuckets(Integer pollingBuckets);
 
       public abstract Configuration build();
     }
@@ -289,6 +314,38 @@ public class IcebergWriteSchemaTransformProvider
       @Nullable Map<String, String> writeProperties = configuration.getWriteProperties();
       if (writeProperties != null && !writeProperties.isEmpty()) {
         writeTransform = writeTransform.withWriteProperties(writeProperties);
+      }
+
+      boolean hasSideInputOptions =
+          configuration.getTableRefreshIntervalSeconds() != null
+              || configuration.getMaximumCacheSize() != null
+              || configuration.getPollingBuckets() != null;
+
+      if (Boolean.FALSE.equals(configuration.getUsingSideInputTableCache())
+          && hasSideInputOptions) {
+        throw new IllegalArgumentException(
+            "Cannot specify side-input cache options (table_refresh_interval_seconds, "
+                + "maximum_cache_size, polling_buckets) when using_side_input_table_cache is set to false.");
+      }
+
+      boolean enableSideInputCache =
+          Boolean.TRUE.equals(configuration.getUsingSideInputTableCache()) || hasSideInputOptions;
+
+      if (enableSideInputCache) {
+        writeTransform = writeTransform.withSideInputTableCache();
+        @Nullable Integer refreshSec = configuration.getTableRefreshIntervalSeconds();
+        if (refreshSec != null) {
+          writeTransform =
+              writeTransform.withTableRefreshInterval(Duration.standardSeconds(refreshSec));
+        }
+        @Nullable Integer maxCacheSize = configuration.getMaximumCacheSize();
+        if (maxCacheSize != null) {
+          writeTransform = writeTransform.withMaximumCacheSize(maxCacheSize);
+        }
+        @Nullable Integer pollingBuckets = configuration.getPollingBuckets();
+        if (pollingBuckets != null) {
+          writeTransform = writeTransform.withPollingBuckets(pollingBuckets);
+        }
       }
 
       // TODO: support dynamic destinations
