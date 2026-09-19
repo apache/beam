@@ -1632,6 +1632,34 @@ public class TableRowToStorageApiProtoTest {
   }
 
   @Test
+  public void testHistoricalTimestampInputRemainsAccepted() throws Exception {
+    TableSchema schema =
+        new TableSchema()
+            .setFields(ImmutableList.of(new TableFieldSchema().setName("ts").setType("TIMESTAMP")));
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(schema, true, false);
+    SchemaInformation information = SchemaInformation.fromTableSchema(schema);
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            information,
+            descriptor,
+            new TableRow().set("ts", "1970-01-01 T00:00:00.000043"),
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    assertEquals(43L, message.getField(descriptor.findFieldByName("ts")));
+    assertEquals(
+        "1970-01-01 00:00:00.000043 UTC",
+        TableRowToStorageApiProto.tableRowFromMessage(
+                information, message, true, Predicates.alwaysTrue())
+            .get("ts"));
+  }
+
+  @Test
   public void testIntegerTimestampBoundaries() throws Exception {
     TableSchema schema =
         new TableSchema()
