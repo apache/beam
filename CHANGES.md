@@ -72,6 +72,7 @@
 
 ## Breaking Changes
 
+* (Java) BigQuery Storage Write API `TableRow` conversion now honors `allowMissingRequiredFields` during protocol-buffer construction. Callers that pass `true` with required descriptors receive partial messages instead of conversion-time `UninitializedMessageException` failures.
 * X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Deprecations
