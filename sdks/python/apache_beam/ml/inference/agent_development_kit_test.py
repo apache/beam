@@ -24,7 +24,9 @@ try:
   from google.adk.agents import Agent
 
   from apache_beam.ml.inference.agent_development_kit import ADKAgentModelHandler
+  from apache_beam.ml.inference.agent_development_kit import BEAM_PLACEHOLDER_MODEL
   from apache_beam.ml.inference.base import PredictionResult
+  from apache_beam.ml.inference.base import SubprocessModelHandler
 except ImportError:
   raise unittest.SkipTest('google-adk dependencies are not installed')
 
@@ -129,12 +131,46 @@ class TestLoadModel(unittest.TestCase):
   @mock.patch(f"{_MODULE}.InMemorySessionService")
   def test_load_model_calls_factory(self, mock_session_cls, mock_runner_cls):
     agent = _make_mock_agent()
-    factory = mock.MagicMock(return_value=agent)
+    mock_factory = mock.MagicMock(return_value=agent)
+    def factory():
+      return mock_factory()
 
     handler = ADKAgentModelHandler(agent=factory)
     handler.load_model()
 
-    factory.assert_called_once()
+    mock_factory.assert_called_once()
+    mock_runner_cls.assert_called_once_with(
+        agent=agent,
+        app_name="beam_inference",
+        session_service=mock_session_cls.return_value,
+    )
+
+  @mock.patch(f"{_MODULE}.Runner")
+  @mock.patch(f"{_MODULE}.InMemorySessionService")
+  def test_load_model_calls_factory_with_model(self, mock_session_cls, mock_runner_cls):
+    agent = _make_mock_agent()
+    mock_factory = mock.MagicMock(return_value=agent)
+    def factory(model):
+      return mock_factory(model)
+
+    mock_underlying_handler = mock.MagicMock(spec=SubprocessModelHandler)
+    mock_underlying_handler.get_model_name.return_value = "mock_model"
+    mock_underlying_handler.get_port.return_value = 12345
+    mock_underlying_handler.share_model_across_processes.return_value = False
+    
+    handler = ADKAgentModelHandler(
+        agent=factory,
+        underlying_model_handler=mock_underlying_handler
+    )
+    handler.load_model()
+
+    from google.adk.models.lite_llm import LiteLlm
+    mock_factory.assert_called_once()
+    called_model = mock_factory.call_args[0][0]
+    self.assertIsInstance(called_model, LiteLlm)
+    self.assertEqual(called_model.model, "mock_model")
+    self.assertEqual(called_model._additional_args.get("api_base"), "http://localhost:12345/v1")
+    
     mock_runner_cls.assert_called_once_with(
         agent=agent,
         app_name="beam_inference",
@@ -338,6 +374,178 @@ class TestResponseExtraction(unittest.TestCase):
         ADKAgentModelHandler._invoke_agent(
             runner, "user", "session-1", "test_app", mock.MagicMock()))
     self.assertEqual(result, "direct result")
+
+
+class TestLocalModelIntegration(unittest.TestCase):
+  def setUp(self):
+    self.mock_handler = mock.MagicMock(spec=SubprocessModelHandler)
+    self.mock_handler.get_model_name.return_value = "mock_model"
+    self.mock_handler.share_model_across_processes.return_value = False
+    
+    self.mock_model = mock.MagicMock()
+    self.mock_handler.load_model.return_value = self.mock_model
+    self.mock_handler.get_port.return_value = 12345
+
+  def test_placeholder_validation_fails_no_local_model(self):
+    agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="test_agent")
+    handler = ADKAgentModelHandler(agent=agent)
+    with self.assertRaises(ValueError) as ctx:
+      handler.load_model()
+    self.assertIn("cannot be BEAM_PLACEHOLDER_MODEL when no local model is configured", str(ctx.exception))
+
+  def test_validation_fails_with_remote_model_and_local_configured(self):
+    agent = Agent(model="gemini-1.5-pro", name="test_agent")
+    handler = ADKAgentModelHandler(agent=agent, underlying_model_handler=self.mock_handler)
+    with self.assertRaises(ValueError) as ctx:
+      handler.load_model()
+    self.assertIn("Agent model must be BEAM_PLACEHOLDER_MODEL or None", str(ctx.exception))
+
+  def test_local_model_injection_and_propagation(self):
+    subagent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="subagent")
+    
+    def mock_tool():
+      pass
+    mock_tool.agent = subagent
+    
+    root_agent = Agent(
+        model=BEAM_PLACEHOLDER_MODEL,
+        name="root_agent",
+        tools=[mock_tool]
+    )
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    from google.adk.models.lite_llm import LiteLlm
+    self.assertIsInstance(runner.agent.model, LiteLlm)
+    self.assertEqual(runner.agent.model.model, "mock_model")
+    self.assertEqual(runner.agent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+    
+    self.assertIsInstance(subagent.model, LiteLlm)
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+
+  def test_port_update_propagation(self):
+    subagent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="subagent")
+    
+    def mock_tool():
+      pass
+    mock_tool.agent = subagent
+    
+    root_agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="root_agent", tools=[mock_tool])
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+    
+    self.mock_handler.get_port.return_value = 54321
+    
+    handler._run_inference_internal = mock.MagicMock(return_value=[])
+    
+    handler.run_inference(batch=["test"], model=runner)
+    
+    self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
+    self.assertEqual(handler._current_port, 54321)
+
+  def test_recovery_on_failure(self):
+    root_agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="root_agent")
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    handler._run_inference_internal = mock.MagicMock(side_effect=Exception("Connection lost"))
+    
+    with self.assertRaises(Exception):
+      handler.run_inference(batch=["test"], model=runner)
+      
+    self.mock_handler.check_connectivity.assert_called_once_with(self.mock_model)
+
+  def test_recovery_fails_does_not_mask_original_error(self):
+    root_agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="root_agent")
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    handler._run_inference_internal = mock.MagicMock(side_effect=ValueError("Original error"))
+    self.mock_handler.check_connectivity.side_effect = Exception("Recovery failed")
+    
+    with self.assertRaises(ValueError) as ctx:
+      handler.run_inference(batch=["test"], model=runner)
+      
+    self.assertEqual(str(ctx.exception), "Original error")
+    self.mock_handler.check_connectivity.assert_called_once_with(self.mock_model)
+
+  def test_local_model_injection_with_none_tools(self):
+    root_agent = Agent(
+        model=BEAM_PLACEHOLDER_MODEL,
+        name="root_agent"
+    )
+    object.__setattr__(root_agent, 'tools', None)
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    from google.adk.models.lite_llm import LiteLlm
+    self.assertIsInstance(runner.agent.model, LiteLlm)
+
+  def test_port_update_propagation_with_none_tools(self):
+    root_agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="root_agent")
+    object.__setattr__(root_agent, 'tools', None)
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+    
+    self.mock_handler.get_port.return_value = 54321
+    handler._run_inference_internal = mock.MagicMock(return_value=[])
+    
+    handler.run_inference(batch=["test"], model=runner)
+    
+    self.assertEqual(root_agent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
+    self.assertEqual(handler._current_port, 54321)
+
+  def test_local_model_injection_and_propagation_sub_agents(self):
+    subagent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="subagent")
+    root_agent = Agent(
+        model=BEAM_PLACEHOLDER_MODEL,
+        name="root_agent",
+        sub_agents=[subagent]
+    )
+    
+    handler = ADKAgentModelHandler(agent=root_agent, underlying_model_handler=self.mock_handler)
+    runner = handler.load_model()
+    
+    from google.adk.models.lite_llm import LiteLlm
+    self.assertIsInstance(subagent.model, LiteLlm)
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:12345/v1")
+
+    self.mock_handler.get_port.return_value = 54321
+    handler._run_inference_internal = mock.MagicMock(return_value=[])
+    handler.run_inference(batch=["test"], model=runner)
+    self.assertEqual(subagent.model._additional_args.get("api_base"), "http://localhost:54321/v1")
+
+  def test_end_to_end_local_subprocess_model(self):
+    from apache_beam.ml.inference.base import ModelHandler
+    from apache_beam.ml.inference.base import SubProcessModel
+
+    class LocalEchoModelHandler(ModelHandler):
+      def load_model(self):
+        return "echo_model"
+      def run_inference(self, batch, model, inference_args=None):
+        return [PredictionResult(x, f"{x}_local_echo") for x in batch]
+
+    sub_mh = SubProcessModel(LocalEchoModelHandler(), model_name="facebook/opt-125m")
+    agent = Agent(model=BEAM_PLACEHOLDER_MODEL, name="echo_agent")
+    handler = ADKAgentModelHandler(agent=agent, underlying_model_handler=sub_mh)
+    runner = handler.load_model()
+    try:
+      results = list(handler.run_inference(batch=["hello"], model=runner))
+      self.assertEqual(len(results), 1)
+      self.assertEqual(results[0].example, "hello")
+      self.assertEqual(results[0].inference, "hello_local_echo")
+    finally:
+      del runner
 
 
 if __name__ == '__main__':
