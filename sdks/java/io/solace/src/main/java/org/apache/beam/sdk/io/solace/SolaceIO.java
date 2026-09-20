@@ -423,6 +423,7 @@ public class SolaceIO {
       Duration.standardSeconds(30);
   private static final Duration DEFAULT_ACK_DEADLINE = Duration.standardSeconds(30);
   public static final boolean DEFAULT_NACK_ON_TIMEOUT = false;
+  private static final boolean DEFAULT_ENABLE_OPEN_TELEMETRY_TRACING = false;
   public static final int DEFAULT_WRITER_NUM_SHARDS = 20;
   public static final int DEFAULT_WRITER_CLIENTS_PER_WORKER = 4;
   public static final Boolean DEFAULT_WRITER_PUBLISH_LATENCY_METRICS = false;
@@ -472,7 +473,8 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
             .setAckDeadline(DEFAULT_ACK_DEADLINE)
-            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT)
+            .setEnableOpenTelemetryTracing(DEFAULT_ENABLE_OPEN_TELEMETRY_TRACING));
   }
 
   /**
@@ -503,7 +505,8 @@ public class SolaceIO {
             .setDeduplicateRecords(DEFAULT_DEDUPLICATE_RECORDS)
             .setWatermarkIdleDurationThreshold(DEFAULT_WATERMARK_IDLE_DURATION_THRESHOLD)
             .setAckDeadline(DEFAULT_ACK_DEADLINE)
-            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT));
+            .setNackOnTimeout(DEFAULT_NACK_ON_TIMEOUT)
+            .setEnableOpenTelemetryTracing(DEFAULT_ENABLE_OPEN_TELEMETRY_TRACING));
   }
 
   /**
@@ -627,6 +630,11 @@ public class SolaceIO {
       return this;
     }
 
+    public Read<T> withEnableOpenTelemetryTracing() {
+      configurationBuilder.setEnableOpenTelemetryTracing(true);
+      return this;
+    }
+
     /**
      * Set a factory that creates a {@link org.apache.beam.sdk.io.solace.broker.SempClientFactory}.
      *
@@ -733,6 +741,8 @@ public class SolaceIO {
 
       abstract boolean getNackOnTimeout();
 
+      abstract boolean getEnableOpenTelemetryTracing();
+
       public static <T> Builder<T> builder() {
         Builder<T> builder =
             new org.apache.beam.sdk.io.solace.AutoValue_SolaceIO_Read_Configuration.Builder<T>();
@@ -751,6 +761,8 @@ public class SolaceIO {
         abstract Builder<T> setMaxNumConnections(Integer maxNumConnections);
 
         abstract Builder<T> setDeduplicateRecords(boolean deduplicateRecords);
+
+        abstract Builder<T> setEnableOpenTelemetryTracing(boolean enableOpenTelemetryTracing);
 
         abstract Builder<T> setParseFn(
             SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn);
@@ -793,20 +805,24 @@ public class SolaceIO {
 
       Coder<T> coder = inferCoder(input.getPipeline(), configuration.getTypeDescriptor());
 
-      return input.apply(
-          org.apache.beam.sdk.io.Read.from(
-              new UnboundedSolaceSource<>(
-                  initializedQueue,
-                  sempClientFactory,
-                  sessionServiceFactory,
-                  configuration.getMaxNumConnections(),
-                  configuration.getDeduplicateRecords(),
-                  coder,
-                  configuration.getTimestampFn(),
-                  configuration.getWatermarkIdleDurationThreshold(),
-                  configuration.getParseFn(),
-                  configuration.getAckDeadline(),
-                  configuration.getNackOnTimeout())));
+      PCollection<T> output =
+          input.apply(
+              org.apache.beam.sdk.io.Read.from(
+                  new UnboundedSolaceSource<>(
+                      initializedQueue,
+                      sempClientFactory,
+                      sessionServiceFactory,
+                      configuration.getMaxNumConnections(),
+                      configuration.getDeduplicateRecords(),
+                      coder,
+                      configuration.getTimestampFn(),
+                      configuration.getWatermarkIdleDurationThreshold(),
+                      configuration.getParseFn(),
+                      configuration.getAckDeadline(),
+                      configuration.getNackOnTimeout(),
+                      configuration.getEnableOpenTelemetryTracing())));
+
+      return output;
     }
 
     @VisibleForTesting

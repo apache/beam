@@ -21,6 +21,8 @@ import com.google.auto.value.AutoValue;
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.SDTException;
+import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.TextMessage;
 import java.io.Serializable;
 import java.nio.ByteBuffer;
@@ -29,9 +31,11 @@ import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+
 import java.util.List;
-import java.util.Map;
 import org.apache.beam.sdk.io.solace.broker.SolaceUserPropertiesMapper;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.annotations.SchemaFieldNumber;
@@ -414,7 +418,7 @@ public class Solace {
      */
     @SchemaFieldNumber("14")
     public abstract Map<String, UserPropertyValue> getUserProperties();
-
+    
     /** Gets the payload decoded as UTF-8 when this record has type {@link PayloadType#TEXT}. */
     public final String getText() {
       if (getPayloadType() != PayloadType.TEXT) {
@@ -442,6 +446,8 @@ public class Solace {
       public abstract Builder setPayload(byte[] payload);
 
       public abstract Builder setPayloadType(PayloadType payloadType);
+
+      public abstract Builder setProperties(Map<String, String> properties);
 
       /** Sets a UTF-8 text payload and selects {@link PayloadType#TEXT}. */
       public Builder setText(String text) {
@@ -600,6 +606,22 @@ public class Solace {
       Destination destination = getDestination(msg.getCorrelationId(), msg.getDestination());
       Map<String, UserPropertyValue> userProperties =
           SolaceUserPropertiesMapper.toUserPropertyValueMap(msg.getProperties());
+
+      Map<String, String> properties = new HashMap<>();
+      SDTMap solaceProperties = msg.getProperties();
+      if (solaceProperties != null) {
+        for (String key : solaceProperties.keySet()) {
+          Object value;
+          try {
+            value = solaceProperties.get(key);
+          } catch (SDTException e) {
+            continue;
+          }
+          if (value != null) {
+            properties.put(key, value.toString());
+          }
+        }
+      }
 
       Record.Builder recordBuilder = decodePayload(msg);
       return recordBuilder
