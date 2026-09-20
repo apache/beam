@@ -68,7 +68,7 @@
 
 ## New Features / Improvements
 
-* (Java) Improved BigQuery Storage Write API `TableRow` conversion performance by using schema field ordinals as verified descriptor lookup hints.
+* (Java) Improved BigQuery Storage Write API `TableRow` conversion performance by using schema field ordinals as verified descriptor lookup hints ([#40188](https://github.com/apache/beam/issues/40188)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 
 ## Breaking Changes
