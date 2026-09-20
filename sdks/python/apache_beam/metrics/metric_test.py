@@ -392,12 +392,14 @@ class MetricsFlagTest(unittest.TestCase):
 
   def test_disabled_process_wide_counter_is_noop(self):
     self._set_experiments('disableCounterMetrics')
-    counter = Metrics.DelegatingCounter(
-        MetricName('ns', 'process_wide'), process_wide=True)
+    name = MetricName('ns', 'process_wide')
+    counter = Metrics.DelegatingCounter(name, process_wide=True)
     counter.inc()
-    self.assertEqual(
-        MetricsEnvironment.process_wide_container().get_cumulative().counters,
-        {})
+    # The process-wide container is shared with every other test in this
+    # process, so only check that this counter never reached it.
+    self.assertNotIn(
+        MetricKey(None, name),
+        MetricsEnvironment.process_wide_container().get_cumulative().counters)
 
   def test_disabled_flag_applies_to_unpickled_metrics(self):
     # DoFns holding metric objects are pickled at submission time and
