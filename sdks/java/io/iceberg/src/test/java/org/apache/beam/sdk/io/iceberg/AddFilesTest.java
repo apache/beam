@@ -1454,7 +1454,8 @@ public class AddFilesTest {
 
   /**
    * The schema commit retries a CommitFailedException (another writer got in first). The committer
-   * is serialized with the DoFn, so only the table shows the retry happened.
+   * is serialized with the DoFn, so the retry shows in the table and in the time the backoff
+   * reports to the runner as throttled.
    */
   @Test
   public void testTransientSchemaCommitFailureIsRetried() throws Exception {
@@ -1475,9 +1476,25 @@ public class AddFilesTest {
             .apply(addFiles(ADDITIONS).withSchemaCommitter(failsOnce));
     PAssert.that(output.get("errors")).empty();
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
 
     assertEmailAddedAndFilesRegistered(1);
+    long throttledMillis = 0;
+    for (MetricResult<Long> metric :
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_NAMESPACE,
+                            org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME))
+                    .build())
+            .getCounters()) {
+      throttledMillis += metric.getAttempted();
+    }
+    assertTrue("one backoff wait was reported: " + throttledMillis, throttledMillis > 0);
   }
 
   // ---- ConvertToDataFile coverage check and pinned columns

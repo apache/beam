@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.io.iceberg.CommitSchemaUnion.Committer;
 import org.apache.beam.sdk.io.iceberg.CommitSchemaUnion.IncompatibleSchemaException;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
+import org.apache.beam.sdk.util.FastNanoClockAndSleeper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.Schema;
@@ -68,6 +69,9 @@ public class CommitSchemaUnionTest {
   public transient TestDataWarehouse warehouse = new TestDataWarehouse(TEMPORARY_FOLDER, "default");
 
   @Rule public TestName testName = new TestName();
+
+  /** Advances a fake clock instead of sleeping out the commit backoff. */
+  @Rule public FastNanoClockAndSleeper fastClock = new FastNanoClockAndSleeper();
 
   private static final Schema TABLE =
       new Schema(
@@ -769,15 +773,20 @@ public class CommitSchemaUnionTest {
         tableId,
         Arrays.asList(files(file, 1)),
         settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
-        flakyThenExternalChange);
+        flakyThenExternalChange,
+        fastClock);
     Table table = load();
     assertEquals(2, attempts.get());
     assertNotNull(table.schema().findField("external"));
     assertNotNull(table.schema().findField("email"));
   }
 
-  @Test
-  public void testPersistentCommitFailurePropagates() {
+  private long millisSleptSince(long startNanos) {
+    return (fastClock.nanoTime() - startNanos) / 1_000_000;
+  }
+
+  /** A commit that always loses; returns how many times it was attempted. */
+  private int attemptsUntilGivingUp() {
     AtomicInteger attempts = new AtomicInteger();
     Committer alwaysFails =
         txn -> {
@@ -797,8 +806,53 @@ public class CommitSchemaUnionTest {
                 tableId,
                 Arrays.asList(files(file, 1)),
                 settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
-                alwaysFails));
-    assertEquals(CommitSchemaUnion.MAX_ATTEMPTS, attempts.get());
+                alwaysFails,
+                fastClock));
+    return attempts.get();
+  }
+
+  /** The budget is time, not a count: the waits add up to the timeout, whatever the jitter. */
+  @Test
+  public void testPersistentCommitFailureGivesUpWhenTheRetryTimeIsSpent() {
+    long start = fastClock.nanoTime();
+    int attempts = attemptsUntilGivingUp();
+    assertEquals(
+        CommitSchemaUnion.DEFAULT_RETRY_TOTAL_TIMEOUT.getMillis(), millisSleptSince(start));
+    assertTrue("retried: " + attempts, attempts > 1);
+    assertNull("nothing was committed", load().schema().findField("email"));
+  }
+
+  @Test
+  public void testTableRetryPropertiesSetTheBudget() {
+    load()
+        .updateProperties()
+        .set(TableProperties.COMMIT_MIN_RETRY_WAIT_MS, "10")
+        .set(TableProperties.COMMIT_MAX_RETRY_WAIT_MS, "40")
+        .set(TableProperties.COMMIT_TOTAL_RETRY_TIME_MS, "200")
+        .commit();
+    long start = fastClock.nanoTime();
+    attemptsUntilGivingUp();
+    assertEquals(200, millisSleptSince(start));
+  }
+
+  /** A bad table property must not replace the commit failure with a configuration error. */
+  @Test
+  public void testUnusableTableRetryPropertiesAreClamped() {
+    load()
+        .updateProperties()
+        .set(TableProperties.COMMIT_MIN_RETRY_WAIT_MS, "0")
+        .set(TableProperties.COMMIT_TOTAL_RETRY_TIME_MS, "-5")
+        .set(TableProperties.COMMIT_NUM_RETRIES, "-1")
+        .commit();
+    long start = fastClock.nanoTime();
+    assertEquals("no retries", 1, attemptsUntilGivingUp());
+    assertEquals(0, millisSleptSince(start));
+  }
+
+  @Test
+  public void testTableRetryCountCapsTheAttempts() {
+    load().updateProperties().set(TableProperties.COMMIT_NUM_RETRIES, "2").commit();
+    assertEquals(3, attemptsUntilGivingUp());
   }
 
   // ---- create path
@@ -1240,7 +1294,8 @@ public class CommitSchemaUnionTest {
         id,
         Arrays.asList(files(file, 1)),
         settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION),
-        raced);
+        raced,
+        fastClock);
     Table table = catalog.loadTable(id);
     assertEquals(2, attempts.get());
     assertNotNull(table.schema().findField("email"));

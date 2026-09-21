@@ -27,8 +27,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Supplier;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.util.BackOff;
 import org.apache.beam.sdk.util.BackOffUtils;
 import org.apache.beam.sdk.util.FluentBackoff;
@@ -51,6 +52,7 @@ import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.types.Type;
 import org.apache.iceberg.types.TypeUtil;
 import org.apache.iceberg.types.Types;
+import org.apache.iceberg.util.PropertyUtil;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -77,7 +79,20 @@ import org.slf4j.LoggerFactory;
 final class CommitSchemaUnion {
   private static final Logger LOG = LoggerFactory.getLogger(CommitSchemaUnion.class);
 
-  static final int MAX_ATTEMPTS = 5;
+  /**
+   * How long a commit or a plan keeps retrying, unless the table's own {@code commit.retry.*}
+   * properties say otherwise. More patient than Iceberg's defaults because Iceberg cannot retry
+   * these commits itself: a schema update inside a transaction cannot be re-applied after a
+   * concurrent commit of any kind, a data append included, so every such commit lands here.
+   */
+  static final Duration DEFAULT_RETRY_MIN_WAIT = Duration.millis(250);
+
+  static final Duration DEFAULT_RETRY_MAX_WAIT = Duration.standardSeconds(10);
+  static final Duration DEFAULT_RETRY_TOTAL_TIMEOUT = Duration.standardMinutes(1);
+
+  /** Tells the runner a worker waiting out a busy catalog is throttled, not busy. */
+  private static final Counter throttledMillis =
+      Metrics.counter(Metrics.THROTTLE_TIME_NAMESPACE, Metrics.THROTTLE_TIME_COUNTER_NAME);
 
   /** Returned when the table does not exist and there is no schema to create it from. */
   static final long NO_TABLE = -1L;
@@ -220,35 +235,56 @@ final class CommitSchemaUnion {
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       Settings settings,
       Committer committer) {
-    return withRetry(tableId, () -> commitOnce(catalog, tableId, schemas, settings, committer));
+    return commit(catalog, tableId, schemas, settings, committer, Sleeper.DEFAULT);
+  }
+
+  /** Test hook: the sleeper keeps the retry tests from waiting out the backoff. */
+  static long commit(
+      Catalog catalog,
+      TableIdentifier tableId,
+      List<CollectDistinctSchemas.SchemaGroup> schemas,
+      Settings settings,
+      Committer committer,
+      Sleeper sleeper) {
+    return withRetry(
+        catalog,
+        tableId,
+        sleeper,
+        table -> commitOnce(catalog, tableId, table, schemas, settings, committer));
+  }
+
+  /** One attempt at a plan or a commit, against the table as it is now; null when missing. */
+  private interface Attempt<T> {
+    T run(@Nullable Table table);
   }
 
   /**
-   * Runs one attempt of a plan or a commit again when a concurrent commit or a create race
-   * invalidates the table state it started from; every attempt reloads the table.
+   * Runs an attempt again, against a fresh load of the table, when a concurrent commit or a create
+   * race invalidates the state it started from. Gives up when the backoff time is spent.
    */
-  private static <T> T withRetry(TableIdentifier tableId, Supplier<T> once) {
-    // The catalog is already under contention when a retry fires; back off (jittered by
-    // FluentBackoff) instead of piling on. Iceberg's own metadata retries (commit.retry.*)
-    // sit below this loop.
-    BackOff backoff =
-        FluentBackoff.DEFAULT
-            .withMaxRetries(MAX_ATTEMPTS - 1)
-            .withInitialBackoff(Duration.millis(100))
-            .backoff();
+  private static <T> T withRetry(
+      Catalog catalog, TableIdentifier tableId, Sleeper sleeper, Attempt<T> once) {
+    @Nullable BackOff backoff = null;
     for (int attempt = 1; ; attempt++) {
+      @Nullable Table table;
       try {
-        return once.get();
+        table = catalog.loadTable(tableId);
+      } catch (NoSuchTableException e) {
+        table = null;
+      }
+      try {
+        return once.run(table);
       } catch (CommitFailedException | AlreadyExistsException e) {
-        // a concurrent commit, or a create race: the next attempt loads the fresh state
+        if (backoff == null) {
+          backoff = retryBackoff(table).backoff();
+        }
         LOG.info(
-            "Schema pre-pass attempt {}/{} for {} failed: {}",
+            "Schema pre-pass attempt {} for {} failed: {}",
             attempt,
-            MAX_ATTEMPTS,
             tableId,
             AddFiles.errorMessage(e));
         try {
-          if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
+          if (!BackOffUtils.next(sleeper, backoff)) {
             throw e;
           }
         } catch (InterruptedException interrupted) {
@@ -257,6 +293,40 @@ final class CommitSchemaUnion {
         }
       }
     }
+  }
+
+  /**
+   * Jittered exponential backoff, bounded by time; a retry count only applies when the table sets
+   * one. Values the backoff would reject are clamped, so a bad table property cannot replace the
+   * commit failure with a configuration error.
+   */
+  private static FluentBackoff retryBackoff(@Nullable Table table) {
+    Map<String, String> properties = table == null ? Collections.emptyMap() : table.properties();
+    long minWaitMillis =
+        PropertyUtil.propertyAsLong(
+            properties,
+            TableProperties.COMMIT_MIN_RETRY_WAIT_MS,
+            DEFAULT_RETRY_MIN_WAIT.getMillis());
+    long maxWaitMillis =
+        PropertyUtil.propertyAsLong(
+            properties,
+            TableProperties.COMMIT_MAX_RETRY_WAIT_MS,
+            DEFAULT_RETRY_MAX_WAIT.getMillis());
+    long totalMillis =
+        PropertyUtil.propertyAsLong(
+            properties,
+            TableProperties.COMMIT_TOTAL_RETRY_TIME_MS,
+            DEFAULT_RETRY_TOTAL_TIMEOUT.getMillis());
+    int maxRetries =
+        PropertyUtil.propertyAsInt(
+            properties, TableProperties.COMMIT_NUM_RETRIES, Integer.MAX_VALUE);
+    return FluentBackoff.DEFAULT
+        .withExponent(2.0)
+        .withInitialBackoff(Duration.millis(Math.max(1, minWaitMillis)))
+        .withMaxBackoff(Duration.millis(Math.max(1, maxWaitMillis)))
+        .withMaxCumulativeBackoff(Duration.millis(Math.max(1, totalMillis)))
+        .withMaxRetries(Math.max(0, maxRetries))
+        .withThrottledTimeCounter(throttledMillis);
   }
 
   /**
@@ -382,18 +452,20 @@ final class CommitSchemaUnion {
       TableIdentifier tableId,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       Settings settings) {
-    return withRetry(tableId, () -> planOnce(catalog, tableId, schemas, settings));
+    return withRetry(
+        catalog,
+        tableId,
+        Sleeper.DEFAULT,
+        table -> planOnce(catalog, tableId, table, schemas, settings));
   }
 
   private static Plan planOnce(
       Catalog catalog,
       TableIdentifier tableId,
+      @Nullable Table table,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       Settings settings) {
-    Table table;
-    try {
-      table = catalog.loadTable(tableId);
-    } catch (NoSuchTableException e) {
+    if (table == null) {
       return planCreation(catalog, tableId, schemas, settings);
     }
     return planEvolution(table, tableId, schemas, settings.config);
@@ -469,10 +541,11 @@ final class CommitSchemaUnion {
   private static long commitOnce(
       Catalog catalog,
       TableIdentifier tableId,
+      @Nullable Table table,
       List<CollectDistinctSchemas.SchemaGroup> schemas,
       Settings settings,
       Committer committer) {
-    Plan plan = planOnce(catalog, tableId, schemas, settings);
+    Plan plan = planOnce(catalog, tableId, table, schemas, settings);
     if (plan instanceof CreationPlan) {
       return create((CreationPlan) plan, catalog, tableId, settings, committer);
     }
