@@ -496,6 +496,24 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             .advanceWatermarkToInfinity();
 
     PCollection<Row> streamInput = p.apply("StreamForValidation", testStream);
+
+    // Sub-options specified without withSideInputTableCache() must fail at expand
+    IcebergIO.WriteRows writeWithMaxCacheOnly =
+        IcebergIO.writeRows(catalogConfig).to(tableId).withMaximumCacheSize(5);
+    assertThrows(IllegalArgumentException.class, () -> streamInput.apply(writeWithMaxCacheOnly));
+
+    IcebergIO.WriteRows writeWithRefreshIntervalOnly =
+        IcebergIO.writeRows(catalogConfig)
+            .to(tableId)
+            .withTableRefreshInterval(Duration.standardMinutes(1));
+    assertThrows(
+        IllegalArgumentException.class, () -> streamInput.apply(writeWithRefreshIntervalOnly));
+
+    IcebergIO.WriteRows writeWithPollingBucketsOnly =
+        IcebergIO.writeRows(catalogConfig).to(tableId).withPollingBuckets(2);
+    assertThrows(
+        IllegalArgumentException.class, () -> streamInput.apply(writeWithPollingBucketsOnly));
+
     IcebergIO.WriteRows streamWrite =
         IcebergIO.writeRows(catalogConfig)
             .to(tableId)

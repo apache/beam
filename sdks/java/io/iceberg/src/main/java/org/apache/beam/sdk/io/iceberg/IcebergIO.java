@@ -630,6 +630,15 @@ public class IcebergIO {
             "Must only provide direct write limit for unbounded pipelines.");
       }
 
+      boolean hasSideInputOptions =
+          getMaximumCacheSize() != null
+              || getTableRefreshInterval() != null
+              || getPollingBuckets() != null;
+      Preconditions.checkArgument(
+          getUsingSideInputTableCache() || !hasSideInputOptions,
+          "Cannot specify side-input cache sub-options (maximumCacheSize, "
+              + "tableRefreshInterval, pollingBuckets) without enabling side-input table cache via withSideInputTableCache().");
+
       PCollectionView<Map<String, SerializableTableSpec>> metadataView = null;
       if (getUsingSideInputTableCache()) {
         TableMetadataDriver.Builder driverBuilder =

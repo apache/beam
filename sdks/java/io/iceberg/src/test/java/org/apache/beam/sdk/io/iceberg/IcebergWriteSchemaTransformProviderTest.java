@@ -45,7 +45,6 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
-import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -308,32 +307,8 @@ public class IcebergWriteSchemaTransformProviderTest {
   }
 
   @Test
-  public void testSideInputCacheImplicitEnablementAndValidation() {
-    // Setting sub-options without explicitly setting using_side_input_table_cache implicitly
-    // enables cache
-    Configuration configWithImplicitCache =
-        Configuration.builder()
-            .setTable("default.table_implicit")
-            .setCatalogName("name")
-            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setMaximumCacheSize(50)
-            .build();
-
+  public void testSideInputCacheSubOptionsRequireExplicitEnablement() {
     IcebergWriteSchemaTransformProvider provider = new IcebergWriteSchemaTransformProvider();
-    SchemaTransform transform = provider.from(configWithImplicitCache);
-    assertNotNull(transform);
-
-    // Setting using_side_input_table_cache to false while setting sub-options must throw
-    // IllegalArgumentException
-    Configuration invalidConfig =
-        Configuration.builder()
-            .setTable("default.table_invalid")
-            .setCatalogName("name")
-            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
-            .setUsingSideInputTableCache(false)
-            .setMaximumCacheSize(50)
-            .build();
-
     Pipeline p = Pipeline.create();
     PCollectionRowTuple dummyInput =
         PCollectionRowTuple.of(
@@ -341,8 +316,67 @@ public class IcebergWriteSchemaTransformProviderTest {
             p.apply("DummyInput", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
                 .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
 
+    // Setting sub-options when using_side_input_table_cache is not set (null) must throw
+    // IllegalArgumentException
+    Configuration configWithMaxCacheSizeOnly =
+        Configuration.builder()
+            .setTable("default.table_max_cache")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setMaximumCacheSize(50)
+            .build();
     assertThrows(
-        IllegalArgumentException.class, () -> dummyInput.apply(provider.from(invalidConfig)));
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(configWithMaxCacheSizeOnly)));
+
+    Configuration configWithRefreshIntervalOnly =
+        Configuration.builder()
+            .setTable("default.table_refresh")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setTableRefreshIntervalSeconds(60)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(configWithRefreshIntervalOnly)));
+
+    Configuration configWithPollingBucketsOnly =
+        Configuration.builder()
+            .setTable("default.table_buckets")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setPollingBuckets(2)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(configWithPollingBucketsOnly)));
+
+    // Setting using_side_input_table_cache to false while setting sub-options must throw
+    // IllegalArgumentException
+    Configuration invalidConfigWithFalse =
+        Configuration.builder()
+            .setTable("default.table_invalid")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setUsingSideInputTableCache(false)
+            .setMaximumCacheSize(50)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(invalidConfigWithFalse)));
+
+    // Explicitly setting using_side_input_table_cache to true with sub-options succeeds
+    Configuration validConfig =
+        Configuration.builder()
+            .setTable("default.table_valid")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setUsingSideInputTableCache(true)
+            .setMaximumCacheSize(50)
+            .setTableRefreshIntervalSeconds(60)
+            .setPollingBuckets(2)
+            .build();
+    assertNotNull(dummyInput.apply(provider.from(validConfig)));
   }
 
   /**
