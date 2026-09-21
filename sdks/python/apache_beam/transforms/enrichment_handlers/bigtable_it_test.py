@@ -36,7 +36,7 @@ try:
   from testcontainers.redis import RedisContainer
 
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.bigtable import BigtableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable import ExceptionLevel
 except ImportError:
   raise unittest.SkipTest('Bigtable test dependencies are not installed.')
@@ -152,7 +152,7 @@ def create_rows(table):
 
 
 @pytest.mark.uses_testcontainer
-class TestBigTableEnrichment(unittest.TestCase):
+class TestBigtableEnrichment(unittest.TestCase):
   def setUp(self):
     self.project_id = 'apache-beam-testing'
     self.instance_id = 'beam-test'
@@ -199,7 +199,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     expected_enriched_fields = {
         'product': ['product_id', 'product_name', 'product_stock'],
     }
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -208,7 +208,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
                   len(expected_fields),
@@ -224,7 +224,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     }
     start_column = 'product_name'.encode()
     column_filter = ColumnRangeFilter(self.column_family_id, start_column)
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -234,7 +234,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
                   len(expected_fields),
@@ -246,7 +246,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     # won't be added. Hence, the response is same as the request.
     expected_fields = ['sale_id', 'customer_id', 'product_id', 'quantity']
     expected_enriched_fields = {}
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -256,7 +256,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
                   len(expected_fields),
@@ -269,7 +269,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     # column names then all columns in that column_family are returned.
     start_column = 'car_name'.encode()
     column_filter = ColumnRangeFilter('car_name', start_column)
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -280,14 +280,14 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable))
       res = test_pipeline.run()
       res.wait_until_finish()
 
   def test_enrichment_with_bigtable_raises_key_error(self):
     """raises a `KeyError` when the row_key doesn't exist in
     the input PCollection."""
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -297,14 +297,14 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable))
       res = test_pipeline.run()
       res.wait_until_finish()
 
   def test_enrichment_with_bigtable_raises_not_found(self):
-    """raises a `NotFound` exception when the GCP BigTable Cluster
+    """raises a `NotFound` exception when the GCP Bigtable Cluster
     doesn't exist."""
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id='invalid_table',
@@ -314,14 +314,14 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable))
       res = test_pipeline.run()
       res.wait_until_finish()
 
   def test_enrichment_with_bigtable_exception_level(self):
-    """raises a `ValueError` exception when the GCP BigTable query returns
+    """raises a `ValueError` exception when the GCP Bigtable query returns
     an empty row."""
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -333,7 +333,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable))
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable))
       res = test_pipeline.run()
       res.wait_until_finish()
 
@@ -346,7 +346,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     expected_enriched_fields = {
         'product': ['product_id', 'product_name', 'product_stock'],
     }
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -356,7 +356,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
                   len(expected_fields),
@@ -372,7 +372,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     zero cache records. Therefore, it makes call to the Bigtable source and
     ultimately writes to the cache with a TTL of 300 seconds.
 
-    For the second pipeline, we mock the `BigTableEnrichmentHandler`'s
+    For the second pipeline, we mock the `BigtableEnrichmentHandler`'s
     `__call__` method to always return a `None` response. However, this change
     won't impact the second pipeline because the Enrichment transform first
     checks the cache to fulfill requests. Since all requests are cached, it
@@ -386,7 +386,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     }
     start_column = 'product_name'.encode()
     column_filter = ColumnRangeFilter(self.column_family_id, start_column)
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -396,7 +396,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create1" >> beam.Create(self.req)
-          | "Enrich W/ BigTable1" >> Enrichment(bigtable).with_redis_cache(
+          | "Enrich W/ Bigtable1" >> Enrichment(bigtable).with_redis_cache(
               self.host, self.port, 300)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
@@ -412,8 +412,8 @@ class TestBigTableEnrichment(unittest.TestCase):
       if not response:
         raise ValueError("No cache entry found for %s" % key)
 
-    actual = BigTableEnrichmentHandler.__call__
-    BigTableEnrichmentHandler.__call__ = MagicMock(
+    actual = BigtableEnrichmentHandler.__call__
+    BigtableEnrichmentHandler.__call__ = MagicMock(
         return_value=(
             beam.Row(sale_id=1, customer_id=1, product_id=1, quantity=1),
             beam.Row()))
@@ -422,14 +422,14 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create2" >> beam.Create(self.req)
-          | "Enrich W/ BigTable2" >> Enrichment(bigtable).with_redis_cache(
+          | "Enrich W/ Bigtable2" >> Enrichment(bigtable).with_redis_cache(
               self.host, self.port)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
                   len(expected_fields),
                   expected_fields,
                   expected_enriched_fields)))
-    BigTableEnrichmentHandler.__call__ = actual
+    BigtableEnrichmentHandler.__call__ = actual
 
   def test_bigtable_enrichment_with_lambda(self):
     expected_fields = [
@@ -438,7 +438,7 @@ class TestBigTableEnrichment(unittest.TestCase):
     expected_enriched_fields = {
         'product': ['product_id', 'product_name', 'product_stock'],
     }
-    bigtable = BigTableEnrichmentHandler(
+    bigtable = BigtableEnrichmentHandler(
         project_id=self.project_id,
         instance_id=self.instance_id,
         table_id=self.table_id,
@@ -447,7 +447,7 @@ class TestBigTableEnrichment(unittest.TestCase):
       _ = (
           test_pipeline
           | "Create" >> beam.Create(self.req)
-          | "Enrich W/ BigTable" >> Enrichment(bigtable)
+          | "Enrich W/ Bigtable" >> Enrichment(bigtable)
           | "Validate Response" >> beam.ParDo(
               ValidateResponse(
                   len(expected_fields),

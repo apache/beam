@@ -24,7 +24,7 @@ def enrichment_with_bigtable():
   # [START enrichment_with_bigtable]
   import apache_beam as beam
   from apache_beam.transforms.enrichment import Enrichment
-  from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
+  from apache_beam.transforms.enrichment_handlers.bigtable import BigtableEnrichmentHandler
 
   project_id = 'apache-beam-testing'
   instance_id = 'beam-test'
@@ -37,7 +37,7 @@ def enrichment_with_bigtable():
       beam.Row(sale_id=5, customer_id=5, product_id=4, quantity=2)
   ]
 
-  bigtable_handler = BigTableEnrichmentHandler(
+  bigtable_handler = BigtableEnrichmentHandler(
       project_id=project_id,
       instance_id=instance_id,
       table_id=table_id,
@@ -46,7 +46,7 @@ def enrichment_with_bigtable():
     _ = (
         p
         | "Create" >> beam.Create(data)
-        | "Enrich W/ BigTable" >> Enrichment(bigtable_handler)
+        | "Enrich W/ Bigtable" >> Enrichment(bigtable_handler)
         | "Print" >> beam.Map(print))
   # [END enrichment_with_bigtable]
 

@@ -15,23 +15,23 @@
 # limitations under the License.
 #
 
-"""BigTable connector
+"""Bigtable connector
 
-This module implements writing to BigTable tables.
-The default mode is to set row data to write to BigTable tables.
+This module implements writing to Bigtable tables.
+The default mode is to set row data to write to Bigtable tables.
 The syntax supported is described here:
 https://cloud.google.com/bigtable/docs/quickstart-cbt
 
-BigTable connector can be used as main outputs. A main output
+Bigtable connector can be used as main outputs. A main output
 (common case) is expected to be massive and will be split into
 manageable chunks and processed in parallel. In the example below
 we created a list of rows then passed to the GeneratedDirectRows
-DoFn to set the Cells and then we call the BigTableWriteFn to insert
+DoFn to set the Cells and then we call the _BigtableWriteFn to insert
 those generated rows in the table.
 
   main_table = (p
                 | beam.Create(self._generate())
-                | WriteToBigTable(project_id,
+                | WriteToBigtable(project_id,
                                   instance_id,
                                   table_id))
 """
@@ -68,10 +68,10 @@ except ImportError:
   _LOGGER.warning(
       'ImportError: from google.cloud.bigtable import Client', exc_info=True)
 
-__all__ = ['WriteToBigTable', 'ReadFromBigtable']
+__all__ = ['WriteToBigtable', 'ReadFromBigtable']
 
 
-class _BigTableWriteFn(beam.DoFn):
+class _BigtableWriteFn(beam.DoFn):
   """ Creates the connector can call and add_row to the batcher using each
   row in beam pipe line
   Args:
@@ -192,7 +192,7 @@ class _BigTableWriteFn(beam.DoFn):
     }
 
 
-class WriteToBigTable(beam.PTransform):
+class WriteToBigtable(beam.PTransform):
   """A transform that writes rows to a Bigtable table.
 
   Takes an input PCollection of `DirectRow` objects containing un-committed
@@ -215,7 +215,7 @@ class WriteToBigTable(beam.PTransform):
       flush_count=FLUSH_COUNT,
       max_row_bytes=MAX_ROW_BYTES,
   ):
-    """Initialize an WriteToBigTable transform.
+    """Initialize a WriteToBigtable transform.
 
     :param table_id:
       The ID of the table to write to.
@@ -272,7 +272,7 @@ class WriteToBigTable(beam.PTransform):
       return (
           input
           | beam.ParDo(
-              _BigTableWriteFn(
+              _BigtableWriteFn(
                   self._project_id,
                   self._instance_id,
                   self._table_id,
@@ -327,6 +327,11 @@ class WriteToBigTable(beam.PTransform):
         args["mutations"].append(mutation_dict)
 
       yield beam.Row(**args)
+
+
+# Backward compatibility aliases
+WriteToBigTable = WriteToBigtable
+_BigTableWriteFn = _BigtableWriteFn
 
 
 class ReadFromBigtable(PTransform):

@@ -149,7 +149,7 @@ public class BigtableIOLT extends IOLoadTestBase {
     MetricsConfiguration metricsConfig =
         MetricsConfiguration.builder()
             .setInputPCollection("Map records.out0")
-            .setInputPCollectionV2("Map records/ParMultiDo(MapToBigTableFormat).out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapToBigtableFormat).out0")
             .setOutputPCollection("Counting element.out0")
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
@@ -171,8 +171,8 @@ public class BigtableIOLT extends IOLoadTestBase {
 
     writePipeline
         .apply(GenerateSequence.from(0).to(configuration.getNumRows()))
-        .apply("Map records", ParDo.of(new MapToBigTableFormat(configuration.getValueSizeBytes())))
-        .apply("Write to BigTable", writeIO);
+        .apply("Map records", ParDo.of(new MapToBigtableFormat(configuration.getValueSizeBytes())))
+        .apply("Write to Bigtable", writeIO);
 
     PipelineLauncher.LaunchConfig options =
         PipelineLauncher.LaunchConfig.builder("write-bigtable")
@@ -196,7 +196,7 @@ public class BigtableIOLT extends IOLoadTestBase {
             .withTableId(tableId);
 
     readPipeline
-        .apply("Read from BigTable", readIO)
+        .apply("Read from Bigtable", readIO)
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
@@ -248,13 +248,13 @@ public class BigtableIOLT extends IOLoadTestBase {
     abstract Builder toBuilder();
   }
 
-  /** Maps long number to the BigTable format record. */
-  private static class MapToBigTableFormat extends DoFn<Long, KV<ByteString, Iterable<Mutation>>>
+  /** Maps long number to the Bigtable format record. */
+  private static class MapToBigtableFormat extends DoFn<Long, KV<ByteString, Iterable<Mutation>>>
       implements Serializable {
 
     private final int valueSizeBytes;
 
-    public MapToBigTableFormat(int valueSizeBytes) {
+    public MapToBigtableFormat(int valueSizeBytes) {
       this.valueSizeBytes = valueSizeBytes;
     }
 

@@ -67,8 +67,8 @@ import org.junit.Test;
  *
  * <p>Usage: <br>
  * - To run medium-scale stress tests: {@code gradle
- * :it:google-cloud-platform:BigTableStressTestMedium} - To run large-scale stress tests: {@code
- * gradle :it:google-cloud-platform:BigTableStressTestLarge}
+ * :it:google-cloud-platform:BigtableStressTestMedium} - To run large-scale stress tests: {@code
+ * gradle :it:google-cloud-platform:BigtableStressTestLarge}
  */
 public final class BigtableIOST extends IOStressTestBase {
 
@@ -229,7 +229,7 @@ public final class BigtableIOST extends IOStressTestBase {
   }
 
   /**
-   * The method creates a pipeline to simulate data generation and write operations to BigTable,
+   * The method creates a pipeline to simulate data generation and write operations to Bigtable,
    * based on the specified configuration parameters. The stress test involves varying the load
    * dynamically over time, with options to use configurable parameters.
    */
@@ -252,10 +252,10 @@ public final class BigtableIOST extends IOStressTestBase {
     }
     source
         .apply(
-            "Map records to BigTable format",
-            ParDo.of(new MapToBigTableFormat((int) configuration.valueSizeBytes)))
+            "Map records to Bigtable format",
+            ParDo.of(new MapToBigtableFormat((int) configuration.valueSizeBytes)))
         .apply(
-            "Write to BigTable",
+            "Write to Bigtable",
             BigtableIO.write()
                 .withProjectId(project)
                 .withInstanceId(resourceManager.getInstanceId())
@@ -278,7 +278,7 @@ public final class BigtableIOST extends IOStressTestBase {
     return pipelineLauncher.launch(project, region, options);
   }
 
-  /** The method reads data from BigTable in batch mode. */
+  /** The method reads data from Bigtable in batch mode. */
   private PipelineLauncher.LaunchInfo readData() throws IOException {
     BigtableIO.Read readIO =
         BigtableIO.read()
@@ -288,7 +288,7 @@ public final class BigtableIOST extends IOStressTestBase {
             .withTableId(tableId);
 
     readPipeline
-        .apply("Read from BigTable", readIO)
+        .apply("Read from Bigtable", readIO)
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
@@ -307,7 +307,7 @@ public final class BigtableIOST extends IOStressTestBase {
     return pipelineLauncher.launch(project, region, options);
   }
 
-  /** Options for BigTableIO stress test. */
+  /** Options for BigtableIO stress test. */
   static class Configuration extends SyntheticSourceOptions {
     /** Pipeline timeout in minutes. Must be a positive value. */
     @JsonProperty public int pipelineTimeout = 20;
@@ -347,13 +347,13 @@ public final class BigtableIOST extends IOStressTestBase {
     @JsonProperty public String influxDatabase;
   }
 
-  /** Maps Instant to the BigTable format record. */
-  private static class MapToBigTableFormat
+  /** Maps Instant to the Bigtable format record. */
+  private static class MapToBigtableFormat
       extends DoFn<KV<byte[], byte[]>, KV<ByteString, Iterable<Mutation>>> implements Serializable {
 
     private final int valueSizeBytes;
 
-    public MapToBigTableFormat(int valueSizeBytes) {
+    public MapToBigtableFormat(int valueSizeBytes) {
       this.valueSizeBytes = valueSizeBytes;
     }
 

@@ -94,7 +94,7 @@ class EnrichmentSourceHandler(Caller[InputT, OutputT]):
     Implement this method to provide the key for the cache.
     By default, the entire request is stored as the cache key.
 
-    For example, in `BigTableEnrichmentHandler`, the row key for the element
+    For example, in `BigtableEnrichmentHandler`, the row key for the element
     is returned here.
     """
     return "request: %s" % request

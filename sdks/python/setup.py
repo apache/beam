@@ -532,7 +532,7 @@ if __name__ == '__main__':
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
-              # 2.44.0 changed DirectRow mutation storage; native WriteToBigTable
+              # 2.44.0 changed DirectRow mutation storage; native WriteToBigtable
               # requires this version on both driver and workers.
               'google-cloud-bigtable>=2.44.0,<3',
               'google-cloud-build>=3.35.0,<4',

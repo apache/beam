@@ -1276,7 +1276,7 @@ When possible, unit tests are favored over integration tests due to faster execu
       </td>
       <td>
          <p><a href="https://github.com/apache/beam/blob/c57c983c8ae7d84926f9cf42f7c40af8eaf60545/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/spanner/SpannerIOReadTest.java#L333">SpannerIOReadTest.testReadMetrics</a>
-         <p><a href="https://github.com/apache/beam/blob/25e6008e8919c2f31eaebae2662b44e02f9f37a1/sdks/python/apache_beam/io/gcp/bigtableio_test.py#L59">bigtableio_test.TestWriteBigTable.test_write_metrics</a>
+         <p><a href="https://github.com/apache/beam/blob/25e6008e8919c2f31eaebae2662b44e02f9f37a1/sdks/python/apache_beam/io/gcp/bigtableio_test.py#L59">bigtableio_test.TestWriteBigtable.test_write_metrics</a>
       </td>
    </tr>
    <tr>

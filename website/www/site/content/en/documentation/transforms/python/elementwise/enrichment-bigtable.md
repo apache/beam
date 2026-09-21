@@ -23,14 +23,14 @@ limitations under the License.
   <tr>
     <td>
       <a>
-      {{< button-pydoc path="apache_beam.transforms.enrichment_handlers.bigtable" class="BigTableEnrichmentHandler" >}}
+      {{< button-pydoc path="apache_beam.transforms.enrichment_handlers.bigtable" class="BigtableEnrichmentHandler" >}}
       </a>
    </td>
   </tr>
 </table>
 
 In Apache Beam 2.54.0 and later versions, the enrichment transform includes a built-in enrichment handler for [Bigtable](https://cloud.google.com/bigtable/docs/overview).
-The following example demonstrates how to create a pipeline that use the enrichment transform with the [`BigTableEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigTableEnrichmentHandler) handler.
+The following example demonstrates how to create a pipeline that use the enrichment transform with the [`BigtableEnrichmentHandler`](https://beam.apache.org/releases/pydoc/current/apache_beam.transforms.enrichment_handlers.bigtable.html#apache_beam.transforms.enrichment_handlers.bigtable.BigtableEnrichmentHandler) handler.
 
 The data stored in the Bigtable cluster uses the following format:
 
@@ -59,4 +59,4 @@ Output:
 
 Not applicable.
 
-{{< button-pydoc path="apache_beam.transforms.enrichment_handlers.bigtable" class="BigTableEnrichmentHandler" >}}
+{{< button-pydoc path="apache_beam.transforms.enrichment_handlers.bigtable" class="BigtableEnrichmentHandler" >}}
