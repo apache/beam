@@ -108,6 +108,7 @@ import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
+import org.apache.iceberg.types.Types;
 import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
@@ -1289,7 +1290,18 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (!ParquetSchemaUtil.hasIds(originalMessageType)) {
           footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
         }
-        return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
+        Map<Integer, BoundAdjustment> adjustments =
+            BoundAdjustment.forSchema(footer.getFileMetaData().getSchema());
+        if (adjustments.isEmpty()) {
+          return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
+        }
+        Metrics raw =
+            ParquetUtil.footerMetrics(
+                BoundAdjustment.withNeutralTypes(footer, adjustments),
+                Stream.empty(),
+                config,
+                mapping);
+        return BoundAdjustment.apply(raw, adjustments);
       case ORC:
         return OrcMetrics.fromInputFile(file, config, mapping);
       case AVRO:
@@ -1330,6 +1342,176 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         new FileMetaData(
             originalMessageType, oldFileMeta.getKeyValueMetaData(), oldFileMeta.getCreatedBy());
     return new ParquetMetadata(newFileMeta, footer.getBlocks());
+  }
+
+  /**
+   * Iceberg's converter maps some Parquet types to a wider Iceberg type but collects their bounds
+   * in the file's own unit or width: millis and nanos timestamps and times as if micros, and uint32
+   * as a signed int, which either stores bounds off by a factor of 1000 or throws when the int is
+   * cast to a long. Bounds are what partition inference and query pruning read, so they are
+   * corrected here: the affected INT32 columns are presented to Iceberg without their annotation
+   * (so it computes plain int bounds instead of throwing) and every affected bound is rewritten in
+   * the Iceberg type's unit afterwards. Value counts and null counts are unaffected.
+   */
+  enum BoundAdjustment {
+    /** Millis stored under a micros type: times 1000. */
+    MILLIS_TO_MICROS,
+    /** Nanos stored under a micros type: divided by 1000, lower rounded down, upper rounded up. */
+    NANOS_TO_MICROS,
+    /** Unsigned 32-bit int stored under a long. */
+    UINT32_TO_LONG;
+
+    static Map<Integer, BoundAdjustment> forSchema(MessageType schema) {
+      Map<Integer, BoundAdjustment> adjustments = new HashMap<>();
+      collect(schema, adjustments);
+      return adjustments;
+    }
+
+    private static void collect(
+        org.apache.parquet.schema.GroupType group, Map<Integer, BoundAdjustment> out) {
+      for (org.apache.parquet.schema.Type field : group.getFields()) {
+        if (!field.isPrimitive()) {
+          collect(field.asGroupType(), out);
+          continue;
+        }
+        @Nullable BoundAdjustment adjustment = forPrimitive(field.asPrimitiveType());
+        if (adjustment != null && field.getId() != null) {
+          out.put(field.getId().intValue(), adjustment);
+        }
+      }
+    }
+
+    private static @Nullable BoundAdjustment forPrimitive(
+        org.apache.parquet.schema.PrimitiveType primitive) {
+      org.apache.parquet.schema.LogicalTypeAnnotation annotation =
+          primitive.getLogicalTypeAnnotation();
+      if (annotation
+          instanceof
+          org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation) {
+        return forUnit(
+            ((org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation)
+                    annotation)
+                .getUnit());
+      }
+      if (annotation
+          instanceof org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation) {
+        return forUnit(
+            ((org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation) annotation)
+                .getUnit());
+      }
+      if (annotation
+          instanceof org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation) {
+        org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation intType =
+            (org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation) annotation;
+        if (intType.getBitWidth() == 32 && !intType.isSigned()) {
+          return UINT32_TO_LONG;
+        }
+      }
+      return null;
+    }
+
+    private static @Nullable BoundAdjustment forUnit(
+        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit unit) {
+      switch (unit) {
+        case MILLIS:
+          return MILLIS_TO_MICROS;
+        case NANOS:
+          return NANOS_TO_MICROS;
+        default:
+          return null;
+      }
+    }
+
+    /** The footer with annotations removed from adjusted INT32 columns. */
+    static ParquetMetadata withNeutralTypes(
+        ParquetMetadata footer, Map<Integer, BoundAdjustment> adjustments) {
+      MessageType schema = footer.getFileMetaData().getSchema();
+      List<org.apache.parquet.schema.Type> fields = neutralFields(schema, adjustments);
+      MessageType neutral = new MessageType(schema.getName(), fields);
+      FileMetaData meta = footer.getFileMetaData();
+      return new ParquetMetadata(
+          new FileMetaData(neutral, meta.getKeyValueMetaData(), meta.getCreatedBy()),
+          footer.getBlocks());
+    }
+
+    private static List<org.apache.parquet.schema.Type> neutralFields(
+        org.apache.parquet.schema.GroupType group, Map<Integer, BoundAdjustment> adjustments) {
+      List<org.apache.parquet.schema.Type> fields = new ArrayList<>();
+      for (org.apache.parquet.schema.Type field : group.getFields()) {
+        if (field.isPrimitive()) {
+          fields.add(neutralPrimitive(field.asPrimitiveType(), adjustments));
+        } else {
+          fields.add(
+              field.asGroupType().withNewFields(neutralFields(field.asGroupType(), adjustments)));
+        }
+      }
+      return fields;
+    }
+
+    private static org.apache.parquet.schema.Type neutralPrimitive(
+        org.apache.parquet.schema.PrimitiveType primitive,
+        Map<Integer, BoundAdjustment> adjustments) {
+      boolean adjusted =
+          primitive.getId() != null && adjustments.containsKey(primitive.getId().intValue());
+      if (!adjusted
+          || primitive.getPrimitiveTypeName()
+              != org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32) {
+        return primitive;
+      }
+      return org.apache.parquet.schema.Types.primitive(
+              primitive.getPrimitiveTypeName(), primitive.getRepetition())
+          .id(primitive.getId().intValue())
+          .named(primitive.getName());
+    }
+
+    static Metrics apply(Metrics metrics, Map<Integer, BoundAdjustment> adjustments) {
+      Map<Integer, ByteBuffer> lower = metrics.lowerBounds();
+      Map<Integer, ByteBuffer> upper = metrics.upperBounds();
+      if (lower == null || upper == null) {
+        return metrics;
+      }
+      return new Metrics(
+          metrics.recordCount(),
+          metrics.columnSizes(),
+          metrics.valueCounts(),
+          metrics.nullValueCounts(),
+          metrics.nanValueCounts(),
+          adjust(lower, adjustments, false),
+          adjust(upper, adjustments, true));
+    }
+
+    private static Map<Integer, ByteBuffer> adjust(
+        Map<Integer, ByteBuffer> bounds, Map<Integer, BoundAdjustment> adjustments, boolean upper) {
+      Map<Integer, ByteBuffer> adjusted = new HashMap<>(bounds);
+      for (Map.Entry<Integer, BoundAdjustment> entry : adjustments.entrySet()) {
+        ByteBuffer bytes = bounds.get(entry.getKey());
+        if (bytes == null) {
+          continue;
+        }
+        long value = entry.getValue().convert(bytes, upper);
+        adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.LongType.get(), value));
+      }
+      return adjusted;
+    }
+
+    private long convert(ByteBuffer bytes, boolean upper) {
+      ByteBuffer little = bytes.duplicate().order(java.nio.ByteOrder.LITTLE_ENDIAN);
+      switch (this) {
+        case UINT32_TO_LONG:
+          return Integer.toUnsignedLong(little.getInt(little.position()));
+        case MILLIS_TO_MICROS:
+          long millis =
+              little.remaining() == 4
+                  ? little.getInt(little.position())
+                  : little.getLong(little.position());
+          return millis * 1000L;
+        case NANOS_TO_MICROS:
+          long nanos = little.getLong(little.position());
+          return upper ? -Math.floorDiv(-nanos, 1000L) : Math.floorDiv(nanos, 1000L);
+        default:
+          throw new IllegalStateException(name());
+      }
+    }
   }
 
   static class UnknownFormatException extends IllegalArgumentException {}
