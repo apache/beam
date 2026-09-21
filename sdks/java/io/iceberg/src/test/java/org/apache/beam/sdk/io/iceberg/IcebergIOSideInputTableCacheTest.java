@@ -22,6 +22,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -48,8 +49,12 @@ import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.SnapshotChanges;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.IcebergGenerics;
@@ -411,66 +416,105 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
   }
 
   @Test
-  public void testStreamingSchemaEvolutionWithoutPipelineRestart() throws Exception {
+  public void testStreamingSpecEvolutionWithoutPipelineRestart() throws Exception {
     TableIdentifier tableId =
         TableIdentifier.of(
-            "default_side_input",
-            "schema_evolve_" + Long.toString(UUID.randomUUID().hashCode(), 16));
+            "default_side_input", "spec_evolve_" + Long.toString(UUID.randomUUID().hashCode(), 16));
 
-    // Initial table schema: id (long), name (string)
-    org.apache.iceberg.Schema v1IcebergSchema =
+    // Initial table schema: id (long), name (string), city (string)
+    org.apache.iceberg.Schema icebergSchema =
         new org.apache.iceberg.Schema(
             Types.NestedField.required(1, "id", Types.LongType.get()),
-            Types.NestedField.optional(2, "name", Types.StringType.get()));
+            Types.NestedField.optional(2, "name", Types.StringType.get()),
+            Types.NestedField.optional(3, "city", Types.StringType.get()));
 
-    warehouse.createTable(tableId, v1IcebergSchema);
+    // Create table unpartitioned with format-version 2 to support spec evolution
+    Table realTable =
+        warehouse.createTable(
+            tableId,
+            icebergSchema,
+            PartitionSpec.unpartitioned(),
+            ImmutableMap.of("format-version", "2"));
 
-    // Evolved schema: id (long), name (string), city (string)
-    Schema v2BeamSchema =
+    Schema beamSchema =
         Schema.builder()
             .addInt64Field("id")
             .addNullableStringField("name")
             .addNullableStringField("city")
             .build();
 
-    Table realTable = warehouse.loadTable(tableId);
-
-    Row v2Row = Row.withSchema(v2BeamSchema).addValues(101L, "alice", "San Francisco").build();
+    Row row1 = Row.withSchema(beamSchema).addValues(1L, "alice", "New York").build();
+    Row row2 = Row.withSchema(beamSchema).addValues(2L, "bob", "San Francisco").build();
 
     TestStream<Row> testStream =
-        TestStream.create(v2BeamSchema)
-            .addElements(v2Row)
-            .advanceProcessingTime(Duration.standardSeconds(3))
+        TestStream.create(beamSchema)
+            .addElements(row1)
+            .advanceProcessingTime(Duration.standardSeconds(2))
+            .addElements(row2)
+            .advanceProcessingTime(Duration.standardSeconds(2))
             .advanceWatermarkToInfinity();
 
     PCollection<Row> input =
         testPipeline
             .apply("StreamingEvolvedInput", testStream)
             .apply(
-                "EvolveSchemaMidExecution",
-                ParDo.of(new EvolveSchemaMidExecutionDoFn(catalogConfig, tableId.toString())))
-            .setRowSchema(v2BeamSchema);
+                "EvolveSpecMidExecution",
+                ParDo.of(new EvolveSpecMidExecutionDoFn(catalogConfig, tableId.toString())))
+            .setRowSchema(beamSchema);
 
     IcebergIO.WriteRows write =
         IcebergIO.writeRows(catalogConfig)
             .to(tableId)
             .withSideInputTableCache()
             .withTriggeringFrequency(Duration.standardSeconds(1))
-            .withTableRefreshInterval(Duration.standardSeconds(2))
+            .withTableRefreshInterval(Duration.standardSeconds(1))
             .withPollingBuckets(1);
 
-    input.apply("StreamingWriteEvolved", applyDistribution(write));
+    input.apply("StreamingWriteEvolved", write);
     PipelineResult result = testPipeline.run();
     result.waitUntilFinish();
 
     assertThat(getTablesPolledCount(result), Matchers.greaterThanOrEqualTo(1L));
 
     realTable.refresh();
+    List<DataFile> addedFiles =
+        ImmutableList.copyOf(SnapshotChanges.builderFor(realTable).build().addedDataFiles());
+    if (addedFiles.size() < 2) {
+      List<DataFile> allAddedFiles = new ArrayList<>();
+      for (Snapshot s : realTable.snapshots()) {
+        for (DataFile df :
+            SnapshotChanges.builderFor(realTable).snapshot(s).build().addedDataFiles()) {
+          allAddedFiles.add(df);
+        }
+      }
+      addedFiles = allAddedFiles;
+    }
+
+    assertEquals(2, addedFiles.size());
+
+    DataFile firstFile = addedFiles.get(0);
+    DataFile secondFile = addedFiles.get(1);
+    DataFile unpartitionedFile;
+    DataFile partitionedFile;
+    if (realTable.specs().get(firstFile.specId()).isUnpartitioned()) {
+      unpartitionedFile = firstFile;
+      partitionedFile = secondFile;
+    } else {
+      unpartitionedFile = secondFile;
+      partitionedFile = firstFile;
+    }
+
+    PartitionSpec spec1 = realTable.specs().get(unpartitionedFile.specId());
+    assertNotNull(spec1);
+    assertTrue("First DataFile must have unpartitioned spec", spec1.isUnpartitioned());
+
+    PartitionSpec spec2 = realTable.specs().get(partitionedFile.specId());
+    assertNotNull(spec2);
+    assertEquals(1, spec2.fields().size());
+    assertEquals("city", spec2.fields().get(0).name());
+
     List<Record> records = ImmutableList.copyOf(IcebergGenerics.read(realTable).build());
-    assertEquals(1, records.size());
-    assertEquals(101L, records.get(0).getField("id"));
-    assertEquals("alice", records.get(0).getField("name"));
-    assertEquals("San Francisco", records.get(0).getField("city"));
+    assertEquals(2, records.size());
   }
 
   @Test
@@ -546,21 +590,24 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
     assertEquals("3", items.get("pollingBuckets"));
   }
 
-  private static class EvolveSchemaMidExecutionDoFn extends DoFn<Row, Row> {
+  private static class EvolveSpecMidExecutionDoFn extends DoFn<Row, Row> {
     private final IcebergCatalogConfig catalogConfig;
     private final String tableIdString;
 
-    EvolveSchemaMidExecutionDoFn(IcebergCatalogConfig catalogConfig, String tableIdString) {
+    EvolveSpecMidExecutionDoFn(IcebergCatalogConfig catalogConfig, String tableIdString) {
       this.catalogConfig = catalogConfig;
       this.tableIdString = tableIdString;
     }
 
     @ProcessElement
     public void processElement(@Element Row row, OutputReceiver<Row> out) {
-      Table table =
-          catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(tableIdString));
-      if (table.schema().findField("city") == null) {
-        table.updateSchema().addColumn("city", Types.StringType.get()).commit();
+      Long id = row.getInt64("id");
+      if (id != null && id == 2L) {
+        Table table =
+            catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(tableIdString));
+        if (table.spec().isUnpartitioned()) {
+          table.updateSpec().addField("city").commit();
+        }
       }
       out.output(row);
     }
