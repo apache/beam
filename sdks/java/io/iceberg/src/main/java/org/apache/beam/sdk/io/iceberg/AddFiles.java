@@ -950,8 +950,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
       Metrics partitionMetrics;
       // Check if metrics already includes partition columns (configured by table properties):
-      if (metrics.lowerBounds().keySet().containsAll(sourceIds)
-          && metrics.upperBounds().keySet().containsAll(sourceIds)) {
+      if (orEmpty(metrics.lowerBounds()).keySet().containsAll(sourceIds)
+          && orEmpty(metrics.upperBounds()).keySet().containsAll(sourceIds)) {
         partitionMetrics = metrics;
       } else {
         // Otherwise, recollect metrics and ensure it includes all partition fields.
@@ -986,10 +986,20 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         // Make a best effort estimate by comparing the lower and upper transformed values.
         // If the transformed values are equal, assume that the DataFile's data safely
         // aligns with the same partition.
-        ByteBuffer lowerBytes = partitionMetrics.lowerBounds().get(field.sourceId());
-        ByteBuffer upperBytes = partitionMetrics.upperBounds().get(field.sourceId());
+        ByteBuffer lowerBytes = orEmpty(partitionMetrics.lowerBounds()).get(field.sourceId());
+        ByteBuffer upperBytes = orEmpty(partitionMetrics.upperBounds()).get(field.sourceId());
         if (lowerBytes == null && upperBytes == null) {
-          continue;
+          // No bounds. The null partition is right only when every value is known to be null;
+          // otherwise the partition is unknowable and must not be guessed.
+          if (allValuesNull(partitionMetrics, field.sourceId())
+              || lacksColumn(preReadFooter, table, field.sourceId())) {
+            continue;
+          }
+          throw new UnknownPartitionException(
+              "No column bounds for partition source column "
+                  + table.schema().findColumnName(field.sourceId())
+                  + " (statistics are missing, or are not collected for its type, e.g. INT96, or"
+                  + " for this file format); set a location prefix to partition by path instead");
         } else if (lowerBytes == null || upperBytes == null) {
           throw new UnknownPartitionException(
               "Only one of the min/max was was null, for field "
@@ -1009,6 +1019,57 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       }
 
       return pk.toPath();
+    }
+
+    /** Avro metrics carry null bound maps. */
+    private static Map<Integer, ByteBuffer> orEmpty(@Nullable Map<Integer, ByteBuffer> bounds) {
+      if (bounds == null) {
+        return Collections.emptyMap();
+      }
+      return bounds;
+    }
+
+    /** True when the file is empty or the column's null count equals its value count. */
+    private static boolean allValuesNull(Metrics metrics, int fieldId) {
+      Long records = metrics.recordCount();
+      if (records != null && records == 0) {
+        return true;
+      }
+      Map<Integer, Long> valueCounts = metrics.valueCounts();
+      Map<Integer, Long> nullCounts = metrics.nullValueCounts();
+      if (valueCounts == null || nullCounts == null) {
+        return false;
+      }
+      Long valueCount = valueCounts.get(fieldId);
+      Long nullCount = nullCounts.get(fieldId);
+      return valueCount != null && nullCount != null && valueCount.equals(nullCount);
+    }
+
+    /**
+     * True when a Parquet file does not contain the column at all, e.g. it was written before the
+     * column existed. Every row then reads as null. Unknown for other formats.
+     */
+    private static boolean lacksColumn(@Nullable ParquetMetadata footer, Table table, int fieldId) {
+      if (footer == null) {
+        return false;
+      }
+      MessageType fileType = footer.getFileMetaData().getSchema();
+      if (!ParquetSchemaUtil.hasIds(fileType)) {
+        fileType = ParquetSchemaUtil.applyNameMapping(fileType, MappingUtil.create(table.schema()));
+      }
+      return !containsFieldId(fileType, fieldId);
+    }
+
+    private static boolean containsFieldId(org.apache.parquet.schema.GroupType group, int fieldId) {
+      for (org.apache.parquet.schema.Type field : group.getFields()) {
+        if (field.getId() != null && field.getId().intValue() == fieldId) {
+          return true;
+        }
+        if (!field.isPrimitive() && containsFieldId(field.asGroupType(), fieldId)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 
