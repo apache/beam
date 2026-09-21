@@ -276,7 +276,7 @@ public abstract class TableMetadataDriver
     Integer maxCacheSize = getMaximumCacheSize();
     if (maxCacheSize != null) {
       if (isStreaming) {
-        throw new UnsupportedOperationException(
+        throw new IllegalArgumentException(
             "maximumCacheSize is currently not supported for unbounded streaming pipelines.");
       }
       cachedTableIds = distinctTableIds.apply("CapCacheSize", Sample.any(maxCacheSize));
