@@ -55,7 +55,9 @@ class ModelHelper():
   def load_data(self):
     logging.info("Querying vector embeddings from BigQuery...")
 
-    client = bigquery.Client()
+    # Extract project from table spec to avoid failures when no default project configured.
+    project = self.bq_table.split('.')[0] if '.' in self.bq_table else None
+    client = bigquery.Client(project=project)
     sql = f"""
       SELECT *
       FROM `{self.bq_table}`
