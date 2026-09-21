@@ -296,7 +296,7 @@ jobs:
           repository: apache/beam
           persist-credentials: true
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
       - name: Install Java
         uses: actions/setup-java@v6
         with:
@@ -337,7 +337,7 @@ jobs:
       SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
         with:
           docker-images: false
       - name: Checkout Beam Repo
