@@ -33,6 +33,7 @@ import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.nullable;
@@ -1655,6 +1656,443 @@ public class StreamingDataflowWorkerTest {
     assertEquals(2, multiKeyCommit.getRequestsCount());
     assertEquals(1, multiKeyCommit.getRequests(0).getWorkToken());
     assertEquals(3, multiKeyCommit.getRequests(1).getWorkToken());
+
+    worker.stop();
+  }
+
+  private void runMultiKeyCombinationTest(
+      Map<String, List<String>> processOutputs, List<KV<String, String>> finishBundleOutputs)
+      throws Exception {
+    assumeTrue("Multi-key bundling is only supported in Streaming Engine", streamingEngine);
+    server.clearCommitsReceived();
+    StreamingDataflowWorker worker =
+        makeMultiKeyEnabledWorker(
+            new ConfigurableMultiKeyDoFn(processOutputs, finishBundleOutputs));
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(2);
+    assertEquals(2, result.size());
+
+    // Verify Key 1 commit: should only contain process outputs for key1
+    assertTrue(result.containsKey(1L));
+    Windmill.WorkItemCommitRequest commit1 = result.get(1L);
+    assertEquals("key1", commit1.getKey().toStringUtf8());
+    List<String> expectedKey1Outputs = processOutputs.getOrDefault("key1", Collections.emptyList());
+    if (expectedKey1Outputs.isEmpty()) {
+      assertEquals(0, commit1.getOutputMessagesCount());
+    } else {
+      assertEquals(1, commit1.getOutputMessagesCount());
+      Windmill.OutputMessageBundle outputBundle1 = commit1.getOutputMessages(0);
+      assertEquals(DEFAULT_DESTINATION_STREAM_ID, outputBundle1.getDestinationStreamId());
+      assertEquals(1, outputBundle1.getBundlesCount());
+      Windmill.KeyedMessageBundle keyedBundle1 = outputBundle1.getBundles(0);
+      assertEquals("key1", keyedBundle1.getKey().toStringUtf8());
+      assertEquals(expectedKey1Outputs.size(), keyedBundle1.getMessagesCount());
+      for (int i = 0; i < expectedKey1Outputs.size(); i++) {
+        assertEquals(
+            expectedKey1Outputs.get(i), keyedBundle1.getMessages(i).getData().toStringUtf8());
+      }
+    }
+    // Verify Key 2 commit: should only contain process outputs for key2 (NOT finishBundle outputs)
+    assertTrue(result.containsKey(2L));
+    Windmill.WorkItemCommitRequest commit2 = result.get(2L);
+    assertEquals("key2", commit2.getKey().toStringUtf8());
+    List<String> expectedKey2Outputs = processOutputs.getOrDefault("key2", Collections.emptyList());
+    if (expectedKey2Outputs.isEmpty()) {
+      assertEquals(0, commit2.getOutputMessagesCount());
+    } else {
+      assertEquals(1, commit2.getOutputMessagesCount());
+      Windmill.OutputMessageBundle outputBundle2 = commit2.getOutputMessages(0);
+      assertEquals(DEFAULT_DESTINATION_STREAM_ID, outputBundle2.getDestinationStreamId());
+      assertEquals(1, outputBundle2.getBundlesCount());
+      Windmill.KeyedMessageBundle keyedBundle2 = outputBundle2.getBundles(0);
+      assertEquals("key2", keyedBundle2.getKey().toStringUtf8());
+      assertEquals(expectedKey2Outputs.size(), keyedBundle2.getMessagesCount());
+      for (int i = 0; i < expectedKey2Outputs.size(); i++) {
+        assertEquals(
+            expectedKey2Outputs.get(i), keyedBundle2.getMessages(i).getData().toStringUtf8());
+      }
+    }
+
+    // Verify MultiKey commit: should contain all finishBundle outputs at the bundle level
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    if (finishBundleOutputs.isEmpty()) {
+      assertEquals(0, multiKeyCommit.getOutputMessagesCount());
+    } else {
+      assertEquals(1, multiKeyCommit.getOutputMessagesCount());
+      Windmill.OutputMessageBundle outputBundle_fb = multiKeyCommit.getOutputMessages(0);
+      assertEquals(DEFAULT_DESTINATION_STREAM_ID, outputBundle_fb.getDestinationStreamId());
+      Map<String, List<String>> expectedFbByKey = new HashMap<>();
+      for (KV<String, String> kv : finishBundleOutputs) {
+        expectedFbByKey.computeIfAbsent(kv.getKey(), k -> new ArrayList<>()).add(kv.getValue());
+      }
+      assertEquals(expectedFbByKey.size(), outputBundle_fb.getBundlesCount());
+      for (Windmill.KeyedMessageBundle keyedBundle : outputBundle_fb.getBundlesList()) {
+        String key = keyedBundle.getKey().toStringUtf8();
+        assertTrue(expectedFbByKey.containsKey(key));
+        List<String> expectedValues = expectedFbByKey.get(key);
+        assertEquals(expectedValues.size(), keyedBundle.getMessagesCount());
+        for (int i = 0; i < expectedValues.size(); i++) {
+          assertEquals(expectedValues.get(i), keyedBundle.getMessages(i).getData().toStringUtf8());
+        }
+      }
+    }
+
+    worker.stop();
+  }
+
+  @Test
+  public void testMultiKey_allCombinationsOfProcessAndFinishBundleOutputs() throws Exception {
+    if (!streamingEngine) {
+      return;
+    }
+    List<List<String>> key1Options =
+        List.of(Collections.emptyList(), List.of("k1_out1"), List.of("k1_out1", "k1_out2"));
+
+    List<List<String>> key2Options =
+        List.of(Collections.emptyList(), List.of("k2_out1"), List.of("k2_out1", "k2_out2"));
+
+    List<List<KV<String, String>>> finishBundleOptions =
+        List.of(
+            Collections.emptyList(),
+            List.of(KV.of("fb_key", "fb_val1")),
+            List.of(KV.of("fb_key1", "fb_val1"), KV.of("fb_key2", "fb_val2")));
+
+    for (List<String> k1Out : key1Options) {
+      for (List<String> k2Out : key2Options) {
+        for (List<KV<String, String>> fbOut : finishBundleOptions) {
+          Map<String, List<String>> processOutputs = new HashMap<>();
+          if (!k1Out.isEmpty()) {
+            processOutputs.put("key1", k1Out);
+          }
+          if (!k2Out.isEmpty()) {
+            processOutputs.put("key2", k2Out);
+          }
+          runMultiKeyCombinationTest(processOutputs, fbOut);
+        }
+      }
+    }
+  }
+
+  @Test
+  public void testSingleKey_processAndFinishBundleOutputsAttachedToSameKey() throws Exception {
+    KvCoder<String, String> kvCoder = KvCoder.of(StringUtf8Coder.of(), StringUtf8Coder.of());
+    List<ParallelInstruction> instructions =
+        Arrays.asList(
+            makeSourceInstruction(kvCoder),
+            makeDoFnInstruction(
+                new ConfigurableMultiKeyDoFn(
+                    ImmutableMap.of("key1", ImmutableList.of("data1")),
+                    ImmutableList.of(KV.of("finish_key", "finish_value"))),
+                0,
+                kvCoder),
+            makeSinkInstruction(kvCoder, 1));
+
+    StreamingDataflowWorker worker =
+        makeWorker(defaultWorkerParams().setInstructions(instructions).build());
+    worker.start();
+
+    String input =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse workResponse =
+        buildInput(
+            input,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.clearCommitsReceived();
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+    server.whenGetWorkCalled().thenReturn(workResponse);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    assertEquals(1, result.size());
+
+    assertTrue(result.containsKey(1L));
+    Windmill.WorkItemCommitRequest commit = result.get(1L);
+    assertEquals("key1", commit.getKey().toStringUtf8());
+    // In single-key mode, finishKey does not flush; close flushes all outputs into the single key's
+    // commit
+    assertEquals(1, commit.getOutputMessagesCount());
+    Windmill.OutputMessageBundle outputBundle = commit.getOutputMessages(0);
+    assertEquals(DEFAULT_DESTINATION_STREAM_ID, outputBundle.getDestinationStreamId());
+    assertEquals(2, outputBundle.getBundlesCount());
+    Map<String, String> outputsByKey = new HashMap<>();
+    for (Windmill.KeyedMessageBundle bundle : outputBundle.getBundlesList()) {
+      assertEquals(1, bundle.getMessagesCount());
+      outputsByKey.put(
+          bundle.getKey().toStringUtf8(), bundle.getMessages(0).getData().toStringUtf8());
+    }
+    assertEquals("data1", outputsByKey.get("key1"));
+    assertEquals("finish_value", outputsByKey.get("finish_key"));
+
+    worker.stop();
+  }
+
+  @Test
+  public void testSingleKey_multiKeyBundleEnabled_finishBundleAttachesToBundleLevel()
+      throws Exception {
+    assumeTrue("Multi-key bundling is only supported in Streaming Engine", streamingEngine);
+
+    server.clearCommitsReceived();
+    StreamingDataflowWorker worker =
+        makeMultiKeyEnabledWorker(
+            new ConfigurableMultiKeyDoFn(
+                ImmutableMap.of("key1", ImmutableList.of("data1")),
+                ImmutableList.of(KV.of("finish_key", "finish_value"))));
+    worker.start();
+
+    String input =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse workResponse =
+        buildInput(
+            input,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+    server.whenGetWorkCalled().thenReturn(workResponse);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(1);
+    assertEquals(1, result.size());
+
+    assertTrue(result.containsKey(1L));
+    Windmill.WorkItemCommitRequest commit1 = result.get(1L);
+    assertEquals("key1", commit1.getKey().toStringUtf8());
+    // In multi-key mode, key1 only contains its own process outputs
+    assertEquals(1, commit1.getOutputMessagesCount());
+    Windmill.OutputMessageBundle outputBundle1 = commit1.getOutputMessages(0);
+    assertEquals(DEFAULT_DESTINATION_STREAM_ID, outputBundle1.getDestinationStreamId());
+    assertEquals(1, outputBundle1.getBundlesCount());
+    assertEquals("key1", outputBundle1.getBundles(0).getKey().toStringUtf8());
+    assertEquals("data1", outputBundle1.getBundles(0).getMessages(0).getData().toStringUtf8());
+
+    // finishBundle outputs are flushed to the bundle level of MultiKeyWorkItemCommitRequest
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(1, multiKeyCommit.getOutputMessagesCount());
+    Windmill.OutputMessageBundle bundleLevel = multiKeyCommit.getOutputMessages(0);
+    assertEquals(DEFAULT_DESTINATION_STREAM_ID, bundleLevel.getDestinationStreamId());
+    assertEquals(1, bundleLevel.getBundlesCount());
+    assertEquals("finish_key", bundleLevel.getBundles(0).getKey().toStringUtf8());
+    assertEquals("finish_value", bundleLevel.getBundles(0).getMessages(0).getData().toStringUtf8());
+
+    worker.stop();
+  }
+
+  @Test
+  public void testMultiKey_threeKeys_withIntermediateEmptyKey() throws Exception {
+    assumeTrue("Multi-key bundling is only supported in Streaming Engine", streamingEngine);
+
+    server.clearCommitsReceived();
+    StreamingDataflowWorker worker =
+        makeMultiKeyEnabledWorker(
+            new ConfigurableMultiKeyDoFn(
+                ImmutableMap.of(
+                    "key1", ImmutableList.of("data1"),
+                    "key3", ImmutableList.of("data3")),
+                ImmutableList.of(KV.of("finish_key", "finish_value"))));
+    worker.start();
+
+    String batchInputText =
+        "work {"
+            + "  computation_id: \""
+            + DEFAULT_COMPUTATION_ID
+            + "\""
+            + "  input_data_watermark: 0"
+            + "  work {"
+            + "    key: \"key1\""
+            + "    sharding_key: 1"
+            + "    work_token: 1"
+            + "    cache_token: 2"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data1\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key2\""
+            + "    sharding_key: 2"
+            + "    work_token: 2"
+            + "    cache_token: 3"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data2\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "  work {"
+            + "    key: \"key3\""
+            + "    sharding_key: 3"
+            + "    work_token: 3"
+            + "    cache_token: 4"
+            + "    key_group { high: 0 low: 1 }"
+            + "    message_bundles {"
+            + "      source_computation_id: \""
+            + DEFAULT_SOURCE_COMPUTATION_ID
+            + "\""
+            + "      messages {"
+            + "        timestamp: 0"
+            + "        data: \"data3\""
+            + "      }"
+            + "    }"
+            + "  }"
+            + "}";
+    Windmill.GetWorkResponse batchInput =
+        buildInput(
+            batchInputText,
+            CoderUtils.encodeToByteArray(
+                CollectionCoder.of(IntervalWindow.getCoder()),
+                Collections.singletonList(DEFAULT_WINDOW)));
+
+    server.whenGetDataCalled().answerByDefault(StreamingDataflowWorkerTest::emptyDataResponder);
+    server.whenGetWorkCalled().thenReturn(batchInput);
+
+    Map<Long, Windmill.WorkItemCommitRequest> result = server.waitForAndGetCommits(3);
+    assertEquals(3, result.size());
+
+    // Verify Key 1 commit
+    assertTrue(result.containsKey(1L));
+    Windmill.WorkItemCommitRequest commit1 = result.get(1L);
+    assertEquals("key1", commit1.getKey().toStringUtf8());
+    assertEquals(1, commit1.getOutputMessagesCount());
+    assertEquals(
+        "data1",
+        commit1.getOutputMessages(0).getBundles(0).getMessages(0).getData().toStringUtf8());
+
+    // Verify Key 2 commit (empty outputs)
+    assertTrue(result.containsKey(2L));
+    Windmill.WorkItemCommitRequest commit2 = result.get(2L);
+    assertEquals("key2", commit2.getKey().toStringUtf8());
+    assertEquals(0, commit2.getOutputMessagesCount());
+
+    // Verify Key 3 commit
+    assertTrue(result.containsKey(3L));
+    Windmill.WorkItemCommitRequest commit3 = result.get(3L);
+    assertEquals("key3", commit3.getKey().toStringUtf8());
+    assertEquals(1, commit3.getOutputMessagesCount());
+    assertEquals(
+        "data3",
+        commit3.getOutputMessages(0).getBundles(0).getMessages(0).getData().toStringUtf8());
+
+    // Verify MultiKey commit: should contain all 3 requests and finishBundle outputs at bundle
+    // level
+    List<Windmill.MultiKeyWorkItemCommitRequest> multiKeyCommits =
+        server.getMultiKeyCommitsReceived();
+    assertEquals(1, multiKeyCommits.size());
+    Windmill.MultiKeyWorkItemCommitRequest multiKeyCommit = multiKeyCommits.get(0);
+    assertEquals(3, multiKeyCommit.getRequestsCount());
+    assertEquals(1, multiKeyCommit.getOutputMessagesCount());
+    Windmill.OutputMessageBundle bundleLevel = multiKeyCommit.getOutputMessages(0);
+    assertEquals("finish_key", bundleLevel.getBundles(0).getKey().toStringUtf8());
+    assertEquals("finish_value", bundleLevel.getBundles(0).getMessages(0).getData().toStringUtf8());
 
     worker.stop();
   }
@@ -5985,6 +6423,35 @@ public class StreamingDataflowWorkerTest {
       char[] chars = new char[inflatedSize];
       Arrays.fill(chars, ' ');
       c.output(new String(chars));
+    }
+  }
+
+  static class ConfigurableMultiKeyDoFn extends DoFn<KV<String, String>, KV<String, String>> {
+    private final Map<String, List<String>> processOutputs;
+    private final List<KV<String, String>> finishBundleOutputs;
+
+    ConfigurableMultiKeyDoFn(
+        Map<String, List<String>> processOutputs, List<KV<String, String>> finishBundleOutputs) {
+      this.processOutputs = processOutputs;
+      this.finishBundleOutputs = finishBundleOutputs;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      String key = c.element().getKey();
+      List<String> outputs = processOutputs.get(key);
+      if (outputs != null) {
+        for (String output : outputs) {
+          c.output(KV.of(key, output));
+        }
+      }
+    }
+
+    @FinishBundle
+    public void finishBundle(FinishBundleContext c) {
+      for (KV<String, String> output : finishBundleOutputs) {
+        c.output(output, new Instant(0), DEFAULT_WINDOW);
+      }
     }
   }
 
