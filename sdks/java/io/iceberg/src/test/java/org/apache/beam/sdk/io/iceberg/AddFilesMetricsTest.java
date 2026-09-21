@@ -444,6 +444,19 @@ public class AddFilesMetricsTest {
     assertNull(onlyPartitionValue());
   }
 
+  /** Null rows belong to the null partition, so such a file spans two partitions. */
+  @Test
+  public void testPartitionColumnWithNullsAndValuesIsAnUnknownPartition() throws IOException {
+    catalog.createTable(
+        tableId, ID_FLAG, PartitionSpec.builderFor(ID_FLAG).identity("flag").build(), FULL_METRICS);
+    String file = write("mixed.parquet", true, Arrays.asList(ID, FLAG), row(1, true), row(2, null));
+
+    expectUnknownPartition(register(file), file, "flag");
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(Collections.emptyList(), registeredFiles());
+  }
+
   @Test
   public void testPartitionColumnWithoutStatisticsIsAnUnknownPartition() throws IOException {
     catalog.createTable(

@@ -1025,6 +1025,12 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           throw new UnknownPartitionException(
               "Min and max transformed values were not equal, for column: " + field.name());
         }
+        // Bounds ignore nulls, and a null row belongs to the null partition.
+        if (lowerTransformedValue != null && hasNulls(partitionMetrics, field.sourceId())) {
+          throw new UnknownPartitionException(
+              "Column has both null and non-null values, which belong to different partitions: "
+                  + table.schema().findColumnName(field.sourceId()));
+        }
 
         pk.set(i, lowerTransformedValue);
       }
@@ -1054,6 +1060,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       Long valueCount = valueCounts.get(fieldId);
       Long nullCount = nullCounts.get(fieldId);
       return valueCount != null && nullCount != null && valueCount.equals(nullCount);
+    }
+
+    private static boolean hasNulls(Metrics metrics, int fieldId) {
+      Map<Integer, Long> nullCounts = metrics.nullValueCounts();
+      if (nullCounts == null) {
+        return false;
+      }
+      Long nullCount = nullCounts.get(fieldId);
+      return nullCount != null && nullCount > 0;
     }
 
     /**
