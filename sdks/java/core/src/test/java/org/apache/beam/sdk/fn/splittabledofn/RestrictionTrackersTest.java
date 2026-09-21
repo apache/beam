@@ -204,16 +204,18 @@ public class RestrictionTrackersTest {
     Thread blocking = new Thread(() -> tracker.tryClaim(new Object()));
     blocking.start();
     withProgress.waitUntilBlocking(true);
+    // Times out while first tryClaim holds lock; returns NONE and sets needsProgressUpdate = true
     RestrictionTracker.Progress progress =
         ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTracker.Progress.NONE, progress);
+    // When first tryClaim finishes, unlock() sees needsProgressUpdate == true and evaluates
+    // REPORT_PROGRESS before releasing the lock.
     withProgress.releaseLock();
     withProgress.waitUntilBlocking(false);
     blocking.join();
-    progress = ((HasProgress) tracker).getProgress();
-    assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
 
-    // Subsequent blocking tryClaim should return lastProgress rather than blocking or Progress.NONE
+    // Even if a second blocking tryClaim immediately grabs the lock before getProgress is called
+    // again, getProgress(1) returns REPORT_PROGRESS (updated during first tryClaim's unlock).
     withProgress.setProgress(RestrictionTrackerWithProgress.UPDATED_PROGRESS);
     withProgress.setBlockTryClaim(true);
     Thread secondBlocking = new Thread(() -> tracker.tryClaim(new Object()));
@@ -237,16 +239,18 @@ public class RestrictionTrackersTest {
     Thread blocking = new Thread(() -> tracker.trySplit(0.5));
     blocking.start();
     withProgress.waitUntilBlocking(true);
+    // Times out while first trySplit holds lock; returns NONE and sets needsProgressUpdate = true
     RestrictionTracker.Progress progress =
         ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTracker.Progress.NONE, progress);
+    // When first trySplit finishes, unlock() sees needsProgressUpdate == true and evaluates
+    // REPORT_PROGRESS before releasing the lock.
     withProgress.releaseLock();
     withProgress.waitUntilBlocking(false);
     blocking.join();
-    progress = ((HasProgress) tracker).getProgress();
-    assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
 
-    // Subsequent blocking trySplit should return lastProgress rather than blocking or Progress.NONE
+    // Even if a second blocking trySplit immediately grabs the lock before getProgress is called
+    // again, getProgress(1) returns REPORT_PROGRESS (updated during first trySplit's unlock).
     withProgress.setProgress(RestrictionTrackerWithProgress.UPDATED_PROGRESS);
     withProgress.setBlockTrySplit(true);
     Thread secondBlocking = new Thread(() -> tracker.trySplit(0.5));

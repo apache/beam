@@ -49,6 +49,8 @@ public class RestrictionTrackers {
       extends RestrictionTracker<RestrictionT, PositionT> {
     protected final RestrictionTracker<RestrictionT, PositionT> delegate;
     protected ReentrantLock lock = new ReentrantLock();
+    protected volatile Progress lastProgress = Progress.NONE;
+    protected volatile boolean needsProgressUpdate = false;
     private final ClaimObserver<PositionT> claimObserver;
 
     protected RestrictionTrackerObserver(
@@ -56,6 +58,16 @@ public class RestrictionTrackers {
         ClaimObserver<PositionT> claimObserver) {
       this.delegate = delegate;
       this.claimObserver = claimObserver;
+    }
+
+    protected void unlock() {
+      try {
+        if (needsProgressUpdate) {
+          updateProgressBlocking();
+        }
+      } finally {
+        lock.unlock();
+      }
     }
 
     @Override
@@ -70,7 +82,7 @@ public class RestrictionTrackers {
           return false;
         }
       } finally {
-        lock.unlock();
+        unlock();
       }
     }
 
@@ -80,7 +92,7 @@ public class RestrictionTrackers {
       try {
         return delegate.currentRestriction();
       } finally {
-        lock.unlock();
+        unlock();
       }
     }
 
@@ -91,7 +103,7 @@ public class RestrictionTrackers {
         SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
         return result;
       } finally {
-        lock.unlock();
+        unlock();
       }
     }
 
@@ -101,13 +113,24 @@ public class RestrictionTrackers {
       try {
         delegate.checkDone();
       } finally {
-        lock.unlock();
+        unlock();
       }
     }
 
     @Override
     public IsBounded isBounded() {
       return delegate.isBounded();
+    }
+
+    /** Evaluate progress if requested. */
+    protected void updateProgressBlocking() {
+      lock.lock();
+      try {
+        needsProgressUpdate = false;
+        lastProgress = ((HasProgress) delegate).getProgress();
+      } finally {
+        lock.unlock();
+      }
     }
   }
 
@@ -119,7 +142,6 @@ public class RestrictionTrackers {
   static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
       extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasProgress {
     private static final int PROGRESS_TIMEOUT_SEC = 60;
-    private volatile Progress lastProgress = Progress.NONE;
 
     protected RestrictionTrackerObserverWithProgress(
         RestrictionTracker<RestrictionT, PositionT> delegate,
@@ -140,12 +162,15 @@ public class RestrictionTrackers {
         // when lock timeout occurs.
         if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
           try {
-            lastProgress = ((HasProgress) delegate).getProgress();
+            updateProgressBlocking();
           } finally {
             lock.unlock();
           }
+        } else {
+          needsProgressUpdate = true;
         }
       } catch (InterruptedException e) {
+        needsProgressUpdate = true;
         Thread.currentThread().interrupt();
       }
       return lastProgress;
