@@ -53,17 +53,17 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * BigTableIO performance tests.
+ * BigtableIO performance tests.
  *
  * <p>Example trigger command for all tests: "mvn test -pl it/google-cloud-platform -am
- * -Dtest=BigTableIOLT \ -Dproject=[gcpProject] -DartifactBucket=[temp bucket]
+ * -Dtest=BigtableIOLT \ -Dproject=[gcpProject] -DartifactBucket=[temp bucket]
  * -DfailIfNoTests=false".
  *
  * <p>Example trigger command for specific test: "mvn test -pl it/google-cloud-platform -am \
- * -Dtest="BigTableIOLT#testBigtableWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
+ * -Dtest="BigtableIOLT#testBigtableWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false".
  */
-public class BigTableIOLT extends IOLoadTestBase {
+public class BigtableIOLT extends IOLoadTestBase {
 
   private static final String COLUMN_FAMILY_NAME = "cf";
   private static final long TABLE_MAX_AGE_MINUTES = 100L;
@@ -224,7 +224,7 @@ public class BigTableIOLT extends IOLoadTestBase {
     abstract int getValueSizeBytes();
 
     static Configuration of(long numRows, int pipelineTimeout, String runner, int valueSizeBytes) {
-      return new AutoValue_BigTableIOLT_Configuration.Builder()
+      return new AutoValue_BigtableIOLT_Configuration.Builder()
           .setNumRows(numRows)
           .setPipelineTimeout(pipelineTimeout)
           .setRunner(runner)

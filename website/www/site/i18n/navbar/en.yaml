@@ -53,7 +53,7 @@
 - id: nav-performance-bigquery
   translation: "BigQuery"
 - id: nav-performance-bigtable
-  translation: "BigTable"
+  translation: "Bigtable"
 - id: nav-performance-textio
   translation: "TextIO"
 - id: nav-performance-glossary

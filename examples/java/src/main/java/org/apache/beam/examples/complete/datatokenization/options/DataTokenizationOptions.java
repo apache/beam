@@ -17,7 +17,7 @@
  */
 package org.apache.beam.examples.complete.datatokenization.options;
 
-import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationBigTableIO;
+import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationBigtableIO;
 import org.apache.beam.examples.complete.datatokenization.transforms.io.TokenizationFileSystemIO.FileSystemPipelineOptions;
 import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
@@ -28,7 +28,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
  * executor at the command-line.
  */
 public interface DataTokenizationOptions
-    extends PipelineOptions, FileSystemPipelineOptions, TokenizationBigTableIO.BigTableOptions {
+    extends PipelineOptions, FileSystemPipelineOptions, TokenizationBigtableIO.BigtableOptions {
 
   @Description("Path to data schema (JSON format) compatible with BigQuery.")
   String getDataSchemaPath();

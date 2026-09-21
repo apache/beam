@@ -62,7 +62,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * BigTableIO stress test. The test is designed to assess the performance of BigTableIO under
+ * BigtableIO stress test. The test is designed to assess the performance of BigtableIO under
  * various conditions.
  *
  * <p>Usage: <br>
@@ -70,7 +70,7 @@ import org.junit.Test;
  * :it:google-cloud-platform:BigTableStressTestMedium} - To run large-scale stress tests: {@code
  * gradle :it:google-cloud-platform:BigTableStressTestLarge}
  */
-public final class BigTableIOST extends IOStressTestBase {
+public final class BigtableIOST extends IOStressTestBase {
 
   private static final String WRITE_ELEMENT_METRIC_NAME = "write_count";
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
@@ -338,7 +338,7 @@ public final class BigTableIOST extends IOStressTestBase {
     @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
-    @JsonProperty public String influxMeasurement = BigTableIOST.class.getName();
+    @JsonProperty public String influxMeasurement = BigtableIOST.class.getName();
 
     /** InfluxDB host to publish metrics. * */
     @JsonProperty public String influxHost;

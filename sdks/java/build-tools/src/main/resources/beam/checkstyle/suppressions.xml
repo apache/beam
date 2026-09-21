@@ -71,7 +71,7 @@
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*datastore.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*extensions.*sql.*ProtoPayloadSerializerProvider.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*datacatalog.*DataCatalogTableProvider\.java" />
-  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*datatokenization.*BigTableIO\.java" />
+  <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*examples.*datatokenization.*BigtableIO\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*aws2.*kinesis.*RecordsAggregator\.java" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*testinfra.*pipelines.*" />
   <suppress id="ForbidNonVendoredGrpcProtobuf" files=".*it.*DefaultPipelineLauncher\.java" />
