@@ -33,7 +33,7 @@ import org.apache.kafka.streams.processor.StreamPartitioner;
  *       value of a key lands together;
  *   <li><b>watermark</b> reports are broadcast to <i>every</i> partition, so each downstream
  *       GroupByKey task observes the terminal watermark and fires its keys;
- *   <li><b>flush</b> markers go to the partitions they name.
+ *   <li><b>flush</b> markers go to the partitions they name, one copy to each.
  * </ul>
  *
  * @param <T> the data element type carried by data payloads

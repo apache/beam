@@ -124,7 +124,8 @@ class ShuffleByKeyProcessor
       }
       ctx.forward(record.withKey(encodedKey));
     } else if (payload.isFlush()) {
-      // Retargeted for this edge. Fanning in, an instance may have nothing to address.
+      // Forwarded once: the sink's partitioner makes Kafka Streams write a copy to each target.
+      // Fanning in, an instance may have nothing to address.
       Set<Integer> targets =
           flushTargets(upstreamPartition, upstreamPartitionCount, downstreamPartitionCount);
       if (!targets.isEmpty()) {
