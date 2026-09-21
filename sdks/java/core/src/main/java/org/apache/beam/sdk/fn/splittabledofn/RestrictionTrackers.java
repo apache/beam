@@ -49,7 +49,6 @@ public class RestrictionTrackers {
       extends RestrictionTracker<RestrictionT, PositionT> {
     protected final RestrictionTracker<RestrictionT, PositionT> delegate;
     protected ReentrantLock lock = new ReentrantLock();
-    protected volatile boolean hasInitialProgress = false;
     private final ClaimObserver<PositionT> claimObserver;
 
     protected RestrictionTrackerObserver(
@@ -110,16 +109,6 @@ public class RestrictionTrackers {
     public IsBounded isBounded() {
       return delegate.isBounded();
     }
-
-    /** Evaluate progress if requested. */
-    protected Progress getProgressBlocking() {
-      lock.lock();
-      try {
-        return ((HasProgress) delegate).getProgress();
-      } finally {
-        lock.unlock();
-      }
-    }
   }
 
   /**
@@ -129,7 +118,8 @@ public class RestrictionTrackers {
   @ThreadSafe
   static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
       extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasProgress {
-    private static final int FIRST_PROGRESS_TIMEOUT_SEC = 60;
+    private static final int PROGRESS_TIMEOUT_SEC = 60;
+    private volatile Progress lastProgress = Progress.NONE;
 
     protected RestrictionTrackerObserverWithProgress(
         RestrictionTracker<RestrictionT, PositionT> delegate,
@@ -139,32 +129,26 @@ public class RestrictionTrackers {
 
     @Override
     public Progress getProgress() {
-      return getProgress(FIRST_PROGRESS_TIMEOUT_SEC);
+      return getProgress(PROGRESS_TIMEOUT_SEC);
     }
 
     @VisibleForTesting
     Progress getProgress(int timeOutSec) {
-      if (!hasInitialProgress) {
-        Progress progress = Progress.NONE;
-        try {
-          // lock can be held long by long-running tryClaim/trySplit. We tolerate this scenario
-          // by returning zero progress when initial progress never evaluated before due to lock
-          // timeout.
-          if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
-            try {
-              progress = getProgressBlocking();
-              hasInitialProgress = true;
-            } finally {
-              lock.unlock();
-            }
+      try {
+        // lock can be held long by long-running tryClaim/trySplit. We tolerate this scenario
+        // by returning the last evaluated progress (or zero progress if never evaluated before)
+        // when lock timeout occurs.
+        if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
+          try {
+            lastProgress = ((HasProgress) delegate).getProgress();
+          } finally {
+            lock.unlock();
           }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
         }
-        return progress;
-      } else {
-        return getProgressBlocking();
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
       }
+      return lastProgress;
     }
   }
 
