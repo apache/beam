@@ -834,7 +834,6 @@ public class QueryChangeStreamActionTest {
         .thenReturn(changeStreamResultSet);
     when(changeStreamResultSet.next()).thenReturn(false);
     when(watermarkEstimator.currentWatermark()).thenReturn(WATERMARK);
-    when(restrictionTracker.tryClaim(any(Timestamp.class))).thenReturn(true);
 
     final ProcessContinuation result =
         action.run(
@@ -842,7 +841,7 @@ public class QueryChangeStreamActionTest {
     assertEquals(ProcessContinuation.resume(), result);
     assertNotEquals(MAX_INCLUSIVE_END_AT, timestampCaptor.getValue());
 
-    verify(restrictionTracker).tryClaim(timestampCaptor.getValue());
+    verify(restrictionTracker, never()).tryClaim(timestampCaptor.getValue());
     verify(partitionMetadataDao).updateWatermark(PARTITION_TOKEN, WATERMARK_TIMESTAMP);
     verify(partitionMetadataDao, never()).updateToFinished(PARTITION_TOKEN);
     verify(metrics, never()).decActivePartitionReadCounter();
@@ -1081,8 +1080,10 @@ public class QueryChangeStreamActionTest {
     long diff = timestampCaptor.getValue().getSeconds() - now.getSeconds();
     assertTrue("Query should be capped at approx 2 minutes (120s)", Math.abs(diff - 120) < 10);
 
-    // Crucial: Should RESUME to process the rest later
+    // Crucial: Should RESUME to process the rest later without claiming the capped query end
+    // timestamp.
     assertEquals(ProcessContinuation.resume(), result);
+    verify(restrictionTracker, never()).tryClaim(timestampCaptor.getValue());
   }
 
   @Test
