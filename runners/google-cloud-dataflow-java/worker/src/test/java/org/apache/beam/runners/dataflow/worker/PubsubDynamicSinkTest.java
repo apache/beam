@@ -135,33 +135,32 @@ public class PubsubDynamicSinkTest {
     }
     writer.close();
 
-    Windmill.WorkItemCommitRequest expectedCommit =
-        Windmill.WorkItemCommitRequest.newBuilder()
-            .setKey(ByteString.copyFromUtf8("key"))
-            .setWorkToken(0)
-            .addPubsubMessages(
-                Windmill.PubSubMessageBundle.newBuilder()
-                    .setTopic("topic1")
-                    .setTimestampLabel("ts")
-                    .setIdLabel("id")
-                    .setWithAttributes(true)
-                    .addAllMessages(expectedMessages1))
-            .addPubsubMessages(
-                Windmill.PubSubMessageBundle.newBuilder()
-                    .setTopic("topic2")
-                    .setTimestampLabel("ts")
-                    .setIdLabel("id")
-                    .setWithAttributes(true)
-                    .addAllMessages(expectedMessages2))
-            .addPubsubMessages(
-                Windmill.PubSubMessageBundle.newBuilder()
-                    .setTopic("topic3")
-                    .setTimestampLabel("ts")
-                    .setIdLabel("id")
-                    .setWithAttributes(true)
-                    .addAllMessages(expectedMessages3))
-            .build();
-    assertEquals(expectedCommit, outputBuilder.build());
+    Windmill.WorkItemCommitRequest actualCommit = outputBuilder.build();
+    assertEquals(ByteString.copyFromUtf8("key"), actualCommit.getKey());
+    assertEquals(0L, actualCommit.getWorkToken());
+
+    Map<String, List<Windmill.Message>> expectedByTopic = new HashMap<>();
+    expectedByTopic.put("topic1", expectedMessages1);
+    expectedByTopic.put("topic2", expectedMessages2);
+    expectedByTopic.put("topic3", expectedMessages3);
+
+    Map<String, Windmill.PubSubMessageBundle> actualByTopic = new HashMap<>();
+    for (Windmill.PubSubMessageBundle bundle : actualCommit.getPubsubMessagesList()) {
+      actualByTopic.put(bundle.getTopic(), bundle);
+    }
+
+    assertEquals(expectedByTopic.keySet(), actualByTopic.keySet());
+    for (Map.Entry<String, List<Windmill.Message>> entry : expectedByTopic.entrySet()) {
+      assertEquals(
+          Windmill.PubSubMessageBundle.newBuilder()
+              .setTopic(entry.getKey())
+              .setTimestampLabel("ts")
+              .setIdLabel("id")
+              .setWithAttributes(true)
+              .addAllMessages(entry.getValue())
+              .build(),
+          actualByTopic.get(entry.getKey()));
+    }
   }
 
   @Test
