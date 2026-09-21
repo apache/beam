@@ -968,9 +968,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             fields.stream()
                 .map(pf -> table.schema().findColumnName(pf.sourceId()))
                 .collect(Collectors.toList());
-        Map<String, String> configProps =
-            sourceNames.stream()
-                .collect(Collectors.toMap(s -> "write.metadata.metrics.column." + s, s -> "full"));
+        // Only the partition columns: an unrelated column whose bounds cannot be collected must
+        // not fail the inference.
+        Map<String, String> configProps = new HashMap<>();
+        configProps.put(TableProperties.DEFAULT_WRITE_METRICS_MODE, "none");
+        for (String sourceName : sourceNames) {
+          configProps.put(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + sourceName, "full");
+        }
         MetricsConfig configWithPartitionFields = MetricsConfig.fromProperties(configProps);
         partitionMetrics =
             getFileMetrics(
