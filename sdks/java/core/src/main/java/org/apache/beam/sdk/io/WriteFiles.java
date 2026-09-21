@@ -303,6 +303,50 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
   /**
    * Set the maximum number of writers kept open in a bundle before spilling to shuffle (or evicting
    * the least recently used open writer if {@link #withEvictWritersWhenFull()} is enabled).
+   *
+   * <p><b>Trade-offs:</b> A higher value here can cause more worker memory consumption (since each
+   * open writer maintains an in-memory write buffer), but reduces the cost of shuffling spilled
+   * records (or reduces how frequently writers are closed and evicted when {@link
+   * #withEvictWritersWhenFull()} is enabled). A lower value reduces peak memory consumption per
+   * bundle at the cost of either more records spilled to shuffle or more frequent writer evictions
+   * (resulting in smaller output files).
+   *
+   * <p><b>Writer Limit &amp; Overflow Trade-off Matrix (for {@link
+   * #withRunnerDeterminedSharding()}):</b>
+   *
+   * <table>
+   *   <tr>
+   *     <th>Configuration</th>
+   *     <th>Behavior when {@code maxNumWritersPerBundle} is reached</th>
+   *     <th>Worker Memory Consumption</th>
+   *     <th>Shuffle Cost</th>
+   *     <th>Output File Size / Count</th>
+   *   </tr>
+   *   <tr>
+   *     <td><b>Default (Spill to Shuffle)</b><br>{@code maxNumWritersPerBundle > 0},<br>{@code evictWritersWhenFull = false}</td>
+   *     <td>Keeps first {@code N} writers open; spills remaining records to a {@link GroupByKey} shuffle stage</td>
+   *     <td>Bounded ({@code <= N} buffers per bundle)</td>
+   *     <td>High if many records spill across shuffle</td>
+   *     <td>Fewer, larger files</td>
+   *   </tr>
+   *   <tr>
+   *     <td><b>LRU Writer Eviction</b><br>{@code maxNumWritersPerBundle > 0},<br>{@code evictWritersWhenFull = true}</td>
+   *     <td>Flushes and closes the least recently used (LRU) open writer to open a new writer inline</td>
+   *     <td>Bounded ({@code <= N} buffers per bundle)</td>
+   *     <td>None (no shuffle stage for unwritten records)</td>
+   *     <td>May produce more/smaller files (minimal if input is ordered by destination, high if random)</td>
+   *   </tr>
+   *   <tr>
+   *     <td><b>No Spilling</b><br>{@link #withNoSpilling()} ({@code maxNumWritersPerBundle = -1})</td>
+   *     <td>Opens a new writer for every destination in the bundle without limit</td>
+   *     <td>Unbounded (risk of OOM with many destinations)</td>
+   *     <td>None (no shuffle stage for unwritten records)</td>
+   *     <td>Fewer, larger files (1 file per destination per bundle)</td>
+   *   </tr>
+   * </table>
+   *
+   * <p>Note that value provided here cannot exceed the default value ({@link
+   * #DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE}).
    */
   public WriteFiles<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
       int maxNumWritersPerBundle) {
@@ -321,6 +365,12 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * (LRU order, by flushing and closing it) instead of spilling unwritten records to shuffle when
    * {@link #getMaxNumWritersPerBundle()} is reached.
    *
+   * <p><b>Trade-offs:</b> Setting this to {@code true} avoids the cost of shuffling records while
+   * keeping concurrent writer memory consumption bounded by {@link #getMaxNumWritersPerBundle()},
+   * but may lead to smaller and more numerous output files since evicted writers are closed before
+   * the end of the bundle. See {@link #withMaxNumWritersPerBundle(int)} for the full trade-off
+   * matrix.
+   *
    * <p><b>Warning:</b> This option should only be used when the input {@link PCollection} elements
    * within a bundle are already grouped or ordered by writer keys (destination/window/pane), such
    * that consecutive records belong to the same destination. If the input {@link PCollection} rows
@@ -337,6 +387,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
    * Set this sink to evict the least recently used open writer in the bundle (LRU order, by
    * flushing and closing it) when {@link #getMaxNumWritersPerBundle()} is reached, instead of
    * spilling unwritten records to shuffle.
+   *
+   * <p><b>Trade-offs:</b> Setting this to {@code true} avoids the cost of shuffling records while
+   * keeping concurrent writer memory consumption bounded by {@link #getMaxNumWritersPerBundle()},
+   * but may lead to smaller and more numerous output files since evicted writers are closed before
+   * the end of the bundle. Setting this to {@code false} (default) preserves larger output files by
+   * spilling excess records to a shuffle stage. See {@link #withMaxNumWritersPerBundle(int)} for
+   * the full trade-off matrix.
    *
    * <p><b>Warning:</b> This option should only be used when the input {@link PCollection} elements
    * within a bundle are already grouped or ordered by writer keys (destination/window/pane), such
