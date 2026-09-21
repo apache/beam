@@ -157,12 +157,4 @@ public class TokenizationBigtableIO {
 
     void setBigTableColumnFamilyName(String bigTableColumnFamilyName);
   }
-
-  /**
-   * Backward-compatible alias for {@link BigtableOptions}.
-   *
-   * @deprecated Use {@link BigtableOptions} instead.
-   */
-  @Deprecated
-  public interface BigTableOptions extends BigtableOptions {}
 }
