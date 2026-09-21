@@ -108,7 +108,58 @@
 </span></span><span class=line><span class=cl>
 </span></span><span class=line><span class=cl>      <span class=k>return</span> <span class=n>map</span><span class=o>;</span>
 </span></span><span class=line><span class=cl>    <span class=o>}</span>
-</span></span><span class=line><span class=cl>  <span class=o>}</span></span></span></code></pre></div></div></div><div class='language-py snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre tabindex=0 class=chroma><code class=language-py data-lang=py><span class=line><span class=cl><span class=n>No</span> <span class=n>sample</span> <span class=n>present</span><span class=o>.</span></span></span></code></pre></div></div></div><h2 id=slowly-updating-side-input-using-windowing>Slowly updating side input using windowing</h2><p>You can read side input data periodically into distinct PCollection windows.
+</span></span><span class=line><span class=cl>  <span class=o>}</span></span></span></code></pre></div></div></div><p class=language-py>The Python sample uses <code>PeriodicImpulse</code> to re-read the placeholder external service on a fixed interval, and re-publishes the result into the global window on every firing. Use <code>Latest.Globally().without_defaults()</code> rather than <code>Latest.Globally()</code>: the variant with defaults adds its own side input, which stops the transform from emitting more than once. For more information, see <a href=https://github.com/apache/beam/issues/35934>Issue 35934</a>.</p><div class='language-py snippet'><div class="notebook-skip code-snippet"><a class=copy type=button data-bs-toggle=tooltip data-bs-placement=bottom title="Copy to clipboard"><img src=/images/copy-icon.svg></a><div class=highlight><pre tabindex=0 class=chroma><code class=language-py data-lang=py><span class=line><span class=cl><span class=kn>from</span> <span class=nn>apache_beam.transforms</span> <span class=kn>import</span> <span class=n>combiners</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>apache_beam.transforms</span> <span class=kn>import</span> <span class=n>trigger</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>apache_beam.transforms</span> <span class=kn>import</span> <span class=n>window</span>
+</span></span><span class=line><span class=cl><span class=kn>from</span> <span class=nn>apache_beam.transforms.periodicsequence</span> <span class=kn>import</span> <span class=n>PeriodicImpulse</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># To run indefinitely, pass MAX_TIMESTAMP from apache_beam.utils.timestamp</span>
+</span></span><span class=line><span class=cl><span class=c1># as last_timestamp.</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Placeholder that represents an external service, such as a database or a</span>
+</span></span><span class=line><span class=cl><span class=c1># configuration endpoint. Replace it with the external read of your choice.</span>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>read_from_placeholder_external_service</span><span class=p>(</span><span class=n>refresh_timestamp</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=p>{</span><span class=s1>&#39;Key_A&#39;</span><span class=p>:</span> <span class=nb>str</span><span class=p>(</span><span class=n>refresh_timestamp</span><span class=p>)}</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=k>def</span> <span class=nf>enrich_with_side_input</span><span class=p>(</span><span class=n>element</span><span class=p>,</span> <span class=n>config</span><span class=p>):</span>
+</span></span><span class=line><span class=cl>  <span class=c1># The side input is read as an iterable rather than as a singleton,</span>
+</span></span><span class=line><span class=cl>  <span class=c1># because the global window side input can hold more than one element if</span>
+</span></span><span class=line><span class=cl>  <span class=c1># it fires again before the value is consumed.</span>
+</span></span><span class=line><span class=cl>  <span class=n>latest_config</span> <span class=o>=</span> <span class=nb>next</span><span class=p>(</span><span class=nb>iter</span><span class=p>(</span><span class=n>config</span><span class=p>),</span> <span class=p>{})</span>
+</span></span><span class=line><span class=cl>  <span class=k>return</span> <span class=n>element</span><span class=p>,</span> <span class=n>latest_config</span><span class=o>.</span><span class=n>get</span><span class=p>(</span><span class=s1>&#39;Key_A&#39;</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Create pipeline.</span>
+</span></span><span class=line><span class=cl><span class=n>pipeline</span> <span class=o>=</span> <span class=n>beam</span><span class=o>.</span><span class=n>Pipeline</span><span class=p>()</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Periodically read the external data into the global window.</span>
+</span></span><span class=line><span class=cl><span class=c1># Repeatedly(AfterCount(1)) emits a new pane for every impulse, and the</span>
+</span></span><span class=line><span class=cl><span class=c1># DISCARDING accumulation mode drops the previous value, so that</span>
+</span></span><span class=line><span class=cl><span class=c1># Latest.Globally only considers the most recent element.</span>
+</span></span><span class=line><span class=cl><span class=c1># Use Latest.Globally().without_defaults(): the variant with defaults adds</span>
+</span></span><span class=line><span class=cl><span class=c1># its own side input, which stops the transform from emitting more than once.</span>
+</span></span><span class=line><span class=cl><span class=n>side_input</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>pipeline</span>
+</span></span><span class=line><span class=cl>    <span class=o>|</span> <span class=s1>&#39;SideInputImpulse&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>PeriodicImpulse</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>first_timestamp</span><span class=p>,</span> <span class=n>last_timestamp</span><span class=p>,</span> <span class=n>side_input_interval</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>|</span> <span class=s1>&#39;ReadExternalData&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span><span class=n>read_from_placeholder_external_service</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>|</span> <span class=s1>&#39;WindowSideInput&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>WindowInto</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>window</span><span class=o>.</span><span class=n>GlobalWindows</span><span class=p>(),</span>
+</span></span><span class=line><span class=cl>        <span class=n>trigger</span><span class=o>=</span><span class=n>trigger</span><span class=o>.</span><span class=n>Repeatedly</span><span class=p>(</span><span class=n>trigger</span><span class=o>.</span><span class=n>AfterCount</span><span class=p>(</span><span class=mi>1</span><span class=p>)),</span>
+</span></span><span class=line><span class=cl>        <span class=n>accumulation_mode</span><span class=o>=</span><span class=n>trigger</span><span class=o>.</span><span class=n>AccumulationMode</span><span class=o>.</span><span class=n>DISCARDING</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>|</span> <span class=s1>&#39;GetLatest&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>combiners</span><span class=o>.</span><span class=n>Latest</span><span class=o>.</span><span class=n>Globally</span><span class=p>()</span><span class=o>.</span><span class=n>without_defaults</span><span class=p>())</span>
+</span></span><span class=line><span class=cl>
+</span></span><span class=line><span class=cl><span class=c1># Consume the side input from a main input that uses non-global windows.</span>
+</span></span><span class=line><span class=cl><span class=c1># PeriodicImpulse generates test data. Use a real streaming source, such as</span>
+</span></span><span class=line><span class=cl><span class=c1># PubSubIO or KafkaIO, in production.</span>
+</span></span><span class=line><span class=cl><span class=n>result</span> <span class=o>=</span> <span class=p>(</span>
+</span></span><span class=line><span class=cl>    <span class=n>pipeline</span>
+</span></span><span class=line><span class=cl>    <span class=o>|</span> <span class=s1>&#39;MainInputImpulse&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>PeriodicImpulse</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>first_timestamp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>last_timestamp</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>main_input_interval</span><span class=p>,</span>
+</span></span><span class=line><span class=cl>        <span class=n>apply_windowing</span><span class=o>=</span><span class=kc>True</span><span class=p>)</span>
+</span></span><span class=line><span class=cl>    <span class=o>|</span> <span class=s1>&#39;ApplySideInput&#39;</span> <span class=o>&gt;&gt;</span> <span class=n>beam</span><span class=o>.</span><span class=n>Map</span><span class=p>(</span>
+</span></span><span class=line><span class=cl>        <span class=n>enrich_with_side_input</span><span class=p>,</span> <span class=n>config</span><span class=o>=</span><span class=n>beam</span><span class=o>.</span><span class=n>pvalue</span><span class=o>.</span><span class=n>AsIter</span><span class=p>(</span><span class=n>side_input</span><span class=p>)))</span></span></span></code></pre></div></div></div><h2 id=slowly-updating-side-input-using-windowing>Slowly updating side input using windowing</h2><p>You can read side input data periodically into distinct PCollection windows.
 When you apply the side input to your main input, each main input
 window is automatically matched to a single side input window.
 This guarantees consistency on the duration of the single window,
