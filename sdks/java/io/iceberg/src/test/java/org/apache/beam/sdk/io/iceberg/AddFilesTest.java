@@ -852,7 +852,7 @@ public class AddFilesTest {
         assertEquals(caze.expectedUpper.get(i), upper);
       }
 
-      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer);
+      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer).toPath();
       assertEquals(caze.expectedPartition, partitionPath);
     }
   }

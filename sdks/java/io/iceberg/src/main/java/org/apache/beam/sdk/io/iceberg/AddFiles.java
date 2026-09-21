@@ -700,17 +700,18 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         }
 
         // Figure out which partition this DataFile should go to
-        String partitionPath;
-        if (table.spec().isUnpartitioned()) {
-          partitionPath = "";
-        } else if (!Strings.isNullOrEmpty(prefix)) {
+        String partitionPath = "";
+        @Nullable PartitionKey partitionFromMetrics = null;
+        boolean partitioned = table.spec().isPartitioned();
+        if (partitioned && !Strings.isNullOrEmpty(prefix)) {
           // option 1: use directory structure to determine partition
           // Note: we don't validate the DataFile content here
           partitionPath = getPartitionFromFilePath(filePath);
-        } else {
+        } else if (partitioned) {
           try {
             // option 2: examine DataFile min/max statistics to determine partition
-            partitionPath = getPartitionFromMetrics(metrics, inputFile, table, parquetFooter);
+            partitionFromMetrics =
+                getPartitionFromMetrics(metrics, inputFile, table, parquetFooter);
           } catch (UnknownPartitionException e) {
             return errorResult(
                 filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
@@ -718,14 +719,19 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         }
 
         try {
-          DataFile df =
+          DataFiles.Builder builder =
               DataFiles.builder(table.spec())
                   .withPath(filePath)
                   .withFormat(format)
                   .withMetrics(metrics)
-                  .withFileSizeInBytes(inputFile.getLength())
-                  .withPartitionPath(partitionPath)
-                  .build();
+                  .withFileSizeInBytes(inputFile.getLength());
+          if (partitionFromMetrics != null) {
+            // Set as values: a path string cannot carry a null ("flag=null" parses as false).
+            builder = builder.withPartition(partitionFromMetrics);
+          } else {
+            builder = builder.withPartitionPath(partitionPath);
+          }
+          DataFile df = builder.build();
           return new ProcessResult(
               SerializableDataFile.from(df, table.spec()),
               null,
@@ -942,7 +948,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
      * <p>In these cases, we output the DataFile to the DLQ, because assigning an incorrect
      * partition may lead to it being incorrectly ignored by downstream queries.
      */
-    static String getPartitionFromMetrics(
+    static PartitionKey getPartitionFromMetrics(
         Metrics metrics, InputFile inputFile, Table table, @Nullable ParquetMetadata preReadFooter)
         throws UnknownPartitionException {
       List<PartitionField> fields = table.spec().fields();
@@ -1018,7 +1024,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         pk.set(i, lowerTransformedValue);
       }
 
-      return pk.toPath();
+      return pk;
     }
 
     /** Avro metrics carry null bound maps. */
