@@ -1583,8 +1583,8 @@ def side_input_slow_update_global_window(
   from apache_beam.transforms import window
   from apache_beam.transforms.periodicsequence import PeriodicImpulse
 
-  # from apache_beam.utils.timestamp import MAX_TIMESTAMP
-  # last_timestamp = MAX_TIMESTAMP to go on indefinitely
+  # To run indefinitely, pass MAX_TIMESTAMP from apache_beam.utils.timestamp
+  # as last_timestamp.
 
   # Placeholder that represents an external service, such as a database or a
   # configuration endpoint. Replace it with the external read of your choice.

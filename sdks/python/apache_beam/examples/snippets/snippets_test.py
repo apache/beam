@@ -1492,7 +1492,8 @@ class SlowlyChangingSideInputsTest(unittest.TestCase):
           (expected_main_input_elements, main_input_elements))
 
       side_input_values = set(value for _, value in actual)
-      assert side_input_values, 'No side input value was observed.'
+      assert None not in side_input_values, (
+          'Some elements were processed before the side input was ready.')
       unexpected_values = side_input_values - expected_side_input_values
       assert not unexpected_values, (
           'Observed side input values that the side input never produced: %s' %
