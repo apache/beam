@@ -30,12 +30,15 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
@@ -46,6 +49,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -90,6 +94,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -525,14 +530,15 @@ public class WriteFilesTest {
     }
   }
 
-  private static final class FailingCloseOnEvictSink extends SimpleSink<Integer> {
-    static final AtomicBoolean CLEANUP_CALLED = new AtomicBoolean(false);
+  private static final class FailingCloseOnEvictSink
+      extends FileBasedSink<String, Integer, String> {
+    static final AtomicReference<ResourceId> EVICTED_TEMP_FILE = new AtomicReference<>();
     static final AtomicBoolean THREW_ON_CLOSE = new AtomicBoolean(false);
 
     FailingCloseOnEvictSink(
         ResourceId tempDirectory,
         DynamicDestinations<String, Integer, String> dynamicDestinations) {
-      super(tempDirectory, dynamicDestinations, Compression.UNCOMPRESSED);
+      super(StaticValueProvider.of(tempDirectory), dynamicDestinations, Compression.UNCOMPRESSED);
     }
 
     @Override
@@ -547,19 +553,26 @@ public class WriteFilesTest {
 
       @Override
       public Writer<Integer, String> createWriter() {
-        return new SimpleWriter<Integer>(new SimpleWriteOperation<>(getSink())) {
+        return new Writer<Integer, String>(this, MimeTypes.TEXT) {
+          private WritableByteChannel channel;
+
           @Override
-          public void close() throws Exception {
-            super.close();
-            if (THREW_ON_CLOSE.compareAndSet(false, true)) {
-              throw new IOException("Simulated close failure on eviction");
-            }
+          protected void prepareWrite(WritableByteChannel channel) {
+            this.channel = channel;
           }
 
           @Override
-          public void cleanup() throws Exception {
-            CLEANUP_CALLED.set(true);
-            super.cleanup();
+          public void write(String value) throws Exception {
+            channel.write(ByteBuffer.wrap((value + "\n").getBytes(StandardCharsets.UTF_8)));
+          }
+
+          @Override
+          protected void writeFooter() throws Exception {
+            if (THREW_ON_CLOSE.compareAndSet(false, true)) {
+              EVICTED_TEMP_FILE.set(getOutputFile());
+              assertTrue(new File(getOutputFile().toString()).exists());
+              throw new IOException("Simulated close failure on eviction");
+            }
           }
         };
       }
@@ -619,7 +632,7 @@ public class WriteFilesTest {
   @Test
   @Category(NeedsRunner.class)
   public void testWriteEvictWritersWhenFullCloseExceptionCleanup() {
-    FailingCloseOnEvictSink.CLEANUP_CALLED.set(false);
+    FailingCloseOnEvictSink.EVICTED_TEMP_FILE.set(null);
     FailingCloseOnEvictSink.THREW_ON_CLOSE.set(false);
 
     TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
@@ -641,7 +654,8 @@ public class WriteFilesTest {
     assertThat(
         thrownException.getCause().getMessage(),
         containsString("Simulated close failure on eviction"));
-    assertTrue(FailingCloseOnEvictSink.CLEANUP_CALLED.get());
+    assertNotNull(FailingCloseOnEvictSink.EVICTED_TEMP_FILE.get());
+    assertFalse(new File(FailingCloseOnEvictSink.EVICTED_TEMP_FILE.get().toString()).exists());
   }
 
   @Test
