@@ -581,7 +581,7 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
-  public void testWriteEvictWritersWhenFullFifoOrderAndReopen() throws IOException {
+  public void testWriteEvictWritersWhenFullLruOrderAndReopen() throws IOException {
     TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
     SimpleSink<Integer> sink =
         new SimpleSink<>(getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED);
@@ -592,16 +592,17 @@ public class WriteFilesTest {
 
     // Emit all elements in a single bundle with maxNumWritersPerBundle = 1 (allows up to 2 open
     // writers simultaneously before evicting):
-    // - "0" (dest 0): opens dest 0. Open writers (FIFO): [0]
-    // - "1" (dest 1): opens dest 1. Open writers (FIFO): [0, 1]
-    // - "6" (dest 1): writes to existing open writer for dest 1. Open writers (FIFO): [0, 1]
-    // - "2" (dest 2): capacity exceeded -> evicts oldest writer (dest 0), opens dest 2.
-    //                 Open writers (FIFO): [1, 2]
-    // - "11" (dest 1): writes to still-open writer for dest 1 (proving dest 0 was evicted first,
-    //                  not dest 1). Open writers (FIFO): [1, 2]
-    // - "5" (dest 0): dest 0 was previously evicted -> evicts oldest writer (dest 1), re-opens a
-    //                 second writer for dest 0. Open writers (FIFO): [2, 0]
-    List<String> bundleElements = Arrays.asList("0", "1", "6", "2", "11", "5");
+    // - "0" (dest 0): opens dest 0. Open writers (LRU -> MRU): [0]
+    // - "1" (dest 1): opens dest 1. Open writers (LRU -> MRU): [0, 1]
+    // - "5" (dest 0): writes to existing open writer for dest 0, refreshing its recency.
+    //                 Open writers (LRU -> MRU): [1, 0]
+    // - "2" (dest 2): capacity exceeded -> evicts least recently used writer (dest 1, even though
+    //                 dest 0 was opened first), opens dest 2. Open writers (LRU -> MRU): [0, 2]
+    // - "10" (dest 0): writes to still-open writer for dest 0 (proving dest 1 was evicted, not
+    //                  dest 0). Open writers (LRU -> MRU): [2, 0]
+    // - "6" (dest 1): dest 1 was previously evicted -> evicts least recently used writer (dest 2),
+    //                 re-opens a second writer for dest 1. Open writers (LRU -> MRU): [0, 1]
+    List<String> bundleElements = Arrays.asList("0", "1", "5", "2", "10", "6");
 
     WriteFilesResult<Integer> res =
         p.apply(Create.of("trigger"))
@@ -610,19 +611,20 @@ public class WriteFilesTest {
     res.getPerDestinationOutputFilenames().apply(new VerifyFilesExist<>());
     p.run();
 
-    // Destination 0 was opened twice (evicted once and closed once at finishBundle) -> 2 shards.
+    // Destination 0 stayed open across all three of its elements due to LRU refresh -> 1 shard.
     ResourceId base0 =
         getBaseOutputDirectory().resolve("file_0", StandardResolveOptions.RESOLVE_FILE);
     checkFileContents(
-        base0.toString(), Arrays.asList("record_0", "record_5"), Optional.of(2), true);
+        base0.toString(), Arrays.asList("record_0", "record_5", "record_10"), Optional.of(1), true);
 
-    // Destination 1 stayed open for all three of its elements before being evicted -> 1 shard.
+    // Destination 1 became LRU after "5" accessed dest 0, was evicted when "2" arrived, and was
+    // re-opened when "6" arrived -> 2 shards.
     ResourceId base1 =
         getBaseOutputDirectory().resolve("file_1", StandardResolveOptions.RESOLVE_FILE);
     checkFileContents(
-        base1.toString(), Arrays.asList("record_1", "record_6", "record_11"), Optional.of(1), true);
+        base1.toString(), Arrays.asList("record_1", "record_6"), Optional.of(2), true);
 
-    // Destination 2 was opened once and closed at finishBundle -> 1 shard.
+    // Destination 2 was opened once and evicted when "6" arrived -> 1 shard.
     ResourceId base2 =
         getBaseOutputDirectory().resolve("file_2", StandardResolveOptions.RESOLVE_FILE);
     checkFileContents(
