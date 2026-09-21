@@ -34,13 +34,16 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
+import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaCoder;
@@ -120,6 +123,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       counter(AddFiles.class, "numManifestFilesAdded");
   private static final Counter numDataFilesAdded = counter(AddFiles.class, "numDataFilesAdded");
   private static final Counter numErrorFiles = counter(AddFiles.class, "numErrorFiles");
+  static final String UNCHECKED_FORMAT_COUNTER = "numUncheckedFormatFiles";
+  static final String UNPROVEN_PINS_COUNTER = "numUnprovenPinFiles";
+  private static final Counter numUncheckedFormatFiles =
+      counter(AddFiles.class, UNCHECKED_FORMAT_COUNTER);
+  private static final Counter numUnprovenPinFiles = counter(AddFiles.class, UNPROVEN_PINS_COUNTER);
   private static final Logger LOG = LoggerFactory.getLogger(AddFiles.class);
   private static final int DEFAULT_DATAFILES_PER_MANIFEST = 10_000;
   private static final int DEFAULT_MAX_MANIFESTS_PER_SNAPSHOT = 100;
@@ -260,8 +268,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final @Nullable List<String> partitionFields;
     private final @Nullable List<String> sortFields;
     private final @Nullable Map<String, String> tableProps;
+    private final SchemaEvolutionConfig evolution;
     private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
     private transient volatile @MonotonicNonNull Table table;
+    private transient @MonotonicNonNull Set<String> warned;
 
     // Number of parallel threads processing incoming files
     private static final int THREAD_POOL_SIZE = 10;
@@ -274,21 +284,80 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         @Nullable List<String> partitionFields,
         @Nullable List<String> sortFields,
         @Nullable Map<String, String> tableProps) {
+      this(
+          catalogConfig,
+          identifier,
+          prefix,
+          partitionFields,
+          sortFields,
+          tableProps,
+          SchemaEvolutionConfig.disabled());
+    }
+
+    public ConvertToDataFile(
+        IcebergCatalogConfig catalogConfig,
+        String identifier,
+        @Nullable String prefix,
+        @Nullable List<String> partitionFields,
+        @Nullable List<String> sortFields,
+        @Nullable Map<String, String> tableProps,
+        SchemaEvolutionConfig evolution) {
       this.catalogConfig = catalogConfig;
       this.identifier = identifier;
       this.prefix = prefix;
       this.partitionFields = partitionFields;
       this.sortFields = sortFields;
       this.tableProps = tableProps;
+      this.evolution = evolution;
     }
 
     static final String PREFIX_ERROR = "File path did not start with the specified prefix";
     private static final String UNKNOWN_FORMAT_ERROR = "Could not determine the file's format";
     static final String UNKNOWN_PARTITION_ERROR = "Could not determine the file's partition: ";
+    static final String UNREADABLE_SCHEMA_ERROR = "Could not read the file's schema: ";
+    static final String UNCOVERED_ERROR = "Table schema does not cover the file after refresh: ";
+    static final String PINNED_COLUMN_ERROR = "Pinned required column ";
+    static final String UNCHECKED_FORMAT_ERROR =
+        "Schema evolution is enabled but coverage and pin checks support only Parquet;"
+            + " refusing to register an unchecked file of format ";
+
+    /**
+     * What a file registered under {@link UnverifiableFileHandling#ACCEPT} could not be checked
+     * for.
+     */
+    enum Unverified {
+      FORMAT,
+      PIN_STATISTICS
+    }
+
+    /** Verdict of the per-file checks: an error, or none plus what was left unverified. */
+    private static final class Verdict {
+      static final Verdict OK = new Verdict(null, null);
+
+      final @Nullable String error;
+      final @Nullable Unverified unverified;
+
+      private Verdict(@Nullable String error, @Nullable Unverified unverified) {
+        this.error = error;
+        this.unverified = unverified;
+      }
+
+      static Verdict error(String message) {
+        return new Verdict(message, null);
+      }
+
+      static Verdict unverified(Unverified what) {
+        return new Verdict(null, what);
+      }
+    }
 
     private static class ProcessResult {
       final @Nullable SerializableDataFile dataFile;
       final @Nullable Row errorRow;
+
+      /** Counted on the processing thread: metrics touched from the executor are lost. */
+      final @Nullable Unverified unverified;
+
       final Instant timestamp;
       final BoundedWindow window;
       final PaneInfo paneInfo;
@@ -296,6 +365,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       ProcessResult(
           @Nullable SerializableDataFile dataFile,
           @Nullable Row errorRow,
+          @Nullable Unverified unverified,
           Instant timestamp,
           BoundedWindow window,
           PaneInfo paneInfo) {
@@ -306,6 +376,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
             errorRow);
         this.dataFile = dataFile;
         this.errorRow = errorRow;
+        this.unverified = unverified;
         this.timestamp = timestamp;
         this.window = window;
         this.paneInfo = paneInfo;
@@ -315,6 +386,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     @Setup
     public void setup() {
       tasks = new BoundedAsyncTasks<>(THREAD_POOL_SIZE, MAX_IN_FLIGHT_TASKS);
+      warned = ConcurrentHashMap.newKeySet();
     }
 
     /** Clears anything left behind if the runner reuses this instance after a failed bundle. */
@@ -361,6 +433,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 result.timestamp,
                 Collections.singleton(result.window),
                 result.paneInfo);
+        countUnverified(result);
       }
     }
 
@@ -375,6 +448,15 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         numErrorFiles.inc();
       } else if (result.dataFile != null) {
         context.output(DATA_FILES, result.dataFile, result.timestamp, result.window);
+        countUnverified(result);
+      }
+    }
+
+    private static void countUnverified(ProcessResult result) {
+      if (result.unverified == Unverified.FORMAT) {
+        numUncheckedFormatFiles.inc();
+      } else if (result.unverified == Unverified.PIN_STATISTICS) {
+        numUnprovenPinFiles.inc();
       }
     }
 
@@ -411,6 +493,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           return errorResult(filePath, PREFIX_ERROR, timestamp, window, paneInfo);
         }
 
+        if (table.schema().columns().isEmpty() && firstTime("empty schema")) {
+          LOG.warn(
+              "Table {} has no columns: files register with no readable columns and no stats."
+                  + " Enable schema evolution to infer the schema from the files.",
+              identifier);
+        }
+
         // ---- Per-file phase: every failure below is one error row, never a failed bundle.
         @Nullable ParquetMetadata parquetFooter = null;
         if (format.equals(FileFormat.PARQUET)) {
@@ -419,6 +508,13 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           } catch (Exception e) {
             return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
           }
+        }
+        Verdict verdict = Verdict.OK;
+        if (evolution.isEnabled()) {
+          verdict = verify(filePath, format, parquetFooter);
+        }
+        if (verdict.error != null) {
+          return errorResult(filePath, verdict.error, timestamp, window, paneInfo);
         }
 
         InputFile inputFile = table.io().newInputFile(filePath);
@@ -464,7 +560,12 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   .withPartitionPath(partitionPath)
                   .build();
           return new ProcessResult(
-              SerializableDataFile.from(df, table.spec()), null, timestamp, window, paneInfo);
+              SerializableDataFile.from(df, table.spec()),
+              null,
+              verdict.unverified,
+              timestamp,
+              window,
+              paneInfo);
         } catch (Exception e) {
           // getLength is a per-file read (e.g. the file was deleted mid-flight).
           return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
@@ -472,11 +573,126 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       };
     }
 
+    /**
+     * The checks the options promise, in order: a format the checks can read, a convertible schema,
+     * coverage by the table, pins. The first failure is the verdict.
+     */
+    private Verdict verify(String filePath, FileFormat format, @Nullable ParquetMetadata footer) {
+      if (!format.equals(FileFormat.PARQUET)) {
+        if (evolution.getUnverifiableFileHandling() == UnverifiableFileHandling.REJECT) {
+          return Verdict.error(UNCHECKED_FORMAT_ERROR + format.name());
+        }
+        if (firstTime("unchecked format")) {
+          LOG.warn(
+              "Registering {} files in table {} unchecked (UnverifiableFileHandling.ACCEPT):"
+                  + " coverage and pin checks read only Parquet, so a required column such a file"
+                  + " lacks or holds nulls in fails reads of the table, not registration. First"
+                  + " file: {}",
+              format,
+              identifier,
+              filePath);
+        }
+        return Verdict.unverified(Unverified.FORMAT);
+      }
+      ParquetMetadata parquetFooter = checkStateNotNull(footer, "Parquet checks need the footer");
+      org.apache.iceberg.Schema fileSchema;
+      try {
+        fileSchema = FileSchemas.effective(parquetFooter);
+      } catch (Exception e) {
+        return Verdict.error(UNREADABLE_SCHEMA_ERROR + errorMessage(e));
+      }
+      @Nullable String uncovered = uncoveredReason(fileSchema);
+      if (uncovered != null) {
+        return Verdict.error(uncovered);
+      }
+      return checkPins(filePath, fileSchema, parquetFooter);
+    }
+
+    /**
+     * The pre-pass commits the schema before paths reach this stage, so the cached table normally
+     * covers every file. If not, refresh once (a commit may have landed since the table was cached)
+     * and report the remaining delta. Never changes the schema.
+     */
+    private @Nullable String uncoveredReason(org.apache.iceberg.Schema fileSchema) {
+      Table table = checkStateNotNull(this.table);
+      SchemaDelta delta = SchemaDelta.classify(table, fileSchema);
+      if (delta.isEmpty()) {
+        return null;
+      }
+      synchronized (this) {
+        table.refresh();
+      }
+      delta = SchemaDelta.classify(table, fileSchema);
+      if (delta.isEmpty()) {
+        return null;
+      }
+      String reason = delta.disallowedReason(evolution);
+      if (reason.isEmpty()) {
+        reason = "changes not applied: " + String.join("; ", delta.descriptions());
+      }
+      return UNCOVERED_ERROR + reason;
+    }
+
+    /**
+     * A pinned column must be present and provably null-free; a zero-row file is vacuously fine.
+     * The evidence is the footer's own null counts read by the tighten rules ({@link
+     * FileSchemas#nullCount}), never the Metrics built for the DataFile: the table's
+     * write.metadata.metrics configuration shapes those (mode none, or the inferred-column cap on
+     * wide schemas, drops the counts) and must not be able to turn pin enforcement off. A pin with
+     * no count is a violation under REJECT; under ACCEPT it is recorded as unproven and the walk
+     * goes on, so a pin the footer does count nulls for still fails the file.
+     */
+    private Verdict checkPins(
+        String filePath, org.apache.iceberg.Schema fileSchema, ParquetMetadata footer) {
+      Table table = checkStateNotNull(this.table);
+      List<String> unproven = new ArrayList<>();
+      for (String pinned : evolution.getRequiredColumns()) {
+        if (table.schema().findField(pinned) == null) {
+          continue;
+        }
+        if (fileSchema.findField(pinned) == null) {
+          return Verdict.error(PINNED_COLUMN_ERROR + pinned + " is absent from the file");
+        }
+        @Nullable Long nulls = FileSchemas.nullCount(footer, fileSchema, pinned);
+        if (nulls == null) {
+          if (evolution.getUnverifiableFileHandling() == UnverifiableFileHandling.REJECT) {
+            return Verdict.error(
+                PINNED_COLUMN_ERROR + pinned + " has no null count statistics in the file");
+          }
+          unproven.add(pinned);
+          continue;
+        }
+        if (nulls > 0) {
+          return Verdict.error(
+              PINNED_COLUMN_ERROR + pinned + " has " + nulls + " null(s) in the file");
+        }
+      }
+      if (unproven.isEmpty()) {
+        return Verdict.OK;
+      }
+      if (firstTime("unproven pins")) {
+        LOG.warn(
+            "Registering files in table {} whose footer has no null count statistics for pinned"
+                + " column(s) {} on trust (UnverifiableFileHandling.ACCEPT): nulls there fail"
+                + " reads of the table, not registration. First file: {}",
+            identifier,
+            unproven,
+            filePath);
+      }
+      return Verdict.unverified(Unverified.PIN_STATISTICS);
+    }
+
+    /** Once per instance per key: at volume a line per file would drown the log. */
+    private boolean firstTime(String key) {
+      return checkStateNotNull(warned).add(key);
+    }
+
     private static ProcessResult errorResult(
         String filePath, String message, Instant timestamp, BoundedWindow window, PaneInfo pane) {
       return new ProcessResult(
           null,
           Row.withSchema(ERROR_SCHEMA).addValues(filePath, message).build(),
+          null,
           timestamp,
           window,
           pane);
