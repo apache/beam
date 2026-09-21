@@ -97,7 +97,7 @@ public class PubsubDynamicSink extends Sink<WindowedValue<PubsubMessage>> {
     private final ByteStringOutputStream stream; // Kept across adds for buffer reuse.
 
     PubsubWriter() {
-      outputBuilders = Maps.newHashMap();
+      outputBuilders = Maps.newLinkedHashMap();
       stream = new ByteStringOutputStream();
     }
 
