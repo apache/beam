@@ -783,15 +783,13 @@ public abstract class WriteFiles<UserT, DestinationT, OutputT>
 
     private final Coder<UserT> inputCoder;
 
-    // Initial capacity is maxNumWritersPerBundle (or DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE if -1),
-    // loadFactor=0.85f prevents rehashing, and accessOrder=true enables LRU eviction order.
     private final Map<WriterKey<DestinationT>, Writer<DestinationT, OutputT>> writers =
         new LinkedHashMap<>(
-            getMaxNumWritersPerBundle() < 0
+            /* initialCapacity= */ getMaxNumWritersPerBundle() < 0
                 ? DEFAULT_MAX_NUM_WRITERS_PER_BUNDLE
                 : getMaxNumWritersPerBundle(),
-            0.85f,
-            true);
+            /* loadFactor= */ 0.85f,
+            /* accessOrder= */ true); // true = LRU order
     private final List<FileResult<DestinationT>> evictedFileResults = Lists.newArrayList();
 
     private int spilledShardNum = UNKNOWN_SHARDNUM;
