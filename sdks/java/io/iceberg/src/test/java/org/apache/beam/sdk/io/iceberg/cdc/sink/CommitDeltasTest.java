@@ -126,7 +126,7 @@ public class CommitDeltasTest {
   @Rule public transient TemporaryFolder tmp = new TemporaryFolder();
 
   /** Captures the committer's own WARNs, so a test can assert one was NOT emitted. */
-  @Rule public transient ExpectedLogs expectedLogs = ExpectedLogs.none(CommitDeltas.class);
+  @Rule public transient ExpectedLogs expectedLogs = ExpectedLogs.none(OrderedCommitFn.class);
 
   private static int tableCounter = 0;
 
@@ -461,7 +461,7 @@ public class CommitDeltasTest {
     }
     // The skip WARN names exactly those files, so the operator can find them before then.
     String described =
-        CommitDeltas.describeSkippedFiles(
+        OrderedCommitFn.describeSkippedFiles(
             CommitDeltas.WindowedCommit.of(w0End, ImmutableList.of(shard0, shard1)));
     assertThat(described, containsString(shard0DataPath));
     assertThat(described, containsString(shard1DataPath));
@@ -1214,7 +1214,7 @@ public class CommitDeltasTest {
       paths.add(Iterables.getOnlyElement(dataFilePaths(s)));
     }
     String desc =
-        CommitDeltas.describeSkippedFiles(CommitDeltas.WindowedCommit.of(59_999L, results));
+        OrderedCommitFn.describeSkippedFiles(CommitDeltas.WindowedCommit.of(59_999L, results));
     for (int i = 0; i < 5; i++) {
       assertThat(desc, containsString(paths.get(i)));
     }
@@ -1231,11 +1231,11 @@ public class CommitDeltasTest {
     CommitDeltas.WindowedCommit wc =
         CommitDeltas.WindowedCommit.of(59_999L, ImmutableList.of(deletesOnly));
     assertThat(
-        CommitDeltas.describeSkippedFiles(wc),
+        OrderedCommitFn.describeSkippedFiles(wc),
         containsString(Iterables.getOnlyElement(deleteFilePaths(deletesOnly))));
-    assertThat(CommitDeltas.filePaths(wc), hasSize(1));
+    assertThat(OrderedCommitFn.filePaths(wc), hasSize(1));
     assertThat(
-        CommitDeltas.filePaths(wc),
+        OrderedCommitFn.filePaths(wc),
         contains(Iterables.getOnlyElement(deleteFilePaths(deletesOnly))));
   }
 
@@ -1378,10 +1378,10 @@ public class CommitDeltasTest {
   /**
    * The single commit timer must always target the EARLIEST uncommitted pending window-end, never
    * the latest arrival; a wrong minimum is invisible to every other assertion in this class. {@link
-   * CommitDeltas.OrderedCommitFn} is driven directly because through the full transform the
-   * grouping releases a window only after the watermark passes it, so a later window can never
-   * arrive behind a pending earlier one: correct targeting produces TWO committing fires, {@code
-   * [W0]} then {@code [W2]}; a latest-arrival timer produces a single fire committing both.
+   * OrderedCommitFn} is driven directly because through the full transform the grouping releases a
+   * window only after the watermark passes it, so a later window can never arrive behind a pending
+   * earlier one: correct targeting produces TWO committing fires, {@code [W0]} then {@code [W2]}; a
+   * latest-arrival timer produces a single fire committing both.
    */
   @Test
   public void commitTimerTargetsEarliestPendingWindowNotLatestArrival() {
@@ -1396,7 +1396,7 @@ public class CommitDeltasTest {
     ShardDeltaFiles w2 = stage(tt, 30L, 30L, Lists.newArrayList(change(3, "c", "z", INSERT)));
 
     List<KV<Long, List<Long>>> fires = new CopyOnWriteArrayList<>();
-    CommitDeltas.onFireForTest = (fireWatermark, ends) -> fires.add(KV.of(fireWatermark, ends));
+    CommitDeltas.onFireForTest = (fireTime, ends) -> fires.add(KV.of(fireTime, ends));
 
     TestStream<KV<String, CommitDeltas.WindowedCommit>> stream =
         TestStream.create(KvCoder.of(StringUtf8Coder.of(), CommitDeltas.windowedCommitCoder()))
@@ -1409,7 +1409,7 @@ public class CommitDeltasTest {
     p.apply(stream)
         .apply(
             ParDo.of(
-                new CommitDeltas.OrderedCommitFn(
+                new OrderedCommitFn(
                     catalogConfig(),
                     sinkId,
                     "runId",
@@ -1484,17 +1484,16 @@ public class CommitDeltasTest {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Catch-up: a backlog of released windows drains as plain per-window commits in ONE fire.
+  // Catch-up: a backlog of released windows drains as plain per-window commits, one per fire.
   // ---------------------------------------------------------------------------------------------
 
   /**
-   * A catch-up fire (the watermark jumps a 20-window backlog at once) drains ALL committable
-   * windows in that ONE fire, each as its own plain single-window snapshot with its own token, in
-   * ascending order. Run on V3 with an equality delete per window so every commit takes the {@code
-   * RowDelta} path.
+   * A catch-up (the watermark jumps a 20-window backlog at once) drains every window, one per fire,
+   * each as its own plain single-window snapshot with its own token, in ascending order. Run on V3
+   * with an equality delete per window so every commit takes the {@code RowDelta} path.
    */
   @Test
-  public void catchUpFireDrainsWholeBacklogAsPlainPerWindowCommits() {
+  public void catchUpDrainsWholeBacklogOneWindowPerFire() {
     TestTable tt = v3Table();
     Table t = tt.table;
     String sinkId = "sink-" + System.nanoTime();
@@ -1527,7 +1526,7 @@ public class CommitDeltasTest {
     expectedRows.add("5:m:n");
 
     List<KV<Long, List<Long>>> fires = new CopyOnWriteArrayList<>();
-    CommitDeltas.onFireForTest = (fireWatermark, ends) -> fires.add(KV.of(fireWatermark, ends));
+    CommitDeltas.onFireForTest = (fireTime, ends) -> fires.add(KV.of(fireTime, ends));
 
     TestStream.Builder<ShardDeltaFiles> stream =
         TestStream.create(filesCoder()).advanceWatermarkTo(base);
@@ -1569,12 +1568,14 @@ public class CommitDeltasTest {
     }
     assertThat(readRows(t), equalTo(expectedRows.stream().sorted().collect(Collectors.toList())));
 
-    // Single-fire drain: exactly ONE fire committed windows, all of them, in ascending order.
+    // One window per fire, each at its own window end, in ascending order.
     List<KV<Long, List<Long>>> committing =
         fires.stream().filter(f -> !f.getValue().isEmpty()).collect(Collectors.toList());
-    assertThat(committing, hasSize(1));
-    assertThat(committing.get(0).getValue(), equalTo(expectedEnds));
-    assertThat(committing.get(0).getKey(), greaterThanOrEqualTo(expectedEnds.get(windows - 1)));
+    assertThat(committing, hasSize(windows));
+    for (int i = 0; i < windows; i++) {
+      assertThat(
+          committing.get(i), equalTo(KV.of(expectedEnds.get(i), expectedEnds.subList(i, i + 1))));
+    }
   }
 
   /** Steady state: a fire with a single committable window commits exactly that window. */
@@ -1589,7 +1590,7 @@ public class CommitDeltasTest {
     ShardDeltaFiles w0 = stage(tt, 10L, 10L, Lists.newArrayList(change(1, "a", "x", INSERT)));
 
     List<KV<Long, List<Long>>> fires = new CopyOnWriteArrayList<>();
-    CommitDeltas.onFireForTest = (fireWatermark, ends) -> fires.add(KV.of(fireWatermark, ends));
+    CommitDeltas.onFireForTest = (fireTime, ends) -> fires.add(KV.of(fireTime, ends));
 
     TestStream<ShardDeltaFiles> stream =
         TestStream.create(filesCoder())
@@ -1613,9 +1614,10 @@ public class CommitDeltasTest {
   }
 
   /**
-   * A failure on the Nth commit of a catch-up fire halts it exactly at N: the committed prefix
-   * keeps its snapshots, the rest stays pending, and a retry run commits the remainder and ONLY the
-   * remainder: every window exactly once, the prefix skipped via the recovered table token.
+   * A failure on the Nth window of a catch-up halts the destination exactly at N: the committed
+   * prefix keeps its snapshots, the rest stays pending, and a retry run commits the remainder and
+   * ONLY the remainder: every window exactly once, the prefix skipped via the recovered table
+   * token.
    */
   @Test
   public void catchUpFailureKeepsCommittedPrefixAndRetryCommitsRemainder() {
@@ -1659,10 +1661,9 @@ public class CommitDeltasTest {
     String trace = Throwables.getStackTraceAsString(e);
     assertThat(trace, containsString("injected commit failure"));
     assertThat(trace, containsString("failed to commit table"));
-    // The triage names the failing window (W1, not W0), the committed-prefix semantics, and a
-    // pending count covering only what the retry still has to commit.
+    // The triage names the failing window (W1, not W0) and a pending count covering only what
+    // the retry still has to commit.
     assertThat(trace, containsString("at window-end " + windowEndMs(w1Ts)));
-    assertThat(trace, containsString("Windows committed earlier in this same fire stay committed"));
     assertThat(trace, containsString("2 pending window(s)"));
 
     List<Snapshot> afterFailure = snapshotsOf(t);
@@ -1767,7 +1768,7 @@ public class CommitDeltasTest {
         p.apply(stream)
             .apply(
                 ParDo.of(
-                    new CommitDeltas.OrderedCommitFn(
+                    new OrderedCommitFn(
                         catalogConfig(),
                         sinkId,
                         "runId",
@@ -1819,7 +1820,7 @@ public class CommitDeltasTest {
     p.apply(stream)
         .apply(
             ParDo.of(
-                new CommitDeltas.OrderedCommitFn(
+                new OrderedCommitFn(
                     catalogConfig(),
                     sinkId,
                     "runId",
@@ -1844,7 +1845,7 @@ public class CommitDeltasTest {
         .apply(stream)
         .apply(
             ParDo.of(
-                new CommitDeltas.OrderedCommitFn(
+                new OrderedCommitFn(
                     catalogConfig(),
                     sinkId,
                     "runId",
@@ -1867,7 +1868,7 @@ public class CommitDeltasTest {
    * With {@code tokenHeartbeatMillis} set, an idle destination emits ONE empty append re-carrying
    * the three token keys with the SAME committed-through value (keeping the token snapshot young
    * against {@code expire_snapshots}) and re-stamps the run-spec pin, which the first commit's own
-   * files seeded. The injected {@link CommitDeltas.Clock} skews "now" past the interval because
+   * files seeded. The injected {@link OrderedCommitFn.Clock} skews "now" past the interval because
    * {@code TestStream} advances processing time only virtually.
    */
   @Test
@@ -1875,7 +1876,7 @@ public class CommitDeltasTest {
     TestTable tt = v2Table();
     Table t = tt.table;
     String sinkId = "sink-" + System.nanoTime();
-    CommitDeltas.Clock skewedClock =
+    OrderedCommitFn.Clock skewedClock =
         () -> System.currentTimeMillis() + Duration.standardMinutes(10).getMillis();
 
     Instant base = new Instant(0);
@@ -1931,7 +1932,7 @@ public class CommitDeltasTest {
     TestTable tt = v2Table();
     Table t = tt.table;
     String sinkId = "sink-" + System.nanoTime();
-    CommitDeltas.Clock skewedClock =
+    OrderedCommitFn.Clock skewedClock =
         () -> System.currentTimeMillis() + Duration.standardMinutes(10).getMillis();
 
     Instant base = new Instant(0);
