@@ -116,16 +116,33 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
     assertThat(policy.getWatermark(ctx, now), is(backlogCheckTime.minus(maxDelay)));
   }
 
+  private static CustomTimestampPolicyWithLimitedDelay<String, String> policy(
+      Duration maxDelay, boolean advanceWatermarkBeforeFirstRecord) {
+    return new CustomTimestampPolicyWithLimitedDelay<>(
+        record -> new Instant(record.getTimestamp()),
+        maxDelay,
+        Optional.empty(),
+        advanceWatermarkBeforeFirstRecord);
+  }
+
   @Test
-  public void testWatermarkAdvancesWhenIdleWithoutAnyRecord() {
-    // A partition which is caught up but has delivered no record since the job started must still
-    // advance. Only a delivered record can raise 'maxEventTimestamp', so gating the idle branch on
-    // having read one pins such a partition at TIMESTAMP_MIN_VALUE for the life of the job, and a
-    // Dataflow stage's watermark is the minimum over its partitions.
+  public void testIdleWatermarkIsPinnedBeforeFirstRecordByDefault() {
+    // Default behaviour: a caught up partition which has delivered nothing stays at the floor.
     Duration maxDelay = Duration.standardSeconds(60);
-    CustomTimestampPolicyWithLimitedDelay<String, String> policy =
-        new CustomTimestampPolicyWithLimitedDelay<>(
-            record -> new Instant(record.getTimestamp()), maxDelay, Optional.empty());
+    CustomTimestampPolicyWithLimitedDelay<String, String> policy = policy(maxDelay, false);
+
+    Instant now = Instant.now();
+    TimestampPolicy.PartitionContext ctx = mock(TimestampPolicy.PartitionContext.class);
+    when(ctx.getMessageBacklog()).thenReturn(0L);
+    when(ctx.getBacklogCheckTime()).thenReturn(now);
+
+    assertThat(policy.getWatermark(ctx, now), is(BoundedWindow.TIMESTAMP_MIN_VALUE));
+  }
+
+  @Test
+  public void testIdleWatermarkAdvancesBeforeFirstRecordWhenEnabled() {
+    Duration maxDelay = Duration.standardSeconds(60);
+    CustomTimestampPolicyWithLimitedDelay<String, String> policy = policy(maxDelay, true);
 
     Instant now = Instant.now();
     TimestampPolicy.PartitionContext ctx = mock(TimestampPolicy.PartitionContext.class);
@@ -133,30 +150,5 @@ public class CustomTimestampPolicyWithLimitedDelayTest {
     when(ctx.getBacklogCheckTime()).thenReturn(now);
 
     assertThat(policy.getWatermark(ctx, now), is(now.minus(maxDelay)));
-  }
-
-  @Test
-  public void testWatermarkDoesNotRegressWhenFirstRecordArrives() {
-    // The idle branch answers from 'backlogCheckTime' and never writes 'maxEventTimestamp', so the
-    // first record on a partition which advanced while idle would otherwise drag the watermark back
-    // to that record's timestamp.
-    Duration maxDelay = Duration.standardSeconds(60);
-    CustomTimestampPolicyWithLimitedDelay<String, String> policy =
-        new CustomTimestampPolicyWithLimitedDelay<>(
-            record -> new Instant(record.getTimestamp()), maxDelay, Optional.empty());
-
-    Instant now = Instant.now();
-    TimestampPolicy.PartitionContext ctx = mock(TimestampPolicy.PartitionContext.class);
-    when(ctx.getMessageBacklog()).thenReturn(0L);
-    when(ctx.getBacklogCheckTime()).thenReturn(now);
-
-    Instant idleWatermark = policy.getWatermark(ctx, now);
-    assertThat(idleWatermark, is(now.minus(maxDelay)));
-
-    // The partition's first record lands, carrying a timestamp well before the idle watermark.
-    getTimestampsForRecords(policy, now, ImmutableList.of(-600_000L));
-    when(ctx.getMessageBacklog()).thenReturn(1L);
-
-    assertThat(policy.getWatermark(ctx, now), is(idleWatermark));
   }
 }
