@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -66,6 +67,9 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -252,19 +256,24 @@ public abstract class TableMetadataDriver
 
   @Override
   public PCollection<KV<String, @Nullable SerializableTableSpec>> expand(PCollection<Row> input) {
+    boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
+
+    Duration customInterval = getRefreshInterval();
+    Duration interval =
+        checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
+
     PCollection<String> tableIds =
         input
-            .apply("ExtractTableIds", ParDo.of(new ExtractTableIdsDoFn(getDynamicDestinations())))
+            .apply(
+                "ExtractTableIds",
+                ParDo.of(
+                    new ExtractTableIdsDoFn(
+                        getDynamicDestinations(), isStreaming ? interval : null)))
             .setCoder(StringUtf8Coder.of())
             .apply("MetadataGlobalWindow", Window.into(new GlobalWindows()));
 
-    boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
-
     PCollection<String> distinctTableIds;
     if (isStreaming) {
-      Duration customInterval = getRefreshInterval();
-      Duration interval =
-          checkNotNull(customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL);
       distinctTableIds =
           tableIds.apply(
               "DeduplicateTableIds", Deduplicate.<String>values().withDuration(interval));
@@ -323,10 +332,47 @@ public abstract class TableMetadataDriver
   }
 
   static class ExtractTableIdsDoFn extends DoFn<Row, String> {
+    private static final int DEFAULT_LOCAL_CACHE_MAX_SIZE = 10_000;
+
     private final DynamicDestinations dynamicDestinations;
+    private final @Nullable Duration refreshInterval;
+    private transient @Nullable Ticker ticker;
+    private transient @Nullable Cache<String, Boolean> localTableIdCache;
 
     ExtractTableIdsDoFn(DynamicDestinations dynamicDestinations) {
+      this(dynamicDestinations, null);
+    }
+
+    ExtractTableIdsDoFn(
+        DynamicDestinations dynamicDestinations, @Nullable Duration refreshInterval) {
       this.dynamicDestinations = dynamicDestinations;
+      this.refreshInterval = refreshInterval;
+    }
+
+    @VisibleForTesting
+    void setTicker(Ticker ticker) {
+      this.ticker = ticker;
+      this.localTableIdCache = null;
+      initCache();
+    }
+
+    @Setup
+    public void setup() {
+      initCache();
+    }
+
+    private void initCache() {
+      if (localTableIdCache == null && refreshInterval != null) {
+        long durationMillis = Math.max(1L, refreshInterval.getMillis() / 2);
+        CacheBuilder<Object, Object> builder =
+            CacheBuilder.newBuilder()
+                .expireAfterWrite(durationMillis, TimeUnit.MILLISECONDS)
+                .maximumSize(DEFAULT_LOCAL_CACHE_MAX_SIZE);
+        if (ticker != null) {
+          builder = builder.ticker(ticker);
+        }
+        this.localTableIdCache = builder.build();
+      }
     }
 
     @ProcessElement
@@ -340,7 +386,17 @@ public abstract class TableMetadataDriver
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
       if (tableIdentifier != null && !tableIdentifier.trim().isEmpty()) {
-        out.output(tableIdentifier.trim());
+        String canonicalId = tableIdentifier.trim();
+        if (localTableIdCache == null && refreshInterval != null) {
+          initCache();
+        }
+        if (localTableIdCache != null) {
+          if (localTableIdCache.asMap().putIfAbsent(canonicalId, Boolean.TRUE) == null) {
+            out.output(canonicalId);
+          }
+        } else {
+          out.output(canonicalId);
+        }
       }
     }
   }

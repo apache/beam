@@ -22,7 +22,6 @@ import static org.apache.beam.sdk.io.iceberg.AssignDestinationsAndPartitions.PAR
 import static org.apache.beam.sdk.io.iceberg.RecordWriterManager.getPartitionDataPath;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
-import java.util.Collections;
 import java.util.Map;
 import java.util.UUID;
 import org.apache.beam.sdk.coders.IterableCoder;
@@ -223,9 +222,7 @@ class WritePartitionedRowsToFiles
       if (sideInputTableSpecs != null && sideInputTableSpecs.containsKey(tableIdString)) {
         SerializableTableSpec spec = sideInputTableSpecs.get(tableIdString);
         if (spec != null) {
-          Map<String, String> catalogProperties = catalogConfig.getCatalogProperties();
-          return new SideInputTable(
-              spec, catalogProperties != null ? catalogProperties : Collections.emptyMap());
+          return new SideInputTable(spec, catalogConfig);
         }
       }
       return TableCache.getAndRefreshIfStale(

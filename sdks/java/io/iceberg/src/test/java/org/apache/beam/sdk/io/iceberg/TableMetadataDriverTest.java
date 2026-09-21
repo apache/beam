@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -29,6 +30,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -36,10 +38,13 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -47,6 +52,7 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
@@ -62,6 +68,7 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Before;
@@ -1496,6 +1503,150 @@ public class TableMetadataDriverTest implements Serializable {
         .containsInAnyOrder(
             "initial:hasTable=true", "post_drop:hasTable=true", "after_cutoff:hasTable=false");
 
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtractTableIdsWorkerLocalPreFiltering() {
+    TestStream.Builder<Row> streamBuilder = TestStream.create(BEAM_SCHEMA);
+    for (int i = 0; i < 1000; i++) {
+      streamBuilder =
+          streamBuilder.addElements(
+              Row.withSchema(BEAM_SCHEMA).addValues((long) i, "data", "default.table").build());
+    }
+    TestStream<Row> testStream = streamBuilder.advanceWatermarkToInfinity();
+
+    PCollection<String> tableIds =
+        pipeline
+            .apply(testStream)
+            .apply(
+                ParDo.of(
+                    new TableMetadataDriver.ExtractTableIdsDoFn(
+                        SINGLE_TABLE_DYNAMIC_DESTINATIONS, Duration.standardMinutes(5))));
+
+    // With worker-local pre-filtering, 1,000 rows emit at most 1 string per worker thread
+    // rather than 1,000 strings
+    PAssert.that(tableIds)
+        .satisfies(
+            actual -> {
+              List<String> list = ImmutableList.copyOf(actual);
+              for (String id : list) {
+                assertEquals("default.table", id);
+              }
+              assertThat(list.size(), Matchers.lessThanOrEqualTo(100));
+              return null;
+            });
+
+    PCollection<String> distinctIds =
+        tableIds.apply(Deduplicate.<String>values().withDuration(Duration.standardMinutes(5)));
+    PAssert.that(distinctIds).containsInAnyOrder("default.table");
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtractTableIdsMultipleTables() {
+    TestStream.Builder<Row> streamBuilder = TestStream.create(BEAM_SCHEMA);
+    for (int i = 0; i < 100; i++) {
+      streamBuilder =
+          streamBuilder.addElements(
+              Row.withSchema(BEAM_SCHEMA).addValues((long) i, "data", "default.table_a").build(),
+              Row.withSchema(BEAM_SCHEMA)
+                  .addValues((long) (i + 100), "data", "default.table_b")
+                  .build());
+    }
+    TestStream<Row> testStream = streamBuilder.advanceWatermarkToInfinity();
+
+    PCollection<String> tableIds =
+        pipeline
+            .apply(testStream)
+            .apply(
+                ParDo.of(
+                    new TableMetadataDriver.ExtractTableIdsDoFn(
+                        DYNAMIC_DESTINATIONS, Duration.standardMinutes(5))));
+
+    PCollection<String> distinctIds =
+        tableIds.apply(Deduplicate.<String>values().withDuration(Duration.standardMinutes(5)));
+    PAssert.that(distinctIds).containsInAnyOrder("default.table_a", "default.table_b");
+    pipeline.run();
+  }
+
+  static class FakeTicker extends Ticker {
+    private final AtomicLong nanos = new AtomicLong();
+
+    @Override
+    public long read() {
+      return nanos.get();
+    }
+
+    public void advance(Duration duration) {
+      nanos.addAndGet(TimeUnit.MILLISECONDS.toNanos(duration.getMillis()));
+    }
+  }
+
+  @Test
+  public void testExtractTableIdsCacheExpiration() {
+    TableMetadataDriver.ExtractTableIdsDoFn doFn =
+        new TableMetadataDriver.ExtractTableIdsDoFn(
+            SINGLE_TABLE_DYNAMIC_DESTINATIONS, Duration.standardMinutes(10));
+    FakeTicker ticker = new FakeTicker();
+    doFn.setTicker(ticker);
+
+    List<String> outputs = new ArrayList<>();
+    DoFn.OutputReceiver<String> receiver =
+        new DoFn.OutputReceiver<String>() {
+          @Override
+          public void output(String output) {
+            outputs.add(output);
+          }
+
+          @Override
+          public void outputWithTimestamp(String output, Instant timestamp) {
+            outputs.add(output);
+          }
+
+          @Override
+          public org.apache.beam.sdk.values.OutputBuilder<String> builder(String output) {
+            throw new UnsupportedOperationException();
+          }
+        };
+
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "data", "default.table").build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "data", "default.table").build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "data", "default.table").build();
+
+    doFn.processElement(row1, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
+    assertEquals(1, outputs.size());
+    assertEquals("default.table", outputs.get(0));
+
+    // Second element should be suppressed by worker-local cache
+    doFn.processElement(row2, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
+    assertEquals(1, outputs.size());
+
+    // Advance ticker beyond interval / 2 (5 minutes)
+    ticker.advance(Duration.standardMinutes(6));
+
+    // Third element arrives after expiration -> should be emitted
+    doFn.processElement(row3, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
+    assertEquals(2, outputs.size());
+    assertEquals("default.table", outputs.get(1));
+  }
+
+  @Test
+  public void testExtractTableIdsIgnoresNullAndWhitespace() {
+    List<Row> rows = new ArrayList<>();
+    rows.add(Row.withSchema(BEAM_SCHEMA).addValues(1L, "data", (String) null).build());
+    rows.add(Row.withSchema(BEAM_SCHEMA).addValues(2L, "data", "").build());
+    rows.add(Row.withSchema(BEAM_SCHEMA).addValues(3L, "data", "   ").build());
+
+    PCollection<String> tableIds =
+        pipeline
+            .apply(Create.of(rows))
+            .apply(
+                ParDo.of(
+                    new TableMetadataDriver.ExtractTableIdsDoFn(
+                        DYNAMIC_DESTINATIONS, Duration.standardMinutes(5))));
+
+    PAssert.that(tableIds).empty();
     pipeline.run();
   }
 }
