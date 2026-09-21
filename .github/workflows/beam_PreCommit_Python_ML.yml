@@ -92,7 +92,7 @@ jobs:
           persist-credentials: false
       - name: Free Disk Space (Ubuntu)
         if: contains(matrix.os, 'ubuntu-latest')
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
         with:
           # Remove unnecessary packages to free up space
           tool-cache: false

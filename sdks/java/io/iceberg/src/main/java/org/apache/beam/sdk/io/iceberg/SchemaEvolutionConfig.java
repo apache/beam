@@ -22,6 +22,7 @@ import java.io.Serializable;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.Set;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -38,12 +39,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * }</pre>
  *
  * <p><b>Pins.</b> Required columns are pinned: never made optional whatever the options say, and
- * created required when this transform creates the table. A Parquet file that lacks a pinned
- * column, has nulls in it, or carries no null-count statistics for it is routed to the error
- * output; ORC and Avro files are not checked. Pins name canonical (table) paths, dotted for nested
- * fields, with the container segment spelled out under lists and maps ({@code
+ * created required when this transform creates the table. A Parquet file that lacks a pinned column
+ * or has nulls in it is routed to the error output. Pins name canonical (table) paths, dotted for
+ * nested fields, with the container segment spelled out under lists and maps ({@code
  * addresses.element.city}, {@code attributes.value.total}). A top-level column whose own name
  * contains a dot cannot be pinned.
+ *
+ * <p><b>Unverifiable files.</b> The per-file checks read Parquet footers. An ORC or Avro file
+ * cannot be checked at all, and a Parquet file whose footer carries no null-count statistics for a
+ * pinned column (a writer with statistics disabled, or a pin under a list or map, whose physical
+ * chunk path the check does not map) cannot prove the pin. {@link UnverifiableFileHandling} decides
+ * whether such a file is routed to the error output (the default) or registered on trust.
  *
  * <p><b>Incompatible schemas.</b> A schema that needs a change the options do not allow, or that
  * conflicts with the table or with another file's schema. {@link IncompatibleSchemaHandling}
@@ -69,6 +75,23 @@ public abstract class SchemaEvolutionConfig implements Serializable {
     ROUTE_TO_ERRORS
   }
 
+  /**
+   * What to do with a file the per-file checks cannot verify: a non-Parquet file, or a Parquet file
+   * with no null-count statistics for a pinned column. A file that fails a check is always routed
+   * to the error output.
+   */
+  public enum UnverifiableFileHandling {
+    /** Route the file to the error output. The default: "cannot prove" is not "proven". */
+    REJECT,
+    /**
+     * Register the file unchecked, counted ({@code numUncheckedFormatFiles}, {@code
+     * numUnprovenPinFiles}) and logged. A trusted file that lacks a required column or holds nulls
+     * in one breaks reads of the table at query time, not at registration. A non-Parquet file never
+     * contributes to schema inference, so it cannot seed a missing table.
+     */
+    ACCEPT
+  }
+
   public abstract Set<SchemaEvolutionOption> getOptions();
 
   /**
@@ -86,12 +109,15 @@ public abstract class SchemaEvolutionConfig implements Serializable {
    */
   public abstract @Nullable IncompatibleSchemaHandling getIncompatibleSchemaHandling();
 
-  public IncompatibleSchemaHandling incompatibleSchemaHandling(boolean bounded) {
+  public abstract UnverifiableFileHandling getUnverifiableFileHandling();
+
+  /** The handling to apply: the configured one, or the default for the input's mode when unset. */
+  public IncompatibleSchemaHandling incompatibleSchemaHandlingFor(PCollection.IsBounded mode) {
     IncompatibleSchemaHandling handling = getIncompatibleSchemaHandling();
     if (handling != null) {
       return handling;
     }
-    return bounded
+    return mode == PCollection.IsBounded.BOUNDED
         ? IncompatibleSchemaHandling.FAIL_PIPELINE
         : IncompatibleSchemaHandling.ROUTE_TO_ERRORS;
   }
@@ -117,7 +143,8 @@ public abstract class SchemaEvolutionConfig implements Serializable {
   public static Builder builder() {
     return new AutoValue_SchemaEvolutionConfig.Builder()
         .setOptions(Collections.emptySet())
-        .setRequiredColumns(Collections.emptySet());
+        .setRequiredColumns(Collections.emptySet())
+        .setUnverifiableFileHandling(UnverifiableFileHandling.REJECT);
   }
 
   @AutoValue.Builder
@@ -129,9 +156,11 @@ public abstract class SchemaEvolutionConfig implements Serializable {
     public abstract Builder setIncompatibleSchemaHandling(
         @Nullable IncompatibleSchemaHandling handling);
 
+    public abstract Builder setUnverifiableFileHandling(UnverifiableFileHandling handling);
+
     abstract SchemaEvolutionConfig autoBuild();
 
-    /** Pins and handling without an option would silently do nothing, so they are rejected. */
+    /** Any setting without an option would silently do nothing, so they are rejected. */
     public SchemaEvolutionConfig build() {
       SchemaEvolutionConfig config = autoBuild();
       for (String column : config.getRequiredColumns()) {
@@ -143,9 +172,10 @@ public abstract class SchemaEvolutionConfig implements Serializable {
       Preconditions.checkArgument(
           config.isEnabled()
               || (config.getRequiredColumns().isEmpty()
-                  && config.getIncompatibleSchemaHandling() == null),
-          "required columns and incompatible schema handling need at least one schema evolution"
-              + " option");
+                  && config.getIncompatibleSchemaHandling() == null
+                  && config.getUnverifiableFileHandling() == UnverifiableFileHandling.REJECT),
+          "required columns, incompatible schema handling and unverifiable file handling need at"
+              + " least one schema evolution option");
       return config;
     }
   }

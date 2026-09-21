@@ -525,7 +525,7 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-storage>=2.18.2,<4',
+              'google-cloud-storage>=3.0.0,<4',
               'google-cloud-resource-manager>=1.12.0,<2',
               'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests

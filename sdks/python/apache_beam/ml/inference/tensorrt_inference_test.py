@@ -45,7 +45,10 @@ except ImportError:
   raise unittest.SkipTest('TensorRT dependencies are not installed')
 
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  if not GCS_INSTALLED:
+    GCSFileSystem = None  # type: ignore
 except ImportError:
   GCSFileSystem = None  # type: ignore
 
@@ -291,7 +294,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
         min_batch_size=4,
         max_batch_size=4,
         engine_path=
-        'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+        'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt')
     engine = inference_runner.load_model()
     predictions = inference_runner.run_inference(
         SINGLE_FEATURE_EXAMPLES, engine)
@@ -314,7 +317,7 @@ class TensorRTRunInferenceTest(unittest.TestCase):
         min_batch_size=4,
         max_batch_size=4,
         engine_path=
-        'gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
+        'gs://apache-beam-ml/models/multiple_tensor_features_engine_trt11.trt')
     engine = inference_runner.load_model()
     predictions = inference_runner.run_inference(TWO_FEATURES_EXAMPLES, engine)
     for actual, expected in zip(predictions, TWO_FEATURES_PREDICTIONS):
@@ -367,7 +370,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+          'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt')
       pcoll = pipeline | 'start' >> beam.Create(
           SINGLE_FEATURE_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)
@@ -428,7 +431,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/single_tensor_features_engine.trt',
+          'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt',
           inference_fn=fake_inference_fn,
           large_model=True)
       pcoll = pipeline | 'start' >> beam.Create(
@@ -447,7 +450,7 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/single_tensor_features_engine.trt')
+          'gs://apache-beam-ml/models/single_tensor_features_engine_trt11.trt')
       os.environ.pop('FOO', None)
       self.assertFalse('FOO' in os.environ)
       _ = (
@@ -465,7 +468,8 @@ class TensorRTRunInferencePipelineTest(unittest.TestCase):
           min_batch_size=4,
           max_batch_size=4,
           engine_path=
-          'gs://apache-beam-ml/models/multiple_tensor_features_engine.trt')
+          'gs://apache-beam-ml/models/multiple_tensor_features_engine_trt11.trt'
+      )
       pcoll = pipeline | 'start' >> beam.Create(
           TWO_FEATURES_EXAMPLES, reshuffle=False)
       predictions = pcoll | RunInference(engine_handler)

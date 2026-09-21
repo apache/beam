@@ -68,7 +68,7 @@
 
 ## New Features / Improvements
 
-* X feature added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 
 ## Breaking Changes
 
@@ -80,6 +80,7 @@
 
 ## Bugfixes
 
+* (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
@@ -99,6 +100,8 @@
 * BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part `project.catalog.namespace.table` identifiers (or a `TableReference` with a composite `catalog.namespace` dataset id). Previously such references were silently mis-parsed (Java) ([#39597](https://github.com/apache/beam/issues/39597)) .
 * SolaceIO now supports reading and writing binary and text content data payload (Java) ([#39875](https://github.com/apache/beam/issues/39875)).
 * ClickHouseIO: support writing `Decimal(P, S)` / `Decimal32/64/128/256` columns (Java) ([#39840](https://github.com/apache/beam/issues/39840)).
+* SolaceIO now supports reading and writing user properties (message metadata) (Java) ([#40099](https://github.com/apache/beam/issues/40099)).
+* [IcebergIO] AddFiles (`IcebergAddFiles` in YAML) can evolve the table schema before registering files, with `schema_evolution_options`, `required_columns`, `incompatible_schema_handling` and `unverifiable_file_handling` (Java/YAML, batch only) ([#40144](https://github.com/apache/beam/issues/40144)).
 
 ## New Features / Improvements
 

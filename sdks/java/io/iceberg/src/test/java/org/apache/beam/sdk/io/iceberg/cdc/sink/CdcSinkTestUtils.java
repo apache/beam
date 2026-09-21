@@ -22,13 +22,19 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
+import org.apache.beam.sdk.io.iceberg.IcebergDestination;
+import org.apache.beam.sdk.io.iceberg.IcebergUtils;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.RowFilter;
+import org.apache.beam.sdk.util.RowStringInterpolator;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.OutputBuilder;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
+import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
@@ -47,6 +53,7 @@ import org.apache.iceberg.hadoop.HadoopCatalog;
 import org.apache.iceberg.io.OutputFileFactory;
 import org.apache.iceberg.io.WriteResult;
 import org.apache.iceberg.types.Types;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Shared test helpers for the {@code cdc/sink} suites. The TableCache and catalog caches are
@@ -189,5 +196,57 @@ final class CdcSinkTestUtils {
             out.builder(e.getValue()).setValueKind(e.getKey()).output();
           }
         });
+  }
+
+  /**
+   * A {@link DynamicDestinations} routing on a string template whose written rows drop the sequence
+   * column, as the sink's contract requires of {@code getData}.
+   */
+  static DynamicDestinations templatedDestinations(
+      String template, org.apache.beam.sdk.schemas.Schema inputSchema, String sequenceColumn) {
+    return new TemplatedDestinations(template, inputSchema, sequenceColumn);
+  }
+
+  private static final class TemplatedDestinations implements DynamicDestinations {
+    private final String template;
+    private final org.apache.beam.sdk.schemas.Schema inputSchema;
+    private final RowFilter filter;
+    private transient @Nullable RowStringInterpolator interpolator;
+
+    TemplatedDestinations(
+        String template, org.apache.beam.sdk.schemas.Schema inputSchema, String sequenceColumn) {
+      this.template = template;
+      this.inputSchema = inputSchema;
+      this.filter = new RowFilter(inputSchema).drop(ImmutableList.of(sequenceColumn));
+    }
+
+    @Override
+    public org.apache.beam.sdk.schemas.Schema getDataSchema() {
+      return filter.outputSchema();
+    }
+
+    @Override
+    public Row getData(Row element) {
+      return filter.filter(element);
+    }
+
+    @Override
+    public String getTableStringIdentifier(ValueInSingleWindow<Row> element) {
+      RowStringInterpolator local = interpolator;
+      if (local == null) {
+        local = new RowStringInterpolator(template, inputSchema);
+        interpolator = local;
+      }
+      return local.interpolate(element);
+    }
+
+    @Override
+    public IcebergDestination instantiateDestination(String destination) {
+      return IcebergDestination.builder()
+          .setTableIdentifier(IcebergUtils.parseTableIdentifier(destination))
+          .setFileFormat(FileFormat.PARQUET)
+          .setTableCreateConfig(null)
+          .build();
+    }
   }
 }
