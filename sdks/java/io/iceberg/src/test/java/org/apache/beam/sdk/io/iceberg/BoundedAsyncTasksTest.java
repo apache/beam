@@ -92,10 +92,13 @@ public class BoundedAsyncTasksTest {
     // single drain can miss it. Drain until it shows up while "slow" is still blocked.
     fastTaskDone.await();
     tasks.submit(() -> "noop", delivered::add);
-    while (!delivered.contains("fast")) {
+    int retries = 0;
+    while (!delivered.contains("fast") && retries < 1000) {
       Thread.sleep(1);
       tasks.drainFinished(delivered::add);
+      retries++;
     }
+    assertTrue("fast task was never drained", delivered.contains("fast"));
     assertFalse(delivered.contains("slow"));
 
     slowTaskHold.countDown();
