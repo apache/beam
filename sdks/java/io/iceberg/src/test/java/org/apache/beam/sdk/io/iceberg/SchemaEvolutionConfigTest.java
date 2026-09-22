@@ -27,6 +27,7 @@ import java.util.EnumSet;
 import java.util.HashSet;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.IncompatibleSchemaHandling;
 import org.apache.beam.sdk.io.iceberg.SchemaEvolutionConfig.UnverifiableFileHandling;
+import org.apache.beam.sdk.values.PCollection;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -105,10 +106,14 @@ public class SchemaEvolutionConfigTest {
             .setIncompatibleSchemaHandling(IncompatibleSchemaHandling.ROUTE_TO_ERRORS)
             .build();
 
-    assertEquals(IncompatibleSchemaHandling.FAIL_PIPELINE, unset.incompatibleSchemaHandling(true));
     assertEquals(
-        IncompatibleSchemaHandling.ROUTE_TO_ERRORS, unset.incompatibleSchemaHandling(false));
+        IncompatibleSchemaHandling.FAIL_PIPELINE,
+        unset.incompatibleSchemaHandlingFor(PCollection.IsBounded.BOUNDED));
     assertEquals(
-        IncompatibleSchemaHandling.ROUTE_TO_ERRORS, forced.incompatibleSchemaHandling(true));
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        unset.incompatibleSchemaHandlingFor(PCollection.IsBounded.UNBOUNDED));
+    assertEquals(
+        IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
+        forced.incompatibleSchemaHandlingFor(PCollection.IsBounded.BOUNDED));
   }
 }
