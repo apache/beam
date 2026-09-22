@@ -45,20 +45,21 @@ import org.slf4j.LoggerFactory;
  * against the table but conflicts with another schema of the input come out with the blame a real
  * run would assign.
  *
- * <p>Rows, by {@code row_type}: {@code schema}, one per distinct schema, with the changes a real
- * run would make on an existing table ({@code schema_key} is a short hash to group by); {@code
- * create} for the table a real run would create, once, from the union of the allowed schemas;
- * {@code unreadable} for files whose schema could not be read; {@code unchecked} for ORC and Avro
- * files the per-file checks cannot verify; and {@code summary}. The summary is {@code allowed} when
- * no schema is incompatible and the configuration raises no problem; its {@code changes} hold the
- * totals line and any table-level change a real run would make without a schema change, such as
- * regenerating the name mapping. {@code would_create_table} is false whenever a real run would not
- * create the table, including when it would fail first.
+ * <p>One row per window. {@code allowed} is true when every file schema can be merged and the
+ * configuration raises no problem; otherwise {@code reason} says what a real run would do about it.
+ * {@code schemas} holds one entry per distinct file schema with the changes a real run would make
+ * on an existing table ({@code schema_key} is a short hash to group by) and, when the schema cannot
+ * be merged, why. {@code created_table} is the table a real run would create from the union of the
+ * allowed schemas, absent when the table exists or no schema can seed it; {@code
+ * would_create_table} is false whenever a real run would not create it, including when it would
+ * fail first. {@code table_changes} lists what a real run changes without a schema change, such as
+ * regenerating the name mapping.
  *
- * <p>The counters and the totals count checked Parquet files by their schema's verdict; unchecked
- * files count separately even when ACCEPT registers them, so the unchecked row can be {@code
- * allowed} while its files are outside {@code numDryRunFilesAllowed}. Pin evidence is per file (the
- * footer's null counts), so a pin violation or an unproven pin is not predicted here.
+ * <p>The file counts and the counters count checked Parquet files by whether their schema is
+ * allowed. Unreadable files always go to the error output in a real run; unchecked (ORC, Avro)
+ * files count separately even when {@code unchecked_registered} says ACCEPT registers them. Pin
+ * evidence is per file (the footer's null counts), so a pin violation or an unproven pin is not
+ * predicted here.
  */
 class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
   private static final Logger LOG = LoggerFactory.getLogger(DryRunReport.class);
@@ -79,43 +80,45 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
   private static final Counter numConfigProblems =
       counter(DryRunReport.class, CONFIG_PROBLEMS_COUNTER);
 
-  static final Schema REPORT_SCHEMA =
+  static final Schema SCHEMA_ENTRY =
       Schema.builder()
-          .addStringField("row_type")
           .addStringField("schema_key")
           .addStringField("schema")
           .addInt64Field("num_files")
           .addArrayField("changes", Schema.FieldType.STRING)
           .addBooleanField("allowed")
           .addStringField("reason")
-          .addBooleanField("would_create_table")
           .build();
 
-  static final String SCHEMA_ROW = "schema";
-  static final String CREATE_ROW = "create";
-  static final String UNREADABLE_ROW = "unreadable";
-  static final String UNCHECKED_ROW = "unchecked";
-  static final String SUMMARY_ROW = "summary";
+  static final Schema CREATED_TABLE =
+      Schema.builder()
+          .addStringField("schema")
+          .addArrayField("columns", Schema.FieldType.STRING)
+          .build();
+
+  static final Schema REPORT_SCHEMA =
+      Schema.builder()
+          .addBooleanField("allowed")
+          .addStringField("reason")
+          .addBooleanField("would_create_table")
+          .addInt64Field("files_allowed")
+          .addInt64Field("files_incompatible")
+          .addInt64Field("files_unreadable")
+          .addInt64Field("files_unchecked")
+          .addBooleanField("unchecked_registered")
+          .addArrayField("table_changes", Schema.FieldType.STRING)
+          .addArrayField("config_problems", Schema.FieldType.STRING)
+          .addNullableRowField("created_table", CREATED_TABLE)
+          .addArrayField("schemas", Schema.FieldType.row(SCHEMA_ENTRY))
+          .build();
 
   static final String NAME_MAPPING_CHANGE =
       "regenerate the name mapping property to cover the schema";
 
   /** Wide inputs would otherwise put every column of every schema into one log entry. */
-  private static final int MAX_RENDERED_ROWS = 50;
+  private static final int MAX_RENDERED_ENTRIES = 50;
 
   private static final int MAX_RENDERED_CHANGES = 10;
-
-  static final String UNREADABLE_REASON =
-      "the file schema could not be read (unknown format, or an unreadable footer);"
-          + " a real run routes these files to the error output";
-
-  static final String UNCHECKED_REJECTED_REASON =
-      "ORC and Avro files cannot be checked; a real run routes these files to the error output"
-          + " (UnverifiableFileHandling.REJECT)";
-
-  static final String UNCHECKED_ACCEPTED_REASON =
-      "ORC and Avro files cannot be checked; a real run registers these files unchecked"
-          + " (UnverifiableFileHandling.ACCEPT)";
 
   private final IcebergCatalogConfig catalogConfig;
   private final String identifier;
@@ -129,26 +132,23 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
     this.settings = settings;
   }
 
-  /** One report row before it is a Row: the summary and the rendered log read these. */
-  private static final class Line {
-    final String rowType;
-    final String schemaKey;
+  /** One {@code schemas} entry before it is a Row: the totals and the rendered log read these. */
+  private static final class SchemaEntry {
+    final String key;
     final String schema;
     final long files;
     final List<String> changes;
     final boolean allowed;
     final String reason;
 
-    Line(
-        String rowType,
-        String schemaKey,
+    SchemaEntry(
+        String key,
         String schema,
         long files,
         List<String> changes,
         boolean allowed,
         String reason) {
-      this.rowType = rowType;
-      this.schemaKey = schemaKey;
+      this.key = key;
       this.schema = schema;
       this.files = files;
       this.changes = changes;
@@ -156,16 +156,14 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
       this.reason = reason;
     }
 
-    Row toRow(boolean wouldCreateTable) {
-      return Row.withSchema(REPORT_SCHEMA)
-          .withFieldValue("row_type", rowType)
-          .withFieldValue("schema_key", schemaKey)
+    Row toRow() {
+      return Row.withSchema(SCHEMA_ENTRY)
+          .withFieldValue("schema_key", key)
           .withFieldValue("schema", schema)
           .withFieldValue("num_files", files)
           .withFieldValue("changes", changes)
           .withFieldValue("allowed", allowed)
           .withFieldValue("reason", reason)
-          .withFieldValue("would_create_table", wouldCreateTable)
           .build();
     }
   }
@@ -197,15 +195,15 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
     int incompatibleSchemas;
     long incompatibleFiles;
 
-    static Totals of(List<Line> schemaLines) {
+    static Totals of(List<SchemaEntry> entries) {
       Totals totals = new Totals();
-      for (Line line : schemaLines) {
-        if (line.allowed) {
+      for (SchemaEntry entry : entries) {
+        if (entry.allowed) {
           totals.allowedSchemas++;
-          totals.allowedFiles += line.files;
+          totals.allowedFiles += entry.files;
         } else {
           totals.incompatibleSchemas++;
-          totals.incompatibleFiles += line.files;
+          totals.incompatibleFiles += entry.files;
         }
       }
       return totals;
@@ -220,137 +218,100 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
     }
     TableIdentifier tableId = IcebergUtils.parseTableIdentifier(identifier);
     Input input = Input.of(schemas);
-    CommitSchemaUnion.Plan plan =
-        CommitSchemaUnion.plan(catalog, tableId, input.readable, settings);
+    SchemaPlan plan = CommitSchemaUnion.plan(catalog, tableId, input.readable, settings);
 
-    List<Line> lines = new ArrayList<>();
+    List<SchemaEntry> entries = new ArrayList<>();
     for (CollectDistinctSchemas.SchemaGroup group : input.readable) {
-      lines.add(schemaLine(group, plan));
+      entries.add(schemaEntry(group, plan));
     }
-    Totals totals = Totals.of(lines);
+    Totals totals = Totals.of(entries);
 
-    boolean repairsNameMapping =
-        plan instanceof CommitSchemaUnion.EvolutionPlan
-            && ((CommitSchemaUnion.EvolutionPlan) plan).repairsNameMapping;
-    CommitSchemaUnion.@Nullable CreationPlan creation = null;
-    if (plan instanceof CommitSchemaUnion.CreationPlan) {
-      creation = (CommitSchemaUnion.CreationPlan) plan;
+    SchemaPlan.@Nullable Creation creation = null;
+    if (plan instanceof SchemaPlan.Creation) {
+      creation = (SchemaPlan.Creation) plan;
     }
     @Nullable String creationProblem = creation == null ? null : creation.problem;
+    boolean allowed =
+        totals.incompatibleSchemas == 0 && plan.configProblems.isEmpty() && creationProblem == null;
     boolean wouldFail =
         creationProblem != null
-            || (settings.handling == IncompatibleSchemaHandling.FAIL_PIPELINE
-                && (totals.incompatibleSchemas > 0 || !plan.configProblems.isEmpty()));
+            || (settings.handling == IncompatibleSchemaHandling.FAIL_PIPELINE && !allowed);
     boolean wouldCreateTable = creation != null && creation.canCreate() && !wouldFail;
-
-    if (creation != null && creation.newSchema != null) {
-      lines.add(
-          createLine(creation.newSchema, totals.allowedFiles, wouldCreateTable, creationProblem));
-    }
-    if (input.unreadableFiles > 0) {
-      lines.add(unreadableLine(input.unreadableFiles));
-    }
-    if (input.uncheckedFiles > 0) {
-      lines.add(uncheckedLine(input.uncheckedFiles));
-    }
-
-    String summary = summary(input, totals);
     String consequence = consequence(totals, plan.configProblems, creationProblem);
-    List<String> summaryChanges = new ArrayList<>();
-    summaryChanges.add(summary);
-    if (repairsNameMapping) {
-      summaryChanges.add(NAME_MAPPING_CHANGE);
-    }
-    Line summaryLine =
-        new Line(
-            SUMMARY_ROW,
-            "",
-            "",
-            totals.allowedFiles
-                + totals.incompatibleFiles
-                + input.unreadableFiles
-                + input.uncheckedFiles,
-            summaryChanges,
-            totals.incompatibleSchemas == 0
-                && plan.configProblems.isEmpty()
-                && creationProblem == null,
-            consequence);
 
-    for (Line line : lines) {
-      out.output(line.toRow(wouldCreateTable));
+    List<String> configProblems = new ArrayList<>(plan.configProblems);
+    if (creationProblem != null) {
+      configProblems.add(creationProblem);
     }
-    out.output(summaryLine.toRow(wouldCreateTable));
+    List<String> tableChanges = new ArrayList<>();
+    if (plan instanceof SchemaPlan.Evolution && ((SchemaPlan.Evolution) plan).repairsNameMapping) {
+      tableChanges.add(NAME_MAPPING_CHANGE);
+    }
+    boolean uncheckedRegistered =
+        settings.config.getUnverifiableFileHandling()
+            == SchemaEvolutionConfig.UnverifiableFileHandling.ACCEPT;
+    List<Row> entryRows = new ArrayList<>();
+    for (SchemaEntry entry : entries) {
+      entryRows.add(entry.toRow());
+    }
+
+    Row.FieldValueBuilder report =
+        Row.withSchema(REPORT_SCHEMA)
+            .withFieldValue("allowed", allowed)
+            .withFieldValue("reason", consequence)
+            .withFieldValue("would_create_table", wouldCreateTable)
+            .withFieldValue("files_allowed", totals.allowedFiles)
+            .withFieldValue("files_incompatible", totals.incompatibleFiles)
+            .withFieldValue("files_unreadable", input.unreadableFiles)
+            .withFieldValue("files_unchecked", input.uncheckedFiles)
+            .withFieldValue("unchecked_registered", uncheckedRegistered)
+            .withFieldValue("table_changes", tableChanges)
+            .withFieldValue("config_problems", configProblems)
+            .withFieldValue("schemas", entryRows);
+    List<String> createdColumns = Collections.emptyList();
+    if (creation != null && creation.newSchema != null) {
+      createdColumns = createdColumns(creation.newSchema);
+      report =
+          report.withFieldValue(
+              "created_table",
+              Row.withSchema(CREATED_TABLE)
+                  .withFieldValue("schema", SchemaParser.toJson(creation.newSchema))
+                  .withFieldValue("columns", createdColumns)
+                  .build());
+    }
+    out.output(report.build());
+
     numFilesAllowed.inc(totals.allowedFiles);
     numFilesIncompatible.inc(totals.incompatibleFiles);
     numFilesUnreadable.inc(input.unreadableFiles);
     numFilesUnchecked.inc(input.uncheckedFiles);
-    numConfigProblems.inc(plan.configProblems.size() + (creationProblem == null ? 0 : 1));
+    numConfigProblems.inc(configProblems.size());
     LOG.info(
-        "Dry run for {}{}: {}{}\n{}",
+        "Dry run for {}{}: {}{}{}\n{}",
         identifier,
         wouldCreateTable ? " (table would be created)" : "",
-        summary,
+        summary(input, totals),
         consequence.isEmpty() ? "" : "; " + consequence,
-        render(lines));
+        tableChanges.isEmpty() ? "" : "; " + String.join("; ", tableChanges),
+        render(entries, createdColumns));
   }
 
-  private Line schemaLine(CollectDistinctSchemas.SchemaGroup group, CommitSchemaUnion.Plan plan) {
+  private SchemaEntry schemaEntry(CollectDistinctSchemas.SchemaGroup group, SchemaPlan plan) {
     String json = group.getSchemaJson();
     @Nullable String incompatibleReason = plan.incompatibleReason(json);
-    // a created table's columns are reported once, on the create row: no delta exists then
+    // a created table's columns are reported once, as created_table: no delta exists then
     List<String> changes = Collections.emptyList();
-    CommitSchemaUnion.@Nullable SchemaToMerge toMerge = plan.toMerge(json);
+    SchemaPlan.@Nullable SchemaToMerge toMerge = plan.toMerge(json);
     if (toMerge != null && toMerge.delta != null) {
       changes = toMerge.delta.descriptions();
     }
-    return new Line(
-        SCHEMA_ROW,
+    return new SchemaEntry(
         key(json),
         json,
         group.getFiles(),
         changes,
         incompatibleReason == null,
         incompatibleReason == null ? "" : incompatibleReason);
-  }
-
-  private static Line createLine(
-      org.apache.iceberg.Schema created,
-      long files,
-      boolean wouldCreateTable,
-      @Nullable String creationProblem) {
-    String reason = "";
-    if (creationProblem != null) {
-      reason = creationProblem;
-    } else if (!wouldCreateTable) {
-      reason = "a real run fails before creating the table (see the summary row)";
-    }
-    return new Line(
-        CREATE_ROW,
-        "",
-        SchemaParser.toJson(created),
-        files,
-        createdColumns(created),
-        wouldCreateTable,
-        reason);
-  }
-
-  private static Line unreadableLine(long files) {
-    return new Line(
-        UNREADABLE_ROW, "", "", files, Collections.emptyList(), false, UNREADABLE_REASON);
-  }
-
-  private Line uncheckedLine(long files) {
-    boolean accepted =
-        settings.config.getUnverifiableFileHandling()
-            == SchemaEvolutionConfig.UnverifiableFileHandling.ACCEPT;
-    return new Line(
-        UNCHECKED_ROW,
-        "",
-        "",
-        files,
-        Collections.emptyList(),
-        accepted,
-        accepted ? UNCHECKED_ACCEPTED_REASON : UNCHECKED_REJECTED_REASON);
   }
 
   private static String summary(Input input, Totals totals) {
@@ -393,21 +354,22 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
     return String.join("; ", parts);
   }
 
-  private static String render(List<Line> lines) {
+  private static String render(List<SchemaEntry> entries, List<String> createdColumns) {
     StringBuilder rendered = new StringBuilder();
-    for (Line line : lines.subList(0, Math.min(lines.size(), MAX_RENDERED_ROWS))) {
+    for (SchemaEntry entry : entries.subList(0, Math.min(entries.size(), MAX_RENDERED_ENTRIES))) {
       rendered.append(
           String.format(
-              "  %-10s %-7s %8d  allowed=%-5s %s %s%n",
-              line.rowType,
-              line.schemaKey,
-              line.files,
-              line.allowed,
-              cut(line.changes),
-              line.reason));
+              "  %-7s %8d  allowed=%-5s %s %s%n",
+              entry.key, entry.files, entry.allowed, cut(entry.changes), entry.reason));
     }
-    if (lines.size() > MAX_RENDERED_ROWS) {
-      rendered.append("  ... and ").append(lines.size() - MAX_RENDERED_ROWS).append(" more rows\n");
+    if (entries.size() > MAX_RENDERED_ENTRIES) {
+      rendered
+          .append("  ... and ")
+          .append(entries.size() - MAX_RENDERED_ENTRIES)
+          .append(" more schemas\n");
+    }
+    if (!createdColumns.isEmpty()) {
+      rendered.append("  created table: ").append(cut(createdColumns)).append('\n');
     }
     return rendered.toString();
   }
@@ -423,16 +385,16 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
 
   /** Top-level columns of the table a real run would create; nested detail is in the schema. */
   private static List<String> createdColumns(org.apache.iceberg.Schema created) {
-    List<String> changes = new ArrayList<>();
+    List<String> columns = new ArrayList<>();
     for (org.apache.iceberg.types.Types.NestedField field : created.columns()) {
-      changes.add(
+      columns.add(
           "create "
               + (field.isOptional() ? "optional " : "required ")
               + field.name()
               + " "
               + typeLabel(field.type()));
     }
-    return changes;
+    return columns;
   }
 
   /** Nested types print field ids, which a creation reassigns, so only their kind is named. */

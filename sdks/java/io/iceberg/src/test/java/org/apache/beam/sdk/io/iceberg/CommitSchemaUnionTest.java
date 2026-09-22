@@ -302,7 +302,7 @@ public class CommitSchemaUnionTest {
                     Types.StructType.of(required(12, "v", Types.IntegerType.get())))));
     assertEquals(
         Arrays.asList("s.a", "items.element", "items.element.qty", "attrs.value", "attrs.value.v"),
-        CommitSchemaUnion.newRequiredPaths(before, after));
+        SchemaPlan.newRequiredPaths(before, after));
   }
 
   /** Names containing element/key/value are not containers; regression for a substring check. */
@@ -321,7 +321,7 @@ public class CommitSchemaUnionTest {
                     required(5, "element", Types.StringType.get()))));
     assertEquals(
         Arrays.asList("stats.keyword", "stats.value_sum", "stats.element"),
-        CommitSchemaUnion.newRequiredPaths(before, after));
+        SchemaPlan.newRequiredPaths(before, after));
   }
 
   @Test
@@ -344,7 +344,7 @@ public class CommitSchemaUnionTest {
                         7, 8, Types.StringType.get(), Types.IntegerType.get()))));
     assertEquals(
         Arrays.asList("ll.element", "ll.element.element", "lm.element", "lm.element.value"),
-        CommitSchemaUnion.newRequiredPaths(before, after));
+        SchemaPlan.newRequiredPaths(before, after));
   }
 
   /** Growing an existing struct: only the field with a new id is a candidate. */
@@ -363,7 +363,7 @@ public class CommitSchemaUnionTest {
                 Types.StructType.of(
                     required(3, "old", Types.IntegerType.get()),
                     required(4, "fresh", Types.IntegerType.get()))));
-    assertEquals(Arrays.asList("s.fresh"), CommitSchemaUnion.newRequiredPaths(before, after));
+    assertEquals(Arrays.asList("s.fresh"), SchemaPlan.newRequiredPaths(before, after));
   }
 
   /** A declared-optional column every file proved null-free does not relax the table. */
@@ -736,16 +736,13 @@ public class CommitSchemaUnionTest {
     List<CollectDistinctSchemas.SchemaGroup> covered = Arrays.asList(files(TABLE, 1));
     CommitSchemaUnion.Settings settings =
         settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION);
-    CommitSchemaUnion.EvolutionPlan plan =
-        (CommitSchemaUnion.EvolutionPlan)
-            CommitSchemaUnion.plan(catalog, tableId, covered, settings);
+    SchemaPlan.Evolution plan =
+        (SchemaPlan.Evolution) CommitSchemaUnion.plan(catalog, tableId, covered, settings);
     assertNull(plan.newSchema);
     assertTrue(plan.repairsNameMapping);
 
     commit(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, files(TABLE, 1));
-    plan =
-        (CommitSchemaUnion.EvolutionPlan)
-            CommitSchemaUnion.plan(catalog, tableId, covered, settings);
+    plan = (SchemaPlan.Evolution) CommitSchemaUnion.plan(catalog, tableId, covered, settings);
     assertFalse(plan.repairsNameMapping);
   }
 
@@ -1056,7 +1053,7 @@ public class CommitSchemaUnionTest {
             .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
             .setRequiredColumns(Collections.singleton("l.element.q"))
             .build();
-    Schema created = CommitSchemaUnion.createdSchema(merged, pinned);
+    Schema created = SchemaPlan.createdSchema(merged, pinned);
     assertSameSchema(
         new Schema(
             optional(1, "id", Types.LongType.get()),
@@ -1112,7 +1109,7 @@ public class CommitSchemaUnionTest {
                     9,
                     Types.StructType.of(required(10, "k", Types.StringType.get())),
                     Types.StructType.of(optional(11, "v", Types.IntegerType.get()))))),
-        CommitSchemaUnion.createdSchema(schema, ALL));
+        SchemaPlan.createdSchema(schema, ALL));
   }
 
   /** Options guard an existing table's schema; with no table there is nothing to guard. */
@@ -1233,8 +1230,8 @@ public class CommitSchemaUnionTest {
             required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
     CommitSchemaUnion.NewTableSettings creation =
         new CommitSchemaUnion.NewTableSettings(Arrays.asList("region"), Arrays.asList("id"), null);
-    CommitSchemaUnion.CreationPlan plan =
-        (CommitSchemaUnion.CreationPlan)
+    SchemaPlan.Creation plan =
+        (SchemaPlan.Creation)
             CommitSchemaUnion.plan(
                 catalog,
                 id,

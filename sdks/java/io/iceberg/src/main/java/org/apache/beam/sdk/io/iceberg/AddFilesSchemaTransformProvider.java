@@ -120,7 +120,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
     public abstract @Nullable List<String> getSortFields();
 
     @SchemaFieldDescription(
-        "Lets the transform change the table schema so that every file's columns are covered."
+        "Lets the transform change the table schema so that the table has a column for every"
+            + " column the files have."
             + " Values: ALLOW_FIELD_ADDITION (columns a file has and the table lacks are added, as"
             + " optional), ALLOW_FIELD_RELAXATION (a required table column becomes optional when a"
             + " file lacks it or may hold nulls in it), ALLOW_TYPE_PROMOTION (a column type is"
@@ -147,21 +148,15 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
     @SchemaFieldDescription(
         "When true, nothing is committed or registered: the transform reads the files' schemas"
-            + " and emits a dry_run_report output. Its rows are told apart by row_type: schema"
-            + " (one per distinct file schema: files, changes a real run would make, whether they"
-            + " are allowed and why not), create (the table a real run would create), unreadable,"
-            + " unchecked (ORC, Avro) and summary. The output only exists when this is set;"
-            + " consume it from a downstream transform (input: <this transform's"
-            + " name>.dry_run_report). Read the summary row first (allowed is the verdict, reason"
-            + " the consequence), then each row with allowed=false. The table is also logged at"
-            + " INFO and its totals published as counters (numDryRunFilesAllowed,"
-            + " numDryRunFilesIncompatible, numDryRunFilesUnreadable, numDryRunFilesUnchecked,"
-            + " numDryRunConfigProblems); they count checked Parquet files, so the unchecked row"
-            + " can be allowed under unverifiable_file_handling ACCEPT while its files stay"
-            + " outside numDryRunFilesAllowed. Pin violations are per file and not predicted."
-            + " Against a missing table the union is computed through the catalog's"
-            + " create-transaction API, a stage-create request on a REST catalog, so the"
-            + " credentials need table-create permission.")
+            + " and emits a dry_run_report output with one row that describes what a real run"
+            + " would do. Its allowed field is true when every file schema can be merged and the"
+            + " configuration raises no problem; otherwise its reason field says what a real run"
+            + " would do about it (fail, or route the files to the error output). Its schemas"
+            + " field lists each distinct file schema with the changes a real run would make for"
+            + " it and, when it cannot be merged, why. The output only exists when this is set;"
+            + " consume it as input: <this transform's name>.dry_run_report. Against a missing"
+            + " table, a REST catalog needs table-create permission even though no table is"
+            + " created.")
     public abstract @Nullable Boolean getDryRun();
 
     @SchemaFieldDescription(
@@ -177,8 +172,9 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " Parquet footers only), or a Parquet file with no null-count statistics for a"
             + " required column (statistics disabled by the writer, or a column under a list or"
             + " map). REJECT (the default) sends the file to the error output (see"
-            + " error_handling). ACCEPT registers it without checks, counted and logged. A file"
-            + " that fails a check is always sent to the error output. An accepted file that"
+            + " error_handling). ACCEPT registers it without the checks; such files are counted"
+            + " and logged. A file that fails a check is always sent to the error output. An"
+            + " accepted file that"
             + " lacks a required column, or holds nulls in it, makes reads of the table fail.")
     public abstract @Nullable String getUnverifiableFileHandling();
 

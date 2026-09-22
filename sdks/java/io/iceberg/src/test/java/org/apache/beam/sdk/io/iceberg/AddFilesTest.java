@@ -1067,24 +1067,26 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              List<Row> schemaRows = rowsOfType(rows, DryRunReport.SCHEMA_ROW);
-              assertEquals(3, schemaRows.size());
+              Row report = report(rows);
+              Collection<Row> schemas = schemas(report);
+              assertEquals(3, schemas.size());
               boolean sawAddition = false;
               boolean sawConflict = false;
-              for (Row row : schemaRows) {
-                Collection<String> changes = row.getArray("changes");
+              for (Row schema : schemas) {
+                Collection<String> changes = schema.getArray("changes");
                 if (changes.contains("add optional email string")) {
-                  sawAddition = row.getBoolean("allowed");
+                  sawAddition = schema.getBoolean("allowed");
                 }
-                if (!row.getBoolean("allowed")) {
-                  sawConflict = row.getString("reason").contains("conflicts");
+                if (!schema.getBoolean("allowed")) {
+                  sawConflict = schema.getString("reason").contains("conflicts");
                 }
               }
               assertTrue(sawAddition);
               assertTrue(sawConflict);
-              Row summary = summaryRow(rows);
-              assertEquals(Long.valueOf(3), summary.getInt64("num_files"));
-              assertThat(summary.getString("reason"), containsString("would fail"));
+              assertFalse(report.getBoolean("allowed"));
+              assertEquals(Long.valueOf(2), report.getInt64("files_allowed"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_incompatible"));
+              assertThat(report.getString("reason"), containsString("would fail"));
               return null;
             });
     assertEquals(0, countTransforms(pipeline, "ConvertToDataFiles"));
@@ -1103,18 +1105,12 @@ public class AddFilesTest {
     return ((BaseTable) catalog.loadTable(tableId)).operations().current().metadataFileLocation();
   }
 
-  private static List<Row> rowsOfType(Iterable<Row> rows, String rowType) {
-    List<Row> matching = new ArrayList<>();
-    for (Row row : rows) {
-      if (rowType.equals(row.getString("row_type"))) {
-        matching.add(row);
-      }
-    }
-    return matching;
+  private static Row report(Iterable<Row> rows) {
+    return Iterables.getOnlyElement(rows);
   }
 
-  private static Row summaryRow(Iterable<Row> rows) {
-    return Iterables.getOnlyElement(rowsOfType(rows, DryRunReport.SUMMARY_ROW));
+  private static Collection<Row> schemas(Row report) {
+    return checkStateNotNull(report.getArray("schemas"));
   }
 
   @Test
@@ -1125,18 +1121,17 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              for (Row row : rows) {
-                assertTrue(row.getBoolean("would_create_table"));
-              }
-              Row create = Iterables.getOnlyElement(rowsOfType(rows, DryRunReport.CREATE_ROW));
-              assertTrue(create.getBoolean("allowed"));
+              Row report = report(rows);
+              assertTrue(report.getBoolean("allowed"));
+              assertTrue(report.getBoolean("would_create_table"));
+              Row created = checkStateNotNull(report.getRow("created_table"));
               assertThat(
-                  create.getArray("changes").toString(),
+                  created.getArray("columns").toString(),
                   containsString("create optional email string"));
-              assertThat(create.getString("schema"), containsString("\"name\":\"email\""));
-              for (Row row : rowsOfType(rows, DryRunReport.SCHEMA_ROW)) {
+              assertThat(created.getString("schema"), containsString("\"name\":\"email\""));
+              for (Row schema : schemas(report)) {
                 assertTrue(
-                    "the created table is described once", row.getArray("changes").isEmpty());
+                    "the created table is described once", schema.getArray("changes").isEmpty());
               }
               return null;
             });
@@ -1154,19 +1149,18 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              for (Row row : rows) {
-                assertFalse(row.getBoolean("would_create_table"));
-              }
-              Row summary = summaryRow(rows);
-              assertFalse(summary.getBoolean("allowed"));
-              assertThat(summary.getString("reason"), containsString("would fail"));
+              Row report = report(rows);
+              assertFalse(report.getBoolean("allowed"));
+              assertFalse(report.getBoolean("would_create_table"));
+              assertNotNull("the union still describes the table", report.getRow("created_table"));
+              assertThat(report.getString("reason"), containsString("would fail"));
               return null;
             });
     pipeline.run().waitUntilFinish();
     assertFalse(catalog.tableExists(tableId));
   }
 
-  /** A table-level change without a schema change is reported on the summary row. */
+  /** A table-level change without a schema change is reported as such. */
   @Test
   public void testDryRunReportsNameMappingRepair() throws Exception {
     catalog.createTable(tableId, icebergSchema);
@@ -1177,11 +1171,11 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              Row summary = summaryRow(rows);
-              assertTrue(summary.getBoolean("allowed"));
-              assertThat(
-                  summary.getArray("changes").toString(),
-                  containsString(DryRunReport.NAME_MAPPING_CHANGE));
+              Row report = report(rows);
+              assertTrue(report.getBoolean("allowed"));
+              assertEquals(
+                  Arrays.asList(DryRunReport.NAME_MAPPING_CHANGE),
+                  new ArrayList<>(checkStateNotNull(report.getArray("table_changes"))));
               return null;
             });
     pipeline.run().waitUntilFinish();
@@ -1208,13 +1202,12 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              for (Row row : rows) {
-                assertFalse(row.getBoolean("would_create_table"));
-              }
-              Row summary = summaryRow(rows);
-              assertFalse(summary.getBoolean("allowed"));
-              assertThat(summary.getString("reason"), containsString("would fail to create"));
-              assertThat(summary.getString("reason"), containsString("partition fields [missing]"));
+              Row report = report(rows);
+              assertFalse(report.getBoolean("allowed"));
+              assertFalse(report.getBoolean("would_create_table"));
+              assertThat(report.getString("reason"), containsString("would fail to create"));
+              assertThat(report.getString("reason"), containsString("partition fields [missing]"));
+              assertEquals(1, checkStateNotNull(report.getArray("config_problems")).size());
               return null;
             });
     PipelineResult result = pipeline.run();
@@ -1249,11 +1242,11 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              List<Row> schemaRows = rowsOfType(rows, DryRunReport.SCHEMA_ROW);
-              assertEquals(2, schemaRows.size());
+              Collection<Row> schemas = schemas(report(rows));
+              assertEquals(2, schemas.size());
               int allowed = 0;
-              for (Row row : schemaRows) {
-                if (row.getBoolean("allowed")) {
+              for (Row schema : schemas) {
+                if (schema.getBoolean("allowed")) {
                   allowed++;
                 }
               }
@@ -1264,20 +1257,19 @@ public class AddFilesTest {
     assertNull(catalog.loadTable(tableId).schema().findField("email"));
   }
 
-  /** Files that contribute no schema still appear in the report instead of vanishing. */
+  /** Files that contribute no schema are counted instead of vanishing. */
   @Test
   public void testDryRunReportsUnreadableAndNonParquetFiles() throws Exception {
-    dryRunWithUnreadableAndAvro(UnverifiableFileHandling.REJECT, false, "routes these files");
+    dryRunWithUnreadableAndAvro(UnverifiableFileHandling.REJECT, false);
   }
 
   @Test
   public void testDryRunReportsNonParquetFilesAsRegisteredWhenAccepted() throws Exception {
-    dryRunWithUnreadableAndAvro(UnverifiableFileHandling.ACCEPT, true, "registers these files");
+    dryRunWithUnreadableAndAvro(UnverifiableFileHandling.ACCEPT, true);
   }
 
   private void dryRunWithUnreadableAndAvro(
-      UnverifiableFileHandling handling, boolean uncheckedAllowed, String uncheckedReason)
-      throws Exception {
+      UnverifiableFileHandling handling, boolean uncheckedRegistered) throws Exception {
     catalog.createTable(tableId, icebergSchema);
     String good = writeOneRecord("good.parquet");
     File garbage = temp.newFile("garbage.parquet");
@@ -1298,21 +1290,12 @@ public class AddFilesTest {
     PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
         .satisfies(
             rows -> {
-              Row unread = Iterables.getOnlyElement(rowsOfType(rows, DryRunReport.UNREADABLE_ROW));
-              Row unchecked =
-                  Iterables.getOnlyElement(rowsOfType(rows, DryRunReport.UNCHECKED_ROW));
-              assertEquals(Long.valueOf(1), unread.getInt64("num_files"));
-              assertFalse(unread.getBoolean("allowed"));
-              assertThat(
-                  unread.getString("reason"), containsString("routes these files to the error"));
-              assertEquals(Long.valueOf(1), unchecked.getInt64("num_files"));
-              assertEquals(uncheckedAllowed, unchecked.getBoolean("allowed"));
-              assertThat(unchecked.getString("reason"), containsString(uncheckedReason));
-              Row summary = summaryRow(rows);
-              assertEquals(Long.valueOf(3), summary.getInt64("num_files"));
-              assertThat(
-                  summary.getArray("changes").toString(),
-                  containsString("1 files unreadable; 1 files unchecked"));
+              Row report = report(rows);
+              assertTrue(report.getBoolean("allowed"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_allowed"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_unreadable"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_unchecked"));
+              assertEquals(uncheckedRegistered, report.getBoolean("unchecked_registered"));
               return null;
             });
     PipelineResult result = pipeline.run();

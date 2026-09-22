@@ -83,46 +83,80 @@ pipelines:
           input: DryRun.dry_run_report
           config:
             path: "{TEMP_DIR}/report.json"
-        # the full report, as a real run against this input would decide it: one row per
-        # distinct schema (canonical JSON, allowed), the create row (the table a real run would
-        # create, from the union, every column optional) and the summary row
-        - type: AssertEqual
-          name: AssertReport
+        # The full report, as a real run against this input would decide it. The report is one
+        # row with nested fields; the two assertions below read it the way a user would: the
+        # verdict, the file counts and the table a real run would create (from the union, every
+        # column optional) come from the top level, the per-schema entries from an Explode.
+        - type: MapToFields
+          name: Verdict
           input: DryRun.dry_run_report
           config:
+            language: python
+            fields:
+              allowed: allowed
+              reason: reason
+              would_create_table: would_create_table
+              files_allowed: files_allowed
+              files_incompatible: files_incompatible
+              files_unreadable: files_unreadable
+              files_unchecked: files_unchecked
+              unchecked_registered: unchecked_registered
+              table_changes: table_changes
+              config_problems: config_problems
+              created_schema: created_table.schema
+              created_columns: created_table.columns
+        - type: AssertEqual
+          name: AssertVerdict
+          input: Verdict
+          config:
             elements:
-              - row_type: "schema"
-                schema_key: "s48334d"
-                schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"label","required":true,"type":"string"}},{{"id":2,"name":"rank","required":true,"type":"long"}}]}}'
-                num_files: 1
-                changes: []
-                allowed: true
+              - allowed: true
                 reason: ""
                 would_create_table: true
-              - row_type: "schema"
-                schema_key: "s27e62d"
+                files_allowed: 2
+                files_incompatible: 0
+                files_unreadable: 0
+                files_unchecked: 0
+                unchecked_registered: false
+                table_changes: []
+                config_problems: []
+                created_schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"bool","required":false,"type":"boolean"}},{{"id":2,"name":"label","required":false,"type":"string"}},{{"id":3,"name":"rank","required":false,"type":"long"}}]}}'
+                created_columns: ["create optional bool boolean", "create optional label string", "create optional rank long"]
+        # one entry per distinct schema (canonical JSON), most common first
+        - type: Explode
+          name: Schemas
+          input: DryRun.dry_run_report
+          config:
+            fields: [schemas]
+        - type: MapToFields
+          name: SchemaEntries
+          input: Schemas
+          config:
+            language: python
+            fields:
+              schema_key: schemas.schema_key
+              schema: schemas.schema
+              num_files: schemas.num_files
+              changes: schemas.changes
+              allowed: schemas.allowed
+              reason: schemas.reason
+        - type: AssertEqual
+          name: AssertSchemas
+          input: SchemaEntries
+          config:
+            elements:
+              - schema_key: "s27e62d"
                 schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"bool","required":true,"type":"boolean"}},{{"id":2,"name":"label","required":true,"type":"string"}},{{"id":3,"name":"rank","required":true,"type":"long"}}]}}'
                 num_files: 1
                 changes: []
                 allowed: true
                 reason: ""
-                would_create_table: true
-              - row_type: "create"
-                schema_key: ""
-                schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"bool","required":false,"type":"boolean"}},{{"id":2,"name":"label","required":false,"type":"string"}},{{"id":3,"name":"rank","required":false,"type":"long"}}]}}'
-                num_files: 2
-                changes: ["create optional bool boolean", "create optional label string", "create optional rank long"]
+              - schema_key: "s48334d"
+                schema: '{{"type":"struct","schema-id":0,"fields":[{{"id":1,"name":"label","required":true,"type":"string"}},{{"id":2,"name":"rank","required":true,"type":"long"}}]}}'
+                num_files: 1
+                changes: []
                 allowed: true
                 reason: ""
-                would_create_table: true
-              - row_type: "summary"
-                schema_key: ""
-                schema: ""
-                num_files: 2
-                changes: ["2 distinct schemas; 2 allowed covering 2 files; 0 incompatible covering 0 files; 0 files unreadable; 0 files unchecked (ORC or Avro)"]
-                allowed: true
-                reason: ""
-                would_create_table: true
 
     providers:
       - type: python
@@ -130,8 +164,8 @@ pipelines:
         transforms:
           ReadMatchFiles: 'apache_beam.io.fileio.MatchFiles'
 
-  # Pipeline 4: the report was written (arrays come back as strings through ReadFromJson, so
-  # only the scalar columns are compared here; the full rows are asserted above)
+  # Pipeline 4: the report was written (nested fields come back as strings through ReadFromJson,
+  # so only the scalar columns are compared here; the full row is asserted above)
   - pipeline:
       type: chain
       transforms:
@@ -141,14 +175,11 @@ pipelines:
         - type: MapToFields
           config:
             fields:
-              num_files: num_files
               allowed: allowed
               would_create_table: would_create_table
-              row_type: row_type
+              files_allowed: files_allowed
+              files_incompatible: files_incompatible
         - type: AssertEqual
           config:
             elements:
-              - {row_type: "schema", num_files: 1, allowed: true, would_create_table: true}
-              - {row_type: "schema", num_files: 1, allowed: true, would_create_table: true}
-              - {row_type: "create", num_files: 2, allowed: true, would_create_table: true}
-              - {row_type: "summary", num_files: 2, allowed: true, would_create_table: true}
+              - {allowed: true, would_create_table: true, files_allowed: 2, files_incompatible: 0}

@@ -57,16 +57,17 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * schema so its files reach the error output (the streaming default). Files whose footer cannot be
  * read or converted always go to the error output and never fail the pipeline.
  *
- * <p><b>Dry run.</b> Reports what a real run would do, per distinct file schema, on the {@code
- * dry_run_report} output; nothing is committed or registered. The report is a PCollection like any
- * other, so attach a sink to keep it; the rendered table is also logged at INFO and its totals are
+ * <p><b>Dry run.</b> Reports what a real run would do on the {@code dry_run_report} output, one row
+ * per window; nothing is committed or registered. {@code allowed} is true when every file schema
+ * can be merged and the configuration raises no problem; otherwise {@code reason} says what a real
+ * run would do about it. {@code schemas} holds one entry per distinct file schema with the changes
+ * a real run would make and, when the schema cannot be merged, the option or conflict to fix;
+ * {@code created_table} shows the table a real run would create. The report is a PCollection like
+ * any other, so attach a sink to keep it; it is also logged at INFO and the file counts are
  * published as counters ({@code numDryRunFilesAllowed}, {@code numDryRunFilesIncompatible}, {@code
  * numDryRunFilesUnreadable}, {@code numDryRunFilesUnchecked}, {@code numDryRunConfigProblems}).
- * Rows are told apart by {@code row_type}. Read the {@code summary} row first: {@code allowed} is
- * the verdict and {@code reason} the consequence; then each {@code schema} row with {@code allowed}
- * false names the option or conflict to fix; a {@code create} row shows the table a real run would
- * create. Adjust the settings, rerun until the summary is allowed, then run for real with an error
- * output attached. Against a missing table the dry run computes the union through the catalog's
+ * Adjust the settings, rerun until the report is allowed, then run for real with an error output
+ * attached. Against a missing table the dry run computes the union through the catalog's
  * create-transaction API, which a REST catalog serves as a stage-create request: the credentials
  * need table-create permission even though no table is created.
  */
@@ -118,8 +119,8 @@ public abstract class SchemaEvolutionConfig implements Serializable {
   }
 
   /**
-   * Report what the pre-pass would do on the {@code dry_run_report} output (one row per distinct
-   * file schema plus a summary row per window); commit and register nothing.
+   * Report what the pre-pass would do on the {@code dry_run_report} output, one row per window;
+   * commit and register nothing.
    */
   public abstract boolean getDryRun();
 
