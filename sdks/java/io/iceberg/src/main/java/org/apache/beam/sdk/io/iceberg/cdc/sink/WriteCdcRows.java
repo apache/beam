@@ -31,11 +31,13 @@ import org.apache.beam.sdk.io.iceberg.IcebergWriteResult;
 import org.apache.beam.sdk.io.iceberg.SnapshotInfo;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueKind;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -380,6 +382,8 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
 
   /** Construction-time validation. */
   private void validate(PCollection<Row> input, CdcWriteConfig config) {
+    Preconditions.checkState(
+        input.hasSchema(), "CDC input must have a schema; set one with setRowSchema(...).");
     Preconditions.checkArgument(
         1
             == Stream.of(getTableIdentifier(), getDynamicDestinations())
@@ -401,7 +405,15 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
           triggeringFrequency.isLongerThan(Duration.ZERO),
           "triggering frequency must be positive for streaming CDC writes, got %s",
           triggeringFrequency);
+    } else if (triggeringFrequency != null) {
+      LOG.warn(
+          "Triggering frequency is ignored for bounded input. Batch loads commit once at the end.");
     }
+    @Nullable Duration allowedLateness = getAllowedLateness();
+    Preconditions.checkArgument(
+        allowedLateness == null || !allowedLateness.isShorterThan(Duration.ZERO),
+        "allowed lateness must not be negative, got %s",
+        allowedLateness);
 
     @Nullable String changeTypeColumn = config.getChangeTypeColumn();
     if (changeTypeColumn != null) {
@@ -459,6 +471,21 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
       LOG.warn(
           "Token heartbeat is ignored for bounded input. Batch loads will commit once and exit.");
     }
+  }
+
+  @Override
+  public void populateDisplayData(DisplayData.Builder builder) {
+    super.populateDisplayData(builder);
+    builder.add(DisplayData.item("sinkId", getSinkId()));
+    builder.add(DisplayData.item("upsert", getUpsert()));
+    builder.add(DisplayData.item("numShards", getNumShards()));
+    builder.addIfNotNull(DisplayData.item("shardsPerPartition", getShardsPerPartition()));
+    builder.add(DisplayData.item("sorterMemoryMB", getSorterMemoryMB()));
+    builder.addIfNotNull(DisplayData.item("triggeringFrequency", getTriggeringFrequency()));
+    builder.add(
+        DisplayData.item(
+            "allowedLateness",
+            MoreObjects.firstNonNull(getAllowedLateness(), DEFAULT_ALLOWED_LATENESS)));
   }
 
   @Override
