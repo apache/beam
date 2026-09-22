@@ -48,6 +48,7 @@ tasks.rat {
     "**/test.avsc",
     "**/logical-types.avsc",
     "**/user.avsc",
+    "**/*.avro",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
@@ -200,6 +201,9 @@ tasks.rat {
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
     "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore third-party notices bundled in resources
+    "**/resources/NOTICES",
 
     // Ignore autogenrated proto files.
     "sdks/typescript/src/apache_beam/proto/**/*.ts",
