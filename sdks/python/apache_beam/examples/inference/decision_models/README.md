@@ -205,6 +205,36 @@ the rows in a different order:
 
 Only the bypass verification message crossed the `0.7` review threshold.
 
+## Tests
+
+Install Beam's test dependencies in the same virtual environment:
+
+```sh
+python3 -m pip install -e 'sdks/python[test]'
+```
+
+The unit tests cover the shared API, routing policy, and mocked Jev responses:
+
+```sh
+python3 -m pytest -q \
+  sdks/python/apache_beam/ml/inference/decision_test.py \
+  sdks/python/apache_beam/ml/inference/typesafe_inference_test.py \
+  sdks/python/apache_beam/examples/inference/decision_models/message_router_test.py
+```
+
+With the optional Jev SDK installed and `TYPESAFE_API_KEY` set, run the live
+integration test:
+
+```sh
+python3 -m pytest -q -rs -m it_postcommit \
+  sdks/python/apache_beam/ml/inference/typesafe_inference_it_test.py
+```
+
+It sends one streaming event through `EvaluateDecisions`, asking Choice,
+Boolean/Noul, and Score questions together. It checks the normalized answer
+types and ranges, and skips when the SDK or API key is missing. The mocked
+adapter tests run with the SDK installed and require no API key.
+
 ## Jev benchmark
 
 These measurements were captured on September 22, 2026 with Jev 1.13.0,
