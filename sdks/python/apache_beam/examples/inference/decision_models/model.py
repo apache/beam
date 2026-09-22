@@ -90,9 +90,10 @@ class DecisionModel(Protocol):
 
 
 class JevDecisionModel:
-  """TypeSafe SDK adapter. Each Beam caller creates one client per worker."""
-  def __init__(self, model='jev-latest'):
+  """TypeSafe SDK adapter with a persistent HTTP connection pool."""
+  def __init__(self, model='jev-latest', timeout=10.0):
     self.model = model
+    self.timeout = timeout
     self.client = None
 
   def __enter__(self):
@@ -101,7 +102,7 @@ class JevDecisionModel:
     except ImportError as error:
       raise ImportError(
           'Install typesafe-sdk to use JevDecisionModel') from error
-    self.client = TypeSafeClient()
+    self.client = TypeSafeClient(timeout=self.timeout)
     return self
 
   def __exit__(self, exc_type, exc_value, traceback):

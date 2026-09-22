@@ -19,50 +19,54 @@
 
 import unittest
 
-from apache_beam.examples.inference.decision_models.message_router import ClassifyMessage
+from apache_beam.examples.inference.decision_models.message_router import route_message
 from apache_beam.examples.inference.decision_models.model import ChoiceAnswer
 from apache_beam.examples.inference.decision_models.model import DecisionResponse
+from apache_beam.examples.inference.decision_models.transforms import DecisionResult
 
 
-class FixedModel:
-  def __init__(self, answer):
-    self.answer = answer
+def result_for(answer):
+  return DecisionResult(
+      state={
+          'event_id': '1', 'message': 'I have an account question'
+      },
+      response=DecisionResponse(
+          answers={'destination': answer}, model='fixed', provider='test'),
+      latency_ms=1.0)
 
-  def evaluate(self, state, questions):
-    return DecisionResponse(
-        answers={'destination': self.answer}, model='fixed', provider='test')
 
-
-class ClassifyMessageTest(unittest.TestCase):
+class RouteMessageTest(unittest.TestCase):
   def test_uncertain_choice_goes_to_review(self):
-    caller = ClassifyMessage(
-        FixedModel(
-            ChoiceAnswer(
-                choice='billing',
-                probabilities={
-                    'billing': 0.6, 'sales': 0.4
-                },
-                confidence=0.4)),
-        min_confidence=0.65)
+    result = result_for(
+        ChoiceAnswer(
+            choice='billing',
+            probabilities={
+                'billing': 0.6, 'sales': 0.4
+            },
+            confidence=0.4))
 
-    row = caller({'event_id': '1', 'message': 'I have an account question'})
+    row = route_message(result, min_confidence=0.65)
 
     self.assertEqual('billing', row['decision'])
     self.assertEqual('review', row['destination'])
 
+  def test_confident_choice_selects_destination(self):
+    result = result_for(ChoiceAnswer(choice='sales', confidence=0.65))
+
+    row = route_message(result, min_confidence=0.65)
+
+    self.assertEqual('sales', row['destination'])
+
   def test_unknown_choice_cannot_select_a_table(self):
-    caller = ClassifyMessage(
-        FixedModel(ChoiceAnswer(choice='other', confidence=1.0)),
-        min_confidence=0.5)
+    result = result_for(ChoiceAnswer(choice='other', confidence=1.0))
 
     with self.assertRaisesRegex(ValueError, 'unknown destination'):
-      caller({'event_id': '1', 'message': 'Hello'})
+      route_message(result, min_confidence=0.5)
 
   def test_missing_confidence_goes_to_review(self):
-    caller = ClassifyMessage(
-        FixedModel(ChoiceAnswer(choice='sales')), min_confidence=0.5)
+    result = result_for(ChoiceAnswer(choice='sales'))
 
-    row = caller({'event_id': '1', 'message': 'What does it cost?'})
+    row = route_message(result, min_confidence=0.5)
 
     self.assertEqual('review', row['destination'])
 

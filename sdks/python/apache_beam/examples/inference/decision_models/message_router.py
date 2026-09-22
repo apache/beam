@@ -20,12 +20,9 @@
 import argparse
 import json
 import os
-import time
 
 import apache_beam as beam
 from apache_beam.io import fileio
-from apache_beam.io.requestresponse import Caller
-from apache_beam.io.requestresponse import RequestResponseIO
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners import render
@@ -36,6 +33,7 @@ from apache_beam.transforms.window import TimestampedValue
 from apache_beam.examples.inference.decision_models.model import ChoiceQuestion
 from apache_beam.examples.inference.decision_models.model import JevDecisionModel
 from apache_beam.examples.inference.decision_models.model import LocalDecisionModel
+from apache_beam.examples.inference.decision_models.transforms import EvaluateDecisions
 
 DESTINATIONS = {
     'billing': 'Invoices, charges, payments, and refunds',
@@ -70,43 +68,27 @@ ROW_SCHEMA = (
     'provider:STRING,request_id:STRING,latency_ms:FLOAT')
 
 
-class ClassifyMessage(Caller):
-  """Use any DecisionModel as a RequestResponseIO caller."""
-  def __init__(self, model, min_confidence):
-    self.model = model
-    self.min_confidence = min_confidence
-
-  def __enter__(self):
-    self.model.__enter__()
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    return self.model.__exit__(exc_type, exc_val, exc_tb)
-
-  def __call__(self, event):
-    started = time.perf_counter()
-    response = self.model.evaluate(
-        state={'message': event['message']},
-        questions={'destination': QUESTION})
-    latency_ms = (time.perf_counter() - started) * 1000
-    answer = response.answers['destination']
-    if answer.choice not in DESTINATIONS:
-      raise ValueError('Decision model returned an unknown destination')
-    destination = (
-        answer.choice if answer.confidence is not None and
-        answer.confidence >= self.min_confidence else 'review')
-    return {
-        'event_id': event['event_id'],
-        'message': event['message'],
-        'decision': answer.choice,
-        'destination': destination,
-        'confidence': answer.confidence,
-        'probabilities_json': json.dumps(answer.probabilities, sort_keys=True),
-        'model': response.model,
-        'provider': response.provider,
-        'request_id': response.request_id,
-        'latency_ms': round(latency_ms, 2),
-    }
+def route_message(result, min_confidence):
+  event = result.state
+  response = result.response
+  answer = response.answers['destination']
+  if answer.choice not in DESTINATIONS:
+    raise ValueError('Decision model returned an unknown destination')
+  destination = (
+      answer.choice if answer.confidence is not None and
+      answer.confidence >= min_confidence else 'review')
+  return {
+      'event_id': event['event_id'],
+      'message': event['message'],
+      'decision': answer.choice,
+      'destination': destination,
+      'confidence': answer.confidence,
+      'probabilities_json': json.dumps(answer.probabilities, sort_keys=True),
+      'model': response.model,
+      'provider': response.provider,
+      'request_id': response.request_id,
+      'latency_ms': round(result.latency_ms, 2),
+  }
 
 
 class JsonSink(fileio.FileSink):
@@ -150,10 +132,9 @@ def build_pipeline(pipeline, args):
   model = JevDecisionModel() if args.model == 'jev' else LocalDecisionModel()
   rows = (
       events
-      | 'Classify with decision model' >> RequestResponseIO(
-          ClassifyMessage(model, args.min_confidence),
-          timeout=15,
-          repeater=None)
+      | 'Ask Choice' >> beam.ParDo(
+          EvaluateDecisions(model, {'destination': QUESTION}))
+      | 'Select destination' >> beam.Map(route_message, args.min_confidence)
       | 'Window routed messages' >> beam.WindowInto(FixedWindows(60)))
 
   if args.bq_dataset:

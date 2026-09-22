@@ -20,17 +20,15 @@
 import argparse
 import json
 import os
-import time
 
 import apache_beam as beam
-from apache_beam.io.requestresponse import Caller
-from apache_beam.io.requestresponse import RequestResponseIO
 from apache_beam.options.pipeline_options import PipelineOptions
 
 from apache_beam.examples.inference.decision_models.model import JevDecisionModel
 from apache_beam.examples.inference.decision_models.model import LocalDecisionModel
 from apache_beam.examples.inference.decision_models.model import NoulQuestion
 from apache_beam.examples.inference.decision_models.model import ScoreQuestion
+from apache_beam.examples.inference.decision_models.transforms import EvaluateDecisions
 
 SAMPLE_MESSAGES = [
     'Please update my billing address before the next renewal.',
@@ -49,43 +47,24 @@ FRAUD_SCORE = ScoreQuestion(
         'An explicit attempt to bypass verification'))
 
 
-class ReviewFraudCues(Caller):
-  def __init__(self, model, primitive):
-    self.model = model
-    self.primitive = primitive
-
-  def __enter__(self):
-    self.model.__enter__()
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    return self.model.__exit__(exc_type, exc_val, exc_tb)
-
-  def __call__(self, message):
-    questions = {}
-    if self.primitive in ('noul', 'both'):
-      questions['fraud_cue'] = FRAUD_NOUL
-    if self.primitive in ('score', 'both'):
-      questions['risk_level'] = FRAUD_SCORE
-    started = time.perf_counter()
-    response = self.model.evaluate(
-        state={'message': message}, questions=questions)
-    row = {
-        'message': message,
-        'model': response.model,
-        'provider': response.provider,
-        'latency_ms': round((time.perf_counter() - started) * 1000, 2),
-    }
-    if 'fraud_cue' in response.answers:
-      probability = response.answers['fraud_cue'].noul
-      row['fraud_review_probability'] = probability
-      row['needs_review'] = probability >= 0.7
-    if 'risk_level' in response.answers:
-      score = response.answers['risk_level']
-      row['risk_score'] = score.score
-      row['risk_confidence'] = score.confidence
-      row['risk_probabilities'] = score.probabilities
-    return row
+def review_fraud_cues(result):
+  response = result.response
+  row = {
+      'message': result.state['message'],
+      'model': response.model,
+      'provider': response.provider,
+      'latency_ms': round(result.latency_ms, 2),
+  }
+  if 'fraud_cue' in response.answers:
+    probability = response.answers['fraud_cue'].noul
+    row['fraud_review_probability'] = probability
+    row['needs_review'] = probability >= 0.7
+  if 'risk_level' in response.answers:
+    score = response.answers['risk_level']
+    row['risk_score'] = score.score
+    row['risk_confidence'] = score.confidence
+    row['risk_probabilities'] = score.probabilities
+  return row
 
 
 def run(argv=None):
@@ -97,12 +76,20 @@ def run(argv=None):
   if args.model == 'jev' and not os.environ.get('TYPESAFE_API_KEY'):
     parser.error('TYPESAFE_API_KEY is required for --model=jev')
   model = JevDecisionModel() if args.model == 'jev' else LocalDecisionModel()
+  questions = {}
+  if args.primitive in ('noul', 'both'):
+    questions['fraud_cue'] = FRAUD_NOUL
+  if args.primitive in ('score', 'both'):
+    questions['risk_level'] = FRAUD_SCORE
   with beam.Pipeline(options=PipelineOptions(pipeline_args)) as pipeline:
     (
         pipeline
-        | 'Sample payment messages' >> beam.Create(SAMPLE_MESSAGES)
-        | 'Evaluate fraud cues' >> RequestResponseIO(
-            ReviewFraudCues(model, args.primitive), timeout=15, repeater=None)
+        | 'Sample payment messages' >> beam.Create([{
+            'message': message
+        } for message in SAMPLE_MESSAGES])
+        | 'Evaluate fraud cues' >> beam.ParDo(
+            EvaluateDecisions(model, questions))
+        | 'Apply review threshold' >> beam.Map(review_fraud_cues)
         | 'Show review decisions' >>
         beam.Map(lambda row: print(json.dumps(row, sort_keys=True))))
 
