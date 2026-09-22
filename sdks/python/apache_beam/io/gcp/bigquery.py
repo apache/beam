@@ -29,7 +29,10 @@ creating the sources or sinks respectively).
 Also, for programming convenience, instances of TableReference and TableSchema
 have a string representation that can be used for the corresponding arguments:
 
-  - TableReference can be a PROJECT:DATASET.TABLE or DATASET.TABLE string.
+  - TableReference can be a PROJECT:DATASET.TABLE, PROJECT.DATASET.TABLE or
+    DATASET.TABLE string. Lakehouse runtime catalog (BigLake metastore) tables
+    use PROJECT.CATALOG.NAMESPACE.TABLE, which maps to a composite
+    CATALOG.NAMESPACE dataset id.
   - TableSchema can be a NAME:TYPE{,NAME:TYPE}* string
     (e.g. 'month:STRING,event_count:INTEGER').
 
@@ -789,6 +792,10 @@ class _CustomBigQuerySource(BoundedSource):
         table_ref.projectId = self._get_project()
       table = bq.get_table(
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+      if table.numBytes is None:
+        # Tables that don't report storage statistics, e.g. Lakehouse runtime
+        # catalog (BigLake metastore) tables.
+        return 0
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
       project = self._get_project()
@@ -1111,6 +1118,8 @@ class _CustomBigQueryStorageSource(BoundedSource):
         if table_reference.projectId else self._get_parent_project())
     table = bq.get_table(
         project, table_reference.datasetId, table_reference.tableId)
+    # None for tables that don't report storage statistics, e.g. Lakehouse
+    # runtime catalog (BigLake metastore) tables.
     return table.numBytes
 
   def _get_bq_metadata(self):
@@ -1256,14 +1265,18 @@ class _CustomBigQueryStorageSource(BoundedSource):
         requested_session.read_options.row_restriction = self.row_restriction
 
       storage_client = bq_storage.BigQueryReadClient()
+      # A stream_count of 0 lets the Storage Read API choose the number of
+      # streams; used when the table reports no size (e.g. Lakehouse runtime
+      # catalog tables).
       stream_count = 0
-      if desired_bundle_size > 0:
-        table_size = self._get_table_size(bq, self.table_reference)
-        stream_count = min(
-            int(table_size / desired_bundle_size),
-            _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
-      stream_count = max(
-          stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
+      table_size = self._get_table_size(bq, self.table_reference)
+      if table_size is not None:
+        if desired_bundle_size > 0:
+          stream_count = min(
+              int(table_size / desired_bundle_size),
+              _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
+        stream_count = max(
+            stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
 
       parent = 'projects/{}'.format(self.table_reference.projectId)
       read_session = storage_client.create_read_session(
@@ -2953,10 +2966,12 @@ class ReadFromBigQuery(PTransform):
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. If dataset argument is :data:`None` then the table
       argument must contain the entire table reference specified as:
-      ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``. If it's a callable,
-      it must receive one argument representing an element to be written to
-      BigQuery, and return a TableReference, or a string table name as specified
-      above.
+      ``'DATASET.TABLE'``, ``'PROJECT:DATASET.TABLE'`` or
+      ``'PROJECT.DATASET.TABLE'``. Lakehouse runtime catalog (BigLake
+      metastore) tables are specified as ``'PROJECT.CATALOG.NAMESPACE.TABLE'``.
+      If it's a callable, it must receive one argument representing an element
+      to be written to BigQuery, and return a TableReference, or a string table
+      name as specified above.
     dataset (str): The ID of the dataset containing this table or
       :data:`None` if the table reference is specified entirely by the table
       argument.
