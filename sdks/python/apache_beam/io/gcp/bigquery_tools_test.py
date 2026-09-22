@@ -136,6 +136,46 @@ class TestTableReferenceParser(unittest.TestCase):
       ('project:dataset.test- table', 'project', 'dataset', 'test- table'),
       ('project.dataset. test_table', 'project', 'dataset', ' test_table'),
       ('project.dataset.test$table', 'project', 'dataset', 'test$table'),
+      ('project.dataset.table', 'project', 'dataset', 'table'),
+      ('my-project.my_dataset.table', 'my-project', 'my_dataset', 'table'),
+      # Lakehouse runtime catalog tables: composite 'catalog.namespace'
+      # dataset id.
+      (
+          'project.catalog.namespace.table',
+          'project',
+          'catalog.namespace',
+          'table'),
+      (
+          'project:catalog.namespace.table',
+          'project',
+          'catalog.namespace',
+          'table'),
+      (
+          'my-project.my-catalog.ns.events$20240101',
+          'my-project',
+          'my-catalog.ns',
+          'events$20240101'),
+      # Domain-scoped project ids, in both spellings.
+      (
+          'example.com:proj.dataset.table',
+          'example.com:proj',
+          'dataset',
+          'table'),
+      (
+          'example.com:proj:dataset.table',
+          'example.com:proj',
+          'dataset',
+          'table'),
+      (
+          'example.com:proj.catalog.namespace.table',
+          'example.com:proj',
+          'catalog.namespace',
+          'table'),
+      (
+          'example.com:proj:catalog.namespace.table',
+          'example.com:proj',
+          'catalog.namespace',
+          'table'),
   ])
   def test_calling_with_fully_qualified_table_ref(
       self,
@@ -159,8 +199,24 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
+  def test_calling_with_partially_qualified_composite_dataset(self):
+    # A leading segment that cannot be a project id (underscore) binds the
+    # whole prefix as a composite dataset id.
+    parsed_ref = parse_table_reference('my_catalog.namespace.test_table')
+    self.assertIsNone(parsed_ref.projectId)
+    self.assertEqual(parsed_ref.datasetId, 'my_catalog.namespace')
+    self.assertEqual(parsed_ref.tableId, 'test_table')
+
   def test_calling_with_insufficient_table_ref(self):
     table = 'test_table'
+    self.assertRaises(ValueError, parse_table_reference, table)
+
+  @parameterized.expand([
+      ('a:b:c:d.table', ),
+      ('project:.table', ),
+      ('project:dataset', ),
+  ])
+  def test_calling_with_invalid_table_ref(self, table):
     self.assertRaises(ValueError, parse_table_reference, table)
 
   def test_calling_with_all_arguments(self):

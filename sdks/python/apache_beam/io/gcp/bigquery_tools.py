@@ -106,8 +106,12 @@ UNKNOWN_MIME_TYPE = 'application/octet-stream'
 BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 
 _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
-_DATASET_PATTERN = r'\w{1,1024}'
+# Dots are allowed because Lakehouse runtime catalog (BigLake metastore) tables
+# are addressed with a composite 'catalog.namespace' dataset id.
+_DATASET_PATTERN = r'[-\w.]{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
+# A single segment of a project id (no dots or colons).
+_PROJECT_NAME_SEGMENT_PATTERN = r'[-a-z0-9]*[a-z0-9]'
 
 # TODO(https://github.com/apache/beam/issues/25946): Add support for
 # more Beam portable schema types as Python types
@@ -249,8 +253,11 @@ def parse_table_reference(table, dataset=None, project=None):
     table: The ID of the table. The ID must contain only letters
       (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
-      'DATASET.TABLE' or 'PROJECT:DATASET.TABLE'. This argument can be a
-      TableReference instance in which case dataset and project are
+      'DATASET.TABLE', 'PROJECT:DATASET.TABLE' or 'PROJECT.DATASET.TABLE'.
+      Lakehouse runtime catalog (BigLake metastore) tables use four parts,
+      'PROJECT.CATALOG.NAMESPACE.TABLE' or 'PROJECT:CATALOG.NAMESPACE.TABLE',
+      which parse to a composite 'CATALOG.NAMESPACE' dataset id. This argument
+      can be a TableReference instance in which case dataset and project are
       ignored and the reference is returned as a result.  Additionally, for date
       partitioned tables, appending '$YYYYmmdd' to the table name is supported,
       e.g. 'DATASET.TABLE$YYYYmmdd'.
@@ -285,22 +292,81 @@ def parse_table_reference(table, dataset=None, project=None):
   # table argument will contain a full table reference instead of just a
   # table name.
   if dataset is None:
-    pattern = (
-        f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
-        f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
-    match = regex.fullmatch(pattern, table)
-    if not match:
-      raise ValueError(
-          'Expected a table reference (PROJECT:DATASET.TABLE or '
-          'DATASET.TABLE) instead of %s.' % table)
-    table_reference.projectId = match.group('project')
-    table_reference.datasetId = match.group('dataset')
-    table_reference.tableId = match.group('table')
+    project_id, dataset_id, table_id = _split_table_spec(table)
+    table_reference.projectId = project_id
+    table_reference.datasetId = dataset_id
+    table_reference.tableId = table_id
   else:
     table_reference.projectId = project
     table_reference.datasetId = dataset
     table_reference.tableId = table
   return table_reference
+
+
+def _invalid_table_spec(table_spec):
+  return ValueError(
+      'Expected a table reference (PROJECT:DATASET.TABLE, '
+      'PROJECT.DATASET.TABLE, DATASET.TABLE, '
+      'PROJECT:CATALOG.NAMESPACE.TABLE or PROJECT.CATALOG.NAMESPACE.TABLE) '
+      'instead of %s.' % table_spec)
+
+
+def _split_table_spec(table_spec):
+  """Splits a table spec string into (project, dataset, table).
+
+  The regex only validates the character set; segment assignment is done by
+  explicit splitting so that composite Lakehouse dataset ids ('catalog.ns')
+  and domain-scoped project ids ('example.com:proj') are both handled. This
+  mirrors BigQueryHelpers.parseTableSpec in the Java SDK.
+  """
+  pattern = (
+      f'((?P<project>{_PROJECT_PATTERN})[:\\.])?'
+      f'(?P<dataset>{_DATASET_PATTERN})\\.(?P<table>{_TABLE_PATTERN})')
+  if not regex.fullmatch(pattern, table_spec):
+    raise _invalid_table_spec(table_spec)
+
+  # Table ids cannot contain '.', so the table is always the last segment.
+  last_dot = table_spec.rfind('.')
+  table = table_spec[last_dot + 1:]
+  prefix = table_spec[:last_dot]
+
+  colon_count = prefix.count(':')
+  if colon_count == 0:
+    # Purely dotted form: 'p.d.t', 'd.t', 'p.catalog.ns.t'. The leading
+    # segment is the project when it looks like one; dataset ids may contain
+    # characters such as '_' that project ids may not, in which case the
+    # whole prefix is the dataset. The first_dot < len - 1 guard keeps
+    # degenerate trailing-dot specs from producing an empty dataset id.
+    first_dot = prefix.find('.')
+    leading = prefix[:first_dot] if first_dot >= 0 else None
+    if (leading is not None and first_dot < len(prefix) - 1 and
+        regex.fullmatch(_PROJECT_PATTERN, leading)):
+      return leading, prefix[first_dot + 1:], table
+    return None, prefix, table
+
+  if colon_count == 1:
+    # 'p:d.t', 'p:catalog.ns.t', 'example.com:proj.ds.t'. If the part before
+    # the colon is dotted it is the domain half of a legacy domain-scoped
+    # project id; the first segment after the colon completes the project
+    # and any remaining segments are the (possibly composite) dataset.
+    colon = prefix.find(':')
+    project = prefix[:colon]
+    dataset = prefix[colon + 1:]
+    first_dot = dataset.find('.')
+    if (first_dot >= 0 and first_dot < len(dataset) - 1 and '.' in project and
+        regex.fullmatch(_PROJECT_NAME_SEGMENT_PATTERN, dataset[:first_dot])):
+      project = project + ':' + dataset[:first_dot]
+      dataset = dataset[first_dot + 1:]
+    return project, dataset, table
+
+  if colon_count == 2:
+    # The last colon terminates a domain-scoped project id spelled with its
+    # own colon: 'example.com:proj:ds.t' or 'example.com:proj:catalog.ns.t'.
+    last_colon = prefix.rfind(':')
+    return prefix[:last_colon], prefix[last_colon + 1:], table
+
+  # Project ids contain at most one colon, so more than two is never valid.
+  raise _invalid_table_spec(table_spec)
 
 
 # -----------------------------------------------------------------------------
