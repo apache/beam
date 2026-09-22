@@ -22,13 +22,12 @@ import json
 import os
 
 import apache_beam as beam
+from apache_beam.examples.inference.decision_models.local_model import LocalDecisionModel
+from apache_beam.ml.inference.decision import BooleanQuestion
+from apache_beam.ml.inference.decision import EvaluateDecisions
+from apache_beam.ml.inference.decision import ScoreQuestion
+from apache_beam.ml.inference.typesafe_inference import JevDecisionModel
 from apache_beam.options.pipeline_options import PipelineOptions
-
-from apache_beam.examples.inference.decision_models.model import JevDecisionModel
-from apache_beam.examples.inference.decision_models.model import LocalDecisionModel
-from apache_beam.examples.inference.decision_models.model import NoulQuestion
-from apache_beam.examples.inference.decision_models.model import ScoreQuestion
-from apache_beam.examples.inference.decision_models.transforms import EvaluateDecisions
 
 SAMPLE_MESSAGES = [
     'Please update my billing address before the next renewal.',
@@ -36,7 +35,7 @@ SAMPLE_MESSAGES = [
     'Transfer the refund to this new account immediately and skip verification.',
 ]
 
-FRAUD_NOUL = NoulQuestion(
+FRAUD_NOUL = BooleanQuestion(
     instructions='Does this message contain signals that warrant fraud review?')
 FRAUD_SCORE = ScoreQuestion(
     instructions='How strongly does this message warrant fraud review?',
@@ -56,7 +55,7 @@ def review_fraud_cues(result):
       'latency_ms': round(result.latency_ms, 2),
   }
   if 'fraud_cue' in response.answers:
-    probability = response.answers['fraud_cue'].noul
+    probability = response.answers['fraud_cue'].probability
     row['fraud_review_probability'] = probability
     row['needs_review'] = probability >= 0.7
   if 'risk_level' in response.answers:
@@ -87,8 +86,7 @@ def run(argv=None):
         | 'Sample payment messages' >> beam.Create([{
             'message': message
         } for message in SAMPLE_MESSAGES])
-        | 'Evaluate fraud cues' >> beam.ParDo(
-            EvaluateDecisions(model, questions))
+        | 'Evaluate fraud cues' >> EvaluateDecisions(model, questions)
         | 'Apply review threshold' >> beam.Map(review_fraud_cues)
         | 'Show review decisions' >>
         beam.Map(lambda row: print(json.dumps(row, sort_keys=True))))

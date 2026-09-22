@@ -17,47 +17,101 @@
     under the License.
 -->
 
-# Beam decision model examples
+# Beam decision models
 
-These examples connect Beam pipelines to typed decision models. The main
-pipeline uses Choice to route support messages. The fraud pipeline uses Noul
-and optionally Score. `LocalDecisionModel` runs the graph without a network
-call, while `JevDecisionModel` adapts the TypeSafe SDK.
+These examples use the reusable decision primitives in
+`apache_beam.ml.inference.decision`. A model evaluates named, typed questions
+for each Beam element. `EvaluateDecisions` returns the original state,
+normalized answers, provider metadata, and request latency. Policy and sinks
+remain ordinary Beam transforms after evaluation.
+
+## Public API
+
+The core module contains `ChoiceQuestion`, `BooleanQuestion`, and
+`ScoreQuestion`, their typed answers (`ChoiceAnswer`, `BooleanAnswer`, and
+`ScoreAnswer`), the `DecisionModel` ABC, and the `EvaluateDecisions`
+`PTransform`.
+
+| Question | Normalized answer |
+| --- | --- |
+| `ChoiceQuestion(instructions, criteria)` | `ChoiceAnswer.choice`, with optional label probabilities and confidence |
+| `BooleanQuestion(instructions)` | `BooleanAnswer.probability` in `[0, 1]` |
+| `ScoreQuestion(instructions, criteria)` | `ScoreAnswer.score` and `ScoreAnswer.probabilities`, keyed by zero-based integer level, with optional confidence |
+
+`JevDecisionModel` maps `BooleanQuestion` to Jev's `Noul`, returning
+`BooleanAnswer.probability`; a missing confidence is `None`.
+
+`DecisionModel` is the adapter ABC. A subclass implements
+`evaluate(state, questions)` and returns one matching typed answer per named
+question in a `DecisionResponse`. Override `__enter__` and `__exit__` to reuse
+a client, connection pool, or model weights. The transform enters the model
+during DoFn setup and closes it during teardown for each DoFn instance.
+
+`EvaluateDecisions(model, questions)` is a `PTransform` from input states to
+`DecisionResult`. Evaluation is synchronous, timestamps and windows are
+preserved, exceptions propagate to the runner, and request, failure, and
+latency metrics are recorded.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  source["TestStream<br/>or Pub/Sub"] --> decode["Decode JSON event"]
-  decode --> evaluate["EvaluateDecisions<br/>(beam.DoFn)"]
-  evaluate --> result["DecisionResult"]
-  result --> route["route_message<br/>validate Choice + confidence"]
-  route --> sink["JSONL files<br/>or dynamic BigQuery tables"]
-  route --> review["review"]
-  review --> sink
+  input["PCollection[state]"] --> evaluate["EvaluateDecisions(model, questions)<br/>PTransform"]
+  model["DecisionModel adapter"] --> evaluate
+  evaluate --> result["PCollection[DecisionResult]"]
+  result --> policy["route_message<br/>policy and sink selection"]
+  policy --> sink["JSONL files<br/>or BigQuery tables"]
 ```
-
-`EvaluateDecisions` accepts a model and typed questions. `setup` enters the
-model context and `teardown` closes it. Each DoFn instance owns one context.
-For Jev, that context creates one TypeSafe SDK client with a persistent HTTP
-connection pool used across elements and bundles. `process` calls `evaluate`
-synchronously and yields `DecisionResult(state, response, latency_ms)`,
-preserving Beam backpressure without a per-element executor.
-
-`JevDecisionModel` uses a 10 second HTTP operation timeout and the SDK's retry
-behavior. The SDK keepalive default is 5 seconds, and connection reuse follows
-the SDK pool lifecycle.
-
-`route_message` checks that the Choice answer is `billing`, `technical`, or
-`sales`. A missing or low confidence answer goes to `review`. The selected
-destination controls the JSONL file name or BigQuery table name.
 
 ![Rendered Beam message router graph](message_router.svg)
 
+The optional Jev adapter lives in
+`apache_beam.ml.inference.typesafe_inference`; the deterministic
+`LocalDecisionModel` stays in
+`apache_beam.examples.inference.decision_models.local_model`. Both implement
+the same core contract.
+
+## Integration
+
+Questions and events are regular Python values. The model is the only
+provider-specific argument to `EvaluateDecisions`:
+
+```python
+import apache_beam as beam
+
+from apache_beam.ml.inference.decision import ChoiceQuestion
+from apache_beam.ml.inference.decision import EvaluateDecisions
+from apache_beam.examples.inference.decision_models.local_model import (
+    LocalDecisionModel,
+)
+from apache_beam.ml.inference.typesafe_inference import JevDecisionModel
+
+questions = {
+    'team': ChoiceQuestion('Which team should handle this message?', {
+        'billing': 'Invoices', 'technical': 'Technical problems'}),
+}
+
+def select_team(result):
+  return result.response.answers['team'].choice
+
+model = LocalDecisionModel()
+# model = JevDecisionModel()
+
+with beam.Pipeline() as pipeline:
+  events = pipeline | 'Events' >> beam.Create(
+      [{'message': 'The API returns 503 after I rotated my key.'}])
+  decisions = events | 'Evaluate decisions' >> EvaluateDecisions(
+      model, questions)
+  rows = decisions | 'Apply downstream policy' >> beam.Map(select_team)
+```
+
+The downstream policy stays unchanged when swapping adapters. The Jev client
+is optional; install the existing example requirements and set
+`TYPESAFE_API_KEY` when running it.
+
 ## Install
 
-From a Beam checkout, activate a Python virtual environment and install the
-core SDK:
+From a Beam checkout, activate a virtual environment and install the core SDK:
 
 ```sh
 python3 -m pip install -e sdks/python
@@ -70,17 +124,16 @@ python3 -m pip install -r \
   sdks/python/apache_beam/examples/inference/decision_models/requirements.txt
 ```
 
-Install Beam's GCP extra for Pub/Sub or BigQuery, including graph-only renders
-that contain a BigQuery sink:
+Install Beam's GCP extra for Pub/Sub or BigQuery sinks:
 
 ```sh
 python3 -m pip install -e 'sdks/python[gcp]'
 ```
 
-## Main demo: route messages with Choice
+## Run examples
 
-The default source is a three element `TestStream`. The local adapter writes
-one JSONL file per destination:
+The main demo uses a three-element `TestStream` and writes one JSONL file per
+destination:
 
 ```sh
 output_dir="$(mktemp -d /tmp/beam-decision-model-output.XXXXXX)"
@@ -91,11 +144,7 @@ python3 -m apache_beam.examples.inference.decision_models.message_router \
 find "$output_dir" -name '*.jsonl' -print -exec sed -n '1,3p' {} \;
 ```
 
-The checked-in SVG uses Beam's `RenderRunner`. Regenerate it with the
-graph-only command below and a `.svg` path when Graphviz's `dot` is on `PATH`.
-
-Use `--graph-only` to render before the pipeline starts. The sink remains part
-of the graph, so the command includes a BigQuery dataset:
+Render the graph without running the job. The sink stays in the graph:
 
 ```sh
 python3 -m apache_beam.examples.inference.decision_models.message_router \
@@ -105,10 +154,9 @@ python3 -m apache_beam.examples.inference.decision_models.message_router \
   --graph=/tmp/beam-decision-model.svg
 ```
 
-The `.dot` export works without Graphviz. SVG and PNG exports require `dot` on
-`PATH`.
+The `.dot` export works without Graphviz; SVG and PNG require `dot` on `PATH`.
 
-Run the Jev path against the same short stream with `TYPESAFE_API_KEY` set:
+Run the Jev path against the same stream with `TYPESAFE_API_KEY` set:
 
 ```sh
 export TYPESAFE_API_KEY='replace-with-your-key'
@@ -121,7 +169,7 @@ python3 -m apache_beam.examples.inference.decision_models.message_router \
 ```
 
 For a streaming source, provide a Pub/Sub subscription containing JSON objects
-with `event_id` and `message` string fields:
+with `event_id` and `message` fields:
 
 ```sh
 python3 -m apache_beam.examples.inference.decision_models.message_router \
@@ -131,59 +179,49 @@ python3 -m apache_beam.examples.inference.decision_models.message_router \
 ```
 
 With `--bq-dataset=PROJECT:DATASET`, rows go to `messages_billing`,
-`messages_technical`, `messages_sales`, or `messages_review`. Application
-Default Credentials need Pub/Sub subscriber access and permission to create and
-write BigQuery tables. `WriteToBigQuery` uses streaming inserts and appends
-rows. For deployment, add an idempotency key and explicit retry and dead-letter
-policy.
-
-Use `--output-dir` instead of `--bq-dataset` for local JSONL files. A normal
-run accepts exactly one sink option.
-
-## Smaller demo: fraud review with Noul
+`messages_technical`, `messages_sales`, or `messages_review`; `--output-dir`
+writes local JSONL files. A normal run accepts one sink option.
 
 The fraud example prints one JSON row per sample message. Noul supplies the
-probability of a yes answer, and values at or above `0.7` are flagged:
+boolean probability; values at or above `0.7` are flagged:
 
 ```sh
 python3 -m apache_beam.examples.inference.decision_models.fraud_review \
   --model=local --primitive=noul
-```
-
-Add `--primitive=score` for the rubric score, or `--primitive=both` for both
-questions. Run the Jev version with `--model=jev` after setting the key:
-
-```sh
+python3 -m apache_beam.examples.inference.decision_models.fraud_review \
+  --model=local --primitive=both
 python3 -m apache_beam.examples.inference.decision_models.fraud_review \
   --model=jev --primitive=both
 ```
 
-A final three element DirectRunner run returned these values. Beam may print
+A final three-element DirectRunner run returned these values. Beam may print
 the rows in a different order:
 
 | message | Noul probability | Score |
 | --- | ---: | ---: |
-| billing address | 0.45 | 0.86 |
-| duplicate charge | 0.31 | 0.87 |
+| billing address | 0.42 | 0.80 |
+| duplicate charge | 0.32 | 0.85 |
 | bypass verification | 0.97 | 3.00 |
 
 Only the bypass verification message crossed the `0.7` review threshold.
 
-## Measured Jev performance
+## Jev benchmark
 
 These measurements were captured on September 22, 2026 with Jev 1.13.0,
-TypeSafe SDK 0.7.1, and DirectRunner. The final trace used one SDK client, one
-TCP connection, and one TLS handshake for the three events:
+TypeSafe SDK 0.7.1, and DirectRunner. The final trace used exactly one SDK
+client, one TCP connection, and one TLS handshake for three events:
 
 | event | request latency |
 | --- | ---: |
-| billing | 439.72 ms |
-| technical | 169.52 ms |
-| sales | 292.01 ms |
+| billing | 408.27 ms |
+| technical | 217.50 ms |
+| sales | 190.43 ms |
 
-Total pipeline time was `1052.15 ms`, including pipeline construction.
+Total pipeline time was `986.68 ms`, including pipeline construction.
 
-A separate transport experiment compared fresh clients with one pooled client:
+### Standalone transport experiment, September 22, 2026
+
+An earlier standalone experiment compared fresh clients with one pooled client:
 
 | client setup | observations |
 | --- | --- |
@@ -192,8 +230,3 @@ A separate transport experiment compared fresh clients with one pooled client:
 
 The trace showed no TCP/TLS spans on reused calls. Reuse pays connection setup
 once. Warm-call delay is response wait plus network and service time.
-
-Each output row includes `latency_ms`. Provider adapters implement the
-`DecisionModel` protocol with `__enter__`, `__exit__`, and `evaluate`. Laya and
-Kev adapters can implement the same protocol. Beam owns the question flow,
-policy gate, and destination sinks.

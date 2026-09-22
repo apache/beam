@@ -22,18 +22,17 @@ import json
 import os
 
 import apache_beam as beam
+from apache_beam.examples.inference.decision_models.local_model import LocalDecisionModel
 from apache_beam.io import fileio
+from apache_beam.ml.inference.decision import ChoiceQuestion
+from apache_beam.ml.inference.decision import EvaluateDecisions
+from apache_beam.ml.inference.typesafe_inference import JevDecisionModel
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options import StandardOptions
 from apache_beam.runners import render
 from apache_beam.testing.test_stream import TestStream
 from apache_beam.transforms.window import FixedWindows
 from apache_beam.transforms.window import TimestampedValue
-
-from apache_beam.examples.inference.decision_models.model import ChoiceQuestion
-from apache_beam.examples.inference.decision_models.model import JevDecisionModel
-from apache_beam.examples.inference.decision_models.model import LocalDecisionModel
-from apache_beam.examples.inference.decision_models.transforms import EvaluateDecisions
 
 DESTINATIONS = {
     'billing': 'Invoices, charges, payments, and refunds',
@@ -132,8 +131,7 @@ def build_pipeline(pipeline, args):
   model = JevDecisionModel() if args.model == 'jev' else LocalDecisionModel()
   rows = (
       events
-      | 'Ask Choice' >> beam.ParDo(
-          EvaluateDecisions(model, {'destination': QUESTION}))
+      | 'Ask Choice' >> EvaluateDecisions(model, {'destination': QUESTION})
       | 'Select destination' >> beam.Map(route_message, args.min_confidence)
       | 'Window routed messages' >> beam.WindowInto(FixedWindows(60)))
 
@@ -186,6 +184,7 @@ def run(argv=None):
     render_options = render.RenderOptions([
         '--render_output=' + args.graph,
         '--render_leaf_composite_nodes=^Sample stream$',
+        '--render_leaf_composite_nodes=^Ask Choice$',
         '--render_leaf_composite_nodes=^Write routed .*$',
     ])
     render.RenderRunner().run_pipeline(pipeline, render_options)

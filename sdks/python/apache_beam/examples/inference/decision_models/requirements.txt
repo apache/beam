@@ -15,7 +15,5 @@
 # limitations under the License.
 #
 
-# Optional: required only for --model=jev. The local adapter has no extra
-# dependency. Keep this compatible range aligned with the Jev SDK API used by
-# model.py.
+# Optional client for apache_beam.ml.inference.typesafe_inference.
 typesafe-sdk>=0.7.1,<0.8

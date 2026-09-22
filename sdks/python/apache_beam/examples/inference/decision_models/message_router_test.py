@@ -20,9 +20,9 @@
 import unittest
 
 from apache_beam.examples.inference.decision_models.message_router import route_message
-from apache_beam.examples.inference.decision_models.model import ChoiceAnswer
-from apache_beam.examples.inference.decision_models.model import DecisionResponse
-from apache_beam.examples.inference.decision_models.transforms import DecisionResult
+from apache_beam.ml.inference.decision import ChoiceAnswer
+from apache_beam.ml.inference.decision import DecisionResponse
+from apache_beam.ml.inference.decision import DecisionResult
 
 
 def result_for(answer):
