@@ -148,8 +148,7 @@ public class UngroupedWindmillReaderTest {
     NativeReader.NativeReaderIterator<WindowedValue<String>> iter = reader.iterator();
     assertTrue(iter.start());
     assertEquals(
-        WindowedValues.of("hello", new Instant(1), window, PaneInfo.NO_FIRING),
-        iter.getCurrent());
+        WindowedValues.of("hello", new Instant(1), window, PaneInfo.NO_FIRING), iter.getCurrent());
     assertFalse(iter.advance());
   }
 
