@@ -208,5 +208,13 @@ class LogicalTypeCoder(FastCoder):
   def is_deterministic(self):
     return self.representation_coder.is_deterministic()
 
+  def as_deterministic_coder(self, step_label, error_message=None):
+    if self.is_deterministic():
+      return self
+    return LogicalTypeCoder(
+        self.logical_type,
+        self.representation_coder.as_deterministic_coder(
+            step_label, error_message))
+
   def to_type_hint(self):
     return self.logical_type.language_type()
