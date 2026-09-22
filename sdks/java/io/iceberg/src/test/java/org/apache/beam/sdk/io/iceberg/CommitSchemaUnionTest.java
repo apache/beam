@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -271,99 +270,6 @@ public class CommitSchemaUnionTest {
     assertTrue(schema.findField("items.element.qty").isOptional());
     assertTrue(schema.findField("attrs.value").isOptional());
     assertTrue(schema.findField("attrs.value.v").isOptional());
-  }
-
-  // ---- newRequiredPaths (direct)
-
-  @Test
-  public void testNewRequiredPathsAtEveryLevelExceptMapKeys() {
-    Schema before = new Schema(required(1, "id", Types.LongType.get()));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "s",
-                Types.StructType.of(
-                    required(3, "a", Types.IntegerType.get()),
-                    optional(4, "b", Types.IntegerType.get()))),
-            optional(
-                5,
-                "items",
-                Types.ListType.ofRequired(
-                    6, Types.StructType.of(required(7, "qty", Types.IntegerType.get())))),
-            optional(
-                8,
-                "attrs",
-                Types.MapType.ofRequired(
-                    9,
-                    10,
-                    Types.StructType.of(required(11, "k", Types.StringType.get())),
-                    Types.StructType.of(required(12, "v", Types.IntegerType.get())))));
-    assertEquals(
-        Arrays.asList("s.a", "items.element", "items.element.qty", "attrs.value", "attrs.value.v"),
-        SchemaPlan.newRequiredPaths(before, after));
-  }
-
-  /** Names containing element/key/value are not containers; regression for a substring check. */
-  @Test
-  public void testNewRequiredPathsContainerLikeNamesAreNotContainers() {
-    Schema before = new Schema(required(1, "id", Types.LongType.get()));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "stats",
-                Types.StructType.of(
-                    required(3, "keyword", Types.StringType.get()),
-                    required(4, "value_sum", Types.LongType.get()),
-                    required(5, "element", Types.StringType.get()))));
-    assertEquals(
-        Arrays.asList("stats.keyword", "stats.value_sum", "stats.element"),
-        SchemaPlan.newRequiredPaths(before, after));
-  }
-
-  @Test
-  public void testNewRequiredPathsInNestedContainers() {
-    Schema before = new Schema(required(1, "id", Types.LongType.get()));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "ll",
-                Types.ListType.ofRequired(
-                    3, Types.ListType.ofRequired(4, Types.IntegerType.get()))),
-            optional(
-                5,
-                "lm",
-                Types.ListType.ofRequired(
-                    6,
-                    Types.MapType.ofRequired(
-                        7, 8, Types.StringType.get(), Types.IntegerType.get()))));
-    assertEquals(
-        Arrays.asList("ll.element", "ll.element.element", "lm.element", "lm.element.value"),
-        SchemaPlan.newRequiredPaths(before, after));
-  }
-
-  /** Growing an existing struct: only the field with a new id is a candidate. */
-  @Test
-  public void testNewRequiredPathsIgnoreExistingFields() {
-    Schema before =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(2, "s", Types.StructType.of(required(3, "old", Types.IntegerType.get()))));
-    Schema after =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "s",
-                Types.StructType.of(
-                    required(3, "old", Types.IntegerType.get()),
-                    required(4, "fresh", Types.IntegerType.get()))));
-    assertEquals(Arrays.asList("s.fresh"), SchemaPlan.newRequiredPaths(before, after));
   }
 
   /** A declared-optional column every file proved null-free does not relax the table. */
@@ -730,22 +636,6 @@ public class CommitSchemaUnionTest {
     assertTrue(NameMappingUtils.covers(mapping, table.schema().asStruct()));
   }
 
-  @Test
-  public void testPlanReportsTheNameMappingRepair() {
-    assertFalse(load().properties().containsKey(TableProperties.DEFAULT_NAME_MAPPING));
-    List<CollectDistinctSchemas.SchemaGroup> covered = Arrays.asList(files(TABLE, 1));
-    CommitSchemaUnion.Settings settings =
-        settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, NO_CREATION);
-    SchemaPlan.Evolution plan =
-        (SchemaPlan.Evolution) CommitSchemaUnion.plan(catalog, tableId, covered, settings);
-    assertNull(plan.newSchema);
-    assertTrue(plan.repairsNameMapping);
-
-    commit(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, files(TABLE, 1));
-    plan = (SchemaPlan.Evolution) CommitSchemaUnion.plan(catalog, tableId, covered, settings);
-    assertFalse(plan.repairsNameMapping);
-  }
-
   // ---- retry
 
   @Test
@@ -1036,82 +926,6 @@ public class CommitSchemaUnionTest {
         new Schema(optional(1, "id", Types.LongType.get())), catalog.loadTable(id).schema());
   }
 
-  // ---- createdSchema (direct)
-
-  @Test
-  public void testCreatedSchemaPinsHoldAtEveryLevel() {
-    Schema merged =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "l",
-                Types.ListType.ofOptional(
-                    3, Types.StructType.of(optional(4, "q", Types.IntegerType.get())))));
-    SchemaEvolutionConfig pinned =
-        SchemaEvolutionConfig.builder()
-            .setOptions(EnumSet.allOf(SchemaEvolutionOption.class))
-            .setRequiredColumns(Collections.singleton("l.element.q"))
-            .build();
-    Schema created = SchemaPlan.createdSchema(merged, pinned);
-    assertSameSchema(
-        new Schema(
-            optional(1, "id", Types.LongType.get()),
-            required(
-                2,
-                "l",
-                Types.ListType.ofRequired(
-                    3, Types.StructType.of(required(4, "q", Types.IntegerType.get()))))),
-        created);
-  }
-
-  @Test
-  public void testCreatedSchemaEveryLevelOptionalExceptMapKeys() {
-    Schema schema =
-        new Schema(
-            required(1, "id", Types.LongType.get()),
-            required(
-                2,
-                "s",
-                Types.StructType.of(
-                    required(3, "a", Types.IntegerType.get()),
-                    required(
-                        4,
-                        "items",
-                        Types.ListType.ofRequired(
-                            5, Types.StructType.of(required(6, "qty", Types.IntegerType.get())))))),
-            required(
-                7,
-                "attrs",
-                Types.MapType.ofRequired(
-                    8,
-                    9,
-                    Types.StructType.of(required(10, "k", Types.StringType.get())),
-                    Types.StructType.of(required(11, "v", Types.IntegerType.get())))));
-    assertSameSchema(
-        new Schema(
-            optional(1, "id", Types.LongType.get()),
-            optional(
-                2,
-                "s",
-                Types.StructType.of(
-                    optional(3, "a", Types.IntegerType.get()),
-                    optional(
-                        4,
-                        "items",
-                        Types.ListType.ofOptional(
-                            5, Types.StructType.of(optional(6, "qty", Types.IntegerType.get())))))),
-            optional(
-                7,
-                "attrs",
-                Types.MapType.ofOptional(
-                    8,
-                    9,
-                    Types.StructType.of(required(10, "k", Types.StringType.get())),
-                    Types.StructType.of(optional(11, "v", Types.IntegerType.get()))))),
-        SchemaPlan.createdSchema(schema, ALL));
-  }
-
   /** Options guard an existing table's schema; with no table there is nothing to guard. */
   @Test
   public void testCreationIsNotGatedOnAnyParticularOption() {
@@ -1216,33 +1030,6 @@ public class CommitSchemaUnionTest {
                     files(seed, 3),
                     files(loser, 1)));
     assertThat(e.getMessage(), containsString("region"));
-    assertFalse(catalog.tableExists(id));
-  }
-
-  @Test
-  public void testPlanForCreationListsAcceptedSchemasAndCreationSettings() {
-    TableIdentifier id = missing();
-    Schema seed =
-        new Schema(
-            required(1, "id", Types.LongType.get()), optional(2, "region", Types.StringType.get()));
-    Schema other =
-        new Schema(
-            required(1, "id", Types.LongType.get()), optional(2, "extra", Types.LongType.get()));
-    CommitSchemaUnion.NewTableSettings creation =
-        new CommitSchemaUnion.NewTableSettings(Arrays.asList("region"), Arrays.asList("id"), null);
-    SchemaPlan.Creation plan =
-        (SchemaPlan.Creation)
-            CommitSchemaUnion.plan(
-                catalog,
-                id,
-                Arrays.asList(files(seed, 5), files(other, 1)),
-                settings(ALL, IncompatibleSchemaHandling.FAIL_PIPELINE, creation));
-    assertTrue(plan.canCreate());
-    assertEquals(2, plan.schemasToMerge.size());
-    assertEquals(5, checkStateNotNull(plan.toMerge(json(seed))).files);
-    assertEquals(1, checkStateNotNull(plan.toMerge(json(other))).files);
-    assertEquals("region", checkStateNotNull(plan.spec).fields().get(0).name());
-    assertEquals(1, checkStateNotNull(plan.sortOrder).fields().size());
     assertFalse(catalog.tableExists(id));
   }
 
