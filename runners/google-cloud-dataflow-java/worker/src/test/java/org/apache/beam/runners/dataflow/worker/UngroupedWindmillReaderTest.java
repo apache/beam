@@ -25,7 +25,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -105,7 +104,8 @@ public class UngroupedWindmillReaderTest {
     WindowedValue<byte[]> current = iter.getCurrent();
     assertArrayEquals(new byte[0], current.getValue());
     assertEquals(new Instant(0), current.getTimestamp());
-    assertEquals(Collections.singletonList(GlobalWindow.INSTANCE), current.getWindows());
+    assertEquals(
+        ImmutableList.of(GlobalWindow.INSTANCE), ImmutableList.copyOf(current.getWindows()));
     assertEquals(PaneInfo.NO_FIRING, current.getPaneInfo());
     assertFalse(iter.advance());
   }
