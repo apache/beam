@@ -60,7 +60,7 @@ public class RestrictionTrackers {
       this.claimObserver = claimObserver;
     }
 
-    protected void unlock() {
+    protected void updateProgressAndUnlock() {
       try {
         if (needsProgressUpdate) {
           updateProgressBlocking();
@@ -82,7 +82,7 @@ public class RestrictionTrackers {
           return false;
         }
       } finally {
-        unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -92,7 +92,7 @@ public class RestrictionTrackers {
       try {
         return delegate.currentRestriction();
       } finally {
-        unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -101,9 +101,10 @@ public class RestrictionTrackers {
       lock.lock();
       try {
         SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
+        needsProgressUpdate = true;
         return result;
       } finally {
-        unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -113,7 +114,7 @@ public class RestrictionTrackers {
       try {
         delegate.checkDone();
       } finally {
-        unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -127,7 +128,9 @@ public class RestrictionTrackers {
       lock.lock();
       try {
         needsProgressUpdate = false;
-        lastProgress = ((HasProgress) delegate).getProgress();
+        if (delegate instanceof HasProgress) {
+          lastProgress = ((HasProgress) delegate).getProgress();
+        }
       } finally {
         lock.unlock();
       }
