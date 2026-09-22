@@ -133,20 +133,19 @@ public class Transport {
    * guarantees that GCS HTTP metrics are attributed directly to the step that created the channel,
    * even when requests execute on background worker threads.
    *
-   * <p>The counters are exhaustive, so that a report can be checked for consistency:
-   *
    * <ul>
    *   <li>{@code request_count} counts every attempt, retries included, because the request
    *       interceptor runs once per attempt.
-   *   <li>Every attempt ends up in exactly one of {@code status_2xx}, {@code status_3xx}, {@code
-   *       status_4xx}, {@code status_5xx}, {@code status_other} (1xx) or {@code
-   *       request_no_response} (the attempt failed before a response was received, and was either
-   *       retried or propagated). Their sum equals {@code request_count}.
+   *   <li>{@code status_2xx}, {@code status_3xx}, {@code status_4xx}, {@code status_5xx}, {@code
+   *       status_other} (1xx) and {@code request_no_response} add up to {@code request_count} when
+   *       no retries occur. If their sum is smaller than {@code request_count}, it indicates that
+   *       retries happened, as only the final response is recorded while multiple requests are
+   *       counted.
    *   <li>For reads, every attempt is also classified by shape into {@code request_count_ranged} (a
    *       GET with a Range header), {@code request_count_unbounded} (a GET without one) or {@code
    *       request_count_other} (anything that is not a GET, e.g. a batched metadata POST). Their
-   *       sum equals {@code request_count} as well. Writes are not classified this way, they are
-   *       POSTs and PUTs by construction.
+   *       sum equals {@code request_count}. Writes are not classified this way, as they are POSTs
+   *       and PUTs by construction.
    * </ul>
    *
    * <p>Note that {@code request_count_unbounded} counts metadata GETs as well as full object reads,
