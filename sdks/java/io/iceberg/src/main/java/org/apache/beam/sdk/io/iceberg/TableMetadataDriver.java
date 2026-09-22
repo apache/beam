@@ -24,9 +24,9 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.MapCoder;
@@ -67,9 +67,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.exceptions.NoSuchTableException;
@@ -129,9 +126,6 @@ public abstract class TableMetadataDriver
    */
   public abstract @Nullable Integer getPollingBuckets();
 
-  @VisibleForTesting
-  private abstract @Nullable Clock getClock();
-
   public static Builder builder() {
     return new AutoValue_TableMetadataDriver.Builder();
   }
@@ -158,9 +152,6 @@ public abstract class TableMetadataDriver
      * bounding load.
      */
     public abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
-
-    @VisibleForTesting
-    private abstract Builder setClock(@Nullable Clock clock);
 
     abstract TableMetadataDriver autoBuild();
 
@@ -220,20 +211,16 @@ public abstract class TableMetadataDriver
   static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>> asView(
       TableMetadataDriver driver, @Nullable Duration cacheTtl, @Nullable Clock clock) {
     Preconditions.checkNotNull(driver, "driver must not be null");
-    TableMetadataDriver driverToUse =
-        clock != null && driver.getClock() == null
-            ? driver.toBuilder().setClock(clock).build()
-            : driver;
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
         boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
 
-        Duration customInterval = driverToUse.getRefreshInterval();
+        Duration customInterval = driver.getRefreshInterval();
         Duration interval = customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL;
 
         PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
-            input.apply("GenerateTableMetadata", driverToUse);
+            input.apply("GenerateTableMetadata", driver);
 
         if (isStreaming) {
           AccumulateTableMetadataMapDoFn accumulateDoFn =
@@ -278,7 +265,7 @@ public abstract class TableMetadataDriver
                 "ExtractTableIds",
                 ParDo.of(
                     new ExtractTableIdsDoFn(
-                        getDynamicDestinations(), isStreaming ? interval : null, getClock())))
+                        getDynamicDestinations(), isStreaming ? interval : null)))
             .setCoder(StringUtf8Coder.of())
             .apply("MetadataGlobalWindow", Window.into(new GlobalWindows()));
 
@@ -344,35 +331,31 @@ public abstract class TableMetadataDriver
   static class ExtractTableIdsDoFn extends DoFn<Row, String> {
     private static final int DEFAULT_LOCAL_CACHE_MAX_SIZE = 10_000;
 
+    private static volatile @Nullable Clock globalTestClock;
+
     private final DynamicDestinations dynamicDestinations;
     private final @Nullable Duration refreshInterval;
-    private final @Nullable Clock clock;
-    private transient @Nullable Ticker ticker;
-    private transient @Nullable Cache<String, Boolean> localTableIdCache;
+    private transient @Nullable Clock clock;
+    private transient @Nullable LinkedHashMap<String, Long> lastEmittedCache;
 
     ExtractTableIdsDoFn(DynamicDestinations dynamicDestinations) {
-      this(dynamicDestinations, null, null);
+      this(dynamicDestinations, null);
     }
 
     ExtractTableIdsDoFn(
         DynamicDestinations dynamicDestinations, @Nullable Duration refreshInterval) {
-      this(dynamicDestinations, refreshInterval, null);
-    }
-
-    ExtractTableIdsDoFn(
-        DynamicDestinations dynamicDestinations,
-        @Nullable Duration refreshInterval,
-        @Nullable Clock clock) {
       this.dynamicDestinations = dynamicDestinations;
       this.refreshInterval = refreshInterval;
+    }
+
+    @VisibleForTesting
+    void setClock(@Nullable Clock clock) {
       this.clock = clock;
     }
 
     @VisibleForTesting
-    void setTicker(Ticker ticker) {
-      this.ticker = ticker;
-      this.localTableIdCache = null;
-      initCache();
+    static void setGlobalTestClock(@Nullable Clock clock) {
+      globalTestClock = clock;
     }
 
     @Setup
@@ -381,26 +364,26 @@ public abstract class TableMetadataDriver
     }
 
     private void initCache() {
-      if (localTableIdCache == null && refreshInterval != null) {
-        long durationMillis = Math.max(1L, refreshInterval.getMillis() / 2);
-        CacheBuilder<Object, Object> builder =
-            CacheBuilder.newBuilder()
-                .expireAfterWrite(durationMillis, TimeUnit.MILLISECONDS)
-                .maximumSize(DEFAULT_LOCAL_CACHE_MAX_SIZE);
-        if (ticker != null) {
-          builder = builder.ticker(ticker);
-        } else if (clock != null) {
-          builder =
-              builder.ticker(
-                  new Ticker() {
-                    @Override
-                    public long read() {
-                      return TimeUnit.MILLISECONDS.toNanos(clock.currentTimeMillis());
-                    }
-                  });
-        }
-        this.localTableIdCache = builder.build();
+      if (lastEmittedCache == null && refreshInterval != null) {
+        this.lastEmittedCache =
+            new LinkedHashMap<String, Long>(16, 0.75f, true) {
+              @Override
+              protected boolean removeEldestEntry(Map.Entry<String, Long> eldest) {
+                return size() > DEFAULT_LOCAL_CACHE_MAX_SIZE;
+              }
+            };
       }
+    }
+
+    private long getNow() {
+      if (clock != null) {
+        return clock.currentTimeMillis();
+      }
+      Clock global = globalTestClock;
+      if (global != null) {
+        return global.currentTimeMillis();
+      }
+      return System.currentTimeMillis();
     }
 
     @ProcessElement
@@ -413,12 +396,25 @@ public abstract class TableMetadataDriver
       String tableIdentifier =
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
-      if (localTableIdCache != null) {
-        if (localTableIdCache.asMap().putIfAbsent(tableIdentifier, Boolean.TRUE) == null) {
-          out.output(tableIdentifier);
+      if (tableIdentifier != null && !tableIdentifier.trim().isEmpty()) {
+        String canonicalId = tableIdentifier.trim();
+        Map<String, Long> cache = lastEmittedCache;
+        Duration interval = refreshInterval;
+        if (cache == null && interval != null) {
+          initCache();
+          cache = lastEmittedCache;
         }
-      } else {
-        out.output(tableIdentifier);
+        if (cache != null && interval != null) {
+          long now = getNow();
+          Long lastEmitted = cache.get(canonicalId);
+          long minInterval = Math.max(1L, interval.getMillis() / 2);
+          if (lastEmitted == null || (now - lastEmitted) >= minInterval) {
+            cache.put(canonicalId, now);
+            out.output(canonicalId);
+          }
+        } else {
+          out.output(canonicalId);
+        }
       }
     }
   }

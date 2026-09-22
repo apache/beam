@@ -30,7 +30,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.schemas.Schema;
@@ -52,7 +51,6 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.ValueInSingleWindow;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Ticker;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.hadoop.conf.Configuration;
@@ -71,6 +69,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -146,6 +145,13 @@ public class TableMetadataDriverTest implements Serializable {
             .setCatalogName("hadoop")
             .setCatalogProperties(ImmutableMap.of("type", "hadoop", "warehouse", warehouseLocation))
             .build();
+    ControllableTestClock.setTime(1000L);
+    TableMetadataDriver.ExtractTableIdsDoFn.setGlobalTestClock(new ControllableTestClock());
+  }
+
+  @After
+  public void tearDown() {
+    TableMetadataDriver.ExtractTableIdsDoFn.setGlobalTestClock(null);
   }
 
   private Catalog getCatalog() {
@@ -343,7 +349,6 @@ public class TableMetadataDriverTest implements Serializable {
 
     Duration refreshInterval = Duration.standardSeconds(2);
     ControllableTestClock.setTime(1000L);
-    ControllableTestClock testClock = new ControllableTestClock();
 
     Row row1 =
         Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", "default.evolving_table").build();
@@ -393,7 +398,6 @@ public class TableMetadataDriverTest implements Serializable {
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(DYNAMIC_DESTINATIONS)
                 .setRefreshInterval(refreshInterval)
-                .setClock(testClock)
                 .build());
 
     // Downstream consumer transform verifying that updated metadata is received
@@ -1590,26 +1594,14 @@ public class TableMetadataDriverTest implements Serializable {
     pipeline.run();
   }
 
-  static class FakeTicker extends Ticker {
-    private final AtomicLong nanos = new AtomicLong();
-
-    @Override
-    public long read() {
-      return nanos.get();
-    }
-
-    public void advance(Duration duration) {
-      nanos.addAndGet(TimeUnit.MILLISECONDS.toNanos(duration.getMillis()));
-    }
-  }
-
   @Test
   public void testExtractTableIdsCacheExpiration() {
     TableMetadataDriver.ExtractTableIdsDoFn doFn =
         new TableMetadataDriver.ExtractTableIdsDoFn(
             SINGLE_TABLE_DYNAMIC_DESTINATIONS, Duration.standardMinutes(10));
-    FakeTicker ticker = new FakeTicker();
-    doFn.setTicker(ticker);
+    ControllableTestClock testClock = new ControllableTestClock();
+    ControllableTestClock.setTime(1000L);
+    doFn.setClock(testClock);
 
     List<String> outputs = new ArrayList<>();
     DoFn.OutputReceiver<String> receiver =
@@ -1642,8 +1634,8 @@ public class TableMetadataDriverTest implements Serializable {
     doFn.processElement(row2, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
     assertEquals(1, outputs.size());
 
-    // Advance ticker beyond interval / 2 (5 minutes)
-    ticker.advance(Duration.standardMinutes(6));
+    // Advance clock beyond interval / 2 (5 minutes)
+    ControllableTestClock.setTime(1000L + Duration.standardMinutes(6).getMillis());
 
     // Third element arrives after expiration -> should be emitted
     doFn.processElement(row3, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
