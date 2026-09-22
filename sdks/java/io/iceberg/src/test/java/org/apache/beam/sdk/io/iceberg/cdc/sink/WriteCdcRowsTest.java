@@ -1374,7 +1374,7 @@ public class WriteCdcRowsTest {
     IcebergWriteResult result =
         in.apply(
             IcebergIO.writeCdcRows(bogusCatalogConfig()).to(id).withSequenceNumberColumn("seq"));
-    assertNull(result.getFailedRows());
+    assertThrows(IllegalStateException.class, result::getFailedRows);
     assertNotNull(result.getDeadLetterRows());
     assertNotNull(result.getSnapshots());
   }
