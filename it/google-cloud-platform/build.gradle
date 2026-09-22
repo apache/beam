@@ -70,6 +70,12 @@ dependencies {
 
     testImplementation project(path: ":it:common", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:io:google-cloud-platform")
+    testImplementation project(path: ":sdks:java:io:parquet", configuration: "testRuntimeMigration")
+    // CompressionCodecName is needed to configure the ParquetIO sink. parquet-hadoop is only an
+    // "implementation" dependency of :sdks:java:io:parquet, so it is not exposed transitively.
+    // Keep the version in sync with sdks/java/io/parquet/build.gradle.
+    testImplementation "org.apache.parquet:parquet-hadoop:1.15.2"
+    testImplementation project(path: ":sdks:java:extensions:avro", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:extensions:protobuf", configuration: "testRuntimeMigration")
     testImplementation project(path: ":sdks:java:io:synthetic")
     testImplementation library.java.mockito_inline
@@ -83,6 +89,27 @@ tasks.register(
         ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
+// Note: the task always passes 'configuration' down as a system property, so the "local" default in
+// ParquetIOLT itself is never reached through gradle. The default here is therefore the cheap local
+// preset: an accidental `./gradlew :it:google-cloud-platform:ParquetPerformanceTest` must not launch
+// a full scale Dataflow job. Pass an explicit preset (or a json override) for real runs, e.g.
+// -Dconfiguration=large or -Dconfiguration='{"preset":"f100_s16","totalBytes":"10GB"}'.
+tasks.register(
+        "ParquetPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'ParquetIOLT',
+        ['configuration':'local','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
+        + System.properties
+)
+tasks.named("ParquetPerformanceTest") {
+    // A DirectRunner configuration runs the pipeline inside this JVM, and the DirectRunner clones
+    // every element to check that DoFns do not mutate their input. With wide records that doubles
+    // the live set, so the default test heap is not enough. Dataflow runs are unaffected, their
+    // work happens on the workers.
+    maxHeapSize = '8g'
+    // Metrics are printed to stdout (not exported), so make sure they show up in the console.
+    testLogging {
+        showStandardStreams = true
+    }
+}
 tasks.register(
         "BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT',
         ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
