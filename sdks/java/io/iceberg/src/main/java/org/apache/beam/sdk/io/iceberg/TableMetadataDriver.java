@@ -129,6 +129,9 @@ public abstract class TableMetadataDriver
    */
   public abstract @Nullable Integer getPollingBuckets();
 
+  @VisibleForTesting
+  public abstract @Nullable Clock getClock();
+
   public static Builder builder() {
     return new AutoValue_TableMetadataDriver.Builder();
   }
@@ -155,6 +158,9 @@ public abstract class TableMetadataDriver
      * bounding load.
      */
     public abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
+
+    @VisibleForTesting
+    public abstract Builder setClock(@Nullable Clock clock);
 
     abstract TableMetadataDriver autoBuild();
 
@@ -214,16 +220,20 @@ public abstract class TableMetadataDriver
   static PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>> asView(
       TableMetadataDriver driver, @Nullable Duration cacheTtl, @Nullable Clock clock) {
     Preconditions.checkNotNull(driver, "driver must not be null");
+    TableMetadataDriver driverToUse =
+        clock != null && driver.getClock() == null
+            ? driver.toBuilder().setClock(clock).build()
+            : driver;
     return new PTransform<PCollection<Row>, PCollectionView<Map<String, SerializableTableSpec>>>() {
       @Override
       public PCollectionView<Map<String, SerializableTableSpec>> expand(PCollection<Row> input) {
         boolean isStreaming = input.isBounded() == PCollection.IsBounded.UNBOUNDED;
 
-        Duration customInterval = driver.getRefreshInterval();
+        Duration customInterval = driverToUse.getRefreshInterval();
         Duration interval = customInterval != null ? customInterval : DEFAULT_REFRESH_INTERVAL;
 
         PCollection<KV<String, @Nullable SerializableTableSpec>> specs =
-            input.apply("GenerateTableMetadata", driver);
+            input.apply("GenerateTableMetadata", driverToUse);
 
         if (isStreaming) {
           AccumulateTableMetadataMapDoFn accumulateDoFn =
@@ -268,7 +278,7 @@ public abstract class TableMetadataDriver
                 "ExtractTableIds",
                 ParDo.of(
                     new ExtractTableIdsDoFn(
-                        getDynamicDestinations(), isStreaming ? interval : null)))
+                        getDynamicDestinations(), isStreaming ? interval : null, getClock())))
             .setCoder(StringUtf8Coder.of())
             .apply("MetadataGlobalWindow", Window.into(new GlobalWindows()));
 
@@ -336,17 +346,26 @@ public abstract class TableMetadataDriver
 
     private final DynamicDestinations dynamicDestinations;
     private final @Nullable Duration refreshInterval;
+    private final @Nullable Clock clock;
     private transient @Nullable Ticker ticker;
     private transient @Nullable Cache<String, Boolean> localTableIdCache;
 
     ExtractTableIdsDoFn(DynamicDestinations dynamicDestinations) {
-      this(dynamicDestinations, null);
+      this(dynamicDestinations, null, null);
     }
 
     ExtractTableIdsDoFn(
         DynamicDestinations dynamicDestinations, @Nullable Duration refreshInterval) {
+      this(dynamicDestinations, refreshInterval, null);
+    }
+
+    ExtractTableIdsDoFn(
+        DynamicDestinations dynamicDestinations,
+        @Nullable Duration refreshInterval,
+        @Nullable Clock clock) {
       this.dynamicDestinations = dynamicDestinations;
       this.refreshInterval = refreshInterval;
+      this.clock = clock;
     }
 
     @VisibleForTesting
@@ -370,6 +389,15 @@ public abstract class TableMetadataDriver
                 .maximumSize(DEFAULT_LOCAL_CACHE_MAX_SIZE);
         if (ticker != null) {
           builder = builder.ticker(ticker);
+        } else if (clock != null) {
+          builder =
+              builder.ticker(
+                  new Ticker() {
+                    @Override
+                    public long read() {
+                      return TimeUnit.MILLISECONDS.toNanos(clock.currentTimeMillis());
+                    }
+                  });
         }
         this.localTableIdCache = builder.build();
       }
