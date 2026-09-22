@@ -94,8 +94,11 @@ def sickbayTests = [
         'org.apache.beam.sdk.transforms.ReshuffleTest.testReshufflePreservesMetadata',
 ]
 
-def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests) {
+def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, ArrayList<String> sickbayTests, boolean structuredStreaming = false) {
   def pipelineOptions = []
+  if (structuredStreaming) {
+    pipelineOptions += "--useStructuredStreaming"
+  }
   def testCategories
   def testFilter
 
@@ -243,6 +246,9 @@ def portableValidatesRunnerTask(String name, boolean streaming, boolean docker, 
 project.ext.validatesPortableRunnerDocker= portableValidatesRunnerTask("Docker", false, true, sickbayTests)
 project.ext.validatesPortableRunnerBatch = portableValidatesRunnerTask("Batch", false, false, sickbayTests)
 project.ext.validatesPortableRunnerStreaming = portableValidatesRunnerTask("Streaming", true, false, sickbayTests)
+// Structured Streaming variant of the streaming suite: same tests and exclusions, run on the
+// Dataset-based backend. It is the exit gate for making that backend the streaming default.
+project.ext.validatesPortableRunnerStructuredStreaming = portableValidatesRunnerTask("StructuredStreaming", true, false, sickbayTests, true)
 
 tasks.register("validatesPortableRunner") {
   dependsOn validatesPortableRunnerDocker
@@ -284,7 +290,7 @@ def sparkJobServerJvmArgs() {
 }
 
 // TestPortableRunner starts SparkJobServerDriver in-process in the test JVM.
-['validatesPortableRunnerDocker', 'validatesPortableRunnerBatch', 'validatesPortableRunnerStreaming'].each { taskName ->
+['validatesPortableRunnerDocker', 'validatesPortableRunnerBatch', 'validatesPortableRunnerStreaming', 'validatesPortableRunnerStructuredStreaming'].each { taskName ->
   tasks.named(taskName) {
     jvmArgs += sparkJobServerJvmArgs()
   }
