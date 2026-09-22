@@ -591,6 +591,26 @@
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
+# Bigtable CDC
+- type: renaming
+  transforms:
+    'ReadFromBigtableCDC': 'ReadFromBigtableCDC'
+  config:
+    mappings:
+      'ReadFromBigtableCDC':
+        project: 'project_id'
+        instance: 'instance_id'
+        table: 'table_id'
+        app_profile: 'app_profile_id'
+        start_at: 'start_at_timestamp'
+        change_stream: 'change_stream_name'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'ReadFromBigtableCDC': 'beam:schematransform:org.apache.beam:bigtable_cdc_read:v1'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
+
 #IcebergCDC
 - type: renaming
   transforms:

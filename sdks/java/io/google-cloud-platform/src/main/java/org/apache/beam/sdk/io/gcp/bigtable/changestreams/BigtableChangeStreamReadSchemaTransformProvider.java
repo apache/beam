@@ -249,7 +249,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
     }
   }
 
-  private static Row mutationToRow(ChangeStreamMutation mutation) {
+  static Row mutationToRow(ChangeStreamMutation mutation) {
     List<Row> entries = new ArrayList<>();
 
     for (Entry entry : mutation.getEntries()) {
@@ -268,7 +268,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .build();
   }
 
-  private static Row entryToRow(Entry entry) {
+  static Row entryToRow(Entry entry) {
     if (entry instanceof SetCell) {
       SetCell setCell = (SetCell) entry;
 
@@ -353,7 +353,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         "Unsupported Bigtable change stream entry: " + entry.getClass().getName());
   }
 
-  private static Row timestampRangeToRow(Range.TimestampRange range) {
+  static Row timestampRangeToRow(Range.TimestampRange range) {
     @Nullable Long startTimestampMicros =
         range.getStartBound() == Range.BoundType.UNBOUNDED ? null : range.getStart();
 
@@ -368,7 +368,7 @@ public class BigtableChangeStreamReadSchemaTransformProvider
         .build();
   }
 
-  private static Row valueToRow(Value value) {
+  static Row valueToRow(Value value) {
     switch (value.getValueType()) {
       case Int64:
         return Row.withSchema(VALUE_SCHEMA)

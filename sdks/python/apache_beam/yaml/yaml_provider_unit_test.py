@@ -75,6 +75,15 @@ class WindowIntoTest(unittest.TestCase):
       self.parse_duration('s', 'size')
 
 
+class StandardProvidersTest(unittest.TestCase):
+
+  def test_bigtable_cdc_provider_is_registered(self):
+    providers = yaml_provider.standard_providers()
+
+    self.assertIn('ReadFromBigtableCDC', providers)
+    self.assertTrue(providers['ReadFromBigtableCDC'])
+
+
 class ProviderParsingTest(unittest.TestCase):
 
   INLINE_PROVIDER = {'type': 'TEST', 'name': 'INLINED'}
