@@ -295,11 +295,10 @@ class YamlTransformE2ETest(unittest.TestCase):
       pd.testing.assert_frame_equal(data, result)
 
   def test_circular_reference_validation(self):
-    # pylint: disable=expression-not-assigned
     with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
-        p | YamlTransform(
+        _ = p | YamlTransform(
             '''
                 type: composite
                 transforms:
@@ -318,11 +317,10 @@ class YamlTransformE2ETest(unittest.TestCase):
             providers=TEST_PROVIDERS)
 
   def test_circular_reference_multi_inputs_validation(self):
-    # pylint: disable=expression-not-assigned
     with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
-        p | YamlTransform(
+        _ = p | YamlTransform(
             '''
                   type: composite
                   transforms:
@@ -362,11 +360,10 @@ class YamlTransformE2ETest(unittest.TestCase):
       assert_that(result, equal_to([0, 1, 9, 16]))
 
   def test_name_is_ambiguous(self):
-    # pylint: disable=expression-not-assigned
     with self.assertRaisesRegex(ValueError, r'Circular reference detected.*'):
       with beam.Pipeline(options=beam.options.pipeline_options.PipelineOptions(
           pickle_library='cloudpickle')) as p:
-        p | YamlTransform(
+        _ = p | YamlTransform(
             '''
             type: composite
             transforms:
