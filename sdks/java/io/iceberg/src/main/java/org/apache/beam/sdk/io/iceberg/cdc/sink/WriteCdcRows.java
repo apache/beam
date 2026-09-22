@@ -20,6 +20,8 @@ package org.apache.beam.sdk.io.iceberg.cdc.sink;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
 import com.google.auto.value.AutoValue;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -214,7 +216,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * {@link #withShardsPerPartition} cap.
    */
   public WriteCdcRows withEqualityColumns(List<String> columns) {
-    return toBuilder().setEqualityColumns(columns).build();
+    return toBuilder().setEqualityColumns(ImmutableList.copyOf(columns)).build();
   }
 
   /**
@@ -242,7 +244,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * #withChangeTypeColumn} to also be set.
    */
   public WriteCdcRows withChangeTypeMap(Map<String, String> changeTypeMap) {
-    return toBuilder().setChangeTypeMap(changeTypeMap).build();
+    return toBuilder().setChangeTypeMap(ImmutableMap.copyOf(changeTypeMap)).build();
   }
 
   /**
@@ -328,7 +330,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * rejected at construction.
    */
   public WriteCdcRows withSnapshotProperties(Map<String, String> snapshotProperties) {
-    return toBuilder().setSnapshotProperties(snapshotProperties).build();
+    return toBuilder().setSnapshotProperties(ImmutableMap.copyOf(snapshotProperties)).build();
   }
 
   /**
