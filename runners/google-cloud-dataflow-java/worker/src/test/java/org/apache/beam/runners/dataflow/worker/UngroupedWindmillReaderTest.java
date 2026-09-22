@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.runners.dataflow.util.CloudObject;
 import org.apache.beam.runners.dataflow.util.PropertyNames;
 import org.apache.beam.runners.dataflow.worker.util.common.worker.NativeReader;
@@ -41,6 +42,8 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow.IntervalWindowCod
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo.PaneInfoCoder;
 import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.sdk.values.CausedByDrain;
+import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.ByteString;
@@ -145,7 +148,63 @@ public class UngroupedWindmillReaderTest {
     NativeReader.NativeReaderIterator<WindowedValue<String>> iter = reader.iterator();
     assertTrue(iter.start());
     assertEquals(
-        WindowedValues.of("hello", new Instant(1), window, PaneInfo.NO_FIRING), iter.getCurrent());
+        WindowedValues.of("hello", new Instant(1), window, PaneInfo.NO_FIRING),
+        iter.getCurrent());
     assertFalse(iter.advance());
+  }
+
+  @Test
+  public void testReadWithAdditionalMetadata() throws Exception {
+    WindowedValues.WindowedValueCoder.setMetadataSupported();
+    try {
+      IntervalWindow window = new IntervalWindow(new Instant(0), new Instant(10000));
+      WindowedValues.FullWindowedValueCoder<String> windowedValueCoder =
+          WindowedValues.getFullCoder(StringUtf8Coder.of(), IntervalWindow.getCoder());
+      ByteString metadata =
+          WindmillSink.encodeMetadata(
+              windowedValueCoder.getWindowsCoder(),
+              ImmutableList.of(window),
+              PaneInfo.NO_FIRING,
+              BeamFnApi.Elements.ElementMetadata.newBuilder()
+                  .setDrain(BeamFnApi.Elements.DrainMode.Enum.DRAINING)
+                  .setValueKind(BeamFnApi.Elements.ValueKind.Enum.DELETE)
+                  .build());
+      when(mockContext.getWorkItem())
+          .thenReturn(
+              Windmill.WorkItem.newBuilder()
+                  .setKey(ByteString.copyFromUtf8("key"))
+                  .setWorkToken(0)
+                  .addMessageBundles(
+                      Windmill.InputMessageBundle.newBuilder()
+                          .setSourceComputationId("stream")
+                          .addMessages(
+                              Windmill.Message.newBuilder()
+                                  .setTimestamp(1000)
+                                  .setData(ByteString.copyFromUtf8("hello"))
+                                  .setMetadata(metadata)))
+                  .build());
+
+      Map<String, Object> spec = new HashMap<>();
+      spec.put(PropertyNames.OBJECT_TYPE_NAME, "UngroupedWindmillReader");
+      CloudObject cloudSourceSpec = CloudObject.fromSpec(spec);
+      UngroupedWindmillReader.Factory factory = new UngroupedWindmillReader.Factory();
+      @SuppressWarnings("unchecked")
+      UngroupedWindmillReader<String> reader =
+          (UngroupedWindmillReader<String>)
+              factory.create(cloudSourceSpec, windowedValueCoder, null, mockContext, null);
+
+      NativeReader.NativeReaderIterator<WindowedValue<String>> iter = reader.iterator();
+      assertTrue(iter.start());
+      WindowedValue<String> current = iter.getCurrent();
+      assertEquals("hello", current.getValue());
+      assertEquals(new Instant(1), current.getTimestamp());
+      assertEquals(ImmutableList.of(window), ImmutableList.copyOf(current.getWindows()));
+      assertEquals(PaneInfo.NO_FIRING.withElementMetadata(true), current.getPaneInfo());
+      assertEquals(CausedByDrain.CAUSED_BY_DRAIN, current.causedByDrain());
+      assertEquals(ValueKind.DELETE, current.getValueKind());
+      assertFalse(iter.advance());
+    } finally {
+      WindowedValues.WindowedValueCoder.setMetadataNotSupported();
+    }
   }
 }
