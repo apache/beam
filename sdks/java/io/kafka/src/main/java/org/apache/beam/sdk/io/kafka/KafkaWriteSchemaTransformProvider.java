@@ -389,8 +389,8 @@ public class KafkaWriteSchemaTransformProvider
     public abstract String getSchema();
 
     @SchemaFieldDescription(
-        "Whether to use Google Cloud Platform Application Default Credentials (ADC) for"
-            + " authenticating with a Google Managed Kafka cluster.")
+        "Whether to use Google Application Default Credentials (ADC) for authenticating with a "
+            + "Google Managed Kafka cluster.")
     @SchemaFieldNumber("8")
     @Nullable
     public abstract Boolean getWithGcpAdc();

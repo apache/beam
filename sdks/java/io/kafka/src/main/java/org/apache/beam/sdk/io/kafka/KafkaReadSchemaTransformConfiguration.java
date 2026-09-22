@@ -199,8 +199,8 @@ public abstract class KafkaReadSchemaTransformConfiguration {
   public abstract Boolean getRedistributeByRecordKey();
 
   @SchemaFieldDescription(
-      "Whether to use Google Cloud Platform Application Default Credentials (ADC) for"
-          + " authenticating with a Google Managed Kafka cluster.")
+      "Whether to use Google Application Default Credentials (ADC) for authenticating with a "
+          + "Google Managed Kafka cluster.")
   @SchemaFieldNumber("17")
   @Nullable
   public abstract Boolean getWithGcpAdc();
