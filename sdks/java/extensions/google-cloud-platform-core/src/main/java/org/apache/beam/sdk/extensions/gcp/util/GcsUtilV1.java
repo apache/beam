@@ -67,6 +67,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -235,6 +236,8 @@ class GcsUtilV1 {
 
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
+  private final ConcurrentHashMap<MetricsContainer, GoogleCloudStorage> readStorageByContainer =
+      new ConcurrentHashMap<>();
 
   private final int rewriteDataOpBatchLimit;
 
@@ -644,14 +647,22 @@ class GcsUtilV1 {
       if (gcsCountersOptions.getPerformanceMetricsEnabled()) {
         container = MetricsEnvironment.getCurrentContainer();
         if (container != null) {
-          HttpRequestInitializer scopedInitializer =
-              Transport.withMetricsContainer(this.httpRequestInitializer, container, false);
           gcpStorage =
-              createGoogleCloudStorage(
-                  googleCloudStorageOptions,
-                  this.storageClient,
-                  this.credentials,
-                  scopedInitializer);
+              readStorageByContainer.computeIfAbsent(
+                  container,
+                  c -> {
+                    HttpRequestInitializer scopedInitializer =
+                        Transport.withMetricsContainer(this.httpRequestInitializer, c, false);
+                    try {
+                      return createGoogleCloudStorage(
+                          googleCloudStorageOptions,
+                          this.storageClient,
+                          this.credentials,
+                          scopedInitializer);
+                    } catch (IOException e) {
+                      throw new RuntimeException(e);
+                    }
+                  });
         }
       }
       SeekableByteChannel channel =
