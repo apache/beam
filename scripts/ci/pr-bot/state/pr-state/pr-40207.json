@@ -1,0 +1,15 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "claudevdm",
+    "java": "kennknowles",
+    "build": "damccorm",
+    "website": "kennknowles",
+    "bigtable": "igorbernstein2"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false,
+  "reviewersAssignedAt": 1790037737239
+}
