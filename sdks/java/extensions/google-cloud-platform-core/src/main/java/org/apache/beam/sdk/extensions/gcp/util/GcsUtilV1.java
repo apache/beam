@@ -67,7 +67,6 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -98,6 +97,9 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -236,8 +238,17 @@ class GcsUtilV1 {
 
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
-  private final ConcurrentHashMap<MetricsContainer, GoogleCloudStorage> readStorageByContainer =
-      new ConcurrentHashMap<>();
+  private final Cache<MetricsContainer, GoogleCloudStorage> readStorageByContainer =
+      CacheBuilder.newBuilder()
+          .weakKeys()
+          .removalListener(
+              (RemovalNotification<MetricsContainer, GoogleCloudStorage> notification) -> {
+                GoogleCloudStorage storage = notification.getValue();
+                if (storage != null) {
+                  storage.close();
+                }
+              })
+          .build();
 
   private final int rewriteDataOpBatchLimit;
 
@@ -647,22 +658,27 @@ class GcsUtilV1 {
       if (gcsCountersOptions.getPerformanceMetricsEnabled()) {
         container = MetricsEnvironment.getCurrentContainer();
         if (container != null) {
-          gcpStorage =
-              readStorageByContainer.computeIfAbsent(
-                  container,
-                  c -> {
-                    HttpRequestInitializer scopedInitializer =
-                        Transport.withMetricsContainer(this.httpRequestInitializer, c, false);
-                    try {
+          final MetricsContainer currentContainer = container;
+          try {
+            gcpStorage =
+                readStorageByContainer.get(
+                    currentContainer,
+                    () -> {
+                      HttpRequestInitializer scopedInitializer =
+                          Transport.withMetricsContainer(
+                              this.httpRequestInitializer, currentContainer, false);
                       return createGoogleCloudStorage(
                           googleCloudStorageOptions,
                           this.storageClient,
                           this.credentials,
                           scopedInitializer);
-                    } catch (IOException e) {
-                      throw new RuntimeException(e);
-                    }
-                  });
+                    });
+          } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException) {
+              throw (IOException) e.getCause();
+            }
+            throw new IOException(e);
+          }
         }
       }
       SeekableByteChannel channel =
