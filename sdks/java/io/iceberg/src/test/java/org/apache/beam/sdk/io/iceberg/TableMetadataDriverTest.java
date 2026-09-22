@@ -125,6 +125,19 @@ public class TableMetadataDriverTest implements Serializable {
         }
       };
 
+  static class ControllableTestClock implements TableMetadataDriver.Clock {
+    private static final AtomicLong CURRENT_TIME = new AtomicLong(0L);
+
+    public static void setTime(long millis) {
+      CURRENT_TIME.set(millis);
+    }
+
+    @Override
+    public long currentTimeMillis() {
+      return CURRENT_TIME.get();
+    }
+  }
+
   @Before
   public void setUp() throws Exception {
     warehouseLocation = "file:" + tempFolder.newFolder().getAbsolutePath();
@@ -328,6 +341,10 @@ public class TableMetadataDriverTest implements Serializable {
     TableIdentifier tableId = TableIdentifier.of("default", "evolving_table");
     catalog.createTable(tableId, ICEBERG_SCHEMA);
 
+    Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
+
     Row row1 =
         Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", "default.evolving_table").build();
     Row row2 =
@@ -354,6 +371,7 @@ public class TableMetadataDriverTest implements Serializable {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
                         if ("trigger_update".equals(row.getString("data"))) {
+                          ControllableTestClock.setTime(5000L);
                           Table table =
                               catalogConfig
                                   .catalog()
@@ -374,7 +392,8 @@ public class TableMetadataDriverTest implements Serializable {
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(DYNAMIC_DESTINATIONS)
-                .setRefreshInterval(Duration.standardSeconds(2))
+                .setRefreshInterval(refreshInterval)
+                .setClock(testClock)
                 .build());
 
     // Downstream consumer transform verifying that updated metadata is received
@@ -405,6 +424,10 @@ public class TableMetadataDriverTest implements Serializable {
     catalog.createTable(tableId, ICEBERG_SCHEMA);
 
     String tableIdStr = "default.evolving_side_input_table";
+    Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
+
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", tableIdStr).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "trigger_update", tableIdStr).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "post_update_data", tableIdStr).build();
@@ -429,7 +452,9 @@ public class TableMetadataDriverTest implements Serializable {
                     new DoFn<Row, Row>() {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
-                        if ("trigger_update".equals(row.getString("data"))) {
+                        String data = row.getString("data");
+                        if ("trigger_update".equals(data)) {
+                          ControllableTestClock.setTime(5000L);
                           Table table =
                               catalogConfig
                                   .catalog()
@@ -440,6 +465,8 @@ public class TableMetadataDriverTest implements Serializable {
                               .updateSchema()
                               .addColumn("new_col", Types.StringType.get())
                               .commit();
+                        } else if ("post_update_data".equals(data)) {
+                          ControllableTestClock.setTime(10000L);
                         }
                         out.output(row);
                       }
@@ -449,12 +476,13 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.builder()
-                .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
-                .setRefreshInterval(Duration.standardSeconds(2))
-                .build()
-                .asView());
+            TableMetadataDriver.asView(
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                    .setRefreshInterval(refreshInterval)
+                    .build(),
+                testClock));
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -497,6 +525,9 @@ public class TableMetadataDriverTest implements Serializable {
 
     String tableAStr = "default.multi_table_a";
     String tableBStr = "default.multi_table_b";
+    Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
 
     Row rowSeedA = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_a", tableAStr).build();
     Row rowSeedB = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_b", tableBStr).build();
@@ -530,6 +561,7 @@ public class TableMetadataDriverTest implements Serializable {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
                         if ("trigger_update_a".equals(row.getString("data"))) {
+                          ControllableTestClock.setTime(5000L);
                           Table table =
                               catalogConfig
                                   .catalog()
@@ -548,12 +580,13 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.builder()
-                .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
-                .setRefreshInterval(Duration.standardSeconds(2))
-                .build()
-                .asView());
+            TableMetadataDriver.asView(
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                    .setRefreshInterval(refreshInterval)
+                    .build(),
+                testClock));
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -1239,19 +1272,6 @@ public class TableMetadataDriverTest implements Serializable {
     assertEquals(1, mergedAB.get("table").getSchemaId());
     assertEquals(1, mergedBA.get("table").getSchemaId());
     assertEquals(mergedAB, mergedBA);
-  }
-
-  static class ControllableTestClock implements TableMetadataDriver.Clock {
-    private static final AtomicLong CURRENT_TIME = new AtomicLong(0L);
-
-    public static void setTime(long millis) {
-      CURRENT_TIME.set(millis);
-    }
-
-    @Override
-    public long currentTimeMillis() {
-      return CURRENT_TIME.get();
-    }
   }
 
   @Test

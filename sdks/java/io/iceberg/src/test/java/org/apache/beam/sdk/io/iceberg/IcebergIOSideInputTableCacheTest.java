@@ -607,6 +607,12 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
             catalogConfig.catalog().loadTable(IcebergUtils.parseTableIdentifier(tableIdString));
         if (table.spec().isUnpartitioned()) {
           table.updateSpec().addField("city").commit();
+          // Ensure worker-local table ID cache TTL (interval / 2 = 500ms) has elapsed
+          try {
+            Thread.sleep(600);
+          } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
       out.output(row);
