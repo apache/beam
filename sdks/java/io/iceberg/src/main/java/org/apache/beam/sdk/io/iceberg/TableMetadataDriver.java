@@ -130,7 +130,7 @@ public abstract class TableMetadataDriver
   public abstract @Nullable Integer getPollingBuckets();
 
   @VisibleForTesting
-  public abstract @Nullable Clock getClock();
+  private abstract @Nullable Clock getClock();
 
   public static Builder builder() {
     return new AutoValue_TableMetadataDriver.Builder();
@@ -160,7 +160,7 @@ public abstract class TableMetadataDriver
     public abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
 
     @VisibleForTesting
-    public abstract Builder setClock(@Nullable Clock clock);
+    private abstract Builder setClock(@Nullable Clock clock);
 
     abstract TableMetadataDriver autoBuild();
 
@@ -413,18 +413,12 @@ public abstract class TableMetadataDriver
       String tableIdentifier =
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
-      if (tableIdentifier != null && !tableIdentifier.trim().isEmpty()) {
-        String canonicalId = tableIdentifier.trim();
-        if (localTableIdCache == null && refreshInterval != null) {
-          initCache();
+      if (localTableIdCache != null) {
+        if (localTableIdCache.asMap().putIfAbsent(tableIdentifier, Boolean.TRUE) == null) {
+          out.output(tableIdentifier);
         }
-        if (localTableIdCache != null) {
-          if (localTableIdCache.asMap().putIfAbsent(canonicalId, Boolean.TRUE) == null) {
-            out.output(canonicalId);
-          }
-        } else {
-          out.output(canonicalId);
-        }
+      } else {
+        out.output(tableIdentifier);
       }
     }
   }

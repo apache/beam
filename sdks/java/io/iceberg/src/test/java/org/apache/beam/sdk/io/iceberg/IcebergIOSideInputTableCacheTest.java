@@ -609,7 +609,7 @@ public class IcebergIOSideInputTableCacheTest implements Serializable {
           table.updateSpec().addField("city").commit();
           // Ensure worker-local table ID cache TTL (interval / 2 = 500ms) has elapsed
           try {
-            Thread.sleep(600);
+            Thread.sleep(700);
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
           }
