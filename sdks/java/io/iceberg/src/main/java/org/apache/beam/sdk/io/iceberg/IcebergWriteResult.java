@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.Map;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
@@ -75,11 +77,11 @@ public final class IcebergWriteResult implements POutput {
    * change for those keys has committed; a stale replay's equality delete removes the newer row.
    *
    * @return the dead-letter {@code PCollection<Row>} for results produced by {@code
-   *     IcebergIO.writeCdcRows}/{@link #cdc}, or {@code null} for results produced by the
-   *     append-only sink ({@code IcebergIO.writeRows}), which has no dead-letter output.
+   *     IcebergIO.writeCdcRows}/{@link #cdc}. Throws when attempting to retrieve it for the
+   *     append-only sink ({@code IcebergIO.writeRows}) as has no dead-letter output.
    */
-  public @Nullable PCollection<Row> getDeadLetterRows() {
-    return deadLetterRows;
+  public PCollection<Row> getDeadLetterRows() {
+    return checkStateNotNull(deadLetterRows);
   }
 
   /**
@@ -88,11 +90,11 @@ public final class IcebergWriteResult implements POutput {
    * {@link org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling}). Distinct from {@link
    * #getDeadLetterRows()} (which carries late-but-valid records).
    *
-   * @return the failed-rows {@code PCollection<Row>}, or {@code null} when error handling was not
-   *     enabled (or for the append-only sink).
+   * @return the failed-rows {@code PCollection<Row>} if error handling was enabled for the CDC
+   *     sink. Will throw otherwise.
    */
-  public @Nullable PCollection<Row> getFailedRows() {
-    return failedRows;
+  public PCollection<Row> getFailedRows() {
+    return checkStateNotNull(failedRows);
   }
 
   IcebergWriteResult(Pipeline pipeline, PCollection<KV<String, SnapshotInfo>> snapshots) {
