@@ -1,9 +1,14 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "python": "tvalentyn",
+    "java": "ahmedabu98",
+    "yaml": "derrickaw",
+    "iceberg": "ahmedabu98"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false,
-  "reviewersAssignedAt": 0
+  "reviewersAssignedAt": 1790079782235
 }
