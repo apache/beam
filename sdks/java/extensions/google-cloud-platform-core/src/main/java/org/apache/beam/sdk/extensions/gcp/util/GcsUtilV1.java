@@ -50,6 +50,7 @@ import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.hadoop.util.ResilientOperation;
 import com.google.cloud.hadoop.util.RetryDeterminer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.channels.SeekableByteChannel;
@@ -85,13 +86,20 @@ import org.apache.beam.sdk.extensions.gcp.util.channels.CountingWritableByteChan
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
+import org.apache.beam.sdk.metrics.Counter;
+import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.Metrics;
+import org.apache.beam.sdk.metrics.MetricsContainer;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.DefaultValueFactory;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.sdk.util.MoreFutures;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.RemovalNotification;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
@@ -107,11 +115,19 @@ import org.slf4j.LoggerFactory;
 })
 class GcsUtilV1 {
 
+  /** Describes which GCS counters this {@link GcsUtilV1} emits. */
   @AutoValue
   public abstract static class GcsCountersOptions {
     public abstract @Nullable String getReadCounterPrefix();
 
     public abstract @Nullable String getWriteCounterPrefix();
+
+    /**
+     * Whether to emit the {@code gcs_*} performance counters, which are reported under {@link
+     * GcsUtil#METRIC_NAMESPACE} and are not per bucket. Set from {@link
+     * GcsOptions#getGcsPerformanceMetrics()}.
+     */
+    public abstract boolean getPerformanceMetricsEnabled();
 
     public boolean hasAnyPrefix() {
       return getWriteCounterPrefix() != null || getReadCounterPrefix() != null;
@@ -119,7 +135,15 @@ class GcsUtilV1 {
 
     public static GcsCountersOptions create(
         @Nullable String readCounterPrefix, @Nullable String writeCounterPrefix) {
-      return new AutoValue_GcsUtilV1_GcsCountersOptions(readCounterPrefix, writeCounterPrefix);
+      return create(readCounterPrefix, writeCounterPrefix, false);
+    }
+
+    public static GcsCountersOptions create(
+        @Nullable String readCounterPrefix,
+        @Nullable String writeCounterPrefix,
+        boolean performanceMetricsEnabled) {
+      return new AutoValue_GcsUtilV1_GcsCountersOptions(
+          readCounterPrefix, writeCounterPrefix, performanceMetricsEnabled);
     }
   }
 
@@ -153,7 +177,8 @@ class GcsUtilV1 {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null),
+                  : null,
+              Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics())),
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
   }
@@ -213,6 +238,17 @@ class GcsUtilV1 {
 
   private GoogleCloudStorage googleCloudStorage;
   private GoogleCloudStorageOptions googleCloudStorageOptions;
+  private final Cache<MetricsContainer, GoogleCloudStorage> readStorageByContainer =
+      CacheBuilder.newBuilder()
+          .weakKeys()
+          .removalListener(
+              (RemovalNotification<MetricsContainer, GoogleCloudStorage> notification) -> {
+                GoogleCloudStorage storage = notification.getValue();
+                if (storage != null) {
+                  storage.close();
+                }
+              })
+          .build();
 
   private final int rewriteDataOpBatchLimit;
 
@@ -222,29 +258,6 @@ class GcsUtilV1 {
   @VisibleForTesting @Nullable Long maxBytesRewrittenPerCall;
 
   @VisibleForTesting @Nullable AtomicInteger numRewriteTokensUsed;
-
-  @VisibleForTesting
-  GcsUtilV1(
-      Storage storageClient,
-      HttpRequestInitializer httpRequestInitializer,
-      ExecutorService executorService,
-      Boolean shouldUseGrpc,
-      Credentials credentials,
-      @Nullable Integer uploadBufferSizeBytes,
-      @Nullable Integer rewriteDataOpBatchLimit,
-      GcsCountersOptions gcsCountersOptions,
-      GcsOptions gcsOptions) {
-    this(
-        storageClient,
-        httpRequestInitializer,
-        executorService,
-        shouldUseGrpc,
-        credentials,
-        uploadBufferSizeBytes,
-        rewriteDataOpBatchLimit,
-        gcsCountersOptions,
-        gcsOptions.getGoogleCloudStorageReadOptions());
-  }
 
   @VisibleForTesting
   GcsUtilV1(
@@ -526,32 +539,53 @@ class GcsUtilV1 {
   }
 
   private WritableByteChannel wrapInCounting(
-      WritableByteChannel writableByteChannel, String bucket) {
+      WritableByteChannel writableByteChannel,
+      String bucket,
+      @Nullable MetricsContainer container) {
     if (writableByteChannel instanceof CountingWritableByteChannel) {
       return writableByteChannel;
     }
-    return Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
-        .<WritableByteChannel>map(
-            prefix -> {
-              LOG.debug(
-                  "wrapping writable byte channel using counter name prefix {} and bucket {}",
-                  prefix,
-                  bucket);
-              return new CountingWritableByteChannel(
-                  writableByteChannel, createCounterConsumer(prefix, bucket));
-            })
-        .orElse(writableByteChannel);
+
+    Consumer<Integer> writeConsumer =
+        Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
+            .map(
+                prefix -> {
+                  LOG.debug(
+                      "wrapping writable byte channel using counter name prefix {} and bucket {}",
+                      prefix,
+                      bucket);
+                  return createCounterConsumer(prefix, bucket);
+                })
+            .orElse(null);
+
+    if (gcsCountersOptions.getPerformanceMetricsEnabled() && container != null) {
+      Counter perfWriteCounter =
+          container.getCounter(
+              MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_write_wire_bytes_sent"));
+      Consumer<Integer> perfConsumer = perfWriteCounter::inc;
+      writeConsumer = writeConsumer == null ? perfConsumer : writeConsumer.andThen(perfConsumer);
+    }
+
+    if (writeConsumer == null) {
+      return writableByteChannel;
+    }
+
+    return new CountingWritableByteChannel(writableByteChannel, writeConsumer);
   }
 
   private SeekableByteChannel wrapInCounting(
-      SeekableByteChannel seekableByteChannel, String bucket) {
-    if (seekableByteChannel instanceof CountingSeekableByteChannel
-        || !gcsCountersOptions.hasAnyPrefix()) {
+      SeekableByteChannel seekableByteChannel,
+      String bucket,
+      @Nullable MetricsContainer container) {
+    if (seekableByteChannel instanceof CountingSeekableByteChannel) {
       return seekableByteChannel;
     }
 
-    return new CountingSeekableByteChannel(
-        seekableByteChannel,
+    // SeekableByteChannel is only returned by GcsUtilV1.open(...) for reading immutable GCS objects
+    // (GoogleCloudStorageReadChannel throws NonWritableChannelException on write). All GCS writes
+    // go through GcsUtilV1.create(...), which returns a WritableByteChannel. Therefore, only a read
+    // counter consumer is needed here.
+    Consumer<Integer> readConsumer =
         Optional.ofNullable(gcsCountersOptions.getReadCounterPrefix())
             .map(
                 prefix -> {
@@ -562,18 +596,22 @@ class GcsUtilV1 {
                       bucket);
                   return createCounterConsumer(prefix, bucket);
                 })
-            .orElse(null),
-        Optional.ofNullable(gcsCountersOptions.getWriteCounterPrefix())
-            .map(
-                prefix -> {
-                  LOG.debug(
-                      "wrapping seekable byte channel with \"bytes written\" counter name prefix {}"
-                          + " and bucket {}",
-                      prefix,
-                      bucket);
-                  return createCounterConsumer(prefix, bucket);
-                })
-            .orElse(null));
+            .orElse(null);
+
+    if (gcsCountersOptions.getPerformanceMetricsEnabled() && container != null) {
+      Counter perfReadCounter =
+          container.getCounter(
+              MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_wire_bytes_received"));
+      Consumer<Integer> perfConsumer = perfReadCounter::inc;
+      readConsumer = readConsumer == null ? perfConsumer : readConsumer.andThen(perfConsumer);
+    }
+
+    if (readConsumer == null) {
+      return seekableByteChannel;
+    }
+
+    return CountingSeekableByteChannel.createWithBytesReadConsumer(
+        seekableByteChannel, readConsumer);
   }
 
   /**
@@ -615,11 +653,38 @@ class GcsUtilV1 {
     ServiceCallMetric serviceCallMetric =
         new ServiceCallMetric(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, baseLabels);
     try {
+      GoogleCloudStorage gcpStorage = this.googleCloudStorage;
+      MetricsContainer container = null;
+      if (gcsCountersOptions.getPerformanceMetricsEnabled()) {
+        container = MetricsEnvironment.getCurrentContainer();
+        if (container != null) {
+          final MetricsContainer currentContainer = container;
+          try {
+            gcpStorage =
+                readStorageByContainer.get(
+                    currentContainer,
+                    () -> {
+                      HttpRequestInitializer scopedInitializer =
+                          Transport.withMetricsContainer(
+                              this.httpRequestInitializer, currentContainer, false);
+                      return createGoogleCloudStorage(
+                          googleCloudStorageOptions,
+                          this.storageClient,
+                          this.credentials,
+                          scopedInitializer);
+                    });
+          } catch (ExecutionException e) {
+            if (e.getCause() instanceof IOException) {
+              throw (IOException) e.getCause();
+            }
+            throw new IOException(e);
+          }
+        }
+      }
       SeekableByteChannel channel =
-          googleCloudStorage.open(
-              new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
+          gcpStorage.open(new StorageResourceId(path.getBucket(), path.getObject()), readOptions);
       serviceCallMetric.call("ok");
-      return wrapInCounting(channel, path.getBucket());
+      return wrapInCounting(channel, path.getBucket(), container);
     } catch (IOException e) {
       if (e.getCause() instanceof GoogleJsonResponseException) {
         serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
@@ -701,9 +766,18 @@ class GcsUtilV1 {
     }
     GoogleCloudStorageOptions newGoogleCloudStorageOptions =
         googleCloudStorageOptions.toBuilder().setWriteChannelOptions(wcOptions).build();
+    HttpRequestInitializer scopedInitializer = this.httpRequestInitializer;
+    MetricsContainer container = null;
+    if (gcsCountersOptions.getPerformanceMetricsEnabled()) {
+      container = MetricsEnvironment.getCurrentContainer();
+      if (container != null) {
+        scopedInitializer =
+            Transport.withMetricsContainer(this.httpRequestInitializer, container, true);
+      }
+    }
     GoogleCloudStorage gcpStorage =
         createGoogleCloudStorage(
-            newGoogleCloudStorageOptions, this.storageClient, this.credentials);
+            newGoogleCloudStorageOptions, this.storageClient, this.credentials, scopedInitializer);
     StorageResourceId resourceId =
         new StorageResourceId(
             path.getBucket(),
@@ -735,7 +809,7 @@ class GcsUtilV1 {
     try {
       WritableByteChannel channel = gcpStorage.create(resourceId, createBuilder.build());
       serviceCallMetric.call("ok");
-      return wrapInCounting(channel, path.getBucket());
+      return wrapInCounting(channel, path.getBucket(), container);
     } catch (IOException e) {
       if (e.getCause() instanceof GoogleJsonResponseException) {
         serviceCallMetric.call(((GoogleJsonResponseException) e.getCause()).getDetails().getCode());
@@ -744,9 +818,20 @@ class GcsUtilV1 {
     }
   }
 
-  @SuppressFBWarnings("LG_LOST_LOGGER_DUE_TO_WEAK_REFERENCE")
+  @VisibleForTesting
   GoogleCloudStorage createGoogleCloudStorage(
       GoogleCloudStorageOptions options, Storage storage, Credentials credentials)
+      throws IOException {
+    return createGoogleCloudStorage(options, storage, credentials, this.httpRequestInitializer);
+  }
+
+  @VisibleForTesting
+  @SuppressFBWarnings("LG_LOST_LOGGER_DUE_TO_WEAK_REFERENCE")
+  GoogleCloudStorage createGoogleCloudStorage(
+      GoogleCloudStorageOptions options,
+      Storage storage,
+      Credentials credentials,
+      @Nullable HttpRequestInitializer httpRequestInitializer)
       throws IOException {
     // Suppress log spams in gcsio 3.0
     if (overwriteLog.compareAndSet(false, true)) {
@@ -949,9 +1034,21 @@ class GcsUtilV1 {
                 TimeUnit.MILLISECONDS,
                 new LinkedBlockingQueue<>()));
 
+    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
     List<CompletionStage<Void>> futures = new ArrayList<>();
     for (final BatchInterface batch : batches) {
-      futures.add(MoreFutures.runAsync(batch::execute, executor));
+      futures.add(
+          MoreFutures.runAsync(
+              () -> {
+                if (container != null) {
+                  try (Closeable scope = MetricsEnvironment.scopedMetricsContainer(container)) {
+                    batch.execute();
+                  }
+                } else {
+                  batch.execute();
+                }
+              },
+              executor));
     }
 
     try {

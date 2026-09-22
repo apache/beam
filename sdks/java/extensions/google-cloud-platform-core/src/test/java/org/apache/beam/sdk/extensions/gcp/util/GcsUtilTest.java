@@ -1703,7 +1703,8 @@ public class GcsUtilTest {
                   : null,
               gcsOptions.getEnableBucketWriteMetricCounter()
                   ? gcsOptions.getGcsWriteCounterPrefix()
-                  : null),
+                  : null,
+              Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics())),
           gcsOptions.getGoogleCloudStorageReadOptions());
     }
 
@@ -1731,7 +1732,10 @@ public class GcsUtilTest {
 
     @Override
     GoogleCloudStorage createGoogleCloudStorage(
-        GoogleCloudStorageOptions options, Storage storage, Credentials credentials) {
+        GoogleCloudStorageOptions options,
+        Storage storage,
+        Credentials credentials,
+        @Nullable HttpRequestInitializer httpRequestInitializer) {
       return googleCloudStorage;
     }
   }
