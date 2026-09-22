@@ -18,14 +18,23 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
+import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
+import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
+import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -35,6 +44,7 @@ import org.apache.beam.sdk.schemas.annotations.SchemaFieldDescription;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransform;
 import org.apache.beam.sdk.schemas.transforms.SchemaTransformProvider;
 import org.apache.beam.sdk.schemas.transforms.TypedSchemaTransformProvider;
+import org.apache.beam.sdk.schemas.transforms.providers.ErrorHandling;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.SimpleFunction;
 import org.apache.beam.sdk.values.KV;
@@ -42,14 +52,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * SchemaTransform implementation for {@link IcebergIO#writeRows}. Writes Beam Rows to Iceberg and
- * outputs a {@code PCollection<Row>} representing snapshots created in the process.
+ * SchemaTransform implementation for {@link IcebergIO#writeRows} and, when the {@code cdc} block is
+ * set, {@link IcebergIO#writeCdcRows}. Outputs a {@code PCollection<Row>} representing the
+ * snapshots created in the process; CDC writes add a {@code dead_letter} output of late records.
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergWriteSchemaTransformProvider
@@ -57,6 +69,12 @@ public class IcebergWriteSchemaTransformProvider
 
   static final String INPUT_TAG = "input";
   static final String SNAPSHOTS_TAG = "snapshots";
+  static final String DEAD_LETTER_TAG = "dead_letter";
+  static final String ERRORS_TAG = "errors";
+
+  /** The default sequence-number column: what the CDC read source emits. */
+  private static final String DEFAULT_SEQUENCE_NUMBER_COLUMN =
+      IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER;
 
   static final Schema OUTPUT_SCHEMA =
       Schema.builder()
@@ -66,9 +84,14 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   public String description() {
-    return "Writes Beam Rows to Iceberg.\n"
-        + "Returns a PCollection representing the snapshots produced in the process, with the following schema:\n"
-        + "{\"table\" (str), \"operation\" (str), \"summary\" (map[str, str]), \"manifestListLocation\" (str)}";
+    return "Writes Beam Rows to Iceberg, appending them by default. Set the 'cdc' block to apply "
+        + "them as a stream of row-level changes (INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE) by "
+        + "primary key instead.\n"
+        + "Returns a 'snapshots' PCollection representing the snapshots produced in the process, "
+        + "with the following schema:\n"
+        + "{\"table\" (str), \"operation\" (str), \"summary\" (map[str, str]), \"manifestListLocation\" (str)}\n"
+        + "CDC mode also returns a 'dead_letter' PCollection representing late data, and a 'errors' PCollection "
+        + "representing invalid records.";
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -101,13 +124,32 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getDirectWriteByteLimit();
 
     @SchemaFieldDescription(
+        "A config map that, when present, enables writing the input as a stream of row-level "
+            + "changes applied by primary key. An empty map will use the defaults. Config options include:\n"
+            + "- `sequence_number_column`: the required column name representing the"
+            + "monotonic sequence number used to order a single key's changes. Default"
+            + "column name is '_commit_snapshot_sequence_number'. This column will be"
+            + "stripped from the data row before writing to Iceberg.\n"
+            + "- `change_type_column`: the optional column name representing the row's"
+            + "change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER, or DELETE). This"
+            + "column will be stripped from the data row before writing to Iceberg.\n"
+            + "- `change_type_map`: optional map from the `change_type_column` value to"
+            + "the canonical change type name (see above).\n"
+            + "- `upsert`: if true, only the after-image of each change"
+            + "(INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records"
+            + "are dropped. Default: false.")
+    public abstract @Nullable Cdc getCdc();
+
+    @SchemaFieldDescription(
         "A list of field names to keep in the input record. All other fields are dropped before writing. "
-            + "Is mutually exclusive with 'drop' and 'only'.")
+            + "Is mutually exclusive with 'drop' and 'only'. In CDC mode the control columns are "
+            + "dropped unless listed here.")
     public abstract @Nullable List<String> getKeep();
 
     @SchemaFieldDescription(
         "A list of field names to drop from the input record before writing. "
-            + "Is mutually exclusive with 'keep' and 'only'.")
+            + "Is mutually exclusive with 'keep' and 'only'. In CDC mode the control columns are "
+            + "always dropped.")
     public abstract @Nullable List<String> getDrop();
 
     @SchemaFieldDescription(
@@ -180,6 +222,62 @@ public class IcebergWriteSchemaTransformProvider
         "Sets the number of parallel buckets/workers used to query the Iceberg catalog during refreshes. Defaults to 1.")
     public abstract @Nullable Integer getPollingBuckets();
 
+    @SchemaFieldDescription(
+        "Columns defining row identity (equality-delete fields). Defaults to the destination table's "
+            + "identifier (primary-key) fields. Required if the table doesn't exist yet. Currently only supported in CDC mode.")
+    public abstract @Nullable List<String> getEqualityColumns();
+
+    @SchemaFieldDescription(
+        "The number of deterministic primary-key-hash shards per destination, i.e. the max "
+            + "write parallelism per destination. Too low may bottleneck writes, and too high may "
+            + "produce more files. Defaults to 16. Currently only supported in CDC mode.")
+    public abstract @Nullable Integer getNumShards();
+
+    @SchemaFieldDescription(
+        "Maximum number of shards a single partition's rows may occupy. Lower values "
+            + "write fewer files per commit, but also reduces per-partition write parallelism. A value "
+            + "of 1 pins each partition to one writer. Ignored for unpartitioned tables. Must be between 1 "
+            + "and `num_shards`; defaults to `num_shards`. Currently only supported in CDC mode.")
+    public abstract @Nullable Integer getShardsPerPartition();
+
+    @SchemaFieldDescription(
+        "How long a late record may lag behind the watermark before it is "
+            + "dropped entirely, rather than routed to the dead_letter output. Defaults to 21600 "
+            + "(6 hours). Currently only supported in CDC mode.")
+    public abstract @Nullable Integer getAllowedLatenessSeconds();
+
+    @SchemaFieldDescription(
+        "A stable identifier for this sink, used to namespace the idempotency tokens "
+            + "written to each commit's Iceberg snapshot summary. Defaults to a unique per-write UUID. "
+            + "Set it explicitly (and keep it stable across relaunches) for exactly-once commits across "
+            + "relaunches of a particular streaming write. A batch load with a stable sink_id "
+            + "commits only once (later batch loads with the same sink_id are skipped). "
+            + "Currently only supported in CDC mode.")
+    public abstract @Nullable String getSinkId();
+
+    @SchemaFieldDescription(
+        "Streaming only. If set, the sink will emit a periodic empty token-refresh commit while idle, "
+            + "so its thread of `sink_id` stamped snapshot stays recent and is less likely to be "
+            + "lost to `expire_snapshots`. Disabled by default. Currently only supported in CDC mode.")
+    public abstract @Nullable Integer getTokenHeartbeatSeconds();
+
+    @SchemaFieldDescription(
+        "Extra key/value properties to add to every commit's Iceberg snapshot summary. "
+            + "Keys prefixed with 'beam.cdc.' are reserved and rejected. Currently only supported in CDC mode.")
+    public abstract @Nullable Map<String, String> getSnapshotProperties();
+
+    @SchemaFieldDescription(
+        "Whether and where to output per-record invalid rows (null or missing sequence "
+            + "value, unknown change type, null equality value, unresolvable destination). Fails the pipeline "
+            + "if unset (default). Distinct from the `dead_letter` output, which is for late-but-valid "
+            + "rows. Currently only supported in CDC mode.")
+    public abstract @Nullable ErrorHandling getErrorHandling();
+
+    @SchemaFieldDescription(
+        "The in-memory buffer size (MB) for the pre-write sort; groups larger than this "
+            + "spill to disk. Must be >= 1. Defaults to 100. Currently only supported in CDC mode.")
+    public abstract @Nullable Integer getSorterMemoryMb();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setTable(String table);
@@ -220,6 +318,26 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setPollingBuckets(Integer pollingBuckets);
 
+      public abstract Builder setCdc(Cdc cdc);
+
+      public abstract Builder setEqualityColumns(List<String> equalityColumns);
+
+      public abstract Builder setNumShards(Integer numShards);
+
+      public abstract Builder setShardsPerPartition(Integer shardsPerPartition);
+
+      public abstract Builder setAllowedLatenessSeconds(Integer allowedLatenessSeconds);
+
+      public abstract Builder setSinkId(String sinkId);
+
+      public abstract Builder setTokenHeartbeatSeconds(Integer tokenHeartbeatSeconds);
+
+      public abstract Builder setSnapshotProperties(Map<String, String> snapshotProperties);
+
+      public abstract Builder setErrorHandling(ErrorHandling errorHandling);
+
+      public abstract Builder setSorterMemoryMb(Integer sorterMemoryMb);
+
       public abstract Configuration build();
     }
 
@@ -229,6 +347,121 @@ public class IcebergWriteSchemaTransformProvider
           .setCatalogProperties(getCatalogProperties())
           .setConfigProperties(getConfigProperties())
           .build();
+    }
+
+    enum Mode {
+      APPEND,
+      CDC
+    }
+
+    /** The write mode this configuration selects. */
+    Mode mode() {
+      return getCdc() == null ? Mode.APPEND : Mode.CDC;
+    }
+
+    /**
+     * Options that only one mode supports today; everything else applies to both. Once an option
+     * becomes available to the other mode, just remove it from here.
+     */
+    private static final ImmutableMap<String, Mode> SUPPORTED_MODES =
+        ImmutableMap.<String, Mode>builder()
+            .put("equality_columns", Mode.CDC)
+            .put("num_shards", Mode.CDC)
+            .put("shards_per_partition", Mode.CDC)
+            .put("allowed_lateness_seconds", Mode.CDC)
+            .put("sink_id", Mode.CDC)
+            .put("token_heartbeat_seconds", Mode.CDC)
+            .put("snapshot_properties", Mode.CDC)
+            .put("error_handling", Mode.CDC)
+            .put("sorter_memory_mb", Mode.CDC)
+            .put("direct_write_byte_limit", Mode.APPEND)
+            .put("distribution_mode", Mode.APPEND)
+            .put("autosharding", Mode.APPEND)
+            .put("write_properties", Mode.APPEND)
+            .put("using_side_input_table_cache", Mode.APPEND)
+            .put("table_refresh_interval_seconds", Mode.APPEND)
+            .put("maximum_cache_size", Mode.APPEND)
+            .put("polling_buckets", Mode.APPEND)
+            .build();
+
+    /** Rejects every set option that the selected mode does not support. */
+    void validateModeOptions() {
+      Mode mode = mode();
+      Map<String, @Nullable Object> values = new LinkedHashMap<>();
+      values.put("equality_columns", getEqualityColumns());
+      values.put("num_shards", getNumShards());
+      values.put("shards_per_partition", getShardsPerPartition());
+      values.put("allowed_lateness_seconds", getAllowedLatenessSeconds());
+      values.put("sink_id", getSinkId());
+      values.put("token_heartbeat_seconds", getTokenHeartbeatSeconds());
+      values.put("snapshot_properties", getSnapshotProperties());
+      values.put("error_handling", getErrorHandling());
+      values.put("sorter_memory_mb", getSorterMemoryMb());
+      values.put("direct_write_byte_limit", getDirectWriteByteLimit());
+      values.put("distribution_mode", getDistributionMode());
+      values.put("autosharding", getAutosharding());
+      values.put("write_properties", getWriteProperties());
+      values.put("using_side_input_table_cache", getUsingSideInputTableCache());
+      values.put("table_refresh_interval_seconds", getTableRefreshIntervalSeconds());
+      values.put("maximum_cache_size", getMaximumCacheSize());
+      values.put("polling_buckets", getPollingBuckets());
+      List<String> invalidOptions = new ArrayList<>();
+      for (Map.Entry<String, Mode> option : SUPPORTED_MODES.entrySet()) {
+        String name = option.getKey();
+        if (values.get(name) == null || option.getValue() == mode) {
+          continue;
+        }
+        invalidOptions.add(name);
+      }
+      if (!invalidOptions.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The following options are not supported by %s writes yet: %s",
+                mode.name().toLowerCase(), invalidOptions));
+      }
+    }
+  }
+
+  /** The options that only make sense for a stream of row-level changes. */
+  @DefaultSchema(AutoValueSchema.class)
+  @AutoValue
+  public abstract static class Cdc implements Serializable {
+    public static Builder builder() {
+      return new AutoValue_IcebergWriteSchemaTransformProvider_Cdc.Builder();
+    }
+
+    @SchemaFieldDescription(
+        "The required column name representing the monotonic sequence number used to order a single key's "
+            + "changes. Default column name is '_commit_snapshot_sequence_number'. This column will be "
+            + "stripped from the data row before writing to Iceberg.")
+    public abstract @Nullable String getSequenceNumberColumn();
+
+    @SchemaFieldDescription(
+        "The optional column name representing the row's change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER, "
+            + "or DELETE). This column will be stripped from the data row before writing to Iceberg. If not "
+            + "specified, the sink will use the element's native ValueKind")
+    public abstract @Nullable String getChangeTypeColumn();
+
+    @SchemaFieldDescription(
+        "Optional map from the `change_type_column` value to the canonical change type name (see above).")
+    public abstract @Nullable Map<String, String> getChangeTypeMap();
+
+    @SchemaFieldDescription(
+        "If true, only the after-image of each change (INSERT/UPDATE_AFTER) is applied as an upsert. "
+            + "UPDATE_BEFORE records are dropped. Default: false")
+    public abstract @Nullable Boolean getUpsert();
+
+    @AutoValue.Builder
+    public abstract static class Builder {
+      public abstract Builder setSequenceNumberColumn(String sequenceNumberColumn);
+
+      public abstract Builder setChangeTypeColumn(String changeTypeColumn);
+
+      public abstract Builder setChangeTypeMap(Map<String, String> changeTypeMap);
+
+      public abstract Builder setUpsert(Boolean upsert);
+
+      public abstract Cdc build();
     }
   }
 
@@ -244,7 +477,7 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   public List<String> outputCollectionNames() {
-    return Collections.singletonList(SNAPSHOTS_TAG);
+    return Arrays.asList(SNAPSHOTS_TAG, DEAD_LETTER_TAG, ERRORS_TAG);
   }
 
   @Override
@@ -276,7 +509,12 @@ public class IcebergWriteSchemaTransformProvider
     @Override
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rows = input.get(INPUT_TAG);
+      configuration.validateModeOptions();
+      @Nullable Cdc cdc = configuration.getCdc();
+      return cdc == null ? expandAppend(rows) : expandCdc(rows, cdc);
+    }
 
+    private PCollectionRowTuple expandAppend(PCollection<Row> rows) {
       IcebergIO.WriteRows writeTransform =
           IcebergIO.writeRows(configuration.getIcebergCatalog())
               .to(
@@ -358,6 +596,129 @@ public class IcebergWriteSchemaTransformProvider
               .setRowSchema(OUTPUT_SCHEMA);
 
       return PCollectionRowTuple.of(SNAPSHOTS_TAG, snapshots);
+    }
+
+    private PCollectionRowTuple expandCdc(PCollection<Row> rows, Cdc cdc) {
+      Schema inputSchema = rows.getSchema();
+      @Nullable List<String> drop = configuration.getDrop();
+      @Nullable List<String> keep = configuration.getKeep();
+      @Nullable String only = configuration.getOnly();
+      @Nullable String changeTypeColumn = cdc.getChangeTypeColumn();
+      @Nullable String configuredSeq = cdc.getSequenceNumberColumn();
+      String seqColumn = configuredSeq != null ? configuredSeq : DEFAULT_SEQUENCE_NUMBER_COLUMN;
+
+      // The sink reads the control columns from the raw element, so by default they are dropped
+      // from the written row. Listing them in keep writes them too.
+      if (keep == null && only == null) {
+        Set<String> effectiveDrop =
+            new LinkedHashSet<>(controlColumnsPresent(inputSchema, changeTypeColumn, seqColumn));
+        if (drop != null) {
+          effectiveDrop.addAll(drop);
+        }
+        drop = effectiveDrop.isEmpty() ? null : new ArrayList<>(effectiveDrop);
+      }
+
+      WriteCdcRows write =
+          IcebergIO.writeCdcRows(configuration.getIcebergCatalog())
+              .to(
+                  new PortableIcebergDestinations(
+                      configuration.getTable(),
+                      FileFormat.PARQUET.toString(),
+                      inputSchema,
+                      configuration.getPartitionFields(),
+                      configuration.getSortFields(),
+                      configuration.getTableProperties(),
+                      drop,
+                      keep,
+                      only));
+      IcebergWriteResult result = rows.apply(applyOptions(write, cdc));
+
+      PCollection<Row> snapshots =
+          result
+              .getSnapshots()
+              .apply(MapElements.via(new SnapshotToRow()))
+              .setRowSchema(OUTPUT_SCHEMA);
+      PCollectionRowTuple output =
+          PCollectionRowTuple.of(SNAPSHOTS_TAG, snapshots)
+              .and(DEAD_LETTER_TAG, result.getDeadLetterRows());
+      @Nullable ErrorHandling errorHandling = configuration.getErrorHandling();
+      if (ErrorHandling.hasOutput(errorHandling)) {
+        output = output.and(checkStateNotNull(errorHandling).getOutput(), result.getFailedRows());
+      }
+      return output;
+    }
+
+    /** Threads every set option onto {@code write}. */
+    private WriteCdcRows applyOptions(WriteCdcRows write, Cdc cdc) {
+      @Nullable List<String> equalityColumns = configuration.getEqualityColumns();
+      if (equalityColumns != null) {
+        write = write.withEqualityColumns(equalityColumns);
+      }
+      @Nullable String sequenceNumberColumn = cdc.getSequenceNumberColumn();
+      if (sequenceNumberColumn != null) {
+        write = write.withSequenceNumberColumn(sequenceNumberColumn);
+      }
+      @Nullable String changeTypeColumn = cdc.getChangeTypeColumn();
+      if (changeTypeColumn != null) {
+        write = write.withChangeTypeColumn(changeTypeColumn);
+      }
+      @Nullable Map<String, String> changeTypeMap = cdc.getChangeTypeMap();
+      if (changeTypeMap != null) {
+        write = write.withChangeTypeMap(changeTypeMap);
+      }
+      @Nullable Boolean upsert = cdc.getUpsert();
+      if (upsert != null) {
+        write = write.withUpsert(upsert);
+      }
+      @Nullable Integer sorterMemoryMb = configuration.getSorterMemoryMb();
+      if (sorterMemoryMb != null) {
+        write = write.withSorterMemoryMB(sorterMemoryMb);
+      }
+      @Nullable Integer numShards = configuration.getNumShards();
+      if (numShards != null) {
+        write = write.withNumShards(numShards);
+      }
+      @Nullable Integer shardsPerPartition = configuration.getShardsPerPartition();
+      if (shardsPerPartition != null) {
+        write = write.withShardsPerPartition(shardsPerPartition);
+      }
+      @Nullable String sinkId = configuration.getSinkId();
+      if (sinkId != null) {
+        write = write.withSinkId(sinkId);
+      }
+      @Nullable Integer triggeringFrequencySeconds = configuration.getTriggeringFrequencySeconds();
+      if (triggeringFrequencySeconds != null) {
+        write = write.withTriggeringFrequency(Duration.standardSeconds(triggeringFrequencySeconds));
+      }
+      @Nullable Integer allowedLatenessSeconds = configuration.getAllowedLatenessSeconds();
+      if (allowedLatenessSeconds != null) {
+        write = write.withAllowedLateness(Duration.standardSeconds(allowedLatenessSeconds));
+      }
+      if (ErrorHandling.hasOutput(configuration.getErrorHandling())) {
+        write = write.withErrorHandling();
+      }
+      @Nullable Map<String, String> snapshotProperties = configuration.getSnapshotProperties();
+      if (snapshotProperties != null) {
+        write = write.withSnapshotProperties(snapshotProperties);
+      }
+      @Nullable Integer tokenHeartbeatSeconds = configuration.getTokenHeartbeatSeconds();
+      if (tokenHeartbeatSeconds != null) {
+        write = write.withTokenHeartbeat(Duration.standardSeconds(tokenHeartbeatSeconds));
+      }
+      return write;
+    }
+
+    /** The control columns present in the input; a missing one is left to the sink to report. */
+    private static List<String> controlColumnsPresent(
+        Schema inputSchema, @Nullable String changeTypeColumn, String seqColumn) {
+      List<String> controls = new ArrayList<>();
+      if (changeTypeColumn != null && inputSchema.hasField(changeTypeColumn)) {
+        controls.add(changeTypeColumn);
+      }
+      if (inputSchema.hasField(seqColumn)) {
+        controls.add(seqColumn);
+      }
+      return controls;
     }
 
     @VisibleForTesting

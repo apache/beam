@@ -21,6 +21,7 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.IcebergReadSchemaTransform;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.IcebergWriteSchemaTransform;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -98,6 +99,27 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("keep", Collections.singletonList("str"))
           .build();
 
+  /** A CDC write config: the nested {@code cdc} row plus the options gated to CDC mode. */
+  private static final Row WRITE_CDC_CONFIG_ROW =
+      Row.withSchema(WRITE_PROVIDER.configurationSchema())
+          .withFieldValue("table", "test_table_identifier")
+          .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+          .withFieldValue("equality_columns", Collections.singletonList("id"))
+          .withFieldValue("sink_id", "stable-sink")
+          .withFieldValue(
+              "cdc",
+              Row.withSchema(
+                      checkStateNotNull(
+                          WRITE_PROVIDER
+                              .configurationSchema()
+                              .getField("cdc")
+                              .getType()
+                              .getRowSchema()))
+                  .withFieldValue("change_type_column", "op")
+                  .withFieldValue("upsert", true)
+                  .build())
+          .build();
+
   private static final Row READ_CONFIG_ROW =
       Row.withSchema(READ_PROVIDER.configurationSchema())
           .withFieldValue("table", "test_table_identifier")
@@ -134,6 +156,21 @@ public class IcebergSchemaTransformTranslationTest {
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
+  }
+
+  @Test
+  public void testReCreateCdcWriteTransformFromRow() {
+    IcebergWriteSchemaTransform writeTransform =
+        (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CDC_CONFIG_ROW);
+
+    IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator translator =
+        new IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    IcebergWriteSchemaTransform writeTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+
+    assertEquals(WRITE_CDC_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
   }
 
   @Test
