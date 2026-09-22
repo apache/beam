@@ -55,13 +55,38 @@ try:
 except (ImportError, ModuleNotFoundError):
   pass
 
-try:
-  from google.protobuf import descriptor_pb2
-  MessageDescriptor = type(descriptor_pb2.DescriptorProto.DESCRIPTOR)
-  EnumDescriptor = type(descriptor_pb2.FieldDescriptorProto.Type.DESCRIPTOR)
-except (ImportError, ModuleNotFoundError):
-  MessageDescriptor = None
-  EnumDescriptor = None
+
+def _get_proto_enum_descriptor_class():
+  try:
+    from google.protobuf.internal import api_implementation
+  except ImportError:
+    return None
+
+  implementation_type = api_implementation.Type()
+
+  if implementation_type == 'upb':
+    try:
+      from google._upb._message import EnumDescriptor
+      return EnumDescriptor
+    except ImportError:
+      pass
+  elif implementation_type == 'cpp':
+    try:
+      from google.protobuf.pyext._message import EnumDescriptor
+      return EnumDescriptor
+    except ImportError:
+      pass
+  elif implementation_type == 'python':
+    try:
+      from google.protobuf.internal.python_message import EnumDescriptor
+      return EnumDescriptor
+    except ImportError:
+      pass
+
+  return None
+
+
+EnumDescriptor = _get_proto_enum_descriptor_class()
 
 # Pickling, especially unpickling, causes broken module imports on Python 3
 # if executed concurrently, see: BEAM-8651, http://bugs.python.org/issue38884.
@@ -92,22 +117,30 @@ def _typealias_reduce(obj):
   return _return_obj, (underlying, )
 
 
-def _reconstruct_message_descriptor(full_name):
-  from google.protobuf import descriptor_pool
-  return descriptor_pool.Default().FindMessageTypeByName(full_name)
-
-
-def _pickle_message_descriptor(obj):
-  return _reconstruct_message_descriptor, (obj.full_name, )
-
-
 def _reconstruct_enum_descriptor(full_name):
-  from google.protobuf import descriptor_pool
-  return descriptor_pool.Default().FindEnumTypeByName(full_name)
+  for _, module in list(sys.modules.items()):
+    if not hasattr(module, 'DESCRIPTOR'):
+      continue
+
+    if hasattr(module.DESCRIPTOR, 'enum_types_by_name'):
+      for (_, enum_desc) in module.DESCRIPTOR.enum_types_by_name.items():
+        if enum_desc.full_name == full_name:
+          return enum_desc
+
+    for _, attr_value in vars(module).items():
+      if not hasattr(attr_value, 'DESCRIPTOR'):
+        continue
+
+      if hasattr(attr_value.DESCRIPTOR, 'enum_types_by_name'):
+        for (_, enum_desc) in attr_value.DESCRIPTOR.enum_types_by_name.items():
+          if enum_desc.full_name == full_name:
+            return enum_desc
+  raise ImportError(f'Could not find enum descriptor: {full_name}')
 
 
 def _pickle_enum_descriptor(obj):
-  return _reconstruct_enum_descriptor, (obj.full_name, )
+  full_name = obj.full_name
+  return _reconstruct_enum_descriptor, (full_name, )
 
 
 def dumps(
@@ -171,8 +204,6 @@ def _dumps(
         pickler.dispatch_table[LOCK_TYPE] = _lock_reducer
       except NameError:
         pass
-      if MessageDescriptor is not None:
-        pickler.dispatch_table[MessageDescriptor] = _pickle_message_descriptor
       if EnumDescriptor is not None:
         pickler.dispatch_table[EnumDescriptor] = _pickle_enum_descriptor
       pickler.dump(o)

@@ -132,14 +132,6 @@ class PicklerTest(unittest.TestCase):
 
     self.assertEqual(fn(), loads(dumps(fn))())
 
-  def test_pickle_message_descriptor(self):
-    desc = proto2_coder_test_messages_pb2.MessageA.DESCRIPTOR
-
-    def fn():
-      return desc
-
-    self.assertEqual(fn(), loads(dumps(fn))())
-
   def test_basics(self):
     self.assertEqual([1, 'a', ('z', )], loads(dumps([1, 'a', ('z', )])))
     fun = lambda x: 'xyz-%s' % x
