@@ -1,11 +1,12 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "java": "Abacn",
-    "kafka": "johnjcasey"
+    "java": "chamikaramj",
+    "kafka": "shunping"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
-  "committerAssigned": false
+  "committerAssigned": false,
+  "reviewersAssignedAt": 0
 }
