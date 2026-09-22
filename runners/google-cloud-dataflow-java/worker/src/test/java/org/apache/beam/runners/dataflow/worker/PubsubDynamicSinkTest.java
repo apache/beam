@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow.worker;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -46,7 +48,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
-/** Unit tests for {@link PubsubSink}. */
+/** Unit tests for {@link PubsubDynamicSink}. */
 @RunWith(JUnit4.class)
 public class PubsubDynamicSinkTest {
   @Mock StreamingModeExecutionContext mockContext;
@@ -135,33 +137,33 @@ public class PubsubDynamicSinkTest {
     }
     writer.close();
 
-    Windmill.WorkItemCommitRequest expectedCommit =
-        Windmill.WorkItemCommitRequest.newBuilder()
-            .setKey(ByteString.copyFromUtf8("key"))
-            .setWorkToken(0)
-            .addPubsubMessages(
-                Windmill.PubSubMessageBundle.newBuilder()
-                    .setTopic("topic1")
-                    .setTimestampLabel("ts")
-                    .setIdLabel("id")
-                    .setWithAttributes(true)
-                    .addAllMessages(expectedMessages1))
-            .addPubsubMessages(
-                Windmill.PubSubMessageBundle.newBuilder()
-                    .setTopic("topic2")
-                    .setTimestampLabel("ts")
-                    .setIdLabel("id")
-                    .setWithAttributes(true)
-                    .addAllMessages(expectedMessages2))
-            .addPubsubMessages(
-                Windmill.PubSubMessageBundle.newBuilder()
-                    .setTopic("topic3")
-                    .setTimestampLabel("ts")
-                    .setIdLabel("id")
-                    .setWithAttributes(true)
-                    .addAllMessages(expectedMessages3))
-            .build();
-    assertEquals(expectedCommit, outputBuilder.build());
+    Windmill.WorkItemCommitRequest actualCommit = outputBuilder.build();
+    assertEquals(ByteString.copyFromUtf8("key"), actualCommit.getKey());
+    assertEquals(0L, actualCommit.getWorkToken());
+    assertThat(
+        actualCommit.getPubsubMessagesList(),
+        containsInAnyOrder(
+            Windmill.PubSubMessageBundle.newBuilder()
+                .setTopic("topic1")
+                .setTimestampLabel("ts")
+                .setIdLabel("id")
+                .setWithAttributes(true)
+                .addAllMessages(expectedMessages1)
+                .build(),
+            Windmill.PubSubMessageBundle.newBuilder()
+                .setTopic("topic2")
+                .setTimestampLabel("ts")
+                .setIdLabel("id")
+                .setWithAttributes(true)
+                .addAllMessages(expectedMessages2)
+                .build(),
+            Windmill.PubSubMessageBundle.newBuilder()
+                .setTopic("topic3")
+                .setTimestampLabel("ts")
+                .setIdLabel("id")
+                .setWithAttributes(true)
+                .addAllMessages(expectedMessages3)
+                .build()));
   }
 
   @Test
