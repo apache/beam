@@ -397,23 +397,18 @@ public abstract class TableMetadataDriver
           dynamicDestinations.getTableStringIdentifier(
               ValueInSingleWindow.of(element, timestamp, window, paneInfo));
       if (tableIdentifier != null && !tableIdentifier.trim().isEmpty()) {
-        String canonicalId = tableIdentifier.trim();
         Map<String, Long> cache = lastEmittedCache;
         Duration interval = refreshInterval;
-        if (cache == null && interval != null) {
-          initCache();
-          cache = lastEmittedCache;
-        }
         if (cache != null && interval != null) {
           long now = getNow();
-          Long lastEmitted = cache.get(canonicalId);
+          Long lastEmitted = cache.get(tableIdentifier);
           long minInterval = Math.max(1L, interval.getMillis() / 2);
           if (lastEmitted == null || (now - lastEmitted) >= minInterval) {
-            cache.put(canonicalId, now);
-            out.output(canonicalId);
+            cache.put(tableIdentifier, now);
+            out.output(tableIdentifier);
           }
         } else {
-          out.output(canonicalId);
+          out.output(tableIdentifier);
         }
       }
     }

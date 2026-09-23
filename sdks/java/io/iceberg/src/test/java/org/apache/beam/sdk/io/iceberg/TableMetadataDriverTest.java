@@ -928,10 +928,7 @@ public class TableMetadataDriverTest implements Serializable {
             Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", null).build(),
             Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "").build(),
             Row.withSchema(BEAM_SCHEMA).addValues(3L, "v3", "   ").build(),
-            Row.withSchema(BEAM_SCHEMA).addValues(4L, "v4", "default.valid_dest_table").build(),
-            Row.withSchema(BEAM_SCHEMA)
-                .addValues(5L, "v5", "  default.valid_dest_table  ")
-                .build());
+            Row.withSchema(BEAM_SCHEMA).addValues(4L, "v4", "default.valid_dest_table").build());
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
@@ -1626,6 +1623,7 @@ public class TableMetadataDriverTest implements Serializable {
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "data", "default.table").build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "data", "default.table").build();
 
+    doFn.setup();
     doFn.processElement(row1, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
     assertEquals(1, outputs.size());
     assertEquals("default.table", outputs.get(0));
