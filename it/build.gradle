@@ -28,10 +28,6 @@ tasks.register('GCSPerformanceTest') {
     dependsOn(":it:google-cloud-platform:GCSPerformanceTest")
 }
 
-tasks.register('BigtablePerformanceTest') {
-    dependsOn(":it:google-cloud-platform:BigtablePerformanceTest")
-}
-
 tasks.register('BigTablePerformanceTest') {
     dependsOn(":it:google-cloud-platform:BigTablePerformanceTest")
 }

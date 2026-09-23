@@ -117,7 +117,7 @@ class TestBeamRowToPartialRowData(unittest.TestCase):
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
 class TestBigtableDirectRowToBeamRow(unittest.TestCase):
-  doFn = bigtableio.WriteToBigtable._DirectRowMutationsToBeamRow()
+  doFn = bigtableio.WriteToBigTable._DirectRowMutationsToBeamRow()
 
   @staticmethod
   def _get_mutation_pbs(direct_row):
@@ -270,7 +270,7 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
 
 
 @unittest.skipIf(client is None, 'Bigtable dependencies are not installed')
-class TestWriteBigtable(unittest.TestCase):
+class TestWriteBigTable(unittest.TestCase):
   TABLE_PREFIX = "python-test"
   _PROJECT_ID = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   _INSTANCE_ID = TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
@@ -289,7 +289,7 @@ class TestWriteBigtable(unittest.TestCase):
     runner = 'FnApiRunner'
     with patch.object(MutationsBatcher, 'mutate'), \
       patch.object(MutationsBatcher, 'close'), TestPipeline(runner) as p:
-      _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigtable(
+      _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigTable(
           self._PROJECT_ID, self._INSTANCE_ID, self._TABLE_ID)
     self.assertSetEqual(
         Lineage.query(p.result.metrics(), Lineage.SINK),
@@ -299,7 +299,7 @@ class TestWriteBigtable(unittest.TestCase):
 
   def test_write_metrics(self):
     MetricsEnvironment.process_wide_container().reset()
-    write_fn = bigtableio._BigtableWriteFn(
+    write_fn = bigtableio._BigTableWriteFn(
         self._PROJECT_ID,
         self._INSTANCE_ID,
         self._TABLE_ID,
@@ -341,7 +341,7 @@ class TestWriteBigtable(unittest.TestCase):
           2)
 
   def test_write_batch_error_surfaces_from_async_flush(self):
-    write_fn = bigtableio._BigtableWriteFn(
+    write_fn = bigtableio._BigTableWriteFn(
         self._PROJECT_ID,
         self._INSTANCE_ID,
         self._TABLE_ID,
@@ -360,7 +360,7 @@ class TestWriteBigtable(unittest.TestCase):
         write_fn.finish_bundle()
 
   def test_write_batch_error_surfaces_from_buffered_rows(self):
-    write_fn = bigtableio._BigtableWriteFn(
+    write_fn = bigtableio._BigTableWriteFn(
         self._PROJECT_ID,
         self._INSTANCE_ID,
         self._TABLE_ID,
@@ -378,7 +378,7 @@ class TestWriteBigtable(unittest.TestCase):
           mock_mutate.call_count, 0, 'buffered row was never flushed')
 
   def test_write_close_error_is_surfaced(self):
-    write_fn = bigtableio._BigtableWriteFn(
+    write_fn = bigtableio._BigTableWriteFn(
         self._PROJECT_ID,
         self._INSTANCE_ID,
         self._TABLE_ID,
@@ -444,7 +444,7 @@ class TestWriteBigtable(unittest.TestCase):
         MutationsBatcher, '__init__', return_value=None) as mock_init, \
       patch.object(MutationsBatcher, 'mutate'), \
       patch.object(MutationsBatcher, 'close'), TestPipeline() as p:
-      _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigtable(
+      _ = p | beam.Create(direct_rows) | bigtableio.WriteToBigTable(
           self._PROJECT_ID,
           self._INSTANCE_ID,
           self._TABLE_ID,

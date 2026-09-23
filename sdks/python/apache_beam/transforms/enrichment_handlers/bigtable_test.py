@@ -20,20 +20,16 @@ from parameterized import parameterized
 
 try:
   from apache_beam.transforms.enrichment_handlers.bigtable import BigTableEnrichmentHandler
-  from apache_beam.transforms.enrichment_handlers.bigtable import BigtableEnrichmentHandler
   from apache_beam.transforms.enrichment_handlers.bigtable_it_test import _row_key_fn
 except ImportError:
   raise unittest.SkipTest('Bigtable test dependencies are not installed.')
 
 
-class TestBigtableEnrichmentHandler(unittest.TestCase):
-  def test_bigtable_enrichment_alias(self):
-    self.assertIs(BigTableEnrichmentHandler, BigtableEnrichmentHandler)
-
+class TestBigTableEnrichmentHandler(unittest.TestCase):
   @parameterized.expand([('product_id', _row_key_fn), ('', None)])
   def test_bigtable_enrichment_invalid_args(self, row_key, row_key_fn):
     with self.assertRaises(ValueError):
-      _ = BigtableEnrichmentHandler(
+      _ = BigTableEnrichmentHandler(
           project_id='apache-beam-testing',
           instance_id='beam-test',
           table_id='bigtable-enrichment-test',

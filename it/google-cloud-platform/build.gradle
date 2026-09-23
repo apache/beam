@@ -84,13 +84,10 @@ tasks.register(
         + System.properties
 )
 tasks.register(
-        "BigtablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOLT',
+        "BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOLT',
         ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
-tasks.register("BigTablePerformanceTest") {
-    dependsOn("BigtablePerformanceTest")
-}
 tasks.register(
         "BigQueryPerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigQueryIOLT',
         ['configuration':'medium', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
@@ -127,21 +124,15 @@ tasks.register(
         + System.properties
 )
 tasks.register(
-        "BigtableStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOST',
+        "BigTableStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOST',
         ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
-tasks.register("BigTableStressTestMedium") {
-    dependsOn("BigtableStressTestMedium")
-}
 tasks.register(
-        "BigtableStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOST',
+        "BigTableStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOST',
         ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
-tasks.register("BigTableStressTestLarge") {
-    dependsOn("BigtableStressTestLarge")
-}
 tasks.register(
         "SpannerStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'SpannerIOST',
         ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']

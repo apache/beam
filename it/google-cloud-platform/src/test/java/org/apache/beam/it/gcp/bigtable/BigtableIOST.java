@@ -67,8 +67,8 @@ import org.junit.Test;
  *
  * <p>Usage: <br>
  * - To run medium-scale stress tests: {@code gradle
- * :it:google-cloud-platform:BigtableStressTestMedium} - To run large-scale stress tests: {@code
- * gradle :it:google-cloud-platform:BigtableStressTestLarge}
+ * :it:google-cloud-platform:BigTableStressTestMedium} - To run large-scale stress tests: {@code
+ * gradle :it:google-cloud-platform:BigTableStressTestLarge}
  */
 public final class BigtableIOST extends IOStressTestBase {
 

@@ -225,7 +225,7 @@ class TestWriteToBigtableXlangIT(unittest.TestCase):
       _ = (
           p
           | beam.Create(rows)
-          | bigtableio.WriteToBigtable(
+          | bigtableio.WriteToBigTable(
               project_id=self.project,
               instance_id=self.instance.instance_id,
               table_id=self.table.table_id,

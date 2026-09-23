@@ -143,7 +143,7 @@ class Caller(contextlib.AbstractContextManager,
     This is how the response will be looked up in the cache as well.
     By default, entire request is cached as the key for the cache.
     Implement this method to override the key for the cache.
-    For example, in `BigtableEnrichmentHandler`, the row key for the element
+    For example, in `BigTableEnrichmentHandler`, the row key for the element
     is returned here.
     """
     return ""

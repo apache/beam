@@ -30,7 +30,6 @@ from apache_beam.transforms.enrichment import EnrichmentSourceHandler
 from apache_beam.transforms.enrichment_handlers.utils import ExceptionLevel
 
 __all__ = [
-    'BigtableEnrichmentHandler',
     'BigTableEnrichmentHandler',
 ]
 
@@ -39,7 +38,7 @@ RowKeyFn = Callable[[beam.Row], bytes]
 _LOGGER = logging.getLogger(__name__)
 
 
-class BigtableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
+class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   """A handler for :class:`apache_beam.transforms.enrichment.Enrichment`
   transform to interact with GCP Bigtable.
 
@@ -167,7 +166,3 @@ class BigtableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     if self._row_key_fn:
       return "row_key: %s" % str(self._row_key_fn(request))
     return "%s: %s" % (self._row_key, request._asdict()[self._row_key])
-
-
-# Backward compatibility alias
-BigTableEnrichmentHandler = BigtableEnrichmentHandler
