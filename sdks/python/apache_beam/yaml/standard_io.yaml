@@ -660,6 +660,7 @@
         required_columns: 'required_columns'
         incompatible_schema_handling: 'incompatible_schema_handling'
         unverifiable_file_handling: 'unverifiable_file_handling'
+        dry_run: 'dry_run'
         error_handling: 'error_handling'
     underlying_provider:
       type: beamJar
