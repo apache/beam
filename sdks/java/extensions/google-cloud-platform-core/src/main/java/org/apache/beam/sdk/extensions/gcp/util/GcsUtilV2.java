@@ -64,6 +64,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -257,6 +258,26 @@ class GcsUtilV2 {
       // also the case after deserialization.
       return Transport.withMetricsContainer(
           super.getHttpRequestInitializer(serviceOptions), container, isWrite);
+    }
+
+    @Override
+    public boolean equals(@Nullable Object obj) {
+      if (this == obj) {
+        return true;
+      }
+      if (!(obj instanceof MetricsHttpTransportOptions)) {
+        return false;
+      }
+      if (!super.equals(obj)) {
+        return false;
+      }
+      MetricsHttpTransportOptions other = (MetricsHttpTransportOptions) obj;
+      return isWrite == other.isWrite && Objects.equals(container, other.container);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(super.hashCode(), container, isWrite);
     }
   }
 
