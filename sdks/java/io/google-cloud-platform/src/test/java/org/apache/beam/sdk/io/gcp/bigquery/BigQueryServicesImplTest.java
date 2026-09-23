@@ -1569,7 +1569,8 @@ public class BigQueryServicesImplTest {
     assertThat(e.getCause().getMessage(), containsString("has not enabled BigQuery."));
     assertThat(
         e.getCause().getMessage(),
-        containsString("check the Google Cloud Status Dashboard (https://status.cloud.google.com/)"));
+        containsString(
+            "check the Google Cloud Status Dashboard (https://status.cloud.google.com/)"));
 
     verifyAllResponsesAreRead();
     expectedLogs.verifyError(

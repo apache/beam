@@ -1075,9 +1075,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
                           + " or 0 to disable timeouts",
                       e.getCause());
                 } else if (exceptionMessage.contains(BIGQUERY_NOT_ENABLED)) {
-                  LOG.error("{} {}", exceptionMessage, BIGQUERY_NOT_ENABLED_GUIDANCE, e);
-                  throw new IOException(
-                      exceptionMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+                  LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+                  throw new IOException(exceptionMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
                 }
               }
               throw e;
@@ -1750,9 +1749,8 @@ public class BigQueryServicesImpl implements BigQueryServices {
         if (ApiErrorExtractor.INSTANCE.badRequest(e)
             && e.getMessage() != null
             && e.getMessage().contains(BIGQUERY_NOT_ENABLED)) {
-          LOG.error("{} {}", e.getMessage(), BIGQUERY_NOT_ENABLED_GUIDANCE, e);
-          throw new IOException(
-              errorMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+          LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+          throw new IOException(errorMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
         }
         if (!shouldRetry.apply(e)) {
           break;
