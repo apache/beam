@@ -580,7 +580,8 @@ public class IcebergIO {
      * an unbounded streaming pipeline will throw an exception at pipeline construction.
      */
     public WriteRows withMaximumTableCacheSize(int maximumTableCacheSize) {
-      Preconditions.checkArgument(maximumTableCacheSize > 0, "maximumTableCacheSize must be greater than 0");
+      Preconditions.checkArgument(
+          maximumTableCacheSize > 0, "maximumTableCacheSize must be greater than 0");
       return toBuilder().setMaximumTableCacheSize(maximumTableCacheSize).build();
     }
 
@@ -602,7 +603,8 @@ public class IcebergIO {
      * spikes.
      */
     public WriteRows withTableCachePollingBuckets(int pollingBuckets) {
-      Preconditions.checkArgument(pollingBuckets > 0, "tableCachePollingBuckets must be greater than 0");
+      Preconditions.checkArgument(
+          pollingBuckets > 0, "tableCachePollingBuckets must be greater than 0");
       return toBuilder().setTableCachePollingBuckets(pollingBuckets).build();
     }
 

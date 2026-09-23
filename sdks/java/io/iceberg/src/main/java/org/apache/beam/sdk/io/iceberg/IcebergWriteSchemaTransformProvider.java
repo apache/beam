@@ -214,7 +214,8 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setUseSideInputTableCache(Boolean useSideInputTableCache);
 
-      public abstract Builder setTableCacheRefreshIntervalSeconds(Integer tableCacheRefreshIntervalSeconds);
+      public abstract Builder setTableCacheRefreshIntervalSeconds(
+          Integer tableCacheRefreshIntervalSeconds);
 
       public abstract Builder setMaximumTableCacheSize(Integer maximumTableCacheSize);
 
@@ -321,15 +322,13 @@ public class IcebergWriteSchemaTransformProvider
               || configuration.getMaximumTableCacheSize() != null
               || configuration.getTableCachePollingBuckets() != null;
 
-      if (!Boolean.TRUE.equals(configuration.getUseSideInputTableCache())
-          && hasSideInputOptions) {
+      if (!Boolean.TRUE.equals(configuration.getUseSideInputTableCache()) && hasSideInputOptions) {
         throw new IllegalArgumentException(
             "Cannot specify side-input cache sub-options (table_refresh_interval_seconds, "
                 + "maximum_cache_size, polling_buckets) without explicitly setting using_side_input_table_cache to true.");
       }
 
-      boolean enableSideInputCache =
-          Boolean.TRUE.equals(configuration.getUseSideInputTableCache());
+      boolean enableSideInputCache = Boolean.TRUE.equals(configuration.getUseSideInputTableCache());
 
       if (enableSideInputCache) {
         writeTransform = writeTransform.withSideInputTableCache();
