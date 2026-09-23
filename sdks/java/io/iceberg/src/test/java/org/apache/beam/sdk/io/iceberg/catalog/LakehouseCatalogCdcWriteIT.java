@@ -24,9 +24,7 @@ import org.apache.iceberg.rest.RESTCatalog;
 import org.junit.After;
 import org.junit.BeforeClass;
 
-/**
- * {@link IcebergCdcWriteBaseIT} against the Lakehouse REST catalog.
- */
+/** {@link IcebergCdcWriteBaseIT} against the Lakehouse REST catalog. */
 public class LakehouseCatalogCdcWriteIT extends IcebergCdcWriteBaseIT {
   private static Map<String, String> catalogProps;
 
