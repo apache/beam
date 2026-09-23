@@ -4,7 +4,8 @@
     "java": "chamikaramj"
   },
   "nextAction": "Author",
-  "stopReviewerNotifications": false,
+  "stopReviewerNotifications": true,
   "remindAfterTestsPass": [],
-  "committerAssigned": true
+  "committerAssigned": true,
+  "reviewersAssignedAt": 0
 }
