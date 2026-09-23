@@ -20,6 +20,11 @@ fixtures:
     type: "apache_beam.yaml.integration_tests.temp_bigquery_table"
     config:
       project: "apache-beam-testing"
+      # CDC UPSERT needs tables.updateData; grant the running SA dataEditor on
+      # the temp dataset (userByEmail: auto uses ADC service-account email).
+      access_entries:
+        - role: "roles/bigquery.dataEditor"
+          userByEmail: "auto"
   - name: TEMP_DIR
     # Need distributed filesystem to be able to read and write from a container.
     type: "apache_beam.yaml.integration_tests.gcs_temp_dir"

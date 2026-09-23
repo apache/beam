@@ -854,7 +854,8 @@ class BigQueryWrapper(object):
       location=None,
       labels=None,
       kms_key=None,
-      default_table_expiration_ms=None):
+      default_table_expiration_ms=None,
+      access_entries=None):
     # Check if dataset already exists otherwise create it
     try:
       dataset = self.client.datasets.Get(
@@ -882,6 +883,8 @@ class BigQueryWrapper(object):
               _build_dataset_encryption_config(kms_key))
         if default_table_expiration_ms is not None:
           dataset.defaultTableExpirationMs = default_table_expiration_ms
+        if access_entries is not None:
+          dataset.access = access_entries
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
