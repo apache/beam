@@ -58,7 +58,7 @@ UserTypeRow = typing.NamedTuple(
 coders.registry.register_coder(UserTypeRow, coders.RowCoder)
 
 TupleRow = typing.NamedTuple(
-    "TupleRow", [("id", int), ("coords", typing.Tuple[str, int])])
+    "TupleRow", [("id", int), ("coords", tuple[str, int])])
 coders.registry.register_coder(TupleRow, coders.RowCoder)
 
 
