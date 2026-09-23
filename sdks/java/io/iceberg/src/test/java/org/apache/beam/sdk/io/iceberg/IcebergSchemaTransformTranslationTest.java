@@ -21,7 +21,6 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.sdk.io.iceberg.IcebergReadSchemaTransformProvider.IcebergReadSchemaTransform;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.IcebergWriteSchemaTransform;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
@@ -99,25 +98,16 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("keep", Collections.singletonList("str"))
           .build();
 
-  /** A CDC write config: the nested {@code cdc} row plus the options gated to CDC mode. */
+  /** A merge-on-read write config: the mode plus the options gated to it. */
   private static final Row WRITE_CDC_CONFIG_ROW =
       Row.withSchema(WRITE_PROVIDER.configurationSchema())
           .withFieldValue("table", "test_table_identifier")
           .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+          .withFieldValue("mode", "merge-on-read")
+          .withFieldValue("change_type_column", "op")
+          .withFieldValue("upsert", true)
           .withFieldValue("equality_columns", Collections.singletonList("id"))
           .withFieldValue("sink_id", "stable-sink")
-          .withFieldValue(
-              "cdc",
-              Row.withSchema(
-                      checkStateNotNull(
-                          WRITE_PROVIDER
-                              .configurationSchema()
-                              .getField("cdc")
-                              .getType()
-                              .getRowSchema()))
-                  .withFieldValue("change_type_column", "op")
-                  .withFieldValue("upsert", true)
-                  .build())
           .build();
 
   private static final Row READ_CONFIG_ROW =

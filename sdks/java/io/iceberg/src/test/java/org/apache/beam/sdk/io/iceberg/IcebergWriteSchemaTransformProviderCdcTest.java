@@ -17,17 +17,18 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
-import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Cdc;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.Configuration;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.DEAD_LETTER_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.INPUT_TAG;
 import static org.apache.beam.sdk.io.iceberg.IcebergWriteSchemaTransformProvider.SNAPSHOTS_TAG;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.util.List;
@@ -138,22 +139,18 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
         .setCatalogProperties(catalogProperties());
   }
 
-  /** {@link #configFor} in CDC mode, with the standard {@code change_type} op column. */
+  /** {@link #configFor} in merge-on-read mode, reading kinds from a {@code change_type} column. */
   private Configuration.Builder cdcConfigFor(TableIdentifier id) {
-    return configFor(id).setCdc(changeTypeCdc().build());
+    return configFor(id).setMode("merge-on-read").setChangeTypeColumn("change_type");
   }
 
-  /** A {@code cdc} block reading kinds from the standard {@code change_type} op column. */
-  private static Cdc.Builder changeTypeCdc() {
-    return Cdc.builder().setChangeTypeColumn("change_type");
-  }
-
-  /** A CDC config builder for the {@code db.{name}} destination template. */
+  /** A merge-on-read config builder for the {@code db.{name}} destination template. */
   private Configuration.Builder templateConfig() {
     return Configuration.builder()
         .setTable("db.{name}")
         .setCatalogProperties(catalogProperties())
-        .setCdc(changeTypeCdc().build());
+        .setMode("merge-on-read")
+        .setChangeTypeColumn("change_type");
   }
 
   /**
@@ -198,6 +195,44 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
     return Row.withSchema(INPUT_SCHEMA_WITH_CHANGE_TYPE_AND_SEQ)
         .addValues(id, name, data, changeType, seq)
         .build();
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Mode gating
+  // ---------------------------------------------------------------------------------------------
+
+  /** Options of the other mode are rejected together; shared options pass in both modes. */
+  @Test
+  public void validateModeOptionsRejectsOptionsOfTheOtherMode() {
+    TableIdentifier id = TableIdentifier.of("db", "t");
+
+    Configuration append = configFor(id).setUpsert(true).setNumShards(4).setSinkId("s").build();
+    IllegalArgumentException appendError =
+        assertThrows(IllegalArgumentException.class, append::validateModeOptions);
+    assertThat(
+        appendError.getMessage(),
+        equalTo(
+            "The following options are not supported in 'append' mode yet: "
+                + "[upsert, num_shards, sink_id]"));
+
+    Configuration mergeOnRead =
+        cdcConfigFor(id).setDistributionMode("hash").setAutosharding(true).build();
+    IllegalArgumentException mergeOnReadError =
+        assertThrows(IllegalArgumentException.class, mergeOnRead::validateModeOptions);
+    assertThat(
+        mergeOnReadError.getMessage(),
+        equalTo(
+            "The following options are not supported in 'merge-on-read' mode yet: "
+                + "[distribution_mode, autosharding]"));
+
+    configFor(id).setTriggeringFrequencySeconds(30).build().validateModeOptions();
+    cdcConfigFor(id).setTriggeringFrequencySeconds(30).build().validateModeOptions();
+
+    IllegalArgumentException unknown =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> configFor(id).setMode("copy-on-write").build().validateModeOptions());
+    assertThat(unknown.getMessage(), containsString("Unknown mode 'copy-on-write'"));
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -317,8 +352,8 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
             .addStringField("destination")
             .build();
     runCdcWrite(
-        configFor(id)
-            .setCdc(changeTypeCdc().setSequenceNumberColumn("sequence_number").build())
+        cdcConfigFor(id)
+            .setSequenceNumberColumn("sequence_number")
             .setDrop(ImmutableList.of("destination"))
             .build(),
         replaySchema,
@@ -356,12 +391,12 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
   }
 
   /**
-   * An empty {@code cdc} block enables CDC with every default: kinds come from each element's
+   * Merge-on-read mode with nothing else set uses every default: kinds come from each element's
    * native {@link ValueKind}, which the projection must preserve (a plain {@code output()} re-emit
    * would stamp everything INSERT).
    */
   @Test
-  public void emptyCdcBlockUsesDefaultsAndNativeValueKinds() {
+  public void mergeOnReadDefaultsUseNativeValueKinds() {
     TableIdentifier id = v2Table();
     Table table = catalog.loadTable(id);
 
@@ -375,10 +410,7 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
     // No change_type_column: change kinds come only from each element's native ValueKind.
     SchemaTransform transform =
         transformFor(
-            configFor(id)
-                .setCdc(Cdc.builder().build())
-                .setDrop(ImmutableList.of("source"))
-                .build());
+            configFor(id).setMode("merge-on-read").setDrop(ImmutableList.of("source")).build());
 
     PCollection<Row> input =
         withKinds(
@@ -430,14 +462,11 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
     runCdcWrite(
         configFor(id)
             .setOnly("after")
-            .setCdc(
-                Cdc.builder()
-                    .setChangeTypeColumn("op")
-                    .setChangeTypeMap(
-                        ImmutableMap.of("c", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE"))
-                    .setSequenceNumberColumn("seq")
-                    .setUpsert(true)
-                    .build())
+            .setMode("merge-on-read")
+            .setChangeTypeColumn("op")
+            .setChangeTypeMap(ImmutableMap.of("c", "INSERT", "u", "UPDATE_AFTER", "d", "DELETE"))
+            .setSequenceNumberColumn("seq")
+            .setUpsert(true)
             .build(),
         envelopeSchema,
         envelopeRow(envelopeSchema, 1, "a", "x", "c", 1L),
@@ -636,7 +665,7 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
    * snake_case config surface.
    */
   @Test
-  public void managedIcebergWithCdcMapWritesEndToEnd() {
+  public void managedIcebergMergeOnReadWritesEndToEnd() {
     TableIdentifier id = v2Table();
     Table table = catalog.loadTable(id);
 
@@ -644,7 +673,8 @@ public class IcebergWriteSchemaTransformProviderCdcTest {
         ImmutableMap.<String, Object>builder()
             .put("table", id.toString())
             .put("catalog_properties", catalogProperties())
-            .put("cdc", ImmutableMap.of("change_type_column", "change_type"))
+            .put("mode", "merge-on-read")
+            .put("change_type_column", "change_type")
             .build();
 
     PCollection<Row> input =

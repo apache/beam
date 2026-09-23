@@ -23,11 +23,9 @@ import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
 import com.google.auto.service.AutoService;
 import com.google.auto.value.AutoValue;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -52,16 +50,16 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.FileFormat;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
- * SchemaTransform implementation for {@link IcebergIO#writeRows} and, when the {@code cdc} block is
- * set, {@link IcebergIO#writeCdcRows}. Outputs a {@code PCollection<Row>} representing the
- * snapshots created in the process; CDC writes add a {@code dead_letter} output of late records.
+ * SchemaTransform implementation for {@link IcebergIO#writeRows} and, in {@code merge-on-read}
+ * mode, {@link IcebergIO#writeCdcRows}. Outputs a {@code PCollection<Row>} representing the
+ * snapshots created in the process; merge-on-read writes add a {@code dead_letter} output of late
+ * records.
  */
 @AutoService(SchemaTransformProvider.class)
 public class IcebergWriteSchemaTransformProvider
@@ -72,10 +70,6 @@ public class IcebergWriteSchemaTransformProvider
   static final String DEAD_LETTER_TAG = "dead_letter";
   static final String ERRORS_TAG = "errors";
 
-  /** The default sequence-number column: what the CDC read source emits. */
-  private static final String DEFAULT_SEQUENCE_NUMBER_COLUMN =
-      IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER;
-
   static final Schema OUTPUT_SCHEMA =
       Schema.builder()
           .addStringField("table")
@@ -84,14 +78,14 @@ public class IcebergWriteSchemaTransformProvider
 
   @Override
   public String description() {
-    return "Writes Beam Rows to Iceberg, appending them by default. Set the 'cdc' block to apply "
-        + "them as a stream of row-level changes (INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE) by "
-        + "primary key instead.\n"
+    return "Writes Beam Rows to Iceberg, appending them by default. Set mode to 'merge-on-read' to "
+        + "apply them as a stream of row-level changes (INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE) "
+        + "by primary key instead.\n"
         + "Returns a 'snapshots' PCollection representing the snapshots produced in the process, "
         + "with the following schema:\n"
         + "{\"table\" (str), \"operation\" (str), \"summary\" (map[str, str]), \"manifestListLocation\" (str)}\n"
-        + "CDC mode also returns a 'dead_letter' PCollection representing late data, and a 'errors' PCollection "
-        + "representing invalid records.";
+        + "Merge-on-read mode also returns a 'dead_letter' PCollection representing late data, and an "
+        + "'errors' PCollection representing invalid records.";
   }
 
   @DefaultSchema(AutoValueSchema.class)
@@ -124,31 +118,42 @@ public class IcebergWriteSchemaTransformProvider
     public abstract @Nullable Integer getDirectWriteByteLimit();
 
     @SchemaFieldDescription(
-        "A config map that, when present, enables writing the input as a stream of row-level "
-            + "changes applied by primary key. An empty map will use the defaults. Config options include:\n"
-            + "- `sequence_number_column`: the required column name representing the"
-            + "monotonic sequence number used to order a single key's changes. Default"
-            + "column name is '_commit_snapshot_sequence_number'. This column will be"
-            + "stripped from the data row before writing to Iceberg.\n"
-            + "- `change_type_column`: the optional column name representing the row's"
-            + "change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER, or DELETE). This"
-            + "column will be stripped from the data row before writing to Iceberg.\n"
-            + "- `change_type_map`: optional map from the `change_type_column` value to"
-            + "the canonical change type name (see above).\n"
-            + "- `upsert`: if true, only the after-image of each change"
-            + "(INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records"
-            + "are dropped. Default: false.")
-    public abstract @Nullable Cdc getCdc();
+        "Controls how rows are written. 'append' (default) appends every row as new data. "
+            + "'merge-on-read' treats each row as a change (INSERT, UPDATE_BEFORE, UPDATE_AFTER, "
+            + "or DELETE) applied to the table by primary key.")
+    public abstract @Nullable String getMode();
+
+    @SchemaFieldDescription(
+        "Merge-on-read only. The required column name representing the monotonic sequence number used to "
+            + "order a single key's changes. Defaults to '_commit_snapshot_sequence_number'. This column will be "
+            + "stripped from the data row before writing to Iceberg.")
+    public abstract @Nullable String getSequenceNumberColumn();
+
+    @SchemaFieldDescription(
+        "Merge-on-read only. The optional column name representing the row's change type (INSERT, "
+            + "UPDATE_BEFORE, UPDATE_AFTER,  or DELETE). This column will be stripped from the data row "
+            + "before writing to Iceberg. If unset, the sink will use the element's native ValueKind")
+    public abstract @Nullable String getChangeTypeColumn();
+
+    @SchemaFieldDescription(
+        "Merge-on-read only. Optional map from a change_type_column value to the canonical change "
+            + "type name (see above).")
+    public abstract @Nullable Map<String, String> getChangeTypeMap();
+
+    @SchemaFieldDescription(
+        "Merge-on-read only. If true, only the after-image of each change (INSERT/UPDATE_AFTER) "
+            + "is applied, as an upsert; UPDATE_BEFORE records are dropped. Default: false.")
+    public abstract @Nullable Boolean getUpsert();
 
     @SchemaFieldDescription(
         "A list of field names to keep in the input record. All other fields are dropped before writing. "
-            + "Is mutually exclusive with 'drop' and 'only'. In CDC mode the control columns are "
+            + "Is mutually exclusive with 'drop' and 'only'. In merge-on-read mode the control columns are "
             + "dropped unless listed here.")
     public abstract @Nullable List<String> getKeep();
 
     @SchemaFieldDescription(
         "A list of field names to drop from the input record before writing. "
-            + "Is mutually exclusive with 'keep' and 'only'. In CDC mode the control columns are "
+            + "Is mutually exclusive with 'keep' and 'only'. In merge-on-read mode the control columns are "
             + "always dropped.")
     public abstract @Nullable List<String> getDrop();
 
@@ -224,26 +229,27 @@ public class IcebergWriteSchemaTransformProvider
 
     @SchemaFieldDescription(
         "Columns defining row identity (equality-delete fields). Defaults to the destination table's "
-            + "identifier (primary-key) fields. Required if the table doesn't exist yet. Currently only supported in CDC mode.")
+            + "identifier (primary-key) fields. Required if the table doesn't exist yet. "
+            + "Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable List<String> getEqualityColumns();
 
     @SchemaFieldDescription(
         "The number of deterministic primary-key-hash shards per destination, i.e. the max "
             + "write parallelism per destination. Too low may bottleneck writes, and too high may "
-            + "produce more files. Defaults to 16. Currently only supported in CDC mode.")
+            + "produce more files. Defaults to 16. Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable Integer getNumShards();
 
     @SchemaFieldDescription(
         "Maximum number of shards a single partition's rows may occupy. Lower values "
             + "write fewer files per commit, but also reduces per-partition write parallelism. A value "
             + "of 1 pins each partition to one writer. Ignored for unpartitioned tables. Must be between 1 "
-            + "and `num_shards`; defaults to `num_shards`. Currently only supported in CDC mode.")
+            + "and `num_shards`; defaults to `num_shards`. Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable Integer getShardsPerPartition();
 
     @SchemaFieldDescription(
         "How long a late record may lag behind the watermark before it is "
             + "dropped entirely, rather than routed to the dead_letter output. Defaults to 21600 "
-            + "(6 hours). Currently only supported in CDC mode.")
+            + "(6 hours). Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable Integer getAllowedLatenessSeconds();
 
     @SchemaFieldDescription(
@@ -252,30 +258,30 @@ public class IcebergWriteSchemaTransformProvider
             + "Set it explicitly (and keep it stable across relaunches) for exactly-once commits across "
             + "relaunches of a particular streaming write. A batch load with a stable sink_id "
             + "commits only once (later batch loads with the same sink_id are skipped). "
-            + "Currently only supported in CDC mode.")
+            + "Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable String getSinkId();
 
     @SchemaFieldDescription(
         "Streaming only. If set, the sink will emit a periodic empty token-refresh commit while idle, "
             + "so its thread of `sink_id` stamped snapshot stays recent and is less likely to be "
-            + "lost to `expire_snapshots`. Disabled by default. Currently only supported in CDC mode.")
+            + "lost to `expire_snapshots`. Disabled by default. Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable Integer getTokenHeartbeatSeconds();
 
     @SchemaFieldDescription(
         "Extra key/value properties to add to every commit's Iceberg snapshot summary. "
-            + "Keys prefixed with 'beam.cdc.' are reserved and rejected. Currently only supported in CDC mode.")
+            + "Keys prefixed with 'beam.cdc.' are reserved and rejected. Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable Map<String, String> getSnapshotProperties();
 
     @SchemaFieldDescription(
         "Whether and where to output per-record invalid rows (null or missing sequence "
             + "value, unknown change type, null equality value, unresolvable destination). Fails the pipeline "
             + "if unset (default). Distinct from the `dead_letter` output, which is for late-but-valid "
-            + "rows. Currently only supported in CDC mode.")
+            + "rows. Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable ErrorHandling getErrorHandling();
 
     @SchemaFieldDescription(
         "The in-memory buffer size (MB) for the pre-write sort; groups larger than this "
-            + "spill to disk. Must be >= 1. Defaults to 100. Currently only supported in CDC mode.")
+            + "spill to disk. Must be >= 1. Defaults to 100. Currently only supported in 'merge-on-read' mode.")
     public abstract @Nullable Integer getSorterMemoryMb();
 
     @AutoValue.Builder
@@ -318,7 +324,15 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setPollingBuckets(Integer pollingBuckets);
 
-      public abstract Builder setCdc(Cdc cdc);
+      public abstract Builder setMode(String mode);
+
+      public abstract Builder setSequenceNumberColumn(String sequenceNumberColumn);
+
+      public abstract Builder setChangeTypeColumn(String changeTypeColumn);
+
+      public abstract Builder setChangeTypeMap(Map<String, String> changeTypeMap);
+
+      public abstract Builder setUpsert(Boolean upsert);
 
       public abstract Builder setEqualityColumns(List<String> equalityColumns);
 
@@ -350,118 +364,83 @@ public class IcebergWriteSchemaTransformProvider
     }
 
     enum Mode {
-      APPEND,
-      CDC
+      APPEND("append"),
+      MERGE_ON_READ("merge-on-read");
+
+      /** The value users set {@code mode} to. */
+      final String optionValue;
+
+      Mode(String optionValue) {
+        this.optionValue = optionValue;
+      }
     }
 
-    /** The write mode this configuration selects. */
+    /** The write mode this configuration selects; unset means append. */
     Mode mode() {
-      return getCdc() == null ? Mode.APPEND : Mode.CDC;
+      @Nullable String mode = getMode();
+      if (mode == null || mode.equalsIgnoreCase(Mode.APPEND.optionValue)) {
+        return Mode.APPEND;
+      }
+      if (mode.equalsIgnoreCase(Mode.MERGE_ON_READ.optionValue)) {
+        return Mode.MERGE_ON_READ;
+      }
+      throw new IllegalArgumentException(
+          String.format(
+              "Unknown mode '%s'; expected '%s' or '%s'.",
+              mode, Mode.APPEND.optionValue, Mode.MERGE_ON_READ.optionValue));
     }
-
-    /**
-     * Options that only one mode supports today; everything else applies to both. Once an option
-     * becomes available to the other mode, just remove it from here.
-     */
-    private static final ImmutableMap<String, Mode> SUPPORTED_MODES =
-        ImmutableMap.<String, Mode>builder()
-            .put("equality_columns", Mode.CDC)
-            .put("num_shards", Mode.CDC)
-            .put("shards_per_partition", Mode.CDC)
-            .put("allowed_lateness_seconds", Mode.CDC)
-            .put("sink_id", Mode.CDC)
-            .put("token_heartbeat_seconds", Mode.CDC)
-            .put("snapshot_properties", Mode.CDC)
-            .put("error_handling", Mode.CDC)
-            .put("sorter_memory_mb", Mode.CDC)
-            .put("direct_write_byte_limit", Mode.APPEND)
-            .put("distribution_mode", Mode.APPEND)
-            .put("autosharding", Mode.APPEND)
-            .put("write_properties", Mode.APPEND)
-            .put("using_side_input_table_cache", Mode.APPEND)
-            .put("table_refresh_interval_seconds", Mode.APPEND)
-            .put("maximum_cache_size", Mode.APPEND)
-            .put("polling_buckets", Mode.APPEND)
-            .build();
 
     /** Rejects every set option that the selected mode does not support. */
     void validateModeOptions() {
+      // Resolve the mode first so an unknown value fails here, not only once an option trips it.
       Mode mode = mode();
-      Map<String, @Nullable Object> values = new LinkedHashMap<>();
-      values.put("equality_columns", getEqualityColumns());
-      values.put("num_shards", getNumShards());
-      values.put("shards_per_partition", getShardsPerPartition());
-      values.put("allowed_lateness_seconds", getAllowedLatenessSeconds());
-      values.put("sink_id", getSinkId());
-      values.put("token_heartbeat_seconds", getTokenHeartbeatSeconds());
-      values.put("snapshot_properties", getSnapshotProperties());
-      values.put("error_handling", getErrorHandling());
-      values.put("sorter_memory_mb", getSorterMemoryMb());
-      values.put("direct_write_byte_limit", getDirectWriteByteLimit());
-      values.put("distribution_mode", getDistributionMode());
-      values.put("autosharding", getAutosharding());
-      values.put("write_properties", getWriteProperties());
-      values.put("using_side_input_table_cache", getUsingSideInputTableCache());
-      values.put("table_refresh_interval_seconds", getTableRefreshIntervalSeconds());
-      values.put("maximum_cache_size", getMaximumCacheSize());
-      values.put("polling_buckets", getPollingBuckets());
-      List<String> invalidOptions = new ArrayList<>();
-      for (Map.Entry<String, Mode> option : SUPPORTED_MODES.entrySet()) {
-        String name = option.getKey();
-        if (values.get(name) == null || option.getValue() == mode) {
-          continue;
-        }
-        invalidOptions.add(name);
-      }
-      if (!invalidOptions.isEmpty()) {
+      List<String> unsupported = new ArrayList<>();
+      // Merge-on-read only: the change-stream contract.
+      requireMode(
+          Mode.MERGE_ON_READ, "sequence_number_column", getSequenceNumberColumn(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "change_type_column", getChangeTypeColumn(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "change_type_map", getChangeTypeMap(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "upsert", getUpsert(), unsupported);
+      // Merge-on-read only, until the append write grows these features.
+      requireMode(Mode.MERGE_ON_READ, "equality_columns", getEqualityColumns(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "num_shards", getNumShards(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "shards_per_partition", getShardsPerPartition(), unsupported);
+      requireMode(
+          Mode.MERGE_ON_READ, "allowed_lateness_seconds", getAllowedLatenessSeconds(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "sink_id", getSinkId(), unsupported);
+      requireMode(
+          Mode.MERGE_ON_READ, "token_heartbeat_seconds", getTokenHeartbeatSeconds(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "snapshot_properties", getSnapshotProperties(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "error_handling", getErrorHandling(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "sorter_memory_mb", getSorterMemoryMb(), unsupported);
+      // Append only: merge-on-read has neither a direct-write path nor a side-input table cache.
+      requireMode(Mode.APPEND, "direct_write_byte_limit", getDirectWriteByteLimit(), unsupported);
+      requireMode(Mode.APPEND, "distribution_mode", getDistributionMode(), unsupported);
+      requireMode(Mode.APPEND, "autosharding", getAutosharding(), unsupported);
+      requireMode(Mode.APPEND, "write_properties", getWriteProperties(), unsupported);
+      requireMode(
+          Mode.APPEND, "using_side_input_table_cache", getUsingSideInputTableCache(), unsupported);
+      requireMode(
+          Mode.APPEND,
+          "table_refresh_interval_seconds",
+          getTableRefreshIntervalSeconds(),
+          unsupported);
+      requireMode(Mode.APPEND, "maximum_cache_size", getMaximumCacheSize(), unsupported);
+      requireMode(Mode.APPEND, "polling_buckets", getPollingBuckets(), unsupported);
+      if (!unsupported.isEmpty()) {
         throw new IllegalArgumentException(
             String.format(
-                "The following options are not supported by %s writes yet: %s",
-                mode.name().toLowerCase(), invalidOptions));
+                "The following options are not supported in '%s' mode yet: %s",
+                mode.optionValue, unsupported));
       }
     }
-  }
 
-  /** The options that only make sense for a stream of row-level changes. */
-  @DefaultSchema(AutoValueSchema.class)
-  @AutoValue
-  public abstract static class Cdc implements Serializable {
-    public static Builder builder() {
-      return new AutoValue_IcebergWriteSchemaTransformProvider_Cdc.Builder();
-    }
-
-    @SchemaFieldDescription(
-        "The required column name representing the monotonic sequence number used to order a single key's "
-            + "changes. Default column name is '_commit_snapshot_sequence_number'. This column will be "
-            + "stripped from the data row before writing to Iceberg.")
-    public abstract @Nullable String getSequenceNumberColumn();
-
-    @SchemaFieldDescription(
-        "The optional column name representing the row's change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER, "
-            + "or DELETE). This column will be stripped from the data row before writing to Iceberg. If not "
-            + "specified, the sink will use the element's native ValueKind")
-    public abstract @Nullable String getChangeTypeColumn();
-
-    @SchemaFieldDescription(
-        "Optional map from the `change_type_column` value to the canonical change type name (see above).")
-    public abstract @Nullable Map<String, String> getChangeTypeMap();
-
-    @SchemaFieldDescription(
-        "If true, only the after-image of each change (INSERT/UPDATE_AFTER) is applied as an upsert. "
-            + "UPDATE_BEFORE records are dropped. Default: false")
-    public abstract @Nullable Boolean getUpsert();
-
-    @AutoValue.Builder
-    public abstract static class Builder {
-      public abstract Builder setSequenceNumberColumn(String sequenceNumberColumn);
-
-      public abstract Builder setChangeTypeColumn(String changeTypeColumn);
-
-      public abstract Builder setChangeTypeMap(Map<String, String> changeTypeMap);
-
-      public abstract Builder setUpsert(Boolean upsert);
-
-      public abstract Cdc build();
+    /** Records {@code option} as unsupported when it is set under a mode other than its own. */
+    private void requireMode(
+        Mode supported, String option, @Nullable Object value, List<String> unsupported) {
+      if (value != null && mode() != supported) {
+        unsupported.add(option);
+      }
     }
   }
 
@@ -510,8 +489,9 @@ public class IcebergWriteSchemaTransformProvider
     public PCollectionRowTuple expand(PCollectionRowTuple input) {
       PCollection<Row> rows = input.get(INPUT_TAG);
       configuration.validateModeOptions();
-      @Nullable Cdc cdc = configuration.getCdc();
-      return cdc == null ? expandAppend(rows) : expandCdc(rows, cdc);
+      return configuration.mode() == Configuration.Mode.MERGE_ON_READ
+          ? expandCdc(rows)
+          : expandAppend(rows);
     }
 
     private PCollectionRowTuple expandAppend(PCollection<Row> rows) {
@@ -598,14 +578,17 @@ public class IcebergWriteSchemaTransformProvider
       return PCollectionRowTuple.of(SNAPSHOTS_TAG, snapshots);
     }
 
-    private PCollectionRowTuple expandCdc(PCollection<Row> rows, Cdc cdc) {
+    private PCollectionRowTuple expandCdc(PCollection<Row> rows) {
       Schema inputSchema = rows.getSchema();
       @Nullable List<String> drop = configuration.getDrop();
       @Nullable List<String> keep = configuration.getKeep();
       @Nullable String only = configuration.getOnly();
-      @Nullable String changeTypeColumn = cdc.getChangeTypeColumn();
-      @Nullable String configuredSeq = cdc.getSequenceNumberColumn();
-      String seqColumn = configuredSeq != null ? configuredSeq : DEFAULT_SEQUENCE_NUMBER_COLUMN;
+      @Nullable String changeTypeColumn = configuration.getChangeTypeColumn();
+      @Nullable String configuredSeq = configuration.getSequenceNumberColumn();
+      String seqColumn =
+          configuredSeq != null
+              ? configuredSeq
+              : IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER;
 
       // The sink reads the control columns from the raw element, so by default they are dropped
       // from the written row. Listing them in keep writes them too.
@@ -631,7 +614,7 @@ public class IcebergWriteSchemaTransformProvider
                       drop,
                       keep,
                       only));
-      IcebergWriteResult result = rows.apply(applyOptions(write, cdc));
+      IcebergWriteResult result = rows.apply(applyOptions(write));
 
       PCollection<Row> snapshots =
           result
@@ -649,24 +632,24 @@ public class IcebergWriteSchemaTransformProvider
     }
 
     /** Threads every set option onto {@code write}. */
-    private WriteCdcRows applyOptions(WriteCdcRows write, Cdc cdc) {
+    private WriteCdcRows applyOptions(WriteCdcRows write) {
       @Nullable List<String> equalityColumns = configuration.getEqualityColumns();
       if (equalityColumns != null) {
         write = write.withEqualityColumns(equalityColumns);
       }
-      @Nullable String sequenceNumberColumn = cdc.getSequenceNumberColumn();
+      @Nullable String sequenceNumberColumn = configuration.getSequenceNumberColumn();
       if (sequenceNumberColumn != null) {
         write = write.withSequenceNumberColumn(sequenceNumberColumn);
       }
-      @Nullable String changeTypeColumn = cdc.getChangeTypeColumn();
+      @Nullable String changeTypeColumn = configuration.getChangeTypeColumn();
       if (changeTypeColumn != null) {
         write = write.withChangeTypeColumn(changeTypeColumn);
       }
-      @Nullable Map<String, String> changeTypeMap = cdc.getChangeTypeMap();
+      @Nullable Map<String, String> changeTypeMap = configuration.getChangeTypeMap();
       if (changeTypeMap != null) {
         write = write.withChangeTypeMap(changeTypeMap);
       }
-      @Nullable Boolean upsert = cdc.getUpsert();
+      @Nullable Boolean upsert = configuration.getUpsert();
       if (upsert != null) {
         write = write.withUpsert(upsert);
       }
