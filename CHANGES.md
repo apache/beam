@@ -92,7 +92,7 @@
 [comment]: # ( When updating known issues after release, make sure also update website blog in website/www/site/content/blog.)
 * ([#X](https://github.com/apache/beam/issues/X)).
 
-# [2.77.0] - Unreleased
+# [2.77.0] - 2026-09-??
 
 ## I/Os
 
