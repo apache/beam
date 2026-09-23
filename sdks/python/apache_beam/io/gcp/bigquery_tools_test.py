@@ -305,11 +305,20 @@ class TestBigQueryWrapper(unittest.TestCase):
 
   def test_get_or_create_dataset_with_access_entries(self):
     client = mock.Mock()
-    client.datasets.Get.side_effect = HttpError(
-        response={'status': '404'}, url='', content='')
-    client.datasets.Insert.return_value = bigquery.Dataset(
-        datasetReference=bigquery.DatasetReference(
-            projectId='project-id', datasetId='dataset_id'))
+    dataset_ref = bigquery.DatasetReference(
+        projectId='project-id', datasetId='dataset_id')
+    created = bigquery.Dataset(
+        datasetReference=dataset_ref,
+        access=[
+            bigquery.Dataset.AccessValueListEntry(
+                role='OWNER', specialGroup='projectOwners')
+        ])
+    client.datasets.Get.side_effect = [
+        HttpError(response={'status': '404'}, url='', content=''),
+        created,
+    ]
+    client.datasets.Insert.return_value = created
+    client.datasets.Patch.return_value = created
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
     access_entries = [
         bigquery.Dataset.AccessValueListEntry(
@@ -317,8 +326,16 @@ class TestBigQueryWrapper(unittest.TestCase):
     ]
     wrapper.get_or_create_dataset(
         'project-id', 'dataset_id', access_entries=access_entries)
+
     insert_request = client.datasets.Insert.call_args[0][0]
-    self.assertEqual(insert_request.dataset.access, access_entries)
+    self.assertIsNone(insert_request.dataset.access)
+
+    patch_request = client.datasets.Patch.call_args[0][0]
+    self.assertEqual(len(patch_request.dataset.access), 2)
+    self.assertEqual(
+        patch_request.dataset.access[1].userByEmail, 'sa@example.com')
+    self.assertEqual(
+        patch_request.dataset.access[1].role, 'roles/bigquery.dataEditor')
 
   def test_create_temporary_dataset_with_kms_key(self):
     kms_key = (

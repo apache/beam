@@ -883,12 +883,20 @@ class BigQueryWrapper(object):
               _build_dataset_encryption_config(kms_key))
         if default_table_expiration_ms is not None:
           dataset.defaultTableExpirationMs = default_table_expiration_ms
-        if access_entries is not None:
-          dataset.access = access_entries
         request = bigquery.BigqueryDatasetsInsertRequest(
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
         self.created_temp_dataset = True
+        if access_entries:
+          dataset = self.client.datasets.Get(
+              bigquery.BigqueryDatasetsGetRequest(
+                  projectId=project_id, datasetId=dataset_id))
+          entries = list(dataset.access or [])
+          entries.extend(access_entries)
+          dataset.access = entries
+          response = self.client.datasets.Patch(
+              bigquery.BigqueryDatasetsPatchRequest(
+                  projectId=project_id, datasetId=dataset_id, dataset=dataset))
         # The response is a bigquery.Dataset instance.
         return response
       else:
