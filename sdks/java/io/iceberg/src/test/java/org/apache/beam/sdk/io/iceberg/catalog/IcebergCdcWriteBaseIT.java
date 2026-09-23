@@ -15,7 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.apache.beam.sdk.io.iceberg.cdc.sink;
+package org.apache.beam.sdk.io.iceberg.catalog;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.ValueKind.DELETE;
@@ -32,24 +32,32 @@ import static org.hamcrest.Matchers.lessThan;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.Assume.assumeTrue;
 
-import java.io.File;
+import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
+import org.apache.beam.runners.direct.DirectOptions;
+import org.apache.beam.runners.direct.DirectRunner;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.SerializableCoder;
+import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
+import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergIO;
 import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
+import org.apache.beam.sdk.io.iceberg.cdc.sink.CdcSinkTestUtils;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -63,16 +71,20 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.sdk.values.ValueKind;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
 import org.apache.iceberg.FileContent;
 import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.HasTableOperations;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericAppenderFactory;
 import org.apache.iceberg.data.GenericRecord;
@@ -83,39 +95,84 @@ import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.transforms.Transforms;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializableFunction;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
+import org.junit.rules.TestName;
+import org.junit.rules.Timeout;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * End-to-end acceptance tests for the assembled CDC sink against a real Iceberg warehouse on disk,
- * read back via {@link IcebergGenerics#read} as ground truth. Named {@code *IT}: runs under {@code
- * integrationTest}, not the fast {@code test} suite. Genuinely covered: a real warehouse directory
- * (every referenced file must exist), cross-run token recovery (two sequential pipelines sharing
- * one {@code sink_id}, the second rebuilding progress purely from snapshot ancestry), and ordering
- * across many commits with a foreign snapshot interleaved.
+ * End-to-end acceptance tests for the assembled CDC sink against a real catalog and warehouse, read
+ * back via {@link IcebergGenerics#read} as ground truth. Subclasses supply the catalog, the same
+ * way {@link IcebergCatalogBaseIT} does, so every test runs against each supported catalog. Named
+ * {@code *IT}: runs under {@code integrationTest}, not the fast {@code test} suite.
+ *
+ * <p>Genuinely covered: real catalogs and warehouses (every referenced file must exist), cross-run
+ * token recovery (two sequential pipelines sharing one {@code sink_id}, the second rebuilding
+ * progress purely from snapshot ancestry), ordering across many commits with a foreign snapshot
+ * interleaved, and the round trip through the CDC source.
  *
  * <p>NOT covered here (needs a runner honoring {@code @RequiresStableInput}, Dataflow or Flink in
- * exactly-once mode) and remains outstanding: bundle retry mid-commit (the double-commit window the
- * token closes; the DirectRunner never retries bundles, so nothing in this repository exercises it;
- * treat this class as an assembly gate, not proof of exactly-once); backlog draining on a portable
- * runner (timer-timestamp fires, see {@link CommitDeltas}); pipeline update/drain with in-flight
- * file metadata in committer state; Iceberg's optimistic-concurrency retry (the foreign snapshot
- * deliberately lands BETWEEN the sink's commits, so no genuine {@code CommitFailedException}
- * refresh-and-retry runs); real catalogs other than Hadoop under a real multi-worker writer.
+ * exactly-once mode): bundle retry mid-commit (the double-commit window the token closes; the
+ * DirectRunner never retries bundles, so treat this class as an assembly gate, not proof of
+ * exactly-once); backlog draining on a portable runner; pipeline update/drain with in-flight file
+ * metadata in committer state; Iceberg's optimistic-concurrency retry (the foreign snapshot lands
+ * BETWEEN the sink's commits, so no genuine {@code CommitFailedException} refresh-and-retry runs).
  *
- * <p>Every test creates a uniquely named table (TableCache is process-wide).
+ * <p>The {@link TestStream} cases run on the DirectRunner only.
  */
-@RunWith(JUnit4.class)
-public class IcebergCdcWriteIT {
+public abstract class IcebergCdcWriteBaseIT implements Serializable {
+
+  private static final Logger LOG = LoggerFactory.getLogger(IcebergCdcWriteBaseIT.class);
+  private static final long SETUP_TEARDOWN_SLEEP_MS = 5000;
+  private static final String RANDOM = UUID.randomUUID().toString();
+
+  protected static final GcpOptions OPTIONS =
+      TestPipeline.testingPipelineOptions().as(GcpOptions.class);
+
+  /** The catalog under test; the sink reaches it through {@link #managedIcebergConfig}. */
+  public abstract Catalog createCatalog();
+
+  /** The Managed-style config for {@code tableId}: catalog name, properties, and Hadoop config. */
+  public abstract Map<String, Object> managedIcebergConfig(String tableId);
+
+  public abstract String type();
+
+  public static String warehouse(Class<? extends IcebergCdcWriteBaseIT> testClass) {
+    return String.format(
+        "%s/%s/%s",
+        TestPipeline.testingPipelineOptions().getTempLocation(), testClass.getSimpleName(), RANDOM);
+  }
+
+  /** Whether {@code warehouse} lives on GCS; local warehouses skip the consistency sleeps. */
+  static boolean isGcs(String warehouse) {
+    return warehouse.startsWith("gs://");
+  }
+
+  /** The Iceberg FileIO for {@code warehouse}: GCS-native on GCS, Hadoop's otherwise. */
+  static String ioImplFor(String warehouse) {
+    return isGcs(warehouse)
+        ? "org.apache.iceberg.gcp.gcs.GCSFileIO"
+        : "org.apache.iceberg.hadoop.HadoopFileIO";
+  }
+
+  protected static String warehouse;
+  public Catalog catalog;
+  public String catalogName = type() + "_cdc_test_catalog_" + System.currentTimeMillis();
+  private final List<String> namespacesToCleanup = new ArrayList<>();
 
   @Rule public transient TestPipeline p = TestPipeline.create();
-  @Rule public transient TemporaryFolder tmp = new TemporaryFolder();
+  @Rule public transient TestName testName = new TestName();
+
+  @Rule
+  public transient Timeout globalTimeout =
+      Timeout.seconds(OPTIONS.getRunner().equals(DirectRunner.class) ? 300 : 20 * 60);
 
   /** Canonical test table schema, shared with the {@code cdc/sink} unit suites. */
   private static final org.apache.iceberg.Schema ICEBERG_SCHEMA =
@@ -140,30 +197,89 @@ public class IcebergCdcWriteIT {
 
   private static final Duration WINDOW = Duration.standardSeconds(60);
 
-  private Catalog catalog;
-
   @Before
-  public void setUp() {
-    catalog = CdcSinkTestUtils.hadoopCatalog(tmp.getRoot());
+  public void setUp() throws Exception {
+    OPTIONS.as(DirectOptions.class).setTargetParallelism(1);
+    warehouse = warehouse(getClass());
+    catalog = createCatalog();
+    namespacesToCleanup.add(namespace());
+    if (catalog instanceof SupportsNamespaces) {
+      ((SupportsNamespaces) catalog).createNamespace(Namespace.of(namespace()));
+    }
+    if (isGcs(warehouse)) {
+      Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
+    }
   }
 
-  private IcebergCatalogConfig catalogConfig() {
-    return CdcSinkTestUtils.catalogConfig(tmp.getRoot());
+  @After
+  public void cleanUp() throws Exception {
+    for (String namespaceName : namespacesToCleanup) {
+      Namespace namespace = Namespace.of(namespaceName);
+      for (TableIdentifier identifier : catalog.listTables(namespace)) {
+        catalog.dropTable(identifier);
+      }
+      if (catalog instanceof SupportsNamespaces) {
+        ((SupportsNamespaces) catalog).dropNamespace(namespace);
+      }
+    }
+    LOG.info("Cleaned up namespaces: {}", namespacesToCleanup);
+    if (!isGcs(warehouse)) {
+      return;
+    }
+    Thread.sleep(SETUP_TEARDOWN_SLEEP_MS);
+    try {
+      GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
+      GcsPath path = GcsPath.fromUri(warehouse);
+      @Nullable List<StorageObject> objects =
+          gcsUtil
+              .listObjects(
+                  path.getBucket(),
+                  getClass().getSimpleName() + "/" + path.getFileName().toString(),
+                  null)
+              .getItems();
+      // A catalog's cleanup sometimes removes every file; delete whatever is left.
+      if (objects != null) {
+        gcsUtil.remove(
+            objects.stream()
+                .map(obj -> "gs://" + path.getBucket() + "/" + obj.getName())
+                .collect(Collectors.toList()));
+      }
+    } catch (Exception e) {
+      LOG.warn("Failed to clean up GCS files.", e);
+    }
+  }
+
+  public String namespace() {
+    return catalogName + "_" + testName.getMethodName();
+  }
+
+  /** The sink's catalog config, from the same map the Managed tests use. */
+  @SuppressWarnings("unchecked")
+  protected IcebergCatalogConfig catalogConfig() {
+    Map<String, Object> config = managedIcebergConfig("unused.table");
+    return IcebergCatalogConfig.builder()
+        .setCatalogName((String) config.get("catalog_name"))
+        .setCatalogProperties((Map<String, String>) config.get("catalog_properties"))
+        .setConfigProperties((Map<String, String>) config.get("config_properties"))
+        .build();
   }
 
   // -----------------------------------------------------------------------------------------------
   // Fixtures
   // -----------------------------------------------------------------------------------------------
 
-  /** Creates a uniquely named table and returns its identifier. */
+  /** Creates a uniquely named table in this test's namespace and returns its identifier. */
   private TableIdentifier createTable(
       String prefix,
       org.apache.iceberg.Schema schema,
       Set<Integer> identifierFieldIds,
       int formatVersion,
       PartitionSpec spec) {
-    TableIdentifier id = TableIdentifier.of("db", prefix + "_" + System.nanoTime());
-    CdcSinkTestUtils.createTable(catalog, id, schema, identifierFieldIds, formatVersion, spec);
+    TableIdentifier id = TableIdentifier.of(namespace(), prefix + "_" + System.nanoTime());
+    org.apache.iceberg.Schema schemaWithIds =
+        new org.apache.iceberg.Schema(schema.columns(), identifierFieldIds);
+    catalog.createTable(
+        id, schemaWithIds, spec, ImmutableMap.of("format-version", String.valueOf(formatVersion)));
     return id;
   }
 
@@ -274,14 +390,15 @@ public class IcebergCdcWriteIT {
         checkStateNotNull(table.currentSnapshot()).addedDeleteFiles(table.io()));
   }
 
-  /** Total committed value of the {@link CommitDeltas} counter named {@code name}. */
+  /** Total committed value of the committer counter named {@code name}. */
   private static long committerCounter(PipelineResult result, String name) {
     Iterable<MetricResult<Long>> counters =
         result
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named(CommitDeltas.class, name))
+                    .addNameFilter(
+                        MetricNameFilter.named(CdcSinkTestUtils.COMMITTER_METRICS_NAMESPACE, name))
                     .build())
             .getCounters();
     long total = 0;
@@ -292,33 +409,15 @@ public class IcebergCdcWriteIT {
   }
 
   // -----------------------------------------------------------------------------------------------
-  // The warehouse on disk
+  // The warehouse
   // -----------------------------------------------------------------------------------------------
 
-  /** {@code table}'s directory in the local warehouse, whether or not its location has a scheme. */
-  private static File tableDir(Table table) {
-    String location = table.location();
-    return new File(location.startsWith("file:") ? location.substring("file:".length()) : location);
-  }
-
-  /** Every regular file below {@code dir}, or an empty list if {@code dir} does not exist. */
-  private static List<String> filesUnder(File dir) throws IOException {
-    if (!dir.isDirectory()) {
-      return ImmutableList.of();
-    }
-    try (Stream<Path> paths = Files.walk(dir.toPath())) {
-      return paths
-          .filter(Files::isRegularFile)
-          .map(Path::toString)
-          .sorted()
-          .collect(Collectors.toList());
-    }
-  }
-
   /** Every file the committed snapshots reference really exists in the warehouse. */
-  private static void assertWarehouseIsClean(Table table) throws IOException {
-    // Guards against passing vacuously: the directory is where expected and files were added.
-    assertThat(filesUnder(new File(tableDir(table), "metadata")), not(empty()));
+  private static void assertWarehouseIsClean(Table table) {
+    // Guards against passing vacuously: the current metadata exists and files were added.
+    String metadataLocation =
+        ((HasTableOperations) table).operations().current().metadataFileLocation();
+    assertThat(table.io().newInputFile(metadataLocation).exists(), is(true));
     List<DataFile> added = allAddedDataFiles(table);
     assertThat(added, not(empty()));
 
@@ -331,16 +430,16 @@ public class IcebergCdcWriteIT {
   }
 
   // -----------------------------------------------------------------------------------------------
-  // 1. Format-version-3 end to end, against a real warehouse directory
+  // 1. Format-version-3 end to end, against a real warehouse
   // -----------------------------------------------------------------------------------------------
 
   /**
    * The whole sink on a V3 table in a real warehouse: insert/update/delete resolve correctly, the
    * same-window churn collapses in the writer so the commit adds no delete files at all, every
-   * committed file exists on disk.
+   * committed file exists in the warehouse.
    */
   @Test
-  public void v3EndToEndAppliesInsertUpdateDelete() throws IOException {
+  public void v3EndToEndAppliesInsertUpdateDelete() {
     TableIdentifier id = createCanonicalTable("v3e2e", 3);
     Table t = catalog.loadTable(id);
 
@@ -374,6 +473,7 @@ public class IcebergCdcWriteIT {
    */
   @Test
   public void streamingMultiWindowCommitsWindowsInOrder() {
+    assumeDirectRunner();
     TableIdentifier id = createCanonicalTable("streame2e", 2);
     Table t = catalog.loadTable(id);
     String sinkId = "sink-" + System.nanoTime();
@@ -456,6 +556,7 @@ public class IcebergCdcWriteIT {
    */
   @Test
   public void restartWithStableSinkIdResumesWithoutDoubleApply() {
+    assumeDirectRunner();
     TableIdentifier id = createCanonicalTable("restart", 2);
     Table t = catalog.loadTable(id);
     String sinkId = "stable-sink-" + System.nanoTime();
@@ -537,11 +638,12 @@ public class IcebergCdcWriteIT {
   /**
    * A foreign writer commits between the sink's own commits: recovery walks the ancestry past the
    * foreign snapshot, the replayed windows skip, the new window commits, and both writers' rows
-   * survive. The assembled-pipeline counterpart of {@link
+   * survive. The assembled-pipeline counterpart of {@code
    * CommitDeltasTest#recoversTokenBehindForeignCommitAndCommitsNextWindow}.
    */
   @Test
   public void foreignCommitBetweenSinkCommitsPreservesTokenRecovery() throws IOException {
+    assumeDirectRunner();
     TableIdentifier id = createCanonicalTable("foreign", 2);
     Table t = catalog.loadTable(id);
     String sinkId = "stable-sink-" + System.nanoTime();
@@ -598,6 +700,7 @@ public class IcebergCdcWriteIT {
    */
   @Test
   public void partitionedEndToEndRoutesRowsAndDeletesIntoTheirBuckets() {
+    assumeDirectRunner();
     org.apache.iceberg.Schema schemaWithIds =
         new org.apache.iceberg.Schema(ICEBERG_SCHEMA.columns(), ImmutableSet.of(1));
     PartitionSpec spec = PartitionSpec.builderFor(schemaWithIds).bucket("id", 8).build();
@@ -676,9 +779,9 @@ public class IcebergCdcWriteIT {
 
   /**
    * Writes changes of every kind to table A over three commits, then reads back table A's changelog
-   * using the CDC source and applies those changes to table B with a second sink.
-   * The source applies native element metadata ValueKinds so no need to set a change_type_column.
-   * For sequence column, we use the default {@code _commit_snapshot_sequence_number} coming from the source.
+   * using the CDC source and applies those changes to table B with a second sink. The source
+   * applies native element metadata ValueKinds so no need to set a change_type_column. For sequence
+   * column, we use the default {@code _commit_snapshot_sequence_number} coming from the source.
    */
   @Test
   public void changelogOfSinkWrittenTableRoundTripsThroughTheSource() throws Exception {
@@ -741,6 +844,13 @@ public class IcebergCdcWriteIT {
     Table target = catalog.loadTable(targetId);
     assertThat(readRows(target), equalTo(readRows(source)));
     assertThat(readRows(target), equalTo(expected));
+  }
+
+  /**
+   * The {@link TestStream} cases drive event time by hand, which only the DirectRunner supports.
+   */
+  private static void assumeDirectRunner() {
+    assumeTrue(OPTIONS.getRunner().equals(DirectRunner.class));
   }
 
   /** One batch run of the sink against {@code tableId}: one commit. */

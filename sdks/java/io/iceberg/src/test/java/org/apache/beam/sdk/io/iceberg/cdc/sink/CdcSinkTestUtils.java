@@ -59,7 +59,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Shared test helpers for the {@code cdc/sink} suites. The TableCache and catalog caches are
  * process-wide statics, so tests must use unique table names per test method.
  */
-final class CdcSinkTestUtils {
+public final class CdcSinkTestUtils {
+  /** The metrics namespace of the committer, for counters read from outside the package. */
+  public static final String COMMITTER_METRICS_NAMESPACE = CommitDeltas.class.getName();
 
   private CdcSinkTestUtils() {}
 
@@ -179,12 +181,12 @@ final class CdcSinkTestUtils {
   }
 
   /** Attaches each element's {@link ValueKind} to its {@link Row}: the sink's input contract. */
-  static PCollection<Row> withKinds(PCollection<KV<ValueKind, Row>> tagged) {
+  public static PCollection<Row> withKinds(PCollection<KV<ValueKind, Row>> tagged) {
     return tagged.apply(kindsFn());
   }
 
   /** {@link #withKinds(PCollection)} with an explicit step name, for multi-application tests. */
-  static PCollection<Row> withKinds(String name, PCollection<KV<ValueKind, Row>> tagged) {
+  public static PCollection<Row> withKinds(String name, PCollection<KV<ValueKind, Row>> tagged) {
     return tagged.apply(name, kindsFn());
   }
 
