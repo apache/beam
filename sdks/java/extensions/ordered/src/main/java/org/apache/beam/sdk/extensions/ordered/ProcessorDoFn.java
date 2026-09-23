@@ -63,6 +63,7 @@ abstract class ProcessorDoFn<
   private final long maxNumberOfResultsToProduce;
 
   protected @Nullable Long numberOfResultsBeforeBundleStart = 0L;
+  protected @Nullable Long numberOfDuplicatesBeforeBundleStart = 0L;
 
   ProcessorDoFn(
       EventExaminer<EventT, StateT> eventExaminer,
@@ -85,12 +86,14 @@ abstract class ProcessorDoFn<
   @StartBundle
   public void onBundleStart() {
     numberOfResultsBeforeBundleStart = null;
+    numberOfDuplicatesBeforeBundleStart = null;
   }
 
   @FinishBundle
   public void onBundleFinish() {
     // This might be necessary because this field is also used in a Timer
     numberOfResultsBeforeBundleStart = null;
+    numberOfDuplicatesBeforeBundleStart = null;
   }
 
   /** Returns true if each event needs to be examined. */
@@ -267,10 +270,12 @@ abstract class ProcessorDoFn<
 
   protected boolean reachedMaxResultCountForBundle(
       ProcessingState<EventKeyT> processingState, Timer largeBatchEmissionTimer) {
-    boolean exceeded =
-        processingState.resultsProducedInBundle(
-                numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart)
-            >= maxNumberOfResultsToProduce;
+    long resultsEmitted = processingState.resultsProducedInBundle(
+        numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart);
+    long duplicatesEmitted = processingState.duplicatesProducedInBundle(
+        numberOfDuplicatesBeforeBundleStart == null ? 0 : numberOfDuplicatesBeforeBundleStart);
+
+    boolean exceeded = (resultsEmitted + duplicatesEmitted) >= maxNumberOfResultsToProduce;
     if (exceeded) {
       if (LOG.isTraceEnabled()) {
         LOG.trace(
@@ -354,9 +359,10 @@ abstract class ProcessorDoFn<
                             beforeInitialSequence
                                 ? Reason.before_initial_sequence
                                 : Reason.duplicate))));
-        // TODO: When there is a large number of duplicates this can cause a situation where
-        // we produce too much output and the runner will start throwing unrecoverable errors.
-        // Need to add counting logic to accumulate both the normal and DLQ outputs.
+        if (reachedMaxResultCountForBundle(processingState, largeBatchEmissionTimer)) {
+          endClearRange = fromLong(eventSequence + 1);
+          break;
+        }
         continue;
       }
 
