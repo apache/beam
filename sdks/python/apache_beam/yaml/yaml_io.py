@@ -722,18 +722,18 @@ def write_to_iceberg(
     cdc: A config map that, when present, enables writing the input as a stream
       of row-level changes applied by primary key. An empty map will use the
       defaults. Config options include:
-      - sequence_number_column: the required column name representing the
-        monotonic sequence number used to order a single key's changes. Default
-        column name is '_commit_snapshot_sequence_number'. This column will be
-        stripped from the data row before writing to Iceberg.
-      - change_type_column: the optional column name representing the row's
-        change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER, or DELETE). This
-        column will be stripped from the data row before writing to Iceberg.
-      - change_type_map: optional map from the `change_type_column` value to
-        the canonical change type name (see above).
-      - upsert: if true, only the after-image of each change
-        (INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records
-        are dropped. Default: false.
+      - `sequence_number_column`: the required column name representing the
+      monotonic sequence number used to order a single key's changes. Default
+      column name is '_commit_snapshot_sequence_number'. This column will be
+      stripped from the data row before writing to Iceberg.
+      - `change_type_column`: the optional column name representing the row's
+      change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER, or DELETE). This
+      column will be stripped from the data row before writing to Iceberg.
+      - `change_type_map`: optional map from the `change_type_column` value to
+      the canonical change type name (see above).
+      - `upsert`: if true, only the after-image of each change
+      (INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records
+      are dropped. Default: false.
     equality_columns: Columns defining row identity (equality-delete fields).
       Defaults to the destination table's identifier (primary-key) fields.
       Required if the table doesn't exist yet. Currently only supported in CDC
