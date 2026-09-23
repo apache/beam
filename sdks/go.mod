@@ -31,13 +31,13 @@ require (
 	cloud.google.com/go/profiler v0.6.0
 	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/spanner v1.95.1
-	cloud.google.com/go/storage v1.67.1
+	cloud.google.com/go/storage v1.68.0
 	github.com/aws/aws-sdk-go-v2 v1.47.0
 	github.com/aws/aws-sdk-go-v2/config v1.33.5
 	github.com/aws/aws-sdk-go-v2/credentials v1.20.5
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.23.7
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.113.1
-	github.com/aws/smithy-go v1.28.1
+	github.com/aws/smithy-go v1.28.2
 	github.com/docker/go-connections v0.7.0 // indirect
 	github.com/dustin/go-humanize v1.1.0
 	github.com/go-sql-driver/mysql v1.10.1
@@ -46,8 +46,8 @@ require (
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/lib/pq v1.12.3
 	github.com/linkedin/goavro/v2 v2.15.0
-	github.com/nats-io/nats-server/v2 v2.14.6
-	github.com/nats-io/nats.go v1.53.1
+	github.com/nats-io/nats-server/v2 v2.15.0
+	github.com/nats-io/nats.go v1.54.0
 	github.com/proullon/ramsql v0.1.4
 	github.com/spf13/cobra v1.10.2
 	github.com/testcontainers/testcontainers-go v0.44.0
@@ -90,7 +90,7 @@ require (
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.34.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.57.0 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.57.0 // indirect
-	github.com/antithesishq/antithesis-sdk-go v0.7.2-default-no-op // indirect
+	github.com/antithesishq/antithesis-sdk-go v0.8.0-default-no-op // indirect
 	github.com/apache/arrow/go/v15 v15.0.2 // indirect
 	github.com/aws/aws-sdk-go-v2/service/signin v1.10.0 // indirect
 	github.com/containerd/errdefs v1.0.0 // indirect
@@ -134,7 +134,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.44.0 // indirect
 	go.shabbyrobe.org/gocovmerge v0.0.0-20230507111327-fa4f82cfbf4d // indirect
 	golang.org/x/telemetry v0.0.0-20260811182544-a038080d80e5 // indirect
-	golang.org/x/time v0.15.0 // indirect
+	golang.org/x/time v0.16.0 // indirect
 )
 
 require (
@@ -176,7 +176,7 @@ require (
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/klauspost/compress v1.19.2 // indirect
+	github.com/klauspost/compress v1.20.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/magiconair/properties v1.8.10 // indirect
 	github.com/moby/patternmatcher v0.6.1 // indirect
