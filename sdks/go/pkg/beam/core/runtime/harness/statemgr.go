@@ -718,7 +718,7 @@ func (c *StateChannel) read(ctx context.Context) {
 		msg, err := c.client.Recv()
 		if err != nil {
 			c.terminateStreamOnError(err)
-			if err == io.EOF {
+			if err == io.EOF || status.Code(err) == codes.Canceled {
 				log.Warnf(ctx, "StateChannel[%v].read: closed", c.id)
 				return
 			}

@@ -29,6 +29,8 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // fakeStateClient replicates the call and response protocol
@@ -137,6 +139,21 @@ func TestStateChannel(t *testing.T) {
 				return err
 			},
 			expectedErr:       io.EOF,
+			validateCancelled: true,
+		}, {
+			name: "readCanceled",
+			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
+				go func() {
+					req := <-client.send
+					client.setRecvErr(status.Error(codes.Canceled, "context canceled"))
+					client.recv <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
+				}()
+				_, err := c.Send(&fnpb.StateRequest{})
+				return err
+			},
+			expectedErr:       status.Error(codes.Canceled, "context canceled"),
 			validateCancelled: true,
 		}, {
 			name: "readOtherErr",
@@ -499,7 +516,7 @@ type teardownStateClient struct{ block chan struct{} }
 
 func (f *teardownStateClient) Recv() (*fnpb.StateResponse, error) {
 	<-f.block
-	return nil, io.EOF
+	return nil, status.Error(codes.Canceled, "context canceled")
 }
 func (f *teardownStateClient) Send(*fnpb.StateRequest) error { return nil }
 
