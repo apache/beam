@@ -198,10 +198,17 @@ public class DefaultPipelineLauncher extends AbstractPipelineLauncher {
     return metrics.getDistributions();
   }
 
+  /**
+   * Returns the {@link PipelineResult} associated with the given jobId, or null if the job was not
+   * launched through this launcher.
+   */
+  public static @Nullable PipelineResult getPipelineResult(String jobId) {
+    return MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
+  }
+
   /** Pull Beam pipeline defined metrics given the jobId. */
   public Long getBeamMetric(String jobId, PipelineMetricsType metricType, String metricName) {
-    PipelineResult pipelineResult =
-        MANAGED_JOBS.getOrDefault(jobId, UNMANAGED_JOBS.getOrDefault(jobId, null));
+    PipelineResult pipelineResult = getPipelineResult(jobId);
     if (pipelineResult != null) {
       MetricQueryResults metrics =
           pipelineResult

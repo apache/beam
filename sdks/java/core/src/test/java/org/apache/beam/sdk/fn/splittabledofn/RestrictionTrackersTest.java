@@ -103,7 +103,9 @@ public class RestrictionTrackersTest {
     private boolean blockTryClaim;
     private boolean blockTrySplit;
     private volatile boolean isBlocked;
+    private volatile Progress currentProgress = REPORT_PROGRESS;
     public static final Progress REPORT_PROGRESS = Progress.from(2.0, 3.0);
+    public static final Progress UPDATED_PROGRESS = Progress.from(4.0, 1.0);
 
     public RestrictionTrackerWithProgress() {
       this(false, false);
@@ -117,7 +119,11 @@ public class RestrictionTrackersTest {
 
     @Override
     public Progress getProgress() {
-      return REPORT_PROGRESS;
+      return currentProgress;
+    }
+
+    public void setProgress(Progress progress) {
+      this.currentProgress = progress;
     }
 
     @Override
@@ -161,6 +167,14 @@ public class RestrictionTrackersTest {
       return IsBounded.BOUNDED;
     }
 
+    public synchronized void setBlockTryClaim(boolean blockTryClaim) {
+      this.blockTryClaim = blockTryClaim;
+    }
+
+    public synchronized void setBlockTrySplit(boolean blockTrySplit) {
+      this.blockTrySplit = blockTrySplit;
+    }
+
     public synchronized void releaseLock() {
       blockTrySplit = false;
       blockTryClaim = false;
@@ -190,13 +204,32 @@ public class RestrictionTrackersTest {
     Thread blocking = new Thread(() -> tracker.tryClaim(new Object()));
     blocking.start();
     withProgress.waitUntilBlocking(true);
+    // Times out while first tryClaim holds lock; returns NONE and sets needsProgressUpdate = true
     RestrictionTracker.Progress progress =
         ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTracker.Progress.NONE, progress);
+    // When first tryClaim finishes, updateProgressAndUnlock() sees needsProgressUpdate == true and
+    // evaluates REPORT_PROGRESS before releasing the lock.
     withProgress.releaseLock();
     withProgress.waitUntilBlocking(false);
-    progress = ((HasProgress) tracker).getProgress();
+    blocking.join();
+
+    // Even if a second blocking tryClaim immediately grabs the lock before getProgress is called
+    // again, getProgress(1) returns REPORT_PROGRESS (updated during first tryClaim's
+    // updateProgressAndUnlock).
+    withProgress.setProgress(RestrictionTrackerWithProgress.UPDATED_PROGRESS);
+    withProgress.setBlockTryClaim(true);
+    Thread secondBlocking = new Thread(() -> tracker.tryClaim(new Object()));
+    secondBlocking.start();
+    withProgress.waitUntilBlocking(true);
+    progress =
+        ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
+    withProgress.releaseLock();
+    withProgress.waitUntilBlocking(false);
+    secondBlocking.join();
+    progress = ((HasProgress) tracker).getProgress();
+    assertEquals(RestrictionTrackerWithProgress.UPDATED_PROGRESS, progress);
   }
 
   @Test
@@ -204,15 +237,29 @@ public class RestrictionTrackersTest {
     RestrictionTrackerWithProgress withProgress = new RestrictionTrackerWithProgress(false, true);
     RestrictionTracker<Object, Object> tracker =
         RestrictionTrackers.observe(withProgress, new RestrictionTrackers.NoopClaimObserver<>());
+    // trySplit unconditionally refreshes lastProgress via updateProgressAndUnlock()
     Thread blocking = new Thread(() -> tracker.trySplit(0.5));
     blocking.start();
     withProgress.waitUntilBlocking(true);
-    RestrictionTracker.Progress progress =
-        ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
-    assertEquals(RestrictionTracker.Progress.NONE, progress);
     withProgress.releaseLock();
     withProgress.waitUntilBlocking(false);
-    progress = ((HasProgress) tracker).getProgress();
+    blocking.join();
+
+    // Even though getProgress was never called before, trySplit unconditionally updated
+    // lastProgress to REPORT_PROGRESS. If a subsequent tryClaim blocks, getProgress(1) returns
+    // REPORT_PROGRESS rather than NONE or a stale pre-split progress.
+    withProgress.setProgress(RestrictionTrackerWithProgress.UPDATED_PROGRESS);
+    withProgress.setBlockTryClaim(true);
+    Thread secondBlocking = new Thread(() -> tracker.tryClaim(new Object()));
+    secondBlocking.start();
+    withProgress.waitUntilBlocking(true);
+    RestrictionTracker.Progress progress =
+        ((RestrictionTrackers.RestrictionTrackerObserverWithProgress) tracker).getProgress(1);
     assertEquals(RestrictionTrackerWithProgress.REPORT_PROGRESS, progress);
+    withProgress.releaseLock();
+    withProgress.waitUntilBlocking(false);
+    secondBlocking.join();
+    progress = ((HasProgress) tracker).getProgress();
+    assertEquals(RestrictionTrackerWithProgress.UPDATED_PROGRESS, progress);
   }
 }

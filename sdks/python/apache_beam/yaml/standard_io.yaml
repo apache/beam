@@ -588,28 +588,27 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
-#BigTable
+# Bigtable
 - type: renaming
   transforms:
-    'ReadFromBigTable': 'ReadFromBigTable'
-    'WriteToBigTable': 'WriteToBigTable'
+    'ReadFromBigtable': 'ReadFromBigtable'
+    'WriteToBigtable': 'WriteToBigtable'
   config:
     mappings:
-      #Temp removing read from bigTable IO
-      'ReadFromBigTable':
+      'ReadFromBigtable':
         project: 'project_id'
         instance: 'instance_id'
         table: 'table_id'
         flatten: "flatten"
-      'WriteToBigTable':
+      'WriteToBigtable':
         project: 'project_id'
         instance: 'instance_id'
         table: 'table_id'
     underlying_provider:
       type: beamJar
       transforms:
-        'ReadFromBigTable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
-        'WriteToBigTable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
+        'ReadFromBigtable': 'beam:schematransform:org.apache.beam:bigtable_read:v1'
+        'WriteToBigtable': 'beam:schematransform:org.apache.beam:bigtable_write:v1'
       config:
         gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
@@ -657,6 +656,10 @@
         partition_fields: 'partition_fields'
         table_properties: 'table_properties'
         sort_fields: 'sort_fields'
+        schema_evolution_options: 'schema_evolution_options'
+        required_columns: 'required_columns'
+        incompatible_schema_handling: 'incompatible_schema_handling'
+        unverifiable_file_handling: 'unverifiable_file_handling'
         error_handling: 'error_handling'
     underlying_provider:
       type: beamJar

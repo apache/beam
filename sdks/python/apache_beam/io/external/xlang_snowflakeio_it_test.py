@@ -61,7 +61,10 @@ from apache_beam.testing.util import equal_to
 
 # pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  if not GCS_INSTALLED:
+    GCSFileSystem = None
 except ImportError:
   GCSFileSystem = None
 # pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
