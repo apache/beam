@@ -180,18 +180,12 @@ func TestStateChannel(t *testing.T) {
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
 					client.setSendErr(io.EOF)
-					req := <-client.send
-					// This can be plumbed through on either side, write or read,
-					// the important part is that we get it.
-					client.setRecvErr(expectedError)
-					client.recv <- &fnpb.StateResponse{
-						Id: req.Id,
-					}
+					<-client.send
 				}()
 				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
-			expectedErr:       expectedError,
+			expectedErr:       io.EOF,
 			validateCancelled: true,
 		}, {
 			name: "writeOtherError",
@@ -536,6 +530,41 @@ func TestStateChannelManagerClose(t *testing.T) {
 		t.Error("ports not cleared")
 	}
 	m.Close()
+}
+
+type eofOnSendStateClient struct {
+	recvForever chan struct{}
+}
+
+func (c *eofOnSendStateClient) Send(*fnpb.StateRequest) error { return io.EOF }
+func (c *eofOnSendStateClient) Recv() (*fnpb.StateResponse, error) {
+	<-c.recvForever
+	return nil, io.EOF
+}
+
+func TestStateChannelWriteEOF(t *testing.T) {
+	c := &StateChannel{
+		id:        "id",
+		client:    &eofOnSendStateClient{recvForever: make(chan struct{})},
+		requests:  make(chan *fnpb.StateRequest, 1),
+		responses: make(map[string]chan<- *fnpb.StateResponse),
+		cancelFn:  func() {},
+		DoneCh:    make(chan struct{}),
+	}
+	c.responses["r1"] = make(chan *fnpb.StateResponse, 1)
+	c.requests <- &fnpb.StateRequest{Id: "r1"}
+
+	done := make(chan struct{})
+	go func() {
+		c.write(context.Background())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("write blocked")
+	}
 }
 
 // This likely can't be replaced by the "errors" package helpers,

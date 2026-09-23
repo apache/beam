@@ -583,6 +583,66 @@ func TestDataChannelManagerClose(t *testing.T) {
 	m.Close()
 }
 
+type eofOnSendClient struct {
+	recvForever chan struct{}
+}
+
+func (c *eofOnSendClient) Send(*fnpb.Elements) error { return io.EOF }
+func (c *eofOnSendClient) Recv() (*fnpb.Elements, error) {
+	<-c.recvForever
+	return nil, io.EOF
+}
+
+func TestDataWriterSendEOF(t *testing.T) {
+	ch := &DataChannel{
+		id:       "id",
+		client:   &eofOnSendClient{recvForever: make(chan struct{})},
+		cancelFn: func() {},
+	}
+	w := &dataWriter{ch: ch, id: clientID{ptransformID: "pt", instID: "inst"}}
+
+	done := make(chan error, 1)
+	go func() {
+		ch.mu.Lock()
+		defer ch.mu.Unlock()
+		done <- w.send(&fnpb.Elements{})
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("send succeeded")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("send blocked")
+	}
+}
+
+func TestTimerWriterSendEOF(t *testing.T) {
+	ch := &DataChannel{
+		id:       "id",
+		client:   &eofOnSendClient{recvForever: make(chan struct{})},
+		cancelFn: func() {},
+	}
+	w := &timerWriter{ch: ch, id: clientID{ptransformID: "pt", instID: "inst"}, timerFamilyID: "fam"}
+
+	done := make(chan error, 1)
+	go func() {
+		ch.mu.Lock()
+		defer ch.mu.Unlock()
+		done <- w.send(&fnpb.Elements{})
+	}()
+
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("send succeeded")
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("send blocked")
+	}
+}
+
 type noopDataClient struct {
 }
 

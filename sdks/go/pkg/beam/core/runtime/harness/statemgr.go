@@ -764,14 +764,13 @@ func (c *StateChannel) write(ctx context.Context) {
 	}
 
 	if err == io.EOF {
-		log.Warnf(ctx, "StateChannel[%v].write EOF on send; fetching real error", c.id)
-		err = nil
-		for err == nil {
-			// Per GRPC stream documentation, if there's an EOF, we must call Recv
-			// until a non-nil error is returned, to ensure resources are cleaned up.
-			// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
-			_, err = c.client.Recv()
+		// Don't Recv here; the read loop owns the stream.
+		log.Warnf(ctx, "StateChannel[%v].write EOF on send", c.id)
+		c.mu.Lock()
+		if c.closedErr != nil {
+			err = c.closedErr
 		}
+		c.mu.Unlock()
 	}
 	log.Errorf(ctx, "StateChannel[%v].write error on send: %v", c.id, err)
 

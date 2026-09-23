@@ -576,13 +576,9 @@ type dataWriter struct {
 func (w *dataWriter) send(msg *fnpb.Elements) error {
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
-			log.Warnf(context.TODO(), "dataWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
-			err = nil
-			for err == nil {
-				// Per GRPC stream documentation, if there's an EOF, we must call Recv
-				// until a non-nil error is returned, to ensure resources are cleaned up.
-				// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
-				_, err = w.ch.client.Recv()
+			// Don't Recv here; the read loop owns the stream.
+			if w.ch.readErr != nil {
+				err = w.ch.readErr
 			}
 		}
 		log.Warnf(context.TODO(), "dataWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
@@ -701,13 +697,9 @@ type timerWriter struct {
 func (w *timerWriter) send(msg *fnpb.Elements) error {
 	if err := w.ch.client.Send(msg); err != nil {
 		if err == io.EOF {
-			log.Warnf(context.TODO(), "timerWriter[%v;%v] EOF on send; fetching real error", w.id, w.ch.id)
-			err = nil
-			for err == nil {
-				// Per GRPC stream documentation, if there's an EOF, we must call Recv
-				// until a non-nil error is returned, to ensure resources are cleaned up.
-				// https://pkg.go.dev/google.golang.org/grpc#ClientConn.NewStream
-				_, err = w.ch.client.Recv()
+			// Don't Recv here; the read loop owns the stream.
+			if w.ch.readErr != nil {
+				err = w.ch.readErr
 			}
 		}
 		log.Warnf(context.TODO(), "timerWriter[%v;%v] error on send: %v", w.id, w.ch.id, err)
