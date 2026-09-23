@@ -40,23 +40,23 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** The {@link TokenizationBigtableIO} class for writing data from template to Bigtable. */
-public class TokenizationBigtableIO {
+/** The {@link TokenizationBigTableIO} class for writing data from template to Bigtable. */
+public class TokenizationBigTableIO {
 
   /** Logger for class. */
-  private static final Logger LOG = LoggerFactory.getLogger(TokenizationBigtableIO.class);
+  private static final Logger LOG = LoggerFactory.getLogger(TokenizationBigTableIO.class);
 
   private final DataTokenizationOptions options;
 
-  public TokenizationBigtableIO(DataTokenizationOptions options) {
+  public TokenizationBigTableIO(DataTokenizationOptions options) {
     this.options = options;
   }
 
   public PDone write(PCollection<Row> input, Schema schema) {
     return input
-        .apply("ConvertToBigtableFormat", ParDo.of(new TransformToBigtableFormat(schema)))
+        .apply("ConvertToBigTableFormat", ParDo.of(new TransformToBigTableFormat(schema)))
         .apply(
-            "WriteToBigtable",
+            "WriteToBigTable",
             BigtableIO.write()
                 .withProjectId(options.getBigTableProjectId())
                 .withInstanceId(options.getBigTableInstanceId())
@@ -65,11 +65,11 @@ public class TokenizationBigtableIO {
         .apply("LogRowCount", new LogSuccessfulRows());
   }
 
-  static class TransformToBigtableFormat extends DoFn<Row, KV<ByteString, Iterable<Mutation>>> {
+  static class TransformToBigTableFormat extends DoFn<Row, KV<ByteString, Iterable<Mutation>>> {
 
     private final Schema schema;
 
-    TransformToBigtableFormat(Schema schema) {
+    TransformToBigTableFormat(Schema schema) {
       this.schema = schema;
     }
 
@@ -130,7 +130,7 @@ public class TokenizationBigtableIO {
    * Necessary {@link PipelineOptions} options for Pipelines that perform write operations to
    * Bigtable.
    */
-  public interface BigtableOptions extends PipelineOptions {
+  public interface BigTableOptions extends PipelineOptions {
 
     @Description("Id of the project where the Cloud Bigtable instance to write into is located.")
     String getBigTableProjectId();

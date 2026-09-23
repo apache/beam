@@ -84,7 +84,7 @@ tasks.register(
         + System.properties
 )
 tasks.register(
-        "BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOLT',
+        "BigTablePerformanceTest", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOLT',
         ['configuration':'large', 'project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
@@ -124,12 +124,12 @@ tasks.register(
         + System.properties
 )
 tasks.register(
-        "BigTableStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOST',
+        "BigTableStressTestMedium", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOST',
         ['configuration':'medium','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )
 tasks.register(
-        "BigTableStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigtableIOST',
+        "BigTableStressTestLarge", IoPerformanceTestUtilities.IoPerformanceTest, project, 'google-cloud-platform', 'BigTableIOST',
         ['configuration':'large','project':'apache-beam-testing', 'artifactBucket':'io-performance-temp']
         + System.properties
 )

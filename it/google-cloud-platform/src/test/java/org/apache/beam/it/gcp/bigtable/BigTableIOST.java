@@ -70,7 +70,7 @@ import org.junit.Test;
  * :it:google-cloud-platform:BigTableStressTestMedium} - To run large-scale stress tests: {@code
  * gradle :it:google-cloud-platform:BigTableStressTestLarge}
  */
-public final class BigtableIOST extends IOStressTestBase {
+public final class BigTableIOST extends IOStressTestBase {
 
   private static final String WRITE_ELEMENT_METRIC_NAME = "write_count";
   private static final String READ_ELEMENT_METRIC_NAME = "read_count";
@@ -252,10 +252,10 @@ public final class BigtableIOST extends IOStressTestBase {
     }
     source
         .apply(
-            "Map records to Bigtable format",
-            ParDo.of(new MapToBigtableFormat((int) configuration.valueSizeBytes)))
+            "Map records to BigTable format",
+            ParDo.of(new MapToBigTableFormat((int) configuration.valueSizeBytes)))
         .apply(
-            "Write to Bigtable",
+            "Write to BigTable",
             BigtableIO.write()
                 .withProjectId(project)
                 .withInstanceId(resourceManager.getInstanceId())
@@ -288,7 +288,7 @@ public final class BigtableIOST extends IOStressTestBase {
             .withTableId(tableId);
 
     readPipeline
-        .apply("Read from Bigtable", readIO)
+        .apply("Read from BigTable", readIO)
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
@@ -338,7 +338,7 @@ public final class BigtableIOST extends IOStressTestBase {
     @JsonProperty public boolean exportMetricsToInfluxDB = true;
 
     /** InfluxDB measurement to publish results to. * */
-    @JsonProperty public String influxMeasurement = BigtableIOST.class.getName();
+    @JsonProperty public String influxMeasurement = BigTableIOST.class.getName();
 
     /** InfluxDB host to publish metrics. * */
     @JsonProperty public String influxHost;
@@ -348,12 +348,12 @@ public final class BigtableIOST extends IOStressTestBase {
   }
 
   /** Maps Instant to the Bigtable format record. */
-  private static class MapToBigtableFormat
+  private static class MapToBigTableFormat
       extends DoFn<KV<byte[], byte[]>, KV<ByteString, Iterable<Mutation>>> implements Serializable {
 
     private final int valueSizeBytes;
 
-    public MapToBigtableFormat(int valueSizeBytes) {
+    public MapToBigTableFormat(int valueSizeBytes) {
       this.valueSizeBytes = valueSizeBytes;
     }
 

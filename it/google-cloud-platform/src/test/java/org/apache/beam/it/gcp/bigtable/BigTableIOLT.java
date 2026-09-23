@@ -56,14 +56,14 @@ import org.junit.Test;
  * BigtableIO performance tests.
  *
  * <p>Example trigger command for all tests: "mvn test -pl it/google-cloud-platform -am
- * -Dtest=BigtableIOLT \ -Dproject=[gcpProject] -DartifactBucket=[temp bucket]
+ * -Dtest=BigTableIOLT \ -Dproject=[gcpProject] -DartifactBucket=[temp bucket]
  * -DfailIfNoTests=false".
  *
  * <p>Example trigger command for specific test: "mvn test -pl it/google-cloud-platform -am \
- * -Dtest="BigtableIOLT#testBigtableWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
+ * -Dtest="BigTableIOLT#testBigtableWriteAndRead" -Dconfiguration=local -Dproject=[gcpProject] \
  * -DartifactBucket=[temp bucket] -DfailIfNoTests=false".
  */
-public class BigtableIOLT extends IOLoadTestBase {
+public class BigTableIOLT extends IOLoadTestBase {
 
   private static final String COLUMN_FAMILY_NAME = "cf";
   private static final long TABLE_MAX_AGE_MINUTES = 100L;
@@ -149,7 +149,7 @@ public class BigtableIOLT extends IOLoadTestBase {
     MetricsConfiguration metricsConfig =
         MetricsConfiguration.builder()
             .setInputPCollection("Map records.out0")
-            .setInputPCollectionV2("Map records/ParMultiDo(MapToBigtableFormat).out0")
+            .setInputPCollectionV2("Map records/ParMultiDo(MapToBigTableFormat).out0")
             .setOutputPCollection("Counting element.out0")
             .setOutputPCollectionV2("Counting element/ParMultiDo(Counting).out0")
             .build();
@@ -171,8 +171,8 @@ public class BigtableIOLT extends IOLoadTestBase {
 
     writePipeline
         .apply(GenerateSequence.from(0).to(configuration.getNumRows()))
-        .apply("Map records", ParDo.of(new MapToBigtableFormat(configuration.getValueSizeBytes())))
-        .apply("Write to Bigtable", writeIO);
+        .apply("Map records", ParDo.of(new MapToBigTableFormat(configuration.getValueSizeBytes())))
+        .apply("Write to BigTable", writeIO);
 
     PipelineLauncher.LaunchConfig options =
         PipelineLauncher.LaunchConfig.builder("write-bigtable")
@@ -196,7 +196,7 @@ public class BigtableIOLT extends IOLoadTestBase {
             .withTableId(tableId);
 
     readPipeline
-        .apply("Read from Bigtable", readIO)
+        .apply("Read from BigTable", readIO)
         .apply("Counting element", ParDo.of(new CountingFn<>(READ_ELEMENT_METRIC_NAME)));
 
     PipelineLauncher.LaunchConfig options =
@@ -224,7 +224,7 @@ public class BigtableIOLT extends IOLoadTestBase {
     abstract int getValueSizeBytes();
 
     static Configuration of(long numRows, int pipelineTimeout, String runner, int valueSizeBytes) {
-      return new AutoValue_BigtableIOLT_Configuration.Builder()
+      return new AutoValue_BigTableIOLT_Configuration.Builder()
           .setNumRows(numRows)
           .setPipelineTimeout(pipelineTimeout)
           .setRunner(runner)
@@ -249,12 +249,12 @@ public class BigtableIOLT extends IOLoadTestBase {
   }
 
   /** Maps long number to the Bigtable format record. */
-  private static class MapToBigtableFormat extends DoFn<Long, KV<ByteString, Iterable<Mutation>>>
+  private static class MapToBigTableFormat extends DoFn<Long, KV<ByteString, Iterable<Mutation>>>
       implements Serializable {
 
     private final int valueSizeBytes;
 
-    public MapToBigtableFormat(int valueSizeBytes) {
+    public MapToBigTableFormat(int valueSizeBytes) {
       this.valueSizeBytes = valueSizeBytes;
     }
 
