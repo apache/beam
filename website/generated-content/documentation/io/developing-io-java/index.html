@@ -108,7 +108,7 @@ abstract methods:</p><ul><li><p><code>split</code>: The runner uses this method 
 into bundles of a given size.</p></li><li><p><code>getEstimatedSizeBytes</code>: The runner uses this method to estimate the total
 size of your data, in bytes.</p></li><li><p><code>createReader</code>: Creates the associated <code>BoundedReader</code> for this
 <code>BoundedSource</code>.</p></li></ul><p>You can see a model of how to implement <code>BoundedSource</code> and the required
-abstract methods in Beam’s implementations for Cloud BigTable
+abstract methods in Beam’s implementations for Cloud Bigtable
 (<a href=https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIO.java>BigtableIO.java</a>)
 and BigQuery (<a href=https://github.com/apache/beam/blob/master/sdks/java/io/google-cloud-platform/src/main/java/org/apache/beam/sdk/io/gcp/bigquery/BigQuerySourceBase.java>BigQuerySourceBase.java</a>).</p><h4 id=unboundedsource>UnboundedSource</h4><p><code>UnboundedSource</code> represents an infinite data stream from which the runner may
 read, possibly in parallel. <code>UnboundedSource</code> contains a set of abstract methods
