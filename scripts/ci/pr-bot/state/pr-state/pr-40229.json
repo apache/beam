@@ -1,0 +1,14 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "shunping",
+    "java": "kennknowles",
+    "yaml": "chamikaramj",
+    "iceberg": "chamikaramj"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false,
+  "reviewersAssignedAt": 1790126765978
+}
