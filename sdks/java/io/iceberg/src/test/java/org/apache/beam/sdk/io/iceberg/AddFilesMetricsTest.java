@@ -79,7 +79,7 @@ import org.junit.runners.JUnit4;
 /**
  * Column bounds and metrics-based partition inference for files that are registered without a
  * location prefix. Files carry no field ids and resolve through the table's name mapping, so the
- * bounds Iceberg collects must be in the unit of the Iceberg type, not the file's.
+ * bounds Iceberg collects must be in the unit of the table column's type, not the file's.
  */
 @RunWith(JUnit4.class)
 public class AddFilesMetricsTest {
@@ -114,6 +114,9 @@ public class AddFilesMetricsTest {
           "ts",
           PrimitiveTypeName.INT64,
           LogicalTypeAnnotation.timestampType(true, TimeUnit.MILLIS));
+  private static final PrimitiveType TS_NANOS =
+      column(
+          "ts", PrimitiveTypeName.INT64, LogicalTypeAnnotation.timestampType(true, TimeUnit.NANOS));
   private static final PrimitiveType TS_INT96 = column("ts", PrimitiveTypeName.INT96, null);
   private static final PrimitiveType UNSIGNED =
       column("u", PrimitiveTypeName.INT32, LogicalTypeAnnotation.intType(32, false));
@@ -130,6 +133,12 @@ public class AddFilesMetricsTest {
       new Schema(
           Types.NestedField.optional(1, "id", Types.IntegerType.get()),
           Types.NestedField.optional(2, "ts", Types.TimestampType.withZone()));
+  private static final Schema TS_NS =
+      new Schema(Types.NestedField.optional(1, "ts", Types.TimestampNanoType.withZone()));
+  private static final Schema ID_TS_NS =
+      new Schema(
+          Types.NestedField.optional(1, "id", Types.IntegerType.get()),
+          Types.NestedField.optional(2, "ts", Types.TimestampNanoType.withZone()));
   private static final Schema ID_FLAG_UNSIGNED =
       new Schema(
           Types.NestedField.optional(1, "id", Types.IntegerType.get()),
@@ -228,6 +237,7 @@ public class AddFilesMetricsTest {
         FileFormat.PARQUET,
         MetricsConfig.fromProperties(FULL_METRICS),
         MappingUtil.create(tableSchema),
+        tableSchema,
         footer);
   }
 
@@ -352,6 +362,72 @@ public class AddFilesMetricsTest {
 
     assertEquals(EPOCH_SECONDS * 1_000_000L, lower(metrics, schema));
     assertEquals(EPOCH_SECONDS * 1_000_000L + 7, upper(metrics, schema));
+  }
+
+  @Test
+  public void testNanosTimestampBoundsAreUnchangedUnderANanosColumn() throws IOException {
+    String file =
+        write(
+            "nanos.parquet",
+            true,
+            Arrays.asList(TS_NANOS),
+            row(EPOCH_SECONDS * 1_000_000_000L + 1),
+            row(EPOCH_SECONDS * 1_000_000_000L + 1_500));
+
+    Metrics metrics = metricsOf(file, TS_NS);
+
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L + 1, lower(metrics, TS_NS));
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L + 1_500, upper(metrics, TS_NS));
+  }
+
+  @Test
+  public void testMillisTimestampBoundsAreNanosUnderANanosColumn() throws IOException {
+    String file =
+        write(
+            "millis.parquet",
+            true,
+            Arrays.asList(TS_MILLIS),
+            row(EPOCH_SECONDS * 1000L),
+            row(EPOCH_SECONDS * 1000L + 1));
+
+    Metrics metrics = metricsOf(file, TS_NS);
+
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L, lower(metrics, TS_NS));
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L + 1_000_000L, upper(metrics, TS_NS));
+  }
+
+  @Test
+  public void testMicrosTimestampBoundsAreNanosUnderANanosColumn() throws IOException {
+    String file =
+        write(
+            "micros.parquet",
+            true,
+            Arrays.asList(TS_MICROS),
+            row(EPOCH_SECONDS * 1_000_000L),
+            row(EPOCH_SECONDS * 1_000_000L + 7));
+
+    Metrics metrics = metricsOf(file, TS_NS);
+
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L, lower(metrics, TS_NS));
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L + 7_000L, upper(metrics, TS_NS));
+  }
+
+  @Test
+  public void testBoundBeyondTheNanosRangeIsDropped() throws IOException {
+    // 9999-12-31T23:59:59Z; nanos since 1970 overflow a long after 2262
+    long lastSecondMillis = 253402300799000L;
+    String file =
+        write(
+            "far.parquet",
+            true,
+            Arrays.asList(TS_MILLIS),
+            row(EPOCH_SECONDS * 1000L),
+            row(lastSecondMillis));
+
+    Metrics metrics = metricsOf(file, TS_NS);
+
+    assertEquals(EPOCH_SECONDS * 1_000_000_000L, lower(metrics, TS_NS));
+    assertNull(upper(metrics, TS_NS));
   }
 
   // ---- metrics-based partition inference, end to end
@@ -511,6 +587,27 @@ public class AddFilesMetricsTest {
             Arrays.asList(ID, TS_MILLIS),
             row(1, EPOCH_SECONDS * 1000L),
             row(2, EPOCH_SECONDS * 1000L + 1));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(EPOCH_DAY, onlyPartitionValue());
+  }
+
+  @Test
+  public void testNanosFileLandsInItsDayPartitionUnderANanosColumn() throws IOException {
+    catalog.createTable(
+        tableId,
+        ID_TS_NS,
+        PartitionSpec.builderFor(ID_TS_NS).day("ts").build(),
+        ImmutableMap.of("format-version", "3", "write.metadata.metrics.default", "full"));
+    String file =
+        write(
+            "nanos.parquet",
+            true,
+            Arrays.asList(ID, TS_NANOS),
+            row(1, EPOCH_SECONDS * 1_000_000_000L + 1),
+            row(2, EPOCH_SECONDS * 1_000_000_000L + 1_500));
 
     expectNoErrors(register(file));
     pipeline.run().waitUntilFinish();

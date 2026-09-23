@@ -838,7 +838,12 @@ public class AddFilesTest {
       ParquetMetadata footer = ParquetFooters.read(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
+              file,
+              FileFormat.PARQUET,
+              metricsConfig,
+              MappingUtil.create(icebergSchema),
+              icebergSchema,
+              footer);
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
         Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
@@ -904,7 +909,12 @@ public class AddFilesTest {
       ParquetMetadata footer = ParquetFooters.read(fileName);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
+              file,
+              FileFormat.PARQUET,
+              metricsConfig,
+              MappingUtil.create(icebergSchema),
+              icebergSchema,
+              footer);
       // check that lower/upper stats are still fetched correctly
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);

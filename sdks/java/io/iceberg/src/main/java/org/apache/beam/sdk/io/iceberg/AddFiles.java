@@ -695,6 +695,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   format,
                   MetricsConfig.forTable(table),
                   MappingUtil.create(table.schema()),
+                  table.schema(),
                   parquetFooter);
         } catch (Exception e) {
           return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
@@ -983,6 +984,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 inferFormat(inputFile.location()),
                 configWithPartitionFields,
                 MappingUtil.create(table.schema()),
+                table.schema(),
                 preReadFooter);
       }
 
@@ -1296,6 +1298,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       FileFormat format,
       MetricsConfig config,
       NameMapping mapping,
+      org.apache.iceberg.Schema tableSchema,
       @Nullable ParquetMetadata preReadFooter) {
     switch (format) {
       case PARQUET:
@@ -1306,7 +1309,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           footer = getFooterWithTypeIds(originalMessageType, footer, mapping);
         }
         Map<Integer, BoundAdjustment> adjustments =
-            BoundAdjustment.forSchema(footer.getFileMetaData().getSchema());
+            BoundAdjustment.forSchema(footer.getFileMetaData().getSchema(), tableSchema);
         if (adjustments.isEmpty()) {
           return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
         }
@@ -1360,57 +1363,87 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
   }
 
   /**
-   * Iceberg's converter maps some Parquet types to a wider Iceberg type but collects their bounds
-   * in the file's own unit or width: millis and nanos timestamps and times as if micros, and uint32
-   * as a signed int, which either stores bounds off by a factor of 1000 or throws when the int is
-   * cast to a long. Bounds are what partition inference and query pruning read, so they are
-   * corrected here: the affected INT32 columns are presented to Iceberg without their annotation
-   * (so it computes plain int bounds instead of throwing) and every affected bound is rewritten in
-   * the Iceberg type's unit afterwards. Value counts and null counts are unaffected.
+   * Iceberg collects bounds in the file column's unit and width, but readers decode them with the
+   * table column's type: a millis or nanos timestamp under a micros column, or a millis or micros
+   * one under a nanos column, would be off by a factor of 1000 or more, and an unsigned 32-bit int
+   * under a long column throws when the int is cast to a long. Bounds are what partition inference
+   * and query pruning read, so they are rewritten in the table column's unit: the affected INT32
+   * columns are presented to Iceberg without their annotation (so it computes plain int bounds
+   * instead of throwing) and every affected bound is converted afterwards, or dropped when it does
+   * not fit the table's unit. Value counts and null counts are unaffected.
    */
   enum BoundAdjustment {
     /** Millis stored under a micros type: times 1000. */
     MILLIS_TO_MICROS,
+    /** Millis stored under a nanos type: times 1,000,000. */
+    MILLIS_TO_NANOS,
+    /** Micros stored under a nanos type: times 1000. */
+    MICROS_TO_NANOS,
     /** Nanos stored under a micros type: divided by 1000, lower rounded down, upper rounded up. */
     NANOS_TO_MICROS,
     /** Unsigned 32-bit int stored under a long. */
     UINT32_TO_LONG;
 
-    static Map<Integer, BoundAdjustment> forSchema(MessageType schema) {
+    static Map<Integer, BoundAdjustment> forSchema(
+        MessageType fileSchema, org.apache.iceberg.Schema tableSchema) {
       Map<Integer, BoundAdjustment> adjustments = new HashMap<>();
-      collect(schema, adjustments);
+      collect(fileSchema, tableSchema, adjustments);
       return adjustments;
     }
 
     private static void collect(
-        org.apache.parquet.schema.GroupType group, Map<Integer, BoundAdjustment> out) {
+        org.apache.parquet.schema.GroupType group,
+        org.apache.iceberg.Schema tableSchema,
+        Map<Integer, BoundAdjustment> out) {
       for (org.apache.parquet.schema.Type field : group.getFields()) {
         if (!field.isPrimitive()) {
-          collect(field.asGroupType(), out);
+          collect(field.asGroupType(), tableSchema, out);
           continue;
         }
-        @Nullable BoundAdjustment adjustment = forPrimitive(field.asPrimitiveType());
-        if (adjustment != null && field.getId() != null) {
-          out.put(field.getId().intValue(), adjustment);
+        org.apache.parquet.schema.Type.ID id = field.getId();
+        if (id == null) {
+          continue;
+        }
+        @Nullable Type tableType = tableSchema.findType(id.intValue());
+        if (tableType == null) {
+          continue;
+        }
+        @Nullable BoundAdjustment adjustment = forPrimitive(field.asPrimitiveType(), tableType);
+        if (adjustment != null) {
+          out.put(id.intValue(), adjustment);
         }
       }
     }
 
+    /**
+     * Null when the file and table units agree, or when the table type is not the matching
+     * timestamp, time or long type: such a column is left as Iceberg computes it.
+     */
     private static @Nullable BoundAdjustment forPrimitive(
-        org.apache.parquet.schema.PrimitiveType primitive) {
+        org.apache.parquet.schema.PrimitiveType primitive, Type tableType) {
       org.apache.parquet.schema.LogicalTypeAnnotation annotation =
           primitive.getLogicalTypeAnnotation();
       if (annotation
           instanceof
           org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation) {
-        return forUnit(
+        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit fileUnit =
             ((org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation)
                     annotation)
-                .getUnit());
+                .getUnit();
+        if (tableType.typeId() == Type.TypeID.TIMESTAMP) {
+          return toMicros(fileUnit);
+        }
+        if (tableType.typeId() == Type.TypeID.TIMESTAMP_NANO) {
+          return toNanos(fileUnit);
+        }
+        return null;
       }
       if (annotation
           instanceof org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation) {
-        return forUnit(
+        if (tableType.typeId() != Type.TypeID.TIME) {
+          return null;
+        }
+        return toMicros(
             ((org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation) annotation)
                 .getUnit());
       }
@@ -1418,20 +1451,34 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           instanceof org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation) {
         org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation intType =
             (org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation) annotation;
-        if (intType.getBitWidth() == 32 && !intType.isSigned()) {
+        if (intType.getBitWidth() == 32
+            && !intType.isSigned()
+            && tableType.typeId() == Type.TypeID.LONG) {
           return UINT32_TO_LONG;
         }
       }
       return null;
     }
 
-    private static @Nullable BoundAdjustment forUnit(
-        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit unit) {
-      switch (unit) {
+    private static @Nullable BoundAdjustment toMicros(
+        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit fileUnit) {
+      switch (fileUnit) {
         case MILLIS:
           return MILLIS_TO_MICROS;
         case NANOS:
           return NANOS_TO_MICROS;
+        default:
+          return null;
+      }
+    }
+
+    private static @Nullable BoundAdjustment toNanos(
+        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit fileUnit) {
+      switch (fileUnit) {
+        case MILLIS:
+          return MILLIS_TO_NANOS;
+        case MICROS:
+          return MICROS_TO_NANOS;
         default:
           return null;
       }
@@ -1503,8 +1550,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (bytes == null) {
           continue;
         }
-        long value = entry.getValue().convert(bytes, upper);
-        adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.LongType.get(), value));
+        try {
+          long value = entry.getValue().convert(bytes, upper);
+          adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.LongType.get(), value));
+        } catch (ArithmeticException e) {
+          // Beyond the table unit's range (e.g. year 9999 in nanos): a missing bound is safe, a
+          // wrapped one is not.
+          adjusted.remove(entry.getKey());
+        }
       }
       return adjusted;
     }
@@ -1515,17 +1568,25 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         case UINT32_TO_LONG:
           return Integer.toUnsignedLong(little.getInt(little.position()));
         case MILLIS_TO_MICROS:
-          long millis =
-              little.remaining() == 4
-                  ? little.getInt(little.position())
-                  : little.getLong(little.position());
-          return millis * 1000L;
+          return Math.multiplyExact(readLong(little), 1000L);
+        case MILLIS_TO_NANOS:
+          return Math.multiplyExact(readLong(little), 1_000_000L);
+        case MICROS_TO_NANOS:
+          return Math.multiplyExact(readLong(little), 1000L);
         case NANOS_TO_MICROS:
           long nanos = little.getLong(little.position());
           return upper ? -Math.floorDiv(-nanos, 1000L) : Math.floorDiv(nanos, 1000L);
         default:
           throw new IllegalStateException(name());
       }
+    }
+
+    /** A millis TIME bound has 4 bytes: its INT32 column is presented without the annotation. */
+    private static long readLong(ByteBuffer little) {
+      if (little.remaining() == 4) {
+        return little.getInt(little.position());
+      }
+      return little.getLong(little.position());
     }
   }
 
