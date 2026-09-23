@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -36,10 +37,13 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.windowing.FixedWindows;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
+import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Window;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
@@ -62,8 +66,10 @@ import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
 import org.apache.iceberg.types.Types;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -118,6 +124,19 @@ public class TableMetadataDriverTest implements Serializable {
         }
       };
 
+  static class ControllableTestClock implements TableMetadataDriver.Clock {
+    private static final AtomicLong CURRENT_TIME = new AtomicLong(0L);
+
+    public static void setTime(long millis) {
+      CURRENT_TIME.set(millis);
+    }
+
+    @Override
+    public long currentTimeMillis() {
+      return CURRENT_TIME.get();
+    }
+  }
+
   @Before
   public void setUp() throws Exception {
     warehouseLocation = "file:" + tempFolder.newFolder().getAbsolutePath();
@@ -126,6 +145,13 @@ public class TableMetadataDriverTest implements Serializable {
             .setCatalogName("hadoop")
             .setCatalogProperties(ImmutableMap.of("type", "hadoop", "warehouse", warehouseLocation))
             .build();
+    ControllableTestClock.setTime(1000L);
+    TableMetadataDriver.ExtractTableIdsDoFn.setGlobalTestClock(new ControllableTestClock());
+  }
+
+  @After
+  public void tearDown() {
+    TableMetadataDriver.ExtractTableIdsDoFn.setGlobalTestClock(null);
   }
 
   private Catalog getCatalog() {
@@ -321,6 +347,9 @@ public class TableMetadataDriverTest implements Serializable {
     TableIdentifier tableId = TableIdentifier.of("default", "evolving_table");
     catalog.createTable(tableId, ICEBERG_SCHEMA);
 
+    Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+
     Row row1 =
         Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", "default.evolving_table").build();
     Row row2 =
@@ -347,6 +376,7 @@ public class TableMetadataDriverTest implements Serializable {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
                         if ("trigger_update".equals(row.getString("data"))) {
+                          ControllableTestClock.setTime(5000L);
                           Table table =
                               catalogConfig
                                   .catalog()
@@ -367,7 +397,7 @@ public class TableMetadataDriverTest implements Serializable {
             TableMetadataDriver.builder()
                 .setCatalogConfig(catalogConfig)
                 .setDynamicDestinations(DYNAMIC_DESTINATIONS)
-                .setRefreshInterval(Duration.standardSeconds(2))
+                .setRefreshInterval(refreshInterval)
                 .build());
 
     // Downstream consumer transform verifying that updated metadata is received
@@ -398,6 +428,10 @@ public class TableMetadataDriverTest implements Serializable {
     catalog.createTable(tableId, ICEBERG_SCHEMA);
 
     String tableIdStr = "default.evolving_side_input_table";
+    Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
+
     Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "initial_data", tableIdStr).build();
     Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "trigger_update", tableIdStr).build();
     Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "post_update_data", tableIdStr).build();
@@ -422,7 +456,9 @@ public class TableMetadataDriverTest implements Serializable {
                     new DoFn<Row, Row>() {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
-                        if ("trigger_update".equals(row.getString("data"))) {
+                        String data = row.getString("data");
+                        if ("trigger_update".equals(data)) {
+                          ControllableTestClock.setTime(5000L);
                           Table table =
                               catalogConfig
                                   .catalog()
@@ -433,6 +469,8 @@ public class TableMetadataDriverTest implements Serializable {
                               .updateSchema()
                               .addColumn("new_col", Types.StringType.get())
                               .commit();
+                        } else if ("post_update_data".equals(data)) {
+                          ControllableTestClock.setTime(10000L);
                         }
                         out.output(row);
                       }
@@ -442,12 +480,13 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.builder()
-                .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
-                .setRefreshInterval(Duration.standardSeconds(2))
-                .build()
-                .asView());
+            TableMetadataDriver.asView(
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                    .setRefreshInterval(refreshInterval)
+                    .build(),
+                testClock));
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -490,6 +529,9 @@ public class TableMetadataDriverTest implements Serializable {
 
     String tableAStr = "default.multi_table_a";
     String tableBStr = "default.multi_table_b";
+    Duration refreshInterval = Duration.standardSeconds(2);
+    ControllableTestClock.setTime(1000L);
+    ControllableTestClock testClock = new ControllableTestClock();
 
     Row rowSeedA = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_a", tableAStr).build();
     Row rowSeedB = Row.withSchema(BEAM_SCHEMA).addValues(0L, "seed_b", tableBStr).build();
@@ -523,6 +565,7 @@ public class TableMetadataDriverTest implements Serializable {
                       @ProcessElement
                       public void processElement(@Element Row row, OutputReceiver<Row> out) {
                         if ("trigger_update_a".equals(row.getString("data"))) {
+                          ControllableTestClock.setTime(5000L);
                           Table table =
                               catalogConfig
                                   .catalog()
@@ -541,12 +584,13 @@ public class TableMetadataDriverTest implements Serializable {
     PCollectionView<Map<String, SerializableTableSpec>> metadataView =
         input.apply(
             "CreateMetadataView",
-            TableMetadataDriver.builder()
-                .setCatalogConfig(catalogConfig)
-                .setDynamicDestinations(DYNAMIC_DESTINATIONS)
-                .setRefreshInterval(Duration.standardSeconds(2))
-                .build()
-                .asView());
+            TableMetadataDriver.asView(
+                TableMetadataDriver.builder()
+                    .setCatalogConfig(catalogConfig)
+                    .setDynamicDestinations(DYNAMIC_DESTINATIONS)
+                    .setRefreshInterval(refreshInterval)
+                    .build(),
+                testClock));
 
     PCollection<String> consumerObserved =
         input.apply(
@@ -706,7 +750,7 @@ public class TableMetadataDriverTest implements Serializable {
   }
 
   @Test
-  public void testMaximumCacheSizeInStreamingThrowsUnsupportedOperationException() {
+  public void testMaximumCacheSizeInStreamingThrowsIllegalArgumentException() {
     pipeline.enableAbandonedNodeEnforcement(false);
     Row row = Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", "default.test_table").build();
     TestStream<Row> stream =
@@ -718,7 +762,7 @@ public class TableMetadataDriverTest implements Serializable {
     PCollection<Row> input = pipeline.apply("StreamInput", stream);
 
     assertThrows(
-        UnsupportedOperationException.class,
+        IllegalArgumentException.class,
         () ->
             input.apply(
                 TableMetadataDriver.builder()
@@ -884,10 +928,7 @@ public class TableMetadataDriverTest implements Serializable {
             Row.withSchema(BEAM_SCHEMA).addValues(1L, "v1", null).build(),
             Row.withSchema(BEAM_SCHEMA).addValues(2L, "v2", "").build(),
             Row.withSchema(BEAM_SCHEMA).addValues(3L, "v3", "   ").build(),
-            Row.withSchema(BEAM_SCHEMA).addValues(4L, "v4", "default.valid_dest_table").build(),
-            Row.withSchema(BEAM_SCHEMA)
-                .addValues(5L, "v5", "  default.valid_dest_table  ")
-                .build());
+            Row.withSchema(BEAM_SCHEMA).addValues(4L, "v4", "default.valid_dest_table").build());
 
     PCollection<Row> input = pipeline.apply(Create.of(rows)).setCoder(RowCoder.of(BEAM_SCHEMA));
 
@@ -1234,19 +1275,6 @@ public class TableMetadataDriverTest implements Serializable {
     assertEquals(mergedAB, mergedBA);
   }
 
-  static class ControllableTestClock implements TableMetadataDriver.Clock {
-    private static final AtomicLong CURRENT_TIME = new AtomicLong(0L);
-
-    public static void setTime(long millis) {
-      CURRENT_TIME.set(millis);
-    }
-
-    @Override
-    public long currentTimeMillis() {
-      return CURRENT_TIME.get();
-    }
-  }
-
   @Test
   public void testUnusedTablesEvictedFromStreamingCache() {
     TableIdentifier tableIdA = TableIdentifier.of("default", "evict_table_a");
@@ -1496,6 +1524,139 @@ public class TableMetadataDriverTest implements Serializable {
         .containsInAnyOrder(
             "initial:hasTable=true", "post_drop:hasTable=true", "after_cutoff:hasTable=false");
 
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtractTableIdsWorkerLocalPreFiltering() {
+    TestStream.Builder<Row> streamBuilder = TestStream.create(BEAM_SCHEMA);
+    for (int i = 0; i < 1000; i++) {
+      streamBuilder =
+          streamBuilder.addElements(
+              Row.withSchema(BEAM_SCHEMA).addValues((long) i, "data", "default.table").build());
+    }
+    TestStream<Row> testStream = streamBuilder.advanceWatermarkToInfinity();
+
+    PCollection<String> tableIds =
+        pipeline
+            .apply(testStream)
+            .apply(
+                ParDo.of(
+                    new TableMetadataDriver.ExtractTableIdsDoFn(
+                        SINGLE_TABLE_DYNAMIC_DESTINATIONS, Duration.standardMinutes(5))));
+
+    // With worker-local pre-filtering, 1,000 rows emit at most 1 string per worker thread
+    // rather than 1,000 strings
+    PAssert.that(tableIds)
+        .satisfies(
+            actual -> {
+              List<String> list = ImmutableList.copyOf(actual);
+              for (String id : list) {
+                assertEquals("default.table", id);
+              }
+              assertThat(list.size(), Matchers.lessThanOrEqualTo(100));
+              return null;
+            });
+
+    PCollection<String> distinctIds =
+        tableIds.apply(Deduplicate.<String>values().withDuration(Duration.standardMinutes(5)));
+    PAssert.that(distinctIds).containsInAnyOrder("default.table");
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtractTableIdsMultipleTables() {
+    TestStream.Builder<Row> streamBuilder = TestStream.create(BEAM_SCHEMA);
+    for (int i = 0; i < 100; i++) {
+      streamBuilder =
+          streamBuilder.addElements(
+              Row.withSchema(BEAM_SCHEMA).addValues((long) i, "data", "default.table_a").build(),
+              Row.withSchema(BEAM_SCHEMA)
+                  .addValues((long) (i + 100), "data", "default.table_b")
+                  .build());
+    }
+    TestStream<Row> testStream = streamBuilder.advanceWatermarkToInfinity();
+
+    PCollection<String> tableIds =
+        pipeline
+            .apply(testStream)
+            .apply(
+                ParDo.of(
+                    new TableMetadataDriver.ExtractTableIdsDoFn(
+                        DYNAMIC_DESTINATIONS, Duration.standardMinutes(5))));
+
+    PCollection<String> distinctIds =
+        tableIds.apply(Deduplicate.<String>values().withDuration(Duration.standardMinutes(5)));
+    PAssert.that(distinctIds).containsInAnyOrder("default.table_a", "default.table_b");
+    pipeline.run();
+  }
+
+  @Test
+  public void testExtractTableIdsCacheExpiration() {
+    TableMetadataDriver.ExtractTableIdsDoFn doFn =
+        new TableMetadataDriver.ExtractTableIdsDoFn(
+            SINGLE_TABLE_DYNAMIC_DESTINATIONS, Duration.standardMinutes(10));
+    ControllableTestClock testClock = new ControllableTestClock();
+    ControllableTestClock.setTime(1000L);
+    doFn.setClock(testClock);
+
+    List<String> outputs = new ArrayList<>();
+    DoFn.OutputReceiver<String> receiver =
+        new DoFn.OutputReceiver<String>() {
+          @Override
+          public void output(String output) {
+            outputs.add(output);
+          }
+
+          @Override
+          public void outputWithTimestamp(String output, Instant timestamp) {
+            outputs.add(output);
+          }
+
+          @Override
+          public org.apache.beam.sdk.values.OutputBuilder<String> builder(String output) {
+            throw new UnsupportedOperationException();
+          }
+        };
+
+    Row row1 = Row.withSchema(BEAM_SCHEMA).addValues(1L, "data", "default.table").build();
+    Row row2 = Row.withSchema(BEAM_SCHEMA).addValues(2L, "data", "default.table").build();
+    Row row3 = Row.withSchema(BEAM_SCHEMA).addValues(3L, "data", "default.table").build();
+
+    doFn.setup();
+    doFn.processElement(row1, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
+    assertEquals(1, outputs.size());
+    assertEquals("default.table", outputs.get(0));
+
+    // Second element should be suppressed by worker-local cache
+    doFn.processElement(row2, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
+    assertEquals(1, outputs.size());
+
+    // Advance clock beyond interval / 2 (5 minutes)
+    ControllableTestClock.setTime(1000L + Duration.standardMinutes(6).getMillis());
+
+    // Third element arrives after expiration -> should be emitted
+    doFn.processElement(row3, GlobalWindow.INSTANCE, PaneInfo.NO_FIRING, Instant.now(), receiver);
+    assertEquals(2, outputs.size());
+    assertEquals("default.table", outputs.get(1));
+  }
+
+  @Test
+  public void testExtractTableIdsIgnoresNullAndWhitespace() {
+    List<Row> rows = new ArrayList<>();
+    rows.add(Row.withSchema(BEAM_SCHEMA).addValues(1L, "data", (String) null).build());
+    rows.add(Row.withSchema(BEAM_SCHEMA).addValues(2L, "data", "").build());
+    rows.add(Row.withSchema(BEAM_SCHEMA).addValues(3L, "data", "   ").build());
+
+    PCollection<String> tableIds =
+        pipeline
+            .apply(Create.of(rows))
+            .apply(
+                ParDo.of(
+                    new TableMetadataDriver.ExtractTableIdsDoFn(
+                        DYNAMIC_DESTINATIONS, Duration.standardMinutes(5))));
+
+    PAssert.that(tableIds).empty();
     pipeline.run();
   }
 }

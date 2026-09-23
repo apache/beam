@@ -30,8 +30,10 @@ import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
@@ -391,6 +393,7 @@ public class IcebergIO {
         .setCatalogConfig(catalog)
         .setDistributionMode(DistributionMode.NONE)
         .setAutoSharding(false)
+        .setUsingSideInputTableCache(false)
         .build();
   }
 
@@ -434,6 +437,14 @@ public class IcebergIO {
 
     abstract @Nullable List<String> getSortFields();
 
+    abstract boolean getUsingSideInputTableCache();
+
+    abstract @Nullable Integer getMaximumCacheSize();
+
+    abstract @Nullable Duration getTableRefreshInterval();
+
+    abstract @Nullable Integer getPollingBuckets();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -457,6 +468,14 @@ public class IcebergIO {
       abstract Builder setPartitionFields(List<String> partitionFields);
 
       abstract Builder setSortFields(List<String> sortFields);
+
+      abstract Builder setUsingSideInputTableCache(boolean usingSideInputTableCache);
+
+      abstract Builder setMaximumCacheSize(@Nullable Integer maximumCacheSize);
+
+      abstract Builder setTableRefreshInterval(@Nullable Duration refreshInterval);
+
+      abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
 
       abstract WriteRows build();
     }
@@ -494,11 +513,11 @@ public class IcebergIO {
      * Defines distribution of write data. Supported distributions:
      *
      * <ol>
-     *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
-     *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
+     *   <li>{@link DistributionMode#NONE}: don't shuffle rows (default)
+     *   <li>{@link DistributionMode#HASH}: shuffle rows by partition key before writing data
      * </ol>
      *
-     * {@link DistributionMode.RANGE} is not supported yet
+     * {@link DistributionMode#RANGE} is not supported yet
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();
@@ -542,6 +561,68 @@ public class IcebergIO {
       return toBuilder().setSortFields(sortFields).build();
     }
 
+    /**
+     * Enables expirable side-input caching of Iceberg table metadata across workers.
+     *
+     * <p>When enabled, a driver transform periodically polls the Iceberg catalog and broadcasts
+     * lightweight table specifications as a side input. Workers construct in-memory {@link Table}
+     * representations without issuing remote catalog RPCs, drastically reducing catalog load.
+     */
+    public WriteRows withSideInputTableCache() {
+      return toBuilder().setUsingSideInputTableCache(true).build();
+    }
+
+    /**
+     * Sets the maximum number of distinct table metadata specifications to broadcast in the
+     * side-input cache. Any tables exceeding this limit fall back to worker-local catalog loading.
+     *
+     * <p><b>Note:</b> This option is only supported for bounded (batch) pipelines. Calling this on
+     * an unbounded streaming pipeline will throw an exception at pipeline construction.
+     */
+    public WriteRows withMaximumCacheSize(int maximumCacheSize) {
+      Preconditions.checkArgument(maximumCacheSize > 0, "maximumCacheSize must be greater than 0");
+      return toBuilder().setMaximumCacheSize(maximumCacheSize).build();
+    }
+
+    /**
+     * Sets the interval at which table metadata is refreshed from the Iceberg catalog.
+     *
+     * <p>Applicable for unbounded streaming pipelines. Defaults to 5 minutes.
+     */
+    public WriteRows withTableRefreshInterval(Duration refreshInterval) {
+      Preconditions.checkNotNull(refreshInterval, "refreshInterval must not be null");
+      Preconditions.checkArgument(
+          refreshInterval.isLongerThan(Duration.ZERO), "refreshInterval must be greater than 0");
+      return toBuilder().setTableRefreshInterval(refreshInterval).build();
+    }
+
+    /**
+     * Sets the number of parallel buckets/workers used to query the Iceberg catalog during
+     * refreshes. Defaults to 1 to serialize catalog queries and protect catalogs from connection
+     * spikes.
+     */
+    public WriteRows withPollingBuckets(int pollingBuckets) {
+      Preconditions.checkArgument(pollingBuckets > 0, "pollingBuckets must be greater than 0");
+      return toBuilder().setPollingBuckets(pollingBuckets).build();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(
+          DisplayData.item("usingSideInputTableCache", getUsingSideInputTableCache())
+              .withLabel("Using Side-Input Table Cache"));
+      builder.addIfNotNull(
+          DisplayData.item("maximumCacheSize", getMaximumCacheSize())
+              .withLabel("Maximum Cache Size"));
+      builder.addIfNotNull(
+          DisplayData.item("tableRefreshInterval", getTableRefreshInterval())
+              .withLabel("Table Refresh Interval"));
+      builder.addIfNotNull(
+          DisplayData.item("pollingBuckets", getPollingBuckets())
+              .withLabel("Catalog Polling Buckets"));
+    }
+
     @Override
     public IcebergWriteResult expand(PCollection<Row> input) {
       List<?> allToArgs = Arrays.asList(getTableIdentifier(), getDynamicDestinations());
@@ -567,6 +648,35 @@ public class IcebergIO {
             "Must only provide direct write limit for unbounded pipelines.");
       }
 
+      boolean hasSideInputOptions =
+          getMaximumCacheSize() != null
+              || getTableRefreshInterval() != null
+              || getPollingBuckets() != null;
+      Preconditions.checkArgument(
+          getUsingSideInputTableCache() || !hasSideInputOptions,
+          "Cannot specify side-input cache sub-options (maximumCacheSize, "
+              + "tableRefreshInterval, pollingBuckets) without enabling side-input table cache via withSideInputTableCache().");
+
+      PCollectionView<Map<String, SerializableTableSpec>> metadataView = null;
+      if (getUsingSideInputTableCache()) {
+        TableMetadataDriver.Builder driverBuilder =
+            TableMetadataDriver.builder()
+                .setCatalogConfig(getCatalogConfig())
+                .setDynamicDestinations(destinations);
+
+        if (getMaximumCacheSize() != null) {
+          driverBuilder.setMaximumCacheSize(getMaximumCacheSize());
+        }
+        if (getTableRefreshInterval() != null) {
+          driverBuilder.setRefreshInterval(getTableRefreshInterval());
+        }
+        if (getPollingBuckets() != null) {
+          driverBuilder.setPollingBuckets(getPollingBuckets());
+        }
+
+        metadataView = input.apply("GenerateTableMetadataView", driverBuilder.build().asView());
+      }
+
       switch (getDistributionMode()) {
         case NONE:
           Preconditions.checkArgument(
@@ -581,12 +691,14 @@ public class IcebergIO {
                       destinations,
                       getTriggeringFrequency(),
                       getDirectWriteByteLimit(),
-                      getWriteProperties()));
+                      getWriteProperties(),
+                      metadataView));
         case HASH:
           return input
               .apply(
                   "AssignDestinationAndPartition",
-                  new AssignDestinationsAndPartitions(destinations, getCatalogConfig()))
+                  new AssignDestinationsAndPartitions(
+                      destinations, getCatalogConfig(), metadataView))
               .apply(
                   "Write Rows to Partitions",
                   new WriteToPartitions(
@@ -594,7 +706,8 @@ public class IcebergIO {
                       destinations,
                       getTriggeringFrequency(),
                       getAutoSharding(),
-                      getWriteProperties()));
+                      getWriteProperties(),
+                      metadataView));
         default:
           throw new UnsupportedOperationException(
               "Unsupported distribution mode: " + getDistributionMode());

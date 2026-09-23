@@ -25,6 +25,8 @@ import static org.apache.iceberg.util.DateTimeUtil.dateFromDays;
 import static org.apache.iceberg.util.DateTimeUtil.timestampFromMicros;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -118,6 +120,26 @@ public class IcebergWriteSchemaTransformProviderTest {
   }
 
   @Test
+  public void testBuildTransformWithRowAndSideInputCache() {
+    Map<String, String> properties = new HashMap<>();
+    properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    properties.put("warehouse", "test_location");
+
+    Row transformConfigRow =
+        Row.withSchema(new IcebergWriteSchemaTransformProvider().configurationSchema())
+            .withFieldValue("table", "test_table_identifier")
+            .withFieldValue("catalog_name", "test-name")
+            .withFieldValue("catalog_properties", properties)
+            .withFieldValue("using_side_input_table_cache", true)
+            .withFieldValue("table_refresh_interval_seconds", 60)
+            .withFieldValue("maximum_cache_size", 100)
+            .withFieldValue("polling_buckets", 2)
+            .build();
+
+    new IcebergWriteSchemaTransformProvider().from(transformConfigRow);
+  }
+
+  @Test
   public void testSimpleAppend() {
     String identifier = "default.table_" + Long.toString(UUID.randomUUID().hashCode(), 16);
 
@@ -144,6 +166,54 @@ public class IcebergWriteSchemaTransformProviderTest {
     PCollection<Row> result =
         input
             .apply("Append To Table", new IcebergWriteSchemaTransformProvider().from(config))
+            .get(SNAPSHOTS_TAG);
+
+    PAssert.that(result)
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+
+    testPipeline.run().waitUntilFinish();
+
+    TableIdentifier tableId = TableIdentifier.parse(identifier);
+    Table table = warehouse.loadTable(tableId);
+
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
+  @Test
+  public void testSimpleAppendWithSideInputCache() {
+    String identifier =
+        "default.table_side_input_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+
+    Map<String, String> properties = new HashMap<>();
+    properties.put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP);
+    properties.put("warehouse", warehouse.location);
+
+    Configuration config =
+        Configuration.builder()
+            .setTable(identifier)
+            .setCatalogName("name")
+            .setCatalogProperties(properties)
+            .setDistributionMode(distributionMode.name())
+            .setUsingSideInputTableCache(true)
+            .setTableRefreshIntervalSeconds(60)
+            .setPollingBuckets(1)
+            .build();
+
+    PCollectionRowTuple input =
+        PCollectionRowTuple.of(
+            INPUT_TAG,
+            testPipeline
+                .apply(
+                    "Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+                .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+
+    PCollection<Row> result =
+        input
+            .apply(
+                "Append To Table With Cache",
+                new IcebergWriteSchemaTransformProvider().from(config))
             .get(SNAPSHOTS_TAG);
 
     PAssert.that(result)
@@ -192,6 +262,121 @@ public class IcebergWriteSchemaTransformProviderTest {
     Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
     List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
     assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
+  @Test
+  public void testWriteUsingManagedTransformWithSideInputCache() {
+    String identifier =
+        "default.table_managed_cache_" + Long.toString(UUID.randomUUID().hashCode(), 16);
+
+    String yamlConfig =
+        String.format(
+            "table: %s\n"
+                + "catalog_name: test-name\n"
+                + "distribution_mode: %s\n"
+                + "using_side_input_table_cache: true\n"
+                + "table_refresh_interval_seconds: 60\n"
+                + "maximum_cache_size: 50\n"
+                + "polling_buckets: 1\n"
+                + "catalog_properties: \n"
+                + "  type: %s\n"
+                + "  warehouse: %s",
+            identifier,
+            distributionMode.name(),
+            CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
+            warehouse.location);
+    Map<String, Object> configMap = new Yaml().load(yamlConfig);
+
+    PCollection<Row> inputRows =
+        testPipeline
+            .apply("Records To Add", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+            .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA));
+
+    Managed.ManagedTransform writeTransform = Managed.write(Managed.ICEBERG).withConfig(configMap);
+    PCollectionRowTuple output = PCollectionRowTuple.of(INPUT_TAG, inputRows).apply(writeTransform);
+
+    PAssert.that(output.get(SNAPSHOTS_TAG))
+        .satisfies(new VerifyOutputs(Collections.singletonList(identifier), "append"));
+
+    testPipeline.run().waitUntilFinish();
+
+    Table table = warehouse.loadTable(TableIdentifier.parse(identifier));
+    List<Record> writtenRecords = ImmutableList.copyOf(IcebergGenerics.read(table).build());
+
+    assertThat(writtenRecords, Matchers.containsInAnyOrder(TestFixtures.FILE1SNAPSHOT1.toArray()));
+  }
+
+  @Test
+  public void testSideInputCacheSubOptionsRequireExplicitEnablement() {
+    IcebergWriteSchemaTransformProvider provider = new IcebergWriteSchemaTransformProvider();
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple dummyInput =
+        PCollectionRowTuple.of(
+            INPUT_TAG,
+            p.apply("DummyInput", Create.of(TestFixtures.asRows(TestFixtures.FILE1SNAPSHOT1)))
+                .setRowSchema(IcebergUtils.icebergSchemaToBeamSchema(TestFixtures.SCHEMA)));
+
+    // Setting sub-options when using_side_input_table_cache is not set (null) must throw
+    // IllegalArgumentException
+    Configuration configWithMaxCacheSizeOnly =
+        Configuration.builder()
+            .setTable("default.table_max_cache")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setMaximumCacheSize(50)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(configWithMaxCacheSizeOnly)));
+
+    Configuration configWithRefreshIntervalOnly =
+        Configuration.builder()
+            .setTable("default.table_refresh")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setTableRefreshIntervalSeconds(60)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(configWithRefreshIntervalOnly)));
+
+    Configuration configWithPollingBucketsOnly =
+        Configuration.builder()
+            .setTable("default.table_buckets")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setPollingBuckets(2)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(configWithPollingBucketsOnly)));
+
+    // Setting using_side_input_table_cache to false while setting sub-options must throw
+    // IllegalArgumentException
+    Configuration invalidConfigWithFalse =
+        Configuration.builder()
+            .setTable("default.table_invalid")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setUsingSideInputTableCache(false)
+            .setMaximumCacheSize(50)
+            .build();
+    assertThrows(
+        IllegalArgumentException.class,
+        () -> dummyInput.apply(provider.from(invalidConfigWithFalse)));
+
+    // Explicitly setting using_side_input_table_cache to true with sub-options succeeds
+    Configuration validConfig =
+        Configuration.builder()
+            .setTable("default.table_valid")
+            .setCatalogName("name")
+            .setCatalogProperties(Collections.singletonMap("type", "hadoop"))
+            .setUsingSideInputTableCache(true)
+            .setMaximumCacheSize(50)
+            .setTableRefreshIntervalSeconds(60)
+            .setPollingBuckets(2)
+            .build();
+    assertNotNull(dummyInput.apply(provider.from(validConfig)));
   }
 
   /**
