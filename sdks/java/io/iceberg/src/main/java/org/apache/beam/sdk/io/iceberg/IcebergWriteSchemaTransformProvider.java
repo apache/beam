@@ -165,20 +165,20 @@ public class IcebergWriteSchemaTransformProvider
 
     @SchemaFieldDescription(
         "Enables expirable side-input caching of Iceberg table metadata across workers to reduce catalog load.")
-    public abstract @Nullable Boolean getUsingSideInputTableCache();
+    public abstract @Nullable Boolean getUseSideInputTableCache();
 
     @SchemaFieldDescription(
         "For a streaming pipeline, sets the interval in seconds at which table metadata is refreshed from the catalog.")
-    public abstract @Nullable Integer getTableRefreshIntervalSeconds();
+    public abstract @Nullable Integer getTableCacheRefreshIntervalSeconds();
 
     @SchemaFieldDescription(
         "For a batch pipeline, sets the maximum number of table metadata specs to cache in memory. "
             + "Tables exceeding this limit fall back to worker-local catalog loading.")
-    public abstract @Nullable Integer getMaximumCacheSize();
+    public abstract @Nullable Integer getMaximumTableCacheSize();
 
     @SchemaFieldDescription(
         "Sets the number of parallel buckets/workers used to query the Iceberg catalog during refreshes. Defaults to 1.")
-    public abstract @Nullable Integer getPollingBuckets();
+    public abstract @Nullable Integer getTableCachePollingBuckets();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -212,13 +212,13 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setWriteProperties(Map<String, String> writeProperties);
 
-      public abstract Builder setUsingSideInputTableCache(Boolean usingSideInputTableCache);
+      public abstract Builder setUseSideInputTableCache(Boolean useSideInputTableCache);
 
-      public abstract Builder setTableRefreshIntervalSeconds(Integer tableRefreshIntervalSeconds);
+      public abstract Builder setTableCacheRefreshIntervalSeconds(Integer tableCacheRefreshIntervalSeconds);
 
-      public abstract Builder setMaximumCacheSize(Integer maximumCacheSize);
+      public abstract Builder setMaximumTableCacheSize(Integer maximumTableCacheSize);
 
-      public abstract Builder setPollingBuckets(Integer pollingBuckets);
+      public abstract Builder setTableCachePollingBuckets(Integer pollingBuckets);
 
       public abstract Configuration build();
     }
@@ -317,11 +317,11 @@ public class IcebergWriteSchemaTransformProvider
       }
 
       boolean hasSideInputOptions =
-          configuration.getTableRefreshIntervalSeconds() != null
-              || configuration.getMaximumCacheSize() != null
-              || configuration.getPollingBuckets() != null;
+          configuration.getTableCacheRefreshIntervalSeconds() != null
+              || configuration.getMaximumTableCacheSize() != null
+              || configuration.getTableCachePollingBuckets() != null;
 
-      if (!Boolean.TRUE.equals(configuration.getUsingSideInputTableCache())
+      if (!Boolean.TRUE.equals(configuration.getUseSideInputTableCache())
           && hasSideInputOptions) {
         throw new IllegalArgumentException(
             "Cannot specify side-input cache sub-options (table_refresh_interval_seconds, "
@@ -329,22 +329,22 @@ public class IcebergWriteSchemaTransformProvider
       }
 
       boolean enableSideInputCache =
-          Boolean.TRUE.equals(configuration.getUsingSideInputTableCache());
+          Boolean.TRUE.equals(configuration.getUseSideInputTableCache());
 
       if (enableSideInputCache) {
         writeTransform = writeTransform.withSideInputTableCache();
-        @Nullable Integer refreshSec = configuration.getTableRefreshIntervalSeconds();
+        @Nullable Integer refreshSec = configuration.getTableCacheRefreshIntervalSeconds();
         if (refreshSec != null) {
           writeTransform =
-              writeTransform.withTableRefreshInterval(Duration.standardSeconds(refreshSec));
+              writeTransform.withTableCacheRefreshInterval(Duration.standardSeconds(refreshSec));
         }
-        @Nullable Integer maxCacheSize = configuration.getMaximumCacheSize();
+        @Nullable Integer maxCacheSize = configuration.getMaximumTableCacheSize();
         if (maxCacheSize != null) {
-          writeTransform = writeTransform.withMaximumCacheSize(maxCacheSize);
+          writeTransform = writeTransform.withMaximumTableCacheSize(maxCacheSize);
         }
-        @Nullable Integer pollingBuckets = configuration.getPollingBuckets();
+        @Nullable Integer pollingBuckets = configuration.getTableCachePollingBuckets();
         if (pollingBuckets != null) {
-          writeTransform = writeTransform.withPollingBuckets(pollingBuckets);
+          writeTransform = writeTransform.withTableCachePollingBuckets(pollingBuckets);
         }
       }
 
