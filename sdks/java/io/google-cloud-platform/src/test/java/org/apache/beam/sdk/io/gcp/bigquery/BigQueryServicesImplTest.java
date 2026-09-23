@@ -1524,6 +1524,62 @@ public class BigQueryServicesImplTest {
   }
 
   /**
+   * Tests that {@link DatasetServiceImpl#insertAll} logs and includes suggested remedy when the
+   * BigQuery API is reported as not enabled for the project.
+   */
+  @Test
+  public void testInsertBigQueryNotEnabledErrorLog() throws Exception {
+    TableReference ref =
+        new TableReference().setProjectId("project").setDatasetId("dataset").setTableId("table");
+    List<FailsafeValueInSingleWindow<TableRow, TableRow>> rows = new ArrayList<>();
+    rows.add(wrapValue(new TableRow()));
+
+    setupMockResponses(
+        response -> {
+          when(response.getStatusCode()).thenReturn(400);
+          when(response.getContentType()).thenReturn(Json.MEDIA_TYPE);
+          when(response.getContent())
+              .thenReturn(
+                  toStream(
+                      errorWithReasonAndStatus(
+                          "The project project has not enabled BigQuery.", 400)));
+        });
+
+    DatasetServiceImpl dataService =
+        new DatasetServiceImpl(bigquery, PipelineOptionsFactory.create());
+    RuntimeException e =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                dataService.insertAll(
+                    ref,
+                    rows,
+                    null,
+                    BackOffAdapter.toGcpBackOff(TEST_BACKOFF.backoff()),
+                    TEST_BACKOFF,
+                    new MockSleeper(),
+                    InsertRetryPolicy.alwaysRetry(),
+                    null,
+                    null,
+                    false,
+                    false,
+                    false,
+                    null));
+
+    assertThat(e.getCause().getMessage(), containsString("has not enabled BigQuery."));
+    assertThat(
+        e.getCause().getMessage(),
+        containsString("check the Google Cloud Status Dashboard (https://status.cloud.google.com/)"));
+
+    verifyAllResponsesAreRead();
+    expectedLogs.verifyError(
+        "check the Google Cloud Status Dashboard (https://status.cloud.google.com/)");
+
+    verifyWriteMetricWasSet(
+        "project", "dataset", "table", "the project project has not enabled bigquery.", 1);
+  }
+
+  /**
    * Tests that {@link DatasetServiceImpl#insertAll} uses the supplied {@link InsertRetryPolicy},
    * and returns the list of rows not retried.
    */
