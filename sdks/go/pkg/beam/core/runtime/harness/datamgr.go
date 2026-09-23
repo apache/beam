@@ -144,6 +144,20 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 	return ch, nil
 }
 
+// Close closes all cached DataChannels.
+func (m *DataChannelManager) Close() {
+	m.mu.Lock()
+	chans := m.ports
+	m.ports = nil
+	m.mu.Unlock()
+	for _, ch := range chans {
+		ch.mu.Lock()
+		ch.forceRecreate = nil
+		ch.mu.Unlock()
+		ch.cancelFn()
+	}
+}
+
 func (m *DataChannelManager) closeInstruction(instID instructionID, ports []exec.Port) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()

@@ -24,6 +24,7 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -541,6 +542,45 @@ func TestDataChannelTerminate_Writes(t *testing.T) {
 			}
 		})
 	}
+}
+
+type teardownDataClient struct{ block chan struct{} }
+
+func (f *teardownDataClient) Recv() (*fnpb.Elements, error) { <-f.block; return nil, io.EOF }
+func (f *teardownDataClient) Send(*fnpb.Elements) error     { return nil }
+
+func TestDataChannelManagerClose(t *testing.T) {
+	m := &DataChannelManager{ports: map[string]*DataChannel{}}
+	var cancelled [2]atomic.Bool
+	var unblock sync.Once
+	block := make(chan struct{})
+	for i := 0; i < 2; i++ {
+		i := i
+		ch := makeDataChannel(context.Background(), "port", &teardownDataClient{block: block}, func() {
+			cancelled[i].Store(true)
+			unblock.Do(func() { close(block) })
+		})
+		ch.forceRecreate = func(string, error) {
+			m.mu.Lock()
+			m.mu.Unlock()
+		}
+		m.ports["p"+string(rune('0'+i))] = ch
+	}
+
+	m.Close()
+
+	for i := range cancelled {
+		if !cancelled[i].Load() {
+			t.Errorf("channel %d not cancelled", i)
+		}
+	}
+	m.mu.Lock()
+	left := m.ports
+	m.mu.Unlock()
+	if left != nil {
+		t.Error("ports not cleared")
+	}
+	m.Close()
 }
 
 type noopDataClient struct {

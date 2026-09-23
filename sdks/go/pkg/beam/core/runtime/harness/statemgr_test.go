@@ -23,6 +23,7 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -498,6 +499,43 @@ func TestStateKeyWriter(t *testing.T) {
 			r.Write(test.data)
 		})
 	}
+}
+
+type teardownStateClient struct{ block chan struct{} }
+
+func (f *teardownStateClient) Recv() (*fnpb.StateResponse, error) {
+	<-f.block
+	return nil, io.EOF
+}
+func (f *teardownStateClient) Send(*fnpb.StateRequest) error { return nil }
+
+func TestStateChannelManagerClose(t *testing.T) {
+	m := &StateChannelManager{}
+	block := make(chan struct{})
+	var cancelled atomic.Bool
+	var unblock sync.Once
+	ch := makeStateChannel(context.Background(), "port", &teardownStateClient{block: block}, func() {
+		cancelled.Store(true)
+		unblock.Do(func() { close(block) })
+	})
+	ch.forceRecreate = func(string, error) {
+		m.mu.Lock()
+		m.mu.Unlock()
+	}
+	m.ports = map[string]*StateChannel{"p": ch}
+
+	m.Close()
+
+	if !cancelled.Load() {
+		t.Error("channel not cancelled")
+	}
+	m.mu.Lock()
+	left := m.ports
+	m.mu.Unlock()
+	if left != nil {
+		t.Error("ports not cleared")
+	}
+	m.Close()
 }
 
 // This likely can't be replaced by the "errors" package helpers,

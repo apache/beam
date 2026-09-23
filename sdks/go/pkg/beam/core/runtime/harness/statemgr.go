@@ -627,6 +627,20 @@ func (m *StateChannelManager) Open(ctx context.Context, port exec.Port) (*StateC
 	return ch, nil
 }
 
+// Close closes all cached StateChannels.
+func (m *StateChannelManager) Close() {
+	m.mu.Lock()
+	chans := m.ports
+	m.ports = nil
+	m.mu.Unlock()
+	for _, ch := range chans {
+		ch.mu.Lock()
+		ch.forceRecreate = nil
+		ch.mu.Unlock()
+		ch.cancelFn()
+	}
+}
+
 type stateClient interface {
 	Send(*fnpb.StateRequest) error
 	Recv() (*fnpb.StateResponse, error)
