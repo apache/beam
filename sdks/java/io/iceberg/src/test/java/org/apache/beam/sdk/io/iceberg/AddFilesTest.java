@@ -26,7 +26,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -34,8 +36,10 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.EnumSet;
@@ -71,6 +75,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.FileFormat;
 import org.apache.iceberg.FileScanTask;
@@ -1048,6 +1053,315 @@ public class AddFilesTest {
   }
 
   @Test
+  public void testDryRunReportsWithoutCommittingOrRegistering() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String before = metadataLocation();
+    String covered = writeOneRecord("covered.parquet");
+    String wide = writeWider("wide.parquet");
+    String conflict = writeConflicting("conflict.parquet");
+
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(covered, wide, conflict)).apply(addFiles(DRY_RUN));
+    PAssert.that(output.get("errors")).empty();
+    PAssert.that(output.get("snapshots")).empty();
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              Collection<Row> schemas = schemas(report);
+              assertEquals(3, schemas.size());
+              boolean sawAddition = false;
+              boolean sawConflict = false;
+              for (Row schema : schemas) {
+                Collection<String> changes = schema.getArray("changes");
+                if (changes.contains("add optional email string")) {
+                  sawAddition = schema.getBoolean("allowed");
+                }
+                if (!schema.getBoolean("allowed")) {
+                  sawConflict = schema.getString("reason").contains("conflicts");
+                }
+              }
+              assertTrue(sawAddition);
+              assertTrue(sawConflict);
+              assertFalse(report.getBoolean("allowed"));
+              assertEquals(Long.valueOf(2), report.getInt64("files_allowed"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_incompatible"));
+              assertThat(report.getString("reason"), containsString("would fail"));
+              return null;
+            });
+    assertEquals(0, countTransforms(pipeline, "ConvertToDataFiles"));
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    Table table = catalog.loadTable(tableId);
+    assertEquals(0, Iterables.size(table.snapshots()));
+    assertEquals(2, counted(result, DryRunReport.class, DryRunReport.FILES_ALLOWED_COUNTER));
+    assertEquals(1, counted(result, DryRunReport.class, DryRunReport.FILES_INCOMPATIBLE_COUNTER));
+    assertEquals(0, counted(result, DryRunReport.class, DryRunReport.FILES_UNREADABLE_COUNTER));
+    assertEquals(0, counted(result, DryRunReport.class, DryRunReport.CONFIG_PROBLEMS_COUNTER));
+    assertEquals(before, metadataLocation());
+  }
+
+  private String metadataLocation() {
+    return ((BaseTable) catalog.loadTable(tableId)).operations().current().metadataFileLocation();
+  }
+
+  private static Row report(Iterable<Row> rows) {
+    return Iterables.getOnlyElement(rows);
+  }
+
+  private static Collection<Row> schemas(Row report) {
+    return checkStateNotNull(report.getArray("schemas"));
+  }
+
+  @Test
+  public void testDryRunAgainstMissingTableReportsCreation() throws Exception {
+    String wide = writeWider("wide.parquet");
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(wide)).apply(addFiles(DRY_RUN));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertTrue(report.getBoolean("allowed"));
+              assertTrue(report.getBoolean("would_create_table"));
+              Row created = checkStateNotNull(report.getRow("created_table"));
+              assertThat(
+                  created.getArray("columns").toString(),
+                  containsString("create optional email string"));
+              assertThat(created.getString("schema"), containsString("\"name\":\"email\""));
+              for (Row schema : schemas(report)) {
+                assertTrue(
+                    "the created table is described once", schema.getArray("changes").isEmpty());
+              }
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertFalse(catalog.tableExists(tableId));
+  }
+
+  /** A real run under FAIL_PIPELINE throws before creating the table, and the report says so. */
+  @Test
+  public void testDryRunAgainstMissingTableDoesNotCreateWhenARealRunWouldFail() throws Exception {
+    String wide = writeWider("wide.parquet");
+    String conflict = writeConflicting("conflict.parquet");
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(wide, conflict)).apply(addFiles(DRY_RUN));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertFalse(report.getBoolean("allowed"));
+              assertFalse(report.getBoolean("would_create_table"));
+              assertNotNull("the union still describes the table", report.getRow("created_table"));
+              assertThat(report.getString("reason"), containsString("would fail"));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertFalse(catalog.tableExists(tableId));
+  }
+
+  /** A table-level change without a schema change is reported as such. */
+  @Test
+  public void testDryRunReportsNameMappingRepair() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String before = metadataLocation();
+    String covered = writeOneRecord("covered.parquet");
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(covered)).apply(addFiles(DRY_RUN));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertTrue(report.getBoolean("allowed"));
+              assertEquals(
+                  Arrays.asList(DryRunReport.NAME_MAPPING_CHANGE),
+                  new ArrayList<>(checkStateNotNull(report.getArray("table_changes"))));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertEquals(before, metadataLocation());
+  }
+
+  /** Creation settings are part of the plan: a partition field the union lacks is reported. */
+  @Test
+  public void testDryRunReportsCreationBlockedByPartitionFields() throws Exception {
+    String wide = writeWider("wide.parquet");
+    AddFiles partitionedByMissing =
+        new AddFiles(
+            catalogConfig,
+            tableId.toString(),
+            null,
+            Arrays.asList("missing"),
+            null,
+            null,
+            null,
+            null,
+            DRY_RUN);
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(wide)).apply(partitionedByMissing);
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertFalse(report.getBoolean("allowed"));
+              assertFalse(report.getBoolean("would_create_table"));
+              assertThat(report.getString("reason"), containsString("would fail to create"));
+              assertThat(report.getString("reason"), containsString("partition fields [missing]"));
+              assertEquals(1, checkStateNotNull(report.getArray("config_problems")).size());
+              return null;
+            });
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    assertEquals(1, counted(result, DryRunReport.class, DryRunReport.CONFIG_PROBLEMS_COUNTER));
+    assertFalse(catalog.tableExists(tableId));
+  }
+
+  /**
+   * The dry run reuses the real fold on scratch transactions: a schema compatible with the table
+   * but incompatible with another schema of the input is reported, as a real run would.
+   */
+  @Test
+  public void testDryRunSurfacesCrossSchemaConflicts() throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    Schema emailInt =
+        new Schema(
+            Types.NestedField.required(1, "id", Types.IntegerType.get()),
+            Types.NestedField.required(2, "name", Types.StringType.get()),
+            Types.NestedField.required(3, "age", Types.IntegerType.get()),
+            Types.NestedField.optional(4, "email", Types.IntegerType.get()));
+    String a = writeWider("email_string.parquet");
+    Record intRecord = GenericRecord.create(emailInt);
+    intRecord.setField("id", 1);
+    intRecord.setField("name", "a");
+    intRecord.setField("age", 1);
+    intRecord.setField("email", 7);
+    String b = writeWithSchema("email_int.parquet", emailInt, intRecord);
+
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(a, b)).apply(addFiles(DRY_RUN));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Collection<Row> schemas = schemas(report(rows));
+              assertEquals(2, schemas.size());
+              int allowed = 0;
+              for (Row schema : schemas) {
+                if (schema.getBoolean("allowed")) {
+                  allowed++;
+                }
+              }
+              assertEquals("one of the two schemas loses the fold", 1, allowed);
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertNull(catalog.loadTable(tableId).schema().findField("email"));
+  }
+
+  /** With evolution on, the pre-pass is the only creator; registration never falls back to one. */
+  @Test
+  public void testMissingTableIsNotCreatedAtRegistrationWithEvolution() throws Exception {
+    File avro = temp.newFile("data.avro");
+    File garbage = temp.newFile("garbage.parquet");
+    java.nio.file.Files.write(garbage.toPath(), "not parquet".getBytes(StandardCharsets.UTF_8));
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(avro.getAbsolutePath(), garbage.getAbsolutePath()))
+            .apply(addFiles(ADDITIONS));
+    PAssert.that(output.get("snapshots")).empty();
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              int count = 0;
+              for (Row row : rows) {
+                count++;
+                assertThat(
+                    row.getString("error"),
+                    containsString(AddFiles.ConvertToDataFile.MISSING_TABLE_ERROR));
+              }
+              assertEquals(2, count);
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertFalse(catalog.tableExists(tableId));
+  }
+
+  /** Nothing can create the table, so nothing is allowed, whatever ACCEPT would register. */
+  @Test
+  public void testDryRunAgainstMissingTableWithNoUsableSchema() throws Exception {
+    File avro = temp.newFile("data.avro");
+    SchemaEvolutionConfig config =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .setUnverifiableFileHandling(UnverifiableFileHandling.ACCEPT)
+            .setDryRun(true)
+            .build();
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(avro.getAbsolutePath())).apply(addFiles(config));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertFalse(report.getBoolean("allowed"));
+              assertFalse(report.getBoolean("would_create_table"));
+              assertFalse(report.getBoolean("unchecked_registered"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_unchecked"));
+              assertThat(report.getString("reason"), containsString(DryRunReport.NO_TABLE_REASON));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertFalse(catalog.tableExists(tableId));
+  }
+
+  /** Files that contribute no schema are counted instead of vanishing. */
+  @Test
+  public void testDryRunReportsUnreadableAndNonParquetFiles() throws Exception {
+    dryRunWithUnreadableAndAvro(UnverifiableFileHandling.REJECT, false);
+  }
+
+  @Test
+  public void testDryRunReportsNonParquetFilesAsRegisteredWhenAccepted() throws Exception {
+    dryRunWithUnreadableAndAvro(UnverifiableFileHandling.ACCEPT, true);
+  }
+
+  private void dryRunWithUnreadableAndAvro(
+      UnverifiableFileHandling handling, boolean uncheckedRegistered) throws Exception {
+    catalog.createTable(tableId, icebergSchema);
+    String good = writeOneRecord("good.parquet");
+    File garbage = temp.newFile("garbage.parquet");
+    java.nio.file.Files.write(garbage.toPath(), "not parquet".getBytes(StandardCharsets.UTF_8));
+    File avro = temp.newFile("data.avro");
+
+    SchemaEvolutionConfig config =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .setUnverifiableFileHandling(handling)
+            .setDryRun(true)
+            .build();
+    PCollectionRowTuple output =
+        pipeline
+            .apply(
+                "Create Input", Create.of(good, garbage.getAbsolutePath(), avro.getAbsolutePath()))
+            .apply(addFiles(config));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertTrue(report.getBoolean("allowed"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_allowed"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_unreadable"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_unchecked"));
+              assertEquals(uncheckedRegistered, report.getBoolean("unchecked_registered"));
+              return null;
+            });
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
+    assertEquals(1, counted(result, DryRunReport.class, DryRunReport.FILES_ALLOWED_COUNTER));
+    assertEquals(0, counted(result, DryRunReport.class, DryRunReport.FILES_INCOMPATIBLE_COUNTER));
+    assertEquals(1, counted(result, DryRunReport.class, DryRunReport.FILES_UNREADABLE_COUNTER));
+    assertEquals(1, counted(result, DryRunReport.class, DryRunReport.FILES_UNCHECKED_COUNTER));
+  }
+
+  @Test
   public void testEvolutionDisabledAddsNoPrePassTransforms() throws Exception {
     catalog.createTable(tableId, icebergSchema);
     String file = writeOneRecord("data.parquet");
@@ -1178,7 +1492,8 @@ public class AddFilesTest {
 
   /**
    * The schema commit retries a CommitFailedException (another writer got in first). The committer
-   * is serialized with the DoFn, so only the table shows the retry happened.
+   * is serialized with the DoFn, so the retry shows in the table and in the time the backoff
+   * reports to the runner as throttled.
    */
   @Test
   public void testTransientSchemaCommitFailureIsRetried() throws Exception {
@@ -1199,15 +1514,37 @@ public class AddFilesTest {
             .apply(addFiles(ADDITIONS).withSchemaCommitter(failsOnce));
     PAssert.that(output.get("errors")).empty();
 
-    pipeline.run().waitUntilFinish();
+    PipelineResult result = pipeline.run();
+    result.waitUntilFinish();
 
     assertEmailAddedAndFilesRegistered(1);
+    long throttledMillis = 0;
+    for (MetricResult<Long> metric :
+        result
+            .metrics()
+            .queryMetrics(
+                MetricsFilter.builder()
+                    .addNameFilter(
+                        MetricNameFilter.named(
+                            org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_NAMESPACE,
+                            org.apache.beam.sdk.metrics.Metrics.THROTTLE_TIME_COUNTER_NAME))
+                    .build())
+            .getCounters()) {
+      throttledMillis += metric.getAttempted();
+    }
+    assertTrue("one backoff wait was reported: " + throttledMillis, throttledMillis > 0);
   }
 
   // ---- ConvertToDataFile coverage check and pinned columns
 
   private static final SchemaEvolutionConfig ADDITIONS =
       SchemaEvolutionConfig.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION);
+
+  private static final SchemaEvolutionConfig DRY_RUN =
+      SchemaEvolutionConfig.builder()
+          .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+          .setDryRun(true)
+          .build();
 
   private PCollectionTuple convert(SchemaEvolutionConfig config, String... files) {
     PCollectionTuple out =
@@ -1590,13 +1927,17 @@ public class AddFilesTest {
   }
 
   private static long counted(PipelineResult result, String counter) {
+    return counted(result, AddFiles.class, counter);
+  }
+
+  private static long counted(PipelineResult result, Class<?> namespace, String counter) {
     long total = 0;
     for (MetricResult<Long> metric :
         result
             .metrics()
             .queryMetrics(
                 MetricsFilter.builder()
-                    .addNameFilter(MetricNameFilter.named(AddFiles.class, counter))
+                    .addNameFilter(MetricNameFilter.named(namespace, counter))
                     .build())
             .getCounters()) {
       total += metric.getAttempted();
