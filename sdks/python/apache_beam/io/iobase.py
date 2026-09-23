@@ -295,7 +295,7 @@ class RangeTracker(object):
   at or after 'B'".
 
   Some examples of such sources include reading lines or CSV from a text file,
-  reading keys and values from a BigTable, etc.
+  reading keys and values from a Bigtable, etc.
 
   The concept of *split points* allows to extend the definitions for dealing
   with sources where some records cannot be identified by a unique starting
