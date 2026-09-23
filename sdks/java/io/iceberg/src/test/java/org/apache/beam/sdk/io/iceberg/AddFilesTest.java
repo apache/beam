@@ -1257,6 +1257,61 @@ public class AddFilesTest {
     assertNull(catalog.loadTable(tableId).schema().findField("email"));
   }
 
+  /** With evolution on, the pre-pass is the only creator; registration never falls back to one. */
+  @Test
+  public void testMissingTableIsNotCreatedAtRegistrationWithEvolution() throws Exception {
+    File avro = temp.newFile("data.avro");
+    File garbage = temp.newFile("garbage.parquet");
+    java.nio.file.Files.write(garbage.toPath(), "not parquet".getBytes(StandardCharsets.UTF_8));
+    PCollectionRowTuple output =
+        pipeline
+            .apply("Create Input", Create.of(avro.getAbsolutePath(), garbage.getAbsolutePath()))
+            .apply(addFiles(ADDITIONS));
+    PAssert.that(output.get("snapshots")).empty();
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              int count = 0;
+              for (Row row : rows) {
+                count++;
+                assertThat(
+                    row.getString("error"),
+                    containsString(AddFiles.ConvertToDataFile.MISSING_TABLE_ERROR));
+              }
+              assertEquals(2, count);
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertFalse(catalog.tableExists(tableId));
+  }
+
+  /** Nothing can create the table, so nothing is allowed, whatever ACCEPT would register. */
+  @Test
+  public void testDryRunAgainstMissingTableWithNoUsableSchema() throws Exception {
+    File avro = temp.newFile("data.avro");
+    SchemaEvolutionConfig config =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .setUnverifiableFileHandling(UnverifiableFileHandling.ACCEPT)
+            .setDryRun(true)
+            .build();
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(avro.getAbsolutePath())).apply(addFiles(config));
+    PAssert.that(output.get(AddFiles.DRY_RUN_TAG))
+        .satisfies(
+            rows -> {
+              Row report = report(rows);
+              assertFalse(report.getBoolean("allowed"));
+              assertFalse(report.getBoolean("would_create_table"));
+              assertFalse(report.getBoolean("unchecked_registered"));
+              assertEquals(Long.valueOf(1), report.getInt64("files_unchecked"));
+              assertThat(report.getString("reason"), containsString(DryRunReport.NO_TABLE_REASON));
+              return null;
+            });
+    pipeline.run().waitUntilFinish();
+    assertFalse(catalog.tableExists(tableId));
+  }
+
   /** Files that contribute no schema are counted instead of vanishing. */
   @Test
   public void testDryRunReportsUnreadableAndNonParquetFiles() throws Exception {

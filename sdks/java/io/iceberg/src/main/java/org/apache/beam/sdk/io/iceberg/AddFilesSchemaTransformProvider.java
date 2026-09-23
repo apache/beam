@@ -132,8 +132,10 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " that is not allowed is incompatible; see incompatible_schema_handling. Only"
             + " Parquet files can be checked: ORC and Avro files are sent to the error output"
             + " unless unverifiable_file_handling is ACCEPT. Files sent to the error output are"
-            + " dropped unless error_handling is set. Batch pipelines only; streaming pipelines"
-            + " cannot use schema evolution yet.")
+            + " dropped unless error_handling is set. If the table does not exist it is created"
+            + " from the union of the Parquet schemas; with none, every file goes to the error"
+            + " output. Batch pipelines only; streaming pipelines cannot use schema evolution"
+            + " yet.")
     public abstract @Nullable List<String> getSchemaEvolutionOptions();
 
     @SchemaFieldDescription(
@@ -148,13 +150,13 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
     @SchemaFieldDescription(
         "When true, nothing is committed or registered: the transform reads the files' schemas"
-            + " and emits a dry_run_report output with one row that describes what a real run"
-            + " would do. Its allowed field is true when every file schema can be merged and the"
-            + " configuration raises no problem; otherwise its reason field says what a real run"
-            + " would do about it (fail, or route the files to the error output). Its schemas"
+            + " and emits a `dry_run_report` output with one row that describes what a real run"
+            + " would do. Its `allowed` field is true when every file schema can be merged and the"
+            + " configuration raises no problem; otherwise its `reason` field says what a real run"
+            + " would do about it (fail, or route the files to the error output). Its `schemas`"
             + " field lists each distinct file schema with the changes a real run would make for"
             + " it and, when it cannot be merged, why. The output only exists when this is set;"
-            + " consume it as input: <this transform's name>.dry_run_report. Against a missing"
+            + " consume it as input: `<this transform's name>.dry_run_report`. Against a missing"
             + " table, a REST catalog needs table-create permission even though no table is"
             + " created.")
     public abstract @Nullable Boolean getDryRun();

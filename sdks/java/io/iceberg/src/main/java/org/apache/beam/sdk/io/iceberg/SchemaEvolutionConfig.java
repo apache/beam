@@ -55,7 +55,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * conflicts with the table or with another file's schema. {@link IncompatibleSchemaHandling}
  * decides whether that fails the pipeline before any schema commit (the batch default) or skips the
  * schema so its files reach the error output (the streaming default). Files whose footer cannot be
- * read or converted always go to the error output and never fail the pipeline.
+ * read or converted always go to the error output and never fail the pipeline. When the table does
+ * not exist, the pre-pass creates it from the union of the file schemas; if no readable Parquet
+ * schema can seed it, nothing is created and every file goes to the error output.
  *
  * <p><b>Dry run.</b> Reports what a real run would do on the {@code dry_run_report} output, one row
  * per window; nothing is committed or registered. {@code allowed} is true when every file schema

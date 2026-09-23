@@ -52,8 +52,9 @@ import org.slf4j.LoggerFactory;
  * be merged, why. {@code created_table} is the table a real run would create from the union of the
  * allowed schemas, absent when the table exists or no schema can seed it; {@code
  * would_create_table} is false whenever a real run would not create it, including when it would
- * fail first. {@code table_changes} lists what a real run changes without a schema change, such as
- * regenerating the name mapping.
+ * fail first. When the table does not exist and no file schema can create it, nothing is allowed: a
+ * real run sends every file to the error output. {@code table_changes} lists what a real run
+ * changes without a schema change, such as regenerating the name mapping.
  *
  * <p>The file counts and the counters count checked Parquet files by whether their schema is
  * allowed. Unreadable files always go to the error output in a real run; unchecked (ORC, Avro)
@@ -114,6 +115,10 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
 
   static final String NAME_MAPPING_CHANGE =
       "regenerate the name mapping property to cover the schema";
+
+  static final String NO_TABLE_REASON =
+      "the table does not exist and no file schema can create it; a real run sends every file to"
+          + " the error output";
 
   /** Wide inputs would otherwise put every column of every schema into one log entry. */
   private static final int MAX_RENDERED_ENTRIES = 50;
@@ -231,13 +236,23 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
       creation = (SchemaPlan.Creation) plan;
     }
     @Nullable String creationProblem = creation == null ? null : creation.problem;
+    long files =
+        totals.allowedFiles
+            + totals.incompatibleFiles
+            + input.unreadableFiles
+            + input.uncheckedFiles;
+    boolean noTable = creation != null && creation.newSchema == null && files > 0;
     boolean allowed =
-        totals.incompatibleSchemas == 0 && plan.configProblems.isEmpty() && creationProblem == null;
+        totals.incompatibleSchemas == 0
+            && plan.configProblems.isEmpty()
+            && creationProblem == null
+            && !noTable;
     boolean wouldFail =
         creationProblem != null
-            || (settings.handling == IncompatibleSchemaHandling.FAIL_PIPELINE && !allowed);
+            || (settings.handling == IncompatibleSchemaHandling.FAIL_PIPELINE
+                && (totals.incompatibleSchemas > 0 || !plan.configProblems.isEmpty()));
     boolean wouldCreateTable = creation != null && creation.canCreate() && !wouldFail;
-    String consequence = consequence(totals, plan.configProblems, creationProblem);
+    String consequence = consequence(totals, plan.configProblems, creationProblem, noTable);
 
     List<String> configProblems = new ArrayList<>(plan.configProblems);
     if (creationProblem != null) {
@@ -249,7 +264,8 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
     }
     boolean uncheckedRegistered =
         settings.config.getUnverifiableFileHandling()
-            == SchemaEvolutionConfig.UnverifiableFileHandling.ACCEPT;
+                == SchemaEvolutionConfig.UnverifiableFileHandling.ACCEPT
+            && !noTable;
     List<Row> entryRows = new ArrayList<>();
     for (SchemaEntry entry : entries) {
       entryRows.add(entry.toRow());
@@ -328,11 +344,17 @@ class DryRunReport extends DoFn<List<CollectDistinctSchemas.SchemaGroup>, Row> {
   }
 
   private String consequence(
-      Totals totals, List<String> configProblems, @Nullable String creationProblem) {
+      Totals totals,
+      List<String> configProblems,
+      @Nullable String creationProblem,
+      boolean noTable) {
     IncompatibleSchemaHandling handling = settings.handling;
     List<String> parts = new ArrayList<>();
     if (creationProblem != null) {
       parts.add("a real run would fail to create the table: " + creationProblem);
+    }
+    if (noTable) {
+      parts.add(NO_TABLE_REASON);
     }
     if (totals.incompatibleSchemas > 0) {
       parts.add(

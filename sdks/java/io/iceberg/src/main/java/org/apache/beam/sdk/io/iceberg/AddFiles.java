@@ -137,7 +137,9 @@ import org.slf4j.LoggerFactory;
  * {@code errors} (see {@link SchemaEvolutionConfig.IncompatibleSchemaHandling}). The per-file
  * checks read Parquet footers: an ORC or Avro file, or a pinned column the footer has no null count
  * for, cannot be verified and goes to {@code errors} unless {@link
- * SchemaEvolutionConfig.UnverifiableFileHandling#ACCEPT} registers it on trust. Schema evolution
+ * SchemaEvolutionConfig.UnverifiableFileHandling#ACCEPT} registers it on trust. When the table does
+ * not exist, the pre-pass creates it from the union of the file schemas; if no readable Parquet
+ * schema can seed it, nothing is created and every file goes to {@code errors}. Schema evolution
  * currently requires bounded input; unbounded input with options set is rejected at construction.
  *
  * <pre>{@code
@@ -423,6 +425,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private final SchemaEvolutionConfig evolution;
     private transient @MonotonicNonNull BoundedAsyncTasks<ProcessResult> tasks;
     private transient volatile @MonotonicNonNull Table table;
+    private transient volatile boolean tableMissing;
     private transient @MonotonicNonNull Set<String> warned;
     private final AtomicBoolean refreshedThisBundle = new AtomicBoolean();
 
@@ -470,6 +473,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     static final String UNREADABLE_SCHEMA_ERROR = "Could not read the file's schema: ";
     static final String UNCOVERED_ERROR = "Table schema does not cover the file after refresh: ";
     static final String PINNED_COLUMN_ERROR = "Pinned required column ";
+    static final String MISSING_TABLE_ERROR =
+        "Table does not exist and the schema pre-pass could not create it (no readable Parquet"
+            + " schema seeded it, or every file schema was refused): ";
     static final String UNCHECKED_FORMAT_ERROR =
         "Schema evolution is enabled but coverage and pin checks support only Parquet;"
             + " refusing to register an unchecked file of format ";
@@ -627,6 +633,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         // ---- Infrastructure phase. Failures propagate so the runner retries the bundle;
         // per-file error rows here would silently drop in-flight files on a transient blip.
         // Only conditions that are properties of the file go to the error output.
+        if (tableMissing) {
+          return errorResult(
+              filePath, MISSING_TABLE_ERROR + identifier, timestamp, window, paneInfo);
+        }
         if (table == null) {
           synchronized (this) {
             if (table == null) {
@@ -634,6 +644,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 table = getOrCreateTable(filePath, format);
               } catch (FileNotFoundException e) {
                 return errorResult(filePath, errorMessage(e), timestamp, window, paneInfo);
+              } catch (NoSuchTableException e) {
+                tableMissing = true;
+                return errorResult(
+                    filePath, MISSING_TABLE_ERROR + identifier, timestamp, window, paneInfo);
               }
             }
           }
@@ -864,6 +878,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       try {
         return catalogConfig.catalog().loadTable(tableId);
       } catch (NoSuchTableException e) {
+        if (evolution.isEnabled()) {
+          // the pre-pass is the only creator then, and it has already declined
+          throw e;
+        }
         try {
           org.apache.iceberg.Schema schema = getSchema(filePath, format);
           PartitionSpec spec = PartitionUtils.toPartitionSpec(partitionFields, schema);
