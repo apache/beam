@@ -65,6 +65,7 @@ class LeaderBoardIT(unittest.TestCase):
   DEFAULT_INPUT_COUNT = 500
 
   WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
+  BQ_MATCHER_TIMEOUT_SECS = 5 * 60
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -124,7 +125,10 @@ class LeaderBoardIT(unittest.TestCase):
             self.OUTPUT_TABLE_USERS,
             success_condition))
     bq_users_verifier = BigqueryMatcher(
-        self.project, users_query, self.DEFAULT_EXPECTED_CHECKSUM)
+        self.project,
+        users_query,
+        self.DEFAULT_EXPECTED_CHECKSUM,
+        timeout_secs=self.BQ_MATCHER_TIMEOUT_SECS)
 
     teams_query = (
         'SELECT total_score FROM `%s.%s.%s` '
@@ -134,7 +138,10 @@ class LeaderBoardIT(unittest.TestCase):
             self.OUTPUT_TABLE_TEAMS,
             success_condition))
     bq_teams_verifier = BigqueryMatcher(
-        self.project, teams_query, self.DEFAULT_EXPECTED_CHECKSUM)
+        self.project,
+        teams_query,
+        self.DEFAULT_EXPECTED_CHECKSUM,
+        timeout_secs=self.BQ_MATCHER_TIMEOUT_SECS)
 
     extra_opts = {
         'allow_unsafe_triggers': True,
