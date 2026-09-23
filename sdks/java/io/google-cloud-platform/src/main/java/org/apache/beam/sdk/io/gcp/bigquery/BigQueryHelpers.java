@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
@@ -27,6 +28,8 @@ import com.google.api.services.bigquery.model.Clustering;
 import com.google.api.services.bigquery.model.Dataset;
 import com.google.api.services.bigquery.model.ErrorProto;
 import com.google.api.services.bigquery.model.Job;
+import com.google.api.services.bigquery.model.JobConfiguration;
+import com.google.api.services.bigquery.model.JobConfigurationLoad;
 import com.google.api.services.bigquery.model.JobReference;
 import com.google.api.services.bigquery.model.JobStatus;
 import com.google.api.services.bigquery.model.Table;
@@ -471,9 +474,6 @@ public class BigQueryHelpers {
    *
    * <p>If the project id is omitted, the default project id is used.
    */
-  @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-  })
   public static TableReference parseTableSpec(String tableSpec) {
     Matcher match = BigQueryIO.TABLE_SPEC.matcher(tableSpec);
     if (!match.matches()) {
@@ -545,7 +545,9 @@ public class BigQueryHelpers {
     }
 
     TableReference ref = new TableReference();
-    ref.setProjectId(project);
+    // The project id is optional; the API client accepts a null project id but is not annotated.
+    @SuppressWarnings("nullness")
+    TableReference unused = ref.setProjectId(project);
     return ref.setDatasetId(dataset).setTableId(table);
   }
 
@@ -561,9 +563,6 @@ public class BigQueryHelpers {
             tableSpec));
   }
 
-  @SuppressWarnings({
-    "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-  })
   public static TableReference parseTableUrn(String tableUrn) {
     Matcher match = BigQueryIO.TABLE_URN_SPEC.matcher(tableUrn);
     if (!match.matches()) {
@@ -573,10 +572,10 @@ public class BigQueryHelpers {
               + tableUrn);
     }
 
-    TableReference ref = new TableReference();
-    ref.setProjectId(match.group("PROJECT"));
-
-    return ref.setDatasetId(match.group("DATASET")).setTableId(match.group("TABLE"));
+    return new TableReference()
+        .setProjectId(checkStateNotNull(match.group("PROJECT")))
+        .setDatasetId(checkStateNotNull(match.group("DATASET")))
+        .setTableId(checkStateNotNull(match.group("TABLE")));
   }
 
   /** Strip off any partition decorator information from a tablespec. */
@@ -585,19 +584,22 @@ public class BigQueryHelpers {
     return (index == -1) ? tableSpec : tableSpec.substring(0, index);
   }
 
-  @SuppressWarnings({
-    "nullness" // The BigQuery API library is documented to accept nulls but is not annotated
-  })
   static String jobToPrettyString(@Nullable Job job) throws IOException {
-    if (job != null && job.getConfiguration().getLoad() != null) {
+    if (job == null) {
+      return "null";
+    }
+    JobConfiguration configuration = job.getConfiguration();
+    if (configuration != null && configuration.getLoad() != null) {
       // Removing schema and sourceUris from error messages for load jobs since these fields can be
       // quite long and error message might not be displayed properly in runner specific logs.
       job = job.clone();
-      job.getConfiguration().getLoad().setSchema(null);
-      job.getConfiguration().getLoad().setSourceUris(null);
+      JobConfigurationLoad load = checkStateNotNull(job.getConfiguration()).getLoad();
+      // The BigQuery API library is documented to accept nulls here but is not annotated.
+      @SuppressWarnings("nullness")
+      JobConfigurationLoad unused = load.setSchema(null).setSourceUris(null);
     }
 
-    return job == null ? "null" : job.toPrettyString();
+    return job.toPrettyString();
   }
 
   static String statusToPrettyString(@Nullable JobStatus status) throws IOException {

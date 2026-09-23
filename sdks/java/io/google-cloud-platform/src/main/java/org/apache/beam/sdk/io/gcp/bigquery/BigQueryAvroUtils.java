@@ -547,9 +547,6 @@ class BigQueryAvroUtils {
     return false;
   }
 
-  @SuppressWarnings({
-    "nullness" // Avro library not annotated
-  })
   private static Field convertField(
       TableFieldSchema bigQueryField, Boolean useAvroLogicalTypes, @Nullable String namespace) {
     String fieldName = bigQueryField.getName();
@@ -570,11 +567,15 @@ class BigQueryAvroUtils {
     } else if (!"REQUIRED".equals(bqMode)) {
       throw new IllegalArgumentException(String.format("Unknown BigQuery Field Mode: %s", bqMode));
     }
-    return new Field(
-        fieldName,
-        fieldSchema,
-        bigQueryField.getDescription(),
-        (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
+    // The Avro Field constructor accepts a null default value, but Avro is not annotated.
+    @SuppressWarnings("nullness")
+    Field field =
+        new Field(
+            fieldName,
+            fieldSchema,
+            bigQueryField.getDescription(),
+            (Object) null /* Cast to avoid deprecated JsonNode constructor. */);
+    return field;
   }
 
   static TableSchema fromGenericAvroSchema(Schema schema) {

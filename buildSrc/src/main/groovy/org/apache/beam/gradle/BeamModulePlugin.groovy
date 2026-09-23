@@ -620,14 +620,14 @@ class BeamModulePlugin implements Plugin<Project> {
     def dbcp2_version = "2.9.0"
     def errorprone_version = "2.31.0"
     // [bomupgrader] determined by: com.google.api:gax, consistent with: google_cloud_platform_libraries_bom
-    def gax_version = "2.82.0"
+    def gax_version = "2.84.0"
     def google_ads_version = "33.0.0"
     def google_clients_version = "2.0.0"
     def google_cloud_bigdataoss_version = "3.1.16"
     def google_code_gson_version = "2.10.1"
     def google_oauth_clients_version = "1.34.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def grpc_version = "1.81.0"
+    def grpc_version = "1.82.4"
     def guava_version = "33.1.0-jre"
     def hadoop_version = "3.4.2"
     def hamcrest_version = "2.1"
@@ -643,13 +643,13 @@ class BeamModulePlugin implements Plugin<Project> {
     def log4j2_version = "2.25.4"
     def nemo_version = "0.1"
     // [bomupgrader] determined by: io.grpc:grpc-netty, consistent with: google_cloud_platform_libraries_bom
-    def netty_version = "4.1.132.Final"
+    def netty_version = "4.1.133.Final"
     // [bomupgrader] determined by: io.opentelemetry:opentelemetry-sdk, consistent with: google_cloud_platform_libraries_bom
     def opentelemetry_version = "1.62.0"
     def opentelemetry_contrib_version = "1.52.0"
     def postgres_version = "42.6.2"
     // [bomupgrader] determined by: com.google.protobuf:protobuf-java, consistent with: google_cloud_platform_libraries_bom
-    def protobuf_version = "4.33.2"
+    def protobuf_version = "4.33.6"
     def qpid_jms_client_version = "0.61.0"
     def quickcheck_version = "1.0"
     def sbe_tool_version = "1.25.1"
@@ -753,7 +753,7 @@ class BeamModulePlugin implements Plugin<Project> {
         google_api_client_gson                      : "com.google.api-client:google-api-client-gson:$google_clients_version",
         google_api_client_java6                     : "com.google.api-client:google-api-client-java6:$google_clients_version",
         google_api_common                           : "com.google.api:api-common", // google_cloud_platform_libraries_bom sets version
-        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20260612-2.0.0",  // [bomupgrader] sets version
+        google_api_services_bigquery                : "com.google.apis:google-api-services-bigquery:v2-rev20260731-2.0.0",  // [bomupgrader] sets version
         google_api_services_cloudresourcemanager    : "com.google.apis:google-api-services-cloudresourcemanager:v1-rev20250606-2.0.0",  // [bomupgrader] sets version
         google_api_services_dataflow                : "com.google.apis:google-api-services-dataflow:v1b3-rev20260503-$google_clients_version",
         google_api_services_healthcare              : "com.google.apis:google-api-services-healthcare:v1-rev20240130-$google_clients_version",
@@ -770,14 +770,14 @@ class BeamModulePlugin implements Plugin<Project> {
         google_cloud_core_grpc                      : "com.google.cloud:google-cloud-core-grpc", // google_cloud_platform_libraries_bom sets version
         google_cloud_datacatalog_v1beta1            : "com.google.cloud:google-cloud-datacatalog", // google_cloud_platform_libraries_bom sets version
         google_cloud_dataflow_java_proto_library_all: "com.google.cloud.dataflow:google-cloud-dataflow-java-proto-library-all:0.5.160304",
-        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:3.2.0",   // [bomupgrader] sets version
+        google_cloud_datastore_v1_proto_client      : "com.google.cloud.datastore:datastore-v1-proto-client:3.4.0",   // [bomupgrader] sets version
         google_cloud_firestore                      : "com.google.cloud:google-cloud-firestore", // google_cloud_platform_libraries_bom sets version
         google_cloud_kms                            : "com.google.cloud:google-cloud-kms", // google_cloud_platform_libraries_bom sets version
         google_cloud_logging                        : "com.google.cloud:google-cloud-logging", // google_cloud_platform_libraries_bom sets version
         google_cloud_pubsub                         : "com.google.cloud:google-cloud-pubsub", // google_cloud_platform_libraries_bom sets version
         // [bomupgrader] the BOM version is set by scripts/tools/bomupgrader.py. If update manually, also update
         // libraries-bom version on sdks/java/container/license_scripts/dep_urls_java.yaml
-        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.85.0",
+        google_cloud_platform_libraries_bom         : "com.google.cloud:libraries-bom:26.87.0",
         google_cloud_secret_manager                 : "com.google.cloud:google-cloud-secretmanager", // google_cloud_platform_libraries_bom sets version
         google_cloud_spanner                        : "com.google.cloud:google-cloud-spanner", // google_cloud_platform_libraries_bom sets version
         google_cloud_storage                        : "com.google.cloud:google-cloud-storage", // google_cloud_platform_libraries_bom sets version
@@ -803,6 +803,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_common_protos                   : "com.google.api.grpc:grpc-google-common-protos", // google_cloud_platform_libraries_bom sets version
         grpc_grpclb                                 : "io.grpc:grpc-grpclb", // google_cloud_platform_libraries_bom sets version
+        grpc_inprocess                              : "io.grpc:grpc-inprocess", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf                               : "io.grpc:grpc-protobuf", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite", // google_cloud_platform_libraries_bom sets version
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version
@@ -1257,6 +1258,35 @@ class BeamModulePlugin implements Plugin<Project> {
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
         maxHeapSize = '2g'
+        // Windows OS: Snappy needs an executable temp dir for native lib. Default AppData/Temp
+        // failing with Access error without elevated permissions
+        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+          systemProperty 'org.xerial.snappy.tempdir', System.getProperty('org.xerial.snappy.tempdir') ?: "${project.rootDir.absolutePath}/build/snappy_bin"
+        }
+        // Report each test as it runs, plus a per-task summary. Gradle logs only
+        // failures by default, so a passing run prints nothing but "BUILD SUCCESSFUL"
+        // and gives no indication of which tests --tests actually selected.
+        // Test stdout/stderr stays off unless asked for, since it is noisy:
+        //   -PshowTestOutput   also forward test stdout/stderr
+        // A cached or up-to-date test task forks no JVM and prints nothing;
+        // add --no-build-cache --rerun to force real execution.
+        testLogging {
+          events 'passed', 'skipped', 'failed'
+          exceptionFormat = 'full'
+          showExceptions = true
+          showCauses = true
+          showStackTraces = true
+          showStandardStreams = project.hasProperty('showTestOutput')
+          displayGranularity = 0
+        }
+        afterSuite { desc, result ->
+          // Only the root suite of each test task, to get one summary per task.
+          if (!desc.parent) {
+            println "RESULT [${path}]: ${result.resultType} - ${result.testCount} tests, " +
+                "${result.successfulTestCount} passed, ${result.failedTestCount} failed, " +
+                "${result.skippedTestCount} skipped"
+          }
+        }
       }
 
       // NOTE: Use the character class "[.]" instead of an escaped "\\." to match a literal dot in

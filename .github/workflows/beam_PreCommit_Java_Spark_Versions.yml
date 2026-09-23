@@ -90,7 +90,9 @@ jobs:
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
-          java-version: 11
+          java-version: |
+            17
+            11
       - name: run sparkVersionsTest script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:

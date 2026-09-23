@@ -55,7 +55,10 @@ except ImportError:
   raise unittest.SkipTest('Onnx dependencies are not installed')
 
 try:
+  from apache_beam.io.gcp.gcsio import GCS_INSTALLED
   from apache_beam.io.gcp.gcsfilesystem import GCSFileSystem
+  if not GCS_INSTALLED:
+    GCSFileSystem = None  # type: ignore
 except ImportError:
   GCSFileSystem = None  # type: ignore
 

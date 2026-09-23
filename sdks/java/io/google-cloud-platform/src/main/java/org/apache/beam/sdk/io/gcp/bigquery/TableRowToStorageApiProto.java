@@ -1078,7 +1078,6 @@ public class TableRowToStorageApiProto {
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
    */
-  @SuppressWarnings("nullness")
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
       @Nullable Descriptor descriptor,
@@ -1122,7 +1121,10 @@ public class TableRowToStorageApiProto {
       if (unknownFields != null) {
         List<TableCell> unknownValues = Lists.newArrayListWithExpectedSize(cells.size());
         for (int i = 0; i < cells.size(); ++i) {
-          unknownValues.add(new TableCell().setV(null));
+          // TableCell accepts a null value, but the API client is not annotated.
+          @SuppressWarnings("nullness")
+          TableCell nullCell = new TableCell().setV(null);
+          unknownValues.add(nullCell);
         }
         unknownFields.setF(unknownValues);
       }
@@ -1183,7 +1185,10 @@ public class TableRowToStorageApiProto {
       // If there are unknown fields, copy them into the output.
       if (unknownFields != null) {
         for (int i = cellsToProcess; i < cells.size(); ++i) {
-          unknownFields.getF().set(i, new TableCell().setV(cells.get(i).get("v")));
+          // TableCell accepts a null value, but the API client is not annotated.
+          @SuppressWarnings("nullness")
+          TableCell unknownCell = new TableCell().setV(cells.get(i).get("v"));
+          unknownFields.getF().set(i, unknownCell);
         }
       }
 

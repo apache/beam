@@ -63,38 +63,23 @@ jobs:
         with:
           gradle-command: test
           arguments: -p sdks/java/core/
-      - name: Upload test logs for :sdks:java:core:test
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: java_unit_tests-sdks-java-core-test-${{ matrix.os }}
-          path: sdks/java/core/build/reports/tests/test
       # :sdks:java:harness:test
       - name: Run :sdks:java:harness:test
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: test
           arguments: -p sdks/java/harness/
-        if: always()
-      - name: Upload test logs for :sdks:java:harness:test
-        uses: actions/upload-artifact@v7
-        if: always()
-        with:
-          name: java_unit_tests-sdks-java-harness-test-${{ matrix.os }}
-          path: sdks/java/harness/build/reports/tests/test
-      # :runners:core-java:test
-      - name: Run :runners:core-java:test
+      # :runners:core-java:test and :runners:java-fn-execution:test
+      - name: Run basic runner tests
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: test
-          arguments: -p runners/core-java/
-        if: always()
-      - name: Upload test logs for :runners:core-java:test
+          gradle-command: :runners:core-java:test :runners:java-fn-execution:test
+      - name: Upload test logs
         uses: actions/upload-artifact@v7
-        if: always()
+        if: ${{ !success() }}
         with:
-          name: java_unit_tests-runners-core-java-test-${{ matrix.os }}
-          path: runners/core-java/build/reports/tests/test
+          name: java_unit_tests-${{ matrix.os }}
+          path: "**/build/reports/tests/"
 
   java_wordcount_direct_runner:
     name: 'Java Wordcount Direct Runner'

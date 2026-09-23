@@ -1,0 +1,3 @@
+{
+  "https://github.com/apache/beam/pull/39893": "Fix nullness in BigQueryIO"
+}

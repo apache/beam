@@ -27,7 +27,7 @@ fixtures:
     config:
       bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
 
-  # Tests for BigTable YAML IO
+  # Tests for Bigtable YAML IO
 
 pipelines:
   - pipeline:
@@ -78,7 +78,7 @@ pipelines:
               # fields are already of the correct type (String, Long) or are optional.
               # We only need to convert fields that are Strings in YAML but need to be Bytes in Java.
 
-        - type: WriteToBigTable
+        - type: WriteToBigtable
           config:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"
@@ -86,7 +86,7 @@ pipelines:
   - pipeline:
       type: chain
       transforms:
-        - type: ReadFromBigTable
+        - type: ReadFromBigtable
           config:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"
@@ -133,7 +133,7 @@ pipelines:
   - pipeline:
       type: chain
       transforms:
-        - type: ReadFromBigTable
+        - type: ReadFromBigtable
           config:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"

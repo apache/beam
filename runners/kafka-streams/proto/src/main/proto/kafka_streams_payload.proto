@@ -50,9 +50,19 @@ message KafkaStreamsPayload {
     bytes value = 1;
   }
 
-  // Exactly one variant is set; the oneof case discriminates data vs watermark.
+  // A request to close the open bundle and flush its output. See
+  // https://github.com/apache/beam/issues/39633.
+  message FlushPayload {
+    // Which partitions of the repartition topic this marker is for. The producer picks them so
+    // that each downstream partition gets exactly one flush per interval; broadcasting would give
+    // it one per upstream partition instead.
+    repeated uint32 target_partitions = 1;
+  }
+
+  // Exactly one variant is set; the oneof case discriminates data vs watermark vs flush.
   oneof payload {
     WatermarkPayload watermark = 1;
     DataPayload data = 2;
+    FlushPayload flush = 3;
   }
 }

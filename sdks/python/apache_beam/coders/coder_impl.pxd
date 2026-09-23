@@ -297,6 +297,7 @@ cdef class RowCoderImpl(StreamCoderImpl):
   cdef bint encoding_positions_are_trivial
   cdef list components
   cdef bint has_nullable_fields
+  cdef bint static_encoding
 
   @cython.locals(i=int, nvals=libc.stdint.int64_t, running=int, component_coder=CoderImpl,
                  null_mask=bytes, null_mask_c=char_ptr)
