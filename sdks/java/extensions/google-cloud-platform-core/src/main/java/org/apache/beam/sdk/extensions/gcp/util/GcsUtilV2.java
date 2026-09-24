@@ -169,7 +169,8 @@ class GcsUtilV2 {
     return gcsPerformanceMetrics ? MetricsEnvironment.getCurrentContainer() : null;
   }
 
-  private WritableByteChannel wrapInCounting(
+  @VisibleForTesting
+  WritableByteChannel wrapInCounting(
       WritableByteChannel writableByteChannel,
       String bucket,
       @Nullable MetricsContainer container) {
@@ -192,7 +193,8 @@ class GcsUtilV2 {
     return new CountingWritableByteChannel(writableByteChannel, writeConsumer);
   }
 
-  private SeekableByteChannel wrapInCounting(
+  @VisibleForTesting
+  SeekableByteChannel wrapInCounting(
       SeekableByteChannel seekableByteChannel,
       String bucket,
       @Nullable MetricsContainer container) {
