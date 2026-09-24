@@ -108,6 +108,11 @@ dependencies {
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     testRuntimeOnly project(path: ":sdks:java:harness")
+    testImplementation(project(path: ":sdks:java:io:delta", configuration: "testRuntimeMigration")) {
+        exclude group: "org.apache.hadoop", module: "hadoop-aws"
+        exclude group: "org.testcontainers"
+        exclude group: "org.slf4j", module: "slf4j-simple"
+    }
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
@@ -129,6 +134,9 @@ configurations.all {
   resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
   resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
   resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
+  // Delta Kernel (test only) needs the shaded client jars; keep them on the same Hadoop line.
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client-api:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client-runtime:3.3.6'
 }
 
 hadoopVersions.each {kv ->
