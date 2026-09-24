@@ -32,6 +32,7 @@ import org.apache.beam.sdk.transforms.reflect.DoFnSignatures;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.spark.sql.Dataset;
 import org.apache.spark.sql.SparkSession;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -106,8 +107,9 @@ public class PipelineTranslatorStreaming extends PipelineTranslatorCommon {
   @Override
   protected EvaluationContext createEvaluationContext(
       Collection<? extends EvaluationContext.NamedDataset<?>> leaves,
+      Collection<Dataset<?>> cachedDatasets,
       SparkSession session,
       SparkCommonPipelineOptions options) {
-    return new StreamingEvaluationContext(leaves, session, options);
+    return new StreamingEvaluationContext(leaves, cachedDatasets, session, options);
   }
 }

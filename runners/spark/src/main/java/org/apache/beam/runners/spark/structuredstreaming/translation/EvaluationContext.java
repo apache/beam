@@ -72,10 +72,9 @@ public class EvaluationContext {
   /**
    * Trigger evaluation of all leaf datasets. Returns early once {@link #stop()} was called.
    *
-   * <p>Once all leaves have been evaluated (or evaluation was stopped), any dataset that was
-   * {@link PipelineTranslator.TranslationState#cacheDataset cached} during translation is
-   * unpersisted, so it doesn't keep occupying storage memory for the lifetime of the Spark
-   * session.
+   * <p>Once all leaves have been evaluated (or evaluation was stopped), any dataset that was {@link
+   * PipelineTranslator.TranslationState#cacheDataset cached} during translation is unpersisted, so
+   * it doesn't keep occupying storage memory for the lifetime of the Spark session.
    */
   public void evaluate() {
     try {
@@ -105,7 +104,7 @@ public class EvaluationContext {
    * Unpersists all datasets that were cached during translation. Called once leaf evaluation has
    * completed (successfully, with an error, or stopped early), as none of them are needed anymore.
    */
-  private void unpersistCachedDatasets() {
+  protected final void unpersistCachedDatasets() {
     for (Dataset<?> dataset : cachedDatasets) {
       dataset.unpersist();
     }

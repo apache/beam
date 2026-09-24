@@ -242,13 +242,13 @@ public abstract class PipelineTranslator {
         PCollection<T> pCollection, SideInputValues.Loader<T> loader);
 
     /**
-     * Persists {@code dataset} at the given {@link StorageLevel} and registers it to be
-     * unpersisted once the pipeline has been fully evaluated.
+     * Persists {@code dataset} at the given {@link StorageLevel} and registers it to be unpersisted
+     * once the pipeline has been fully evaluated.
      *
      * <p>Translators that cache a dataset outside of {@link #putDataset} (for example to reuse it
-     * across multiple derived outputs within the same translation step) must use this method
-     * rather than calling {@link Dataset#persist(StorageLevel)} directly, so the cached data
-     * doesn't outlive the pipeline run it was created for.
+     * across multiple derived outputs within the same translation step) must use this method rather
+     * than calling {@link Dataset#persist(StorageLevel)} directly, so the cached data doesn't
+     * outlive the pipeline run it was created for.
      */
     <T> Dataset<T> cacheDataset(Dataset<T> dataset, StorageLevel level);
 
