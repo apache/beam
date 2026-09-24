@@ -83,7 +83,8 @@ public class BigQueryManagedIT {
 
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
-  private static final String BIG_QUERY_DATASET_ID = "bigquery_managed_" + System.nanoTime();
+  private static final String BIG_QUERY_DATASET_ID =
+      "beam_temp_dataset_managed_" + System.nanoTime();
 
   private static final Clustering CLUSTERING = new Clustering().setFields(Arrays.asList("str"));
 
