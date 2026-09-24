@@ -22,6 +22,7 @@ import static org.apache.beam.model.pipeline.v1.ExternalTransforms.ExpansionMeth
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;
@@ -417,6 +418,12 @@ public class PTransformTranslation {
       knownPayloadTranslators;
 
   @Internal
+  @SuppressFBWarnings(
+      value = "MS_EXPOSE_REP",
+      justification =
+          "Returns a Guava ImmutableMap."
+              + " Spotbugs matches its known-immutable list by fully qualified name, so it cannot recognise collections relocated into org.apache.beam.vendor.guava."
+              + " See https://github.com/spotbugs/spotbugs/issues/1601.")
   public static Map<Class<? extends PTransform>, TransformPayloadTranslator>
       getKnownPayloadTranslators() {
     if (knownPayloadTranslators == null) {

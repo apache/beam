@@ -47,8 +47,12 @@ For instance, the following code sample uses a `Map` to create a `DoFn`. The `Ma
 {{< code_sample "examples/java/src/main/java/org/apache/beam/examples/snippets/Snippets.java" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
 
+{{< paragraph class="language-py" >}}
+The Python sample uses `PeriodicImpulse` to re-read the placeholder external service on a fixed interval, and re-publishes the result into the global window on every firing. Use `Latest.Globally().without_defaults()` rather than `Latest.Globally()`: the variant with defaults adds its own side input, which stops the transform from emitting more than once. For more information, see [Issue 35934](https://github.com/apache/beam/issues/35934).
+{{< /paragraph >}}
+
 {{< highlight py >}}
-No sample present.
+{{< code_sample "sdks/python/apache_beam/examples/snippets/snippets.py" SideInputPatternSlowUpdateGlobalWindowSnip1 >}}
 {{< /highlight >}}
 
 

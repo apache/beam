@@ -350,10 +350,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         case PTransformTranslation.PAR_DO_TRANSFORM_URN:
           mainOutputTag = (TupleTag) ParDoTranslation.getMainOutputTag(parDoPayload);
           break;
-        case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-          mainOutputTag =
-              new TupleTag(Iterables.getOnlyElement(pTransform.getOutputsMap().keySet()));
-          break;
         default:
           throw new IllegalStateException(
               String.format("Unknown urn: %s", pTransform.getSpec().getUrn()));
@@ -444,17 +440,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     this.doFnInvoker = DoFnInvokers.tryInvokeSetupFor(doFn, pipelineOptions);
 
     this.startBundleArgumentProvider = new StartBundleArgumentProvider();
-    // Register the appropriate handlers.
-    switch (pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        addStartFunction.accept(this::startBundle);
-        break;
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        // startBundle should not be invoked
-      default:
-        // no-op
-    }
+    addStartFunction.accept(this::startBundle);
 
     String mainInput;
     try {
@@ -474,32 +460,16 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         }
         break;
       case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        if (doFnSignature.processElement().observesWindow()
-            || (doFnSignature.newTracker() != null && doFnSignature.newTracker().observesWindow())
-            || (doFnSignature.getSize() != null && doFnSignature.getSize().observesWindow())
-            || (doFnSignature.newWatermarkEstimator() != null
-                && doFnSignature.newWatermarkEstimator().observesWindow())
-            || !sideInputMapping.isEmpty()) {
-          mainInputConsumer =
-              new SplittableFnDataReceiver() {
-                @Override
-                public void accept(WindowedValue input) throws Exception {
-                  processElementForWindowObservingSizedElementAndRestriction(input);
-                }
-              };
-          this.processContext = new WindowObservingProcessBundleContext();
-        } else {
-          mainInputConsumer =
-              new SplittableFnDataReceiver() {
-                @Override
-                public void accept(WindowedValue input) throws Exception {
-                  // TODO(BEAM-10303): Create a variant which is optimized to not observe the
-                  // windows.
-                  processElementForWindowObservingSizedElementAndRestriction(input);
-                }
-              };
-          this.processContext = new WindowObservingProcessBundleContext();
-        }
+        // TODO(BEAM-10303): Create a variant which is optimized to not observe the windows when
+        // neither the DoFn nor its side inputs observe them.
+        mainInputConsumer =
+            new SplittableFnDataReceiver() {
+              @Override
+              public void accept(WindowedValue input) throws Exception {
+                processElementForWindowObservingSizedElementAndRestriction(input);
+              }
+            };
+        this.processContext = new WindowObservingProcessBundleContext();
         break;
       default:
         throw new IllegalStateException("Unknown urn: " + pTransform.getSpec().getUrn());
@@ -507,16 +477,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     addPCollectionConsumer.accept(pTransform.getInputsOrThrow(mainInput), mainInputConsumer);
 
     this.finishBundleArgumentProvider = new FinishBundleArgumentProvider();
-    switch (pTransform.getSpec().getUrn()) {
-      case PTransformTranslation.PAR_DO_TRANSFORM_URN:
-      case PTransformTranslation.SPLITTABLE_PROCESS_SIZED_ELEMENTS_AND_RESTRICTIONS_URN:
-        addFinishFunction.accept(this::finishBundle);
-        break;
-      case PTransformTranslation.SPLITTABLE_SPLIT_AND_SIZE_RESTRICTIONS_URN:
-        // finishBundle should not be invoked
-      default:
-        // no-op
-    }
+    addFinishFunction.accept(this::finishBundle);
     addTearDownFunction.accept(this::tearDown);
 
     workCompletedShortId =
@@ -1274,6 +1235,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       currentTimer = null;
       currentTimeDomain = null;
       currentWindow = null;
+      causedByDrain = null;
     }
   }
 
@@ -2334,10 +2296,10 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
    * DoFn.OnWindowExpiration @OnWindowExpiration}.
    */
   private class OnWindowExpirationContext<K> extends BaseArgumentProvider<InputT, OutputT> {
-    private class Context extends DoFn<InputT, OutputT>.OnWindowExpirationContext
+    private class WindowExpirationContext extends DoFn<InputT, OutputT>.OnWindowExpirationContext
         implements OutputReceiver<OutputT> {
 
-      private Context() {
+      private WindowExpirationContext() {
         doFn.super();
       }
 
@@ -2408,7 +2370,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                 null,
                 currentTimer.causedByDrain(),
                 null,
-                currentElement.getValueKind()));
+                ValueKind.INSERT));
       }
 
       @Override
@@ -2434,6 +2396,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
         checkOnWindowExpirationTimestamp(timestamp);
         FnDataReceiver<WindowedValue<T>> consumer =
             (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
         outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
       }
 
@@ -2444,7 +2409,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
-        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumer, windowedValue);
       }
 
       @SuppressWarnings(
@@ -2474,8 +2444,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final OnWindowExpirationContext.Context context =
-        new OnWindowExpirationContext.Context();
+    private final WindowExpirationContext context = new WindowExpirationContext();
 
     @Override
     public DoFn<InputT, OutputT>.OnWindowExpirationContext onWindowExpirationContext(
@@ -2496,11 +2465,6 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
     @Override
     public Instant timestamp(DoFn<InputT, OutputT> doFn) {
       return currentTimer.getHoldTimestamp();
-    }
-
-    @Override
-    public TimeDomain timeDomain(DoFn<InputT, OutputT> doFn) {
-      return currentTimeDomain;
     }
 
     @Override
@@ -2661,9 +2625,9 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
   /** Provides arguments for a {@link DoFnInvoker} for {@link DoFn.OnTimer @OnTimer}. */
   private class OnTimerContext<K> extends BaseArgumentProvider<InputT, OutputT> {
 
-    private class Context extends DoFn<InputT, OutputT>.OnTimerContext
+    private class TimerContext extends DoFn<InputT, OutputT>.OnTimerContext
         implements OutputReceiver<OutputT> {
-      private Context() {
+      private TimerContext() {
         doFn.super();
       }
 
@@ -2758,7 +2722,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
       @Override
       public <T> void outputWindowedValue(TupleTag<T> tag, WindowedValue<T> windowedValue) {
-        outputTo((FnDataReceiver) localNameToConsumer.get(tag.getId()), windowedValue);
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumer, windowedValue);
       }
 
       @Override
@@ -2767,7 +2736,15 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
           T output,
           Instant timestamp,
           Collection<? extends BoundedWindow> windows,
-          PaneInfo paneInfo) {}
+          PaneInfo paneInfo) {
+        checkTimerTimestamp(timestamp);
+        FnDataReceiver<WindowedValue<T>> consumer =
+            (FnDataReceiver) localNameToConsumer.get(tag.getId());
+        if (consumer == null) {
+          throw new IllegalArgumentException(String.format("Unknown output tag %s", tag));
+        }
+        outputTo(consumer, WindowedValues.of(output, timestamp, windows, paneInfo));
+      }
 
       @Override
       public TimeDomain timeDomain() {
@@ -2811,7 +2788,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
       }
     }
 
-    private final OnTimerContext.Context context = new OnTimerContext.Context();
+    private final TimerContext context = new TimerContext();
 
     @Override
     public BoundedWindow window() {
@@ -2861,8 +2838,12 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
 
               @Override
               public OutputBuilder<Row> builder(Row value) {
-                return WindowedValues.builder(currentElement)
-                    .withValue(value)
+                return WindowedValues.<Row>builder()
+                    .setValue(value)
+                    .setTimestamp(currentTimer.getHoldTimestamp())
+                    .setWindow(currentWindow)
+                    .setPaneInfo(currentTimer.getPaneInfo())
+                    .setCausedByDrain(currentTimer.causedByDrain())
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
@@ -2899,7 +2880,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setWindow(currentWindow)
                     .setCausedByDrain(currentTimer.causedByDrain())
                     .setPaneInfo(currentTimer.getPaneInfo())
-                    .setReceiver(windowedValue -> context.outputWindowedValue(windowedValue));
+                    .setReceiver(windowedValue -> context.outputWindowedValue(tag, windowedValue));
               }
             };
           }
@@ -2926,7 +2907,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
               @Override
               public OutputBuilder<Row> builder(Row value) {
                 return WindowedValues.<Row>builder()
-                    .withValue(value)
+                    .setValue(value)
                     .setTimestamp(currentTimer.getHoldTimestamp())
                     .setWindow(currentWindow)
                     .setPaneInfo(currentTimer.getPaneInfo())
@@ -2934,6 +2915,7 @@ public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimator
                     .setReceiver(
                         windowedValue ->
                             context.outputWindowedValue(
+                                tag,
                                 windowedValue.withValue(
                                     fromRowFunction.apply(windowedValue.getValue()))));
               }

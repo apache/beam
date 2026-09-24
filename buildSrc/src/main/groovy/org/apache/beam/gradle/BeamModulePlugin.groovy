@@ -803,6 +803,7 @@ class BeamModulePlugin implements Plugin<Project> {
         grpc_google_cloud_pubsub_v1                 : "com.google.api.grpc:grpc-google-cloud-pubsub-v1", // google_cloud_platform_libraries_bom sets version
         grpc_google_common_protos                   : "com.google.api.grpc:grpc-google-common-protos", // google_cloud_platform_libraries_bom sets version
         grpc_grpclb                                 : "io.grpc:grpc-grpclb", // google_cloud_platform_libraries_bom sets version
+        grpc_inprocess                              : "io.grpc:grpc-inprocess", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf                               : "io.grpc:grpc-protobuf", // google_cloud_platform_libraries_bom sets version
         grpc_protobuf_lite                          : "io.grpc:grpc-protobuf-lite", // google_cloud_platform_libraries_bom sets version
         grpc_netty                                  : "io.grpc:grpc-netty", // google_cloud_platform_libraries_bom sets version
@@ -1257,6 +1258,35 @@ class BeamModulePlugin implements Plugin<Project> {
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
         maxHeapSize = '2g'
+        // Windows OS: Snappy needs an executable temp dir for native lib. Default AppData/Temp
+        // failing with Access error without elevated permissions
+        if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+          systemProperty 'org.xerial.snappy.tempdir', System.getProperty('org.xerial.snappy.tempdir') ?: "${project.rootDir.absolutePath}/build/snappy_bin"
+        }
+        // Report each test as it runs, plus a per-task summary. Gradle logs only
+        // failures by default, so a passing run prints nothing but "BUILD SUCCESSFUL"
+        // and gives no indication of which tests --tests actually selected.
+        // Test stdout/stderr stays off unless asked for, since it is noisy:
+        //   -PshowTestOutput   also forward test stdout/stderr
+        // A cached or up-to-date test task forks no JVM and prints nothing;
+        // add --no-build-cache --rerun to force real execution.
+        testLogging {
+          events 'passed', 'skipped', 'failed'
+          exceptionFormat = 'full'
+          showExceptions = true
+          showCauses = true
+          showStackTraces = true
+          showStandardStreams = project.hasProperty('showTestOutput')
+          displayGranularity = 0
+        }
+        afterSuite { desc, result ->
+          // Only the root suite of each test task, to get one summary per task.
+          if (!desc.parent) {
+            println "RESULT [${path}]: ${result.resultType} - ${result.testCount} tests, " +
+                "${result.successfulTestCount} passed, ${result.failedTestCount} failed, " +
+                "${result.skippedTestCount} skipped"
+          }
+        }
       }
 
       // NOTE: Use the character class "[.]" instead of an escaped "\\." to match a literal dot in

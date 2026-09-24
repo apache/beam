@@ -513,7 +513,8 @@ if __name__ == '__main__':
               'sqlalchemy-pytds>=1.0.2',
               'pg8000>=1.31.5',
               "PyMySQL>=1.1.0",
-              'oracledb>=3.1.1'
+              'oracledb>=3.1.1',
+              'deltalake>=0.15.0',
           ],
           'gcp': [
               'cachetools>=3.1.0,<7',
@@ -524,16 +525,16 @@ if __name__ == '__main__':
               'google-auth-httplib2>=0.1.0,<0.3.0',
               'google-cloud-datastore>=2.0.0,<3',
               'google-cloud-pubsub>=2.1.0,<3',
-              'google-cloud-storage>=2.18.2,<4',
+              'google-cloud-storage>=3.0.0,<4',
               'google-cloud-resource-manager>=1.12.0,<2',
               'google-cloud-dataflow-client>=0.13.0,<0.14.0',
               # GCP packages required by tests
               'google-cloud-bigquery>=2.0.0,<4',
               'google-cloud-bigquery-storage>=2.6.3,<3',
               'google-cloud-core>=2.0.0,<3',
-              # 2.42.0 improves MutationsBatcher error handling: it surfaces
-              # errors raised during async flushes instead of swallowing them.
-              'google-cloud-bigtable>=2.42.0,<3',
+              # 2.44.0 changed DirectRow mutation storage; native WriteToBigTable
+              # requires this version on both driver and workers.
+              'google-cloud-bigtable>=2.44.0,<3',
               'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
@@ -556,6 +557,10 @@ if __name__ == '__main__':
               'keyrings.google-artifactregistry-auth',
               'orjson>=3.9.7,<4',
               'regex>=2020.6.8',
+          ],
+          # GCP packages used only by tests/ITs (not native Python IO).
+          'gcp_test': [
+              'google-cloud-firestore>=2.0.0,<3',
           ],
           'interactive': [
               'facets-overview>=1.1.0,<2',

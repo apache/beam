@@ -17,7 +17,7 @@
 # under the License.
 
 name: contributing
-description: Guides the contribution workflow for Apache Beam, including creating PRs, issue management, code review process, and release cycles. Use when contributing code, creating PRs, or understanding the contribution process.
+description: Guides the contribution workflow for Apache Beam, including creating PRs, issue management, code review process, release cycles, and rigorous evaluation rules for high-risk core component changes. Use when contributing code, creating PRs, or modifying core Beam components.
 ---
 
 # Contributing to Apache Beam
@@ -71,6 +71,10 @@ description: Guides the contribution workflow for Apache Beam, including creatin
   - Implementation details belong in inline code comments.
 - Use descriptive commit messages
 
+#### Working on Core Components (High Risk — Heightened Scrutiny)
+
+> **AGENT DIRECTIVE**: modification to **Core Components** carries an inherently elevated risk of silent regression across distributed runners. Refer to `.github/autolabeler.yml` under the `"core"` label for the authoritative list of core component paths (including `sdks/java/core`, `runners/core-*`, `model`, `sdks/python/apache_beam/transforms|coders`, `sdks/go/pkg/beam/core`, `FileIO`, and `GCS`). If you are an AI agent modifying files matched by these paths, **evaluate your changes with scrutiny.**
+
 ### 5. Create Pull Request
 - Link to the issue in PR description
 - Pre-commit tests run automatically
@@ -91,6 +95,7 @@ description: Guides the contribution workflow for Apache Beam, including creatin
 
 ### For Reviewers
 - PRs can only be merged by [Beam committers](https://home.apache.org/phonebook.html?pmc=beam)
+- PRs with the `core` label touch foundational Beam semantics or common code paths; review with extra scrutiny for non-obvious failure modes, edge case, and performance regressions
 
 ## Testing Workflows
 
