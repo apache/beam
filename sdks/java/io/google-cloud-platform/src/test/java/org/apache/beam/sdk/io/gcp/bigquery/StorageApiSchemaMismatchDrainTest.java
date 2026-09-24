@@ -44,9 +44,14 @@ import org.apache.beam.sdk.io.gcp.testing.FakeDatasetService;
 import org.apache.beam.sdk.io.gcp.testing.FakeJobService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.state.TimeDomain;
+import org.apache.beam.sdk.state.Timer;
+import org.apache.beam.sdk.state.TimerSpec;
+import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
+import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.SerializableFunction;
@@ -399,7 +404,7 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
             .apply(
                 "updateSchemaOnTimer",
                 ParDo.of(
-                    new BigQueryIOWriteTest.UpdateTableSchemaDoFn(
+                    new UpdateTableSchemaDoFn(
                         Duration.standardSeconds(2), widenedSchema(), fakeDatasetService)))
             .setCoder(TableRowJsonCoder.of())
             .apply(write)
@@ -468,7 +473,7 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
             .apply(
                 "updateSchemaOnTimer",
                 ParDo.of(
-                    new BigQueryIOWriteTest.UpdateTableSchemaDoFn(
+                    new UpdateTableSchemaDoFn(
                         Duration.standardSeconds(2), widenedSchema(), fakeDatasetService)))
             .setCoder(TableRowJsonCoder.of())
             .apply(write)
@@ -482,6 +487,38 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
         fakeDatasetService.getAllRows(
             tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
         containsInAnyOrder(expectedRowsWithExtra().toArray(new TableRow[0])));
+  }
+
+  private static class UpdateTableSchemaDoFn extends DoFn<KV<String, TableRow>, TableRow> {
+    @TimerId("updateTimer")
+    private final TimerSpec updateTimerSpec = TimerSpecs.timer(TimeDomain.PROCESSING_TIME);
+
+    private final Duration timerOffset;
+    private final String updatedSchema;
+    private final FakeDatasetService fakeDatasetService;
+
+    UpdateTableSchemaDoFn(
+        Duration timerOffset, TableSchema updatedSchema, FakeDatasetService fakeDatasetService) {
+      this.timerOffset = timerOffset;
+      this.updatedSchema = BigQueryHelpers.toJsonString(updatedSchema);
+      this.fakeDatasetService = fakeDatasetService;
+    }
+
+    @ProcessElement
+    public void processElement(
+        @Element KV<String, TableRow> element,
+        @TimerId("updateTimer") Timer updateTimer,
+        OutputReceiver<TableRow> o) {
+      updateTimer.offset(timerOffset).setRelative();
+      o.output(element.getValue());
+    }
+
+    @OnTimer("updateTimer")
+    public void onTimer(@Key String tableSpec) throws IOException {
+      fakeDatasetService.updateTableSchema(
+          BigQueryHelpers.parseTableSpec(tableSpec),
+          BigQueryHelpers.fromJsonString(updatedSchema, TableSchema.class));
+    }
   }
 
   private static class ConstantTableDynamicDestinations
