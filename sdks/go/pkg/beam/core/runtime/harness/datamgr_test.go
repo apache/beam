@@ -562,6 +562,7 @@ func TestDataChannelManagerClose(t *testing.T) {
 		})
 		ch.forceRecreate = func(string, error) {
 			m.mu.Lock()
+			_ = m.ports
 			m.mu.Unlock()
 		}
 		m.ports["p"+string(rune('0'+i))] = ch

@@ -531,6 +531,7 @@ func TestStateChannelManagerClose(t *testing.T) {
 	})
 	ch.forceRecreate = func(string, error) {
 		m.mu.Lock()
+		_ = m.ports
 		m.mu.Unlock()
 	}
 	m.ports = map[string]*StateChannel{"p": ch}
