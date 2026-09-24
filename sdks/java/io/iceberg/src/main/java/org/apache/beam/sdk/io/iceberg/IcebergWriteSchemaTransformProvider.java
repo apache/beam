@@ -420,14 +420,14 @@ public class IcebergWriteSchemaTransformProvider
       requireMode(Mode.APPEND, "autosharding", getAutosharding(), unsupported);
       requireMode(Mode.APPEND, "write_properties", getWriteProperties(), unsupported);
       requireMode(
-          Mode.APPEND, "using_side_input_table_cache", getUsingSideInputTableCache(), unsupported);
+          Mode.APPEND, "using_side_input_table_cache", getUseSideInputTableCache(), unsupported);
       requireMode(
           Mode.APPEND,
           "table_refresh_interval_seconds",
-          getTableRefreshIntervalSeconds(),
+          getTableCacheRefreshIntervalSeconds(),
           unsupported);
-      requireMode(Mode.APPEND, "maximum_cache_size", getMaximumCacheSize(), unsupported);
-      requireMode(Mode.APPEND, "polling_buckets", getPollingBuckets(), unsupported);
+      requireMode(Mode.APPEND, "maximum_cache_size", getMaximumTableCacheSize(), unsupported);
+      requireMode(Mode.APPEND, "polling_buckets", getTableCachePollingBuckets(), unsupported);
       if (!unsupported.isEmpty()) {
         throw new IllegalArgumentException(
             String.format(
