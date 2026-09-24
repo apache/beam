@@ -497,7 +497,10 @@ class Duration(object):
       self,
       seconds: Union[int, float] = 0,
       micros: Union[int, float] = 0) -> None:
-    self.micros = int(seconds * 1000000) + int(micros)
+    # Round rather than truncate, as the Timestamp constructor does: the float
+    # multiplication can land just below the exact integer (for example
+    # 2.000002 * 1e6 == 2000001.9999999998) and int() would drop a microsecond.
+    self.micros = round(seconds * 1000000) + int(micros)
 
   @staticmethod
   def of(seconds: DurationTypes) -> 'Duration':

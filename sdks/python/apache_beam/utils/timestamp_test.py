@@ -411,6 +411,16 @@ class DurationTest(unittest.TestCase):
     with self.assertRaises(TypeError):
       Duration.of(Timestamp(10))
 
+  def test_constructor_float_rounds_to_nearest(self):
+    # Same float-to-micros conversion as Timestamp: truncating dropped a
+    # microsecond whenever seconds * 1e6 landed just below the integer.
+    self.assertEqual(Duration(2.000002).micros, 2000002)
+    self.assertEqual(Duration(-2.000002).micros, -2000002)
+    self.assertEqual(Duration.of(1.000001).micros, 1000001)
+    self.assertEqual(Duration(1.5).micros, 1500000)
+    for micros in (1056803002554, 544368929943, 33956373746):
+      self.assertEqual(Duration(micros / 1000000).micros, micros)
+
   def test_precision(self):
     self.assertEqual(Duration(10000000) % 0.1, 0)
     self.assertEqual(Duration(10000000) % 0.05, 0)
