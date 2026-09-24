@@ -328,7 +328,7 @@ class TestBigQueryWrapper(unittest.TestCase):
         'project-id', 'dataset_id', access_entries=access_entries)
 
     insert_request = client.datasets.Insert.call_args[0][0]
-    self.assertIsNone(insert_request.dataset.access)
+    self.assertFalse(insert_request.dataset.access)
 
     patch_request = client.datasets.Patch.call_args[0][0]
     self.assertEqual(len(patch_request.dataset.access), 2)
