@@ -165,20 +165,20 @@ public class IcebergWriteSchemaTransformProvider
 
     @SchemaFieldDescription(
         "Enables expirable side-input caching of Iceberg table metadata across workers to reduce catalog load.")
-    public abstract @Nullable Boolean getUsingSideInputTableCache();
+    public abstract @Nullable Boolean getUseSideInputTableCache();
 
     @SchemaFieldDescription(
         "For a streaming pipeline, sets the interval in seconds at which table metadata is refreshed from the catalog.")
-    public abstract @Nullable Integer getTableRefreshIntervalSeconds();
+    public abstract @Nullable Integer getTableCacheRefreshIntervalSeconds();
 
     @SchemaFieldDescription(
         "For a batch pipeline, sets the maximum number of table metadata specs to cache in memory. "
             + "Tables exceeding this limit fall back to worker-local catalog loading.")
-    public abstract @Nullable Integer getMaximumCacheSize();
+    public abstract @Nullable Integer getMaximumTableCacheSize();
 
     @SchemaFieldDescription(
         "Sets the number of parallel buckets/workers used to query the Iceberg catalog during refreshes. Defaults to 1.")
-    public abstract @Nullable Integer getPollingBuckets();
+    public abstract @Nullable Integer getTableCachePollingBuckets();
 
     @AutoValue.Builder
     public abstract static class Builder {
@@ -212,13 +212,14 @@ public class IcebergWriteSchemaTransformProvider
 
       public abstract Builder setWriteProperties(Map<String, String> writeProperties);
 
-      public abstract Builder setUsingSideInputTableCache(Boolean usingSideInputTableCache);
+      public abstract Builder setUseSideInputTableCache(Boolean useSideInputTableCache);
 
-      public abstract Builder setTableRefreshIntervalSeconds(Integer tableRefreshIntervalSeconds);
+      public abstract Builder setTableCacheRefreshIntervalSeconds(
+          Integer tableCacheRefreshIntervalSeconds);
 
-      public abstract Builder setMaximumCacheSize(Integer maximumCacheSize);
+      public abstract Builder setMaximumTableCacheSize(Integer maximumTableCacheSize);
 
-      public abstract Builder setPollingBuckets(Integer pollingBuckets);
+      public abstract Builder setTableCachePollingBuckets(Integer pollingBuckets);
 
       public abstract Configuration build();
     }
@@ -229,6 +230,86 @@ public class IcebergWriteSchemaTransformProvider
           .setCatalogProperties(getCatalogProperties())
           .setConfigProperties(getConfigProperties())
           .build();
+    }
+
+    enum Mode {
+      APPEND("append"),
+      MERGE_ON_READ("merge-on-read");
+
+      /** The value users set {@code mode} to. */
+      final String optionValue;
+
+      Mode(String optionValue) {
+        this.optionValue = optionValue;
+      }
+    }
+
+    /** The write mode this configuration selects; unset means append. */
+    Mode mode() {
+      @Nullable String mode = getMode();
+      if (mode == null || mode.equalsIgnoreCase(Mode.APPEND.optionValue)) {
+        return Mode.APPEND;
+      }
+      if (mode.equalsIgnoreCase(Mode.MERGE_ON_READ.optionValue)) {
+        return Mode.MERGE_ON_READ;
+      }
+      throw new IllegalArgumentException(
+          String.format(
+              "Unknown mode '%s'; expected '%s' or '%s'.",
+              mode, Mode.APPEND.optionValue, Mode.MERGE_ON_READ.optionValue));
+    }
+
+    /** Rejects every set option that the selected mode does not support. */
+    void validateModeOptions() {
+      // Resolve the mode first so an unknown value fails here, not only once an option trips it.
+      Mode mode = mode();
+      List<String> unsupported = new ArrayList<>();
+      // Merge-on-read only: the change-stream contract.
+      requireMode(
+          Mode.MERGE_ON_READ, "sequence_number_column", getSequenceNumberColumn(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "change_type_column", getChangeTypeColumn(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "change_type_map", getChangeTypeMap(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "upsert", getUpsert(), unsupported);
+      // Merge-on-read only, until the append write grows these features.
+      requireMode(Mode.MERGE_ON_READ, "equality_columns", getEqualityColumns(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "num_shards", getNumShards(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "shards_per_partition", getShardsPerPartition(), unsupported);
+      requireMode(
+          Mode.MERGE_ON_READ, "allowed_lateness_seconds", getAllowedLatenessSeconds(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "sink_id", getSinkId(), unsupported);
+      requireMode(
+          Mode.MERGE_ON_READ, "token_heartbeat_seconds", getTokenHeartbeatSeconds(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "snapshot_properties", getSnapshotProperties(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "error_handling", getErrorHandling(), unsupported);
+      requireMode(Mode.MERGE_ON_READ, "sorter_memory_mb", getSorterMemoryMb(), unsupported);
+      // Append only: merge-on-read has neither a direct-write path nor a side-input table cache.
+      requireMode(Mode.APPEND, "direct_write_byte_limit", getDirectWriteByteLimit(), unsupported);
+      requireMode(Mode.APPEND, "distribution_mode", getDistributionMode(), unsupported);
+      requireMode(Mode.APPEND, "autosharding", getAutosharding(), unsupported);
+      requireMode(Mode.APPEND, "write_properties", getWriteProperties(), unsupported);
+      requireMode(
+          Mode.APPEND, "using_side_input_table_cache", getUseSideInputTableCache(), unsupported);
+      requireMode(
+          Mode.APPEND,
+          "table_refresh_interval_seconds",
+          getTableCacheRefreshIntervalSeconds(),
+          unsupported);
+      requireMode(Mode.APPEND, "maximum_cache_size", getMaximumTableCacheSize(), unsupported);
+      requireMode(Mode.APPEND, "polling_buckets", getTableCachePollingBuckets(), unsupported);
+      if (!unsupported.isEmpty()) {
+        throw new IllegalArgumentException(
+            String.format(
+                "The following options are not supported in '%s' mode yet: %s",
+                mode.optionValue, unsupported));
+      }
+    }
+
+    /** Records {@code option} as unsupported when it is set under a mode other than its own. */
+    private void requireMode(
+        Mode supported, String option, @Nullable Object value, List<String> unsupported) {
+      if (value != null && mode() != supported) {
+        unsupported.add(option);
+      }
     }
   }
 
@@ -317,34 +398,32 @@ public class IcebergWriteSchemaTransformProvider
       }
 
       boolean hasSideInputOptions =
-          configuration.getTableRefreshIntervalSeconds() != null
-              || configuration.getMaximumCacheSize() != null
-              || configuration.getPollingBuckets() != null;
+          configuration.getTableCacheRefreshIntervalSeconds() != null
+              || configuration.getMaximumTableCacheSize() != null
+              || configuration.getTableCachePollingBuckets() != null;
 
-      if (!Boolean.TRUE.equals(configuration.getUsingSideInputTableCache())
-          && hasSideInputOptions) {
+      if (!Boolean.TRUE.equals(configuration.getUseSideInputTableCache()) && hasSideInputOptions) {
         throw new IllegalArgumentException(
             "Cannot specify side-input cache sub-options (table_refresh_interval_seconds, "
                 + "maximum_cache_size, polling_buckets) without explicitly setting using_side_input_table_cache to true.");
       }
 
-      boolean enableSideInputCache =
-          Boolean.TRUE.equals(configuration.getUsingSideInputTableCache());
+      boolean enableSideInputCache = Boolean.TRUE.equals(configuration.getUseSideInputTableCache());
 
       if (enableSideInputCache) {
         writeTransform = writeTransform.withSideInputTableCache();
-        @Nullable Integer refreshSec = configuration.getTableRefreshIntervalSeconds();
+        @Nullable Integer refreshSec = configuration.getTableCacheRefreshIntervalSeconds();
         if (refreshSec != null) {
           writeTransform =
-              writeTransform.withTableRefreshInterval(Duration.standardSeconds(refreshSec));
+              writeTransform.withTableCacheRefreshInterval(Duration.standardSeconds(refreshSec));
         }
-        @Nullable Integer maxCacheSize = configuration.getMaximumCacheSize();
+        @Nullable Integer maxCacheSize = configuration.getMaximumTableCacheSize();
         if (maxCacheSize != null) {
-          writeTransform = writeTransform.withMaximumCacheSize(maxCacheSize);
+          writeTransform = writeTransform.withMaximumTableCacheSize(maxCacheSize);
         }
-        @Nullable Integer pollingBuckets = configuration.getPollingBuckets();
+        @Nullable Integer pollingBuckets = configuration.getTableCachePollingBuckets();
         if (pollingBuckets != null) {
-          writeTransform = writeTransform.withPollingBuckets(pollingBuckets);
+          writeTransform = writeTransform.withTableCachePollingBuckets(pollingBuckets);
         }
       }
 
