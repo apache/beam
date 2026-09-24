@@ -65,6 +65,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.LogicalType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
@@ -343,6 +344,7 @@ public class BigQueryUtils {
           .put(SqlTypes.TIME.getIdentifier(), StandardSQLTypeName.TIME)
           .put(SqlTypes.DATETIME.getIdentifier(), StandardSQLTypeName.DATETIME)
           .put(SqlTypes.TIMESTAMP.getIdentifier(), StandardSQLTypeName.TIMESTAMP)
+          .put(NanosInstant.IDENTIFIER, StandardSQLTypeName.TIMESTAMP)
           .put("SqlTimeWithLocalTzType", StandardSQLTypeName.TIME)
           .put("Enum", StandardSQLTypeName.STRING)
           .build();
@@ -836,6 +838,8 @@ public class BigQueryUtils {
               (0 == localDateTime.getNano()) ? ISO_LOCAL_DATE_TIME : BIGQUERY_DATETIME_FORMATTER;
           return localDateTimeFormatter.format(localDateTime);
         } else if (Timestamp.IDENTIFIER.equals(identifier)) {
+          return BigQueryAvroUtils.formatTimestamp((java.time.Instant) fieldValue);
+        } else if (NanosInstant.IDENTIFIER.equals(identifier)) {
           return BigQueryAvroUtils.formatTimestamp((java.time.Instant) fieldValue);
         } else if ("Enum".equals(identifier)) {
           return fieldType
