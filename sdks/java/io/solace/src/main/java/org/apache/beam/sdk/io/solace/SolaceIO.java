@@ -789,6 +789,12 @@ public class SolaceIO {
       checkState(
           (configuration.getQueue() == null ^ configuration.getTopic() == null),
           "SolaceIO.Read: One of the Solace {Queue, Topic} must be set.");
+
+      if (configuration.getEnableOpenTelemetryTracing()) {
+        checkState(
+            TypeDescriptor.of(Solace.Record.class).isSupertypeOf(configuration.getTypeDescriptor()),
+            "OpenTelemetry tracing is only supported when the output type is Solace.Record.");
+      }
     }
 
     @Override
