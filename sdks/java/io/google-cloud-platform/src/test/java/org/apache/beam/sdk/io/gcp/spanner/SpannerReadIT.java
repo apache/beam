@@ -51,8 +51,8 @@ import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.TypeDescriptor;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
-import org.junit.After;
-import org.junit.Before;
+import org.junit.AfterClass;
+import org.junit.BeforeClass;
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
@@ -96,15 +96,15 @@ public class SpannerReadIT {
     void setTable(String value);
   }
 
-  private Spanner spanner;
-  private DatabaseAdminClient databaseAdminClient;
-  private SpannerTestPipelineOptions options;
-  private String databaseName;
-  private String pgDatabaseName;
-  private String project;
+  private static Spanner spanner;
+  private static DatabaseAdminClient databaseAdminClient;
+  private static SpannerTestPipelineOptions options;
+  private static String databaseName;
+  private static String pgDatabaseName;
+  private static String project;
 
-  @Before
-  public void setUp() throws Exception {
+  @BeforeClass
+  public static void setUpTestEnvironment() throws Exception {
     PipelineOptionsFactory.register(SpannerTestPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(SpannerTestPipelineOptions.class);
 
@@ -142,16 +142,16 @@ public class SpannerReadIT {
                     + "  Key           INT64,"
                     + "  Value         STRING(MAX),"
                     + ") PRIMARY KEY (Key)"));
-    op.get();
     // PG-dialect databases need 2-steps to create: Create DB then update DDL.
-    databaseAdminClient
-        .createDatabase(
+    OperationFuture<Database, CreateDatabaseMetadata> pgOp =
+        databaseAdminClient.createDatabase(
             databaseAdminClient
                 .newDatabaseBuilder(DatabaseId.of(project, options.getInstanceId(), pgDatabaseName))
                 .setDialect(Dialect.POSTGRESQL)
                 .build(),
-            Collections.emptyList())
-        .get();
+            Collections.emptyList());
+    op.get();
+    pgOp.get();
     databaseAdminClient
         .updateDatabaseDdl(
             options.getInstanceId(),
@@ -461,7 +461,7 @@ public class SpannerReadIT {
     p.run();
   }
 
-  private void makeTestData() {
+  private static void makeTestData() {
     DatabaseClient databaseClient = getDatabaseClient();
     DatabaseClient pgDatabaseClient = getPgDatabaseClient();
 
@@ -496,23 +496,27 @@ public class SpannerReadIT {
             .withDatabaseId(pgDatabaseName));
   }
 
-  private DatabaseClient getDatabaseClient() {
+  private static DatabaseClient getDatabaseClient() {
     return spanner.getDatabaseClient(DatabaseId.of(project, options.getInstanceId(), databaseName));
   }
 
-  private DatabaseClient getPgDatabaseClient() {
+  private static DatabaseClient getPgDatabaseClient() {
     return spanner.getDatabaseClient(
         DatabaseId.of(project, options.getInstanceId(), pgDatabaseName));
   }
 
-  @After
-  public void tearDown() throws Exception {
-    databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
-    databaseAdminClient.dropDatabase(options.getInstanceId(), pgDatabaseName);
-    spanner.close();
+  @AfterClass
+  public static void tearDown() throws Exception {
+    if (databaseAdminClient != null) {
+      databaseAdminClient.dropDatabase(options.getInstanceId(), databaseName);
+      databaseAdminClient.dropDatabase(options.getInstanceId(), pgDatabaseName);
+    }
+    if (spanner != null) {
+      spanner.close();
+    }
   }
 
-  private String generateDatabaseName() {
+  private static String generateDatabaseName() {
     String random =
         RandomUtils.randomAlphaNumeric(
             MAX_DB_NAME_LENGTH - 4 - options.getDatabaseIdPrefix().length());
