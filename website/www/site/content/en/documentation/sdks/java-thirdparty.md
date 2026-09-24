@@ -109,3 +109,41 @@ Apache License 2.0
             }
         }));
 
+## Error handling and dead letter queues
+
+### Summary
+Asgarde simplifies error handling in Beam pipelines. With plain Beam, each step needs its own `try/catch` block,
+tuple tags or `exceptionsInto`/`exceptionsVia`, and the failures of all the steps have to be flattened manually.
+Asgarde keeps the fluent style of the `apply` chain and gathers the failures of all the steps in a single
+`PCollection` of `Failure` objects (step name, input element and exception), ready for a dead letter queue.
+
+It accepts the Beam `MapElements` and `FlatMapElements`, and provides `DoFn` classes with built-in error handling
+(`MapElementFn`, `FlatMapElementFn`, `FilterFn`...) supporting side inputs and the `DoFn` lifecycle. It can also keep,
+in the failures, the element that entered the flow, to replay a failure from the start. Beam is a `provided`
+dependency: the library isn't tied to a Beam version. Kotlin extensions are included, and a Python version is available
+on PyPI ([pasgarde](https://github.com/tosun-si/pasgarde)).
+
+### Project page
+[https://github.com/tosun-si/asgarde](https://github.com/tosun-si/asgarde)
+
+Documentation: [https://tosun-si.github.io/asgarde/](https://tosun-si.github.io/asgarde/)
+
+### License
+MIT License
+
+### Download
+    <dependency>
+      <groupId>fr.groupbees</groupId>
+      <artifactId>asgarde</artifactId>
+      <version>1.2.0</version>
+    </dependency>
+
+### Code example
+    WithFailures.Result<PCollection<Integer>, Failure> result = CollectionComposer.of(input)
+        .apply("Trim", MapElements.into(TypeDescriptors.strings()).via((String value) -> value.trim()))
+        .apply("Parse", MapElementFn.into(TypeDescriptors.integers()).via((String value) -> Integer.parseInt(value)))
+        .apply("Keep even numbers", FilterFn.by(number -> number % 2 == 0))
+        .getResult();
+
+    PCollection<Integer> output = result.output();
+    PCollection<Failure> failures = result.failures(); // The failures of all the steps
