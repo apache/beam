@@ -839,7 +839,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
               }
               if (schemaMismatchError) {
                 LOG.info(
-                    "Vortex failed stream open due to incompatible fields. This is likely because the BigTable "
+                    "Vortex failed stream open due to incompatible fields. This is likely because the Bigtable "
                         + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
                     Preconditions.checkStateNotNull(error).toString());
               }

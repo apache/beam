@@ -52,15 +52,25 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
   private static final Counter numFooterReadErrors =
       counter(ReadFooterSchema.class, FOOTER_READ_ERRORS_COUNTER);
 
+  /**
+   * Emitted in a dry run for files that contribute no schema. The key travels in the group's schema
+   * JSON field, which the combine groups by, so the files of one kind add up without a second path.
+   */
+  static final String UNREADABLE_KEY = "unread";
+
+  static final String UNCHECKED_FORMAT_KEY = "unchecked";
+
+  private final SchemaEvolutionConfig config;
   private final int threadPoolSize;
   private final int maxInFlightTasks;
   private transient @MonotonicNonNull BoundedAsyncTasks<ReadResult> tasks;
 
-  ReadFooterSchema() {
-    this(DEFAULT_THREAD_POOL_SIZE, DEFAULT_MAX_IN_FLIGHT_TASKS);
+  ReadFooterSchema(SchemaEvolutionConfig config) {
+    this(config, DEFAULT_THREAD_POOL_SIZE, DEFAULT_MAX_IN_FLIGHT_TASKS);
   }
 
-  ReadFooterSchema(int threadPoolSize, int maxInFlightTasks) {
+  ReadFooterSchema(SchemaEvolutionConfig config, int threadPoolSize, int maxInFlightTasks) {
+    this.config = config;
     this.threadPoolSize = threadPoolSize;
     this.maxInFlightTasks = maxInFlightTasks;
   }
@@ -148,17 +158,18 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
     }
   }
 
-  private static Callable<ReadResult> createReadTask(
+  private Callable<ReadResult> createReadTask(
       String filePath, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     return () -> {
       FileFormat format;
       try {
         format = AddFiles.inferFormat(filePath);
       } catch (AddFiles.UnknownFormatException e) {
-        return new ReadResult(null, false, timestamp, window, paneInfo);
+        return new ReadResult(dryRunMarker(UNREADABLE_KEY), false, timestamp, window, paneInfo);
       }
       if (!format.equals(FileFormat.PARQUET)) {
-        return new ReadResult(null, false, timestamp, window, paneInfo);
+        return new ReadResult(
+            dryRunMarker(UNCHECKED_FORMAT_KEY), false, timestamp, window, paneInfo);
       }
       try {
         ParquetMetadata footer = ParquetFooters.read(filePath);
@@ -168,8 +179,16 @@ class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> 
             "Could not read the footer of {}; the file will not contribute to schema inference: {}",
             filePath,
             AddFiles.errorMessage(e));
-        return new ReadResult(null, true, timestamp, window, paneInfo);
+        return new ReadResult(dryRunMarker(UNREADABLE_KEY), true, timestamp, window, paneInfo);
       }
     };
+  }
+
+  /** A dry run counts files that contribute no schema; a real run handles them at registration. */
+  private CollectDistinctSchemas.@Nullable SchemaGroup dryRunMarker(String key) {
+    if (!config.getDryRun()) {
+      return null;
+    }
+    return CollectDistinctSchemas.SchemaGroup.of(key, 1, Collections.emptyList());
   }
 }

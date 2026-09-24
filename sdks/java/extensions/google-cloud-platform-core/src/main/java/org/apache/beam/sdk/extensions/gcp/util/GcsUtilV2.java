@@ -100,10 +100,10 @@ class GcsUtilV2 {
     uploadBufferSizeBytes = options.as(GcsOptions.class).getGcsUploadBufferSizeBytes();
   }
 
-  @SuppressWarnings({
-    "nullness" // For Creating AccessDeniedException FileNotFoundException, and
-    // FileAlreadyExistsException with null.
-  })
+  // AccessDeniedException/FileAlreadyExistsException permit a null "other" argument, and these
+  // exceptions permit a null detail message, but the JDK constructor stubs are not annotated for
+  // nullness.
+  @SuppressWarnings("nullness")
   private static IOException translateStorageException(GcsPath gcsPath, StorageException e) {
     switch (e.getCode()) {
       case 403:

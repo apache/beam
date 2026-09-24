@@ -515,9 +515,9 @@ class RowCoderTest(unittest.TestCase):
   def test_row_coder_with_tuples(self):
     class TupleRecord(typing.NamedTuple):
       key: str
-      fixed_tuple: typing.Tuple[str, int]
-      var_tuple: typing.Tuple[int, ...]
-      homo_tuple: typing.Tuple[str, str]
+      fixed_tuple: tuple[str, int]
+      var_tuple: tuple[int, ...]
+      homo_tuple: tuple[str, str]
 
     coder = RowCoder(typing_to_runner_api(TupleRecord).row_type.schema)
     record = TupleRecord("k1", ("hello", 42), (1, 2, 3), ("a", "b"))

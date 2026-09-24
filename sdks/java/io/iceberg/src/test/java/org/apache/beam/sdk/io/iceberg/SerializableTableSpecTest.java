@@ -21,6 +21,7 @@ import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -42,6 +43,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.beam.sdk.schemas.SchemaCoder;
 import org.apache.beam.sdk.util.CoderUtils;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.hadoop.conf.Configurable;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.CatalogUtil;
@@ -349,5 +351,80 @@ public class SerializableTableSpecTest {
     } finally {
       executor.shutdown();
     }
+  }
+
+  @Test
+  public void testHistoricalSortOrderWithDroppedColumn() {
+    TableIdentifier tableId = TableIdentifier.of("default", "historical_sort_table");
+    Schema v1Schema =
+        new Schema(
+            required(1, "id", Types.LongType.get()),
+            optional(2, "name", Types.StringType.get()),
+            optional(3, "dropped_col", Types.StringType.get()));
+
+    SortOrder v1SortOrder =
+        SortOrder.builderFor(v1Schema)
+            .sortBy("dropped_col", SortDirection.ASC, NullOrder.NULLS_FIRST)
+            .build();
+
+    Table table = catalog.buildTable(tableId, v1Schema).withSortOrder(v1SortOrder).create();
+
+    int v1OrderId = table.sortOrder().orderId();
+
+    // First replace sort order with one referencing the remaining fields,
+    // making v1SortOrder a historical sort order
+    table.replaceSortOrder().asc("id").commit();
+    int v2OrderId = table.sortOrder().orderId();
+
+    // Then evolve schema by deleting the column that was part of the original sort order
+    table.updateSchema().deleteColumn("dropped_col").commit();
+
+    SerializableTableSpec spec = SerializableTableSpec.fromTable(table);
+
+    assertEquals(v2OrderId, spec.getOrderId());
+    assertEquals(table.sortOrder(), spec.getSortOrder());
+    assertEquals(1, spec.getSortOrder().fields().get(0).sourceId());
+
+    // Calling getSortOrders() should successfully bind historical sort orders
+    // without failing with ValidationException: Cannot find source column
+    Map<Integer, SortOrder> sortOrders = spec.getSortOrders();
+    assertNotNull(sortOrders);
+    assertTrue(sortOrders.containsKey(v1OrderId));
+    assertTrue(sortOrders.containsKey(v2OrderId));
+
+    SortOrder historicalOrder = spec.getSortOrder(v1OrderId);
+    assertNotNull(historicalOrder);
+    assertEquals(v1OrderId, historicalOrder.orderId());
+  }
+
+  @Test
+  public void testFileIOWithHadoopConfiguration() {
+    TableIdentifier tableId = TableIdentifier.of("default", "hadoop_conf_table");
+    Table table = catalog.createTable(tableId, TestFixtures.SCHEMA);
+
+    SerializableTableSpec spec = SerializableTableSpec.fromTable(table);
+
+    Configuration conf = new Configuration();
+    conf.set("custom.test.prop", "test-value-123");
+
+    FileIO fileIO = spec.getFileIO(conf);
+    assertNotNull(fileIO);
+    assertTrue("FileIO must be Configurable", fileIO instanceof Configurable);
+    assertEquals("test-value-123", ((Configurable) fileIO).getConf().get("custom.test.prop"));
+
+    // Also verify that zero-arg getFileIO() returns cached instance
+    assertEquals(fileIO, spec.getFileIO());
+
+    // Verify that calling zero-arg getFileIO() first does not pollute cache:
+    // subsequent getFileIO(conf) must update configuration on Configurable FileIO
+    SerializableTableSpec spec2 = SerializableTableSpec.fromTable(table);
+    FileIO fileIO2 = spec2.getFileIO();
+    assertNotNull(fileIO2);
+    assertNull(((Configurable) fileIO2).getConf().get("custom.test.prop"));
+
+    FileIO configuredFileIO2 = spec2.getFileIO(conf);
+    assertEquals(fileIO2, configuredFileIO2);
+    assertEquals(
+        "test-value-123", ((Configurable) configuredFileIO2).getConf().get("custom.test.prop"));
   }
 }
