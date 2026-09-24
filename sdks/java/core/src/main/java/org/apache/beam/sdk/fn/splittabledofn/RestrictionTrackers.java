@@ -104,9 +104,24 @@ public class RestrictionTrackers {
 
     @VisibleForTesting
     SplitResult<RestrictionT> trySplit(double fractionOfRemainder, int timeOutSec) {
+      // When fractionOfRemainder == 0 (a checkpoint), returning null has a special meaning in the
+      // RestrictionTracker contract: it MUST imply that the restriction tracker is done and there
+      // is no more work left to do. Therefore, we cannot time out and return null when
+      // fractionOfRemainder == 0, and must block until the lock is acquired.
+      if (fractionOfRemainder == 0) {
+        lock.lock();
+        try {
+          SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
+          needsProgressUpdate = true;
+          return result;
+        } finally {
+          updateProgressAndUnlock();
+        }
+      }
       try {
-        // lock can be held long by long-running tryClaim. We tolerate this scenario by returning
-        // null (declining to split) when lock timeout occurs.
+        // For dynamic splits (fractionOfRemainder > 0), lock can be held long by a long-running
+        // tryClaim. We tolerate this scenario by returning null (declining to split) when lock
+        // timeout occurs.
         if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
           try {
             SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
