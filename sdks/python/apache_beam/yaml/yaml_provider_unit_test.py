@@ -76,7 +76,6 @@ class WindowIntoTest(unittest.TestCase):
 
 
 class StandardProvidersTest(unittest.TestCase):
-
   def test_bigtable_cdc_provider_is_registered(self):
     providers = yaml_provider.standard_providers()
 
