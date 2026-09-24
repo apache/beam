@@ -99,9 +99,14 @@ class LeaderBoardIT(unittest.TestCase):
     logging.debug(
         'Injecting %d game events to topic %s', message_count, topic.name)
 
+    publish_futures = []
     for _ in range(message_count):
-      self.pub_client.publish(
-          topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8'))
+      publish_futures.append(
+          self.pub_client.publish(
+              topic.name,
+              (self.INPUT_EVENT % self._test_timestamp).encode('utf-8')))
+    for future in publish_futures:
+      future.result()
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
