@@ -222,8 +222,7 @@ class TimestampPrecisionTest(unittest.TestCase):
     self.assertEqual(Timestamp.of(2.000002).micros, 2000002)
     # Rounding is symmetric about zero (truncation was not).
     self.assertEqual(Timestamp(-2.000002).micros, -2000002)
-    self.assertEqual(
-        Timestamp(-2.000002).micros, -Timestamp(2.000002).micros)
+    self.assertEqual(Timestamp(-2.000002).micros, -Timestamp(2.000002).micros)
     # Exact values are unaffected.
     self.assertEqual(Timestamp(1.5).micros, 1500000)
     self.assertEqual(Timestamp(2).micros, 2000000)
