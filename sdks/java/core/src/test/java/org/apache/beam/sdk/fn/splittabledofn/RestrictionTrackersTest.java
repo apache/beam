@@ -156,7 +156,7 @@ public class RestrictionTrackersTest {
         }
       }
       isBlocked = false;
-      return null;
+      return SplitResult.of("primary", "residual");
     }
 
     @Override
@@ -261,5 +261,60 @@ public class RestrictionTrackersTest {
     secondBlocking.join();
     progress = ((HasProgress) tracker).getProgress();
     assertEquals(RestrictionTrackerWithProgress.UPDATED_PROGRESS, progress);
+  }
+
+  @Test
+  public void testClaimObserversTrySplitNonBlockingOnTryClaim() throws InterruptedException {
+    RestrictionTrackerWithProgress withProgress = new RestrictionTrackerWithProgress(true, false);
+    RestrictionTracker<Object, Object> tracker =
+        RestrictionTrackers.observe(withProgress, new RestrictionTrackers.NoopClaimObserver<>());
+    Thread blocking = new Thread(() -> tracker.tryClaim(new Object()));
+    blocking.start();
+    withProgress.waitUntilBlocking(true);
+
+    // While tryClaim holds the lock, trySplit times out and returns null instead of blocking
+    // indefinitely.
+    SplitResult<Object> splitResult =
+        ((RestrictionTrackers.RestrictionTrackerObserver<Object, Object>) tracker).trySplit(0.5, 1);
+    assertEquals(null, splitResult);
+
+    withProgress.releaseLock();
+    withProgress.waitUntilBlocking(false);
+    blocking.join();
+
+    // Once tryClaim releases the lock, trySplit succeeds.
+    splitResult =
+        ((RestrictionTrackers.RestrictionTrackerObserver<Object, Object>) tracker).trySplit(0.5, 1);
+    assertEquals(SplitResult.of("primary", "residual"), splitResult);
+  }
+
+  @Test
+  public void testClaimObserversTrySplitZeroFractionBlocksOnTryClaim() throws InterruptedException {
+    RestrictionTrackerWithProgress withProgress = new RestrictionTrackerWithProgress(true, false);
+    RestrictionTracker<Object, Object> tracker =
+        RestrictionTrackers.observe(withProgress, new RestrictionTrackers.NoopClaimObserver<>());
+    Thread blocking = new Thread(() -> tracker.tryClaim(new Object()));
+    blocking.start();
+    withProgress.waitUntilBlocking(true);
+
+    // When fractionOfRemainder == 0, trySplit must block until the lock is released rather than
+    // timing out and returning null (since null implies the restriction tracker is done).
+    Thread releaseLater =
+        new Thread(
+            () -> {
+              try {
+                Thread.sleep(1500);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+              }
+              withProgress.releaseLock();
+            });
+    releaseLater.start();
+
+    SplitResult<Object> splitResult =
+        ((RestrictionTrackers.RestrictionTrackerObserver<Object, Object>) tracker).trySplit(0.0, 1);
+    assertEquals(SplitResult.of("primary", "residual"), splitResult);
+    blocking.join();
+    releaseLater.join();
   }
 }
