@@ -37,10 +37,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
@@ -49,6 +53,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.CreateDisposition;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryIO.Write.WriteDisposition;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
@@ -68,11 +73,16 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestName;
+import org.junit.runner.Runner;
+import org.junit.runners.Parameterized;
+import org.junit.runners.ParentRunner;
+import org.junit.runners.model.RunnerScheduler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,6 +96,66 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     this.useInputSchema = useInputSchema;
     this.changeTableSchema = changeTableSchema;
     this.bigQueryDatasetId = bigQueryDatasetId;
+  }
+
+  /**
+   * Runs both the parameter sets and the {@code @Test} methods within each parameter set in
+   * parallel across a shared thread pool.
+   *
+   * <p>Every test writes to its own table (the table name is derived from the test method name and
+   * the parameter values) and the class holds no mutable static state, so all {@code @Test} methods
+   * and parameter sets are independent. Because {@link Parameterized}'s own scheduler only
+   * schedules the outer per-parameter {@link Runner}s (and each child {@link ParentRunner} defaults
+   * to a sequential scheduler for its {@code @Test} methods), we install a shared {@link
+   * RunnerScheduler} on each child {@link ParentRunner} as well.
+   */
+  public static class ParallelParameterized extends Parameterized {
+    private static final int MAX_PARALLEL_TESTS = 6;
+
+    public ParallelParameterized(Class<?> klass) throws Throwable {
+      super(klass);
+      final ExecutorService executor = Executors.newFixedThreadPool(MAX_PARALLEL_TESTS);
+      final RunnerScheduler methodScheduler =
+          new RunnerScheduler() {
+            @Override
+            public void schedule(Runnable childStatement) {
+              // execute() rather than submit(): the child statement already records its own
+              // failures with JUnit, and submit() would swallow them into an unchecked Future.
+              executor.execute(childStatement);
+            }
+
+            @Override
+            public void finished() {
+              // Shutdown and awaitTermination are handled by the outer suite scheduler once all
+              // parameter runners have scheduled their test methods.
+            }
+          };
+      for (Runner child : getChildren()) {
+        if (child instanceof ParentRunner) {
+          ((ParentRunner<?>) child).setScheduler(methodScheduler);
+        }
+      }
+      setScheduler(
+          new RunnerScheduler() {
+            @Override
+            public void schedule(Runnable childStatement) {
+              // Each parameter runner simply enqueues its @Test methods onto `executor` via
+              // `methodScheduler`, so run it inline without consuming a worker thread.
+              childStatement.run();
+            }
+
+            @Override
+            public void finished() {
+              executor.shutdown();
+              try {
+                executor.awaitTermination(2, TimeUnit.HOURS);
+              } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new RuntimeException(e);
+              }
+            }
+          });
+    }
   }
 
   @Rule public TestName testName = new TestName();
@@ -125,8 +195,16 @@ abstract class StorageApiSinkSchemaUpdateITBase {
   private static final int SCHEMA_PROPAGATION_TIMEOUT_MS = 60000;
   // interval between checks
   private static final int SCHEMA_PROPAGATION_CHECK_INTERVAL_MS = 5000;
-  // wait for streams to recognize schema
-  private static final int STREAM_RECOGNITION_DELAY_MS = 15000;
+  // Rather than pacing every element (which dominated the runtime of these tests), rows are
+  // emitted as fast as possible and wall-clock delays are inserted only where they are actually
+  // required. (a) Before the table schema is changed, so that the sink has already built its
+  // message converter / append client from the original schema.
+  private static final int PRE_SCHEMA_UPDATE_SETTLE_MS = 10000;
+  // (b) BigQuery only reports an updated table schema on an append *response*, so the sink must
+  // keep appending after the schema change for the new schema to ever reach it. The rows between
+  // the schema update and the first new-column row are spread across this window to provide that
+  // traffic. This is a wall-clock budget, independent of TOTAL_N.
+  private static final int SCHEMA_RECOGNITION_WINDOW_MS = 60000;
   // trigger for updating the schema when the row counter reaches this value
   private static final int SCHEMA_UPDATE_TRIGGER = 2;
   // Long wait (in seconds) for Storage API streams to recognize the new schema.
@@ -194,8 +272,22 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     @SuppressWarnings("unused")
     private final StateSpec<ValueState<Integer>> counter;
 
+    private final boolean waitForPropagation;
+    // Whether to sleep before updating the table schema so that the sink's message converter and
+    // append client are built from the original table schema before the schema change happens.
+    private final boolean settleBeforeSchemaUpdate;
+    // Whether to spread rows between the schema update and the first new-column row across
+    // SCHEMA_RECOGNITION_WINDOW_MS. Only needed by non-consistent autoSchemaUpdate tests where
+    // BigQuery only reports an updated table schema passively on append responses.
+    private final boolean spreadRowsOverRecognitionWindow;
+
     public UpdateSchemaDoFn(
-        String projectId, String datasetId, Map<String, TableSchema> newSchemas) {
+        String projectId,
+        String datasetId,
+        Map<String, TableSchema> newSchemas,
+        boolean waitForPropagation,
+        boolean settleBeforeSchemaUpdate,
+        boolean spreadRowsOverRecognitionWindow) {
       this.projectId = projectId;
       this.datasetId = datasetId;
       Map<String, String> serializableSchemas = new HashMap<>();
@@ -205,6 +297,9 @@ abstract class StorageApiSinkSchemaUpdateITBase {
       this.newSchemas = serializableSchemas;
       this.bqClient = null;
       this.counter = StateSpecs.value();
+      this.waitForPropagation = waitForPropagation;
+      this.settleBeforeSchemaUpdate = settleBeforeSchemaUpdate;
+      this.spreadRowsOverRecognitionWindow = spreadRowsOverRecognitionWindow;
     }
 
     @Setup
@@ -220,6 +315,11 @@ abstract class StorageApiSinkSchemaUpdateITBase {
       // recognize it,
       // ensuring that subsequent writers are created with the updated schema.
       if (current == SCHEMA_UPDATE_TRIGGER) {
+        if (settleBeforeSchemaUpdate) {
+          // Give the rows emitted so far time to reach BigQuery, so that the sink's message
+          // converter and append client are built from the *original* table schema.
+          Thread.sleep(PRE_SCHEMA_UPDATE_SETTLE_MS);
+        }
         for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
           bqClient.updateTableSchema(
               projectId,
@@ -228,35 +328,48 @@ abstract class StorageApiSinkSchemaUpdateITBase {
               BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class));
         }
 
-        // check that schema update propagated fully
-        long startTime = System.currentTimeMillis();
-        long timeoutMillis = SCHEMA_PROPAGATION_TIMEOUT_MS;
-        boolean schemaPropagated = false;
-        while (System.currentTimeMillis() - startTime < timeoutMillis) {
-          schemaPropagated = true;
-          for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
-            TableSchema currentSchema =
-                bqClient.getTableResource(projectId, datasetId, entry.getKey()).getSchema();
-            TableSchema expectedSchema =
-                BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class);
-            if (currentSchema.getFields().size() != expectedSchema.getFields().size()) {
-              schemaPropagated = false;
+        if (waitForPropagation) {
+          // check that schema update propagated fully
+          long startTime = System.currentTimeMillis();
+          long timeoutMillis = SCHEMA_PROPAGATION_TIMEOUT_MS;
+          boolean schemaPropagated = false;
+          while (System.currentTimeMillis() - startTime < timeoutMillis) {
+            schemaPropagated = true;
+            for (Map.Entry<String, String> entry : newSchemas.entrySet()) {
+              TableSchema currentSchema =
+                  bqClient.getTableResource(projectId, datasetId, entry.getKey()).getSchema();
+              TableSchema expectedSchema =
+                  BigQueryHelpers.fromJsonString(entry.getValue(), TableSchema.class);
+              if (currentSchema.getFields().size() != expectedSchema.getFields().size()) {
+                schemaPropagated = false;
+                break;
+              }
+            }
+            if (schemaPropagated) {
               break;
             }
+            Thread.sleep(SCHEMA_PROPAGATION_CHECK_INTERVAL_MS);
           }
-          if (schemaPropagated) {
-            break;
+          if (!schemaPropagated) {
+            LOG.warn("Schema update did not propagate fully within the timeout.");
+          } else {
+            LOG.info(
+                "Schema update propagated fully within the timeout - {}.",
+                System.currentTimeMillis() - startTime);
           }
-          Thread.sleep(SCHEMA_PROPAGATION_CHECK_INTERVAL_MS);
         }
-        if (!schemaPropagated) {
-          LOG.warn("Schema update did not propagate fully within the timeout.");
-        } else {
-          LOG.info(
-              "Schema update propagated fully within the timeout - {}.",
-              System.currentTimeMillis() - startTime);
-          // wait for streams to recognize the new schema
-          Thread.sleep(STREAM_RECOGNITION_DELAY_MS);
+      }
+
+      // Spread the rows between the schema update and the first new-column row across the
+      // recognition window. These appends are what cause BigQuery to eventually return the
+      // updated schema on an append response; rows outside the window are emitted immediately.
+      if (spreadRowsOverRecognitionWindow) {
+        Object rowId = c.element().getValue().get("id");
+        if (rowId instanceof Number) {
+          long id = ((Number) rowId).longValue();
+          if (id > SCHEMA_UPDATE_TRIGGER && id < ORIGINAL_N) {
+            Thread.sleep(SCHEMA_RECOGNITION_WINDOW_MS / (ORIGINAL_N - SCHEMA_UPDATE_TRIGGER - 1));
+          }
         }
       }
 
@@ -278,9 +391,7 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     public TableRow apply(Long rowId) {
       TableRow row = new TableRow();
       row.set("id", rowId);
-
       List<String> fields = rowId < ORIGINAL_N ? fieldNames : fieldNamesWithExtra;
-
       for (String name : fields) {
         String type = Iterables.get(Splitter.on('_').split(name), 0);
         switch (type) {
@@ -345,15 +456,21 @@ abstract class StorageApiSinkSchemaUpdateITBase {
   }
 
   private void runStreamingPipelineWithSchemaChange(
-      Write.Method method, boolean useAutoSchemaUpdate, boolean useIgnoreUnknownValues)
+      Write.Method method,
+      boolean useAutoSchemaUpdate,
+      boolean consistentAutoUpdate,
+      boolean useIgnoreUnknownValues)
       throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
     // Set threshold bytes to 0 so that the stream attempts to fetch an updated schema after each
     // append
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchRetryTimeMilliSec(1000);
     // Limit parallelism so that all streams recognize the new schema in an expected short amount
     // of time (before we start writing rows with updated schema)
     p.getOptions().as(BigQueryOptions.class).setNumStorageWriteApiStreams(TOTAL_NUM_STREAMS);
+    p.getOptions().as(StreamingOptions.class).setStreaming(true);
+
     // Need to manually enable streaming engine for legacy dataflow runner
     ExperimentalOptions.addExperiment(
         p.getOptions().as(ExperimentalOptions.class), GcpOptions.STREAMING_ENGINE_EXPERIMENT);
@@ -361,7 +478,11 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     if (p.getOptions().getRunner().getName().contains("DataflowRunner")) {
       assumeTrue(
           "Skipping in favor of more relevant test case and to avoid timing issues",
-          !changeTableSchema && useInputSchema && useAutoSchemaUpdate);
+          consistentAutoUpdate || (!changeTableSchema && useInputSchema && useAutoSchemaUpdate));
+    }
+    if (consistentAutoUpdate) {
+      assumeTrue(changeTableSchema);
+      assumeFalse(useAutoSchemaUpdate);
     }
 
     List<String> fieldNamesOrigin = new ArrayList<String>(Arrays.asList(FIELDS));
@@ -388,38 +509,46 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     Write<TableRow> write =
         BigQueryIO.writeTableRows()
             .to(tableSpec)
-            .withAutoSchemaUpdate(useAutoSchemaUpdate)
             .withMethod(method)
             .withCreateDisposition(CreateDisposition.CREATE_NEVER)
             .withWriteDisposition(WriteDisposition.WRITE_APPEND);
+    // These two are mutually exclusive: withAutoSchemaUpdateConsistent also sets the
+    // autoSchemaUpdate flag, so calling both would clobber withAutoSchemaUpdate().
+    if (consistentAutoUpdate) {
+      write = write.withAutoSchemaUpdateConsistent(true, Duration.standardMinutes(5));
+    } else {
+      write = write.withAutoSchemaUpdate(useAutoSchemaUpdate);
+    }
     if (useInputSchema) {
       write = write.withSchema(inputSchema);
     }
     if (useIgnoreUnknownValues) {
       write = write.ignoreUnknownValues();
     }
-    // We give a healthy waiting period between each element to give Storage API streams a chance to
-    // recognize the new schema. Apply on relevant tests.
-    boolean waitLonger = changeTableSchema && (useAutoSchemaUpdate || !useInputSchema);
+    // Whether to wait before altering the table so the sink initializes with the original schema.
+    boolean settleBeforeSchemaUpdate =
+        changeTableSchema && (useAutoSchemaUpdate || consistentAutoUpdate || !useInputSchema);
+    // Passive (non-consistent) autoSchemaUpdate relies on BigQuery returning the updated schema on
+    // subsequent append responses, so it needs the post-update recognition window and longer
+    // triggering frequency.
+    boolean waitForPassiveSchemaRecognition =
+        changeTableSchema && useAutoSchemaUpdate && !consistentAutoUpdate;
     if (method == Write.Method.STORAGE_WRITE_API) {
       write =
           write.withTriggeringFrequency(
-              Duration.standardSeconds(waitLonger ? LONG_WAIT_SECONDS : 1));
+              waitForPassiveSchemaRecognition
+                  ? Duration.standardSeconds(LONG_WAIT_SECONDS)
+                  : Duration.millis(10));
     }
 
-    // set up and build pipeline
+    // set up and build pipeline.
+    // Rows are emitted as fast as possible; any wall-clock delay that the test needs is inserted
+    // by UpdateSchemaDoFn around the schema change itself.
     Instant start = new Instant(0);
-    Duration interval =
-        waitLonger ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
-    Duration stop =
-        waitLonger
-            ? Duration.standardSeconds((TOTAL_N - 1) * LONG_WAIT_SECONDS)
-            : Duration.millis(TOTAL_N - 1);
+    Duration interval = Duration.millis(1);
+    Duration stop = Duration.millis(TOTAL_N - 1);
     Function<Instant, Long> getIdFromInstant =
-        waitLonger
-            ? (Function<Instant, Long> & Serializable)
-                (Instant instant) -> instant.getMillis() / (1000 * LONG_WAIT_SECONDS)
-            : (Function<Instant, Long> & Serializable) (Instant instant) -> instant.getMillis();
+        (Function<Instant, Long> & Serializable) (Instant instant) -> instant.getMillis();
 
     // Generates rows with original schema up for row IDs under ORIGINAL_N
     // Then generates rows with updated schema for the rest
@@ -449,10 +578,18 @@ abstract class StorageApiSinkSchemaUpdateITBase {
                   "Update Schema",
                   ParDo.of(
                       new UpdateSchemaDoFn(
-                          PROJECT, bigQueryDatasetId, ImmutableMap.of(tableId, updatedSchema))));
+                          PROJECT,
+                          bigQueryDatasetId,
+                          ImmutableMap.of(tableId, updatedSchema),
+                          waitForPassiveSchemaRecognition,
+                          // The *Consistent and !useInputSchema variants need the pre-update settle
+                          // delay so that the sink's converter is built BEFORE the table schema
+                          // changes, but they do NOT need the 60s post-update recognition window.
+                          settleBeforeSchemaUpdate,
+                          waitForPassiveSchemaRecognition)));
     }
     WriteResult result = rows.apply("Stream to BigQuery", write);
-    if (useIgnoreUnknownValues) {
+    if (useIgnoreUnknownValues || consistentAutoUpdate) {
       // We ignore the extra fields, so no rows should have been sent to DLQ
       PAssert.that("Check DLQ is empty", result.getFailedStorageApiInserts()).empty();
     } else {
@@ -465,12 +602,15 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     p.run().waitUntilFinish();
 
     // Check row completeness, non-duplication, and that schema update works as intended.
-    int expectedCount = useIgnoreUnknownValues ? TOTAL_N : ORIGINAL_N;
-    boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API) ? true : false;
-    checkRowCompleteness(tableSpec, expectedCount, checkNoDuplication);
-    if (useIgnoreUnknownValues) {
-      checkRowsWithUpdatedSchema(tableSpec, extraField, useAutoSchemaUpdate);
-    }
+    int expectedCount = (useIgnoreUnknownValues || consistentAutoUpdate) ? TOTAL_N : ORIGINAL_N;
+    boolean checkNoDuplication = (method == Write.Method.STORAGE_WRITE_API);
+    verifyTable(
+        tableSpec,
+        expectedCount,
+        checkNoDuplication,
+        // The extra-field checks should only be performed when ignoreUnknownValues is set.
+        (useIgnoreUnknownValues || consistentAutoUpdate) ? extraField : null,
+        useAutoSchemaUpdate || consistentAutoUpdate);
   }
 
   private static class VerifyPCollectionSize
@@ -507,22 +647,30 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     }
   }
 
-  // Check the expected number of rows reached the table.
-  // If using STORAGE_WRITE_API, check no duplication happened.
-  private static void checkRowCompleteness(
-      String tableSpec, int expectedCount, boolean checkNoDuplication)
+  // Fetches the table's rows once and runs every verification against that single snapshot:
+  //   - the expected number of rows reached the table (and, if using STORAGE_WRITE_API, that no
+  //     duplication happened), and
+  //   - if extraField is non-null, that the extra field is present exactly on the rows that are
+  //     expected to have it.
+  // These used to be two separate queries, but every BigqueryClient#queryUnflattened call creates
+  // and then deletes a temporary dataset, which costs several seconds.
+  private void verifyTable(
+      String tableSpec,
+      int expectedCount,
+      boolean checkNoDuplication,
+      @Nullable String extraField,
+      boolean useAutoSchemaUpdate)
       throws IOException, InterruptedException {
-    TableRow queryResponse =
-        Iterables.getOnlyElement(
-            BQ_CLIENT.queryUnflattened(
-                String.format("SELECT COUNT(DISTINCT(id)), COUNT(id) FROM [%s]", tableSpec),
-                PROJECT,
-                true,
-                false,
-                bigQueryLocation));
+    List<TableRow> actualRows =
+        BQ_CLIENT.queryUnflattened(
+            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false, bigQueryLocation);
 
-    int distinctCount = Integer.parseInt((String) queryResponse.get("f0_"));
-    int totalCount = Integer.parseInt((String) queryResponse.get("f1_"));
+    Set<String> distinctIds = new HashSet<>();
+    for (TableRow row : actualRows) {
+      distinctIds.add((String) row.get("id"));
+    }
+    int distinctCount = distinctIds.size();
+    int totalCount = actualRows.size();
 
     LOG.info("total distinct count = {}, total count = {}", distinctCount, totalCount);
 
@@ -530,17 +678,16 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     if (checkNoDuplication) {
       assertEquals(distinctCount, totalCount);
     }
+
+    if (extraField != null) {
+      checkRowsWithUpdatedSchema(actualRows, extraField, useAutoSchemaUpdate);
+    }
   }
 
   // Performs checks on the table's rows under different conditions.
   // Note: these should only be performed when ignoreUnknownValues is set.
-  public void checkRowsWithUpdatedSchema(
-      String tableSpec, String extraField, boolean useAutoSchemaUpdate)
-      throws IOException, InterruptedException {
-    List<TableRow> actualRows =
-        BQ_CLIENT.queryUnflattened(
-            String.format("SELECT * FROM [%s]", tableSpec), PROJECT, true, false, bigQueryLocation);
-
+  private void checkRowsWithUpdatedSchema(
+      List<TableRow> actualRows, String extraField, boolean useAutoSchemaUpdate) {
     for (TableRow row : actualRows) {
       // Rows written to the table should not have the extra field if
       // 1. The row has original schema
@@ -566,39 +713,53 @@ abstract class StorageApiSinkSchemaUpdateITBase {
         Write.Method.STORAGE_WRITE_API,
         /** autoSchemaUpdate */
         false,
+        false,
         /** ignoreUnknownvalues */
         false);
   }
 
   @Test
   public void testExactlyOnceWithIgnoreUnknownValues() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, true);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, false, true);
   }
 
   @Test
   public void testExactlyOnceWithAutoSchemaUpdate() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, true);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, true, false, true);
+  }
+
+  @Test
+  public void testExactlyOnceWithAutoSchemaUpdateConsistent() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_WRITE_API, false, true, true);
   }
 
   @Test
   public void testAtLeastOnce() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false, false);
   }
 
   @Test
   public void testAtLeastOnceWithIgnoreUnknownValues() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, true);
+    runStreamingPipelineWithSchemaChange(
+        Write.Method.STORAGE_API_AT_LEAST_ONCE, false, false, true);
   }
 
   @Test
   public void testAtLeastOnceWithAutoSchemaUpdate() throws Exception {
-    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, true);
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, true, false, true);
+  }
+
+  @Test
+  public void testAtLeastOnceWithAutoSchemaUpdateConsistent() throws Exception {
+    runStreamingPipelineWithSchemaChange(Write.Method.STORAGE_API_AT_LEAST_ONCE, false, true, true);
   }
 
   public void runDynamicDestinationsWithAutoSchemaUpdate(boolean useAtLeastOnce) throws Exception {
     Pipeline p = Pipeline.create(TestPipeline.testingPipelineOptions());
     // 0 threshold so that the stream tries fetching an updated schema after each append
     p.getOptions().as(BigQueryOptions.class).setStorageApiAppendThresholdBytes(0);
+    p.getOptions().as(BigQueryOptions.class).setStorageApiMismatchRetryTimeMilliSec(20);
     // Total streams per destination
     p.getOptions()
         .as(BigQueryOptions.class)
@@ -673,17 +834,10 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     Instant start = new Instant(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
-    Duration interval =
-        changeTableSchema ? Duration.standardSeconds(LONG_WAIT_SECONDS) : Duration.millis(1);
-    Duration stop =
-        changeTableSchema
-            ? Duration.standardSeconds((numRows - 1) * LONG_WAIT_SECONDS)
-            : Duration.millis(numRows - 1);
+    Duration interval = Duration.millis(1);
+    Duration stop = Duration.millis(numRows - 1);
     Function<Instant, Long> getIdFromInstant =
-        changeTableSchema
-            ? (Function<Instant, Long> & Serializable)
-                (Instant instant) -> instant.getMillis() / (1000 * LONG_WAIT_SECONDS)
-            : (Function<Instant, Long> & Serializable) Instant::getMillis;
+        (Function<Instant, Long> & Serializable) Instant::getMillis;
 
     // Generates rows with original schema up for row IDs under ORIGINAL_N
     // Then generates rows with updated schema for the rest
@@ -714,7 +868,9 @@ abstract class StorageApiSinkSchemaUpdateITBase {
               .apply("Add a dummy key", WithKeys.of(1))
               .apply(
                   "Update Schema",
-                  ParDo.of(new UpdateSchemaDoFn(PROJECT, bigQueryDatasetId, updatedSchemas)));
+                  ParDo.of(
+                      new UpdateSchemaDoFn(
+                          PROJECT, bigQueryDatasetId, updatedSchemas, true, true, true)));
     }
 
     WriteResult result = rows.apply("Stream to BigQuery", write);
@@ -731,8 +887,7 @@ abstract class StorageApiSinkSchemaUpdateITBase {
 
     for (Map.Entry<String, Integer> expectedCount : expectedCounts.entrySet()) {
       String dest = expectedCount.getKey();
-      checkRowCompleteness(dest, expectedCount.getValue(), true);
-      checkRowsWithUpdatedSchema(dest, extraFields.get(dest), true);
+      verifyTable(dest, expectedCount.getValue(), true, extraFields.get(dest), true);
     }
   }
 

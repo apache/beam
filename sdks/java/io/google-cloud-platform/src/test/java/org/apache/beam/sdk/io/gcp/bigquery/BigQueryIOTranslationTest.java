@@ -132,6 +132,8 @@ public class BigQueryIOTranslationTest {
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getAutoSharding", "auto_sharding");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getPropagateSuccessful", "propagate_successful");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getAutoSchemaUpdate", "auto_schema_update");
+    WRITE_TRANSFORM_SCHEMA_MAPPING.put(
+        "getAutoSchemaUpdateStrictTimeout", "auto_schema_update_strict_timeout_ms");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getWriteProtosClass", "write_protos_class");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getDirectWriteProtos", "direct_write_protos");
     WRITE_TRANSFORM_SCHEMA_MAPPING.put("getDeterministicRecordIdFn", "deterministic_record_id_fn");
