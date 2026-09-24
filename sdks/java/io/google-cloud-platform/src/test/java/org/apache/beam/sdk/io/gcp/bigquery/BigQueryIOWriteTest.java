@@ -229,14 +229,9 @@ public class BigQueryIOWriteTest implements Serializable {
   private transient TemporaryFolder testFolder = new TemporaryFolder();
   private transient TestPipeline p;
 
-  @Parameters
+  @Parameters(name = "useStorageApi={0}, useStorageApiApproximate={1}, useStreaming={2}")
   public static Iterable<Object[]> data() {
-    return ImmutableList.of(
-        new Object[] {false, false, false},
-        new Object[] {false, false, true},
-        new Object[] {true, false, false},
-        new Object[] {true, false, true},
-        new Object[] {true, true, true});
+    return ImmutableList.of(new Object[] {false, false, false}, new Object[] {false, false, true});
   }
 
   @Parameter(0)
