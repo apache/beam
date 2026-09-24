@@ -87,8 +87,7 @@ public abstract class StorageApiWritePayload {
       @Nullable Instant timestamp,
       @Nullable byte[] unknownFieldsPayload,
       @Nullable byte[] failsafeTableRowPayload,
-      @Nullable byte[] schemaHash)
-      throws IOException {
+      @Nullable byte[] schemaHash) {
     return new AutoValue_StorageApiWritePayload.Builder()
         .setPayload(payload)
         .setTimestamp(timestamp)

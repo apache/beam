@@ -21,8 +21,6 @@ import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,14 +46,24 @@ public class SchemaChangeDetectorHelperTest {
   private TableReference tableReference;
   private BigQueryServices.WriteStreamService mockWriteStreamService;
   private BigQueryServices.StreamAppendClient mockStreamAppendClient;
-  private AppendClientInfo mockAppendClientInfo;
+  private AppendClientInfo appendClientInfo;
 
   @Before
-  public void setUp() {
+  public void setUp() throws Exception {
     tableReference = new TableReference().setProjectId("p").setDatasetId("d").setTableId("t");
     mockWriteStreamService = mock(BigQueryServices.WriteStreamService.class);
     mockStreamAppendClient = mock(BigQueryServices.StreamAppendClient.class);
-    mockAppendClientInfo = mock(AppendClientInfo.class);
+    TableSchema tableSchema =
+        TableSchema.newBuilder()
+            .addFields(
+                TableFieldSchema.newBuilder()
+                    .setName("foo")
+                    .setType(TableFieldSchema.Type.STRING)
+                    .build())
+            .build();
+    DescriptorProtos.DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(tableSchema, true, false);
+    appendClientInfo = AppendClientInfo.of(tableSchema, descriptor, client -> {});
   }
 
   @Test
@@ -146,7 +154,7 @@ public class SchemaChangeDetectorHelperTest {
         StorageApiWritePayload.of(new byte[] {1, 2, 3}, new TableRow().set("foo", "bar"), null);
 
     SchemaChangeDetectorHelper.MergePayloadResult result =
-        helper.getMergedPayload(payload, Instant.now(), null, mockAppendClientInfo);
+        helper.getMergedPayload(payload, Instant.now(), null, appendClientInfo);
 
     assertEquals(SchemaChangeDetectorHelper.MergePayloadResult.Kind.MERGED, result.getKind());
     assertArrayEquals(new byte[] {1, 2, 3}, result.getMerged().toByteArray());
@@ -159,7 +167,7 @@ public class SchemaChangeDetectorHelperTest {
     StorageApiWritePayload payload = StorageApiWritePayload.of(new byte[] {1, 2, 3}, null, null);
 
     SchemaChangeDetectorHelper.MergePayloadResult result =
-        helper.getMergedPayload(payload, Instant.now(), null, mockAppendClientInfo);
+        helper.getMergedPayload(payload, Instant.now(), null, appendClientInfo);
 
     assertEquals(SchemaChangeDetectorHelper.MergePayloadResult.Kind.MERGED, result.getKind());
     assertArrayEquals(new byte[] {1, 2, 3}, result.getMerged().toByteArray());
@@ -173,37 +181,31 @@ public class SchemaChangeDetectorHelperTest {
     StorageApiWritePayload payload =
         StorageApiWritePayload.of(new byte[] {1, 2, 3}, unknownFields, null);
 
-    ByteString mergedBytes = ByteString.copyFrom(new byte[] {4, 5, 6});
-    when(mockAppendClientInfo.mergeNewFields(any(ByteString.class), eq(unknownFields), eq(false)))
-        .thenReturn(mergedBytes);
+    ByteString expectedMerged =
+        appendClientInfo.mergeNewFields(
+            ByteString.copyFrom(new byte[] {1, 2, 3}), unknownFields, false);
 
     SchemaChangeDetectorHelper.MergePayloadResult result =
-        helper.getMergedPayload(payload, Instant.now(), null, mockAppendClientInfo);
+        helper.getMergedPayload(payload, Instant.now(), null, appendClientInfo);
 
     assertEquals(SchemaChangeDetectorHelper.MergePayloadResult.Kind.MERGED, result.getKind());
-    assertArrayEquals(new byte[] {4, 5, 6}, result.getMerged().toByteArray());
+    assertArrayEquals(expectedMerged.toByteArray(), result.getMerged().toByteArray());
   }
 
   @Test
   public void testGetMergedPayload_autoUpdateTrue_mergeFailure() throws Exception {
     SchemaChangeDetectorHelper helper =
         new SchemaChangeDetectorHelper(true, false, tableReference, false);
-    TableRow unknownFields = new TableRow().set("foo", "bar");
-    StorageApiWritePayload payload =
-        StorageApiWritePayload.of(new byte[] {1, 2, 3}, unknownFields, null);
-
-    when(mockAppendClientInfo.mergeNewFields(any(ByteString.class), eq(unknownFields), eq(false)))
-        .thenThrow(new TableRowToStorageApiProto.SchemaDoesntMatchException("conversion error"));
+    TableRow unknownFields = new TableRow().set("unknown_col", "bar");
+    StorageApiWritePayload payload = StorageApiWritePayload.of(new byte[0], unknownFields, null);
     TableRow expectedFailsafe = new TableRow().set("failsafe", "true");
 
     SchemaChangeDetectorHelper.MergePayloadResult result =
-        helper.getMergedPayload(payload, Instant.now(), expectedFailsafe, mockAppendClientInfo);
+        helper.getMergedPayload(payload, Instant.now(), expectedFailsafe, appendClientInfo);
 
     assertEquals(SchemaChangeDetectorHelper.MergePayloadResult.Kind.FAILED, result.getKind());
     TimestampedValue<BigQueryStorageApiInsertError> failed = result.getFailed();
-    assertEquals(
-        "org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto$SchemaDoesntMatchException: conversion error",
-        failed.getValue().getErrorMessage());
+    assertTrue(failed.getValue().getErrorMessage().contains("unknown_col"));
     assertEquals(expectedFailsafe, failed.getValue().getRow());
   }
 

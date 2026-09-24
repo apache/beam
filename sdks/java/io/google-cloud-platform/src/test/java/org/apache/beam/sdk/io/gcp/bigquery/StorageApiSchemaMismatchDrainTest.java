@@ -202,7 +202,7 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
     bqOptions.setStorageApiMismatchDrainRetryTimeMilliSec(1000);
 
     TestStream.Builder<Long> testStream =
-        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0));
     for (long i = 0; i < NUM_ROWS; i++) {
       testStream = testStream.addElements(i);
     }
@@ -370,7 +370,7 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
     bqOptions.setStorageApiMismatchRetryTimeMilliSec(500);
 
     TestStream.Builder<Long> testStream =
-        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0));
     for (long i = 0; i < NUM_ROWS; i++) {
       testStream = testStream.addElements(i);
     }
@@ -442,7 +442,7 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
     bqOptions.setStorageApiMismatchDrainRetryTimeMilliSec(5_000);
 
     TestStream.Builder<Long> testStream =
-        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0));
     for (long i = 0; i < NUM_ROWS; i++) {
       testStream = testStream.addElements(i);
     }
@@ -593,7 +593,7 @@ public class StorageApiSchemaMismatchDrainTest implements Serializable {
             true);
 
     TestStream.Builder<Long> testStream =
-        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(new Instant(0));
+        TestStream.create(VarLongCoder.of()).advanceWatermarkTo(Instant.ofEpochMilli(0));
     for (long i = 0; i < NUM_ROWS; i++) {
       testStream = testStream.addElements(i);
     }

@@ -528,7 +528,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
       }
 
       AppendClientInfo generateClient(@Nullable TableSchema updatedSchema) throws Exception {
-        SchemaAndDescriptor schemaAndDescriptor = getCurrentTableSchema(streamName, updatedSchema);
+        SchemaAndDescriptor schemaAndDescriptor = getCurrentTableSchema(updatedSchema);
 
         AtomicReference<AppendClientInfo> appendClientInfo =
             new AtomicReference<>(
@@ -565,7 +565,7 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
         }
       }
 
-      SchemaAndDescriptor getCurrentTableSchema(String stream, @Nullable TableSchema updatedSchema)
+      private SchemaAndDescriptor getCurrentTableSchema(@Nullable TableSchema updatedSchema)
           throws Exception {
         if (updatedSchema != null) {
           return new SchemaAndDescriptor(
