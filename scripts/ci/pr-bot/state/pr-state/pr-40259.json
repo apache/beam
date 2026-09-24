@@ -1,9 +1,12 @@
 {
-  "commentedAboutFailingChecks": true,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "java": "Abacn",
+    "build": "Amar3tto"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false,
-  "reviewersAssignedAt": 0
+  "reviewersAssignedAt": 1790274005397
 }
