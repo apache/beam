@@ -49,7 +49,8 @@ public class RestrictionTrackers {
       extends RestrictionTracker<RestrictionT, PositionT> {
     protected final RestrictionTracker<RestrictionT, PositionT> delegate;
     protected ReentrantLock lock = new ReentrantLock();
-    protected volatile boolean hasInitialProgress = false;
+    protected volatile Progress lastProgress = Progress.NONE;
+    protected volatile boolean needsProgressUpdate = false;
     private final ClaimObserver<PositionT> claimObserver;
 
     protected RestrictionTrackerObserver(
@@ -57,6 +58,16 @@ public class RestrictionTrackers {
         ClaimObserver<PositionT> claimObserver) {
       this.delegate = delegate;
       this.claimObserver = claimObserver;
+    }
+
+    protected void updateProgressAndUnlock() {
+      try {
+        if (needsProgressUpdate) {
+          updateProgressBlocking();
+        }
+      } finally {
+        lock.unlock();
+      }
     }
 
     @Override
@@ -71,7 +82,7 @@ public class RestrictionTrackers {
           return false;
         }
       } finally {
-        lock.unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -81,7 +92,7 @@ public class RestrictionTrackers {
       try {
         return delegate.currentRestriction();
       } finally {
-        lock.unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -90,9 +101,10 @@ public class RestrictionTrackers {
       lock.lock();
       try {
         SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
+        needsProgressUpdate = true;
         return result;
       } finally {
-        lock.unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -102,7 +114,7 @@ public class RestrictionTrackers {
       try {
         delegate.checkDone();
       } finally {
-        lock.unlock();
+        updateProgressAndUnlock();
       }
     }
 
@@ -112,10 +124,13 @@ public class RestrictionTrackers {
     }
 
     /** Evaluate progress if requested. */
-    protected Progress getProgressBlocking() {
+    protected void updateProgressBlocking() {
       lock.lock();
       try {
-        return ((HasProgress) delegate).getProgress();
+        needsProgressUpdate = false;
+        if (delegate instanceof HasProgress) {
+          lastProgress = ((HasProgress) delegate).getProgress();
+        }
       } finally {
         lock.unlock();
       }
@@ -129,7 +144,7 @@ public class RestrictionTrackers {
   @ThreadSafe
   static class RestrictionTrackerObserverWithProgress<RestrictionT, PositionT>
       extends RestrictionTrackerObserver<RestrictionT, PositionT> implements HasProgress {
-    private static final int FIRST_PROGRESS_TIMEOUT_SEC = 60;
+    private static final int PROGRESS_TIMEOUT_SEC = 60;
 
     protected RestrictionTrackerObserverWithProgress(
         RestrictionTracker<RestrictionT, PositionT> delegate,
@@ -139,32 +154,29 @@ public class RestrictionTrackers {
 
     @Override
     public Progress getProgress() {
-      return getProgress(FIRST_PROGRESS_TIMEOUT_SEC);
+      return getProgress(PROGRESS_TIMEOUT_SEC);
     }
 
     @VisibleForTesting
     Progress getProgress(int timeOutSec) {
-      if (!hasInitialProgress) {
-        Progress progress = Progress.NONE;
-        try {
-          // lock can be held long by long-running tryClaim/trySplit. We tolerate this scenario
-          // by returning zero progress when initial progress never evaluated before due to lock
-          // timeout.
-          if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
-            try {
-              progress = getProgressBlocking();
-              hasInitialProgress = true;
-            } finally {
-              lock.unlock();
-            }
+      try {
+        // lock can be held long by long-running tryClaim/trySplit. We tolerate this scenario
+        // by returning the last evaluated progress (or zero progress if never evaluated before)
+        // when lock timeout occurs.
+        if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
+          try {
+            updateProgressBlocking();
+          } finally {
+            lock.unlock();
           }
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
+        } else {
+          needsProgressUpdate = true;
         }
-        return progress;
-      } else {
-        return getProgressBlocking();
+      } catch (InterruptedException e) {
+        needsProgressUpdate = true;
+        Thread.currentThread().interrupt();
       }
+      return lastProgress;
     }
   }
 

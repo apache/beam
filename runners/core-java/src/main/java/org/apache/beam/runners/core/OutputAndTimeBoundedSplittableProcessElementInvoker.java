@@ -281,7 +281,7 @@ public class OutputAndTimeBoundedSplittableProcessElementInvoker<
       processContext.tracker.checkDone();
     }
     if (residual == null) {
-      return new Result(null, cont, null, null);
+      return new Result(null, cont, null, null, 0.0);
     }
     final KV<RestrictionT, KV<Instant, WatermarkEstimatorStateT>> residualForGetSize = residual;
     // For a list of all DoFnInvoker arguments, see DoFn.java.

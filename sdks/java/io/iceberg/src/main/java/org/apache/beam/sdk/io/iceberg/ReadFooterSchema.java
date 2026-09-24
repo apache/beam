@@ -35,10 +35,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Emits the canonical schema (see {@link FileSchemas}) of every readable Parquet file as JSON.
- * Unreadable or non-Parquet files contribute nothing.
+ * Emits one {@link CollectDistinctSchemas.SchemaGroup} of one file per readable Parquet file: its
+ * declared schema and its null-free columns. Unreadable or non-Parquet files contribute nothing.
  */
-class ReadFooterSchema extends DoFn<String, String> {
+class ReadFooterSchema extends DoFn<String, CollectDistinctSchemas.SchemaGroup> {
   private static final Logger LOG = LoggerFactory.getLogger(ReadFooterSchema.class);
 
   static final int DEFAULT_THREAD_POOL_SIZE = 10;
@@ -52,37 +52,44 @@ class ReadFooterSchema extends DoFn<String, String> {
   private static final Counter numFooterReadErrors =
       counter(ReadFooterSchema.class, FOOTER_READ_ERRORS_COUNTER);
 
+  /**
+   * Emitted in a dry run for files that contribute no schema. The key travels in the group's schema
+   * JSON field, which the combine groups by, so the files of one kind add up without a second path.
+   */
+  static final String UNREADABLE_KEY = "unread";
+
+  static final String UNCHECKED_FORMAT_KEY = "unchecked";
+
+  private final SchemaEvolutionConfig config;
   private final int threadPoolSize;
   private final int maxInFlightTasks;
   private transient @MonotonicNonNull BoundedAsyncTasks<ReadResult> tasks;
 
-  ReadFooterSchema() {
-    this(DEFAULT_THREAD_POOL_SIZE, DEFAULT_MAX_IN_FLIGHT_TASKS);
+  ReadFooterSchema(SchemaEvolutionConfig config) {
+    this(config, DEFAULT_THREAD_POOL_SIZE, DEFAULT_MAX_IN_FLIGHT_TASKS);
   }
 
-  ReadFooterSchema(int threadPoolSize, int maxInFlightTasks) {
+  ReadFooterSchema(SchemaEvolutionConfig config, int threadPoolSize, int maxInFlightTasks) {
+    this.config = config;
     this.threadPoolSize = threadPoolSize;
     this.maxInFlightTasks = maxInFlightTasks;
   }
 
-  /**
-   * {@code schemaJson} is null when the file contributes no schema. Counters are updated when the
-   * result is delivered, on the processing thread: metrics touched from the executor are lost.
-   */
+  /** Counters are updated on the processing thread: metrics touched from the executor are lost. */
   private static class ReadResult {
-    final @Nullable String schemaJson;
+    final CollectDistinctSchemas.@Nullable SchemaGroup schema;
     final boolean footerError;
     final Instant timestamp;
     final BoundedWindow window;
     final PaneInfo paneInfo;
 
     ReadResult(
-        @Nullable String schemaJson,
+        CollectDistinctSchemas.@Nullable SchemaGroup schema,
         boolean footerError,
         Instant timestamp,
         BoundedWindow window,
         PaneInfo paneInfo) {
-      this.schemaJson = schemaJson;
+      this.schema = schema;
       this.footerError = footerError;
       this.timestamp = timestamp;
       this.window = window;
@@ -114,7 +121,7 @@ class ReadFooterSchema extends DoFn<String, String> {
       @Timestamp Instant timestamp,
       BoundedWindow window,
       PaneInfo paneInfo,
-      OutputReceiver<String> output)
+      OutputReceiver<CollectDistinctSchemas.SchemaGroup> output)
       throws Exception {
     numFilesRead.inc();
     Callable<ReadResult> task = createReadTask(filePath, timestamp, window, paneInfo);
@@ -128,24 +135,22 @@ class ReadFooterSchema extends DoFn<String, String> {
 
   private static void outputAtFinish(ReadResult result, FinishBundleContext context) {
     count(result);
-    if (result.schemaJson != null) {
-      context.output(result.schemaJson, result.timestamp, result.window);
+    if (result.schema != null) {
+      context.output(result.schema, result.timestamp, result.window);
     }
   }
 
-  private static void outputResult(ReadResult result, OutputReceiver<String> output) {
+  private static void outputResult(
+      ReadResult result, OutputReceiver<CollectDistinctSchemas.SchemaGroup> output) {
     count(result);
-    if (result.schemaJson != null) {
+    if (result.schema != null) {
       output.outputWindowedValue(
-          result.schemaJson,
-          result.timestamp,
-          Collections.singleton(result.window),
-          result.paneInfo);
+          result.schema, result.timestamp, Collections.singleton(result.window), result.paneInfo);
     }
   }
 
   private static void count(ReadResult result) {
-    if (result.schemaJson != null) {
+    if (result.schema != null) {
       numSchemasEmitted.inc();
     }
     if (result.footerError) {
@@ -153,29 +158,37 @@ class ReadFooterSchema extends DoFn<String, String> {
     }
   }
 
-  private static Callable<ReadResult> createReadTask(
+  private Callable<ReadResult> createReadTask(
       String filePath, Instant timestamp, BoundedWindow window, PaneInfo paneInfo) {
     return () -> {
       FileFormat format;
       try {
         format = AddFiles.inferFormat(filePath);
       } catch (AddFiles.UnknownFormatException e) {
-        return new ReadResult(null, false, timestamp, window, paneInfo);
+        return new ReadResult(dryRunMarker(UNREADABLE_KEY), false, timestamp, window, paneInfo);
       }
       if (!format.equals(FileFormat.PARQUET)) {
-        return new ReadResult(null, false, timestamp, window, paneInfo);
+        return new ReadResult(
+            dryRunMarker(UNCHECKED_FORMAT_KEY), false, timestamp, window, paneInfo);
       }
       try {
         ParquetMetadata footer = ParquetFooters.read(filePath);
-        return new ReadResult(
-            FileSchemas.canonicalJson(footer), false, timestamp, window, paneInfo);
+        return new ReadResult(FileSchemas.schemaGroup(footer), false, timestamp, window, paneInfo);
       } catch (Exception e) {
         LOG.warn(
             "Could not read the footer of {}; the file will not contribute to schema inference: {}",
             filePath,
             AddFiles.errorMessage(e));
-        return new ReadResult(null, true, timestamp, window, paneInfo);
+        return new ReadResult(dryRunMarker(UNREADABLE_KEY), true, timestamp, window, paneInfo);
       }
     };
+  }
+
+  /** A dry run counts files that contribute no schema; a real run handles them at registration. */
+  private CollectDistinctSchemas.@Nullable SchemaGroup dryRunMarker(String key) {
+    if (!config.getDryRun()) {
+      return null;
+    }
+    return CollectDistinctSchemas.SchemaGroup.of(key, 1, Collections.emptyList());
   }
 }

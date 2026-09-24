@@ -15,7 +15,7 @@
 # limitations under the License.
 #
 
-"""Integration tests for BigTable service."""
+"""Integration tests for Bigtable service."""
 
 import logging
 import os
@@ -66,7 +66,7 @@ def instance_prefix(instance):
     os.environ.get('TRANSFORM_SERVICE_PORT'),
     "A valid expansion service is not available for executing the "
     "cross-language test.")
-class TestReadFromBigTableIT(unittest.TestCase):
+class TestReadFromBigtableIT(unittest.TestCase):
   INSTANCE = "bt-read-tests"
   TABLE_ID = "test-table"
 

@@ -21,7 +21,7 @@ import java.util.TreeMap
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.1"
+  id("org.nosphere.apache.rat") version "0.11.0"
   // Enable gradle-based release management
   id("net.researchgate.release") version "2.8.1"
   id("org.apache.beam.module")
@@ -48,6 +48,7 @@ tasks.rat {
     "**/test.avsc",
     "**/logical-types.avsc",
     "**/user.avsc",
+    "**/*.avro",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
@@ -200,6 +201,9 @@ tasks.rat {
     // Ignore LICENSES copied onto containers
     "sdks/java/container/license_scripts/manual_licenses",
     "sdks/python/container/license_scripts/manual_licenses",
+
+    // Ignore third-party notices bundled in resources
+    "**/resources/NOTICES",
 
     // Ignore autogenrated proto files.
     "sdks/typescript/src/apache_beam/proto/**/*.ts",
@@ -396,6 +400,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
+  dependsOn(":sdks:java:extensions:sql:delta:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
