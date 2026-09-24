@@ -64,8 +64,9 @@ class LeaderBoardIT(unittest.TestCase):
   OUTPUT_TABLE_TEAMS = 'leader_board_teams'
   DEFAULT_INPUT_COUNT = 500
 
-  WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
-  BQ_MATCHER_TIMEOUT_SECS = 5 * 60
+  WAIT_UNTIL_FINISH_DURATION = 12 * 60 * 1000  # in milliseconds
+  # Poll BigQuery after the pipeline wait; streaming inserts can lag.
+  BQ_MATCHER_TIMEOUT_SECS = 10 * 60
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
