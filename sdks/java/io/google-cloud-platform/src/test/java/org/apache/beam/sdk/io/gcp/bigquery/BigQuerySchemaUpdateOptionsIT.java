@@ -68,7 +68,7 @@ public class BigQuerySchemaUpdateOptionsIT {
       new BigqueryClient("BigQuerySchemaUpdateOptionsIT");
 
   private static final String BIG_QUERY_DATASET_ID =
-      "bq_query_schema_update_options_"
+      "beam_temp_dataset_schema_update_options_"
           + System.currentTimeMillis()
           + "_"
           + new SecureRandom().nextInt(32);

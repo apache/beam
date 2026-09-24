@@ -74,7 +74,7 @@ public class StorageApiSinkFailedRowsIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_failed_rows" + System.nanoTime();
+      "beam_temp_dataset_failed_rows" + System.nanoTime();
 
   private static final List<TableFieldSchema> FIELDS =
       ImmutableList.<TableFieldSchema>builder()

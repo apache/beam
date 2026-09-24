@@ -76,7 +76,7 @@ public class PubsubToIcebergIT implements Serializable {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("PubsubToIcebergIT");
   private static final String BQMS_CATALOG =
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "sql_pubsub_to_iceberg_it_" + System.nanoTime();
+  static final String DATASET = "beam_temp_dataset_sql_pubsub_to_iceberg_" + System.nanoTime();
   static String warehouse;
   private static Catalog icebergCatalog;
   protected static final GcpOptions OPTIONS =

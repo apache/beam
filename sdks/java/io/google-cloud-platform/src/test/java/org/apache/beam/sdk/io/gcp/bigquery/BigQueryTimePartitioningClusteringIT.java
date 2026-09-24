@@ -59,7 +59,7 @@ public class BigQueryTimePartitioningClusteringIT {
   private static final BigqueryClient BQ_CLIENT =
       new BigqueryClient("BigQueryTimePartitioningClusteringIT");
   private static final String DATASET_NAME =
-      "BigQueryTimePartitioningIT_"
+      "beam_temp_dataset_time_partitioning_"
           + System.currentTimeMillis()
           + "_"
           + new SecureRandom().nextInt(32);

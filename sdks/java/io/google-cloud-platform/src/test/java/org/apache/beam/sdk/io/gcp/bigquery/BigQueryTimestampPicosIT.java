@@ -56,7 +56,10 @@ public class BigQueryTimestampPicosIT {
 
   private static String project;
   private static final String DATASET_ID =
-      "bq_ts_picos_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "beam_temp_dataset_ts_picos_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryTimestampPicosIT");
   private static TestBigQueryOptions bqOptions;
   private static String nestedTableSpec;

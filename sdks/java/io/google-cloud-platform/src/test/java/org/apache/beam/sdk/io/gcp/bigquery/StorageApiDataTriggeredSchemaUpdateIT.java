@@ -82,7 +82,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_data_triggered_schema_update_" + System.nanoTime();
+      "beam_temp_dataset_triggered_schema_update_" + System.nanoTime();
 
   private static String bigQueryLocation;
 

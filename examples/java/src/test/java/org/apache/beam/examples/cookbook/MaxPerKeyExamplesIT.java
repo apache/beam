@@ -42,7 +42,7 @@ import org.junit.runners.JUnit4;
 public class MaxPerKeyExamplesIT {
   private MaxPerKeyExamplesIT.MaxPerKeyExamplesOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
-  private final String outputDatasetId = "max_per_key_examples" + timestamp;
+  private final String outputDatasetId = "beam_temp_dataset_maxperkey_" + timestamp;
   private final String outputTable = "max_per_key_examples_table";
   private final Long defaultExpiration = 1000L * 60 * 60;
   private String projectId;

@@ -71,7 +71,7 @@ public class StorageApiSinkCreateIfNeededIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_sink_create_tables_" + System.nanoTime();
+      "beam_temp_dataset_storageapi_" + System.nanoTime();
   private static final String TEST_CONNECTION_ID =
       "projects/apache-beam-testing/locations/us/connections/apache-beam-testing-storageapi-biglake-nodelete";
   private static final String TEST_STORAGE_URI =
