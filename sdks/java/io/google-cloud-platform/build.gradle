@@ -336,6 +336,87 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   testClassesDirs = sourceSets.test.output.classesDirs
 }
 
+task integrationTestBigQuery(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTest.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/bigquery/**/*IT.class'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
+  exclude '**/BigQueryIOStorageWriteIT.class'
+  exclude '**/BigQueryIODynamicQueryIT.class'
+  exclude '**/BigQueryIODynamicReadIT.class'
+  exclude '**/BigQueryToTableIT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
+task integrationTestBigQueryKms(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTestKms.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/bigquery/**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
+task integrationTestOtherGcp(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTest.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/*IT.class'
+  exclude '**/bigquery/**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // https://github.com/apache/beam/issues/32071
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableSegmentRead'
+    }
+  }
+}
+
+task integrationTestOtherGcpKms(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTestKms.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/*IT.class'
+  exclude '**/bigquery/**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
+task postCommitBigQuery {
+  group = "Verification"
+  description = "Integration tests of BigQuery connectors using the DirectRunner."
+  dependsOn integrationTestBigQuery
+  dependsOn integrationTestBigQueryKms
+  dependsOn bigQueryManagedIcebergIntegrationTest
+}
+
+task postCommitOtherGcp {
+  group = "Verification"
+  description = "Integration tests of non-BigQuery GCP connectors using the DirectRunner."
+  dependsOn integrationTestOtherGcp
+  dependsOn integrationTestOtherGcpKms
+}
+
 task postCommit {
   group = "Verification"
   description = "Integration tests of GCP connectors using the DirectRunner."

@@ -82,9 +82,26 @@ jobs:
   beam_PreCommit_Java_GCP_IO_Direct:
     name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
     strategy:
+      fail-fast: false
       matrix:
-        job_name: ["beam_PreCommit_Java_GCP_IO_Direct"]
-        job_phrase: ["Run Java_GCP_IO_Direct PreCommit"]
+        include:
+          - job_name: "beam_PreCommit_Java_GCP_IO_Direct"
+            job_phrase: "Run Java_GCP_IO_Direct PreCommit"
+            gradle_command: |
+              :sdks:java:io:google-cloud-platform:build \
+              :sdks:java:io:google-cloud-platform:expansion-service:build
+            extra_arguments: ""
+            is_build_job: true
+          - job_name: "beam_PreCommit_Java_GCP_IO_Direct_BigQuery"
+            job_phrase: "Run Java_GCP_IO_Direct PreCommit"
+            gradle_command: ":sdks:java:io:google-cloud-platform:postCommitBigQuery"
+            extra_arguments: "-x test"
+            is_build_job: false
+          - job_name: "beam_PreCommit_Java_GCP_IO_Direct_OtherGCP"
+            job_phrase: "Run Java_GCP_IO_Direct PreCommit"
+            gradle_command: ":sdks:java:io:google-cloud-platform:postCommitOtherGcp"
+            extra_arguments: "-x test"
+            is_build_job: false
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
@@ -108,18 +125,16 @@ jobs:
       - name: run PreCommit Java GCP IO Direct script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: |
-            :sdks:java:io:google-cloud-platform:build \
-            :sdks:java:io:google-cloud-platform:expansion-service:build \
-            :sdks:java:io:google-cloud-platform:postCommit \
+          gradle-command: ${{ matrix.gradle_command }}
           arguments: |
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
+            ${{ matrix.extra_arguments }}
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
         if: ${{ !success() }}
         with:
-          name: JUnit Test Results
+          name: JUnit Test Results (${{ matrix.job_name }})
           path: "**/build/reports/tests/"
       - name: Publish JUnit Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
@@ -131,13 +146,13 @@ jobs:
           large_files: true
       - name: Archive SpotBugs Results
         uses: actions/upload-artifact@v7
-        if: always()
+        if: ${{ always() && matrix.is_build_job }}
         with:
           name: SpotBugs Results
           path: '**/build/reports/spotbugs/*.html'
       - name: Publish SpotBugs Results
         uses: jwgmeligmeyling/spotbugs-github-action@v1.2
-        if: always()
+        if: ${{ always() && matrix.is_build_job }}
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
