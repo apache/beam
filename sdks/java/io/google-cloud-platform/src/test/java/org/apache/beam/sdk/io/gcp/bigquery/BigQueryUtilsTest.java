@@ -55,6 +55,7 @@ import org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.ConversionOptions.Trunc
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.EnumerationType;
+import org.apache.beam.sdk.schemas.logicaltypes.NanosInstant;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.values.Row;
@@ -116,6 +117,16 @@ public class BigQueryUtilsTest {
 
   private static final Schema ENUM_STRING_TYPE =
       Schema.builder().addNullableField("color", Schema.FieldType.STRING).build();
+
+  private static final Schema NANOS_INSTANT_TYPE =
+      Schema.builder()
+          .addNullableField("nanos_instant", Schema.FieldType.logicalType(new NanosInstant()))
+          .build();
+
+  private static final Row NANOS_INSTANT_ROW =
+      Row.withSchema(NANOS_INSTANT_TYPE)
+          .addValues(java.time.Instant.parse("2024-08-10T16:52:07.123456789Z"))
+          .build();
 
   private static final Schema MAP_TYPE =
       Schema.builder().addStringField("key").addDoubleField("value").build();
@@ -774,6 +785,24 @@ public class BigQueryUtilsTest {
 
     assertThat(row.size(), equalTo(1));
     assertThat(row, hasEntry("color", "GREEN"));
+  }
+
+  @Test
+  public void testToTableSchema_nanosInstant() {
+    TableSchema schema = toTableSchema(NANOS_INSTANT_TYPE);
+
+    assertThat(schema.getFields().size(), equalTo(1));
+    TableFieldSchema field = schema.getFields().get(0);
+    assertThat(field.getName(), equalTo("nanos_instant"));
+    assertThat(field.getType(), equalTo(StandardSQLTypeName.TIMESTAMP.toString()));
+  }
+
+  @Test
+  public void testToTableRow_nanosInstant() {
+    TableRow row = toTableRow().apply(NANOS_INSTANT_ROW);
+
+    assertThat(row.size(), equalTo(1));
+    assertThat(row, hasEntry("nanos_instant", "2024-08-10 16:52:07.123456789 UTC"));
   }
 
   @Test
