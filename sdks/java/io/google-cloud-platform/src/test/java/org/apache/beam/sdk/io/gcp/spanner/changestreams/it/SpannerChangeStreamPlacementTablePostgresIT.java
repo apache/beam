@@ -130,7 +130,9 @@ public class SpannerChangeStreamPlacementTablePostgresIT {
                 SpannerConfig.create()
                     .withProjectId(projectId)
                     .withInstanceId(instanceId)
-                    .withDatabaseId(databaseId))
+                    .withDatabaseId(databaseId)
+                    .withCommitTimeout(org.joda.time.Duration.standardMinutes(5))
+                    .withExecuteStreamingSqlTimeout(org.joda.time.Duration.standardMinutes(5)))
             .withHost(ValueProvider.StaticValueProvider.of(host));
 
     SpannerIO.ReadChangeStream readChangeStream =
@@ -140,7 +142,8 @@ public class SpannerChangeStreamPlacementTablePostgresIT {
             .withMetadataDatabase(databaseId)
             .withMetadataTable(metadataTableName)
             .withInclusiveStartAt(startAt)
-            .withInclusiveEndAt(endAt);
+            .withInclusiveEndAt(endAt)
+            .withRpcPriority(com.google.cloud.spanner.Options.RpcPriority.HIGH);
 
     if (tvfNameList != null) {
       readChangeStream = readChangeStream.withTvfNameList(tvfNameList);

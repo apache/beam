@@ -290,6 +290,11 @@ class WriteToBigTable(beam.PTransform):
           direct_row._get_mutation_pbs() if hasattr(
               direct_row, '_get_mutation_pbs') else direct_row._get_mutations())
       for mutation in mutations:
+        if not hasattr(mutation, '__contains__'):
+          if hasattr(mutation, '_to_pb'):
+            mutation = mutation._to_pb()
+          elif hasattr(mutation, 'to_pb'):
+            mutation = mutation.to_pb()
         if mutation.__contains__("set_cell"):
           mutation_dict = {
               "type": b'SetCell',

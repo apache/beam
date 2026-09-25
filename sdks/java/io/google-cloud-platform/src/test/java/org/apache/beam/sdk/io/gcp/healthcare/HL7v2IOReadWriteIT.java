@@ -65,15 +65,29 @@ public class HL7v2IOReadWriteIT {
   @Rule public transient TestPipeline pipeline = TestPipeline.create();
 
   @BeforeClass
-  public static void createHL7v2tores() throws IOException {
+  public static void createHL7v2tores() throws IOException, InterruptedException {
     String project =
         TestPipeline.testingPipelineOptions()
             .as(HealthcareStoreTestPipelineOptions.class)
             .getStoreProjectId();
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
-    client.createHL7v2Store(healthcareDataset, INPUT_HL7V2_STORE_NAME);
-    client.createHL7v2Store(healthcareDataset, OUTPUT_HL7V2_STORE_NAME);
+    for (String storeName : new String[] {INPUT_HL7V2_STORE_NAME, OUTPUT_HL7V2_STORE_NAME}) {
+      for (int attempt = 0; ; attempt++) {
+        try {
+          client.createHL7v2Store(healthcareDataset, storeName);
+          break;
+        } catch (IOException e) {
+          if (e.getMessage() != null && e.getMessage().contains("ALREADY_EXISTS")) {
+            break;
+          }
+          if (attempt >= 3) {
+            throw e;
+          }
+          Thread.sleep(2000L * (attempt + 1));
+        }
+      }
+    }
   }
 
   @AfterClass

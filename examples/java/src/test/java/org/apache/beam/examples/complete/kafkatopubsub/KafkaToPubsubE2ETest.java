@@ -62,11 +62,15 @@ public class KafkaToPubsubE2ETest {
 
   @ClassRule
   public static final PubSubEmulatorContainer PUB_SUB_EMULATOR_CONTAINER =
-      new PubSubEmulatorContainer(DockerImageName.parse(PUBSUB_EMULATOR_IMAGE));
+      new PubSubEmulatorContainer(DockerImageName.parse(PUBSUB_EMULATOR_IMAGE))
+          .withStartupAttempts(3)
+          .withStartupTimeout(java.time.Duration.ofMinutes(5));
 
   @ClassRule
   public static final KafkaContainer KAFKA_CONTAINER =
-      new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME));
+      new KafkaContainer(DockerImageName.parse(KAFKA_IMAGE_NAME))
+          .withStartupAttempts(3)
+          .withStartupTimeout(java.time.Duration.ofMinutes(5));
 
   @Rule public final transient TestPipeline pipeline = TestPipeline.fromOptions(OPTIONS);
   @Rule public final transient TestPubsub testPubsub = TestPubsub.fromOptions(OPTIONS);

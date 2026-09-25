@@ -99,7 +99,20 @@ public class FhirIOReadIT {
     pubsub.createTopic(topicPath);
     SubscriptionPath subscriptionPath = PubsubClient.subscriptionPathFromPath(pubsubSubscription);
     pubsub.createSubscription(topicPath, subscriptionPath, 60);
-    client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
+    for (int attempt = 0; ; attempt++) {
+      try {
+        client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
+        break;
+      } catch (IOException e) {
+        if (attempt >= 3 || (e.getMessage() != null && e.getMessage().contains("ALREADY_EXISTS"))) {
+          if (e.getMessage() != null && e.getMessage().contains("ALREADY_EXISTS")) {
+            break;
+          }
+          throw e;
+        }
+        Thread.sleep(2000L * (attempt + 1));
+      }
+    }
 
     // Execute bundles to trigger FHIR notifications to input topic
     FhirIOTestUtil.executeFhirBundles(

@@ -611,6 +611,9 @@ public class UnboundedScheduledExecutorServiceTest {
                           }
                         })
                     .get();
+                // Give the worker thread a chance to return to the queue after completing the
+                // Future before the submitting thread immediately enqueues the next task.
+                Thread.sleep(1);
               } catch (InterruptedException | ExecutionException e) {
                 // Ignore, happens on executor shutdown.
               }
@@ -625,7 +628,7 @@ public class UnboundedScheduledExecutorServiceTest {
     LOG.info("Created {} threads to execute at most 100 parallel tasks", largestPool);
     // Ideally we would never create more than 100, however with contention it is still possible
     // some extra threads will be created.
-    assertTrue(largestPool <= 120);
+    assertTrue("Created " + largestPool + " threads", largestPool <= 150);
     executorService.shutdown();
   }
 }

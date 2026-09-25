@@ -144,21 +144,35 @@ public class BigQueryIOIcebergManagedTableIT {
 
   /** Runs SQL in the connection's location and returns the result rows. */
   private static List<TableRow> runSql(String sql) throws IOException {
-    QueryResponse response =
-        RAW_BQ
-            .jobs()
-            .query(
-                PROJECT,
-                new QueryRequest()
-                    .setQuery(sql)
-                    .setUseLegacySql(false)
-                    .setLocation(connectionLocation())
-                    .setTimeoutMs(180_000L))
-            .execute();
-    if (!Boolean.TRUE.equals(response.getJobComplete())) {
-      throw new IOException("Query did not complete in time: " + sql);
+    for (int attempt = 1; ; attempt++) {
+      try {
+        QueryResponse response =
+            RAW_BQ
+                .jobs()
+                .query(
+                    PROJECT,
+                    new QueryRequest()
+                        .setQuery(sql)
+                        .setUseLegacySql(false)
+                        .setLocation(connectionLocation())
+                        .setTimeoutMs(180_000L))
+                .execute();
+        if (!Boolean.TRUE.equals(response.getJobComplete())) {
+          throw new IOException("Query did not complete in time: " + sql);
+        }
+        return response.getRows();
+      } catch (IOException e) {
+        if (attempt >= 3) {
+          throw e;
+        }
+        try {
+          Thread.sleep(3000L * attempt);
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw e;
+        }
+      }
     }
-    return response.getRows();
   }
 
   private static String firstCell(List<TableRow> rows) {

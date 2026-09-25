@@ -202,21 +202,36 @@ public class StorageApiSinkRowUpdateIT {
   }
 
   private void runPipelineAndWait(Pipeline p) {
-    PipelineResult result = p.run();
-    try {
-      result.waitUntilFinish();
-    } catch (Pipeline.PipelineExecutionException e) {
-      Throwable root = e.getCause();
-      // Unwrap nested exceptions to find the root cause.
-      while (root != null && root.getCause() != null) {
-        root = root.getCause();
-      }
-      // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been
-      // flushed.
-      if (root instanceof Exceptions.StreamWriterClosedException) {
+    int maxAttempts = 3;
+    for (int attempt = 1; ; attempt++) {
+      PipelineResult result = p.run();
+      try {
+        result.waitUntilFinish();
         return;
+      } catch (Pipeline.PipelineExecutionException e) {
+        Throwable root = e.getCause();
+        // Unwrap nested exceptions to find the root cause.
+        while (root != null && root.getCause() != null) {
+          root = root.getCause();
+        }
+        // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been
+        // flushed.
+        if (root instanceof Exceptions.StreamWriterClosedException) {
+          return;
+        }
+        String msg = e.getMessage() != null ? e.getMessage() : "";
+        if (attempt < maxAttempts
+            && (msg.contains("FAILED_PRECONDITION") || msg.contains("The stream may not exist"))) {
+          try {
+            Thread.sleep(5000L * attempt);
+          } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            throw e;
+          }
+          continue;
+        }
+        throw e;
       }
-      throw e;
     }
   }
 }

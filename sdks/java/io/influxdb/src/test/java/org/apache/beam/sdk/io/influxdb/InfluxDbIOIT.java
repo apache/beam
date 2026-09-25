@@ -94,8 +94,12 @@ public class InfluxDbIOIT {
     }
   }
 
+  private static String baseDatabaseName;
+
   @Before
   public void initTest() throws InterruptedException {
+    options.setDatabaseName(
+        baseDatabaseName + "_" + java.util.UUID.randomUUID().toString().replace("-", "_"));
     BackOff backOff = FluentBackoff.DEFAULT.withMaxRetries(4).backoff();
     Query createQuery = new Query(String.format("CREATE DATABASE %s", options.getDatabaseName()));
     try (InfluxDB connection =
@@ -124,6 +128,7 @@ public class InfluxDbIOIT {
   public static void setup() throws IOException {
     PipelineOptionsFactory.register(InfluxDBPipelineOptions.class);
     options = TestPipeline.testingPipelineOptions().as(InfluxDBPipelineOptions.class);
+    baseDatabaseName = options.getDatabaseName();
   }
 
   public void createRetentionPolicyInDB(
@@ -137,7 +142,7 @@ public class InfluxDbIOIT {
       connection.query(
           new Query(
               String.format(
-                  "CREATE RETENTION POLICY %s ON %s DURATION 1d REPLICATION 1",
+                  "ALTER RETENTION POLICY %s ON %s DURATION 1d REPLICATION 1",
                   retentionPolicyName, dbName)));
     }
   }
