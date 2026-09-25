@@ -2167,4 +2167,49 @@ public class GcsUtilTest {
     WritableByteChannel notFound = gcsUtil.create(path, options);
     assertThrows(FileNotFoundException.class, notFound::close);
   }
+
+  /** Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} whose bucket lookup throws. */
+  private GcsUtil gcsUtilWithV2BucketLookupFailing(IOException failure) throws IOException {
+    GcsOptions options = gcsOptionsWithTestCredential();
+    options.setProject("my_project");
+    GcsUtil gcsUtil = options.getGcsUtil();
+    GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
+    Mockito.doThrow(failure).when(delegateV2).getBucket(any(GcsPath.class), any());
+    gcsUtil.delegateV2 = delegateV2;
+    return gcsUtil;
+  }
+
+  /** Mirrors {@link #testBucketDoesNotExist} for V2. */
+  @Test
+  public void testV2BucketAccessibleIsFalseWhenBucketDoesNotExist() throws IOException {
+    GcsUtil gcsUtil =
+        gcsUtilWithV2BucketLookupFailing(new FileNotFoundException("gs://testbucket"));
+
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  /** Mirrors {@link #testBucketDoesNotExistBecauseOfAccessError} for V2. */
+  @Test
+  public void testV2BucketAccessibleIsFalseWhenAccessIsDenied() throws IOException {
+    GcsUtil gcsUtil =
+        gcsUtilWithV2BucketLookupFailing(new AccessDeniedException("gs://testbucket"));
+
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  /**
+   * Any other failure (e.g. a 5xx) says nothing about whether the bucket is accessible, so it must
+   * propagate rather than be reported as an inaccessible bucket, as V1 does.
+   */
+  @Test
+  public void testV2BucketAccessiblePropagatesOtherFailures() throws IOException {
+    IOException serverError = new IOException(new StorageException(503, "Service Unavailable"));
+    GcsUtil gcsUtil = gcsUtilWithV2BucketLookupFailing(serverError);
+
+    IOException thrown =
+        assertThrows(
+            IOException.class,
+            () -> gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
+    assertSame(serverError, thrown);
+  }
 }

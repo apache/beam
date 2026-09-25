@@ -684,13 +684,17 @@ class GcsUtilV2 {
     }
   }
 
-  /** Returns whether the GCS bucket exists and is accessible. */
-  public boolean bucketAccessible(GcsPath path) {
+  /**
+   * Returns whether the GCS bucket exists and is accessible. This will return false if the bucket
+   * does not exist or is inaccessible due to permissions; any other failure is propagated, as
+   * {@link GcsUtilV1} does.
+   */
+  public boolean bucketAccessible(GcsPath path) throws IOException {
     try {
       // Fetch only the name field to minimize data transfer
       getBucket(path, BucketGetOption.fields(BucketField.NAME));
       return true;
-    } catch (IOException e) {
+    } catch (AccessDeniedException | FileNotFoundException e) {
       return false;
     }
   }
