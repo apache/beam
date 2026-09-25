@@ -219,8 +219,20 @@ def temp_firestore_collection(
       batch.commit()
 
 
+def _bigquery_access_entries_from_config(access_entries):
+  """Build Dataset.AccessValueListEntry list from YAML fixture config.
+
+  Each entry is a mapping with ``role`` and one entity field (``userByEmail``,
+  ``groupByEmail``, ``specialGroup``, ``domain``, or ``iamMember``).
+
+  Entries are appended to BigQuery's default dataset access after create.
+  """
+  Access = bigquery.Dataset.AccessValueListEntry
+  return [Access(**dict(entry)) for entry in access_entries]
+
+
 @contextlib.contextmanager
-def temp_bigquery_table(project, prefix='yaml_bq_it_'):
+def temp_bigquery_table(project, prefix='yaml_bq_it_', access_entries=None):
   """Context manager to create and clean up a temporary BigQuery dataset.
 
   Creates a unique temporary BigQuery dataset within the specified project.
@@ -235,6 +247,8 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
     project (str): The Google Cloud project ID.
     prefix (str): A prefix to use for the temporary dataset name.
       Defaults to 'yaml_bq_it_'.
+    access_entries (list|None): Optional extra dataset ACL entries to append
+      after creation (see ``_bigquery_access_entries_from_config``).
 
   Yields:
     str: The full path for a temporary BigQuery table within the created
@@ -243,7 +257,11 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
   """
   bigquery_client = BigQueryWrapper()
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
-  bigquery_client.get_or_create_dataset(project, dataset_id)
+  dataset_access = None
+  if access_entries is not None:
+    dataset_access = _bigquery_access_entries_from_config(access_entries)
+  bigquery_client.get_or_create_dataset(
+      project, dataset_id, access_entries=dataset_access)
   logging.info("Created dataset %s in project %s", dataset_id, project)
   yield f'{project}.{dataset_id}.tmp_table'
   request = bigquery.BigqueryDatasetsDeleteRequest(

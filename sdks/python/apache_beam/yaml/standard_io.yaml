@@ -41,6 +41,9 @@
         error_handling: 'error_handling'
         # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
         num_streams: 'num_streams'
+        # Storage Write API CDC (row_mutation_info + record input schema)
+        use_cdc_writes: 'use_cdc_writes'
+        primary_key: 'primary_key'
     underlying_provider:
       type: beamJar
       transforms:
@@ -54,6 +57,38 @@
           # version.
           'ReadFromBigQuery': '2.69.0'
           'WriteToBigQuery': '2.69.0'
+
+# BigQuery CDC (Storage Write API row mutations)
+# Input rows must wrap the table record:
+#   {record: {...}, row_mutation_info: {mutation_type, change_sequence_number}}
+# mutation_type is UPSERT or DELETE (see RowMutationInformation.MutationType).
+- type: renaming
+  transforms:
+    'WriteToBigQueryCDC': 'WriteToBigQueryCDC'
+  config:
+    mappings:
+      'WriteToBigQueryCDC':
+        table: 'table'
+        primary_key: 'primary_key'
+        create_disposition: 'create_disposition'
+        write_disposition: 'write_disposition'
+        error_handling: 'error_handling'
+        # TODO(https://github.com/apache/beam/issues/30058): Required until autosharding support is fixed
+        num_streams: 'num_streams'
+        use_at_least_once_semantics: 'use_at_least_once_semantics'
+        triggering_frequency_seconds: 'triggering_frequency_seconds'
+        auto_sharding: 'auto_sharding'
+    defaults:
+      'WriteToBigQueryCDC':
+        use_cdc_writes: true
+    underlying_provider:
+      type: beamJar
+      transforms:
+        # Route directly to Storage Write API. Managed bigquery_write:v1 may choose
+        # file loads for bounded pipelines without error_handling, which cannot do CDC.
+        'WriteToBigQueryCDC': 'beam:schematransform:org.apache.beam:bigquery_storage_write:v2'
+      config:
+        gradle_target: 'sdks:java:io:google-cloud-platform:expansion-service:shadowJar'
 
 # Kafka
 - type: renaming

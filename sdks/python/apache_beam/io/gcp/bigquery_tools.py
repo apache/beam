@@ -854,7 +854,8 @@ class BigQueryWrapper(object):
       location=None,
       labels=None,
       kms_key=None,
-      default_table_expiration_ms=None):
+      default_table_expiration_ms=None,
+      access_entries=None):
     # Check if dataset already exists otherwise create it
     try:
       dataset = self.client.datasets.Get(
@@ -886,6 +887,16 @@ class BigQueryWrapper(object):
             projectId=project_id, dataset=dataset)
         response = self.client.datasets.Insert(request)
         self.created_temp_dataset = True
+        if access_entries:
+          dataset = self.client.datasets.Get(
+              bigquery.BigqueryDatasetsGetRequest(
+                  projectId=project_id, datasetId=dataset_id))
+          entries = list(dataset.access or [])
+          entries.extend(access_entries)
+          dataset.access = entries
+          response = self.client.datasets.Patch(
+              bigquery.BigqueryDatasetsPatchRequest(
+                  projectId=project_id, datasetId=dataset_id, dataset=dataset))
         # The response is a bigquery.Dataset instance.
         return response
       else:
