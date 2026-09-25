@@ -104,6 +104,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -732,10 +733,15 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       Exceptions.@Nullable StorageException storageException = null;
       if (error instanceof Exceptions.StorageException) {
         storageException = (Exceptions.StorageException) error;
-      } else if (error.getCause() instanceof Exceptions.StorageException) {
-        storageException = (Exceptions.StorageException) error.getCause();
       } else {
-        storageException = Exceptions.toStorageException(error);
+        Optional<Throwable> handledCause =
+            Throwables.getCausalChain(error).stream()
+                .filter(cause -> cause instanceof Exceptions.StorageException)
+                .findAny();
+        storageException =
+            handledCause
+                .map(throwable -> (Exceptions.StorageException) throwable)
+                .orElseGet(() -> Exceptions.toStorageException(error));
       }
       boolean schemaMismatchError =
           (storageException instanceof Exceptions.SchemaMismatchedException);
