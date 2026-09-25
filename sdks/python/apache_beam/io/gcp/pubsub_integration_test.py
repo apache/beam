@@ -164,13 +164,13 @@ class PubSubIntegrationTest(unittest.TestCase):
     self.input_sub = _retry_pubsub(
         lambda: self.sub_client.create_subscription(
             name=self.sub_client.subscription_path(
-                self.project, INPUT_SUB + self.uuid),
-            topic=self.input_topic.name))
+                self.project, INPUT_SUB + self.uuid), topic=self.input_topic.
+            name))
     self.output_sub = _retry_pubsub(
         lambda: self.sub_client.create_subscription(
             name=self.sub_client.subscription_path(
-                self.project, OUTPUT_SUB + self.uuid),
-            topic=self.output_topic.name))
+                self.project, OUTPUT_SUB + self.uuid), topic=self.output_topic.
+            name))
     # Add a 30 second sleep after resource creation to ensure subscriptions will
     # receive messages.
     time.sleep(30)

@@ -128,8 +128,8 @@ class TestBigtableDirectRowToBeamRow(unittest.TestCase):
         direct_row._get_mutation_pbs() if hasattr(
             direct_row, '_get_mutation_pbs') else direct_row._get_mutations())
     return [
-        m._to_pb() if not hasattr(m, '__contains__') and hasattr(m, '_to_pb')
-        else (
+        m._to_pb()
+        if not hasattr(m, '__contains__') and hasattr(m, '_to_pb') else (
             m.to_pb()
             if not hasattr(m, '__contains__') and hasattr(m, 'to_pb') else m)
         for m in mutations

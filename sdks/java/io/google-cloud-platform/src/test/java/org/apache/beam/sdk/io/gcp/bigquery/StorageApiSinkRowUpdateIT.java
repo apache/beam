@@ -214,7 +214,8 @@ public class StorageApiSinkRowUpdateIT {
         while (root != null && root.getCause() != null) {
           root = root.getCause();
         }
-        // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have been
+        // Tolerate a StreamWriterClosedException, which sometimes happens after all writes have
+        // been
         // flushed.
         if (root instanceof Exceptions.StreamWriterClosedException) {
           return;

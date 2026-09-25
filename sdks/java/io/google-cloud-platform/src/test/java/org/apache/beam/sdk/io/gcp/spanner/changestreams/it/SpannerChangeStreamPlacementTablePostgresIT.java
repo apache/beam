@@ -131,8 +131,8 @@ public class SpannerChangeStreamPlacementTablePostgresIT {
                     .withProjectId(projectId)
                     .withInstanceId(instanceId)
                     .withDatabaseId(databaseId)
-                    .withCommitTimeout(org.joda.time.Duration.standardMinutes(5))
-                    .withExecuteStreamingSqlTimeout(org.joda.time.Duration.standardMinutes(5)))
+                    .withCommitDeadline(org.joda.time.Duration.standardMinutes(5))
+                    .withMaxCumulativeBackoff(org.joda.time.Duration.standardMinutes(10)))
             .withHost(ValueProvider.StaticValueProvider.of(host));
 
     SpannerIO.ReadChangeStream readChangeStream =

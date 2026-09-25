@@ -26,7 +26,6 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -190,7 +189,8 @@ public class SparkSessionFactory {
         } else if (!sparkConf.contains("spark.jars")) {
           // Stage classpath if `spark.jars` not set and not in local mode.
           PipelineResources.prepareFilesForStaging(options);
-          // Set `spark.jars`, exclude JRE libs and jars causing conflicts using `userClassPathFirst`.
+          // Set `spark.jars`, exclude JRE libs and jars causing conflicts using
+          // `userClassPathFirst`.
           sparkConf.setJars(filterFilesToStage(options, SPARK_JAR_EXCLUDES));
           // Enable `userClassPathFirst` to prevent issues with guava, jackson and others.
           sparkConf.setIfMissing("spark.executor.userClassPathFirst", "true");
