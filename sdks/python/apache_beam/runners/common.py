@@ -1618,9 +1618,16 @@ class DoFnRunner:
     _, _, tb = exc_info
 
     new_exn = new_exn.with_traceback(tb)
+    if isinstance(exn, WorkCancelledException):
+      raise new_exn
     self._maybe_sample_exception(exc_info, windowed_value)
     _LOGGER.exception(new_exn)
     raise new_exn
+
+
+class WorkCancelledException(RuntimeError):
+  """Indicates that a state request or work item was cancelled by the runner."""
+  pass
 
 
 class OutputHandler(object):
