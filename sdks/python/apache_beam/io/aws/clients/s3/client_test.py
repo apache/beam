@@ -20,10 +20,19 @@ import logging
 import os
 import unittest
 
+from apache_beam import version as beam_version
 from apache_beam.io.aws import s3io
 from apache_beam.io.aws.clients.s3 import fake_client
 from apache_beam.io.aws.clients.s3 import messages
 from apache_beam.options import pipeline_options
+
+# Protect against environments where boto3 library is not available.
+# pylint: disable=wrong-import-order, wrong-import-position
+try:
+  from apache_beam.io.aws.clients.s3 import boto3_client
+except ImportError:
+  boto3_client = None  # type: ignore[assignment]
+# pylint: enable=wrong-import-order, wrong-import-position
 
 
 class ClientErrorTest(unittest.TestCase):
@@ -220,6 +229,15 @@ class ClientErrorTest(unittest.TestCase):
     except Exception as e:
       self.assertIsInstance(e, messages.S3ClientError)
       self.assertEqual(e.code, 400)
+
+
+@unittest.skipIf(boto3_client is None, 'AWS dependencies are not installed')
+class ClientUserAgentTest(unittest.TestCase):
+  def test_user_agent_contains_beam_version(self):
+    client = boto3_client.Client(pipeline_options.S3Options())
+    self.assertIn(
+        'apache-beam/%s' % beam_version.__version__,
+        client.client.meta.config.user_agent)
 
 
 if __name__ == '__main__':
