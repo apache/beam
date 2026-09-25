@@ -103,8 +103,13 @@ public class ReadChangeStreamPartitionDoFnTest {
 
   @Test
   public void testProcessElementAndGetSize() throws IOException, InterruptedException {
+    Instant now = Instant.now();
+    doFn =
+        new ReadChangeStreamPartitionDoFn(
+            daoFactory, actionFactory, metrics, Duration.ZERO, () -> now);
+    doFn.setSizeEstimator(sizeEstimator);
     long watermarkLag = 10;
-    Instant tenSecondsAgo = Instant.now().minus(Duration.standardSeconds(watermarkLag));
+    Instant tenSecondsAgo = now.minus(Duration.standardSeconds(watermarkLag));
     Range.ByteStringRange partitionRange = Range.ByteStringRange.create("", "");
     ChangeStreamContinuationToken testToken =
         ChangeStreamContinuationToken.create(partitionRange, "test");
@@ -115,7 +120,7 @@ public class ReadChangeStreamPartitionDoFnTest {
             "uid-a",
             tenSecondsAgo,
             Collections.emptyList(),
-            Instant.now().plus(Duration.standardSeconds(60)));
+            now.plus(Duration.standardSeconds(60)));
     long mutationSize = 100L;
     when(sizeEstimator.sizeOf(any())).thenReturn(mutationSize);
     ReadChangeStreamPartitionProgressTracker restrictionTracker =
@@ -149,11 +154,10 @@ public class ReadChangeStreamPartitionDoFnTest {
     doFn.processElement(partition, restrictionTracker, receiver, watermarkEstimator);
     double sizeEstimate =
         doFn.getSize(
-            new StreamProgress(
-                testToken, tenSecondsAgo, BigDecimal.valueOf(20), Instant.now(), false));
+            new StreamProgress(testToken, tenSecondsAgo, BigDecimal.valueOf(20), now, false));
     // we should have output 2 100B mutations in the past 10s
     long bytesPerSecond = (mutationSize * 2) / 10;
-    assertEquals(sizeEstimate, (double) (bytesPerSecond * watermarkLag), 10);
+    assertEquals((double) (bytesPerSecond * watermarkLag), sizeEstimate, 10);
     verify(receiver, times(2)).outputWithTimestamp(KV.of(rowKey, mockMutation), Instant.EPOCH);
   }
 

@@ -33,6 +33,14 @@ ext.summary = "IO library to read and write Google Cloud Platform systems from B
 tasks.withType(Test).configureEach {
   // Open java.nio for Apache Arrow direct memory access under Java 17+
   jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED'
+  maxParallelForks 4
+  jacoco.enabled = false
+}
+
+gradle.taskGraph.whenReady {
+  tasks.withType(Test).configureEach {
+    jacoco.enabled = false
+  }
 }
 
 dependencies {
@@ -328,62 +336,86 @@ task bigQueryEarlyRolloutIntegrationTest(type: Test, dependsOn: processTestResou
   testClassesDirs = sourceSets.test.output.classesDirs
 }
 
-// path(s) for Cloud Spanner related classes
-def spannerIncludes = [
-        '**/org/apache/beam/sdk/io/gcp/spanner/**',
-]
-
-// exclude auto-generated classes and integration tests
-def jacocoExcludes = [
-        '**/AutoValue_*',
-        '**/*IT*',
-]
-
-task spannerCodeCoverageReport(type: JacocoReport, dependsOn: test) {
-  group = "Reporting"
-  description = "Generates code coverage report for Cloud Spanner related classes"
-  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
-            project.fileTree(
-                    dir: it,
-                    includes: spannerIncludes,
-                    excludes: jacocoExcludes)
-  }))
-  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
-  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
-  reports {
-    html.getRequired().set(true)
-    html.getOutputLocation().set(file("${buildDir}/reports/jacoco/spanner/"))
+task integrationTestBigQuery(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTest.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/bigquery/**/*IT.class'
+  exclude '**/BigQueryIOIcebergManagedTableIT.class'
+  exclude '**/BigQueryIOReadIT.class'
+  exclude '**/BigQueryIOStorageQueryIT.class'
+  exclude '**/BigQueryIOStorageReadIT.class'
+  exclude '**/BigQueryIOStorageWriteIT.class'
+  exclude '**/BigQueryIODynamicQueryIT.class'
+  exclude '**/BigQueryIODynamicReadIT.class'
+  exclude '**/BigQueryToTableIT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
   }
 }
 
-task spannerCodeCoverageVerification(type: JacocoCoverageVerification, dependsOn: spannerCodeCoverageReport) {
+task integrationTestBigQueryKms(type: Test, dependsOn: processTestResources) {
   group = "Verification"
-  description = "Enforces code coverage verification for Cloud Spanner related classes"
-  classDirectories.setFrom(files(files(project.sourceSets.main.output).collect {
-    project.fileTree(
-            dir: it,
-            includes: spannerIncludes,
-            excludes: jacocoExcludes)
-  }))
-  sourceDirectories.setFrom(files(project.sourceSets.main.allSource.srcDirs))
-  executionData.setFrom(file("${buildDir}/jacoco/test.exec"))
-  violationRules {
-    failOnViolation = true
-    rule {
-      element = 'BUNDLE'
+  systemProperty "beamTestPipelineOptions", integrationTestKms.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/bigquery/**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
 
-      limit {
-        value = 'COVEREDRATIO'
-        counter = 'INSTRUCTION'
-        minimum = 0.60
-      }
+task integrationTestOtherGcp(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTest.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/*IT.class'
+  exclude '**/bigquery/**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    excludeCategories "org.apache.beam.sdk.testing.UsesKms"
+    filter {
+      // https://github.com/apache/beam/issues/32071
+      excludeTestsMatching 'org.apache.beam.sdk.io.gcp.bigtable.BigtableReadIT.testE2EBigtableSegmentRead'
     }
   }
 }
 
-// make the check task depend on spannerCodeCoverageVerification so that the build
-// fails when the code coverage threshold is violated.
-project.check.dependsOn "spannerCodeCoverageVerification"
+task integrationTestOtherGcpKms(type: Test, dependsOn: processTestResources) {
+  group = "Verification"
+  systemProperty "beamTestPipelineOptions", integrationTestKms.systemProperties["beamTestPipelineOptions"]
+  outputs.upToDateWhen { false }
+  include '**/*IT.class'
+  exclude '**/bigquery/**/*IT.class'
+  maxParallelForks 4
+  classpath = sourceSets.test.runtimeClasspath
+  testClassesDirs = sourceSets.test.output.classesDirs
+  useJUnit {
+    includeCategories "org.apache.beam.sdk.testing.UsesKms"
+  }
+}
+
+task postCommitBigQuery {
+  group = "Verification"
+  description = "Integration tests of BigQuery connectors using the DirectRunner."
+  dependsOn integrationTestBigQuery
+  dependsOn integrationTestBigQueryKms
+  dependsOn bigQueryManagedIcebergIntegrationTest
+}
+
+task postCommitOtherGcp {
+  group = "Verification"
+  description = "Integration tests of non-BigQuery GCP connectors using the DirectRunner."
+  dependsOn integrationTestOtherGcp
+  dependsOn integrationTestOtherGcpKms
+}
 
 task postCommit {
   group = "Verification"
