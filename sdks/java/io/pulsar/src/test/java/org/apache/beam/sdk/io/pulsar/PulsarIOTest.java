@@ -19,8 +19,6 @@ package org.apache.beam.sdk.io.pulsar;
 
 import java.io.Serializable;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -58,15 +56,7 @@ public class PulsarIOTest implements Serializable {
             .apply(
                 MapElements.into(TypeDescriptor.of(Integer.class))
                     .via(m -> (int) m.getMessageId()[1]));
-    PAssert.that(pcoll)
-        .satisfies(
-            iterable -> {
-              List<Integer> result = new ArrayList<Integer>();
-              iterable.forEach(result::add);
-              Assert.assertArrayEquals(
-                  result.toArray(), new Integer[] {0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-              return null;
-            });
+    PAssert.that(pcoll).containsInAnyOrder(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
     pipeline.run();
   }
 
