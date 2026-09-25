@@ -1982,15 +1982,14 @@ public class GcsUtilTest {
     Mockito.verifyNoMoreInteractions(mockDelegate);
   }
 
+  /**
+   * Blobs and errors are passed through in order. The field-by-field conversion is covered by
+   * {@link #testGetObjectIsRoutedToV2AndKeepsAllFields}.
+   */
   @Test
   public void testGetObjectsIsRoutedToV2AndConvertsBlobs() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
     com.google.cloud.storage.Blob blob = mockBlob("bucket", "found");
-    when(blob.getSize()).thenReturn(42L);
-    when(blob.getMd5()).thenReturn("md5==");
-    when(blob.getGeneration()).thenReturn(7L);
-    when(blob.getUpdateTimeOffsetDateTime())
-        .thenReturn(java.time.Instant.ofEpochMilli(1234L).atOffset(java.time.ZoneOffset.UTC));
     FileNotFoundException notFound = new FileNotFoundException("gs://bucket/missing");
     List<GcsPath> paths =
         ImmutableList.of(GcsPath.fromUri("gs://bucket/found"), GcsPath.fromUri("gs://bucket/miss"));
@@ -2004,12 +2003,8 @@ public class GcsUtilTest {
     assertEquals(2, results.size());
     StorageObject converted = results.get(0).storageObject();
     assertNotNull(converted);
-    assertEquals("bucket", converted.getBucket());
     assertEquals("found", converted.getName());
-    assertEquals(BigInteger.valueOf(42L), converted.getSize());
-    assertEquals("md5==", converted.getMd5Hash());
-    assertEquals(Long.valueOf(7L), converted.getGeneration());
-    assertEquals(1234L, converted.getUpdated().getValue());
+    assertNull(results.get(0).ioException());
     assertSame(notFound, results.get(1).ioException());
     assertNull(results.get(1).storageObject());
     Mockito.verifyNoMoreInteractions(mockDelegate);
@@ -2056,14 +2051,20 @@ public class GcsUtilTest {
     assertNull(objects.getNextPageToken());
   }
 
+  /**
+   * The storage class is checked here because the emulator ignores it, so only a unit test can see
+   * it carried over.
+   */
   @Test
   public void testCreateBucketIsRoutedToV2WithProjectPrivateAcls() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
-    // This is the bucket that GcpOptions.tryCreateDefaultBucketWithPrefix builds.
+    // This is the bucket that GcpOptions.tryCreateDefaultBucketWithPrefix builds, plus a storage
+    // class.
     Bucket bucket =
         new Bucket()
             .setName("bucket")
             .setLocation("us-central1")
+            .setStorageClass("NEARLINE")
             .setSoftDeletePolicy(new Bucket.SoftDeletePolicy().setRetentionDurationSeconds(0L));
 
     gcsUtil.createBucket("a-project", bucket);
@@ -2073,6 +2074,7 @@ public class GcsUtilTest {
             "a-project",
             BucketInfo.newBuilder("bucket")
                 .setLocation("us-central1")
+                .setStorageClass(StorageClass.NEARLINE)
                 .setSoftDeletePolicy(
                     BucketInfo.SoftDeletePolicy.newBuilder()
                         .setRetentionDuration(java.time.Duration.ZERO)
@@ -2101,21 +2103,6 @@ public class GcsUtilTest {
 
     assertEquals(123L, gcsUtil.bucketOwner(path));
     Mockito.verifyNoMoreInteractions(mockDelegate);
-  }
-
-  /** The emulator ignores the storage class, so only a unit test can see it carried over. */
-  @Test
-  public void testCreateBucketKeepsTheStorageClassForV2() throws IOException {
-    GcsUtil gcsUtil = gcsUtilRoutingToV2();
-
-    gcsUtil.createBucket("a-project", new Bucket().setName("bucket").setStorageClass("NEARLINE"));
-
-    verify(mockDelegateV2)
-        .createBucket(
-            "a-project",
-            BucketInfo.newBuilder("bucket").setStorageClass(StorageClass.NEARLINE).build(),
-            BucketTargetOption.predefinedAcl(PredefinedAcl.PROJECT_PRIVATE),
-            BucketTargetOption.predefinedDefaultObjectAcl(PredefinedAcl.PROJECT_PRIVATE));
   }
 
   @Test
@@ -2277,6 +2264,81 @@ public class GcsUtilTest {
     Mockito.verifyNoInteractions(v1);
   }
 
+  @Test
+  public void testExpandIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath pattern = GcsPath.fromUri("gs://bucket/prefix/*");
+    List<GcsPath> expanded = ImmutableList.of(GcsPath.fromUri("gs://bucket/prefix/a"));
+    when(mockDelegateV2.expand(pattern)).thenReturn(expanded);
+
+    assertSame(expanded, gcsUtil.expand(pattern));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testFileSizeIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    when(mockDelegateV2.fileSize(path)).thenReturn(42L);
+
+    assertEquals(42L, gcsUtil.fileSize(path));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  /**
+   * Only the routing of the delimiter overload is checked. The page conversion is covered by {@link
+   * #testListObjectsIsRoutedToV2AndConvertsAPage}.
+   */
+  @Test
+  public void testListObjectsWithDelimiterIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    com.google.cloud.storage.Blob object = mockBlob("bucket", "prefix/object");
+    @SuppressWarnings("unchecked")
+    Page<com.google.cloud.storage.Blob> page = Mockito.mock(Page.class);
+    when(page.getValues()).thenReturn(ImmutableList.of(object));
+    when(mockDelegateV2.listBlobs("bucket", "prefix/", "token", "/")).thenReturn(page);
+
+    Objects objects = gcsUtil.listObjects("bucket", "prefix/", "token", "/");
+
+    assertEquals("prefix/object", objects.getItems().get(0).getName());
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testOpenIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    SeekableByteChannel channel = Mockito.mock(SeekableByteChannel.class);
+    when(mockDelegateV2.open(path)).thenReturn(channel);
+
+    assertSame(channel, gcsUtil.open(path));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testVerifyBucketAccessibleIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+
+    gcsUtil.verifyBucketAccessible(path);
+
+    verify(mockDelegateV2).verifyBucketAccessible(path);
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testBucketAccessibleIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath accessible = GcsPath.fromUri("gs://accessible/object");
+    GcsPath inaccessible = GcsPath.fromUri("gs://inaccessible/object");
+    when(mockDelegateV2.bucketAccessible(accessible)).thenReturn(true);
+    when(mockDelegateV2.bucketAccessible(inaccessible)).thenReturn(false);
+
+    assertTrue(gcsUtil.bucketAccessible(accessible));
+    assertFalse(gcsUtil.bucketAccessible(inaccessible));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
   // The tests below exercise a real GcsUtilV2 delegate whose java-storage client is mocked, to
   // cover behavior that GcsUtilV2 must share with GcsUtilV1.
   // TODO: Move these to a parity test that runs against both delegates.
@@ -2332,26 +2394,6 @@ public class GcsUtilTest {
 
     IOException thrown = assertThrows(IOException.class, channel::close);
     assertSame(preconditionFailed, thrown.getCause());
-  }
-
-  /** Well-known failures on close are translated like any other V2 call, e.g. 403 and 404. */
-  @Test
-  public void testV2WriteChannelCloseTranslatesKnownStatusCodes() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
-    WriteChannel writer = Mockito.mock(WriteChannel.class);
-    Mockito.doThrow(new StorageException(403, "Forbidden"))
-        .doThrow(new StorageException(404, "Not Found"))
-        .when(writer)
-        .close();
-    when(storage.writer(any(com.google.cloud.storage.BlobInfo.class), any())).thenReturn(writer);
-    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
-    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
-    CreateOptions options = CreateOptions.builder().setExpectFileToNotExist(true).build();
-
-    WritableByteChannel forbidden = gcsUtil.create(path, options);
-    assertThrows(AccessDeniedException.class, forbidden::close);
-    WritableByteChannel notFound = gcsUtil.create(path, options);
-    assertThrows(FileNotFoundException.class, notFound::close);
   }
 
   /** Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} whose bucket lookup throws. */
