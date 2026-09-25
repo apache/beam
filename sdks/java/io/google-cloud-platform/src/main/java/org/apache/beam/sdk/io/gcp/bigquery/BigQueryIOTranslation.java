@@ -624,7 +624,10 @@ public class BigQueryIOTranslation {
       fieldValues.put("skip_invalid_rows", transform.getSkipInvalidRows());
       fieldValues.put("ignore_unknown_values", transform.getIgnoreUnknownValues());
       fieldValues.put("ignore_insert_ids", transform.getIgnoreInsertIds());
-      fieldValues.put("max_retry_jobs", transform.getMaxRetryJobs());
+      Integer maxRetryJobs = transform.getMaxRetryJobs();
+      if (maxRetryJobs != null) {
+        fieldValues.put("max_retry_jobs", maxRetryJobs);
+      }
       fieldValues.put("propagate_successful", transform.getPropagateSuccessful());
       String kmsKey = transform.getKmsKey();
       if (kmsKey != null) {
