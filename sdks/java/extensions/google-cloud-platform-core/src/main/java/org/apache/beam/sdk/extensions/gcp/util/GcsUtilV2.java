@@ -828,6 +828,11 @@ class GcsUtilV2 {
       serviceCallMetric.call("ok");
       return wrapInCounting(
           new GcsSeekableByteChannel(reader, blob.getSize()), path.getBucket(), container);
+    } catch (FileNotFoundException e) {
+      // getBlob reports a missing object as a FileNotFoundException rather than a
+      // StorageException, so record its status here like GcsUtilV1 does.
+      serviceCallMetric.call(404);
+      throw e;
     } catch (StorageException e) {
       serviceCallMetric.call(e.getCode());
       throw translateStorageException(path, e);
@@ -860,7 +865,12 @@ class GcsUtilV2 {
 
     @Override
     public void close() throws IOException {
-      writer.close();
+      // The upload is finalized here, so this is where a failed precondition surfaces.
+      try {
+        writer.close();
+      } catch (StorageException e) {
+        throw translateStorageException(gcsPath, e);
+      }
     }
   }
 

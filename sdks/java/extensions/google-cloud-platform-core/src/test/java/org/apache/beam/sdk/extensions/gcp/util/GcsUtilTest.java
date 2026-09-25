@@ -30,6 +30,7 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -62,6 +63,7 @@ import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.RewriteResponse;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
+import com.google.cloud.WriteChannel;
 import com.google.cloud.hadoop.gcsio.CreateObjectOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorage;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageImpl;
@@ -71,6 +73,7 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BucketTargetOption;
 import com.google.cloud.storage.Storage.PredefinedAcl;
+import com.google.cloud.storage.StorageException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
@@ -2086,5 +2089,82 @@ public class GcsUtilTest {
 
     verify(mockDelegateV2).removeBucket(BucketInfo.of("bucket"));
     Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  // The tests below exercise a real GcsUtilV2 delegate whose java-storage client is mocked, to
+  // cover behavior that GcsUtilV2 must share with GcsUtilV1.
+  // TODO: Move these to a parity test that runs against both delegates.
+
+  /** Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} that calls {@code storage}. */
+  private GcsUtil gcsUtilWithV2Storage(com.google.cloud.storage.Storage storage) {
+    GcsOptions options = gcsOptionsWithTestCredential();
+    options.setProject("my_project");
+    GcsUtil gcsUtil = options.getGcsUtil();
+    GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
+    Mockito.doReturn(storage).when(delegateV2).storageWithHttpMetrics(any(), anyBoolean());
+    gcsUtil.delegateV2 = delegateV2;
+    return gcsUtil;
+  }
+
+  /**
+   * Mirrors {@link #testGCSReadMetricsIsSet} for V2: opening a missing object records a {@code
+   * not_found} request, even though V2 detects it through a lookup rather than a {@link
+   * StorageException}.
+   */
+  @Test
+  public void testV2OpenMissingObjectRecordsNotFoundMetric() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    // An unstubbed get() returns null, which is how java-storage reports a missing object.
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject")));
+
+    verifyMetricWasSet("my_project", "testbucket", "GcsGet", "not_found", 1);
+    verifyMetricWasSet("my_project", "testbucket", "GcsGet", "ok", 0);
+  }
+
+  /**
+   * An upload is finalized when its channel is closed, so a failed precondition surfaces there. V2
+   * must report it as an {@link IOException}, as V1 does, rather than an unchecked {@link
+   * StorageException}.
+   */
+  @Test
+  public void testV2WriteChannelCloseTranslatesStorageException() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    StorageException preconditionFailed = new StorageException(412, "Precondition Failed");
+    Mockito.doThrow(preconditionFailed).when(writer).close();
+    when(storage.writer(any(com.google.cloud.storage.BlobInfo.class), any())).thenReturn(writer);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    WritableByteChannel channel =
+        gcsUtil.create(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            CreateOptions.builder().setExpectFileToNotExist(true).build());
+
+    IOException thrown = assertThrows(IOException.class, channel::close);
+    assertSame(preconditionFailed, thrown.getCause());
+  }
+
+  /** Well-known failures on close are translated like any other V2 call, e.g. 403 and 404. */
+  @Test
+  public void testV2WriteChannelCloseTranslatesKnownStatusCodes() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    Mockito.doThrow(new StorageException(403, "Forbidden"))
+        .doThrow(new StorageException(404, "Not Found"))
+        .when(writer)
+        .close();
+    when(storage.writer(any(com.google.cloud.storage.BlobInfo.class), any())).thenReturn(writer);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+    CreateOptions options = CreateOptions.builder().setExpectFileToNotExist(true).build();
+
+    WritableByteChannel forbidden = gcsUtil.create(path, options);
+    assertThrows(AccessDeniedException.class, forbidden::close);
+    WritableByteChannel notFound = gcsUtil.create(path, options);
+    assertThrows(FileNotFoundException.class, notFound::close);
   }
 }
