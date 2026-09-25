@@ -1,9 +1,11 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
+  "reviewersAssignedForLabels": {
+    "java": "kennknowles"
+  },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false,
-  "reviewersAssignedAt": 0
+  "reviewersAssignedAt": 1790331380086
 }
