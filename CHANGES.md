@@ -82,6 +82,7 @@
 
 * (Go) Fixed a data race on the Prism runner's artifact cache map in JobServices ([#32656](https://github.com/apache/beam/issues/32656)).
 * (Java) Fixed the declared schema of the error output of the Kafka write SchemaTransform, which wrapped the error schema a second time and did not match the rows it emits ([#39760](https://github.com/apache/beam/issues/39760)).
+* (Java) Fixed the Spark Structured Streaming runner leaking cached intermediate `Dataset`s for multi-output `ParDo`s, which were persisted but never unpersisted in `ParDoTranslatorBatch` ([#40243](https://github.com/apache/beam/issues/40243)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
