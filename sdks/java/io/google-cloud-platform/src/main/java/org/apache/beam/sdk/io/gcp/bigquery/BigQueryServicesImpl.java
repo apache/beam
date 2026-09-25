@@ -1750,7 +1750,7 @@ public class BigQueryServicesImpl implements BigQueryServices {
             && e.getMessage() != null
             && e.getMessage().contains(BIGQUERY_NOT_ENABLED)) {
           LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
-          throw new IOException(errorMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+          throw new IOException(e.getMessage() + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
         }
         if (!shouldRetry.apply(e)) {
           break;
