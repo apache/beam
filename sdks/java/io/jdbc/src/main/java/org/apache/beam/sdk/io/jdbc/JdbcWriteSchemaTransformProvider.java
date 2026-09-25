@@ -156,13 +156,7 @@ public class JdbcWriteSchemaTransformProvider
             + "    - type: %s%n"
             + "      config:%n"
             + "        url: \"jdbc:%s://my-host:%d/database\"%n"
-            + "        table: \"my-table\"%n"
-            + "%n"
-            + "#### Advanced Usage%n"
-            + "%n"
-            + "It might be necessary to use a custom JDBC driver that is not packaged with this "
-            + "transform. If that is the case, see WriteToJdbc which "
-            + "allows for more custom configuration.",
+            + "        table: \"my-table\"%n",
         prettyName,
         prettyName,
         transformName,
