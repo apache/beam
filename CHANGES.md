@@ -71,6 +71,7 @@
 * ClickHouseIO: support writing `Decimal(P, S)` / `Decimal32/64/128/256` columns (Java) ([#39840](https://github.com/apache/beam/issues/39840)).
 * [IcebergIO] AddFiles (`IcebergAddFiles` in YAML) can evolve the table schema before registering files, with `schema_evolution_options`, `required_columns`, `incompatible_schema_handling` and `unverifiable_file_handling` (Java/YAML, batch only) ([#40144](https://github.com/apache/beam/issues/40144)).
 * [IcebergIO] Added batch and streaming CDC writes that applies INSERT/UPDATE_BEFORE/UPDATE_AFTER/DELETE changes to Iceberg V2+ tables by primary key. Invoke with `IcebergIO.writeCdcRows` (Java) or by setting `mode: merge-on-read` on the Managed `ICEBERG` write (Java, Python, YAML) ([#39979](https://github.com/apache/beam/issues/39979)).
+* [IcebergIO] Added an optional side-input table cache for writes to significantly reduce catalog and table requests for large pipelines. A single worker polls the table and broadcasts it to other workers in the pipeline. Enable with `IcebergIO.writeRows(...).withSideInputTableCache()` (Java) or by setting `use_side_input_table_cache: true` on the Managed `ICEBERG` write (Java, Python) ([#39723](https://github.com/apache/beam/issues/39723)).
 
 ## New Features / Improvements
 
