@@ -52,6 +52,7 @@ from apache_beam.metrics.execution import MetricsEnvironment
 from apache_beam.portability.api import beam_fn_api_pb2
 from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.portability.api import metrics_pb2
+from apache_beam.runners.common import WorkCancelledException
 from apache_beam.runners.worker import bundle_processor
 from apache_beam.runners.worker import data_plane
 from apache_beam.runners.worker import statesampler
@@ -308,6 +309,14 @@ class SdkHarness(object):
     with statesampler.instruction_id(request.instruction_id):
       try:
         response = task()
+      except WorkCancelledException:
+        traceback_string = traceback.format_exc()
+        _LOGGER.info(
+            'Instruction %s cancelled by runner. Original traceback is\n%s\n',
+            request.instruction_id,
+            traceback_string)
+        response = beam_fn_api_pb2.InstructionResponse(
+            instruction_id=request.instruction_id, error=traceback_string)
       except:  # pylint: disable=bare-except
         traceback_string = traceback.format_exc()
         print(traceback_string, file=sys.stderr)
@@ -706,7 +715,8 @@ class SdkWorker(object):
           instruction_id, request.cache_tokens):
         with self.maybe_profile(instruction_id):
           delayed_applications, requests_finalization = (
-              bundle_processor.process_bundle(instruction_id))
+              bundle_processor.process_bundle(
+                  instruction_id, getattr(request, 'data_stream_id', '')))
           monitoring_infos = bundle_processor.monitoring_infos()
           response = beam_fn_api_pb2.InstructionResponse(
               instruction_id=instruction_id,
@@ -1152,6 +1162,9 @@ class GrpcStateHandler(StateHandler):
         raise RuntimeError()
     response = req_future.get()
     if response.error:
+      if (response.error_reason ==
+          beam_fn_api_pb2.StateResponse.ErrorReason.CANCELLED):
+        raise WorkCancelledException(response.error)
       raise RuntimeError(response.error)
     else:
       return response

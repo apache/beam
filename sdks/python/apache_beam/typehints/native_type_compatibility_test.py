@@ -33,6 +33,7 @@ from parameterized import parameterized
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import convert_builtin_to_typing
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
@@ -572,6 +573,19 @@ class NativeTypeCompatibilityTest(unittest.TestCase):
       self.assertFalse(match_dataclass_for_row(FrozenDC))
       self.assertEqual(
           compat_version == "2.73.0", match_dataclass_for_row(NonFrozenDC))
+
+  def test_safe_issubclass(self):
+    # In Python <= 3.12, issubclass(types.GenericAlias, tuple) returns False
+    # directly without raising TypeError, whereas in Python >= 3.13 it raises
+    # TypeError. _safe_issubclass inspects __origin__ to ensure types.GenericAlias
+    # (e.g. tuple[...], list[...]) is recognized consistently across Python versions.
+    self.assertTrue(_safe_issubclass(tuple[int, str], tuple))
+    self.assertTrue(_safe_issubclass(tuple[int, str], (str, tuple)))
+    self.assertTrue(_safe_issubclass(list[int], list))
+    self.assertTrue(_safe_issubclass(typing.Tuple[int, str], tuple))
+    self.assertTrue(_safe_issubclass(typing.List[int], list))
+    self.assertFalse(_safe_issubclass(int, tuple))
+    self.assertFalse(_safe_issubclass(typing.Union[int, str], tuple))
 
 
 if __name__ == '__main__':

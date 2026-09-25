@@ -20,15 +20,11 @@ package org.apache.beam.sdk.util.construction;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 
-import com.google.cloud.secretmanager.v1.ProjectName;
-import com.google.cloud.secretmanager.v1.SecretManagerServiceClient;
-import com.google.cloud.secretmanager.v1.SecretName;
-import com.google.cloud.secretmanager.v1.SecretPayload;
-import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.io.Serializable;
-import java.security.SecureRandom;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.Base64;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
@@ -55,7 +51,6 @@ import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.junit.After;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Rule;
 import org.junit.Test;
@@ -89,7 +84,7 @@ import org.junit.runners.JUnit4;
  * details.
  */
 public class ValidateRunnerXlangTest {
-  static class ValidateRunnerXlangTestBase extends BaseExternalTest implements Serializable {
+  public static class ValidateRunnerXlangTestBase extends BaseExternalTest implements Serializable {
     // URNs for core cross-language transforms.
     // See https://docs.google.com/document/d/1xQp0ElIV84b8OCVz8CD2hvbiWdR8w4BvWxPTZJZA6NA for
     // further
@@ -316,59 +311,11 @@ public class ValidateRunnerXlangTest {
   @RunWith(JUnit4.class)
   public static class GroupByKeyWithGbekTest extends ValidateRunnerXlangTestBase {
     @Rule public ExpectedException thrown = ExpectedException.none();
-    private static final String PROJECT_ID = "apache-beam-testing";
-    private static final String SECRET_ID = "gbek-test";
-    private static String gcpSecretVersionName;
-    private static String secretId;
 
     @BeforeClass
     public static void setUpClass() {
-      secretId = String.format("%s-%d", SECRET_ID, new SecureRandom().nextInt(10000));
-      try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
-        ProjectName projectName = ProjectName.of(PROJECT_ID);
-        SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-
-        try {
-          client.getSecret(secretName);
-        } catch (Exception e) {
-          com.google.cloud.secretmanager.v1.Secret secret =
-              com.google.cloud.secretmanager.v1.Secret.newBuilder()
-                  .setReplication(
-                      com.google.cloud.secretmanager.v1.Replication.newBuilder()
-                          .setAutomatic(
-                              com.google.cloud.secretmanager.v1.Replication.Automatic.newBuilder()
-                                  .build())
-                          .build())
-                  .build();
-          client.createSecret(projectName, secretId, secret);
-          byte[] secretBytes = new byte[32];
-          new SecureRandom().nextBytes(secretBytes);
-          client.addSecretVersion(
-              secretName,
-              SecretPayload.newBuilder()
-                  .setData(
-                      ByteString.copyFrom(java.util.Base64.getUrlEncoder().encode(secretBytes)))
-                  .build());
-        }
-        gcpSecretVersionName = secretName.toString() + "/versions/latest";
-      } catch (IOException e) {
-        gcpSecretVersionName = null;
-        return;
-      }
       expansionAddr =
           String.format("localhost:%s", Integer.valueOf(System.getProperty("expansionPort")));
-    }
-
-    @AfterClass
-    public static void tearDownClass() {
-      if (gcpSecretVersionName != null) {
-        try (SecretManagerServiceClient client = SecretManagerServiceClient.create()) {
-          SecretName secretName = SecretName.of(PROJECT_ID, secretId);
-          client.deleteSecret(secretName);
-        } catch (IOException e) {
-          // Do nothing.
-        }
-      }
     }
 
     @After
@@ -385,12 +332,10 @@ public class ValidateRunnerXlangTest {
       UsesPythonExpansionService.class
     })
     public void test() {
-      if (gcpSecretVersionName == null) {
-        // Skip test if we couldn't set up secret manager
-        return;
-      }
+      byte[] secretBytes = "test-encryption-key-secret-12345".getBytes(StandardCharsets.UTF_8);
+      String base64Secret = Base64.getUrlEncoder().encodeToString(secretBytes);
       PipelineOptions options = TestPipeline.testingPipelineOptions();
-      options.setGbek(String.format("type:gcpsecret;version_name:%s", gcpSecretVersionName));
+      options.setGbek(String.format("type:testsecret;secret:%s", base64Secret));
       Pipeline pipeline = Pipeline.create(options);
       groupByKeyTest(pipeline);
       PipelineResult pipelineResult = pipeline.run();

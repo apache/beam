@@ -22,16 +22,22 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
+import com.solacesystems.common.util.ByteArray;
 import com.solacesystems.jcsmp.BytesMessage;
 import com.solacesystems.jcsmp.BytesXMLMessage;
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.JCSMPFactory;
+import com.solacesystems.jcsmp.SDTException;
+import com.solacesystems.jcsmp.SDTMap;
 import com.solacesystems.jcsmp.TextMessage;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.io.solace.broker.MessageProducerUtils;
 import org.apache.beam.sdk.io.solace.data.Solace.Record;
 import org.apache.beam.sdk.io.solace.data.Solace.Record.PayloadType;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.primitives.Bytes;
 import org.junit.Test;
 
 public class SolaceRecordMapperTest {
@@ -142,6 +148,48 @@ public class SolaceRecordMapperTest {
     assertEquals(Solace.DestinationType.QUEUE, record.getReplyTo().getType());
     assertEquals(Long.valueOf(456L), record.getSenderTimestamp());
     assertEquals(789L, record.getTimeToLive());
+  }
+
+  @Test
+  public void testMapMessageUserProperties() throws SDTException {
+    BytesXMLMessage message = JCSMPFactory.onlyInstance().createBytesXMLMessage();
+    message.setApplicationMessageId("id");
+    SDTMap properties = JCSMPFactory.onlyInstance().createMap();
+    properties.putString("string", "value");
+    properties.putBoolean("boolean", true);
+    properties.putDouble("double", 1.23);
+    properties.putFloat("float", 4.56f);
+    properties.putLong("long", 123456789L);
+    properties.putInteger("integer", 3);
+    properties.putShort("short", (short) 123);
+    properties.putCharacter("character", 'c');
+    properties.putByte("byte", (byte) 1);
+    properties.putBytes("bytes", new byte[] {1, 2, 3});
+    properties.putByteArray("byteArray", new ByteArray(new byte[] {4, 5, 6}));
+    properties.putDestination("topic", JCSMPFactory.onlyInstance().createTopic("topic"));
+    properties.putDestination("queue", JCSMPFactory.onlyInstance().createQueue("queue"));
+
+    // unsupported types will be ignored
+    properties.putMap("unsupported-map", JCSMPFactory.onlyInstance().createMap());
+    properties.putStream("unsupported-stream", JCSMPFactory.onlyInstance().createStream());
+
+    message.setProperties(properties);
+
+    Record record = Solace.SolaceRecordMapper.toRecord(message);
+
+    properties.remove("unsupported-map");
+    properties.remove("unsupported-stream");
+    assertEquals(properties.keySet(), record.getUserProperties().keySet());
+  }
+
+  @Test
+  public void testMapWithEmptyMessageUserProperties() {
+    BytesXMLMessage message = JCSMPFactory.onlyInstance().createBytesXMLMessage();
+    message.setApplicationMessageId("id");
+
+    Record record = Solace.SolaceRecordMapper.toRecord(message);
+
+    assertTrue(record.getUserProperties().isEmpty());
   }
 
   @Test
@@ -257,6 +305,70 @@ public class SolaceRecordMapperTest {
     assertNull(msg.getCorrelationKey());
   }
 
+  @Test
+  public void testMapRecordUserProperties() throws Exception {
+    Map<String, Solace.UserPropertyValue> userProperties = new HashMap<>();
+    userProperties.put("string", Solace.UserPropertyValue.of("value"));
+    userProperties.put("boolean", Solace.UserPropertyValue.of(true));
+    userProperties.put("double", Solace.UserPropertyValue.of(1.23));
+    userProperties.put("float", Solace.UserPropertyValue.of(4.56f));
+    userProperties.put("long", Solace.UserPropertyValue.of(123456789L));
+    userProperties.put("integer", Solace.UserPropertyValue.of(3));
+    userProperties.put("short", Solace.UserPropertyValue.of((short) 123));
+    userProperties.put("character", Solace.UserPropertyValue.of('c'));
+    userProperties.put("byte", Solace.UserPropertyValue.of((byte) 1));
+    userProperties.put("bytes", Solace.UserPropertyValue.of(Bytes.asList(new byte[] {1, 2, 3})));
+    userProperties.put(
+        "topic",
+        Solace.UserPropertyValue.of(
+            Solace.Destination.builder()
+                .setType(Solace.DestinationType.TOPIC)
+                .setName("topic")
+                .build()));
+    userProperties.put(
+        "queue",
+        Solace.UserPropertyValue.of(
+            Solace.Destination.builder()
+                .setType(Solace.DestinationType.QUEUE)
+                .setName("queue")
+                .build()));
+
+    Record record =
+        Record.builder()
+            .setMessageId("id")
+            .setText("test")
+            .setUserProperties(userProperties)
+            .build();
+
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
+
+    SDTMap expected = JCSMPFactory.onlyInstance().createMap();
+    expected.putString("string", "value");
+    expected.putBoolean("boolean", true);
+    expected.putDouble("double", 1.23);
+    expected.putFloat("float", 4.56f);
+    expected.putLong("long", 123456789L);
+    expected.putInteger("integer", 3);
+    expected.putShort("short", (short) 123);
+    expected.putCharacter("character", 'c');
+    expected.putByte("byte", (byte) 1);
+    expected.putBytes("bytes", new byte[] {1, 2, 3});
+    expected.putDestination("topic", JCSMPFactory.onlyInstance().createTopic("topic"));
+    expected.putDestination("queue", JCSMPFactory.onlyInstance().createQueue("queue"));
+
+    assertEquals(expected, msg.getProperties());
+  }
+
+  @Test
+  public void testMapWithEmptyRecordUserProperties() {
+    Record record =
+        Record.builder().setMessageId("id").setText("hello").setSenderTimestamp(1L).build();
+
+    BytesXMLMessage msg = Solace.SolaceRecordMapper.toMessage(record);
+
+    assertNull(msg.getProperties());
+  }
+
   // ---------------------------------------------------------------------------
   // round-trip
   // ---------------------------------------------------------------------------
@@ -309,5 +421,19 @@ public class SolaceRecordMapperTest {
     assertEquals(PayloadType.BYTES_XML, decoded.getPayloadType());
     assertArrayEquals(new byte[] {1, 2}, Arrays.copyOf(decoded.getPayload(), 2));
     assertArrayEquals(new byte[] {3, 4}, decoded.getAttachmentBytes());
+  }
+
+  private static void assertUserPropertiesEqual(
+      SDTMap expected, Map<String, Solace.UserPropertyValue> actual) throws SDTException {
+    assertEquals(expected.keySet(), actual.keySet());
+    for (String key : expected.keySet()) {
+      Object expectedValue = expected.get(key);
+      Object actualValue = actual.get(key);
+      if (expectedValue instanceof byte[]) {
+        assertArrayEquals((byte[]) expectedValue, (byte[]) actualValue);
+      } else {
+        assertEquals(expectedValue, actualValue);
+      }
+    }
   }
 }

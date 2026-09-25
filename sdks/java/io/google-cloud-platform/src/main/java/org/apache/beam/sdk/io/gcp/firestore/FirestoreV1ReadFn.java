@@ -675,11 +675,12 @@ final class FirestoreV1ReadFn {
 
     protected final @Nullable Instant readTime;
 
+    private final @Nullable String configuredProjectId;
+    private final @Nullable String configuredDatabaseId;
+
     // transient running state information, not important to any possible checkpointing
     protected transient FirestoreStub firestoreStub;
     protected transient RpcQos rpcQos;
-    protected transient String projectId;
-    protected transient @Nullable String databaseId;
 
     @SuppressWarnings(
         "initialization.fields.uninitialized") // allow transient fields to be managed by component
@@ -696,10 +697,8 @@ final class FirestoreV1ReadFn {
           requireNonNull(firestoreStatefulComponentFactory, "firestoreFactory must be non null");
       this.rpcQosOptions = requireNonNull(rpcQosOptions, "rpcQosOptions must be non null");
       this.readTime = readTime;
-      if (projectId != null) {
-        this.projectId = projectId;
-      }
-      this.databaseId = databaseId;
+      this.configuredProjectId = projectId;
+      this.configuredDatabaseId = databaseId;
     }
 
     /** {@inheritDoc} */
@@ -712,33 +711,30 @@ final class FirestoreV1ReadFn {
     @Override
     public final void startBundle(StartBundleContext c) {
       String project =
-          this.projectId != null
-              ? this.projectId
+          configuredProjectId != null
+              ? configuredProjectId
               : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreProject();
       if (project == null) {
         project = c.getPipelineOptions().as(GcpOptions.class).getProject();
       }
-      projectId =
-          requireNonNull(
-              project,
-              "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions");
-      databaseId =
-          this.databaseId != null
-              ? this.databaseId
+      String databaseId =
+          configuredDatabaseId != null
+              ? configuredDatabaseId
               : c.getPipelineOptions().as(FirestoreOptions.class).getFirestoreDb();
-      requireNonNull(
-          databaseId, "firestoreDb must be defined on FirestoreOptions of PipelineOptions");
       firestoreStub =
           firestoreStatefulComponentFactory.getFirestoreStub(
-              c.getPipelineOptions(), projectId, databaseId);
+              c.getPipelineOptions(),
+              requireNonNull(
+                  project,
+                  "project must be defined on FirestoreOptions or GcpOptions of PipelineOptions"),
+              requireNonNull(
+                  databaseId,
+                  "firestoreDb must be defined on FirestoreOptions of PipelineOptions"));
     }
 
     /** {@inheritDoc} */
-    @SuppressWarnings("nullness") // allow clearing transient fields
     @Override
     public void finishBundle() throws Exception {
-      projectId = null;
-      databaseId = null;
       firestoreStub.close();
     }
 

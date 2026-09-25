@@ -22,7 +22,9 @@ import json
 import logging
 import os
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any
+from typing import Optional
+from typing import Union
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -211,7 +213,7 @@ class GcpSecret(Secret):
     self._version_name = version_name
 
   @classmethod
-  def from_dict(cls, spec_dict: Dict[str, str]) -> 'GcpSecret':
+  def from_dict(cls, spec_dict: dict[str, str]) -> 'GcpSecret':
     """Initialize GcpSecret from a dictionary specification."""
     allowed_keys = {'version_name', 'name', 'project', 'version'}
     invalid_keys = set(spec_dict.keys()) - allowed_keys
@@ -222,7 +224,7 @@ class GcpSecret(Secret):
     return cls(version_name)
 
   @classmethod
-  def _parse_version_name(cls, spec_dict: Dict[str, str]) -> str:
+  def _parse_version_name(cls, spec_dict: dict[str, str]) -> str:
     if "version_name" in spec_dict:
       return spec_dict["version_name"]
 
@@ -309,7 +311,7 @@ class GcpHsmGeneratedSecret(Secret):
         getattr(self, '_job_name', None) == getattr(other, '_job_name', None))
 
   @classmethod
-  def from_dict(cls, spec_dict: Dict[str, str]) -> 'GcpHsmGeneratedSecret':
+  def from_dict(cls, spec_dict: dict[str, str]) -> 'GcpHsmGeneratedSecret':
     """Initialize GcpHsmGeneratedSecret from a dictionary specification."""
     allowed_keys = {
         'project_id', 'location_id', 'key_ring_id', 'key_id', 'job_name'
@@ -453,12 +455,12 @@ class GcpHsmGeneratedSecret(Secret):
       raise RuntimeError(f'Failed to generate DEK with exception {e}')
 
 
-_SECRET_TYPE_TO_SECRET_MANAGER: Dict[str, str] = {
+_SECRET_TYPE_TO_SECRET_MANAGER: dict[str, str] = {
     "gcpsecret": "GoogleCloudSecretManager",
     "gcphsmgeneratedsecret": "GoogleCloudHsmGeneratedSecretManager",
 }
 
-_SECRET_CLASSES: Dict[str, Any] = {
+_SECRET_CLASSES: dict[str, Any] = {
     "googlecloudsecretmanager": "GcpSecret",
     "googlecloudhsmgeneratedsecretmanager": "GcpHsmGeneratedSecret",
 }

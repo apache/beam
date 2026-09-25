@@ -33,8 +33,8 @@ import org.slf4j.LoggerFactory;
  * exhausted. This collects those reports and fires a callback when nothing is left to do.
  *
  * <p>No coordination between instances is needed: a watermark crossing a repartition topic is
- * broadcast to every partition (see {@link GroupByKeyBroadcastPartitioner}), so every task observes
- * the terminal watermark itself and all instances reach the same conclusion independently.
+ * broadcast to every partition (see {@link KStreamsPayloadPartitioner}), so every task observes the
+ * terminal watermark itself and all instances reach the same conclusion independently.
  *
  * <p>Every local processor is counted, not just the first. One instance can own tasks from both
  * sides of a repartition topic, and the upstream side goes terminal as soon as it has written to

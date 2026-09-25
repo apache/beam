@@ -133,7 +133,7 @@ public interface BigQueryOptions
   @Description(
       "When using the STORAGE_API_AT_LEAST_ONCE write method with multiplexing (ie. useStorageApiConnectionPool=true), "
           + "this option sets the maximum number of connections each pool creates. This is on a per worker, per region basis. "
-          + "If writing to many dynamic destinations (>20) and experiencing performance issues or seeing append operations competing"
+          + "If writing to many dynamic destinations (>20) and experiencing performance issues or seeing append operations competing "
           + "for streams, consider increasing this value.")
   @Default.Integer(20)
   Integer getMaxConnectionPoolConnections();
@@ -260,4 +260,24 @@ public interface BigQueryOptions
   Integer getSchemaUpgradeBufferingShards();
 
   void setSchemaUpgradeBufferingShards(Integer value);
+
+  @Description("How long to retry locally before buffering when a schema mismatch is detected.")
+  @Default.Integer(5000)
+  Integer getStorageApiMismatchLocalRetryTimeMilliSec();
+
+  void setStorageApiMismatchLocalRetryTimeMilliSec(Integer value);
+
+  @Description("The  retry time in milliseconds when a schema mismatch is detected.")
+  @Default.Integer(60000)
+  Integer getStorageApiMismatchRetryTimeMilliSec();
+
+  void setStorageApiMismatchRetryTimeMilliSec(Integer value);
+
+  @Description(
+      "If a pipeline is drained while waiting for a BigQuery schema update, we will wait this long for the "
+          + "schema update before sending the rows to the failed-rows collection.")
+  @Default.Integer(300000)
+  Integer getStorageApiMismatchDrainRetryTimeMilliSec();
+
+  void setStorageApiMismatchDrainRetryTimeMilliSec(Integer value);
 }

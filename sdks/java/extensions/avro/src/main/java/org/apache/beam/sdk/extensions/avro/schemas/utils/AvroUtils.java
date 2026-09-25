@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -151,13 +152,12 @@ import org.joda.time.ReadableInstant;
  *
  * is used.
  */
-@SuppressWarnings({
-  "nullness", // TODO(https://github.com/apache/beam/issues/20497)
-  "rawtypes"
-})
+@SuppressWarnings({"rawtypes"})
 public class AvroUtils {
   public static final String VERSION_AVRO =
-      org.apache.avro.Schema.class.getPackage().getImplementationVersion();
+      Optional.ofNullable(org.apache.avro.Schema.class.getPackage())
+          .map(Package::getImplementationVersion)
+          .orElse("");
   private static final ForLoadedType BYTES = new ForLoadedType(byte[].class);
   private static final ForLoadedType JAVA_INSTANT = new ForLoadedType(java.time.Instant.class);
   private static final ForLoadedType JAVA_LOCALE_DATE =
@@ -194,6 +194,12 @@ public class AvroUtils {
       // the value argument can actually be null here, it's not annotated as such in the method
       // though, hence this wrapper
       builder.set(fieldName, castToNonNull(value));
+    }
+
+    private static org.apache.avro.Schema.Field newFieldWithoutDefault(
+        String name, org.apache.avro.Schema schema, String doc) {
+      // a null defaultValue means "no default", but the parameter lacks the @Nullable annotation
+      return new org.apache.avro.Schema.Field(name, schema, doc, castToNonNull(null));
     }
 
     private static Object createFixed(
@@ -528,8 +534,8 @@ public class AvroUtils {
   public static org.apache.avro.Schema.Field toAvroField(Field field, String namespace) {
     org.apache.avro.Schema fieldSchema =
         getFieldSchema(field.getType(), field.getName(), namespace);
-    return new org.apache.avro.Schema.Field(
-        field.getName(), fieldSchema, field.getDescription(), (Object) null);
+    return NullnessCheckerWorkarounds.newFieldWithoutDefault(
+        field.getName(), fieldSchema, field.getDescription());
   }
 
   private AvroUtils() {}
@@ -1437,8 +1443,8 @@ public class AvroUtils {
     }
   }
 
-  private static Object convertLogicalType(
-      @PolyNull Object value,
+  private static @Nullable Object convertLogicalType(
+      @Nonnull Object value,
       @Nonnull org.apache.avro.Schema avroSchema,
       @Nonnull FieldType fieldType,
       @Nonnull GenericData genericData) {
@@ -1447,11 +1453,11 @@ public class AvroUtils {
     // TODO: Remove this workaround once Avro is upgraded to 1.12+ where timestamp-nanos
     if (TIMESTAMP_NANOS_LOGICAL_TYPE.equals(type.type.getProp("logicalType"))) {
       if (type.type.getType() == org.apache.avro.Schema.Type.LONG) {
-        Long nanos = (Long) value;
+        long nanos = (Long) value;
         // Check if Beam expects Timestamp logical type
         if (fieldType.getTypeName() == TypeName.LOGICAL_TYPE
             && org.apache.beam.sdk.schemas.logicaltypes.Timestamp.IDENTIFIER.equals(
-                fieldType.getLogicalType().getIdentifier())) {
+                checkNotNull(fieldType.getLogicalType()).getIdentifier())) {
           long seconds = Math.floorDiv(nanos, 1_000_000_000L);
           long nanoAdjustment = Math.floorMod(nanos, 1_000_000_000L);
           return java.time.Instant.ofEpochSecond(seconds, nanoAdjustment);
@@ -1473,7 +1479,10 @@ public class AvroUtils {
     if (conversion != null) {
       convertedType = conversion.getConvertedType();
       if (convertedType.isInstance(value)) {
-        rawType = Conversions.convertToRawType(value, avroSchema, logicalType, conversion);
+        // type.type rather than avroSchema: Conversions.convertToRawType switches on the schema
+        // type and silently returns the value unconverted for a UNION, so a nullable field would
+        // never get converted.
+        rawType = Conversions.convertToRawType(value, type.type, logicalType, conversion);
       }
     }
 
@@ -1786,8 +1795,8 @@ public class AvroUtils {
       Object value,
       LogicalType logicalType,
       Object rawType,
-      Conversion<?> conversion,
-      Class<?> convertedType) {
+      @Nullable Conversion<?> conversion,
+      @Nullable Class<?> convertedType) {
     String msg =
         String.format(
             "Value %s of class %s is not a supported type for logical type %s (%s). "

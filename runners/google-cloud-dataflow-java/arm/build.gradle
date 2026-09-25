@@ -52,11 +52,14 @@ evaluationDependsOn(":runners:google-cloud-dataflow-java:worker")
 evaluationDependsOn(":sdks:java:container:java11")
 
 processResources {
-  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: [
+  // Filter arguments are not tracked by Gradle, so declare the tokens as an input property.
+  def resourceTokens = [
     'dataflow.fnapi_environment_major_version' : project(':runners:google-cloud-dataflow-java').ext.dataflowFnapiEnvironmentMajorVersion,
     'dataflow.fnapi_container_version' : project(':runners:google-cloud-dataflow-java').ext.dataflowFnapiContainerVersion,
     'dataflow.container_base_repository' : project(':runners:google-cloud-dataflow-java').ext.dataflowContainerBaseRepository,
   ]
+  inputs.property('resourceTokens', resourceTokens)
+  filter org.apache.tools.ant.filters.ReplaceTokens, tokens: resourceTokens
 }
 
 // Exclude tests that need a runner

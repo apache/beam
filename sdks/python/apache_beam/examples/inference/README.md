@@ -83,13 +83,19 @@ pip install torch==1.10.0
 ### TensorRT dependencies
 
 The RunInference API supports TensorRT SDK for high-performance deep learning inference with NVIDIA GPUs.
-To use TensorRT locally, we suggest an environment with TensorRT >= 8.0.1. Install TensorRT as per the
+To use TensorRT locally, we suggest an environment with TensorRT >= 10.0. Install TensorRT as per the
 [TensorRT Install Guide](https://docs.nvidia.com/deeplearning/tensorrt/install-guide/index.html). You
 will need to make sure the Python bindings for TensorRT are also installed correctly, these are available by installing the python3-libnvinfer and python3-libnvinfer-dev packages on your TensorRT download.
 
+TensorRT 10 or later is required. Note that a serialized TensorRT engine can only
+be deserialized by the TensorRT major version that built it, so an engine built
+with TensorRT 8.x must be rebuilt. TensorRT 10 and later also require a GPU with
+compute capability 7.5 or higher, for example, T4, L4, A100. The NVIDIA Pascal and Volta GPUs
+such as the Tesla P4, P100 and V100 are no longer supported.
+
 If you would like to use Docker, you can use an NGC image like:
 ```
-docker pull nvcr.io/nvidia/tensorrt:22.04-py3
+docker pull nvcr.io/nvidia/tensorrt:26.06-py3
 ```
 as an existing container base to [build custom Apache Beam container](https://beam.apache.org/documentation/runtime/environments/#modify-existing-base-image).
 
