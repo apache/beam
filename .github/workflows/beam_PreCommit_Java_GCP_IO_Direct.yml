@@ -89,7 +89,7 @@ jobs:
             job_phrase: "Run Java_GCP_IO_Direct PreCommit"
             gradle_command: |
               :sdks:java:io:google-cloud-platform:build \
-              :sdks:java:io:google-cloud-platform:expansion-service:build
+              :sdks:java:io:google-cloud-platform:expansion-service:build \
             extra_arguments: ""
             is_build_job: true
           - job_name: "beam_PreCommit_Java_GCP_IO_Direct_BigQuery"
