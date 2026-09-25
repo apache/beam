@@ -1261,7 +1261,6 @@ class TestBigQueryFileLoads(_TestCaseWithTempDirCleanUp):
 
 class BigQueryFileLoadsIT(unittest.TestCase):
 
-  BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
   BIG_QUERY_SCHEMA = (
       '{"fields": [{"name": "name","type": "STRING"},'
       '{"name": "language","type": "STRING"}]}')
@@ -1282,7 +1281,9 @@ class BigQueryFileLoadsIT(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
 
     self.dataset_id = '%s%d%s' % (
-        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
+        bigquery_tools._TEMP_DATASET_PREFIX,
+        int(time.time()),
+        secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = "%s.output_table" % (self.dataset_id)

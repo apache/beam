@@ -76,7 +76,10 @@ public class BigQuerySamplesIT {
   private static final BigQuery BIGQUERY =
       BigQueryOptions.newBuilder().setProjectId(PROJECT).build().getService();
   private static final String DATASET =
-      "beam_bigquery_samples_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "beam_temp_dataset_samples_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
 
   @Rule public final transient TestPipeline writePipeline = TestPipeline.create();
   @Rule public final transient TestPipeline readTablePipeline = TestPipeline.create();

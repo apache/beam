@@ -101,7 +101,7 @@ public class IcebergReadWriteIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
   private static final String BQMS_CATALOG =
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "iceberg_sql_tests_" + System.nanoTime();
+  static final String DATASET = "beam_temp_dataset_iceberg_sql_" + System.nanoTime();
   static String warehouse;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);

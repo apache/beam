@@ -2953,15 +2953,15 @@ class PubSubBigQueryIT(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
-  BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
-
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
     self.dataset_id = '%s%d%s' % (
-        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
+        bigquery_tools._TEMP_DATASET_PREFIX,
+        int(time.time()),
+        secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = '%s.output_table' % (self.dataset_id)

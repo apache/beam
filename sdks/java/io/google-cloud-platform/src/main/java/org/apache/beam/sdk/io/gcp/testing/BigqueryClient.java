@@ -43,8 +43,6 @@ import com.google.api.services.bigquery.model.TableDataInsertAllRequest;
 import com.google.api.services.bigquery.model.TableDataInsertAllRequest.Rows;
 import com.google.api.services.bigquery.model.TableDataInsertAllResponse;
 import com.google.api.services.bigquery.model.TableFieldSchema;
-import com.google.api.services.bigquery.model.TableList;
-import com.google.api.services.bigquery.model.TableList.Tables;
 import com.google.api.services.bigquery.model.TableReference;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -482,16 +480,7 @@ public class BigqueryClient {
 
   public void deleteDataset(String projectId, String datasetId) {
     try {
-      TableList tables = bqClient.tables().list(projectId, datasetId).execute();
-      for (Tables table : tables.getTables()) {
-        this.deleteTable(projectId, datasetId, table.getTableReference().getTableId());
-      }
-    } catch (Exception e) {
-      LOG.debug("Exceptions caught when listing all tables", e);
-    }
-
-    try {
-      bqClient.datasets().delete(projectId, datasetId).execute();
+      bqClient.datasets().delete(projectId, datasetId).setDeleteContents(true).execute();
       LOG.info("Successfully deleted dataset: {}", datasetId);
     } catch (Exception e) {
       LOG.debug("Exceptions caught when deleting dataset", e);

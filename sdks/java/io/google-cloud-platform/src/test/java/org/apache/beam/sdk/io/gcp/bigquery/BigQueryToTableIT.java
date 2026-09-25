@@ -72,7 +72,10 @@ public class BigQueryToTableIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryToTableIT");
 
   private static final String BIG_QUERY_DATASET_ID =
-      "bq_query_to_table_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      "beam_temp_dataset_query_to_table_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
 
   private static final TableSchema LEGACY_QUERY_TABLE_SCHEMA =
       new TableSchema()
