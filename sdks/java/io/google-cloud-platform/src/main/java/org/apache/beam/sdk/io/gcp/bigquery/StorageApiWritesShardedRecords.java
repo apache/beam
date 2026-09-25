@@ -104,6 +104,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
@@ -729,7 +730,20 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
       // vortex caches schemas
       // we might see the new schema before vortex does. In this case, we simply need to
       // retry.
-      Exceptions.@Nullable StorageException storageException = Exceptions.toStorageException(error);
+      Exceptions.@Nullable StorageException storageException = null;
+      if (error instanceof Exceptions.StorageException) {
+        storageException = (Exceptions.StorageException) error;
+      } else {
+        Optional<Throwable> handledCause =
+            Throwables.getCausalChain(error).stream()
+                .filter(cause -> cause instanceof Exceptions.StorageException)
+                .findAny();
+        if (handledCause.isPresent()) {
+          storageException = (Exceptions.StorageException) handledCause.get();
+        } else {
+          storageException = Exceptions.toStorageException(error);
+        }
+      }
       boolean schemaMismatchError =
           (storageException instanceof Exceptions.SchemaMismatchedException);
       if (!schemaMismatchError) {
@@ -743,7 +757,10 @@ public class StorageApiWritesShardedRecords<DestinationT extends @NonNull Object
         Status status = Status.fromThrowable(error);
         if (status.getCode() == Code.INVALID_ARGUMENT) {
           String description = status.getDescription();
-          schemaMismatchError = description != null && description.contains("incompatible fields");
+          schemaMismatchError =
+              description != null
+                  && (description.contains("incompatible fields")
+                      || description.contains("Input schema has more fields than BigQuery schema"));
         }
       }
       if (schemaMismatchError) {

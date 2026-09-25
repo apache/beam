@@ -89,6 +89,7 @@ import org.apache.beam.sdk.values.WindowedValues;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterators;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
@@ -924,13 +925,60 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                 quotaError = statusCode.equals(Status.Code.RESOURCE_EXHAUSTED);
               }
 
+              // Schema mismatched exceptions can happen if the table was recently updated. Since
+              // vortex caches schemas
+              // we might see the new schema before vortex does. In this case, we simply need to
+              // retry.
+              // Note: ConnectionWorker in google-cloud-bigquerystorage already converts the gRPC
+              // error via Exceptions.toStorageException(), which strips the gRPC Status trailers.
+              // Calling Exceptions.toStorageException() a second time on a StorageException returns
+              // null, so we must check instanceof Exceptions.StorageException first.
+              Exceptions.@Nullable StorageException storageException = null;
+              if (error instanceof Exceptions.StorageException) {
+                storageException = (Exceptions.StorageException) error;
+              } else if (error != null) {
+                Optional<Throwable> handledCause =
+                    Throwables.getCausalChain(error).stream()
+                        .filter(cause -> cause instanceof Exceptions.StorageException)
+                        .findAny();
+                if (handledCause.isPresent()) {
+                  storageException = (Exceptions.StorageException) handledCause.get();
+                } else {
+                  storageException = Exceptions.toStorageException(error);
+                }
+              }
+              boolean schemaMismatchError =
+                  (storageException instanceof Exceptions.SchemaMismatchedException);
+              if (!schemaMismatchError && error != null) {
+                // There's no special error code for missing required fields, and that can also
+                // happen due to vortex
+                // being delayed at seeing a new schema. We're forced to parse the description to
+                // determine that this
+                // has happened.
+                Status status = Status.fromThrowable(error);
+                if (status.getCode() == Status.Code.INVALID_ARGUMENT) {
+                  String description = status.getDescription();
+                  schemaMismatchError =
+                      description != null
+                          && (description.contains("incompatible fields")
+                              || description.contains(
+                                  "Input schema has more fields than BigQuery schema"));
+                }
+              }
+              if (schemaMismatchError) {
+                LOG.info(
+                    "Vortex failed stream open due to incompatible fields. This is likely because the Bigtable "
+                        + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
+                    Preconditions.checkStateNotNull(error).toString());
+              }
+
               int allowedRetry;
 
               if (!quotaError) {
                 // This forces us to close and reopen all gRPC connections to Storage API on error,
                 // which empirically fixes random stuckness issues.
                 invalidateAppendClient(true);
-                allowedRetry = 5;
+                allowedRetry = schemaMismatchError ? 35 : 5;
               } else {
                 allowedRetry = 35;
               }
@@ -960,34 +1008,6 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                         + " failed with invalid "
                         + "offset of "
                         + failedContext.offset);
-              }
-
-              // Schema mismatched exceptions can happen if the table was recently updated. Since
-              // vortex caches schemas
-              // we might see the new schema before vortex does. In this case, we simply need to
-              // retry.
-              Exceptions.@Nullable StorageException storageException =
-                  (error == null) ? null : Exceptions.toStorageException(error);
-              boolean schemaMismatchError =
-                  (storageException instanceof Exceptions.SchemaMismatchedException);
-              if (!schemaMismatchError && error != null) {
-                // There's no special error code for missing required fields, and that can also
-                // happen due to vortex
-                // being delayed at seeing a new schema. We're forced to parse the description to
-                // determine that this
-                // has happened.
-                Status status = Status.fromThrowable(error);
-                if (status.getCode() == Status.Code.INVALID_ARGUMENT) {
-                  String description = status.getDescription();
-                  schemaMismatchError =
-                      description != null && description.contains("incompatible fields");
-                }
-              }
-              if (schemaMismatchError) {
-                LOG.info(
-                    "Vortex failed stream open due to incompatible fields. This is likely because the Bigtable "
-                        + "schema was recently updated and Vortex hasn't noticed yet, so retrying. error {}",
-                    Preconditions.checkStateNotNull(error).toString());
               }
 
               boolean hasPersistentErrors =
