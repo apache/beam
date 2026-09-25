@@ -941,10 +941,11 @@ public class StorageApiWriteUnshardedRecords<DestinationT, ElementT>
                     Throwables.getCausalChain(error).stream()
                         .filter(cause -> cause instanceof Exceptions.StorageException)
                         .findAny();
-                storageException =
-                    handledCause
-                        .map(throwable -> (Exceptions.StorageException) throwable)
-                        .orElseGet(() -> Exceptions.toStorageException(error));
+                if (handledCause.isPresent()) {
+                  storageException = (Exceptions.StorageException) handledCause.get();
+                } else {
+                  storageException = Exceptions.toStorageException(error);
+                }
               }
               boolean schemaMismatchError =
                   (storageException instanceof Exceptions.SchemaMismatchedException);

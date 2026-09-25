@@ -71,7 +71,7 @@ public class CreateTableHelpers {
   static void createTableWrapper(Callable<Void> action, Callable<Boolean> tryCreateTable)
       throws Exception {
     BackOff backoff = BackOffAdapter.toGcpBackOff(DEFAULT_BACKOFF_FACTORY.backoff());
-    Throwable lastException = null;
+    Exception lastException = null;
     do {
       try {
         action.call();
@@ -84,7 +84,8 @@ public class CreateTableHelpers {
                     cause ->
                         (cause instanceof ApiException || cause instanceof StatusRuntimeException))
                 .findAny();
-        lastException = handledCause.orElseThrow(() -> e);
+        lastException = (Exception) handledCause.orElseThrow(() -> e);
+
         // TODO: Once BigQuery reliably returns a consistent error on table not found, we should
         // only try creating
         // the table on that error.
