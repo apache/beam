@@ -101,7 +101,16 @@ class GcsUtilV2 {
     }
   }
 
-  private Storage storage;
+  private final Storage storage;
+
+  /**
+   * The shared client. Every operation reaches it through this method, so that tests can substitute
+   * a mocked client for a spied instance.
+   */
+  @VisibleForTesting
+  Storage storage() {
+    return storage;
+  }
 
   private final @Nullable Integer uploadBufferSizeBytes;
 
@@ -303,13 +312,13 @@ class GcsUtilV2 {
   @VisibleForTesting
   Storage storageWithHttpMetrics(@Nullable MetricsContainer container, boolean isWrite) {
     if (container == null) {
-      return storage;
+      return storage();
     }
-    StorageOptions options = storage.getOptions();
+    StorageOptions options = storage().getOptions();
     TransportOptions transportOptions = options.getTransportOptions();
     if (!(transportOptions instanceof HttpTransportOptions)) {
       // A non-HTTP transport (e.g. gRPC) has no HttpRequestInitializer to wrap.
-      return storage;
+      return storage();
     }
     return options.toBuilder()
         .setTransportOptions(
@@ -355,7 +364,7 @@ class GcsUtilV2 {
   }
 
   public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
-    return getBlob(storage, gcsPath, options);
+    return getBlob(storage(), gcsPath, options);
   }
 
   /** As {@link #getBlob(GcsPath, BlobGetOption...)}, but issued through a specific client. */
@@ -408,7 +417,7 @@ class GcsUtilV2 {
         Lists.partition(Lists.newArrayList(gcsPaths), MAX_REQUESTS_PER_BATCH)) {
 
       // Create a new empty batch every time
-      StorageBatch batch = storage.batch();
+      StorageBatch batch = storage().batch();
       List<StorageBatchResult<Blob>> batchResultFutures = new ArrayList<>();
 
       for (GcsPath path : pathPartition) {
@@ -464,7 +473,7 @@ class GcsUtilV2 {
     }
 
     try {
-      return storage.list(bucket, blobListOptions.toArray(new BlobListOption[0]));
+      return storage().list(bucket, blobListOptions.toArray(new BlobListOption[0]));
     } catch (StorageException e) {
       throw translateStorageException(bucket, prefix, e);
     }
@@ -534,7 +543,7 @@ class GcsUtilV2 {
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
 
       // Create a new empty batch every time
-      StorageBatch batch = storage.batch();
+      StorageBatch batch = storage().batch();
       List<StorageBatchResult<Boolean>> batchResultFutures = new ArrayList<>();
 
       for (GcsPath path : pathPartition) {
@@ -601,7 +610,7 @@ class GcsUtilV2 {
         // FAIL_IF_EXISTS, SKIP_IF_EXISTS and SAFE_OVERWRITE require checking the target blob
         BlobInfo existingTarget;
         try {
-          existingTarget = storage.get(dstId);
+          existingTarget = storage().get(dstId);
         } catch (StorageException e) {
           throw translateStorageException(dstPath, e);
         }
@@ -631,11 +640,11 @@ class GcsUtilV2 {
       }
 
       try {
-        CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
+        CopyWriter copyWriter = storage().copy(copyRequestBuilder.build());
         copyWriter.getResult();
 
         if (deleteSrc) {
-          if (!storage.delete(srcId)) {
+          if (!storage().delete(srcId)) {
             // This may happen if the source file is deleted by another process after copy.
             LOG.warn(
                 "Source file {} could not be deleted after move to {}. It may not have existed.",
@@ -673,7 +682,7 @@ class GcsUtilV2 {
   public Bucket getBucket(GcsPath path, BucketGetOption... options) throws IOException {
     String bucketName = path.getBucket();
     try {
-      Bucket bucket = storage.get(bucketName, options);
+      Bucket bucket = storage().get(bucketName, options);
       if (bucket == null) {
         throw new FileNotFoundException(
             String.format("The specified bucket does not exist: gs://%s", bucketName));
@@ -730,12 +739,12 @@ class GcsUtilV2 {
   public void createBucket(
       @Nullable String projectId, BucketInfo bucketInfo, BucketTargetOption... options)
       throws IOException {
-    Storage client = storage;
+    Storage client = storage();
     if (projectId != null && !projectId.equals(this.projectId)) {
       // The owning project is a property of the client rather than of the insert request, so
       // asking for a different one means deriving a client for it. The derived client shares the
       // credentials, host and transport of the original.
-      client = storage.getOptions().toBuilder().setProjectId(projectId).build().getService();
+      client = storage().getOptions().toBuilder().setProjectId(projectId).build().getService();
     }
     try {
       client.create(bucketInfo, options);
@@ -746,7 +755,7 @@ class GcsUtilV2 {
 
   public void removeBucket(BucketInfo bucketInfo) throws IOException {
     try {
-      if (!storage.delete(bucketInfo.getName())) {
+      if (!storage().delete(bucketInfo.getName())) {
         throw new FileNotFoundException(
             String.format("The specified bucket does not exist: gs://%s", bucketInfo.getName()));
       }

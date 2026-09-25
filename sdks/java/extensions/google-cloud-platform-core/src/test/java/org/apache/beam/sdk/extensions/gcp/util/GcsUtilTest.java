@@ -30,7 +30,6 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -71,6 +70,7 @@ import com.google.cloud.hadoop.gcsio.GoogleCloudStorageOptions;
 import com.google.cloud.hadoop.gcsio.GoogleCloudStorageReadOptions;
 import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.storage.BucketInfo;
+import com.google.cloud.storage.Storage.BucketGetOption;
 import com.google.cloud.storage.Storage.BucketTargetOption;
 import com.google.cloud.storage.Storage.PredefinedAcl;
 import com.google.cloud.storage.StorageClass;
@@ -122,6 +122,7 @@ import org.apache.beam.sdk.util.FluentBackoff;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -143,6 +144,13 @@ public class GcsUtilTest {
     testMetricsContainer = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(testMetricsContainer);
     MetricsEnvironment.setCurrentContainer(testMetricsContainer);
+  }
+
+  @After
+  public void tearDown() {
+    // Don't leak the containers installed by setUp into later tests in the same JVM.
+    MetricsEnvironment.setProcessWideContainer(null);
+    MetricsEnvironment.setCurrentContainer(null);
   }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
@@ -2343,13 +2351,17 @@ public class GcsUtilTest {
   // cover behavior that GcsUtilV2 must share with GcsUtilV1.
   // TODO: Move these to a parity test that runs against both delegates.
 
-  /** Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} that calls {@code storage}. */
+  /**
+   * Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} that issues every call to {@code
+   * storage}. Performance metrics are off by default, so the per-operation clients of {@link
+   * GcsUtilV2#storageWithHttpMetrics} resolve to this one as well.
+   */
   private GcsUtil gcsUtilWithV2Storage(com.google.cloud.storage.Storage storage) {
     GcsOptions options = gcsOptionsWithTestCredential();
     options.setProject("my_project");
     GcsUtil gcsUtil = options.getGcsUtil();
     GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
-    Mockito.doReturn(storage).when(delegateV2).storageWithHttpMetrics(any(), anyBoolean());
+    Mockito.doReturn(storage).when(delegateV2).storage();
     gcsUtil.delegateV2 = delegateV2;
     return gcsUtil;
   }
@@ -2396,22 +2408,12 @@ public class GcsUtilTest {
     assertSame(preconditionFailed, thrown.getCause());
   }
 
-  /** Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} whose bucket lookup throws. */
-  private GcsUtil gcsUtilWithV2BucketLookupFailing(IOException failure) throws IOException {
-    GcsOptions options = gcsOptionsWithTestCredential();
-    options.setProject("my_project");
-    GcsUtil gcsUtil = options.getGcsUtil();
-    GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
-    Mockito.doThrow(failure).when(delegateV2).getBucket(any(GcsPath.class), any());
-    gcsUtil.delegateV2 = delegateV2;
-    return gcsUtil;
-  }
-
   /** Mirrors {@link #testBucketDoesNotExist} for V2. */
   @Test
   public void testV2BucketAccessibleIsFalseWhenBucketDoesNotExist() throws IOException {
-    GcsUtil gcsUtil =
-        gcsUtilWithV2BucketLookupFailing(new FileNotFoundException("gs://testbucket"));
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    // An unstubbed get() returns null, which is how java-storage reports a missing bucket.
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
     assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
   }
@@ -2419,8 +2421,10 @@ public class GcsUtilTest {
   /** Mirrors {@link #testBucketDoesNotExistBecauseOfAccessError} for V2. */
   @Test
   public void testV2BucketAccessibleIsFalseWhenAccessIsDenied() throws IOException {
-    GcsUtil gcsUtil =
-        gcsUtilWithV2BucketLookupFailing(new AccessDeniedException("gs://testbucket"));
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    when(storage.get(Mockito.eq("testbucket"), any(BucketGetOption.class)))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
     assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
   }
@@ -2430,14 +2434,16 @@ public class GcsUtilTest {
    * propagate rather than be reported as an inaccessible bucket, as V1 does.
    */
   @Test
-  public void testV2BucketAccessiblePropagatesOtherFailures() throws IOException {
-    IOException serverError = new IOException(new StorageException(503, "Service Unavailable"));
-    GcsUtil gcsUtil = gcsUtilWithV2BucketLookupFailing(serverError);
+  public void testV2BucketAccessiblePropagatesOtherFailures() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    StorageException serverError = new StorageException(503, "Service Unavailable");
+    when(storage.get(Mockito.eq("testbucket"), any(BucketGetOption.class))).thenThrow(serverError);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
     IOException thrown =
         assertThrows(
             IOException.class,
             () -> gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
-    assertSame(serverError, thrown);
+    assertSame(serverError, thrown.getCause());
   }
 }
