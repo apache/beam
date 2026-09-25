@@ -38,6 +38,7 @@ import com.google.api.services.storage.model.StorageObject;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -58,7 +59,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergIO;
 import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.io.iceberg.cdc.sink.CdcSinkTestUtils;
-import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
@@ -788,9 +789,10 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
 
   /**
    * Writes changes of every kind to table A over three commits, then reads back table A's changelog
-   * using the CDC source and applies those changes to table B with a second sink. The source
-   * applies native element metadata ValueKinds so no need to set a change_type_column. For sequence
-   * column, we use the default {@code _commit_snapshot_sequence_number} coming from the source.
+   * with the Managed CDC source and applies those changes to table B with a second Managed sink in
+   * merge-on-read mode. The source applies native element metadata ValueKinds so no need to set a
+   * change_type_column. For sequence column, we use the default {@code
+   * _commit_snapshot_sequence_number} coming from the source.
    */
   @Test
   public void changelogOfSinkWrittenTableRoundTripsThroughTheSource() throws Exception {
@@ -856,18 +858,20 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     if (!changeTypeColumn) {
       CdcSinkTestUtils.useLegacyDataflowWorker(options);
     }
+    Map<String, Object> readConfig = new HashMap<>(managedIcebergConfig(sourceId.toString()));
+    readConfig.put("include_metadata_columns", metadataColumns);
+    Map<String, Object> writeConfig = new HashMap<>(managedIcebergConfig(targetId.toString()));
+    writeConfig.put("mode", "merge-on-read");
+    writeConfig.put("upsert", upsert);
+    if (changeTypeColumn) {
+      writeConfig.put("change_type_column", IcebergCdcMetadataColumns.CHANGE_TYPE);
+    }
     TestPipeline chain = restartPipeline(options);
     PCollection<Row> changes =
-        chain.apply(
-            IcebergIO.readRows(catalogConfig())
-                .withCdc()
-                .from(sourceId)
-                .withMetadataColumns(metadataColumns));
-    WriteCdcRows write = IcebergIO.writeCdcRows(catalogConfig()).to(targetId).withUpsert(upsert);
-    if (changeTypeColumn) {
-      write = write.withChangeTypeColumn(IcebergCdcMetadataColumns.CHANGE_TYPE);
-    }
-    changes.apply(write);
+        chain
+            .apply("read changelog", Managed.read(Managed.ICEBERG_CDC).withConfig(readConfig))
+            .getSinglePCollection();
+    changes.apply("apply changelog", Managed.write(Managed.ICEBERG).withConfig(writeConfig));
     chain.run().waitUntilFinish();
 
     Table target = catalog.loadTable(targetId);
@@ -892,8 +896,10 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     PipelineOptions options = TestPipeline.testingPipelineOptions();
     options.setRunner(DirectRunner.class);
     TestPipeline pipeline = restartPipeline(options);
-    boundedInput(pipeline, rows)
-        .apply(IcebergIO.writeCdcRows(catalogConfig()).to(tableId).withSequenceNumberColumn("seq"));
+    Map<String, Object> config = new HashMap<>(managedIcebergConfig(tableId.toString()));
+    config.put("mode", "merge-on-read");
+    config.put("sequence_number_column", "seq");
+    boundedInput(pipeline, rows).apply("write", Managed.write(Managed.ICEBERG).withConfig(config));
     pipeline.run().waitUntilFinish();
   }
 }

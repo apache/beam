@@ -29,6 +29,7 @@ import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructType;
 import io.delta.kernel.types.TimestampType;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -39,8 +40,7 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.delta.DeltaIO;
 import org.apache.beam.sdk.io.delta.DeltaWriteTestUtils;
-import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
-import org.apache.beam.sdk.io.iceberg.IcebergIO;
+import org.apache.beam.sdk.managed.Managed;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -72,8 +72,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Reads a Delta Lake change data feed with {@link DeltaIO#readChanges} and applies it to an Iceberg
- * table with {@link IcebergIO#writeCdcRows}, on a Hadoop catalog.
+ * Reads a Delta Lake change data feed with {@code Managed.read(DELTA_LAKE_CDC)} and applies it to
+ * an Iceberg table with {@code Managed.write(ICEBERG)} in merge-on-read mode, on a Hadoop catalog.
  *
  * <p>The Delta table is built with the Kernel test utilities: version 0 is a plain append and
  * versions 1 and 2 carry hand-written change files, so the feed covers all four change types. The
@@ -198,20 +198,22 @@ public class DeltaLakeToIcebergCdcIT {
         "fs.gs.project.id", OPTIONS.getProject());
   }
 
-  private static IcebergCatalogConfig catalogConfig() {
+  /** The Managed write config for {@code tableId} on this test's Hadoop catalog. */
+  private static Map<String, Object> managedIcebergConfig(TableIdentifier tableId) {
     String ioImpl =
         ROOT.startsWith("gs://")
             ? "org.apache.iceberg.gcp.gcs.GCSFileIO"
             : "org.apache.iceberg.hadoop.HadoopFileIO";
-    return IcebergCatalogConfig.builder()
-        .setCatalogName(CATALOG_NAME)
-        .setCatalogProperties(
-            ImmutableMap.<String, String>builder()
-                .put("type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP)
-                .put("warehouse", WAREHOUSE)
-                .put("io-impl", ioImpl)
-                .build())
-        .build();
+    Map<String, Object> config = new HashMap<>();
+    config.put("table", tableId.toString());
+    config.put("catalog_name", CATALOG_NAME);
+    config.put(
+        "catalog_properties",
+        ImmutableMap.of(
+            "type", CatalogUtil.ICEBERG_CATALOG_TYPE_HADOOP,
+            "warehouse", WAREHOUSE,
+            "io-impl", ioImpl));
+    return config;
   }
 
   private static Row row(int id, String name) {
@@ -312,29 +314,29 @@ public class DeltaLakeToIcebergCdcIT {
     if (!changeTypeColumn) {
       CdcSinkTestUtils.useLegacyDataflowWorker(p.getOptions());
     }
-    String[] metadataColumns =
+    Map<String, Object> readConfig = new HashMap<>();
+    readConfig.put("table", deltaTable);
+    readConfig.put("start_version", 0L);
+    readConfig.put(
+        "include_metadata_columns",
         changeTypeColumn
-            ? new String[] {DeltaIO.CHANGE_TYPE_COLUMN, DeltaIO.COMMIT_VERSION_COLUMN}
-            : new String[] {DeltaIO.COMMIT_VERSION_COLUMN};
-    PCollection<Row> changes =
-        p.apply(
-            DeltaIO.readChanges()
-                .from(deltaTable)
-                .withStartVersion(0L)
-                .withMetadataColumns(metadataColumns)
-                .withConfig(hadoopConfig()));
-    WriteCdcRows write =
-        IcebergIO.writeCdcRows(catalogConfig())
-            .to(targetId)
-            .withSequenceNumberColumn(DeltaIO.COMMIT_VERSION_COLUMN)
-            .withUpsert(upsert);
-    if (changeTypeColumn) {
-      write =
-          write
-              .withChangeTypeColumn(DeltaIO.CHANGE_TYPE_COLUMN)
-              .withChangeTypeMap(DELTA_CHANGE_TYPES);
+            ? ImmutableList.of(DeltaIO.CHANGE_TYPE_COLUMN, DeltaIO.COMMIT_VERSION_COLUMN)
+            : ImmutableList.of(DeltaIO.COMMIT_VERSION_COLUMN));
+    if (!hadoopConfig().isEmpty()) {
+      readConfig.put("hadoop_config", hadoopConfig());
     }
-    changes.apply(write);
+    Map<String, Object> writeConfig = managedIcebergConfig(targetId);
+    writeConfig.put("mode", "merge-on-read");
+    writeConfig.put("sequence_number_column", DeltaIO.COMMIT_VERSION_COLUMN);
+    writeConfig.put("upsert", upsert);
+    if (changeTypeColumn) {
+      writeConfig.put("change_type_column", DeltaIO.CHANGE_TYPE_COLUMN);
+      writeConfig.put("change_type_map", DELTA_CHANGE_TYPES);
+    }
+    PCollection<Row> changes =
+        p.apply("read change feed", Managed.read(Managed.DELTA_LAKE_CDC).withConfig(readConfig))
+            .getSinglePCollection();
+    changes.apply("apply change feed", Managed.write(Managed.ICEBERG).withConfig(writeConfig));
     p.run().waitUntilFinish();
 
     assertThat(
