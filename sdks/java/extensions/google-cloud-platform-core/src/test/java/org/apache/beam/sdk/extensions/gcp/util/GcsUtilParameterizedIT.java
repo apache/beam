@@ -20,6 +20,8 @@ package org.apache.beam.sdk.extensions.gcp.util;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
@@ -45,13 +47,22 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
+import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
+import org.apache.beam.runners.core.metrics.MetricUpdates.MetricUpdate;
+import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.OverwriteStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions;
+import org.apache.beam.sdk.metrics.MetricName;
+import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
@@ -74,6 +85,9 @@ import org.junit.runners.Parameterized.Parameters;
 @RunWith(Parameterized.class)
 @Category(UsesKms.class)
 public class GcsUtilParameterizedIT {
+
+  private static final String READ_COUNTER_PREFIX = "it_read_bytes";
+  private static final String WRITE_COUNTER_PREFIX = "it_write_bytes";
 
   @Parameters(name = "{0}")
   public static Iterable<String> data() {
@@ -682,5 +696,146 @@ public class GcsUtilParameterizedIT {
     } finally {
       tearDownTestBucketHelper(bucketName);
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Metrics parity: the same assertions must hold for both GcsUtilV1 and GcsUtilV2.
+  // ---------------------------------------------------------------------------------------------
+
+  /** Returns a {@link GcsUtil} with every GCS metric flag turned on. */
+  private GcsUtil gcsUtilWithAllMetrics() {
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    gcsOptions.setGcsPerformanceMetrics(true);
+    gcsOptions.setEnableBucketReadMetricCounter(true);
+    gcsOptions.setEnableBucketWriteMetricCounter(true);
+    gcsOptions.setGcsReadCounterPrefix(READ_COUNTER_PREFIX);
+    gcsOptions.setGcsWriteCounterPrefix(WRITE_COUNTER_PREFIX);
+    // Built directly, as getGcsUtil() returns the instance cached in setUp().
+    return new GcsUtil(gcsOptions);
+  }
+
+  private static long counter(MetricsContainerImpl container, MetricName name) {
+    CounterCell cell = container.tryGetCounter(name);
+    assertNotNull("counter " + name + " was not reported", cell);
+    return cell.getCumulative();
+  }
+
+  private static long gcsCounter(MetricsContainerImpl container, String name) {
+    return counter(container, MetricName.named(GcsUtil.METRIC_NAMESPACE, name));
+  }
+
+  private static long bucketCounter(MetricsContainerImpl container, String prefix, String bucket) {
+    return counter(container, MetricName.named(GcsUtil.class, prefix + "_" + bucket));
+  }
+
+  /**
+   * Sums the API request counter for {@code method} and {@code status} on {@code bucket}.
+   *
+   * <p>The {@code GCS_PROJECT_ID} label is deliberately not matched: V1 reports the project of its
+   * gcsio options (which is never set, so it reports {@code "null"}), while V2 reports the
+   * pipeline's project.
+   */
+  private static long apiRequestCount(
+      MetricsContainerImpl container, String method, String status, String bucket) {
+    long total = 0;
+    for (MetricUpdate<Long> update : container.getCumulative().counterUpdates()) {
+      MetricName name = update.getKey().metricName();
+      if (!(name instanceof MonitoringInfoMetricName)) {
+        continue;
+      }
+      MonitoringInfoMetricName miName = (MonitoringInfoMetricName) name;
+      Map<String, String> labels = miName.getLabels();
+      if (MonitoringInfoConstants.Urns.API_REQUEST_COUNT.equals(miName.getUrn())
+          && "Storage".equals(labels.get(MonitoringInfoConstants.Labels.SERVICE))
+          && method.equals(labels.get(MonitoringInfoConstants.Labels.METHOD))
+          && status.equals(labels.get(MonitoringInfoConstants.Labels.STATUS))
+          && bucket.equals(labels.get(MonitoringInfoConstants.Labels.GCS_BUCKET))
+          && GcpResourceIdentifiers.cloudStorageBucket(bucket)
+              .equals(labels.get(MonitoringInfoConstants.Labels.RESOURCE))) {
+        total += update.getUpdate();
+      }
+    }
+    return total;
+  }
+
+  @Test
+  public void testReadMetrics() throws IOException {
+    final String bucket = "apache-beam-samples";
+    final GcsPath gcsPath = GcsPath.fromComponents(bucket, "shakespeare/kinglear.txt");
+    final long expectedSize = 157283L;
+    GcsUtil metricsGcsUtil = gcsUtilWithAllMetrics();
+
+    MetricsContainerImpl container = new MetricsContainerImpl("step");
+    MetricsContainerImpl processWide = new MetricsContainerImpl(null);
+    MetricsEnvironment.setCurrentContainer(container);
+    MetricsEnvironment.setProcessWideContainer(processWide);
+    try {
+      try (SeekableByteChannel channel = metricsGcsUtil.open(gcsPath)) {
+        ByteBuffer buffer = ByteBuffer.allocate((int) expectedSize + 1024);
+        assertEquals(expectedSize, StorageChannelUtils.blockingFillFrom(buffer, channel));
+      }
+    } finally {
+      MetricsEnvironment.setCurrentContainer(null);
+      MetricsEnvironment.setProcessWideContainer(null);
+    }
+
+    // --enableBucketReadMetricCounter
+    assertEquals(expectedSize, bucketCounter(container, READ_COUNTER_PREFIX, bucket));
+    // --gcsPerformanceMetrics: wire bytes and HTTP counters
+    assertEquals(expectedSize, gcsCounter(container, "gcs_http_read_wire_bytes_received"));
+    assertTrue(gcsCounter(container, "gcs_http_read_request_count") >= 1);
+    assertTrue(gcsCounter(container, "gcs_http_read_status_2xx") >= 1);
+    assertEquals(
+        gcsCounter(container, "gcs_http_read_request_count"),
+        gcsCounter(container, "gcs_http_read_request_count_ranged")
+            + gcsCounter(container, "gcs_http_read_request_count_unbounded")
+            + gcsCounter(container, "gcs_http_read_request_count_other"));
+    // A read must not produce write-side counters.
+    assertNull(
+        container.tryGetCounter(
+            MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_write_request_count")));
+    // API request metric
+    assertEquals(1, apiRequestCount(processWide, "GcsGet", "ok", bucket));
+  }
+
+  @Test
+  public void testWriteMetrics() throws IOException {
+    final String bucket =
+        "apache-beam-temp-metrics-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+    final GcsPath targetPath = GcsPath.fromComponents(bucket, "test-object.txt");
+    final byte[] content = "Hello, GCS metrics!".getBytes(StandardCharsets.UTF_8);
+    GcsUtil metricsGcsUtil = gcsUtilWithAllMetrics();
+
+    MetricsContainerImpl container = new MetricsContainerImpl("step");
+    MetricsContainerImpl processWide = new MetricsContainerImpl(null);
+    try {
+      createTestBucketHelper(bucket, false);
+
+      MetricsEnvironment.setCurrentContainer(container);
+      MetricsEnvironment.setProcessWideContainer(processWide);
+      try (WritableByteChannel writer =
+          metricsGcsUtil.create(
+              targetPath, CreateOptions.builder().setExpectFileToNotExist(true).build())) {
+        writer.write(ByteBuffer.wrap(content));
+      } finally {
+        MetricsEnvironment.setCurrentContainer(null);
+        MetricsEnvironment.setProcessWideContainer(null);
+      }
+    } finally {
+      tearDownTestBucketHelper(bucket);
+    }
+
+    // --enableBucketWriteMetricCounter
+    assertEquals(content.length, bucketCounter(container, WRITE_COUNTER_PREFIX, bucket));
+    // --gcsPerformanceMetrics: wire bytes and HTTP counters
+    assertEquals(content.length, gcsCounter(container, "gcs_http_write_wire_bytes_sent"));
+    assertTrue(gcsCounter(container, "gcs_http_write_request_count") >= 1);
+    assertTrue(gcsCounter(container, "gcs_http_write_status_2xx") >= 1);
+    // A write must not produce read-side counters.
+    assertNull(
+        container.tryGetCounter(
+            MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_request_count")));
+    // API request metric
+    assertEquals(1, apiRequestCount(processWide, "GcsInsert", "ok", bucket));
   }
 }
