@@ -152,7 +152,7 @@ public class GcsUtilV2Test {
     assertEquals(defaultHost, storageOptionsOf(gcsUtilV2(false)).getHost());
   }
 
-  /** Mirrors {@code GcsUtilTest#testGcsEndpoint}: only the root of the endpoint applies to V2. */
+  /** Mirrors {@code GcsUtilV1Test#testGcsEndpoint}: only the root of the endpoint applies to V2. */
   @Test
   public void testGcsEndpointRootIsUsedAsHost() {
     GcsOptions options = gcsOptions();
@@ -273,7 +273,7 @@ public class GcsUtilV2Test {
   }
 
   // ---------------------------------------------------------------------------------------------
-  // Byte counters (mirrors GcsUtilTest#testReadMetrics / #testWriteMetrics for V1)
+  // Byte counters (mirrors GcsUtilV1Test#testReadMetrics / #testWriteMetrics for V1)
   // ---------------------------------------------------------------------------------------------
 
   private static @Nullable Long counterOrNull(MetricsContainerImpl container, MetricName name) {
