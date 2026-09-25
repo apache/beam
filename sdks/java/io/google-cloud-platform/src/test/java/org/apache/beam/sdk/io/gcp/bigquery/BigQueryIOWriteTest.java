@@ -1724,6 +1724,64 @@ public class BigQueryIOWriteTest implements Serializable {
   }
 
   @Test
+  public void testStorageApiRetryOnSchemaMismatchedException() throws Exception {
+    assumeTrue(useStorageApi);
+    assumeTrue(!useStreaming || useStorageApiApproximate);
+
+    Table table =
+        new Table()
+            .setTableReference(
+                new TableReference()
+                    .setProjectId("project-id")
+                    .setDatasetId("dataset-id")
+                    .setTableId("table-id"))
+            .setSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))));
+    fakeDatasetService.createTable(table);
+
+    // Inject transient SchemaMismatchedException (which has Status.Code.INVALID_ARGUMENT and
+    // stripped gRPC trailers after Exceptions.toStorageException conversion) for the first 2
+    // appendRows attempts, then succeed.
+    fakeDatasetService.setAppendRowsStorageError(
+        com.google.cloud.bigquery.storage.v1.StorageError.StorageErrorCode
+            .SCHEMA_MISMATCH_EXTRA_FIELDS,
+        "Input schema has more fields than BigQuery schema, extra fields: 'numeric_extra' Entity: projects/project-id/datasets/dataset-id/tables/table-id/streams/_default",
+        2);
+
+    List<Integer> elements = Lists.newArrayList(1, 2, 3);
+
+    BigQueryIO.Write<Integer> write =
+        BigQueryIO.<Integer>write()
+            .to("project-id:dataset-id.table-id")
+            .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_NEVER)
+            .withFormatFunction(
+                (SerializableFunction<Integer, TableRow>)
+                    input -> new TableRow().set("number", input))
+            .withSchema(
+                new TableSchema()
+                    .setFields(
+                        ImmutableList.of(
+                            new TableFieldSchema().setName("number").setType("INTEGER"))))
+            .withTestServices(fakeBqServices)
+            .withoutValidation();
+
+    PCollection<Integer> input = p.apply(Create.of(elements).withCoder(BigEndianIntegerCoder.of()));
+    input.apply("WriteToBQ", write);
+
+    p.run().waitUntilFinish();
+
+    assertThat(
+        fakeDatasetService.getAllRows("project-id", "dataset-id", "table-id"),
+        containsInAnyOrder(
+            new TableRow().set("number", "1"),
+            new TableRow().set("number", "2"),
+            new TableRow().set("number", "3")));
+  }
+
+  @Test
   public void testStreamingStorageApiWriteWithAutoShardingWithErrorHandling() throws Exception {
     assumeTrue(useStreaming);
     assumeTrue(!useStorageApiApproximate);
