@@ -431,6 +431,9 @@ class BigQueryStorageStreamSource<T> extends BoundedSource<T> {
             // StorageClientImpl.
             future.get(30, TimeUnit.SECONDS);
           } catch (TimeoutException | InterruptedException | ExecutionException e) {
+            if (e instanceof InterruptedException) {
+              Thread.currentThread().interrupt();
+            }
             badSplitPointCalls.inc();
             LOG.info(
                 "Split of stream {} abandoned because current position check failed with {}.",

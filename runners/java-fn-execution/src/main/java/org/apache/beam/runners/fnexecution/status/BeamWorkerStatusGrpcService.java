@@ -117,6 +117,9 @@ public class BeamWorkerStatusGrpcService extends BeamFnWorkerStatusImplBase impl
                 return existingClientFuture;
               }
             } catch (IOException | InterruptedException | ExecutionException e) {
+              if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
               LOG.warn("Error closing worker status client", e);
             }
           }

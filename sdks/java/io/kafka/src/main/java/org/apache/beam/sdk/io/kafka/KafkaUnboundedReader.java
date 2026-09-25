@@ -610,6 +610,7 @@ class KafkaUnboundedReader<K, V> extends UnboundedReader<KafkaRecord<K, V>> {
           commitCheckpointMark();
         } catch (InterruptedException e) {
           LOG.warn("{}: consumer thread is interrupted", this, e); // not expected
+          Thread.currentThread().interrupt();
           break;
         } catch (WakeupException e) {
           break;
