@@ -281,7 +281,7 @@ public class BigQueryIOTranslationTest {
 
   @Test
   public void testReCreateWriteTransformDropsLegacyMaxRetryJobsDefault() {
-    // an SDK older than 2.77.0 put 1000 in every config row, so this is what a pipeline that never
+    // an SDK older than 2.78.0 put 1000 in every config row, so this is what a pipeline that never
     // called withMaxRetryJobs looks like once one of those versions has serialized it
     BigQueryIO.Write<?> writeTransform =
         BigQueryIO.write()
@@ -293,7 +293,7 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(writeTransform);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.76.0");
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.77.0");
     BigQueryIO.Write<?> writeTransformFromRow =
         (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
 
@@ -312,7 +312,7 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(writeTransform);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.76.0");
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.77.0");
     BigQueryIO.Write<?> writeTransformFromRow =
         (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
 
@@ -332,11 +332,11 @@ public class BigQueryIOTranslationTest {
     Row row = translator.toConfigRow(writeTransform);
 
     PipelineOptions options = PipelineOptionsFactory.create();
-    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.77.0");
+    options.as(StreamingOptions.class).setUpdateCompatibilityVersion("2.78.0");
     BigQueryIO.Write<?> writeTransformFromRow =
         (BigQueryIO.Write<?>) translator.fromConfigRow(row, options);
 
-    // 2.77.0 and later only write this field when the pipeline set it, so 1000 is a real choice
+    // 2.78.0 and later only write this field when the pipeline set it, so 1000 is a real choice
     // here
     assertEquals(
         Integer.valueOf(BatchLoads.DEFAULT_MAX_RETRY_JOBS_UNBOUNDED),
