@@ -98,6 +98,18 @@ public class IcebergSchemaTransformTranslationTest {
           .withFieldValue("keep", Collections.singletonList("str"))
           .build();
 
+  /** A merge-on-read write config: the mode plus the options gated to it. */
+  private static final Row WRITE_CDC_CONFIG_ROW =
+      Row.withSchema(WRITE_PROVIDER.configurationSchema())
+          .withFieldValue("table", "test_table_identifier")
+          .withFieldValue("catalog_properties", CATALOG_PROPERTIES)
+          .withFieldValue("mode", "merge-on-read")
+          .withFieldValue("change_type_column", "op")
+          .withFieldValue("upsert", true)
+          .withFieldValue("equality_columns", Collections.singletonList("id"))
+          .withFieldValue("sink_id", "stable-sink")
+          .build();
+
   private static final Row READ_CONFIG_ROW =
       Row.withSchema(READ_PROVIDER.configurationSchema())
           .withFieldValue("table", "test_table_identifier")
@@ -134,6 +146,21 @@ public class IcebergSchemaTransformTranslationTest {
         translator.fromConfigRow(row, PipelineOptionsFactory.create());
 
     assertEquals(WRITE_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
+  }
+
+  @Test
+  public void testReCreateCdcWriteTransformFromRow() {
+    IcebergWriteSchemaTransform writeTransform =
+        (IcebergWriteSchemaTransform) WRITE_PROVIDER.from(WRITE_CDC_CONFIG_ROW);
+
+    IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator translator =
+        new IcebergSchemaTransformTranslation.IcebergWriteSchemaTransformTranslator();
+    Row row = translator.toConfigRow(writeTransform);
+
+    IcebergWriteSchemaTransform writeTransformFromRow =
+        translator.fromConfigRow(row, PipelineOptionsFactory.create());
+
+    assertEquals(WRITE_CDC_CONFIG_ROW, writeTransformFromRow.getConfigurationRow());
   }
 
   @Test
