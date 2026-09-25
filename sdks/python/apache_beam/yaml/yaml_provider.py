@@ -760,6 +760,8 @@ def dicts_to_rows(o):
 
 
 def to_dict(value):
+  """Recursively converts Row, NamedTuple, or Mapping objects to dicts, omitting
+  fields with None values."""
   if value is None:
     return None
   if hasattr(value, '_asdict'):

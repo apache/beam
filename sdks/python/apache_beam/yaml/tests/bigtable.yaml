@@ -30,6 +30,9 @@ fixtures:
   # Tests for BigTable YAML IO
 
 pipelines:
+  # Pipeline 1: Write test data (SetCell mutations) to Bigtable, converting
+  # YAML string fields (key, column_qualifier, value) to UTF-8 bytes expected
+  # by WriteToBigTable.
   - pipeline:
       type: chain
       transforms:
@@ -83,6 +86,10 @@ pipelines:
             project: 'apache-beam-testing'
             instance: "{BT_INSTANCE}"
             table: 'test-table'
+
+  # Pipeline 2: Read from Bigtable with flatten=True (one output row per column
+  # qualifier), decode byte fields back to UTF-8 strings, and verify the
+  # flattened rows with AssertEqual.
   - pipeline:
       type: chain
       transforms:
@@ -131,6 +138,10 @@ pipelines:
                     timestamp_micros: 1000 } ] }
         - type: LogForTesting
 
+  # Pipeline 3: Read from Bigtable with flatten=False (one output row per
+  # Bigtable row key with nested column_families map), decode the key and nested
+  # cell values from bytes to UTF-8 strings, and verify the nested structure
+  # with AssertEqual (Issue #35790).
   - pipeline:
       type: chain
       transforms:
