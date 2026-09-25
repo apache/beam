@@ -237,6 +237,12 @@ task dataflowIntegrationTest(type: Test) {
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testWriteRead'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testReadWriteStreaming'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testStreamToPartitionedDynamicDestinations'
+        // CDC sink. The native-ValueKind round trip tests run on legacy worker.
+        // The change-type-column tests run on Runner v2.
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSource'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSourceWithChangeTypeColumn'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTable'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTableWithChangeTypeColumn'
     }
 
     doLast {

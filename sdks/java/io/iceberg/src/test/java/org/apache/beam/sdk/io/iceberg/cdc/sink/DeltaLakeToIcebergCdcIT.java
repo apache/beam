@@ -78,7 +78,9 @@ import org.slf4j.LoggerFactory;
  * <p>The Delta table is built with the Kernel test utilities: version 0 is a plain append and
  * versions 1 and 2 carry hand-written change files, so the feed covers all four change types. The
  * Delta reader sets each row's native {@link ValueKind} and its {@code _commit_version} column
- * orders a key's changes, so the sink needs no change-type column.
+ * orders a key's changes, so the sink needs no change-type column; one test reads the kind from the
+ * {@code _change_type} column instead. On Dataflow ({@code dataflowIntegrationTest}) the
+ * native-kind test runs on the legacy worker and the change-type-column test on Runner v2.
  */
 @RunWith(JUnit4.class)
 public class DeltaLakeToIcebergCdcIT {
@@ -110,6 +112,14 @@ public class DeltaLakeToIcebergCdcIT {
           .add(DeltaIO.CHANGE_TYPE_COLUMN, StringType.STRING)
           .add(DeltaIO.COMMIT_VERSION_COLUMN, LongType.LONG)
           .add(DeltaIO.COMMIT_TIMESTAMP_COLUMN, TimestampType.TIMESTAMP);
+
+  /** Delta's change data feed names for the four change types. */
+  private static final Map<String, String> DELTA_CHANGE_TYPES =
+      ImmutableMap.of(
+          "insert", "INSERT",
+          "delete", "DELETE",
+          "update_preimage", "UPDATE_BEFORE",
+          "update_postimage", "UPDATE_AFTER");
 
   private static final Schema ROW_SCHEMA =
       Schema.builder().addInt32Field("id").addNullableStringField("name").build();
@@ -274,16 +284,21 @@ public class DeltaLakeToIcebergCdcIT {
 
   @Test
   public void changeFeedAppliesToIcebergTable() throws Exception {
-    applyChangeFeed(/* upsert= */ false);
+    applyChangeFeed(/* upsert= */ false, /* changeTypeColumn= */ false);
   }
 
   /** The same feed in upsert mode, which drops the update before-images. */
   @Test
   public void changeFeedAppliesToIcebergTableWithUpsert() throws Exception {
-    applyChangeFeed(/* upsert= */ true);
+    applyChangeFeed(/* upsert= */ true, /* changeTypeColumn= */ false);
   }
 
-  private void applyChangeFeed(boolean upsert) throws Exception {
+  @Test
+  public void changeFeedAppliesToIcebergTableWithChangeTypeColumn() throws Exception {
+    applyChangeFeed(/* upsert= */ false, /* changeTypeColumn= */ true);
+  }
+
+  private void applyChangeFeed(boolean upsert, boolean changeTypeColumn) throws Exception {
     String deltaTable = writeDeltaTable();
     TableIdentifier targetId = TableIdentifier.of(namespace(), "target");
     catalog.createTable(
@@ -292,18 +307,34 @@ public class DeltaLakeToIcebergCdcIT {
         PartitionSpec.unpartitioned(),
         ImmutableMap.of("format-version", "2"));
 
+    // The native ValueKind does not survive Dataflow Runner v2 yet, so that variant runs on the
+    // legacy worker there; the change-type column travels on any runner.
+    if (!changeTypeColumn) {
+      CdcSinkTestUtils.useLegacyDataflowWorker(p.getOptions());
+    }
+    String[] metadataColumns =
+        changeTypeColumn
+            ? new String[] {DeltaIO.CHANGE_TYPE_COLUMN, DeltaIO.COMMIT_VERSION_COLUMN}
+            : new String[] {DeltaIO.COMMIT_VERSION_COLUMN};
     PCollection<Row> changes =
         p.apply(
             DeltaIO.readChanges()
                 .from(deltaTable)
                 .withStartVersion(0L)
-                .withMetadataColumns(DeltaIO.COMMIT_VERSION_COLUMN)
+                .withMetadataColumns(metadataColumns)
                 .withConfig(hadoopConfig()));
-    changes.apply(
+    WriteCdcRows write =
         IcebergIO.writeCdcRows(catalogConfig())
             .to(targetId)
             .withSequenceNumberColumn(DeltaIO.COMMIT_VERSION_COLUMN)
-            .withUpsert(upsert));
+            .withUpsert(upsert);
+    if (changeTypeColumn) {
+      write =
+          write
+              .withChangeTypeColumn(DeltaIO.CHANGE_TYPE_COLUMN)
+              .withChangeTypeMap(DELTA_CHANGE_TYPES);
+    }
+    changes.apply(write);
     p.run().waitUntilFinish();
 
     assertThat(

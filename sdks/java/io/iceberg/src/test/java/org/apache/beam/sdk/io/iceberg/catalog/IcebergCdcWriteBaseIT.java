@@ -58,9 +58,11 @@ import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergIO;
 import org.apache.beam.sdk.io.iceberg.cdc.IcebergCdcMetadataColumns;
 import org.apache.beam.sdk.io.iceberg.cdc.sink.CdcSinkTestUtils;
+import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -125,7 +127,10 @@ import org.slf4j.LoggerFactory;
  * metadata in committer state; Iceberg's optimistic-concurrency retry (the foreign snapshot lands
  * BETWEEN the sink's commits, so no genuine {@code CommitFailedException} refresh-and-retry runs).
  *
- * <p>The {@link TestStream} cases run on the DirectRunner only.
+ * <p>The {@link TestStream} cases run on the DirectRunner only. The source round trips also run on
+ * Dataflow through {@code dataflowIntegrationTest}: the native-ValueKind variant on the legacy
+ * worker, since Runner v2 does not carry element ValueKinds yet, and the change-type-column variant
+ * on Runner v2.
  */
 public abstract class IcebergCdcWriteBaseIT implements Serializable {
 
@@ -326,7 +331,11 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
    * because it is built and run inline, outside the {@code @Rule} machinery.
    */
   private static TestPipeline restartPipeline() {
-    TestPipeline pipeline = TestPipeline.create();
+    return restartPipeline(TestPipeline.testingPipelineOptions());
+  }
+
+  private static TestPipeline restartPipeline(PipelineOptions options) {
+    TestPipeline pipeline = TestPipeline.fromOptions(options);
     pipeline.enableAbandonedNodeEnforcement(false);
     return pipeline;
   }
@@ -785,16 +794,22 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
    */
   @Test
   public void changelogOfSinkWrittenTableRoundTripsThroughTheSource() throws Exception {
-    roundTripThroughSource(/* upsert= */ false);
+    roundTripThroughSource(/* upsert= */ false, /* changeTypeColumn= */ false);
   }
 
   /** The same round trip with the second sink in upsert mode, which drops the before-images. */
   @Test
   public void changelogOfSinkWrittenTableRoundTripsThroughTheSourceWithUpsert() throws Exception {
-    roundTripThroughSource(/* upsert= */ true);
+    roundTripThroughSource(/* upsert= */ true, /* changeTypeColumn= */ false);
   }
 
-  private void roundTripThroughSource(boolean upsert) throws Exception {
+  @Test
+  public void changelogOfSinkWrittenTableRoundTripsThroughTheSourceWithChangeTypeColumn()
+      throws Exception {
+    roundTripThroughSource(/* upsert= */ false, /* changeTypeColumn= */ true);
+  }
+
+  private void roundTripThroughSource(boolean upsert, boolean changeTypeColumn) throws Exception {
     TableIdentifier sourceId = createCanonicalTable("rt_source", 2);
     TableIdentifier targetId = createCanonicalTable("rt_target", 2);
 
@@ -828,17 +843,31 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     List<String> expected = ImmutableList.of("2:b2:y2", "3:c2:z", "4:d:w", "5:e:v", "7:g2:t2");
     assertThat(readRows(source), equalTo(expected));
 
-    // A's changelog into B: the source sets each row's native ValueKind, and the requested
-    // sequence-number column is the sink's default ordering column.
-    TestPipeline chain = restartPipeline();
+    // A's changelog into B. The requested sequence-number column is the sink's default ordering
+    // column. The kind comes from the source's native ValueKind, which Dataflow Runner v2 does not
+    // carry yet (so that variant runs on the legacy worker there), or from the _change_type
+    // column, which any runner carries.
+    List<String> metadataColumns = new ArrayList<>();
+    if (changeTypeColumn) {
+      metadataColumns.add(IcebergCdcMetadataColumns.CHANGE_TYPE);
+    }
+    metadataColumns.add(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER);
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    if (!changeTypeColumn) {
+      CdcSinkTestUtils.useLegacyDataflowWorker(options);
+    }
+    TestPipeline chain = restartPipeline(options);
     PCollection<Row> changes =
         chain.apply(
             IcebergIO.readRows(catalogConfig())
                 .withCdc()
                 .from(sourceId)
-                .withMetadataColumns(
-                    ImmutableList.of(IcebergCdcMetadataColumns.COMMIT_SNAPSHOT_SEQUENCE_NUMBER)));
-    changes.apply(IcebergIO.writeCdcRows(catalogConfig()).to(targetId).withUpsert(upsert));
+                .withMetadataColumns(metadataColumns));
+    WriteCdcRows write = IcebergIO.writeCdcRows(catalogConfig()).to(targetId).withUpsert(upsert);
+    if (changeTypeColumn) {
+      write = write.withChangeTypeColumn(IcebergCdcMetadataColumns.CHANGE_TYPE);
+    }
+    changes.apply(write);
     chain.run().waitUntilFinish();
 
     Table target = catalog.loadTable(targetId);
@@ -853,10 +882,16 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     assumeTrue(OPTIONS.getRunner().equals(DirectRunner.class));
   }
 
-  /** One batch run of the sink against {@code tableId}: one commit. */
+  /**
+   * One batch run of the sink against {@code tableId}: one commit. Fixture commits run on the
+   * DirectRunner whatever the configured runner, so a Dataflow run spends its one job on the
+   * pipeline under test.
+   */
   @SafeVarargs
   private final void writeBatch(TableIdentifier tableId, KV<ValueKind, Row>... rows) {
-    TestPipeline pipeline = restartPipeline();
+    PipelineOptions options = TestPipeline.testingPipelineOptions();
+    options.setRunner(DirectRunner.class);
+    TestPipeline pipeline = restartPipeline(options);
     boundedInput(pipeline, rows)
         .apply(IcebergIO.writeCdcRows(catalogConfig()).to(tableId).withSequenceNumberColumn("seq"));
     pipeline.run().waitUntilFinish();

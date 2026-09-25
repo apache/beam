@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,8 @@ import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergDestination;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.RowFilter;
@@ -250,5 +253,21 @@ public final class CdcSinkTestUtils {
           .setTableCreateConfig(null)
           .build();
     }
+  }
+
+  /**
+   * Dataflow Runner v2 does not carry an element's native {@link ValueKind} yet, so a test that
+   * relies on it drops the Runner v2 experiments and runs on the legacy worker there. This is a
+   * no-op for other runners.
+   */
+  public static void useLegacyDataflowWorker(PipelineOptions options) {
+    ExperimentalOptions experimental = options.as(ExperimentalOptions.class);
+    @Nullable List<String> experiments = experimental.getExperiments();
+    if (experiments == null) {
+      return;
+    }
+    List<String> kept = new ArrayList<>(experiments);
+    kept.removeAll(ImmutableList.of("use_runner_v2", "use_unified_worker"));
+    experimental.setExperiments(kept);
   }
 }
