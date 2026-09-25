@@ -30,6 +30,7 @@ import org.apache.beam.runners.core.StateInternals;
 import org.apache.beam.runners.core.StateNamespace;
 import org.apache.beam.runners.core.StateTag;
 import org.apache.beam.runners.spark.coders.CoderHelpers;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.InstantCoder;
 import org.apache.beam.sdk.coders.ListCoder;
@@ -66,17 +67,15 @@ import org.joda.time.Instant;
 public class SparkStateInternals<K> implements StateInternals {
 
   private final K key;
-  // Serializable state for internals (namespace to state tag to coded value).
-  private final Table<String, String, byte[]> stateTable;
+  private final StateCells cells;
 
   private SparkStateInternals(K key) {
-    this.key = key;
-    this.stateTable = HashBasedTable.create();
+    this(key, new TableCells(HashBasedTable.create()));
   }
 
-  private SparkStateInternals(K key, Table<String, String, byte[]> stateTable) {
+  private SparkStateInternals(K key, StateCells cells) {
     this.key = key;
-    this.stateTable = stateTable;
+    this.cells = cells;
   }
 
   public static <K> SparkStateInternals<K> forKey(K key) {
@@ -85,11 +84,21 @@ public class SparkStateInternals<K> implements StateInternals {
 
   public static <K> SparkStateInternals<K> forKeyAndState(
       K key, Table<String, String, byte[]> stateTable) {
-    return new SparkStateInternals<>(key, stateTable);
+    return new SparkStateInternals<>(key, new TableCells(stateTable));
+  }
+
+  /** Creates state internals for key backed by cells. */
+  @Internal
+  public static <K> SparkStateInternals<K> forKey(K key, StateCells cells) {
+    return new SparkStateInternals<>(key, cells);
   }
 
   public Table<String, String, byte[]> getState() {
-    return stateTable;
+    if (cells instanceof TableCells) {
+      return ((TableCells) cells).getTable();
+    }
+    throw new IllegalStateException(
+        "getState() is not supported on non-table-backed SparkStateInternals.");
   }
 
   @Override
@@ -192,7 +201,7 @@ public class SparkStateInternals<K> implements StateInternals {
     }
 
     T readValue() {
-      byte[] buf = stateTable.get(namespace.stringKey(), id);
+      byte[] buf = cells.get(namespace.stringKey(), id);
       if (buf != null) {
         return CoderHelpers.fromByteArray(buf, coder);
       }
@@ -200,11 +209,11 @@ public class SparkStateInternals<K> implements StateInternals {
     }
 
     void writeValue(T input) {
-      stateTable.put(namespace.stringKey(), id, CoderHelpers.toByteArray(input, coder));
+      cells.put(namespace.stringKey(), id, CoderHelpers.toByteArray(input, coder));
     }
 
     public void clear() {
-      stateTable.remove(namespace.stringKey(), id);
+      cells.remove(namespace.stringKey(), id);
     }
 
     @Override
@@ -289,7 +298,7 @@ public class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), id) == null;
+          return cells.get(namespace.stringKey(), id) == null;
         }
       };
     }
@@ -350,7 +359,7 @@ public class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), id) == null;
+          return cells.get(namespace.stringKey(), id) == null;
         }
       };
     }
@@ -498,7 +507,7 @@ public class SparkStateInternals<K> implements StateInternals {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), id) == null;
+          return cells.get(namespace.stringKey(), id) == null;
         }
 
         @Override
@@ -557,7 +566,7 @@ public class SparkStateInternals<K> implements StateInternals {
       return new ReadableState<Boolean>() {
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), id) == null;
+          return cells.get(namespace.stringKey(), id) == null;
         }
 
         @Override
@@ -617,9 +626,46 @@ public class SparkStateInternals<K> implements StateInternals {
 
         @Override
         public Boolean read() {
-          return stateTable.get(namespace.stringKey(), id) == null;
+          return cells.get(namespace.stringKey(), id) == null;
         }
       };
     }
+  }
+
+  private static class TableCells implements StateCells {
+    private final Table<String, String, byte[]> stateTable;
+
+    TableCells(Table<String, String, byte[]> stateTable) {
+      this.stateTable = stateTable;
+    }
+
+    Table<String, String, byte[]> getTable() {
+      return stateTable;
+    }
+
+    @Override
+    public byte @Nullable [] get(String namespace, String stateId) {
+      return stateTable.get(namespace, stateId);
+    }
+
+    @Override
+    public void put(String namespace, String stateId, byte[] value) {
+      stateTable.put(namespace, stateId, value);
+    }
+
+    @Override
+    public void remove(String namespace, String stateId) {
+      stateTable.remove(namespace, stateId);
+    }
+  }
+
+  /** Key-value cells abstraction addressed by namespace and state id. */
+  @Internal
+  public interface StateCells {
+    byte @Nullable [] get(String namespace, String stateId);
+
+    void put(String namespace, String stateId, byte[] value);
+
+    void remove(String namespace, String stateId);
   }
 }
