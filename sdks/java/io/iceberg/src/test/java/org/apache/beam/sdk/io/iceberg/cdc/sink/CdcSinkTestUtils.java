@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.io.iceberg.cdc.sink;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,8 @@ import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergDestination;
 import org.apache.beam.sdk.io.iceberg.IcebergUtils;
+import org.apache.beam.sdk.options.ExperimentalOptions;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.util.RowFilter;
@@ -59,7 +62,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * Shared test helpers for the {@code cdc/sink} suites. The TableCache and catalog caches are
  * process-wide statics, so tests must use unique table names per test method.
  */
-final class CdcSinkTestUtils {
+public final class CdcSinkTestUtils {
+  /** The metrics namespace of the committer, for counters read from outside the package. */
+  public static final String COMMITTER_METRICS_NAMESPACE = CommitDeltas.class.getName();
 
   private CdcSinkTestUtils() {}
 
@@ -179,12 +184,12 @@ final class CdcSinkTestUtils {
   }
 
   /** Attaches each element's {@link ValueKind} to its {@link Row}: the sink's input contract. */
-  static PCollection<Row> withKinds(PCollection<KV<ValueKind, Row>> tagged) {
+  public static PCollection<Row> withKinds(PCollection<KV<ValueKind, Row>> tagged) {
     return tagged.apply(kindsFn());
   }
 
   /** {@link #withKinds(PCollection)} with an explicit step name, for multi-application tests. */
-  static PCollection<Row> withKinds(String name, PCollection<KV<ValueKind, Row>> tagged) {
+  public static PCollection<Row> withKinds(String name, PCollection<KV<ValueKind, Row>> tagged) {
     return tagged.apply(name, kindsFn());
   }
 
@@ -248,5 +253,21 @@ final class CdcSinkTestUtils {
           .setTableCreateConfig(null)
           .build();
     }
+  }
+
+  /**
+   * Dataflow Runner v2 does not carry an element's native {@link ValueKind} yet, so a test that
+   * relies on it drops the Runner v2 experiments and runs on the legacy worker there. This is a
+   * no-op for other runners.
+   */
+  public static void useLegacyDataflowWorker(PipelineOptions options) {
+    ExperimentalOptions experimental = options.as(ExperimentalOptions.class);
+    @Nullable List<String> experiments = experimental.getExperiments();
+    if (experiments == null) {
+      return;
+    }
+    List<String> kept = new ArrayList<>(experiments);
+    kept.removeAll(ImmutableList.of("use_runner_v2", "use_unified_worker"));
+    experimental.setExperiments(kept);
   }
 }
