@@ -272,7 +272,9 @@ public class GcsUtil {
    */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
-    return delegate.create(path, type);
+    // Built the same way as GcsUtilV1#create(GcsPath, String), but through this class so that it
+    // follows GcsUtilV2 when enabled.
+    return create(path, CreateOptions.builder().setContentType(type).build());
   }
 
   /**
@@ -281,7 +283,12 @@ public class GcsUtil {
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    return delegate.create(path, type, uploadBufferSizeBytes);
+    return create(
+        path,
+        CreateOptions.builder()
+            .setContentType(type)
+            .setUploadBufferSizeBytes(uploadBufferSizeBytes)
+            .build());
   }
 
   public static class CreateOptions {
@@ -404,6 +411,9 @@ public class GcsUtil {
    */
   @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return toBucket(delegateV2.getBucket(path));
+    }
     return delegate.getBucket(path);
   }
 
@@ -578,6 +588,32 @@ public class GcsUtil {
               .build());
     }
     return builder.build();
+  }
+
+  /**
+   * Converts a java-storage {@link com.google.cloud.storage.Bucket} back into the JSON API {@link
+   * Bucket} model, for the deprecated {@link #getBucket(GcsPath)}.
+   *
+   * <p>The reverse of {@link #toBucketInfo}, plus the owning project number. Like it, this is
+   * expected to go away with the deprecated methods it serves.
+   */
+  private static Bucket toBucket(com.google.cloud.storage.Bucket bucketInfo) {
+    Bucket bucket =
+        new Bucket()
+            .setName(bucketInfo.getName())
+            .setLocation(bucketInfo.getLocation())
+            .setProjectNumber(bucketInfo.getProject());
+    StorageClass storageClass = bucketInfo.getStorageClass();
+    if (storageClass != null) {
+      bucket.setStorageClass(storageClass.name());
+    }
+    BucketInfo.SoftDeletePolicy softDeletePolicy = bucketInfo.getSoftDeletePolicy();
+    Duration retention = softDeletePolicy == null ? null : softDeletePolicy.getRetentionDuration();
+    if (retention != null) {
+      bucket.setSoftDeletePolicy(
+          new Bucket.SoftDeletePolicy().setRetentionDurationSeconds(retention.getSeconds()));
+    }
+    return bucket;
   }
 
   /**

@@ -73,6 +73,7 @@ import com.google.cloud.hadoop.gcsio.StorageResourceId;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BucketTargetOption;
 import com.google.cloud.storage.Storage.PredefinedAcl;
+import com.google.cloud.storage.StorageClass;
 import com.google.cloud.storage.StorageException;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -124,6 +125,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.junit.function.ThrowingRunnable;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -2089,6 +2091,190 @@ public class GcsUtilTest {
 
     verify(mockDelegateV2).removeBucket(BucketInfo.of("bucket"));
     Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testBucketOwnerIsRoutedToV2BucketProject() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    when(mockDelegateV2.bucketProject(path)).thenReturn(123L);
+
+    assertEquals(123L, gcsUtil.bucketOwner(path));
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  /** The emulator ignores the storage class, so only a unit test can see it carried over. */
+  @Test
+  public void testCreateBucketKeepsTheStorageClassForV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+
+    gcsUtil.createBucket("a-project", new Bucket().setName("bucket").setStorageClass("NEARLINE"));
+
+    verify(mockDelegateV2)
+        .createBucket(
+            "a-project",
+            BucketInfo.newBuilder("bucket").setStorageClass(StorageClass.NEARLINE).build(),
+            BucketTargetOption.predefinedAcl(PredefinedAcl.PROJECT_PRIVATE),
+            BucketTargetOption.predefinedDefaultObjectAcl(PredefinedAcl.PROJECT_PRIVATE));
+  }
+
+  @Test
+  public void testGetObjectIsRoutedToV2AndKeepsAllFields() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    com.google.cloud.storage.Blob blob = mockBlob("bucket", "object");
+    when(blob.getSize()).thenReturn(42L);
+    when(blob.getGeneration()).thenReturn(7L);
+    when(blob.getMetageneration()).thenReturn(3L);
+    when(blob.getContentType()).thenReturn("text/csv");
+    when(blob.getContentEncoding()).thenReturn("gzip");
+    when(blob.getMd5()).thenReturn("md5==");
+    when(blob.getCrc32c()).thenReturn("crc==");
+    when(blob.getEtag()).thenReturn("etag");
+    when(blob.getUpdateTimeOffsetDateTime())
+        .thenReturn(java.time.Instant.ofEpochMilli(1234L).atOffset(java.time.ZoneOffset.UTC));
+    when(blob.getCreateTimeOffsetDateTime())
+        .thenReturn(java.time.Instant.ofEpochMilli(1000L).atOffset(java.time.ZoneOffset.UTC));
+    when(mockDelegateV2.getBlob(path)).thenReturn(blob);
+
+    StorageObject object = gcsUtil.getObject(path);
+
+    assertEquals("bucket", object.getBucket());
+    assertEquals("object", object.getName());
+    assertEquals(BigInteger.valueOf(42L), object.getSize());
+    assertEquals(Long.valueOf(7L), object.getGeneration());
+    assertEquals(Long.valueOf(3L), object.getMetageneration());
+    assertEquals("text/csv", object.getContentType());
+    assertEquals("gzip", object.getContentEncoding());
+    assertEquals("md5==", object.getMd5Hash());
+    assertEquals("crc==", object.getCrc32c());
+    assertEquals("etag", object.getEtag());
+    assertEquals(1234L, object.getUpdated().getValue());
+    assertEquals(1000L, object.getTimeCreated().getValue());
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  /** Fields a blob may not carry (e.g. when fetched with a field mask) are left unset. */
+  @Test
+  public void testGetObjectLeavesMissingFieldsUnsetForV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    com.google.cloud.storage.Blob blob = mockBlob("bucket", "object");
+    // Mockito would otherwise answer 0 for the boxed size.
+    when(blob.getSize()).thenReturn(null);
+    when(mockDelegateV2.getBlob(path)).thenReturn(blob);
+
+    StorageObject object = gcsUtil.getObject(path);
+
+    assertEquals("object", object.getName());
+    assertNull(object.getSize());
+    assertNull(object.getUpdated());
+    assertNull(object.getTimeCreated());
+  }
+
+  @Test
+  public void testCreateWithTypeIsRoutedToV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+
+    gcsUtil.create(path, "text/plain");
+    gcsUtil.create(path, "text/plain", 1024);
+
+    verify(mockDelegateV2)
+        .create(path, GcsUtilV1.CreateOptions.builder().setContentType("text/plain").build());
+    verify(mockDelegateV2)
+        .create(
+            path,
+            GcsUtilV1.CreateOptions.builder()
+                .setContentType("text/plain")
+                .setUploadBufferSizeBytes(1024)
+                .build());
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  /** GcpOptions reads the soft delete policy of the temp bucket through this method. */
+  @Test
+  public void testGetBucketIsRoutedToV2AndConvertsTheBucket() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    com.google.cloud.storage.Bucket bucket = Mockito.mock(com.google.cloud.storage.Bucket.class);
+    when(bucket.getName()).thenReturn("bucket");
+    when(bucket.getLocation()).thenReturn("US-CENTRAL1");
+    when(bucket.getProject()).thenReturn(BigInteger.valueOf(123L));
+    when(bucket.getStorageClass()).thenReturn(StorageClass.NEARLINE);
+    when(bucket.getSoftDeletePolicy())
+        .thenReturn(
+            BucketInfo.SoftDeletePolicy.newBuilder()
+                .setRetentionDuration(java.time.Duration.ofDays(7))
+                .build());
+    when(mockDelegateV2.getBucket(path)).thenReturn(bucket);
+
+    Bucket converted = gcsUtil.getBucket(path);
+
+    assertNotNull(converted);
+    assertEquals("bucket", converted.getName());
+    assertEquals("US-CENTRAL1", converted.getLocation());
+    assertEquals(BigInteger.valueOf(123L), converted.getProjectNumber());
+    assertEquals("NEARLINE", converted.getStorageClass());
+    assertEquals(
+        Long.valueOf(java.time.Duration.ofDays(7).getSeconds()),
+        converted.getSoftDeletePolicy().getRetentionDurationSeconds());
+    Mockito.verifyNoMoreInteractions(mockDelegate);
+  }
+
+  @Test
+  public void testGetBucketWithoutSoftDeletePolicyForV2() throws IOException {
+    GcsUtil gcsUtil = gcsUtilRoutingToV2();
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    com.google.cloud.storage.Bucket bucket = Mockito.mock(com.google.cloud.storage.Bucket.class);
+    when(bucket.getName()).thenReturn("bucket");
+    when(mockDelegateV2.getBucket(path)).thenReturn(bucket);
+
+    Bucket converted = gcsUtil.getBucket(path);
+
+    assertNotNull(converted);
+    assertNull(converted.getSoftDeletePolicy());
+    assertNull(converted.getStorageClass());
+  }
+
+  /** Without the use_gcsutil_v2 experiment, the V2-only methods fail rather than fall back. */
+  @Test
+  public void testV2OnlyMethodsFailWithoutV2() {
+    GcsUtil gcsUtil = gcsOptionsWithTestCredential().getGcsUtil();
+    assertNull(gcsUtil.delegateV2);
+    GcsUtilV1 v1 = Mockito.mock(GcsUtilV1.class);
+    gcsUtil.delegate = v1;
+    GcsPath path = GcsPath.fromUri("gs://bucket/object");
+    List<GcsPath> paths = ImmutableList.of(path);
+
+    List<ThrowingRunnable> calls =
+        ImmutableList.of(
+            () -> gcsUtil.getBlob(path),
+            () -> gcsUtil.getBlobs(paths),
+            () -> gcsUtil.listBlobs("bucket", "prefix", null),
+            () -> gcsUtil.listBlobs("bucket", "prefix", null, "/"),
+            () -> gcsUtil.openV2(path),
+            () -> gcsUtil.createV2(path, GcsUtil.CreateOptions.builder().build()),
+            () -> gcsUtil.createBucket(BucketInfo.of("bucket")),
+            () -> gcsUtil.getBucketWithOptions(path),
+            () -> gcsUtil.removeBucket(BucketInfo.of("bucket")),
+            () -> gcsUtil.copyV2(paths, paths),
+            () -> gcsUtil.copy(paths, paths, GcsUtilV2.OverwriteStrategy.ALWAYS_OVERWRITE),
+            () -> gcsUtil.renameV2(paths, paths),
+            () ->
+                gcsUtil.rename(
+                    paths,
+                    paths,
+                    GcsUtilV2.MissingStrategy.FAIL_IF_MISSING,
+                    GcsUtilV2.OverwriteStrategy.ALWAYS_OVERWRITE),
+            () -> gcsUtil.removeV2(paths),
+            () -> gcsUtil.remove(paths, GcsUtilV2.MissingStrategy.FAIL_IF_MISSING));
+
+    for (ThrowingRunnable call : calls) {
+      IOException e = assertThrows(IOException.class, call);
+      assertEquals("GcsUtil V2 not initialized.", e.getMessage());
+    }
+    Mockito.verifyNoInteractions(v1);
   }
 
   // The tests below exercise a real GcsUtilV2 delegate whose java-storage client is mocked, to
