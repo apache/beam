@@ -275,6 +275,7 @@ public class TransformServiceLauncher {
     try {
       this.wait(STATUS_LOGGER_WAIT_TIME);
     } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
       throw new RuntimeException(e);
     }
   }
@@ -301,7 +302,7 @@ public class TransformServiceLauncher {
         // We are just waiting for a local process. No need for exponential backoff.
         this.wait(1000);
       } catch (InterruptedException e) {
-        // Ignore and retry.
+        Thread.currentThread().interrupt();
       }
 
       String output = String.join(" ", java.nio.file.Files.readAllLines(Paths.get(statusFileName)));

@@ -118,7 +118,7 @@ public class FinalizeBundleHandler {
         }
       }
     } catch (InterruptedException e) {
-      // We're being shutdown.
+      Thread.currentThread().interrupt();
     } finally {
       lock.unlock();
     }

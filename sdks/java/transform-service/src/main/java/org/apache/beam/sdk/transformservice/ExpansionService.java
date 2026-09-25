@@ -89,7 +89,7 @@ public class ExpansionService extends ExpansionServiceGrpc.ExpansionServiceImplB
           try {
             Thread.sleep(duration);
           } catch (InterruptedException e) {
-            // Ignore
+            Thread.currentThread().interrupt();
           }
           duration = (long) (duration * 1.2);
         }

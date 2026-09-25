@@ -296,6 +296,9 @@ public class BeamFnDataGrpcMultiplexer implements AutoCloseable {
         outboundObserver.onError(e);
         return;
       } catch (ExecutionException | InterruptedException | PoisonedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         if (e instanceof PoisonedException || e.getCause() instanceof PoisonedException) {
           LOG.debug("Received data for poisoned instruction {}. Dropping input.", instructionId);
           return;
