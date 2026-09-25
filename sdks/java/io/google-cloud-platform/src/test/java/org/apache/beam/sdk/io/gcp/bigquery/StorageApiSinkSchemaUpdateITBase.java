@@ -544,7 +544,7 @@ abstract class StorageApiSinkSchemaUpdateITBase {
     // set up and build pipeline.
     // Rows are emitted as fast as possible; any wall-clock delay that the test needs is inserted
     // by UpdateSchemaDoFn around the schema change itself.
-    Instant start = new Instant(0);
+    Instant start = Instant.ofEpochMilli(0);
     Duration interval = Duration.millis(1);
     Duration stop = Duration.millis(TOTAL_N - 1);
     Function<Instant, Long> getIdFromInstant =
@@ -831,7 +831,7 @@ abstract class StorageApiSinkSchemaUpdateITBase {
 
     int numRows = TOTAL_N;
     // set up and build pipeline
-    Instant start = new Instant(0);
+    Instant start = Instant.ofEpochMilli(0);
     // We give a healthy waiting period between each element to give Storage API streams a chance to
     // recognize the new schema. Apply on relevant tests.
     Duration interval = Duration.millis(1);

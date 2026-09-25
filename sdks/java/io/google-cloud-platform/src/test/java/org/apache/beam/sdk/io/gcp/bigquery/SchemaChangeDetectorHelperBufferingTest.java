@@ -27,6 +27,9 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 import com.google.api.services.bigquery.model.TableRow;
+import com.google.cloud.bigquery.storage.v1.TableFieldSchema;
+import com.google.cloud.bigquery.storage.v1.TableSchema;
+import com.google.protobuf.DescriptorProtos;
 import java.util.List;
 import org.apache.beam.sdk.metrics.Counter;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -77,14 +80,24 @@ public class SchemaChangeDetectorHelperBufferingTest {
 
   @Before
   @SuppressWarnings("unchecked")
-  public void setUp() {
+  public void setUp() throws Exception {
     bufferedBag = new FakeBagState<>();
     currentTimerValue = new FakeValueState<>();
     minPendingTimestamp = new FakeValueState<>();
     retryTimer = new FakeTimer(NOW);
     tableDestination = new TableDestination("project-id:dataset-id.table", null);
     counter = Metrics.counter(SchemaChangeDetectorHelperBufferingTest.class, "failedRows");
-    appendClientInfo = mock(AppendClientInfo.class);
+    TableSchema tableSchema =
+        TableSchema.newBuilder()
+            .addFields(
+                TableFieldSchema.newBuilder()
+                    .setName("name")
+                    .setType(TableFieldSchema.Type.STRING)
+                    .build())
+            .build();
+    DescriptorProtos.DescriptorProto descriptor =
+        TableRowToStorageApiProto.descriptorSchemaFromTableSchema(tableSchema, true, false);
+    appendClientInfo = AppendClientInfo.of(tableSchema, descriptor, client -> {});
     failedRowsReceiver = mock(DoFn.OutputReceiver.class);
   }
 

@@ -80,11 +80,11 @@ public class AppendRowsPacketTest {
   }
 
   private static Instant timestampFor(int i) {
-    return new Instant(1_000 + i);
+    return Instant.ofEpochMilli(1_000 + i);
   }
 
   private static Instant deadlineFor(int i) {
-    return new Instant(2_000 + i);
+    return Instant.ofEpochMilli(2_000 + i);
   }
 
   private static StoragePayloadWithDeadline payloadFor(int i) {
@@ -251,7 +251,7 @@ public class AppendRowsPacketTest {
             Iterators.peekingIterator(inputs.iterator()),
             Long.MAX_VALUE,
             helper,
-            new Instant(5_000),
+            Instant.ofEpochMilli(5_000),
             appendClientInfo,
             e -> false);
 
