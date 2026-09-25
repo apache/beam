@@ -270,10 +270,12 @@ abstract class ProcessorDoFn<
 
   protected boolean reachedMaxResultCountForBundle(
       ProcessingState<EventKeyT> processingState, Timer largeBatchEmissionTimer) {
-    long resultsEmitted = processingState.resultsProducedInBundle(
-        numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart);
-    long duplicatesEmitted = processingState.duplicatesProducedInBundle(
-        numberOfDuplicatesBeforeBundleStart == null ? 0 : numberOfDuplicatesBeforeBundleStart);
+    long resultsEmitted =
+        processingState.resultsProducedInBundle(
+            numberOfResultsBeforeBundleStart == null ? 0 : numberOfResultsBeforeBundleStart);
+    long duplicatesEmitted =
+        processingState.duplicatesProducedInBundle(
+            numberOfDuplicatesBeforeBundleStart == null ? 0 : numberOfDuplicatesBeforeBundleStart);
 
     boolean exceeded = (resultsEmitted + duplicatesEmitted) >= maxNumberOfResultsToProduce;
     if (exceeded) {

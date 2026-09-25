@@ -252,11 +252,11 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
     int duplicateCount = 25;
     List<Event> events = new ArrayList<>();
     events.add(Event.create(0, "id-1", "a"));
-    
+
     // Add 25 duplicates of the next event. The maxResultsPerOutput is 10, so it should
     // paginate the duplicates across multiple bundles.
     for (int i = 0; i < duplicateCount; i++) {
-        events.add(Event.create(1, "id-1", "b"));
+      events.add(Event.create(1, "id-1", "b"));
     }
 
     Collection<KV<String, OrderedProcessingStatus>> expectedStatuses = new ArrayList<>();
@@ -280,7 +280,7 @@ public class OrderedEventProcessorPerKeySequenceTest extends OrderedEventProcess
 
     Collection<KV<String, KV<Long, UnprocessedEvent<String>>>> duplicates = new ArrayList<>();
     for (int i = 0; i < duplicateCount - 1; i++) {
-        duplicates.add(KV.of("id-1", KV.of(1L, UnprocessedEvent.create("b", Reason.duplicate))));
+      duplicates.add(KV.of("id-1", KV.of(1L, UnprocessedEvent.create("b", Reason.duplicate))));
     }
 
     testPerKeySequenceProcessing(
