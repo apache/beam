@@ -157,6 +157,19 @@ class DaskRunnerRunPipelineTest(unittest.TestCase):
           | beam.Map(mult_by, beam.pvalue.AsSingleton(side)))
       assert_that(pcoll, equal_to([3]))
 
+  def test_map_with_lazy_positional_side_input(self):
+    def mult_by(x, y):
+      return x * y
+
+    options = PipelineOptions(['--dask_lazy_side_inputs'])
+    with test_pipeline.TestPipeline(runner=DaskRunner(), options=options) as p:
+      side = p | "side" >> beam.Create([3])
+      pcoll = (
+          p
+          | "main" >> beam.Create([1])
+          | beam.Map(mult_by, beam.pvalue.AsSingleton(side)))
+      assert_that(pcoll, equal_to([3]))
+
   def test_map_with_keyword_side_input(self):
     def mult_by(x, y):
       return x * y

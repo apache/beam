@@ -87,13 +87,24 @@ class DaskBagWindowedIterator:
 
   bag: db.Bag
   window_fn: WindowFn
+  lazy_side_inputs: bool = False
 
   def __iter__(self):
-    # FIXME(cisaacstern): list() is likely inefficient, since it presumably
-    # materializes the full result before iterating over it. doing this for
-    # now as a proof-of-concept. can we can generate results incrementally?
-    for result in list(self.bag):
-      yield get_windowed_value(result, self.window_fn)
+    if not self.lazy_side_inputs:
+      for result in list(self.bag):
+        yield get_windowed_value(result, self.window_fn)
+    else:
+      try:
+        from dask.distributed import worker_client
+        with worker_client() as client:
+          for partition in self.bag.to_delayed():
+            # explicitly submit and wait to avoid deadlock
+            for result in client.compute(partition).result():
+              yield get_windowed_value(result, self.window_fn)
+      except (ImportError, ValueError):
+        for partition in self.bag.to_delayed():
+          for result in partition.compute():
+            yield get_windowed_value(result, self.window_fn)
 
 
 @dataclasses.dataclass
