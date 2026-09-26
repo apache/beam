@@ -776,6 +776,34 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
   return result
 
 
+_BUILTIN_TYPES = (
+    bool,
+    bytearray,
+    bytes,
+    complex,
+    float,
+    int,
+    str,
+    dict,
+    frozenset,
+    list,
+    set,
+    tuple,
+)
+_CONTAINER_CONSTRAINTS = (
+    typehints.ListConstraint,
+    typehints.DictConstraint,
+    typehints.SetTypeConstraint,
+    typehints.FrozenSetTypeConstraint,
+    typehints.TupleConstraint,
+    typehints.TupleSequenceConstraint,
+)
+
+
+def _is_builtin_type(t):
+  return t in _BUILTIN_TYPES or isinstance(t, _CONTAINER_CONSTRAINTS)
+
+
 def resolve_dataclass_field_type(x):
   """
   Resolve a type to Beam typehint under global pipeline option context.
@@ -785,7 +813,7 @@ def resolve_dataclass_field_type(x):
   incorrect typehints; non-deterministic or nullable types disallowed by
   consumer transform but check disabled by Any; tests rely on Any),
   --exclude_infer_dataclass_field_type option to instruct falling back to Any.
-  Fields of builtin primitives are always respected.
+  Fields of builtin types and their Optional are always respected.
   """
   from apache_beam.options.pipeline_options_context import get_pipeline_options
   options = get_pipeline_options()
@@ -795,8 +823,12 @@ def resolve_dataclass_field_type(x):
   else:
     disabled = False
 
+  norm_x = typehints.normalize(x)
   if not disabled:
-    return typehints.normalize(x)
-  if x in (bool, bytes, complex, float, int, str):
-    return x
+    return norm_x
+  if _is_builtin_type(norm_x):
+    return norm_x
+  if (typehints.is_nullable(norm_x) and
+      _is_builtin_type(typehints.get_concrete_type_from_nullable(norm_x))):
+    return norm_x
   return Any
