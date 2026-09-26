@@ -16,10 +16,12 @@
 #
 
 """Tests common to all coder implementations."""
+
 # pytype: skip-file
 
 import base64
 import collections
+import datetime
 import enum
 import logging
 import math
@@ -66,20 +68,25 @@ try:
 except ImportError:
   dill = None
 
-MyNamedTuple = collections.namedtuple('A', ['x', 'y'])  # type: ignore[name-match]
-AnotherNamedTuple = collections.namedtuple('AnotherNamedTuple', ['x', 'y'])
-MyTypedNamedTuple = NamedTuple('MyTypedNamedTuple', [('f1', int), ('f2', str)])
+try:
+  import zoneinfo
+except ImportError:
+  zoneinfo = None
+
+MyNamedTuple = collections.namedtuple("A", ["x", "y"])  # type: ignore[name-match]
+AnotherNamedTuple = collections.namedtuple("AnotherNamedTuple", ["x", "y"])
+MyTypedNamedTuple = NamedTuple("MyTypedNamedTuple", [("f1", int), ("f2", str)])
 
 
 class MyEnum(enum.Enum):
   E1 = 5
   E2 = enum.auto()
-  E3 = 'abc'
+  E3 = "abc"
 
 
-MyIntEnum = enum.IntEnum('MyIntEnum', 'I1 I2 I3')
-MyIntFlag = enum.IntFlag('MyIntFlag', 'F1 F2 F3')
-MyFlag = enum.Flag('MyFlag', 'F1 F2 F3')  # pylint: disable=too-many-function-args
+MyIntEnum = enum.IntEnum("MyIntEnum", "I1 I2 I3")
+MyIntFlag = enum.IntFlag("MyIntFlag", "F1 F2 F3")
+MyFlag = enum.Flag("MyFlag", "F1 F2 F3")  # pylint: disable=too-many-function-args
 
 
 class DefinesGetState:
@@ -101,7 +108,7 @@ class DefinesGetAndSetState(DefinesGetState):
 # Defined out of line for picklability.
 class CustomCoder(coders.Coder):
   def encode(self, x):
-    return str(x + 1).encode('utf-8')
+    return str(x + 1).encode("utf-8")
 
   def decode(self, encoded):
     return int(encoded) - 1
@@ -131,7 +138,7 @@ if dataclasses is not None:
 
     def __post_init__(self):
       # Hack to update an attribute in a frozen dataclass.
-      object.__setattr__(self, 'area', self.side**2)
+      object.__setattr__(self, "area", self.side**2)
 
 
 # These tests need to all be run in the same process due to the asserts
@@ -149,8 +156,8 @@ class CodersTest(unittest.TestCase):
       1,
       -1,
       1.5,
-      b'str\0str',
-      'unicode\0\u0101',
+      b"str\0str",
+      "unicode\0\u0101",
       (),
       (1, 2, 3),
       [],
@@ -161,13 +168,13 @@ class CodersTest(unittest.TestCase):
   test_values = test_values_deterministic + [
       {},
       {
-          'a': 'b'
+          "a": "b"
       },
       {
           0: {}, 1: len
       },
       set(),
-      {'a', 'b'},
+      {"a", "b"},
       len,
   ]
 
@@ -180,7 +187,7 @@ class CodersTest(unittest.TestCase):
   def tearDownClass(cls):
     standard = set(
         c for c in coders.__dict__.values() if isinstance(c, type) and
-        issubclass(c, coders.Coder) and 'Base' not in c.__name__)
+        issubclass(c, coders.Coder) and "Base" not in c.__name__)
     standard -= set([
         coders.Coder,
         coders.AvroGenericCoder,
@@ -217,8 +224,8 @@ class CodersTest(unittest.TestCase):
         cls._observe_nested(c)
 
   def check_coder(self, coder, *values, **kwargs):
-    context = kwargs.pop('context', pipeline_context.PipelineContext())
-    test_size_estimation = kwargs.pop('test_size_estimation', True)
+    context = kwargs.pop("context", pipeline_context.PipelineContext())
+    test_size_estimation = kwargs.pop("test_size_estimation", True)
     assert not kwargs
     self._observe(coder)
     for v in values:
@@ -229,7 +236,8 @@ class CodersTest(unittest.TestCase):
             coder.estimate_size(v), coder.get_impl().estimate_size(v))
         self.assertEqual(
             coder.get_impl().get_estimated_size_and_observables(v),
-            (coder.get_impl().estimate_size(v), []))
+            (coder.get_impl().estimate_size(v), []),
+        )
       copy1 = pickler.loads(pickler.dumps(coder))
     copy2 = coders.Coder.from_runner_api(coder.to_runner_api(context), context)
     for v in values:
@@ -241,8 +249,11 @@ class CodersTest(unittest.TestCase):
 
     self.check_coder(CustomCoder(), 1, -10, 5)
     self.check_coder(
-        coders.TupleCoder((CustomCoder(), coders.BytesCoder())), (1, b'a'),
-        (-10, b'b'), (5, b'c'))
+        coders.TupleCoder((CustomCoder(), coders.BytesCoder())),
+        (1, b"a"),
+        (-10, b"b"),
+        (5, b"c"),
+    )
 
   def test_pickle_coder(self):
     coder = coders.PickleCoder()
@@ -250,7 +261,7 @@ class CodersTest(unittest.TestCase):
 
   def test_cloudpickle_pickle_coder(self):
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
-    self.check_coder(coders.CloudpickleCoder(), 'a', 1, cell_value)
+    self.check_coder(coders.CloudpickleCoder(), "a", 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.CloudpickleCoder())),
         (1, cell_value))
@@ -265,21 +276,21 @@ class CodersTest(unittest.TestCase):
       param(compat_version="2.68.0"),
   ])
   def test_deterministic_coder(self, compat_version):
-    """ Test in process determinism for all special deterministic types
+    """Test in process determinism for all special deterministic types
 
-    - In SDK version <= 2.67.0 dill is used to encode "special types"
-    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
-    absolute filepaths in code objects and dynamic functions.
-    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
-    with relative filepaths in code objects and dynamic functions.
-    """
+        - In SDK version <= 2.67.0 dill is used to encode "special types"
+        - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+        absolute filepaths in code objects and dynamic functions.
+        - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+        with relative filepaths in code objects and dynamic functions.
+        """
     with scoped_pipeline_options(
         PipelineOptions(update_compatibility_version=compat_version)):
       coder = coders.FastPrimitivesCoder()
       if not dill and compat_version == "2.67.0":
         with self.assertRaises(RuntimeError):
           coder.as_deterministic_coder(step_label="step")
-        self.skipTest('Dill not installed')
+        self.skipTest("Dill not installed")
       deterministic_coder = coder.as_deterministic_coder(step_label="step")
 
       self.check_coder(deterministic_coder, *self.test_values_deterministic)
@@ -288,21 +299,22 @@ class CodersTest(unittest.TestCase):
       self.check_coder(
           coders.TupleCoder(
               (deterministic_coder, ) * len(self.test_values_deterministic)),
-          tuple(self.test_values_deterministic))
+          tuple(self.test_values_deterministic),
+      )
 
       self.check_coder(deterministic_coder, {})
-      self.check_coder(deterministic_coder, {2: 'x', 1: 'y'})
+      self.check_coder(deterministic_coder, {2: "x", 1: "y"})
       with self.assertRaises(TypeError):
-        self.check_coder(deterministic_coder, {1: 'x', 'y': 2})
+        self.check_coder(deterministic_coder, {1: "x", "y": 2})
       self.check_coder(deterministic_coder, [1, {}])
       with self.assertRaises(TypeError):
-        self.check_coder(deterministic_coder, [1, {1: 'x', 'y': 2}])
+        self.check_coder(deterministic_coder, [1, {1: "x", "y": 2}])
 
       self.check_coder(
-          coders.TupleCoder((deterministic_coder, coder)), (1, {}), ('a', [{}]))
+          coders.TupleCoder((deterministic_coder, coder)), (1, {}), ("a", [{}]))
 
       self.check_coder(
-          deterministic_coder, test_message.MessageA(field1='value'))
+          deterministic_coder, test_message.MessageA(field1="value"))
 
       # Skip this test during cloudpickle. Dill monkey patches the __reduce__
       # method for anonymous named tuples (MyNamedTuple) which is not
@@ -310,11 +322,11 @@ class CodersTest(unittest.TestCase):
       if compat_version == "2.67.0":
         self.check_coder(
             deterministic_coder,
-            [MyNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+            [MyNamedTuple(1, 2), MyTypedNamedTuple(1, "a")])
 
       self.check_coder(
           deterministic_coder,
-          [AnotherNamedTuple(1, 2), MyTypedNamedTuple(1, 'a')])
+          [AnotherNamedTuple(1, 2), MyTypedNamedTuple(1, "a")])
 
       if dataclasses is not None:
         self.check_coder(deterministic_coder, FrozenDataClass(1, 2))
@@ -347,7 +359,7 @@ class CodersTest(unittest.TestCase):
       with self.assertRaises(TypeError):
         self.check_coder(
             deterministic_coder, DefinesGetAndSetState({
-                1: 'x', 'y': 2
+                1: "x", "y": 2
             }))
 
   @parameterized.expand([
@@ -356,19 +368,19 @@ class CodersTest(unittest.TestCase):
       param(compat_version="2.68.0"),
   ])
   def test_deterministic_map_coder_is_update_compatible(self, compat_version):
-    """ Test in process determinism for map coder including when a component
-    coder uses DeterministicFastPrimitivesCoder for "special types".
+    """Test in process determinism for map coder including when a component
+        coder uses DeterministicFastPrimitivesCoder for "special types".
 
-    - In SDK version <= 2.67.0 dill is used to encode "special types"
-    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
-    absolute filepaths in code objects and dynamic functions.
-    - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
-    with relative file.
-    """
+        - In SDK version <= 2.67.0 dill is used to encode "special types"
+        - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+        absolute filepaths in code objects and dynamic functions.
+        - In SDK version >=2.69.0 cloudpickle is used to encode "special types"
+        with relative file.
+        """
     with scoped_pipeline_options(
         PipelineOptions(update_compatibility_version=compat_version)):
       values = [{
-          MyTypedNamedTuple(i, 'a'): MyTypedNamedTuple('a', i)
+          MyTypedNamedTuple(i, "a"): MyTypedNamedTuple("a", i)
           for i in range(10)
       }]
 
@@ -378,14 +390,16 @@ class CodersTest(unittest.TestCase):
       if not dill and compat_version == "2.67.0":
         with self.assertRaises(RuntimeError):
           coder.as_deterministic_coder(step_label="step")
-        self.skipTest('Dill not installed')
+        self.skipTest("Dill not installed")
 
       deterministic_coder = coder.as_deterministic_coder(step_label="step")
 
       assert isinstance(
           deterministic_coder._key_coder,
-          coders.DeterministicFastPrimitivesCoderV2 if compat_version
-          in (None, "2.68.0") else coders.DeterministicFastPrimitivesCoder)
+          (
+              coders.DeterministicFastPrimitivesCoderV2 if compat_version
+              in (None, "2.68.0") else coders.DeterministicFastPrimitivesCoder),
+      )
 
       self.check_coder(deterministic_coder, *values)
 
@@ -393,10 +407,10 @@ class CodersTest(unittest.TestCase):
     if not dill:
       with self.assertRaises(RuntimeError):
         coders.DillCoder()
-      self.skipTest('Dill not installed')
+      self.skipTest("Dill not installed")
 
     cell_value = (lambda x: lambda: x)(0).__closure__[0]
-    self.check_coder(coders.DillCoder(), 'a', 1, cell_value)
+    self.check_coder(coders.DillCoder(), "a", 1, cell_value)
     self.check_coder(
         coders.TupleCoder((coders.VarIntCoder(), coders.DillCoder())),
         (1, cell_value))
@@ -418,10 +432,45 @@ class CodersTest(unittest.TestCase):
       self.check_coder(coders.TupleCoder((coder, )), (v, ))
 
   def test_bytes_coder(self):
-    self.check_coder(coders.BytesCoder(), b'a', b'\0', b'z' * 1000)
+    self.check_coder(coders.BytesCoder(), b"a", b"\0", b"z" * 1000)
 
   def test_bool_coder(self):
     self.check_coder(coders.BooleanCoder(), True, False)
+
+  def test_fast_primitives_coder_datetime(self):
+    self.check_coder(
+        coders.FastPrimitivesCoder(),
+        datetime.datetime(2026, 1, 1),
+        datetime.datetime(
+            2025,
+            2,
+            3,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=3, minutes=30))),
+        datetime.datetime(
+            2025,
+            2,
+            3,
+            tzinfo=datetime.timezone(datetime.timedelta(hours=3), name="Foo")),
+        # Nonsense tznaive fold is still preserved.
+        datetime.datetime(2026, 11, 1, 1, 30, fold=1),
+    )
+    if zoneinfo is not None:
+      tz = zoneinfo.ZoneInfo("America/New_York")
+      self.check_coder(
+          coders.FastPrimitivesCoder(),
+          datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=0),
+          datetime.datetime(2026, 11, 1, 1, 30, tzinfo=tz, fold=1),
+      )
+
+  def test_fast_primitives_coder_date(self):
+    self.check_coder(
+        coders.FastPrimitivesCoder(),
+        datetime.date(2026, 1, 1),
+    )
+
+  def test_fast_primitives_coder_frozenset(self):
+    self.check_coder(
+        coders.FastPrimitivesCoder(), frozenset(), frozenset(["a", "b", "c"]))
 
   def test_varint_coder(self):
     # Small ints.
@@ -429,13 +478,14 @@ class CodersTest(unittest.TestCase):
     # Multi-byte encoding starts at 128
     self.check_coder(coders.VarIntCoder(), *range(120, 140))
     # Large values
-    MAX_64_BIT_INT = 0x7fffffffffffffff
+    MAX_64_BIT_INT = 0x7FFFFFFFFFFFFFFF
     self.check_coder(
         coders.VarIntCoder(),
         *[
             int(math.pow(-1, k) * math.exp(k))
             for k in range(0, int(math.log(MAX_64_BIT_INT)))
-        ])
+        ],
+    )
 
   def test_varint32_coder(self):
     # Small ints.
@@ -443,27 +493,31 @@ class CodersTest(unittest.TestCase):
     # Multi-byte encoding starts at 128
     self.check_coder(coders.VarInt32Coder(), *range(120, 140))
     # Large values
-    MAX_32_BIT_INT = 0x7fffffff
+    MAX_32_BIT_INT = 0x7FFFFFFF
     self.check_coder(
         coders.VarIntCoder(),
         *[
             int(math.pow(-1, k) * math.exp(k))
             for k in range(0, int(math.log(MAX_32_BIT_INT)))
-        ])
+        ],
+    )
 
   def test_float_coder(self):
     self.check_coder(
         coders.FloatCoder(), *[float(0.1 * x) for x in range(-100, 100)])
     self.check_coder(
         coders.FloatCoder(), *[float(2**(0.1 * x)) for x in range(-100, 100)])
-    self.check_coder(coders.FloatCoder(), float('-Inf'), float('Inf'))
+    self.check_coder(coders.FloatCoder(), float("-Inf"), float("Inf"))
     self.check_coder(
-        coders.TupleCoder((coders.FloatCoder(), coders.FloatCoder())), (0, 1),
-        (-100, 100), (0.5, 0.25))
+        coders.TupleCoder((coders.FloatCoder(), coders.FloatCoder())),
+        (0, 1),
+        (-100, 100),
+        (0.5, 0.25),
+    )
 
   def test_singleton_coder(self):
-    a = 'anything'
-    b = 'something else'
+    a = "anything"
+    b = "something else"
     self.check_coder(coders.SingletonCoder(a), a)
     self.check_coder(coders.SingletonCoder(b), b)
     self.check_coder(
@@ -474,9 +528,10 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.IntervalWindowCoder(),
         *[
-            window.IntervalWindow(x, y) for x in [-2**52, 0, 2**52]
+            window.IntervalWindow(x, y) for x in [-(2**52), 0, 2**52]
             for y in range(-100, 100)
-        ])
+        ],
+    )
     self.check_coder(
         coders.TupleCoder((coders.IntervalWindowCoder(), )),
         (window.IntervalWindow(0, 10), ))
@@ -490,8 +545,10 @@ class CodersTest(unittest.TestCase):
                 is_last=y == 9,
                 timing=windowed_value.PaneInfoTiming.EARLY,
                 index=y,
-                nonspeculative_index=-1) for y in range(0, 10)
-        ])
+                nonspeculative_index=-1,
+            ) for y in range(0, 10)
+        ],
+    )
 
   def test_timestamp_coder(self):
     self.check_coder(
@@ -500,14 +557,17 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TimestampCoder(),
         timestamp.Timestamp(micros=-1234567000),
-        timestamp.Timestamp(micros=1234567000))
+        timestamp.Timestamp(micros=1234567000),
+    )
     self.check_coder(
         coders.TimestampCoder(),
         timestamp.Timestamp(micros=-1234567890123456000),
-        timestamp.Timestamp(micros=1234567890123456000))
+        timestamp.Timestamp(micros=1234567890123456000),
+    )
     self.check_coder(
         coders.TupleCoder((coders.TimestampCoder(), coders.BytesCoder())),
-        (timestamp.Timestamp.of(27), b'abc'))
+        (timestamp.Timestamp.of(27), b"abc"),
+    )
 
   def test_timer_coder(self):
     self.check_coder(
@@ -520,7 +580,8 @@ class CodersTest(unittest.TestCase):
                 clear_bit=True,
                 fire_timestamp=None,
                 hold_timestamp=None,
-                paneinfo=None),
+                paneinfo=None,
+            ),
             userstate.Timer(
                 user_key="key",
                 dynamic_timer_tag="tag",
@@ -528,22 +589,28 @@ class CodersTest(unittest.TestCase):
                 clear_bit=False,
                 fire_timestamp=timestamp.Timestamp.of(123),
                 hold_timestamp=timestamp.Timestamp.of(456),
-                paneinfo=windowed_value.PANE_INFO_UNKNOWN)
-        ])
+                paneinfo=windowed_value.PANE_INFO_UNKNOWN,
+            ),
+        ],
+    )
 
   def test_tuple_coder(self):
     kv_coder = coders.TupleCoder((coders.VarIntCoder(), coders.BytesCoder()))
     # Test binary representation
-    self.assertEqual(b'\x04abc', kv_coder.encode((4, b'abc')))
+    self.assertEqual(b"\x04abc", kv_coder.encode((4, b"abc")))
     # Test unnested
-    self.check_coder(kv_coder, (1, b'a'), (-2, b'a' * 100), (300, b'abc\0' * 5))
+    self.check_coder(kv_coder, (1, b"a"), (-2, b"a" * 100), (300, b"abc\0" * 5))
     # Test nested
     self.check_coder(
         coders.TupleCoder((
             coders.TupleCoder((coders.PickleCoder(), coders.VarIntCoder())),
             coders.StrUtf8Coder(),
-            coders.BooleanCoder())), ((1, 2), 'a', True),
-        ((-2, 5), 'a\u0101' * 100, False), ((300, 1), 'abc\0' * 5, True))
+            coders.BooleanCoder(),
+        )),
+        ((1, 2), "a", True),
+        ((-2, 5), "a\u0101" * 100, False),
+        ((300, 1), "abc\0" * 5, True),
+    )
 
   def test_tuple_sequence_coder(self):
     int_tuple_coder = coders.TupleSequenceCoder(coders.VarIntCoder())
@@ -553,10 +620,10 @@ class CodersTest(unittest.TestCase):
         (1, (1, 2, 3)))
 
   def test_base64_pickle_coder(self):
-    self.check_coder(coders.Base64PickleCoder(), 'a', 1, 1.5, (1, 2, 3))
+    self.check_coder(coders.Base64PickleCoder(), "a", 1, 1.5, (1, 2, 3))
 
   def test_utf8_coder(self):
-    self.check_coder(coders.StrUtf8Coder(), 'a', 'ab\u00FF', '\u0101\0')
+    self.check_coder(coders.StrUtf8Coder(), "a", "ab\u00ff", "\u0101\0")
 
   def test_iterable_coder(self):
     iterable_coder = coders.IterableCoder(coders.VarIntCoder())
@@ -566,7 +633,8 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coders.TupleCoder(
             (coders.VarIntCoder(), coders.IterableCoder(coders.VarIntCoder()))),
-        (1, [1, 2, 3]))
+        (1, [1, 2, 3]),
+    )
 
   def test_iterable_coder_unknown_length(self):
     # Empty
@@ -586,7 +654,8 @@ class CodersTest(unittest.TestCase):
     iterable_coder = coders.IterableCoder(coders.VarIntCoder())
     self.assertCountEqual(
         list(iter_generator(count)),
-        iterable_coder.decode(iterable_coder.encode(iter_generator(count))))
+        iterable_coder.decode(iterable_coder.encode(iter_generator(count))),
+    )
 
   def test_list_coder(self):
     list_coder = coders.ListCoder(coders.VarIntCoder())
@@ -624,7 +693,8 @@ class CodersTest(unittest.TestCase):
     self.check_coder(
         coder,
         windowed_value.WindowedValue(
-            123, 234, (GlobalWindow(), ), windowed_value.PANE_INFO_UNKNOWN))
+            123, 234, (GlobalWindow(), ), windowed_value.PANE_INFO_UNKNOWN),
+    )
     for value in test_values:
       self.check_coder(coder, value)
 
@@ -638,34 +708,41 @@ class CodersTest(unittest.TestCase):
         coders.VarIntCoder(), coders.GlobalWindowCoder())
     # Test binary representation
     self.assertEqual(
-        b'\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01',
-        coder.encode(window.GlobalWindows.windowed_value(1)))
+        b"\x7f\xdf;dZ\x1c\xac\t\x00\x00\x00\x01\x0f\x01",
+        coder.encode(window.GlobalWindows.windowed_value(1)),
+    )
 
     # Test decoding large timestamp
     self.assertEqual(
-        coder.decode(b'\x7f\xdf;dZ\x1c\xac\x08\x00\x00\x00\x01\x0f\x00'),
-        windowed_value.create(0, MIN_TIMESTAMP.micros, (GlobalWindow(), )))
+        coder.decode(b"\x7f\xdf;dZ\x1c\xac\x08\x00\x00\x00\x01\x0f\x00"),
+        windowed_value.create(0, MIN_TIMESTAMP.micros, (GlobalWindow(), )),
+    )
 
     # Test unnested
     self.check_coder(
         coders.WindowedValueCoder(coders.VarIntCoder()),
         windowed_value.WindowedValue(3, -100, ()),
-        windowed_value.WindowedValue(-1, 100, (1, 2, 3)))
+        windowed_value.WindowedValue(-1, 100, (1, 2, 3)),
+    )
 
     # Test Global Window
     self.check_coder(
         coders.WindowedValueCoder(
             coders.VarIntCoder(), coders.GlobalWindowCoder()),
-        window.GlobalWindows.windowed_value(1))
+        window.GlobalWindows.windowed_value(1),
+    )
 
     # Test nested
     self.check_coder(
         coders.TupleCoder((
             coders.WindowedValueCoder(coders.FloatCoder()),
-            coders.WindowedValueCoder(coders.StrUtf8Coder()))),
+            coders.WindowedValueCoder(coders.StrUtf8Coder()),
+        )),
         (
             windowed_value.WindowedValue(1.5, 0, ()),
-            windowed_value.WindowedValue("abc", 10, ('window', ))))
+            windowed_value.WindowedValue("abc", 10, ("window", )),
+        ),
+    )
 
   def test_param_windowed_value_coder(self):
     from apache_beam.transforms.window import IntervalWindow
@@ -673,11 +750,12 @@ class CodersTest(unittest.TestCase):
 
     # pylint: disable=too-many-function-args
     wv = windowed_value.create(
-        b'',
+        b"",
         # Milliseconds to microseconds
         1000 * 1000,
         (IntervalWindow(11, 21), ),
-        PaneInfo(True, False, 1, 2, 3))
+        PaneInfo(True, False, 1, 2, 3),
+    )
     windowed_value_coder = coders.WindowedValueCoder(
         coders.BytesCoder(), coders.IntervalWindowCoder())
     payload = windowed_value_coder.encode(wv)
@@ -686,7 +764,7 @@ class CodersTest(unittest.TestCase):
 
     # Test binary representation
     self.assertEqual(
-        b'\x01', coder.encode(window.GlobalWindows.windowed_value(1)))
+        b"\x01", coder.encode(window.GlobalWindows.windowed_value(1)))
 
     # Test unnested
     self.check_coder(
@@ -699,7 +777,8 @@ class CodersTest(unittest.TestCase):
         windowed_value.WindowedValue(
             1,
             1, (window.IntervalWindow(11, 21), ),
-            PaneInfo(True, False, 1, 2, 3)))
+            PaneInfo(True, False, 1, 2, 3)),
+    )
 
     # Test nested
     self.check_coder(
@@ -707,8 +786,8 @@ class CodersTest(unittest.TestCase):
             coders.ParamWindowedValueCoder(
                 payload, [coders.FloatCoder(), coders.IntervalWindowCoder()]),
             coders.ParamWindowedValueCoder(
-                payload,
-                [coders.StrUtf8Coder(), coders.IntervalWindowCoder()]))),
+                payload, [coders.StrUtf8Coder(), coders.IntervalWindowCoder()]),
+        )),
         (
             windowed_value.WindowedValue(
                 1.5,
@@ -717,7 +796,9 @@ class CodersTest(unittest.TestCase):
             windowed_value.WindowedValue(
                 "abc",
                 1, (window.IntervalWindow(11, 21), ),
-                PaneInfo(True, False, 1, 2, 3))))
+                PaneInfo(True, False, 1, 2, 3)),
+        ),
+    )
 
   @parameterized.expand([
       param(compat_version=None),
@@ -728,22 +809,22 @@ class CodersTest(unittest.TestCase):
       self, compat_version):
     """Test cross-process determinism for all special deterministic types
 
-    - In SDK version <= 2.67.0 dill is used to encode "special types"
-    - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
-    absolute filepaths in code objects and dynamic functions.
-    - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
-    relative filepaths in code objects and dynamic functions.
-    """
+        - In SDK version <= 2.67.0 dill is used to encode "special types"
+        - In SDK version 2.68.0 cloudpickle is used to encode "special types" with
+        absolute filepaths in code objects and dynamic functions.
+        - In SDK version 2.69.0 cloudpickle is used to encode "special types" with
+        relative filepaths in code objects and dynamic functions.
+        """
     is_using_dill = compat_version == "2.67.0"
     if is_using_dill:
       pytest.importorskip("dill")
 
     if sys.executable is None:
-      self.skipTest('No Python interpreter found')
+      self.skipTest("No Python interpreter found")
 
     # pylint: disable=line-too-long
     script = textwrap.dedent(
-        f'''\
+        f"""\
         import pickle
         import sys
         import collections
@@ -820,10 +901,10 @@ class CodersTest(unittest.TestCase):
             sys.stdout.buffer.write(pickle.dumps(results))
                 
         
-    ''')
+    """)
 
     def run_subprocess():
-      result = subprocess.run([sys.executable, '-c', script],
+      result = subprocess.run([sys.executable, "-c", script],
                               capture_output=True,
                               timeout=30,
                               check=False)
@@ -861,11 +942,13 @@ class CodersTest(unittest.TestCase):
         named_tuple_type = type(decoded1)
         self.assertEqual(
             os.path.isabs(named_tuple_type._make.__code__.co_filename),
-            not should_have_relative_path)
+            not should_have_relative_path,
+        )
         self.assertEqual(
             os.path.isabs(
-                named_tuple_type.__getnewargs__.__globals__['__file__']),
-            not should_have_relative_path)
+                named_tuple_type.__getnewargs__.__globals__["__file__"]),
+            not should_have_relative_path,
+        )
 
       self.assertEqual(
           decoded1, decoded2, f"Cross-process decoding differs for {test_name}")
@@ -880,23 +963,23 @@ class CodersTest(unittest.TestCase):
     ma = test_message.MessageA()
     mab = ma.field2.add()
     mab.field1 = True
-    ma.field1 = 'hello world'
+    ma.field1 = "hello world"
 
     mb = test_message.MessageA()
-    mb.field1 = 'beam'
+    mb.field1 = "beam"
 
     proto_coder = coders.ProtoCoder(ma.__class__)
     self.check_coder(proto_coder, ma)
     self.check_coder(
-        coders.TupleCoder((proto_coder, coders.BytesCoder())), (ma, b'a'),
-        (mb, b'b'))
+        coders.TupleCoder((proto_coder, coders.BytesCoder())), (ma, b"a"),
+        (mb, b"b"))
 
   def test_global_window_coder(self):
     coder = coders.GlobalWindowCoder()
     value = window.GlobalWindow()
     # Test binary representation
-    self.assertEqual(b'', coder.encode(value))
-    self.assertEqual(value, coder.decode(b''))
+    self.assertEqual(b"", coder.encode(value))
+    self.assertEqual(value, coder.decode(b""))
     # Test unnested
     self.check_coder(coder, value)
     # Test nested
@@ -905,15 +988,15 @@ class CodersTest(unittest.TestCase):
   def test_length_prefix_coder(self):
     coder = coders.LengthPrefixCoder(coders.BytesCoder())
     # Test binary representation
-    self.assertEqual(b'\x00', coder.encode(b''))
-    self.assertEqual(b'\x01a', coder.encode(b'a'))
-    self.assertEqual(b'\x02bc', coder.encode(b'bc'))
-    self.assertEqual(b'\xff\x7f' + b'z' * 16383, coder.encode(b'z' * 16383))
+    self.assertEqual(b"\x00", coder.encode(b""))
+    self.assertEqual(b"\x01a", coder.encode(b"a"))
+    self.assertEqual(b"\x02bc", coder.encode(b"bc"))
+    self.assertEqual(b"\xff\x7f" + b"z" * 16383, coder.encode(b"z" * 16383))
     # Test unnested
-    self.check_coder(coder, b'', b'a', b'bc', b'def')
+    self.check_coder(coder, b"", b"a", b"bc", b"def")
     # Test nested
     self.check_coder(
-        coders.TupleCoder((coder, coder)), (b'', b'a'), (b'bc', b'def'))
+        coders.TupleCoder((coder, coder)), (b"", b"a"), (b"bc", b"def"))
 
   def test_nested_observables(self):
     class FakeObservableIterator(observable.ObservableMixin):
@@ -930,14 +1013,16 @@ class CodersTest(unittest.TestCase):
     value = windowed_value.WindowedValue(observ, 0, ())
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
-        [(observ, elem_coder.get_impl())])
+        [(observ, elem_coder.get_impl())],
+    )
 
     # Test nested tuple observable.
     coder = coders.TupleCoder((coders.StrUtf8Coder(), iter_coder))
-    value = ('123', observ)
+    value = ("123", observ)
     self.assertEqual(
         coder.get_impl().get_estimated_size_and_observables(value)[1],
-        [(observ, elem_coder.get_impl())])
+        [(observ, elem_coder.get_impl())],
+    )
 
   def test_state_backed_iterable_coder(self):
     # pylint: disable=global-variable-undefined
@@ -946,7 +1031,7 @@ class CodersTest(unittest.TestCase):
     state = {}
 
     def iterable_state_write(values, element_coder_impl):
-      token = b'state_token_%d' % len(state)
+      token = b"state_token_%d" % len(state)
       state[token] = [element_coder_impl.encode(e) for e in values]
       return token
 
@@ -957,7 +1042,8 @@ class CodersTest(unittest.TestCase):
         coders.VarIntCoder(),
         read_state=iterable_state_read,
         write_state=iterable_state_write,
-        write_state_threshold=1)
+        write_state_threshold=1,
+    )
     # Note: do not use check_coder
     # see https://github.com/cloudpipe/cloudpickle/issues/452
     self._observe(coder)
@@ -988,27 +1074,30 @@ class CodersTest(unittest.TestCase):
     self.check_coder(map_coder.as_deterministic_coder("label"), *values)
 
   def test_sharded_key_coder(self):
-    key_and_coders = [(b'', b'\x00', coders.BytesCoder()),
-                      (b'key', b'\x03key', coders.BytesCoder()),
-                      ('key', b'\03\x6b\x65\x79', coders.StrUtf8Coder()),
-                      (('k', 1),
-                       b'\x01\x6b\x01',
-                       coders.TupleCoder(
-                           (coders.StrUtf8Coder(), coders.VarIntCoder())))]
+    key_and_coders = [
+        (b"", b"\x00", coders.BytesCoder()),
+        (b"key", b"\x03key", coders.BytesCoder()),
+        ("key", b"\03\x6b\x65\x79", coders.StrUtf8Coder()),
+        (
+            ("k", 1),
+            b"\x01\x6b\x01",
+            coders.TupleCoder((coders.StrUtf8Coder(), coders.VarIntCoder())),
+        ),
+    ]
 
     for key, bytes_repr, key_coder in key_and_coders:
       coder = coders.ShardedKeyCoder(key_coder)
 
       # Test str repr
-      self.assertEqual('%s' % coder, 'ShardedKeyCoder[%s]' % key_coder)
+      self.assertEqual("%s" % coder, "ShardedKeyCoder[%s]" % key_coder)
 
-      self.assertEqual(b'\x00' + bytes_repr, coder.encode(ShardedKey(key, b'')))
+      self.assertEqual(b"\x00" + bytes_repr, coder.encode(ShardedKey(key, b"")))
       self.assertEqual(
-          b'\x03123' + bytes_repr, coder.encode(ShardedKey(key, b'123')))
+          b"\x03123" + bytes_repr, coder.encode(ShardedKey(key, b"123")))
 
       # Test unnested
-      self.check_coder(coder, ShardedKey(key, b''))
-      self.check_coder(coder, ShardedKey(key, b'123'))
+      self.check_coder(coder, ShardedKey(key, b""))
+      self.check_coder(coder, ShardedKey(key, b"123"))
 
       # Test type hints
       self.assertTrue(
@@ -1022,30 +1111,35 @@ class CodersTest(unittest.TestCase):
       self.assertEqual(
           coders.ShardedKeyCoder.from_type_hint(
               coder.to_type_hint(), typecoders.CoderRegistry()),
-          coder)
+          coder,
+      )
 
       for other_key, _, other_key_coder in key_and_coders:
         other_coder = coders.ShardedKeyCoder(other_key_coder)
         # Test nested
         self.check_coder(
             coders.TupleCoder((coder, other_coder)),
-            (ShardedKey(key, b''), ShardedKey(other_key, b'')))
+            (ShardedKey(key, b""), ShardedKey(other_key, b"")),
+        )
         self.check_coder(
             coders.TupleCoder((coder, other_coder)),
-            (ShardedKey(key, b'123'), ShardedKey(other_key, b'')))
+            (ShardedKey(key, b"123"), ShardedKey(other_key, b"")),
+        )
 
   def test_timestamp_prefixing_window_coder(self):
     self.check_coder(
         coders.TimestampPrefixingWindowCoder(coders.IntervalWindowCoder()),
         *[
-            window.IntervalWindow(x, y) for x in [-2**52, 0, 2**52]
+            window.IntervalWindow(x, y) for x in [-(2**52), 0, 2**52]
             for y in range(-100, 100)
-        ])
+        ],
+    )
     self.check_coder(
         coders.TupleCoder((
             coders.TimestampPrefixingWindowCoder(
                 coders.IntervalWindowCoder()), )),
-        (window.IntervalWindow(0, 10), ))
+        (window.IntervalWindow(0, 10), ),
+    )
 
   def test_timestamp_prefixing_opaque_window_coder(self):
     sdk_coder = coders.TimestampPrefixingWindowCoder(
@@ -1087,10 +1181,12 @@ class CodersTest(unittest.TestCase):
           base64.b64encode(test_coder.encode(value)).decode().rstrip("="))
 
   def test_OrderedUnionCoder(self):
-    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
-                                           (int, coders.VarIntCoder()),
-                                           fallback_coder=coders.FloatCoder())
-    self.check_coder(test_coder, 's')
+    test_coder = coders._OrderedUnionCoder(
+        (str, coders.StrUtf8Coder()),
+        (int, coders.VarIntCoder()),
+        fallback_coder=coders.FloatCoder(),
+    )
+    self.check_coder(test_coder, "s")
     self.check_coder(test_coder, 123)
     self.check_coder(test_coder, 1.5)
 
@@ -1103,12 +1199,14 @@ class CodersTest(unittest.TestCase):
 
     self.assertFalse(test_coder.is_deterministic())
 
-    test_coder = coders._OrderedUnionCoder((str, coders.StrUtf8Coder()),
-                                           (int, coders.VarIntCoder()),
-                                           fallback_coder=coders.FloatCoder())
+    test_coder = coders._OrderedUnionCoder(
+        (str, coders.StrUtf8Coder()),
+        (int, coders.VarIntCoder()),
+        fallback_coder=coders.FloatCoder(),
+    )
     self.assertTrue(test_coder.is_deterministic())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
   logging.getLogger().setLevel(logging.INFO)
   unittest.main()
