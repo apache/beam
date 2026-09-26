@@ -173,7 +173,11 @@ def legacyPipelineOptions = [
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
+  "--stagingLocation=${dataflowValidatesTempRoot}/staging",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--numWorkers=1",
+  "--maxNumWorkers=1",
+  "--diskSizeGb=30",
   "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
@@ -190,8 +194,12 @@ def runnerV2CommonPipelineOptions = [
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
+  "--stagingLocation=${dataflowValidatesTempRoot}/staging",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--numWorkers=1",
+  "--maxNumWorkers=1",
+  "--diskSizeGb=30",
   "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
@@ -242,6 +250,7 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
+    maxHeapSize = '768m'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
@@ -275,6 +284,7 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
+    maxHeapSize = '768m'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)

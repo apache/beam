@@ -85,6 +85,12 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       tempLocation = tempLocation.substring(0, tempLocation.length() - File.separator.length());
     }
     dataflowOptions.setTempLocation(tempLocation);
+    String defaultPerJobStagingLocation =
+        FileSystems.matchNewDirectory(tempLocation, "staging").toString();
+    if (defaultPerJobStagingLocation.equals(dataflowOptions.getStagingLocation())) {
+      dataflowOptions.setStagingLocation(
+          FileSystems.matchNewDirectory(dataflowOptions.getTempRoot(), "staging").toString());
+    }
 
     return new TestDataflowRunner(
         dataflowOptions, DataflowClient.create(options.as(DataflowPipelineOptions.class)));
