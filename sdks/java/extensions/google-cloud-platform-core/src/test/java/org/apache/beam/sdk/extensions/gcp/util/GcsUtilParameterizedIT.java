@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.equalTo;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -24,6 +26,7 @@ import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assume.assumeTrue;
 
 import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.model.Bucket;
@@ -32,6 +35,7 @@ import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.StorageChannelUtils;
+import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -44,10 +48,14 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -60,6 +68,7 @@ import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.MissingStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtilV2.OverwriteStrategy;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.fs.MoveOptions;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -67,6 +76,8 @@ import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
+import org.apache.beam.sdk.util.ByteStringOutputStream;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
@@ -109,6 +120,11 @@ public class GcsUtilParameterizedIT {
 
     GcsOptions gcsOptions = options.as(GcsOptions.class);
     gcsUtil = gcsOptions.getGcsUtil();
+  }
+
+  /** Returns a bucket name unique to this test run, so concurrent runs don't collide. */
+  private static String randomBucketName() {
+    return "apache-beam-temp-bucket-" + UUID.randomUUID();
   }
 
   @Test
@@ -272,7 +288,7 @@ public class GcsUtilParameterizedIT {
 
   @Test
   public void testCreateAndRemoveBucket() throws IOException {
-    final GcsPath gcsPath = GcsPath.fromUri("gs://apache-beam-test-bucket-12345");
+    final GcsPath gcsPath = GcsPath.fromUri("gs://" + randomBucketName());
 
     if (experiment.equals("use_gcsutil_v2")) {
       BucketInfo bucketInfo = BucketInfo.of(gcsPath.getBucket());
@@ -385,7 +401,7 @@ public class GcsUtilParameterizedIT {
 
   @Test
   public void testCopy() throws IOException {
-    final String existingBucket = "apache-beam-temp-bucket-12345";
+    final String existingBucket = randomBucketName();
     final String nonExistentBucket = "my-random-test-bucket-12345";
 
     try {
@@ -453,7 +469,7 @@ public class GcsUtilParameterizedIT {
 
   @Test
   public void testRemove() throws IOException {
-    final String existingBucket = "apache-beam-temp-bucket-12345";
+    final String existingBucket = randomBucketName();
     final String nonExistentBucket = "my-random-test-bucket-12345";
 
     try {
@@ -515,7 +531,7 @@ public class GcsUtilParameterizedIT {
 
   @Test
   public void testRename() throws IOException {
-    final String existingBucket = "apache-beam-temp-bucket-12345";
+    final String existingBucket = randomBucketName();
     final String nonExistentBucket = "my-random-test-bucket-12345";
 
     try {
@@ -666,7 +682,7 @@ public class GcsUtilParameterizedIT {
 
   @Test
   public void testWriteAndRead() throws IOException {
-    final String bucketName = "apache-beam-temp-bucket-12345";
+    final String bucketName = randomBucketName();
     final GcsPath targetPath =
         GcsPath.fromComponents(bucketName, "test-object-" + java.util.UUID.randomUUID() + ".txt");
     final byte[] content = "Hello, GCS!".getBytes(StandardCharsets.UTF_8);
@@ -837,5 +853,102 @@ public class GcsUtilParameterizedIT {
             MetricName.named(GcsUtil.METRIC_NAMESPACE, "gcs_http_read_request_count")));
     // API request metric
     assertEquals(1, apiRequestCount(processWide, "GcsInsert", "ok", bucket));
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // V1-only tests.
+  // ---------------------------------------------------------------------------------------------
+
+  /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
+  @Test
+  public void testRewriteMultiPart() throws IOException {
+    // V2 copies each file with a single call, without rewrite tokens.
+    assumeTrue(experiment.equals("use_gcsutil_v1"));
+
+    TestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+    // Using a KMS key is necessary to trigger multi-part rewrites (bucket is created
+    // with a bucket default key).
+    assertNotNull(options.getTempRoot());
+    options.setTempLocation(
+        FileSystems.matchNewDirectory(options.getTempRoot(), "testRewriteMultiPart").toString());
+
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+    String srcFilename = "gs://dataflow-samples/wikipedia_edits/wiki_data-000000000000.json";
+    String dstFilename =
+        gcsOptions.getGcpTempLocation()
+            + String.format(
+                "/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testRewriteMultiPart.copy",
+                LocalDateTime.now(ZoneId.of("UTC")));
+    gcsUtil.delegate.maxBytesRewrittenPerCall = 50L * 1024 * 1024;
+    gcsUtil.delegate.numRewriteTokensUsed = new AtomicInteger();
+
+    gcsUtil.copy(Lists.newArrayList(srcFilename), Lists.newArrayList(dstFilename));
+
+    assertThat(gcsUtil.delegate.numRewriteTokensUsed.get(), equalTo(3));
+    assertThat(
+        gcsUtil.getObject(GcsPath.fromUri(srcFilename)).getMd5Hash(),
+        equalTo(gcsUtil.getObject(GcsPath.fromUri(dstFilename)).getMd5Hash()));
+
+    gcsUtil.remove(Lists.newArrayList(dstFilename));
+  }
+
+  // TODO: once the gRPC feature is in public GA, we will have to refactor this test.
+  // As gRPC will be automatically enabled in each bucket by then, we will no longer need to check
+  // the failed case. The interface of GcsGrpcOptions can also be removed.
+  @Test
+  public void testWriteAndReadGcsWithGrpc() throws IOException {
+    // GcsUtilV2 does not support gRPC yet.
+    assumeTrue(experiment.equals("use_gcsutil_v1"));
+
+    final String outputPattern =
+        "%s/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testWriteAndReadGcsWithGrpc.txt";
+    final String testContent = "This is a test string.";
+
+    TestPipelineOptions options =
+        TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
+
+    // set the experimental flag to enable grpc
+    ExperimentalOptions experimental = options.as(ExperimentalOptions.class);
+    experimental.setExperiments(Collections.singletonList("use_grpc_for_gcs"));
+
+    GcsOptions gcsOptions = options.as(GcsOptions.class);
+    GcsUtil gcsUtil = gcsOptions.getGcsUtil();
+    assertNotNull(gcsUtil);
+
+    // Write a test file in a bucket with gRPC enabled.
+    String tempLocationWithGrpc = options.getTempRoot() + "/temp";
+    String filename =
+        String.format(outputPattern, tempLocationWithGrpc, LocalDateTime.now(ZoneId.of("UTC")));
+    writeGcsTextFile(gcsUtil, filename, testContent);
+
+    // Read the test file back and verify
+    assertEquals(testContent, readGcsTextFile(gcsUtil, filename));
+
+    gcsUtil.remove(Collections.singletonList(filename));
+  }
+
+  void writeGcsTextFile(GcsUtil gcsUtil, String filename, String content) throws IOException {
+    GcsPath gcsPath = GcsPath.fromUri(filename);
+    try (WritableByteChannel channel =
+        gcsUtil.create(
+            gcsPath, CreateOptions.builder().setContentType("text/plain;charset=utf-8").build())) {
+      channel.write(ByteString.copyFromUtf8(content).asReadOnlyByteBuffer());
+    }
+  }
+
+  String readGcsTextFile(GcsUtil gcsUtil, String filename) throws IOException {
+    GcsPath gcsPath = GcsPath.fromUri(filename);
+    try (ByteStringOutputStream output = new ByteStringOutputStream()) {
+      try (ReadableByteChannel channel = gcsUtil.open(gcsPath)) {
+        ByteBuffer bb = ByteBuffer.allocate(16);
+        while (channel.read(bb) != -1) {
+          output.write(bb.array(), 0, bb.capacity() - bb.remaining());
+          bb.clear();
+        }
+      }
+      return output.toByteString().toStringUtf8();
+    }
   }
 }
