@@ -105,46 +105,62 @@ class _RowDictionariesToArrowTable(DoFn):
       record_batch_size=1000):
     self._schema = schema
     self._row_group_buffer_size = row_group_buffer_size
-    self._buffer = [[] for _ in range(len(schema.names))]
     self._buffer_size = record_batch_size
-    self._record_batches = []
-    self._record_batches_byte_size = 0
-    self._window = None
+    self._reset_window_state()
+
+  def _reset_window_state(self):
+    # Buffers are keyed by window: a single bundle may contain elements from
+    # multiple windows (the convert_fn ParDo runs before the window-grouping
+    # GroupByKey in WriteImpl._expand_unbounded), and rows must not leak
+    # across windows.
+    self._buffers = {}
+    self._record_batches = {}
+    self._record_batches_byte_size = {}
+
+  def _buffer_for_window(self, w):
+    if w not in self._buffers:
+      self._buffers[w] = [[] for _ in range(len(self._schema.names))]
+      self._record_batches[w] = []
+      self._record_batches_byte_size[w] = 0
+    return self._buffers[w]
+
+  def start_bundle(self):
+    self._reset_window_state()
 
   def process(self, row, w=DoFn.WindowParam, pane=DoFn.PaneInfoParam):
-    self._window = w
-    if len(self._buffer[0]) >= self._buffer_size:
-      self._flush_buffer()
+    buffer = self._buffer_for_window(w)
+    if len(buffer[0]) >= self._buffer_size:
+      self._flush_buffer(w)
 
-    if self._record_batches_byte_size >= self._row_group_buffer_size:
-      table = self._create_table()
-      yield table
+    if self._record_batches_byte_size[w] >= self._row_group_buffer_size:
+      yield self._windowed_table(self._create_table(w), w)
 
     # reorder the data in columnar format.
     for i, n in enumerate(self._schema.names):
       # Handle missing nullable fields by using None as default value
       field = self._schema.field(i)
       if field.nullable and n not in row:
-        self._buffer[i].append(None)
+        buffer[i].append(None)
       else:
-        self._buffer[i].append(row[n])
+        buffer[i].append(row[n])
 
   def finish_bundle(self):
-    if len(self._buffer[0]) > 0:
-      self._flush_buffer()
-    if self._record_batches_byte_size > 0:
-      table = self._create_table()
-      if self._window is None or isinstance(self._window, window.GlobalWindow):
-        # bounded input
-        yield window.GlobalWindows.windowed_value_at_end_of_window(table)
-      else:
-        # unbounded input
-        yield WindowedValue(
-            table,
-            timestamp=self._window.
-            end,  #or it could be max of timestamp of the rows processed
-            windows=[self._window]  # TODO(pabloem) HOW DO WE GET THE PANE
-        )
+    for w in list(self._buffers):
+      if len(self._buffers[w][0]) > 0:
+        self._flush_buffer(w)
+      if self._record_batches_byte_size[w] > 0:
+        yield self._windowed_table(self._create_table(w), w)
+    self._reset_window_state()
+
+  @staticmethod
+  def _windowed_table(table, w):
+    if w is None or isinstance(w, window.GlobalWindow):
+      # bounded input
+      return window.GlobalWindows.windowed_value_at_end_of_window(table)
+    # unbounded input. Rows from many panes may be batched into one table, so
+    # pane info is intentionally not propagated; the downstream file sink keys
+    # its writers by window only.
+    return WindowedValue(table, timestamp=w.end, windows=[w])
 
   def display_data(self):
     res = super().display_data()
@@ -153,25 +169,26 @@ class _RowDictionariesToArrowTable(DoFn):
 
     return res
 
-  def _create_table(self):
-    table = pa.Table.from_batches(self._record_batches, schema=self._schema)
-    self._record_batches = []
-    self._record_batches_byte_size = 0
+  def _create_table(self, w):
+    table = pa.Table.from_batches(self._record_batches[w], schema=self._schema)
+    self._record_batches[w] = []
+    self._record_batches_byte_size[w] = 0
     return table
 
-  def _flush_buffer(self):
+  def _flush_buffer(self, w):
     arrays = [[] for _ in range(len(self._schema.names))]
-    for x, y in enumerate(self._buffer):
+    buffer = self._buffers[w]
+    for x, y in enumerate(buffer):
       arrays[x] = pa.array(y, type=self._schema.types[x])
-      self._buffer[x] = []
+      buffer[x] = []
     rb = pa.RecordBatch.from_arrays(arrays, schema=self._schema)
-    self._record_batches.append(rb)
+    self._record_batches[w].append(rb)
     size = 0
     for x in arrays:
       for b in x.buffers():
         if b is not None:
           size = size + b.size
-    self._record_batches_byte_size = self._record_batches_byte_size + size
+    self._record_batches_byte_size[w] = self._record_batches_byte_size[w] + size
 
 
 class _ArrowTableToBeamRows(DoFn):
