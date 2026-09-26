@@ -41,7 +41,9 @@ import com.google.cloud.NoCredentials;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.http.HttpTransportOptions;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Bucket;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobWriteOption;
@@ -472,13 +474,12 @@ public class GcsUtilV2Test {
    * storage}. Performance metrics are off by default, so the per-operation clients of {@link
    * GcsUtilV2#storageWithHttpMetrics} resolve to this one as well.
    */
-  private GcsUtil gcsUtilWithV2Storage(com.google.cloud.storage.Storage storage) {
+  private GcsUtil gcsUtilWithV2Storage(Storage storage) {
     return gcsUtilWithV2Storage(gcsOptions(), storage);
   }
 
   /** As {@link #gcsUtilWithV2Storage(Storage)}, but configured from {@code options}. */
-  private GcsUtil gcsUtilWithV2Storage(
-      GcsOptions options, com.google.cloud.storage.Storage storage) {
+  private GcsUtil gcsUtilWithV2Storage(GcsOptions options, Storage storage) {
     options.setProject("my_project");
     GcsUtil gcsUtil = options.getGcsUtil();
     GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
@@ -517,7 +518,7 @@ public class GcsUtilV2Test {
   public void testV2OpenMissingObjectRecordsNotFoundMetric() {
     MetricsContainerImpl container = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(container);
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     // An unstubbed get() returns null, which is how java-storage reports a missing object.
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
@@ -536,11 +537,11 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2WriteChannelCloseTranslatesStorageException() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     WriteChannel writer = Mockito.mock(WriteChannel.class);
     StorageException preconditionFailed = new StorageException(412, "Precondition Failed");
     Mockito.doThrow(preconditionFailed).when(writer).close();
-    when(storage.writer(any(com.google.cloud.storage.BlobInfo.class), any())).thenReturn(writer);
+    when(storage.writer(any(BlobInfo.class), any())).thenReturn(writer);
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
     WritableByteChannel channel =
@@ -555,7 +556,7 @@ public class GcsUtilV2Test {
   /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExist} for V2. */
   @Test
   public void testV2BucketAccessibleIsFalseWhenBucketDoesNotExist() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     // An unstubbed get() returns null, which is how java-storage reports a missing bucket.
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
 
@@ -565,7 +566,7 @@ public class GcsUtilV2Test {
   /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExistBecauseOfAccessError} for V2. */
   @Test
   public void testV2BucketAccessibleIsFalseWhenAccessIsDenied() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     when(storage.get(Mockito.eq("testbucket"), any(BucketGetOption.class)))
         .thenThrow(new StorageException(403, "Forbidden"));
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
@@ -579,7 +580,7 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2BucketAccessiblePropagatesOtherFailures() {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     StorageException serverError = new StorageException(503, "Service Unavailable");
     when(storage.get(Mockito.eq("testbucket"), any(BucketGetOption.class))).thenThrow(serverError);
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
@@ -591,8 +592,8 @@ public class GcsUtilV2Test {
     assertSame(serverError, thrown.getCause());
   }
 
-  private static com.google.cloud.storage.Blob mockBlob(String bucket, String object, long size) {
-    com.google.cloud.storage.Blob blob = Mockito.mock(com.google.cloud.storage.Blob.class);
+  private static Blob mockBlob(String bucket, String object, long size) {
+    Blob blob = Mockito.mock(Blob.class);
     when(blob.getBucket()).thenReturn(bucket);
     when(blob.getName()).thenReturn(object);
     when(blob.getSize()).thenReturn(size);
@@ -605,8 +606,8 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2FileSizeAndGetObject() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
-    com.google.cloud.storage.Blob blob = mockBlob("testbucket", "testobject", 1000L);
+    Storage storage = Mockito.mock(Storage.class);
+    Blob blob = mockBlob("testbucket", "testobject", 1000L);
     when(storage.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any())).thenReturn(blob);
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
@@ -625,7 +626,7 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2MissingObject() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     // An unstubbed get() returns null, which is how java-storage reports a missing object.
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
@@ -637,11 +638,11 @@ public class GcsUtilV2Test {
 
   /**
    * Mirrors {@link GcsUtilV1Test#testAccessDeniedObjectThrowsIOException}. V1 reports a plain
-   * {@link IOException}; V2 reports the more specific {@link AccessDeniedException} (G4).
+   * {@link IOException}; V2 reports the more specific {@link AccessDeniedException}.
    */
   @Test
   public void testV2AccessDeniedObject() {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     when(storage.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any()))
         .thenThrow(new StorageException(403, "Forbidden"));
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
@@ -658,8 +659,8 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2ExistingBucket() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
-    com.google.cloud.storage.Bucket bucket = Mockito.mock(com.google.cloud.storage.Bucket.class);
+    Storage storage = Mockito.mock(Storage.class);
+    Bucket bucket = Mockito.mock(Bucket.class);
     when(bucket.getName()).thenReturn("testbucket");
     when(bucket.getProject()).thenReturn(BigInteger.valueOf(12345));
     when(storage.get(Mockito.eq("testbucket"), any())).thenReturn(bucket);
@@ -678,7 +679,7 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2VerifyBucketAccessibleWhenBucketDoesNotExist() {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     // An unstubbed get() returns null, which is how java-storage reports a missing bucket.
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
@@ -691,7 +692,7 @@ public class GcsUtilV2Test {
   /** Mirrors {@link GcsUtilV1Test#testVerifyBucketAccessibleAccessError}. */
   @Test
   public void testV2VerifyBucketAccessibleWhenAccessIsDenied() {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     when(storage.get(Mockito.eq("testbucket"), any()))
         .thenThrow(new StorageException(403, "Forbidden"));
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
@@ -702,8 +703,8 @@ public class GcsUtilV2Test {
   }
 
   /** A java-storage client whose uploads open {@code writer}. */
-  private static com.google.cloud.storage.Storage storageWritingTo(WriteChannel writer) {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+  private static Storage storageWritingTo(WriteChannel writer) {
+    Storage storage = Mockito.mock(Storage.class);
     when(storage.writer(any(BlobInfo.class), any())).thenReturn(writer);
     return storage;
   }
@@ -711,15 +712,14 @@ public class GcsUtilV2Test {
   /**
    * Mirrors {@link GcsUtilV1Test#testCreate}. An upload that expects no object, or finds none, may
    * only create one. Otherwise it may only replace the generation it saw, so that a concurrent
-   * change fails the upload rather than being overwritten, as gcsio does for V1 (G8).
+   * change fails the upload rather than being overwritten, as gcsio does for V1.
    */
   @Test
   public void testV2CreatePreconditions() throws IOException {
     GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
 
     // Expected not to exist: no lookup is made.
-    com.google.cloud.storage.Storage expectedMissing =
-        storageWritingTo(Mockito.mock(WriteChannel.class));
+    Storage expectedMissing = storageWritingTo(Mockito.mock(WriteChannel.class));
     gcsUtilWithV2Storage(expectedMissing)
         .create(path, CreateOptions.builder().setExpectFileToNotExist(true).build());
     verify(expectedMissing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
@@ -727,13 +727,13 @@ public class GcsUtilV2Test {
 
     // Looked up and missing. An unstubbed get() returns null, which is how java-storage reports a
     // missing object.
-    com.google.cloud.storage.Storage missing = storageWritingTo(Mockito.mock(WriteChannel.class));
+    Storage missing = storageWritingTo(Mockito.mock(WriteChannel.class));
     gcsUtilWithV2Storage(missing).create(path, CreateOptions.builder().build());
     verify(missing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
 
     // Looked up and found.
-    com.google.cloud.storage.Storage existing = storageWritingTo(Mockito.mock(WriteChannel.class));
-    com.google.cloud.storage.Blob blob = Mockito.mock(com.google.cloud.storage.Blob.class);
+    Storage existing = storageWritingTo(Mockito.mock(WriteChannel.class));
+    Blob blob = Mockito.mock(Blob.class);
     when(blob.getGeneration()).thenReturn(42L);
     when(existing.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any())).thenReturn(blob);
     gcsUtilWithV2Storage(existing).create(path, CreateOptions.builder().build());
@@ -775,7 +775,7 @@ public class GcsUtilV2Test {
   public void testV2WriteMetricsIsSet() {
     MetricsContainerImpl container = new MetricsContainerImpl(null);
     MetricsEnvironment.setProcessWideContainer(container);
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     when(storage.writer(any(BlobInfo.class), any()))
         .thenThrow(new StorageException(403, "Forbidden"));
     GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
@@ -795,7 +795,7 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2CreateBucketErrors() {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     StorageException serverError = new StorageException(503, "Service Unavailable");
     when(storage.create(any(BucketInfo.class), any()))
         .thenThrow(new StorageException(403, "Forbidden"))
@@ -833,14 +833,12 @@ public class GcsUtilV2Test {
    */
   @Test
   public void testV2GetObjectsWithMixedResults() throws IOException {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    Storage storage = Mockito.mock(Storage.class);
     StorageBatch batch = Mockito.mock(StorageBatch.class);
     when(storage.batch()).thenReturn(batch);
-    StorageBatchResult<com.google.cloud.storage.Blob> found =
-        batchResult(mockBlob("testbucket", "found", 10L), null);
-    StorageBatchResult<com.google.cloud.storage.Blob> missing = batchResult(null, null);
-    StorageBatchResult<com.google.cloud.storage.Blob> forbidden =
-        batchResult(null, new StorageException(403, "Forbidden"));
+    StorageBatchResult<Blob> found = batchResult(mockBlob("testbucket", "found", 10L), null);
+    StorageBatchResult<Blob> missing = batchResult(null, null);
+    StorageBatchResult<Blob> forbidden = batchResult(null, new StorageException(403, "Forbidden"));
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("found"), any())).thenReturn(found);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("missing"), any())).thenReturn(missing);
     when(batch.get(Mockito.eq("testbucket"), Mockito.eq("forbidden"), any())).thenReturn(forbidden);
@@ -863,9 +861,8 @@ public class GcsUtilV2Test {
   }
 
   /** A java-storage client whose batched deletes in "testbucket" report {@code results}. */
-  private static com.google.cloud.storage.Storage storageDeleting(
-      Map<String, StorageBatchResult<Boolean>> results) {
-    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+  private static Storage storageDeleting(Map<String, StorageBatchResult<Boolean>> results) {
+    Storage storage = Mockito.mock(Storage.class);
     StorageBatch batch = Mockito.mock(StorageBatch.class);
     when(storage.batch()).thenReturn(batch);
     results.forEach(

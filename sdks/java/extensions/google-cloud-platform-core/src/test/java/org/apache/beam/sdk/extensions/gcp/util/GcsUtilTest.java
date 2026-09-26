@@ -31,6 +31,7 @@ import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
 import com.google.api.services.storage.model.StorageObject;
+import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage.BucketTargetOption;
 import com.google.cloud.storage.Storage.PredefinedAcl;
@@ -43,21 +44,15 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
-import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
@@ -65,23 +60,6 @@ import org.mockito.Mockito;
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
 public class GcsUtilTest {
-  @Rule public ExpectedException thrown = ExpectedException.none();
-  MetricsContainerImpl testMetricsContainer;
-
-  @Before
-  public void setUp() {
-    // Setup the ProcessWideContainer for testing metrics are set.
-    testMetricsContainer = new MetricsContainerImpl(null);
-    MetricsEnvironment.setProcessWideContainer(testMetricsContainer);
-    MetricsEnvironment.setCurrentContainer(testMetricsContainer);
-  }
-
-  @After
-  public void tearDown() {
-    // Don't leak the containers installed by setUp into later tests in the same JVM.
-    MetricsEnvironment.setProcessWideContainer(null);
-    MetricsEnvironment.setCurrentContainer(null);
-  }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
@@ -151,8 +129,8 @@ public class GcsUtilTest {
     return gcsUtil;
   }
 
-  private static com.google.cloud.storage.Blob mockBlob(String bucket, String object) {
-    com.google.cloud.storage.Blob blob = Mockito.mock(com.google.cloud.storage.Blob.class);
+  private static Blob mockBlob(String bucket, String object) {
+    Blob blob = Mockito.mock(Blob.class);
     when(blob.getBucket()).thenReturn(bucket);
     when(blob.getName()).thenReturn(object);
     return blob;
@@ -227,7 +205,7 @@ public class GcsUtilTest {
   @Test
   public void testGetObjectsIsRoutedToV2AndConvertsBlobs() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
-    com.google.cloud.storage.Blob blob = mockBlob("bucket", "found");
+    Blob blob = mockBlob("bucket", "found");
     FileNotFoundException notFound = new FileNotFoundException("gs://bucket/missing");
     List<GcsPath> paths =
         ImmutableList.of(GcsPath.fromUri("gs://bucket/found"), GcsPath.fromUri("gs://bucket/miss"));
@@ -251,11 +229,11 @@ public class GcsUtilTest {
   @Test
   public void testListObjectsIsRoutedToV2AndConvertsAPage() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
-    com.google.cloud.storage.Blob object = mockBlob("bucket", "prefix/object");
-    com.google.cloud.storage.Blob directory = mockBlob("bucket", "prefix/dir/");
+    Blob object = mockBlob("bucket", "prefix/object");
+    Blob directory = mockBlob("bucket", "prefix/dir/");
     when(directory.isDirectory()).thenReturn(true);
     @SuppressWarnings("unchecked")
-    Page<com.google.cloud.storage.Blob> page = Mockito.mock(Page.class);
+    Page<Blob> page = Mockito.mock(Page.class);
     when(page.getValues()).thenReturn(ImmutableList.of(object, directory));
     when(page.hasNextPage()).thenReturn(true);
     when(page.getNextPageToken()).thenReturn("next");
@@ -274,7 +252,7 @@ public class GcsUtilTest {
   public void testListObjectsReportsTheLastPageWithANullToken() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
     @SuppressWarnings("unchecked")
-    Page<com.google.cloud.storage.Blob> page = Mockito.mock(Page.class);
+    Page<Blob> page = Mockito.mock(Page.class);
     when(page.getValues()).thenReturn(ImmutableList.of());
     // A gax page reports an empty token rather than a null one once it is exhausted. Callers of
     // listObjects loop until the token is null, so it has to be normalized.
@@ -289,10 +267,6 @@ public class GcsUtilTest {
     assertNull(objects.getNextPageToken());
   }
 
-  /**
-   * The storage class is checked here because the emulator ignores it, so only a unit test can see
-   * it carried over.
-   */
   @Test
   public void testCreateBucketIsRoutedToV2WithProjectPrivateAcls() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
@@ -347,7 +321,7 @@ public class GcsUtilTest {
   public void testGetObjectIsRoutedToV2AndKeepsAllFields() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
     GcsPath path = GcsPath.fromUri("gs://bucket/object");
-    com.google.cloud.storage.Blob blob = mockBlob("bucket", "object");
+    Blob blob = mockBlob("bucket", "object");
     when(blob.getSize()).thenReturn(42L);
     when(blob.getGeneration()).thenReturn(7L);
     when(blob.getMetageneration()).thenReturn(3L);
@@ -384,7 +358,7 @@ public class GcsUtilTest {
   public void testGetObjectLeavesMissingFieldsUnsetForV2() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
     GcsPath path = GcsPath.fromUri("gs://bucket/object");
-    com.google.cloud.storage.Blob blob = mockBlob("bucket", "object");
+    Blob blob = mockBlob("bucket", "object");
     // Mockito would otherwise answer 0 for the boxed size.
     when(blob.getSize()).thenReturn(null);
     when(mockDelegateV2.getBlob(path)).thenReturn(blob);
@@ -530,9 +504,9 @@ public class GcsUtilTest {
   @Test
   public void testListObjectsWithDelimiterIsRoutedToV2() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
-    com.google.cloud.storage.Blob object = mockBlob("bucket", "prefix/object");
+    Blob object = mockBlob("bucket", "prefix/object");
     @SuppressWarnings("unchecked")
-    Page<com.google.cloud.storage.Blob> page = Mockito.mock(Page.class);
+    Page<Blob> page = Mockito.mock(Page.class);
     when(page.getValues()).thenReturn(ImmutableList.of(object));
     when(mockDelegateV2.listBlobs("bucket", "prefix/", "token", "/")).thenReturn(page);
 
