@@ -46,6 +46,8 @@ import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.StorageBatch;
+import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.ByteArrayOutputStream;
@@ -59,6 +61,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.HashMap;
+import java.util.List;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -69,6 +72,7 @@ import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -806,5 +810,55 @@ public class GcsUtilV2Test {
     IOException thrown =
         assertThrows(IOException.class, () -> gcsUtil.createBucket("my_project", bucket));
     assertSame(serverError, thrown.getCause());
+  }
+
+  /** A batched lookup whose result is {@code blob}, or {@code error} if one is given. */
+  @SuppressWarnings("unchecked")
+  private static StorageBatchResult<com.google.cloud.storage.Blob> batchResult(
+      com.google.cloud.storage.@Nullable Blob blob, @Nullable StorageException error) {
+    StorageBatchResult<com.google.cloud.storage.Blob> result =
+        Mockito.mock(StorageBatchResult.class);
+    if (error != null) {
+      when(result.get()).thenThrow(error);
+    } else {
+      when(result.get()).thenReturn(blob);
+    }
+    return result;
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testGetObjects} and {@link
+   * GcsUtilV1Test#testGetObjectsWithException}: the lookups are sent in one batch, and each path
+   * gets its own result, so a missing or forbidden object doesn't fail the others.
+   */
+  @Test
+  public void testV2GetObjectsWithMixedResults() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    StorageBatch batch = Mockito.mock(StorageBatch.class);
+    when(storage.batch()).thenReturn(batch);
+    StorageBatchResult<com.google.cloud.storage.Blob> found =
+        batchResult(mockBlob("testbucket", "found", 10L), null);
+    StorageBatchResult<com.google.cloud.storage.Blob> missing = batchResult(null, null);
+    StorageBatchResult<com.google.cloud.storage.Blob> forbidden =
+        batchResult(null, new StorageException(403, "Forbidden"));
+    when(batch.get(Mockito.eq("testbucket"), Mockito.eq("found"), any())).thenReturn(found);
+    when(batch.get(Mockito.eq("testbucket"), Mockito.eq("missing"), any())).thenReturn(missing);
+    when(batch.get(Mockito.eq("testbucket"), Mockito.eq("forbidden"), any())).thenReturn(forbidden);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    List<StorageObjectOrIOException> results =
+        gcsUtil.getObjects(
+            ImmutableList.of(
+                GcsPath.fromComponents("testbucket", "found"),
+                GcsPath.fromComponents("testbucket", "missing"),
+                GcsPath.fromComponents("testbucket", "forbidden")));
+
+    assertEquals(3, results.size());
+    assertEquals("found", results.get(0).storageObject().getName());
+    assertEquals(BigInteger.valueOf(10), results.get(0).storageObject().getSize());
+    assertTrue(results.get(1).ioException() instanceof FileNotFoundException);
+    assertTrue(results.get(2).ioException() instanceof AccessDeniedException);
+    verify(storage).batch();
+    verify(batch).submit();
   }
 }
