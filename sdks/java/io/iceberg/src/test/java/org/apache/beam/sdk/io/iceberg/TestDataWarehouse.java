@@ -162,6 +162,33 @@ public class TestDataWarehouse extends ExternalResource {
         .build();
   }
 
+  /**
+   * Writes {@code records} to an unpartitioned Parquet file applying {@code writerProperties} (for
+   * example a tiny {@code write.parquet.row-group-size-bytes} to force several row groups) and
+   * records the resulting split offsets on the returned {@link DataFile} so it is splittable by row
+   * group. {@code withMetrics} does not carry split offsets, so they must be set explicitly.
+   */
+  public DataFile writeRecords(
+      String filename, Schema schema, List<Record> records, Map<String, String> writerProperties)
+      throws IOException {
+    Path path = new Path(location, filename);
+    FileAppender<Record> appender =
+        Parquet.write(fromPath(path, hadoopConf))
+            .createWriterFunc(GenericParquetWriter::create)
+            .schema(schema)
+            .setAll(writerProperties)
+            .overwrite()
+            .build();
+    appender.addAll(records);
+    appender.close();
+
+    return DataFiles.builder(PartitionSpec.unpartitioned())
+        .withInputFile(HadoopInputFile.fromPath(path, hadoopConf))
+        .withMetrics(appender.metrics())
+        .withSplitOffsets(appender.splitOffsets())
+        .build();
+  }
+
   public Table createTable(TableIdentifier tableId, Schema schema) {
     return createTable(tableId, schema, null, null);
   }
