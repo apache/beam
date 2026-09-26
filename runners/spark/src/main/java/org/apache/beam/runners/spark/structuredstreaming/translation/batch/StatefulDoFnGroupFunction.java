@@ -25,12 +25,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.function.Supplier;
 import javax.annotation.CheckForNull;
-import org.apache.beam.runners.core.InMemoryStateInternals;
 import org.apache.beam.runners.core.InMemoryTimerInternals;
-import org.apache.beam.runners.core.StateInternals;
-import org.apache.beam.runners.core.StateNamespaces;
-import org.apache.beam.runners.core.StepContext;
-import org.apache.beam.runners.core.TimerInternals;
 import org.apache.beam.runners.core.TimerInternals.TimerData;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.translation.batch.DoFnRunnerFactory.DoFnRunnerWithTeardown;
@@ -38,14 +33,11 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
-import org.apache.beam.sdk.values.CausedByDrain;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.AbstractIterator;
-import org.apache.spark.TaskContext;
 import org.apache.spark.api.java.function.FlatMapGroupsFunction;
-import org.apache.spark.util.TaskCompletionListener;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import scala.Tuple2;
 
@@ -76,12 +68,10 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
   private final Supplier<PipelineOptions> options;
   private final MetricsAccumulator metrics;
   private final DoFnRunnerFactory<InT, ?> factory;
+  private final StatefulTaskRunner<InT, ?> taskRunner = new StatefulTaskRunner<>();
 
   private transient @Nullable Deque<OutT> buffer;
-  private transient @Nullable MutableStepContext stepContext;
-  private transient @Nullable DoFnRunnerWithTeardown<InT, ?> doFnRunner;
   private transient boolean needsBundleStart;
-  private transient boolean isTornDown;
 
   private StatefulDoFnGroupFunction(
       Supplier<PipelineOptions> options,
@@ -122,7 +112,7 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
   public Iterator<OutT> call(K key, Iterator<WindowedValue<InT>> values) {
     DoFnRunnerWithTeardown<InT, ?> runner = runner();
     // Fresh state and timers for this key; the DoFn instance itself is untouched.
-    stepContext().reset(key);
+    taskRunner.stepContext().reset(key);
     if (needsBundleStart) {
       needsBundleStart = false;
       runner.startBundle();
@@ -135,39 +125,12 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
    * and opens the first bundle, so this happens exactly once per task rather than once per key.
    */
   private DoFnRunnerWithTeardown<InT, ?> runner() {
-    DoFnRunnerWithTeardown<InT, ?> runner = doFnRunner;
-    if (runner == null) {
-      MutableStepContext ctx = new MutableStepContext();
-      Deque<OutT> buf = new ArrayDeque<>();
-      buffer = buf;
-      stepContext = ctx;
-      runner = factory.create(options.get(), metrics, outputManager(buf), ctx);
-      doFnRunner = runner;
-      // Spark is free to abandon an iterator part way through (a downstream limit, a task kill, an
-      // exception elsewhere in the stage). Tearing down from the task completion listener is the
-      // only way to guarantee @Teardown runs and DoFn resources are released.
-      TaskContext taskContext = TaskContext.get();
-      if (taskContext != null) {
-        // An explicit listener rather than a lambda: TaskContext overloads this for both the Scala
-        // function and the Java interface, so a lambda is ambiguous.
-        taskContext.addTaskCompletionListener(
-            new TaskCompletionListener() {
-              @Override
-              public void onTaskCompletion(TaskContext context) {
-                teardownOnce();
-              }
-            });
-      }
-    }
-    return runner;
-  }
-
-  private MutableStepContext stepContext() {
-    MutableStepContext ctx = stepContext;
-    if (ctx == null) {
-      throw new IllegalStateException("StepContext requested before the runner was created");
-    }
-    return ctx;
+    return taskRunner.getOrCreate(
+        ctx -> {
+          Deque<OutT> buf = new ArrayDeque<>();
+          buffer = buf;
+          return factory.create(options.get(), metrics, outputManager(buf), ctx);
+        });
   }
 
   private Deque<OutT> buffer() {
@@ -176,14 +139,6 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
       throw new IllegalStateException("Buffer requested before the runner was created");
     }
     return buf;
-  }
-
-  private void teardownOnce() {
-    DoFnRunnerWithTeardown<InT, ?> runner = doFnRunner;
-    if (runner != null && !isTornDown) {
-      isTornDown = true;
-      runner.teardown();
-    }
   }
 
   /** Output manager emitting outputs of type {@link OutT} to the buffer. */
@@ -246,45 +201,6 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
     }
   }
 
-  /**
-   * A {@link StepContext} whose state and timers are swapped per key, so that one {@link DoFn} and
-   * one {@link org.apache.beam.runners.core.DoFnRunner DoFnRunner} can serve every key of a task.
-   *
-   * <p>{@code SimpleDoFnRunner} re-reads {@code stateInternals()} on each access rather than
-   * caching it, which is what makes rebinding safe.
-   */
-  private static class MutableStepContext implements StepContext {
-    private @Nullable StateInternals stateInternals;
-    private @Nullable InMemoryTimerInternals timerInternals;
-
-    void reset(@Nullable Object key) {
-      stateInternals = InMemoryStateInternals.forKey(key);
-      timerInternals = new InMemoryTimerInternals();
-    }
-
-    InMemoryTimerInternals timers() {
-      InMemoryTimerInternals timers = timerInternals;
-      if (timers == null) {
-        throw new IllegalStateException("StepContext used before reset");
-      }
-      return timers;
-    }
-
-    @Override
-    public StateInternals stateInternals() {
-      StateInternals state = stateInternals;
-      if (state == null) {
-        throw new IllegalStateException("StepContext used before reset");
-      }
-      return state;
-    }
-
-    @Override
-    public TimerInternals timerInternals() {
-      return timers();
-    }
-  }
-
   private class StatefulGroupIt extends AbstractIterator<OutT> {
     private final Iterator<WindowedValue<InT>> groupIt;
     private final K key;
@@ -300,7 +216,7 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
       this.key = key;
       this.groupIt = groupIt;
       this.runner = runner;
-      this.timerInternals = stepContext().timers();
+      this.timerInternals = taskRunner.stepContext().timers();
     }
 
     @Override
@@ -326,10 +242,10 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
           }
         }
       } catch (RuntimeException re) {
-        teardownOnce();
+        taskRunner.teardownOnce();
         throw re;
       } catch (Exception e) {
-        teardownOnce();
+        taskRunner.teardownOnce();
         throw new RuntimeException(e);
       }
     }
@@ -375,17 +291,7 @@ abstract class StatefulDoFnGroupFunction<K, InT extends KV<K, ?>, OutT>
     }
 
     private void fire(TimerData timer) {
-      BoundedWindow window =
-          ((StateNamespaces.WindowNamespace<?>) timer.getNamespace()).getWindow();
-      runner.onTimer(
-          timer.getTimerId(),
-          timer.getTimerFamilyId(),
-          key,
-          window,
-          timer.getTimestamp(),
-          timer.getOutputTimestamp(),
-          timer.getDomain(),
-          CausedByDrain.NORMAL);
+      StatefulTaskRunner.fireTimer(runner, key, timer);
     }
   }
 }
