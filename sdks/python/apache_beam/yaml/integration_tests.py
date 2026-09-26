@@ -79,7 +79,11 @@ import yaml
 from apitools.base.py.exceptions import HttpError
 from google.cloud import pubsub_v1
 from google.cloud.bigtable import client
+from google.cloud.bigtable_admin_v2.types import bigtable_table_admin
 from google.cloud.bigtable_admin_v2.types import instance
+from google.cloud.bigtable_admin_v2.types import table as table_pb
+from google.protobuf import duration_pb2
+from google.protobuf import field_mask_pb2
 
 try:
   from google.cloud import firestore
@@ -257,6 +261,83 @@ def instance_prefix(instance):
   instance_id = '%s-%s-%s' % (instance, datestr, secrets.token_hex(4))
   assert len(instance_id) < 34, "instance id length needs to be within [6, 33]"
   return instance_id
+
+
+@contextlib.contextmanager
+def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
+  instance_name = 'bt-cdc-tests'
+  table_id = 'test-table'
+  cluster_id = 'test-cluster'
+  app_profile_id = 'cdc-profile'
+
+  instance_id = instance_prefix(instance_name)
+
+  bigtable_client = client.Client(admin=True, project=project)
+
+  bigtable_instance = bigtable_client.instance(
+      instance_id,
+      display_name=instance_name,
+      instance_type=instance.Instance.Type.DEVELOPMENT)
+
+  cluster = bigtable_instance.cluster(cluster_id, 'us-central1-a')
+
+  operation = bigtable_instance.create(clusters=[cluster])
+  operation.result(timeout=500)
+
+  _LOGGER.info(
+      'Created Bigtable CDC instance [%s] in project [%s]',
+      instance_id,
+      project)
+
+  table = bigtable_instance.table(table_id)
+  table.create()
+
+  _LOGGER.info('Created Bigtable CDC table [%s]', table_id)
+
+  column_family = table.column_family('cf1')
+  column_family.create()
+
+  table_name = (f'projects/{project}/instances/{instance_id}/tables/{table_id}')
+
+  change_stream_config = table_pb.ChangeStreamConfig(
+      retention_period=duration_pb2.Duration(seconds=24 * 60 * 60))
+
+  request = bigtable_table_admin.UpdateTableRequest(
+      table=table_pb.Table(
+          name=table_name, change_stream_config=change_stream_config),
+      update_mask=field_mask_pb2.FieldMask(paths=['change_stream_config']))
+
+  operation = bigtable_client.table_admin_client.update_table(request=request)
+  operation.result(timeout=500)
+
+  _LOGGER.info('Enabled change stream for Bigtable table [%s]', table_id)
+
+  app_profile = bigtable_instance.app_profile(
+      app_profile_id,
+      routing_policy_type='single-cluster',
+      cluster_id=cluster_id,
+      allow_transactional_writes=True)
+
+  app_profile.create()
+
+  _LOGGER.info('Created Bigtable CDC app profile [%s]', app_profile_id)
+
+  try:
+    yield {
+        'PROJECT': project,
+        'INSTANCE': instance_id,
+        'TABLE': table_id,
+        'APP_PROFILE': app_profile_id,
+    }
+  finally:
+    try:
+      _LOGGER.info('Deleting Bigtable CDC table [%s]', table_id)
+      table.delete()
+
+      _LOGGER.info('Deleting Bigtable CDC instance [%s]', instance_id)
+      bigtable_instance.delete()
+    except HttpError:
+        _LOGGER.warning('Failed to clean up Bigtable CDC resources')
 
 
 @contextlib.contextmanager
