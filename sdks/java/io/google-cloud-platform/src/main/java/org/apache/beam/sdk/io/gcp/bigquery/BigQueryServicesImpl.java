@@ -191,6 +191,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
   private static final String NO_ROWS_PRESENT = "No rows present in the request.";
 
+  private static final String BIGQUERY_NOT_ENABLED = "has not enabled BigQuery";
+
+  private static final String BIGQUERY_NOT_ENABLED_GUIDANCE =
+      "Please verify that the project ID is correct and that the BigQuery API is enabled for the"
+          + " project at https://console.cloud.google.com/apis/library/bigquery.googleapis.com."
+          + " If the BigQuery API is already enabled, check the Google Cloud Status Dashboard"
+          + " (https://status.cloud.google.com/) for any ongoing authentication or service"
+          + " outages.";
+
   protected static final Map<String, String> API_METRIC_LABEL =
       ImmutableMap.of(
           MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
@@ -1058,14 +1067,17 @@ public class BigQueryServicesImpl implements BigQueryServices {
             if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
                 && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
               String exceptionMessage = e.getMessage();
-              if (ApiErrorExtractor.INSTANCE.badRequest(e)
-                  && exceptionMessage != null
-                  && exceptionMessage.contains(NO_ROWS_PRESENT)) {
-                LOG.error(
-                    "No rows present in the request error likely caused by BigQuery Insert"
-                        + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
-                        + " or 0 to disable timeouts",
-                    e.getCause());
+              if (ApiErrorExtractor.INSTANCE.badRequest(e) && exceptionMessage != null) {
+                if (exceptionMessage.contains(NO_ROWS_PRESENT)) {
+                  LOG.error(
+                      "No rows present in the request error likely caused by BigQuery Insert"
+                          + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
+                          + " or 0 to disable timeouts",
+                      e.getCause());
+                } else if (exceptionMessage.contains(BIGQUERY_NOT_ENABLED)) {
+                  LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+                  throw new IOException(exceptionMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+                }
               }
               throw e;
             }
@@ -1734,6 +1746,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
         return request.execute();
       } catch (IOException e) {
         lastException = e;
+        if (ApiErrorExtractor.INSTANCE.badRequest(e)
+            && e.getMessage() != null
+            && e.getMessage().contains(BIGQUERY_NOT_ENABLED)) {
+          LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+          throw new IOException(e.getMessage() + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+        }
         if (!shouldRetry.apply(e)) {
           break;
         }
