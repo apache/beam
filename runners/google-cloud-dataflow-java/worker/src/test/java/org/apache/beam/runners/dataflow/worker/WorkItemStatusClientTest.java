@@ -25,6 +25,7 @@ import static org.hamcrest.Matchers.empty;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.hasSize;
+import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.isA;
@@ -53,6 +54,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker;
 import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
+import org.apache.beam.runners.dataflow.util.TimeUtil;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
 import org.apache.beam.runners.dataflow.worker.SourceTranslationUtils.DataflowReaderPosition;
 import org.apache.beam.runners.dataflow.worker.WorkerCustomSources.BoundedSourceSplit;
@@ -246,9 +248,8 @@ public class WorkItemStatusClientTest {
     statusClient.setWorker(worker, executionContext);
     statusClient.reportSuccess();
 
-    thrown.expect(IllegalStateException.class);
-    thrown.expectMessage("reportUpdate");
-    statusClient.reportUpdate(null, LEASE_DURATION);
+    WorkItemServiceState result = statusClient.reportUpdate(null, LEASE_DURATION);
+    assertThat(result, nullValue());
   }
 
   @Test
@@ -523,6 +524,96 @@ public class WorkItemStatusClientTest {
     thrown.expectMessage("setWorker");
     thrown.expectMessage("reportUpdate");
     statusClient.reportUpdate(null, null);
+  }
+
+  @Test
+  public void reportLeasePingBeforeSetWorker() throws Exception {
+    thrown.expect(IllegalStateException.class);
+    thrown.expectMessage("setWorker should be called before reportLeasePing");
+    statusClient.reportLeasePing(LEASE_DURATION);
+  }
+
+  @Test
+  public void reportLeasePingNullDuration() throws Exception {
+    statusClient.setWorker(worker, executionContext);
+    thrown.expect(IllegalArgumentException.class);
+    thrown.expectMessage("requestLeaseDuration must be non-null");
+    statusClient.reportLeasePing(null);
+  }
+
+  @Test
+  public void reportLeasePing() throws Exception {
+    statusClient.setWorker(worker, executionContext);
+    statusClient.reportLeasePing(LEASE_DURATION);
+
+    verify(workUnitClient).reportWorkItemStatus(statusCaptor.capture());
+    WorkItemStatus workStatus = statusCaptor.getValue();
+    assertThat(workStatus.getWorkItemId(), equalTo(Long.toString(WORK_ID)));
+    assertThat(workStatus.getCompleted(), equalTo(false));
+    assertThat(workStatus.getReportIndex(), equalTo(INITIAL_REPORT_INDEX));
+    assertThat(
+        workStatus.getRequestedLeaseDuration(), equalTo(TimeUtil.toCloudDuration(LEASE_DURATION)));
+    assertThat(workStatus.getCounterUpdates(), nullValue());
+    assertThat(workStatus.getMetricUpdates(), nullValue());
+  }
+
+  @Test
+  public void reportLeasePingAfterSuccessReturnsNull() throws Exception {
+    when(worker.extractMetricUpdates()).thenReturn(Collections.emptyList());
+    statusClient.setWorker(worker, executionContext);
+    statusClient.reportSuccess();
+
+    WorkItemServiceState result = statusClient.reportLeasePing(LEASE_DURATION);
+    assertThat(result, nullValue());
+  }
+
+  @Test
+  public void reportUpdateWithoutCounters() throws Exception {
+    when(worker.extractMetricUpdates()).thenReturn(Collections.emptyList());
+    statusClient.setWorker(worker, executionContext);
+
+    statusClient.reportUpdate(null, LEASE_DURATION, false);
+    verify(workUnitClient).reportWorkItemStatus(statusCaptor.capture());
+    WorkItemStatus workStatus = statusCaptor.getValue();
+    assertThat(workStatus.getCompleted(), equalTo(false));
+    assertThat(workStatus.getCounterUpdates(), nullValue());
+    assertThat(workStatus.getMetricUpdates(), nullValue());
+  }
+
+  @Test
+  public void isFinalStateSentStatus() throws Exception {
+    statusClient.setWorker(worker, executionContext);
+    assertThat(statusClient.isFinalStateSent(), equalTo(false));
+
+    when(worker.extractMetricUpdates()).thenReturn(Collections.emptyList());
+    statusClient.reportSuccess();
+    assertThat(statusClient.isFinalStateSent(), equalTo(true));
+  }
+
+  @Test
+  public void reportLeasePingDuringSuccessExecution() throws Exception {
+    when(worker.extractMetricUpdates()).thenReturn(Collections.emptyList());
+    statusClient.setWorker(worker, executionContext);
+
+    when(workUnitClient.reportWorkItemStatus(isA(WorkItemStatus.class)))
+        .thenAnswer(
+            invocation -> {
+              WorkItemStatus status = invocation.getArgument(0);
+              return new WorkItemServiceState().setNextReportIndex(status.getReportIndex() + 1);
+            });
+
+    WorkItemServiceState pingState = statusClient.reportLeasePing(LEASE_DURATION);
+    assertThat(pingState, notNullValue());
+
+    WorkItemServiceState successState = statusClient.reportSuccess();
+    assertThat(successState, notNullValue());
+
+    verify(workUnitClient, times(2)).reportWorkItemStatus(statusCaptor.capture());
+    List<WorkItemStatus> allStatuses = statusCaptor.getAllValues();
+    assertThat(allStatuses.get(0).getCompleted(), equalTo(false));
+    assertThat(allStatuses.get(0).getReportIndex(), equalTo(INITIAL_REPORT_INDEX));
+    assertThat(allStatuses.get(1).getCompleted(), equalTo(true));
+    assertThat(allStatuses.get(1).getReportIndex(), equalTo(INITIAL_REPORT_INDEX + 1));
   }
 
   private static class DummyBoundedSource extends BoundedSource<Integer> {

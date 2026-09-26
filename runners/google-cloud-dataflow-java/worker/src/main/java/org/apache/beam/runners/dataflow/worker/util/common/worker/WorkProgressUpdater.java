@@ -185,6 +185,27 @@ public abstract class WorkProgressUpdater {
   }
 
   /**
+   * Reports any pending dynamic split if one has not yet been reported.
+   *
+   * <p>This should be invoked when the worker finishes processing elements, before reporting final
+   * success, so that any dynamic split is sent to the backend while progress reporting is still
+   * active.
+   *
+   * @throws Exception if reporting the dynamic split fails
+   */
+  public void reportUnreportedSplit() throws Exception {
+    synchronized (executor) {
+      if (dynamicSplitResultToReport != null) {
+        LOG.debug(
+            "Sending progress update with unreported split: {} for work item: {}",
+            dynamicSplitResultToReport,
+            workString());
+        reportProgressHelper();
+      }
+    }
+  }
+
+  /**
    * Stops sending work progress updates to the worker service. It may throw an exception if the
    * final progress report fails to be sent for some reason.
    */
@@ -196,7 +217,7 @@ public abstract class WorkProgressUpdater {
       // We send a final progress report in case there was an unreported dynamic split.
       if (dynamicSplitResultToReport != null) {
         LOG.debug(
-            "Sending final progress update with unreported split: {} " + "for work item: {}",
+            "Sending final progress update with unreported split: {} for work item: {}",
             dynamicSplitResultToReport,
             workString());
         reportProgressHelper(); // This call can fail with an exception
