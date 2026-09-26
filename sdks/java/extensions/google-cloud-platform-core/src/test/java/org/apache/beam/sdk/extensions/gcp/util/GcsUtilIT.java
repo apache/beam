@@ -95,7 +95,7 @@ import org.junit.runners.Parameterized.Parameters;
  */
 @RunWith(Parameterized.class)
 @Category(UsesKms.class)
-public class GcsUtilParameterizedIT {
+public class GcsUtilIT {
 
   private static final String READ_COUNTER_PREFIX = "it_read_bytes";
   private static final String WRITE_COUNTER_PREFIX = "it_write_bytes";

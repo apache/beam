@@ -102,8 +102,7 @@ import org.mockito.Mockito;
  *       responses of a mocked java-storage client.
  * </ul>
  *
- * <p>End-to-end parity with {@link GcsUtilV1} against real GCS is covered by {@link
- * GcsUtilParameterizedIT}.
+ * <p>End-to-end parity with {@link GcsUtilV1} against real GCS is covered by {@link GcsUtilIT}.
  */
 @RunWith(JUnit4.class)
 public class GcsUtilV2Test {
@@ -465,7 +464,7 @@ public class GcsUtilV2Test {
 
   // ---------------------------------------------------------------------------------------------
   // Behavior shared with GcsUtilV1, through a mocked java-storage client. Each test mirrors the
-  // GcsUtilV1Test case it names; end-to-end parity is covered by GcsUtilParameterizedIT.
+  // GcsUtilV1Test case it names; end-to-end parity is covered by GcsUtilIT.
   // ---------------------------------------------------------------------------------------------
 
   /**
