@@ -64,7 +64,9 @@ class LeaderBoardIT(unittest.TestCase):
   OUTPUT_TABLE_TEAMS = 'leader_board_teams'
   DEFAULT_INPUT_COUNT = 500
 
-  WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
+  WAIT_UNTIL_FINISH_DURATION = 12 * 60 * 1000  # in milliseconds
+  # Poll BigQuery after the pipeline wait; streaming inserts can lag.
+  BQ_MATCHER_TIMEOUT_SECS = 10 * 60
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -97,9 +99,14 @@ class LeaderBoardIT(unittest.TestCase):
     logging.debug(
         'Injecting %d game events to topic %s', message_count, topic.name)
 
+    publish_futures = []
     for _ in range(message_count):
-      self.pub_client.publish(
-          topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8'))
+      publish_futures.append(
+          self.pub_client.publish(
+              topic.name,
+              (self.INPUT_EVENT % self._test_timestamp).encode('utf-8')))
+    for future in publish_futures:
+      future.result()
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])
@@ -124,7 +131,10 @@ class LeaderBoardIT(unittest.TestCase):
             self.OUTPUT_TABLE_USERS,
             success_condition))
     bq_users_verifier = BigqueryMatcher(
-        self.project, users_query, self.DEFAULT_EXPECTED_CHECKSUM)
+        self.project,
+        users_query,
+        self.DEFAULT_EXPECTED_CHECKSUM,
+        timeout_secs=self.BQ_MATCHER_TIMEOUT_SECS)
 
     teams_query = (
         'SELECT total_score FROM `%s.%s.%s` '
@@ -134,7 +144,10 @@ class LeaderBoardIT(unittest.TestCase):
             self.OUTPUT_TABLE_TEAMS,
             success_condition))
     bq_teams_verifier = BigqueryMatcher(
-        self.project, teams_query, self.DEFAULT_EXPECTED_CHECKSUM)
+        self.project,
+        teams_query,
+        self.DEFAULT_EXPECTED_CHECKSUM,
+        timeout_secs=self.BQ_MATCHER_TIMEOUT_SECS)
 
     extra_opts = {
         'allow_unsafe_triggers': True,
