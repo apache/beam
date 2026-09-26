@@ -15,9 +15,12 @@
 # limitations under the License.
 #
 
+import datetime
 import logging
 import typing
 import unittest
+from decimal import Decimal
+from unittest import mock
 
 import numpy as np
 
@@ -34,6 +37,11 @@ try:
   import jsonschema
 except ImportError:
   jsonschema = None
+
+try:
+  import quickjs
+except ImportError:
+  quickjs = None
 
 DATA = [
     beam.Row(label='11a', conductor=11, rank=0),
@@ -557,6 +565,245 @@ class YamlMappingTest(unittest.TestCase):
                   value=11, timestamp=Timestamp(11),
                   window_type='GlobalWindow'),
           ]))
+
+
+class YamlMappingJsExpressionTest(unittest.TestCase):
+  def test_javascript_expression_no_quickjs(self):
+    options = beam.options.pipeline_options.PipelineOptions(
+        yaml_experimental_features=['javascript'])
+    with mock.patch('apache_beam.yaml.yaml_mapping.quickjs', None):
+      with self.assertRaises(Exception):
+        with beam.Pipeline(options=options) as p:
+          _ = (
+              p
+              | beam.Create([beam.Row(x=1)])
+              | YamlTransform(
+                  '''
+                  type: MapToFields
+                  config:
+                    language: javascript
+                    fields:
+                      y: x
+                  '''))
+
+  def test_javascript_path_missing(self):
+    options = beam.options.pipeline_options.PipelineOptions(
+        yaml_experimental_features=['javascript'])
+    with mock.patch('apache_beam.yaml.yaml_mapping.quickjs', mock.MagicMock()):
+      with self.assertRaises(Exception):
+        with beam.Pipeline(options=options) as p:
+          _ = (
+              p
+              | beam.Create([beam.Row(x=1)])
+              | YamlTransform(
+                  '''
+                  type: MapToFields
+                  config:
+                    language: javascript
+                    fields:
+                      y:
+                        path: "bad.txt"
+                  '''))
+
+  @unittest.skipIf(quickjs is None, "quickjs not installed")
+  def test_javascript_expression_execution(self):
+    options = beam.options.pipeline_options.PipelineOptions(
+        yaml_experimental_features=['javascript'])
+    with beam.Pipeline(options=options) as p:
+      elements = p | beam.Create([beam.Row(x=1, s="foo")])
+      result = elements | YamlTransform(
+          '''
+          type: MapToFields
+          config:
+            language: javascript
+            fields:
+              y:
+                expression: "x + 1"
+              t:
+                expression: "s + '_bar'"
+          ''')
+      assert_that(result, equal_to([beam.Row(y=2, t="foo_bar")]))
+
+  @unittest.skipIf(quickjs is None, "quickjs not installed")
+  def test_javascript_callable_execution(self):
+    options = beam.options.pipeline_options.PipelineOptions(
+        yaml_experimental_features=['javascript'])
+    with beam.Pipeline(options=options) as p:
+      elements = p | beam.Create([beam.Row(x=1)])
+      result = elements | YamlTransform(
+          '''
+          type: MapToFields
+          config:
+            language: javascript
+            fields:
+              y:
+                callable: "function(row) { return row.x + 2; }"
+          ''')
+      assert_that(result, equal_to([beam.Row(y=3)]))
+
+  @unittest.skipIf(quickjs is None, "quickjs not installed")
+  def test_javascript_path_execution(self):
+    options = beam.options.pipeline_options.PipelineOptions(
+        yaml_experimental_features=['javascript'])
+    with mock.patch(
+        'apache_beam.io.filesystems.FileSystems.open',
+        mock.mock_open(read_data=b'function fn(row) { return row.x + 3; }')):
+      with beam.Pipeline(options=options) as p:
+        elements = p | beam.Create([beam.Row(x=1)])
+        result = elements | YamlTransform(
+            '''
+            type: MapToFields
+            config:
+              language: javascript
+              fields:
+                y:
+                  path: "test.js"
+                  name: "fn"
+            ''')
+        assert_that(result, equal_to([beam.Row(y=4)]))
+
+  def test_js_value_to_js_dict(self):
+    val = beam.Row(
+        a=b'bytes',
+        b=datetime.datetime(2026, 1, 1),
+        c=Decimal('1.23'),
+        d=[1, 2],
+        e=beam.Row(f=3))
+    res = yaml_mapping.py_value_to_js_dict(val)
+    self.assertEqual(res['a'], 'bytes')
+    self.assertEqual(
+        res['b'], {
+            '__date__': True, 'value': '2026-01-01T00:00:00'
+        })
+    self.assertEqual(res['c'], 1.23)
+    self.assertEqual(res['d'], [1, 2])
+    self.assertEqual(res['e'], {'f': 3})
+
+
+class YamlMappingErrorHandlingTest(unittest.TestCase):
+  def test_strip_error_metadata(self):
+    with beam.Pipeline() as p:
+      pcoll1 = p | 'C1' >> beam.Create([(1, 2)])
+      res1 = pcoll1 | 'Strip1' >> YamlTransform(
+          '''
+          type: StripErrorMetadata
+          ''')
+      assert_that(res1, equal_to([1]), label='res1')
+
+      pcoll2 = p | 'C2' >> beam.Create([beam.Row(element=123, error='err')])
+      res2 = pcoll2 | 'Strip2' >> YamlTransform(
+          '''
+          type: StripErrorMetadata
+          ''')
+      assert_that(res2, equal_to([123]), label='res2')
+
+  def test_strip_error_metadata_invalid(self):
+    with self.assertRaises(Exception):
+      with beam.Pipeline() as p:
+        pcoll3 = p | 'C3' >> beam.Create([beam.Row(a=1, b=2)])
+        _ = pcoll3 | YamlTransform(
+            '''
+            type: StripErrorMetadata
+            ''')
+
+  def test_validate_with_exception_handling(self):
+    v = yaml_mapping.Validate({})
+    v.with_exception_handling(output='err')
+
+
+class YamlMappingSqlTransformTest(unittest.TestCase):
+  def test_sql_map_to_fields(self):
+    queries_received = []
+
+    def mock_sql_transform(query):
+      queries_received.append(query)
+      return beam.Map(lambda x: x)
+
+    from apache_beam.yaml.yaml_provider import InlineProvider
+    mock_provider = InlineProvider({'Sql': mock_sql_transform})
+
+    with mock.patch(
+        'apache_beam.yaml.yaml_provider.SqlBackedProvider.sql_provider',
+        lambda self: mock_provider):
+      with beam.Pipeline() as p:
+        pcoll = p | beam.Create([beam.Row(a=1)])
+        _ = pcoll | YamlTransform(
+            '''
+            type: MapToFields
+            config:
+              language: sql
+              fields:
+                x: a
+                y: a+1
+            ''')
+
+    self.assertEqual(len(queries_received), 1)
+    self.assertEqual(
+        queries_received[0], "SELECT (a) AS `x`, (a+1) AS `y` FROM PCOLLECTION")
+
+  def test_sql_map_to_fields_invalid(self):
+    from apache_beam.yaml.yaml_provider import InlineProvider
+    mock_provider = InlineProvider({'Sql': lambda query: beam.Map(lambda x: x)})
+
+    with mock.patch(
+        'apache_beam.yaml.yaml_provider.SqlBackedProvider.sql_provider',
+        lambda self: mock_provider):
+      with self.assertRaises(Exception):
+        with beam.Pipeline() as p:
+          pcoll = p | beam.Create([beam.Row(a=1)])
+          _ = pcoll | YamlTransform(
+              '''
+              type: MapToFields
+              config:
+                language: sql
+                fields:
+                  x:
+                    bad: 123
+              ''')
+
+
+class YamlMappingValidatorTest(unittest.TestCase):
+  def test_validator(self):
+    from apache_beam import schema_pb2
+    t_bool = schema_pb2.FieldType(atomic_type=schema_pb2.BOOLEAN)
+    self.assertTrue(yaml_mapping._validator(t_bool)(True))
+
+    t_int = schema_pb2.FieldType(atomic_type=schema_pb2.INT64)
+    self.assertTrue(yaml_mapping._validator(t_int)(10))
+
+    t_double = schema_pb2.FieldType(atomic_type=schema_pb2.DOUBLE)
+    self.assertTrue(yaml_mapping._validator(t_double)(1.23))
+
+    t_str = schema_pb2.FieldType(atomic_type=schema_pb2.STRING)
+    self.assertTrue(yaml_mapping._validator(t_str)('s'))
+
+    t_bytes = schema_pb2.FieldType(atomic_type=schema_pb2.BYTES)
+    self.assertTrue(yaml_mapping._validator(t_bytes)(b'b'))
+
+    with self.assertRaises(ValueError):
+      yaml_mapping._validator(
+          schema_pb2.FieldType(atomic_type=schema_pb2.UNSPECIFIED))
+
+    t_arr = schema_pb2.FieldType(
+        array_type=schema_pb2.ArrayType(element_type=t_int))
+    self.assertTrue(yaml_mapping._validator(t_arr)([1, 2]))
+
+    t_iter = schema_pb2.FieldType(
+        iterable_type=schema_pb2.IterableType(element_type=t_str))
+    self.assertTrue(yaml_mapping._validator(t_iter)(['a', 'b']))
+
+    t_map = schema_pb2.FieldType(
+        map_type=schema_pb2.MapType(key_type=t_str, value_type=t_int))
+    self.assertTrue(yaml_mapping._validator(t_map)({'a': 1}))
+
+    t_row = schema_pb2.FieldType(
+        row_type=schema_pb2.RowType(
+            schema=schema_pb2.Schema(
+                fields=[schema_pb2.Field(name='a', type=t_int)])))
+    self.assertTrue(yaml_mapping._validator(t_row)(beam.Row(a=1)))
+
+    with self.assertRaises(ValueError):
+      yaml_mapping._validator(schema_pb2.FieldType())
 
 
 if __name__ == '__main__':
