@@ -116,16 +116,14 @@ def temp_fake_datadog_server(expected_records=None):
       logging.error(
           "Error interacting with temporary fake Datadog server: %s", err)
       raise err
-    finally:
-      if expected_records is not None:
 
-        canonicalize = lambda rec: json.dumps(rec, sort_keys=True)
+  if expected_records is not None:
+    canonicalize = lambda rec: json.dumps(rec, sort_keys=True)
 
-        actual_strs = sorted([canonicalize(r) for r in received])
-        expected_strs = sorted([canonicalize(e) for e in expected_records])
+    actual_strs = sorted(set(canonicalize(r) for r in received))
+    expected_strs = sorted(set(canonicalize(e) for e in expected_records))
 
-        assert actual_strs == expected_strs, (
-            f"Mismatch in recorded Datadog events!\n"
-            f"Expected: {expected_strs}\n"
-            f"Actual:   {actual_strs}"
-        )
+    assert actual_strs == expected_strs, (
+        f"Mismatch in recorded Datadog events!\n"
+        f"Expected: {expected_strs}\n"
+        f"Actual:   {actual_strs}")

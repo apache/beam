@@ -26,7 +26,6 @@ import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
@@ -125,14 +124,16 @@ public class SparkSessionFactory {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
-    boolean noUsableSession =
-        !isUsable(SparkSession.getActiveSession()) && !isUsable(SparkSession.getDefaultSession());
+    SparkSession existingActive =
+        isUsable(SparkSession.getActiveSession()) ? SparkSession.getActiveSession().get() : null;
+    SparkSession existingDefault =
+        isUsable(SparkSession.getDefaultSession()) ? SparkSession.getDefaultSession().get() : null;
     SparkSession session = sessionBuilder(options.getSparkMaster(), options).getOrCreate();
     Integer count = OWNED_SESSIONS.get(session);
     if (count != null) {
       OWNED_SESSIONS.put(session, count + 1);
       LOG.info("Pipeline options will not be applied to the shared SparkSession");
-    } else if (noUsableSession) {
+    } else if (session != existingActive && session != existingDefault) {
       OWNED_SESSIONS.put(session, 1);
     }
     return session;
@@ -154,6 +155,8 @@ public class SparkSessionFactory {
     OWNED_SESSIONS.remove(session);
     LOG.info("Stopping SparkSession created by the runner");
     session.stop();
+    SparkSession.clearActiveSession();
+    SparkSession.clearDefaultSession();
   }
 
   private static boolean isUsable(Option<SparkSession> session) {
@@ -176,19 +179,22 @@ public class SparkSessionFactory {
         sparkConf.setAppName(options.getAppName());
       }
 
-      if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
-        // Append the files to stage provided by the user to `spark.jars`.
-        PipelineResources.prepareFilesForStaging(options);
-        String[] filesToStage = filterFilesToStage(options, Collections.emptyList());
-        String[] jars = getSparkJars(sparkConf);
-        sparkConf.setJars(jars.length > 0 ? ArrayUtils.addAll(jars, filesToStage) : filesToStage);
-      } else if (!sparkConf.contains("spark.jars") && !master.startsWith("local[")) {
-        // Stage classpath if `spark.jars` not set and not in local mode.
-        PipelineResources.prepareFilesForStaging(options);
-        // Set `spark.jars`, exclude JRE libs and jars causing conflicts using `userClassPathFirst`.
-        sparkConf.setJars(filterFilesToStage(options, SPARK_JAR_EXCLUDES));
-        // Enable `userClassPathFirst` to prevent issues with guava, jackson and others.
-        sparkConf.setIfMissing("spark.executor.userClassPathFirst", "true");
+      if (!master.startsWith("local")) {
+        if (options.getFilesToStage() != null && !options.getFilesToStage().isEmpty()) {
+          // Append the files to stage provided by the user to `spark.jars`.
+          PipelineResources.prepareFilesForStaging(options);
+          String[] filesToStage = filterFilesToStage(options, SPARK_JAR_EXCLUDES);
+          String[] jars = getSparkJars(sparkConf);
+          sparkConf.setJars(jars.length > 0 ? ArrayUtils.addAll(jars, filesToStage) : filesToStage);
+        } else if (!sparkConf.contains("spark.jars")) {
+          // Stage classpath if `spark.jars` not set and not in local mode.
+          PipelineResources.prepareFilesForStaging(options);
+          // Set `spark.jars`, exclude JRE libs and jars causing conflicts using
+          // `userClassPathFirst`.
+          sparkConf.setJars(filterFilesToStage(options, SPARK_JAR_EXCLUDES));
+          // Enable `userClassPathFirst` to prevent issues with guava, jackson and others.
+          sparkConf.setIfMissing("spark.executor.userClassPathFirst", "true");
+        }
       }
     }
 

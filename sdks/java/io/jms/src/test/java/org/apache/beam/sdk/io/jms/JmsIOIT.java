@@ -223,7 +223,8 @@ public class JmsIOIT implements Serializable {
   }
 
   private void setupConnection(JmsIO.AcknowledgeMode acknowledgeMode) throws Exception {
-    if (acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE) {
+    if (acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE
+        || acknowledgeMode == JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE) {
       connectionFactory = this.commonJms.createConnectionFactoryWithSyncAcksAndWithoutPrefetch();
     } else {
       connectionFactory = this.commonJms.createConnectionFactory();
@@ -254,7 +255,7 @@ public class JmsIOIT implements Serializable {
 
   private void runPublishingThenReadingAll(JmsIO.AcknowledgeMode acknowledgeMode) throws Exception {
     setupConnection(acknowledgeMode);
-    String queue = QUEUE + "_" + acknowledgeMode.name();
+    String queue = QUEUE + "_" + acknowledgeMode.name() + "_" + java.util.UUID.randomUUID();
     PipelineResult writeResult = publishingMessages(queue);
     PipelineResult.State writeState = writeResult.waitUntilFinish();
     assertNotEquals(PipelineResult.State.FAILED, writeState);
@@ -312,6 +313,7 @@ public class JmsIOIT implements Serializable {
           jmsIORead.withConnectionFactoryProviderFn(
               CommonJms.toSerializableFunction(
                   acknowledgeMode == JmsIO.AcknowledgeMode.CLIENT_ACKNOWLEDGE
+                          || acknowledgeMode == JmsIO.AcknowledgeMode.INDIVIDUAL_ACKNOWLEDGE
                       ? commonJms::createConnectionFactoryWithSyncAcksAndWithoutPrefetch
                       : commonJms::createConnectionFactory));
     } else {

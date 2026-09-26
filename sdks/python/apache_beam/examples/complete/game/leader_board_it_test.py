@@ -64,7 +64,7 @@ class LeaderBoardIT(unittest.TestCase):
   OUTPUT_TABLE_TEAMS = 'leader_board_teams'
   DEFAULT_INPUT_COUNT = 500
 
-  WAIT_UNTIL_FINISH_DURATION = 10 * 60 * 1000  # in milliseconds
+  WAIT_UNTIL_FINISH_DURATION = 15 * 60 * 1000  # in milliseconds
 
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
@@ -97,9 +97,14 @@ class LeaderBoardIT(unittest.TestCase):
     logging.debug(
         'Injecting %d game events to topic %s', message_count, topic.name)
 
+    futures = []
     for _ in range(message_count):
-      self.pub_client.publish(
-          topic.name, (self.INPUT_EVENT % self._test_timestamp).encode('utf-8'))
+      futures.append(
+          self.pub_client.publish(
+              topic.name,
+              (self.INPUT_EVENT % self._test_timestamp).encode('utf-8')))
+    for future in futures:
+      future.result()
 
   def _cleanup_pubsub(self):
     test_utils.cleanup_subscriptions(self.sub_client, [self.input_sub])

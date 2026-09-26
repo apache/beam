@@ -33,6 +33,10 @@ import org.apache.beam.sdk.io.gcp.pubsub.PubsubIO;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubOptions;
 import org.apache.beam.sdk.io.gcp.pubsub.TestPubsubSignal;
 import org.apache.beam.sdk.testing.TestPipeline;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Supplier;
 import org.joda.time.Duration;
@@ -99,7 +103,24 @@ public class FhirIOReadIT {
     pubsub.createTopic(topicPath);
     SubscriptionPath subscriptionPath = PubsubClient.subscriptionPathFromPath(pubsubSubscription);
     pubsub.createSubscription(topicPath, subscriptionPath, 60);
-    client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(2))
+            .withMaxRetries(3)
+            .backoff();
+    while (true) {
+      try {
+        client.createFhirStore(healthcareDataset, fhirStoreName, version, pubsubTopic);
+        break;
+      } catch (IOException e) {
+        if (e.getMessage() != null && e.getMessage().contains("ALREADY_EXISTS")) {
+          break;
+        }
+        if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
+          throw e;
+        }
+      }
+    }
 
     // Execute bundles to trigger FHIR notifications to input topic
     FhirIOTestUtil.executeFhirBundles(
