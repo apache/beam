@@ -30,6 +30,7 @@ import java.util.Properties;
 import java.util.function.Consumer;
 import org.apache.beam.sdk.extensions.sql.SqlTransform;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets;
+import org.apache.beam.sdk.extensions.sql.impl.rule.StageNameRule;
 import org.apache.beam.sdk.extensions.sql.meta.catalog.CatalogManager;
 import org.apache.beam.sdk.extensions.sql.meta.provider.TableProvider;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -80,7 +81,7 @@ public class JdbcDriver extends Driver {
             planner -> {
               for (RuleSet ruleSet : BeamRuleSets.getRuleSets()) {
                 for (RelOptRule rule : ruleSet) {
-                  planner.addRule(rule);
+                  StageNameRule.addTo(planner, rule);
                 }
               }
               planner.removeRule(CoreRules.CALC_REMOVE);

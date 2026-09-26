@@ -26,11 +26,14 @@ import java.util.List;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.sql.impl.BeamSqlEnv;
+import org.apache.beam.sdk.extensions.sql.impl.rel.BeamRelNode;
 import org.apache.beam.sdk.extensions.sql.impl.rel.BeamSqlRelUtils;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
+import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.junit.Before;
@@ -114,7 +117,7 @@ public class ParquetTableProviderTest {
             "CREATE EXTERNAL TABLE DirTable %s TYPE parquet LOCATION '%s'",
             FIELD_NAMES, writeLocation));
     PCollection<Row> dirResult =
-        BeamSqlRelUtils.toPCollection(readPipeline, env.parseQuery("SELECT * FROM DirTable"));
+        readPipeline.apply("dir", new Query(env.parseQuery("SELECT * FROM DirTable")));
     PAssert.that("Directory with '/' reads all files", dirResult).containsInAnyOrder(ALL_ROWS);
 
     String globPath = new File(destinationDir, "output-*").getAbsolutePath();
@@ -123,7 +126,7 @@ public class ParquetTableProviderTest {
             "CREATE EXTERNAL TABLE GlobTable %s TYPE parquet LOCATION '%s'",
             FIELD_NAMES, globPath));
     PCollection<Row> globResult =
-        BeamSqlRelUtils.toPCollection(readPipeline, env.parseQuery("SELECT * FROM GlobTable"));
+        readPipeline.apply("glob", new Query(env.parseQuery("SELECT * FROM GlobTable")));
     PAssert.that("Glob 'output-*' reads all files", globResult).containsInAnyOrder(ALL_ROWS);
 
     File[] writtenFiles = destinationDir.listFiles((dir, name) -> name.startsWith("output-"));
@@ -137,8 +140,8 @@ public class ParquetTableProviderTest {
             "CREATE EXTERNAL TABLE SingleFileTable %s TYPE parquet LOCATION '%s'",
             FIELD_NAMES, singleFilePath));
     PCollection<Row> singleFileResult =
-        BeamSqlRelUtils.toPCollection(
-            readPipeline, env.parseQuery("SELECT * FROM SingleFileTable"));
+        readPipeline.apply(
+            "singleFile", new Query(env.parseQuery("SELECT * FROM SingleFileTable")));
 
     PCollection<Long> count = singleFileResult.apply(Count.globally());
     PAssert.thatSingleton(count)
@@ -150,5 +153,23 @@ public class ParquetTableProviderTest {
 
     PipelineResult.State state = readPipeline.run().waitUntilFinish();
     assertEquals(State.DONE, state);
+  }
+
+  /**
+   * Expands a plan in a composite of its own, the way {@code SqlTransform} does. Stage names are
+   * unique within the query that produced them, so several queries sharing a pipeline need a scope
+   * each.
+   */
+  private static class Query extends PTransform<PBegin, PCollection<Row>> {
+    private final BeamRelNode plan;
+
+    Query(BeamRelNode plan) {
+      this.plan = plan;
+    }
+
+    @Override
+    public PCollection<Row> expand(PBegin input) {
+      return BeamSqlRelUtils.toPCollection(input.getPipeline(), plan);
+    }
   }
 }

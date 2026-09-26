@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.extensions.sql.impl.planner.BeamRelMetadataQuery;
 import org.apache.beam.sdk.extensions.sql.impl.planner.NodeStats;
+import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.util.Preconditions;
@@ -46,14 +47,14 @@ public class BeamSqlRelUtils {
   public static final String ERROR = "error";
 
   public static PCollection<Row> toPCollection(Pipeline pipeline, BeamRelNode node) {
-    return toPCollection(pipeline, node, null, new HashMap());
+    return toPCollection(pipeline, node, null, new HashMap(), new HashMap<>());
   }
 
   public static PCollection<Row> toPCollection(
       Pipeline pipeline,
       BeamRelNode node,
       @Nullable PTransform<PCollection<Row>, ? extends POutput> errorTransformer) {
-    return toPCollection(pipeline, node, errorTransformer, new HashMap());
+    return toPCollection(pipeline, node, errorTransformer, new HashMap(), new HashMap<>());
   }
 
   /** Transforms the inputs into a PInput. */
@@ -61,7 +62,8 @@ public class BeamSqlRelUtils {
       List<RelNode> inputRels,
       Pipeline pipeline,
       @Nullable PTransform<PCollection<Row>, ? extends POutput> errorTransformer,
-      Map<Integer, PCollection<Row>> cache) {
+      Map<Integer, PCollection<Row>> cache,
+      Map<String, Integer> usedNames) {
     if (inputRels.isEmpty()) {
       return PCollectionList.empty(pipeline);
     } else {
@@ -79,7 +81,7 @@ public class BeamSqlRelUtils {
                       beamRel = (BeamRelNode) input;
                     }
                     return BeamSqlRelUtils.toPCollection(
-                        pipeline, beamRel, errorTransformer, cache);
+                        pipeline, beamRel, errorTransformer, cache, usedNames);
                   })
               .collect(Collectors.toList()));
     }
@@ -93,21 +95,52 @@ public class BeamSqlRelUtils {
       Pipeline pipeline,
       BeamRelNode node,
       @Nullable PTransform<PCollection<Row>, ? extends POutput> errorTransformer,
-      Map<Integer, PCollection<Row>> cache) {
+      Map<Integer, PCollection<Row>> cache,
+      Map<String, Integer> usedNames) {
     PCollection<Row> output = cache.get(node.getId());
     if (output != null) {
       return output;
     }
 
-    String name = node.getClass().getSimpleName() + "_" + node.getId();
+    String name = uniqueName(usedNames, transformName(pipeline, node));
     PCollectionList<Row> input =
-        buildPCollectionList(node.getPCollectionInputs(), pipeline, errorTransformer, cache);
+        buildPCollectionList(
+            node.getPCollectionInputs(), pipeline, errorTransformer, cache, usedNames);
     PTransform<PCollectionList<Row>, PCollection<Row>> transform =
         node.buildPTransform(errorTransformer);
     output = Pipeline.applyTransform(name, input, transform);
 
     cache.put(node.getId(), output);
     return output;
+  }
+
+  /**
+   * Names the composite that {@code node} expands into after the stage it was composed from, or
+   * after the node's own type when nothing composed it.
+   */
+  private static String transformName(Pipeline pipeline, BeamRelNode node) {
+    if (ExperimentalOptions.hasExperiment(pipeline.getOptions(), StageName.LEGACY_EXPERIMENT)) {
+      return node.getClass().getSimpleName() + "_" + node.getId();
+    }
+    String label = StageName.renderedName(node);
+    return label == null || label.isEmpty() ? node.getClass().getSimpleName() : label;
+  }
+
+  /**
+   * Disambiguates repeated names in DFS order, within the plan being expanded.
+   *
+   * <p>Names no longer carry a rel id, so a plan can legitimately contain two stages with the same
+   * provenance. {@link Pipeline} would uniquify them itself, but then reports the pipeline as not
+   * having stable unique names, which is fatal under {@code --stableUniqueNames=ERROR}.
+   *
+   * <p>Counting per plan rather than per pipeline is what makes the numbering stable: every caller
+   * expands a plan either into a fresh pipeline or inside {@code SqlTransform}'s own composite, so
+   * names only have to be unique among the stages of one query. A counter shared across a pipeline
+   * would let an unrelated query added elsewhere renumber stages that did not themselves change.
+   */
+  private static String uniqueName(Map<String, Integer> usedNames, String name) {
+    int occurrence = usedNames.merge(name, 1, Integer::sum);
+    return occurrence == 1 ? name : name + " #" + occurrence;
   }
 
   public static BeamRelNode getBeamRelInput(RelNode input) {

@@ -90,6 +90,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptPred
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelTraitSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.RelNode;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.core.Calc;
+import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.hint.RelHint;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.metadata.RelMetadataQuery;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexBuilder;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rex.RexCall;
@@ -151,12 +152,26 @@ public class BeamCalcRel extends AbstractBeamCalcRel {
   }
 
   public BeamCalcRel(RelOptCluster cluster, RelTraitSet traits, RelNode input, RexProgram program) {
-    super(cluster, traits, input, program);
+    this(cluster, traits, ImmutableList.of(), input, program);
+  }
+
+  public BeamCalcRel(
+      RelOptCluster cluster,
+      RelTraitSet traits,
+      List<RelHint> hints,
+      RelNode input,
+      RexProgram program) {
+    super(cluster, traits, hints, input, program);
   }
 
   @Override
   public Calc copy(RelTraitSet traitSet, RelNode input, RexProgram program) {
-    return new BeamCalcRel(getCluster(), traitSet, input, program);
+    return new BeamCalcRel(getCluster(), traitSet, hints, input, program);
+  }
+
+  @Override
+  public RelNode withHints(List<RelHint> hintList) {
+    return new BeamCalcRel(getCluster(), traitSet, hintList, input, program);
   }
 
   @Override
