@@ -18,7 +18,10 @@
 package org.apache.beam.sdk.schemas.logicaltypes;
 
 import java.time.LocalTime;
+import org.apache.beam.model.pipeline.v1.RunnerApi;
+import org.apache.beam.model.pipeline.v1.SchemaApi;
 import org.apache.beam.sdk.schemas.Schema;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * A time without a time-zone.
@@ -30,23 +33,20 @@ import org.apache.beam.sdk.schemas.Schema;
  * of time in nanoseconds.
  */
 public class Time implements Schema.LogicalType<LocalTime, Long> {
-  public static final String IDENTIFIER = "beam:logical_type:time:v1";
+  public static final String IDENTIFIER =
+      SchemaApi.LogicalTypes.Enum.TIME
+          .getValueDescriptor()
+          .getOptions()
+          .getExtension(RunnerApi.beamUrn);
 
   @Override
   public String getIdentifier() {
     return IDENTIFIER;
   }
 
-  // unused
   @Override
-  public Schema.FieldType getArgumentType() {
-    return Schema.FieldType.STRING;
-  }
-
-  // unused
-  @Override
-  public String getArgument() {
-    return "";
+  public Schema.@Nullable FieldType getArgumentType() {
+    return null;
   }
 
   @Override
