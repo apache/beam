@@ -62,6 +62,7 @@ import java.nio.file.AccessDeniedException;
 import java.nio.file.FileAlreadyExistsException;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -78,6 +79,7 @@ import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Test;
@@ -812,16 +814,15 @@ public class GcsUtilV2Test {
     assertSame(serverError, thrown.getCause());
   }
 
-  /** A batched lookup whose result is {@code blob}, or {@code error} if one is given. */
+  /** A batched request whose result is {@code value}, or {@code error} if one is given. */
   @SuppressWarnings("unchecked")
-  private static StorageBatchResult<com.google.cloud.storage.Blob> batchResult(
-      com.google.cloud.storage.@Nullable Blob blob, @Nullable StorageException error) {
-    StorageBatchResult<com.google.cloud.storage.Blob> result =
-        Mockito.mock(StorageBatchResult.class);
+  private static <T> StorageBatchResult<T> batchResult(
+      @Nullable T value, @Nullable StorageException error) {
+    StorageBatchResult<T> result = Mockito.mock(StorageBatchResult.class);
     if (error != null) {
       when(result.get()).thenThrow(error);
     } else {
-      when(result.get()).thenReturn(blob);
+      when(result.get()).thenReturn(value);
     }
     return result;
   }
@@ -860,5 +861,62 @@ public class GcsUtilV2Test {
     assertTrue(results.get(2).ioException() instanceof AccessDeniedException);
     verify(storage).batch();
     verify(batch).submit();
+  }
+
+  /** A java-storage client whose batched deletes in "testbucket" report {@code results}. */
+  private static com.google.cloud.storage.Storage storageDeleting(
+      Map<String, StorageBatchResult<Boolean>> results) {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    StorageBatch batch = Mockito.mock(StorageBatch.class);
+    when(storage.batch()).thenReturn(batch);
+    results.forEach(
+        (object, result) ->
+            when(batch.delete(Mockito.eq("testbucket"), Mockito.eq(object), any()))
+                .thenReturn(result));
+    return storage;
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testRemoveWhenFileNotFound}: the legacy remove skips a missing
+   * object, as V1 does, and it fails only when asked to. Any other failure is thrown rather than
+   * being mistaken for a missing object.
+   */
+  @Test
+  public void testV2RemoveWithMixedResults() throws IOException {
+    GcsPath deleted = GcsPath.fromComponents("testbucket", "deleted");
+    GcsPath missing = GcsPath.fromComponents("testbucket", "missing");
+    GcsPath forbidden = GcsPath.fromComponents("testbucket", "forbidden");
+
+    // java-storage reports a missing object as a delete that returned false.
+    GcsUtil skippingMissing =
+        gcsUtilWithV2Storage(
+            storageDeleting(
+                ImmutableMap.of(
+                    "deleted", batchResult(true, null), "missing", batchResult(false, null))));
+    skippingMissing.remove(ImmutableList.of(deleted.toString(), missing.toString()));
+
+    GcsUtil failingOnMissing =
+        gcsUtilWithV2Storage(
+            storageDeleting(
+                ImmutableMap.of(
+                    "deleted", batchResult(true, null), "missing", batchResult(false, null))));
+    assertThrows(
+        FileNotFoundException.class,
+        () ->
+            failingOnMissing.remove(
+                ImmutableList.of(deleted, missing), GcsUtilV2.MissingStrategy.FAIL_IF_MISSING));
+
+    GcsUtil withForbidden =
+        gcsUtilWithV2Storage(
+            storageDeleting(
+                ImmutableMap.of(
+                    "deleted", batchResult(true, null),
+                    "missing", batchResult(false, null),
+                    "forbidden", batchResult(null, new StorageException(403, "Forbidden")))));
+    assertThrows(
+        AccessDeniedException.class,
+        () ->
+            withForbidden.remove(
+                ImmutableList.of(deleted.toString(), missing.toString(), forbidden.toString())));
   }
 }
