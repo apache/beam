@@ -30,6 +30,23 @@ Get started with the [Beam Go SDK quickstart](/get-started/quickstart-go) to set
 
 See the [godoc](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam) for more detailed information.
 
+## Initialize the Go SDK
+
+Call [`beam.Init()`](https://pkg.go.dev/github.com/apache/beam/sdks/v2/go/pkg/beam#Init)
+after parsing flags and completing other static initialization, and before
+constructing the pipeline. This initializes the SDK runtime used by Beam
+runners; omitting the call can prevent a pipeline from executing or produce a
+runner error.
+
+```go
+func main() {
+    flag.Parse()
+    beam.Init()
+
+    // Construct and run the pipeline here.
+}
+```
+
 ## Status
 
 Version 2.32.0 is the last experimental release of the Go SDK. The Go SDK supports most Batch oriented features, and cross language transforms.
