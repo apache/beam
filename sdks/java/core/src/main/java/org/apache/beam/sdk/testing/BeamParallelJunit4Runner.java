@@ -17,10 +17,12 @@
  */
 package org.apache.beam.sdk.testing;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -108,11 +110,31 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
         });
   }
 
+  /**
+   * Publishes the test instance to {@link TestPipeline}, which inspects its rules to decide whether
+   * the test's pipeline may be merged with others. A {@code TestRule} never sees the instance
+   * itself; the runner is the only place that does.
+   */
+  @Override
+  protected Object createTest() throws Exception {
+    Object instance = super.createTest();
+    TestPipeline.setCurrentTestInstance(instance);
+    return instance;
+  }
+
   private void awaitPendingFutures() {
     try {
       pendingFutures.join();
     } finally {
       pendingFutures = CompletableFuture.allOf();
+    }
+  }
+
+  private void runChildInternal(final FrameworkMethod method, final RunNotifier notifier) {
+    try {
+      super.runChild(method, notifier);
+    } finally {
+      TestPipeline.setCurrentTestInstance(null);
     }
   }
 
@@ -124,7 +146,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     }
     ExecutorService executor = selectExecutor(method);
     if (executor == null) {
-      super.runChild(method, notifier);
+      runChildInternal(method, notifier);
       return;
     }
     if (isClassMarkedSerial(getTestClass().getJavaClass()) || isMethodMarkedSerial(method)) {
@@ -132,13 +154,13 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       // this test
       // serially.
       awaitPendingFutures();
-      super.runChild(method, notifier);
+      runChildInternal(method, notifier);
       return;
     }
     pendingFutures =
         CompletableFuture.allOf(
             pendingFutures,
-            CompletableFuture.runAsync(() -> super.runChild(method, notifier), executor));
+            CompletableFuture.runAsync(() -> runChildInternal(method, notifier), executor));
   }
 
   private @Nullable ExecutorService selectExecutor(FrameworkMethod method) {
@@ -171,7 +193,21 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     return method.getAnnotation(SerialTest.class) != null;
   }
 
-  private static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
+  /** Returns {@code true} if {@code annotations} contains {@link SerialTest}. */
+  static boolean hasSerialAnnotation(Collection<Annotation> annotations) {
+    for (Annotation annotation : annotations) {
+      if (annotation.annotationType() == SerialTest.class) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if {@code clazz}, any of its superclasses, or any of its enclosing classes
+   * is annotated with {@link SerialTest}.
+   */
+  static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
     if (clazz == null || clazz == Object.class) {
       return false;
     }

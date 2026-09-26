@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.testing;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeTrue;
 
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.testing.BeamParallelJunit4Runner.SerialTest;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.rules.TestRule;
 import org.junit.runner.JUnitCore;
 import org.junit.runner.Result;
@@ -196,6 +198,54 @@ public class BeamParallelJunit4RunnerTest {
       assertEquals(0, result.getFailureCount());
       assertEquals(3, result.getRunCount());
       assertEquals(1, SampleSerialMethodCases.SERIAL_OBSERVED_ACTIVE.get());
+    } finally {
+      IN_TEST_HARNESS.set(false);
+    }
+  }
+
+  @RunWith(BeamParallelJunit4Runner.class)
+  public static class SampleExpectedExceptionCases {
+    static final AtomicBoolean OBSERVED_WHEN_EXPECTING = new AtomicBoolean(false);
+    static final AtomicBoolean OBSERVED_WHEN_NOT_EXPECTING = new AtomicBoolean(true);
+    static final AtomicBoolean OBSERVED_ON_CHILD_THREAD = new AtomicBoolean(true);
+
+    @Rule public ExpectedException thrown = ExpectedException.none();
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testExpecting() throws InterruptedException {
+      assumeTrue(IN_TEST_HARNESS.get());
+      thrown.expect(IllegalStateException.class);
+      OBSERVED_WHEN_EXPECTING.set(TestPipeline.currentTestExpectsException());
+      // The test instance must not leak to threads started by the test.
+      Thread child =
+          new Thread(
+              () -> OBSERVED_ON_CHILD_THREAD.set(TestPipeline.currentTestExpectsException()));
+      child.start();
+      child.join();
+      throw new IllegalStateException("expected");
+    }
+
+    @Test
+    @Category(ValidatesRunner.class)
+    public void testNotExpecting() {
+      assumeTrue(IN_TEST_HARNESS.get());
+      OBSERVED_WHEN_NOT_EXPECTING.set(TestPipeline.currentTestExpectsException());
+    }
+  }
+
+  @Test
+  public void testDetectsActiveExpectedExceptionRule() {
+    System.setProperty(BeamParallelJunit4Runner.VALIDATES_RUNNER_THREADS_PROPERTY, "2");
+
+    IN_TEST_HARNESS.set(true);
+    try {
+      Result result = JUnitCore.runClasses(SampleExpectedExceptionCases.class);
+      assertEquals(0, result.getFailureCount());
+      assertEquals(2, result.getRunCount());
+      assertTrue(SampleExpectedExceptionCases.OBSERVED_WHEN_EXPECTING.get());
+      assertFalse(SampleExpectedExceptionCases.OBSERVED_WHEN_NOT_EXPECTING.get());
+      assertFalse(SampleExpectedExceptionCases.OBSERVED_ON_CHILD_THREAD.get());
     } finally {
       IN_TEST_HARNESS.set(false);
     }

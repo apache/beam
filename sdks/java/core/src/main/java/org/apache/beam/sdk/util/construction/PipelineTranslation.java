@@ -70,6 +70,13 @@ public class PipelineTranslation {
           private final ListMultimap<Node, AppliedPTransform<?, ?, ?>> children =
               ArrayListMultimap.create();
 
+          // Nodes are turned into AppliedPTransforms against getPipeline(), i.e. the pipeline most
+          // recently passed to enterPipeline, rather than the {@code pipeline} being translated.
+          // For an ordinary Pipeline these are the same object. For a
+          // {@link org.apache.beam.sdk.CompositePipeline}, which traverses each member pipeline in
+          // turn, getPipeline() is the member that owns the node, so that translators which consult
+          // the owning pipeline (e.g. CombineTranslation's use of the coder registry) see the
+          // member's state rather than the composite's empty registries.
           @Override
           public void leaveCompositeTransform(Node node) {
             if (node.isRootNode()) {
@@ -78,10 +85,10 @@ public class PipelineTranslation {
               }
             } else {
               // TODO: Include DisplayData in the proto
-              children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
+              AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
+              children.put(node.getEnclosingNode(), appliedTransform);
               try {
-                components.registerPTransform(
-                    node.toAppliedPTransform(pipeline), children.get(node));
+                components.registerPTransform(appliedTransform, children.get(node));
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -91,10 +98,10 @@ public class PipelineTranslation {
           @Override
           public void visitPrimitiveTransform(Node node) {
             // TODO: Include DisplayData in the proto
-            children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
+            AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
+            children.put(node.getEnclosingNode(), appliedTransform);
             try {
-              components.registerPTransform(
-                  node.toAppliedPTransform(pipeline), Collections.emptyList());
+              components.registerPTransform(appliedTransform, Collections.emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }
