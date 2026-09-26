@@ -1,0 +1,20 @@
+diff a/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/QueryPlanner.java b/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/QueryPlanner.java	(rejected hunks)
+@@ -45,6 +45,18 @@ public interface QueryPlanner {
+   BeamRelNode convertToBeamRel(RelNode sqlStatement, QueryParameters queryParameters)
+       throws SqlConversionException;
+ 
++  /**
++   * Parses and validates {@code sqlStatement} and returns the logical {@link RelNode} (standard
++   * Calcite convention), WITHOUT converting to Beam physical rels. This lets callers rewrite the
++   * logical plan (e.g. inject custom rels) before {@link #convertToBeamRel(RelNode,
++   * QueryParameters)}.
++   */
++  default RelNode parseToRel(String sqlStatement, QueryParameters queryParameters)
++      throws ParseException, SqlConversionException {
++    throw new UnsupportedOperationException(
++        "parseToRel is not implemented by " + getClass().getName());
++  }
++
+   /** Parse input SQL query, and return a {@link SqlNode} as grammar tree. */
+   SqlNode parse(String sqlStatement) throws ParseException;
+ 

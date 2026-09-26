@@ -1,0 +1,31 @@
+diff a/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/CalciteQueryPlanner.java b/sdks/java/extensions/sql/src/main/java/org/apache/beam/sdk/extensions/sql/impl/CalciteQueryPlanner.java	(rejected hunks)
+@@ -268,6 +316,29 @@ public class CalciteQueryPlanner implements QueryPlanner {
+     return newRel.copy(newRel.getTraitSet(), newInputs);
+   }
+ 
++  @Override
++  public RelNode parseToRel(String sqlStatement, QueryParameters queryParameters)
++      throws ParseException, SqlConversionException {
++    Preconditions.checkArgument(
++        queryParameters.getKind() == Kind.NONE,
++        "Beam SQL Calcite dialect does not yet support query parameters.");
++    try {
++      SqlNode parsed = planner.parse(sqlStatement);
++      TableResolutionUtils.setupCustomTableResolution(connection, parsed);
++      SqlNode validated = planner.validate(parsed);
++      // root of original logical plan
++      RelRoot root = planner.rel(validated);
++      return root.rel;
++    } catch (RelConversionException e) {
++      throw new SqlConversionException(
++          String.format("Unable to convert query %s", sqlStatement), e);
++    } catch (SqlParseException | ValidationException e) {
++      throw new ParseException(String.format("Unable to parse query %s", sqlStatement), e);
++    } finally {
++      planner.close();
++    }
++  }
++
+   @Override
+   public BeamRelNode convertToBeamRel(RelNode relNode, QueryParameters queryParameters) {
+     RelNode beamRelNode;
