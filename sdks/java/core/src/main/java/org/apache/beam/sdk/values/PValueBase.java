@@ -47,10 +47,19 @@ public abstract class PValueBase implements PValue {
    */
   @Override
   public String getName() {
-    if (name == null) {
+    String currentName = this.name;
+    if (currentName == null) {
       throw new IllegalStateException("name not set");
     }
-    return name;
+    if (pipeline != null) {
+      String rootPrefix = pipeline.getRootNamePrefix();
+      if (rootPrefix != null
+          && !rootPrefix.isEmpty()
+          && !currentName.startsWith(rootPrefix + "/")) {
+        return rootPrefix + "/" + currentName;
+      }
+    }
+    return currentName;
   }
 
   /**

@@ -28,6 +28,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -58,6 +60,11 @@ import org.slf4j.LoggerFactory;
 })
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
+  static final String MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY =
+      "beam.dataflow.maxConcurrentStandaloneJobs";
+  private static final int DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS = 12;
+  private static final ConcurrentHashMap<Integer, Semaphore> STANDALONE_SEMAPHORES =
+      new ConcurrentHashMap<>();
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
   private final TestDataflowPipelineOptions options;
@@ -108,6 +115,39 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
+    if (DataflowTestBatchCoordinator.isEligibleForBatching(pipeline, options)) {
+      return DataflowTestBatchCoordinator.runInBatch(pipeline, options, this, runner);
+    }
+    return runStandalone(pipeline, runner);
+  }
+
+  private static Semaphore getStandaloneSemaphore() {
+    int maxJobs =
+        Math.max(
+            1,
+            Integer.getInteger(
+                MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS));
+    return STANDALONE_SEMAPHORES.computeIfAbsent(maxJobs, Semaphore::new);
+  }
+
+  DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
+    Semaphore semaphore = getStandaloneSemaphore();
+    boolean acquired = false;
+    try {
+      semaphore.acquire();
+      acquired = true;
+      return runStandaloneInternal(pipeline, runner);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } finally {
+      if (acquired) {
+        semaphore.release();
+      }
+    }
+  }
+
+  private DataflowPipelineJob runStandaloneInternal(Pipeline pipeline, DataflowRunner runner) {
     updatePAssertCount(pipeline);
 
     TestPipelineOptions testPipelineOptions = options.as(TestPipelineOptions.class);
@@ -201,6 +241,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     } else {
       return finalState == State.DONE && !messageHandler.hasSeenError();
     }
+  }
+
+  boolean waitForBatchJobTermination(DataflowPipelineJob job) {
+    return waitForBatchJobTermination(
+        job, new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler()));
   }
 
   /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */

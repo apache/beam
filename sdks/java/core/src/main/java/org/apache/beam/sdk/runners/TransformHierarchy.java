@@ -72,12 +72,80 @@ public class TransformHierarchy {
   // Maintain a stack based on the enclosing nodes
   private Node current;
 
+  private @Nullable String rootNamePrefix = null;
+
   public TransformHierarchy(ResourceHints resourceHints) {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
     root = new Node(resourceHints);
     current = root;
+  }
+
+  public void setRootNamePrefix(@Nullable String rootNamePrefix) {
+    this.rootNamePrefix = rootNamePrefix;
+  }
+
+  public @Nullable String getRootNamePrefix() {
+    return rootNamePrefix;
+  }
+
+  private static class NodeState {
+    private final Node node;
+    private final List<Node> parts;
+    private final @Nullable Map<TupleTag<?>, PCollection<?>> outputs;
+    private final boolean finishedSpecifying;
+
+    private NodeState(Node node) {
+      this.node = node;
+      this.parts = new ArrayList<>(node.parts);
+      this.outputs = node.outputs == null ? null : new HashMap<>(node.outputs);
+      this.finishedSpecifying = node.finishedSpecifying;
+    }
+
+    private void restore() {
+      node.parts.clear();
+      node.parts.addAll(parts);
+      node.outputs = outputs == null ? null : ImmutableMap.copyOf(outputs);
+      node.finishedSpecifying = finishedSpecifying;
+    }
+  }
+
+  private static void collectNodeStates(Node node, List<NodeState> states, Set<Node> seen) {
+    if (!seen.add(node)) {
+      return;
+    }
+    states.add(new NodeState(node));
+    for (Node child : node.parts) {
+      collectNodeStates(child, states, seen);
+    }
+  }
+
+  /**
+   * Captures a snapshot of this {@link TransformHierarchy} that can be restored by running the
+   * returned {@link Runnable}.
+   */
+  public Runnable captureStateSnapshot() {
+    final String savedRootNamePrefix = rootNamePrefix;
+    final Map<PCollection<?>, Node> savedProducers = new HashMap<>(producers);
+    final Map<PCollection<?>, PInput> savedProducerInput = new HashMap<>(producerInput);
+    final Map<Node, PInput> savedUnexpandedInputs = new HashMap<>(unexpandedInputs);
+    final Node savedCurrent = current;
+    final List<NodeState> savedNodeStates = new ArrayList<>();
+    collectNodeStates(root, savedNodeStates, new HashSet<>());
+    return () -> {
+      rootNamePrefix = savedRootNamePrefix;
+      producers.clear();
+      producers.putAll(savedProducers);
+      producerInput.clear();
+      producerInput.putAll(savedProducerInput);
+      unexpandedInputs.clear();
+      unexpandedInputs.putAll(savedUnexpandedInputs);
+      current = savedCurrent;
+      for (NodeState state : savedNodeStates) {
+        state.restore();
+      }
+    };
   }
 
   /**
@@ -397,7 +465,13 @@ public class TransformHierarchy {
     }
 
     public String getFullName() {
-      return fullName;
+      if (isRootNode() || rootNamePrefix == null || rootNamePrefix.isEmpty()) {
+        return fullName;
+      }
+      if (fullName.startsWith(rootNamePrefix + "/") || fullName.equals(rootNamePrefix)) {
+        return fullName;
+      }
+      return fullName.isEmpty() ? rootNamePrefix : rootNamePrefix + "/" + fullName;
     }
 
     /** Returns the transform input, in fully expanded form. */

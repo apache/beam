@@ -56,6 +56,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
@@ -348,6 +349,15 @@ public class TestPipeline extends Pipeline implements TestRule {
     enforcement.get().afterUserCodeFinished();
   }
 
+  private boolean standaloneExecutionRequired = false;
+  private int initialOptionsRevision = -1;
+
+  private static boolean hasCategory(Collection<Annotation> annotations, Class<?> targetCategory) {
+    return FluentIterable.from(annotations)
+        .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+        .anyMatch(Annotations.Predicates.isCategoryOf(targetCategory, true));
+  }
+
   @Override
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
@@ -355,8 +365,18 @@ public class TestPipeline extends Pipeline implements TestRule {
       @Override
       public void evaluate() throws Throwable {
         options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
+        initialOptionsRevision = options.revision();
 
-        setDeducedEnforcementLevel(description.getAnnotations());
+        Collection<Annotation> annotations = description.getAnnotations();
+        setDeducedEnforcementLevel(annotations);
+
+        Test testAnnotation = description.getAnnotation(Test.class);
+        if ((testAnnotation != null && testAnnotation.expected() != Test.None.class)
+            || hasCategory(annotations, UsesFailureMessage.class)
+            || BeamParallelJunit4Runner.hasSerialAnnotation(annotations)
+            || BeamParallelJunit4Runner.isClassMarkedSerial(description.getTestClass())) {
+          standaloneExecutionRequired = true;
+        }
 
         // statement.evaluate() essentially runs the user code contained in the unit test at hand.
         // Exceptions thrown during the execution of the user's test code will propagate here,
@@ -370,6 +390,30 @@ public class TestPipeline extends Pipeline implements TestRule {
         afterUserCodeFinished();
       }
     };
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns {@code true} if this {@link TestPipeline} should not be merged into a shared batch
+   * pipeline (for example, when the test expects an exception or assertion failure, uses custom
+   * per-test option arguments, or is marked for serial execution).
+   */
+  @Internal
+  @Override
+  public boolean isStandaloneExecutionRequired() {
+    if (standaloneExecutionRequired
+        || (initialOptionsRevision >= 0 && options.revision() != initialOptionsRevision)
+        || !providerRuntimeValues.isEmpty()
+        || BeamParallelJunit4Runner.isExpectingException()) {
+      return true;
+    }
+    for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+      if ("runExpectingAssertionFailure".equals(frame.getMethodName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -390,6 +434,7 @@ public class TestPipeline extends Pipeline implements TestRule {
    * <p>Most of logic is similar to {@link #testingPipelineOptions}.
    */
   public PipelineResult runWithAdditionalOptionArgs(List<String> additionalArgs) {
+    standaloneExecutionRequired = true;
     try {
       String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS, "");
       List<String> args = new ArrayList<>();
@@ -430,6 +475,10 @@ public class TestPipeline extends Pipeline implements TestRule {
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
             + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+    if (options != this.options
+        || (initialOptionsRevision >= 0 && options.revision() != initialOptionsRevision)) {
+      standaloneExecutionRequired = true;
+    }
 
     final PipelineResult pipelineResult;
     try {

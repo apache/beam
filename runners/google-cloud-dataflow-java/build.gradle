@@ -239,8 +239,12 @@ def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
-
 def validatesRunnerParallelThreads = project.findProperty('parallelThreads') ?: '6'
+def validatesRunnerTestBatching = project.findProperty('testBatching') ?: 'true'
+def validatesRunnerParallelThreads = project.findProperty('parallelThreads') ?: (validatesRunnerTestBatching == 'true' ? '30' : '6')
+def validatesRunnerTestBatchMaxSize = project.findProperty('testBatchMaxSize') ?: validatesRunnerParallelThreads
+def validatesRunnerTestBatchWindowMs = project.findProperty('testBatchWindowMs') ?: '3000'
+def validatesRunnerMaxConcurrentStandaloneJobs = project.findProperty('maxConcurrentStandaloneJobs') ?: '12'
 
 def isValidatesRunnerTestClass = { FileTreeElement element ->
   if (element.isDirectory()) {
@@ -248,7 +252,8 @@ def isValidatesRunnerTestClass = { FileTreeElement element ->
   }
   if (!element.name.endsWith('.class') ||
       element.name.startsWith('ValidateRunnerXlangTest') ||
-      element.name.startsWith('BeamParallelJunit4RunnerTest')) {
+      element.name.startsWith('BeamParallelJunit4RunnerTest') ||
+      element.name.startsWith('DataflowTestBatchCoordinatorTest')) {
     return false
   }
   def content = new String(element.file.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
@@ -277,6 +282,10 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
     systemProperty "beam.validatesRunner.parallelThreads", validatesRunnerParallelThreads
+    systemProperty "beam.dataflow.testBatching", validatesRunnerTestBatching
+    systemProperty "beam.dataflow.testBatchMaxSize", validatesRunnerTestBatchMaxSize
+    systemProperty "beam.dataflow.testBatchWindowMs", validatesRunnerTestBatchWindowMs
+    systemProperty "beam.dataflow.maxConcurrentStandaloneJobs", validatesRunnerMaxConcurrentStandaloneJobs
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -313,6 +322,9 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     dependsOn buildAndPushDockerJavaContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
     systemProperty "beam.validatesRunner.parallelThreads", validatesRunnerParallelThreads
+    systemProperty "beam.dataflow.testBatching", validatesRunnerTestBatching
+    systemProperty "beam.dataflow.testBatchMaxSize", validatesRunnerTestBatchMaxSize
+    systemProperty "beam.dataflow.testBatchWindowMs", validatesRunnerTestBatchWindowMs
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -687,7 +699,7 @@ task validatesRunnerV2Streaming {
 
       // TestStream with processing time control not supported
       'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testAfterProcessingTimeContinuationTriggerUsingState',
-      'org.apache.beam.sdk.transforms.GroupByKeyTest.testCombiningAccumulatingProcessingTime',
+      'org.apache.beam.sdk.transforms.GroupByKeyTest$BasicTests.testCombiningAccumulatingProcessingTime',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',

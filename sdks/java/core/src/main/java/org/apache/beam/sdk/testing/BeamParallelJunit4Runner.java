@@ -62,14 +62,14 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
   public @interface SerialTest {}
 
   public static final String VALIDATES_RUNNER_THREADS_PROPERTY =
-      "beam.validatesRunner.parallelThreads";
+    "beam.validatesRunner.parallelThreads";
   public static final String DEFAULT_TEST_THREADS_PROPERTY = "beam.test.parallelThreads";
 
   private static final ConcurrentHashMap<String, ExecutorService> EXECUTORS =
-      new ConcurrentHashMap<>();
+    new ConcurrentHashMap<>();
 
   private static final ConcurrentHashMap<Class<?>, Boolean> CLASS_SERIAL_CACHE =
-      new ConcurrentHashMap<>();
+    new ConcurrentHashMap<>();
 
   private CompletableFuture<Void> pendingFutures = CompletableFuture.allOf();
 
@@ -78,34 +78,34 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       return null;
     }
     return EXECUTORS.computeIfAbsent(
-        poolKey + ":" + threads,
-        k -> {
-          AtomicInteger counter = new AtomicInteger(1);
-          return Executors.newFixedThreadPool(
-              threads,
-              runnable -> {
-                Thread thread = new Thread(runnable);
-                thread.setDaemon(true);
-                thread.setName(poolKey + "-" + counter.getAndIncrement());
-                return thread;
-              });
-        });
+      poolKey + ":" + threads,
+      k -> {
+        AtomicInteger counter = new AtomicInteger(1);
+        return Executors.newFixedThreadPool(
+          threads,
+          runnable -> {
+            Thread thread = new Thread(runnable);
+            thread.setDaemon(true);
+            thread.setName(poolKey + "-" + counter.getAndIncrement());
+            return thread;
+          });
+      });
   }
 
   public BeamParallelJunit4Runner(Class<?> klass) throws InitializationError {
     super(klass);
     setScheduler(
-        new RunnerScheduler() {
-          @Override
-          public void schedule(Runnable childStatement) {
-            childStatement.run();
-          }
+      new RunnerScheduler() {
+        @Override
+        public void schedule(Runnable childStatement) {
+          childStatement.run();
+        }
 
-          @Override
-          public void finished() {
-            awaitPendingFutures();
-          }
-        });
+        @Override
+        public void finished() {
+          awaitPendingFutures();
+        }
+      });
   }
 
   private void awaitPendingFutures() {
@@ -136,9 +136,9 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       return;
     }
     pendingFutures =
-        CompletableFuture.allOf(
-            pendingFutures,
-            CompletableFuture.runAsync(() -> super.runChild(method, notifier), executor));
+      CompletableFuture.allOf(
+        pendingFutures,
+        CompletableFuture.runAsync(() -> super.runChild(method, notifier), executor));
   }
 
   private @Nullable ExecutorService selectExecutor(FrameworkMethod method) {
@@ -152,7 +152,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
 
   private boolean isValidatesRunnerMethod(FrameworkMethod method) {
     return hasValidatesRunnerCategory(method.getAnnotation(Category.class))
-        || hasValidatesRunnerCategory(getTestClass().getAnnotation(Category.class));
+      || hasValidatesRunnerCategory(getTestClass().getAnnotation(Category.class));
   }
 
   private static boolean hasValidatesRunnerCategory(@Nullable Category category) {
@@ -183,7 +183,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       return false;
     }
     return clazz.isAnnotationPresent(SerialTest.class)
-        || computeClassSerial(clazz.getSuperclass())
-        || computeClassSerial(clazz.getEnclosingClass());
+      || computeClassSerial(clazz.getSuperclass())
+      || computeClassSerial(clazz.getEnclosingClass());
   }
 }
