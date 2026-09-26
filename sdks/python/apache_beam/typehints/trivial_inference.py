@@ -123,6 +123,19 @@ class Const(object):
     return [Const.unwrap(x) for x in xs]
 
 
+class _TypeInCell(object):
+  """Marker for an inferred type stored in a synthetic closure cell.
+
+  When MAKE_FUNCTION is emulated, the closure cells of the function it
+  creates are populated with the inferred types of the captured variables
+  rather than with actual runtime values. This wrapper marks such cells so
+  that FrameState.closure_type can distinguish them from the cells of a real
+  closure, which hold runtime values.
+  """
+  def __init__(self, value):
+    self.value = value
+
+
 class FrameState(object):
   """Stores the state of the frame at a particular point of execution.
   """
@@ -145,20 +158,42 @@ class FrameState(object):
   def const_type(self, i):
     return Const(self.co.co_consts[i])
 
-  def get_closure(self, i):
-    num_cellvars = len(self.co.co_cellvars)
-    if i < num_cellvars:
-      return self.vars[i]
-    else:
-      return self.f.__closure__[i - num_cellvars].cell_contents
-
   def closure_type(self, i):
-    """Returns a TypeConstraint or Const."""
-    val = self.get_closure(i)
-    if isinstance(val, typehints.TypeConstraint):
-      return val
+    """Returns the type of the cell or free variable with the given index.
+
+    The index is the raw oparg of a LOAD_CLOSURE or LOAD_DEREF instruction.
+    For Python < 3.11 it indexes co_cellvars + co_freevars. From Python 3.11
+    on it indexes the frame's "fast locals" (localsplus) storage, in which
+    the cell of a captured parameter shares the slot of the parameter
+    itself, so the slot layout is co_varnames, followed by the cell
+    variables that are not parameters, followed by the free variables.
+    """
+    if sys.version_info >= (3, 11):
+      names = self.co.co_varnames + tuple(
+          c for c in self.co.co_cellvars
+          if c not in self.co.co_varnames) + self.co.co_freevars
     else:
+      names = self.co.co_cellvars + self.co.co_freevars
+    name = names[i]
+    if name in self.co.co_freevars:
+      # A free variable: its cell belongs to the function's closure.
+      val = self.f.__closure__[self.co.co_freevars.index(name)].cell_contents
+      if isinstance(val, _TypeInCell):
+        # A synthetic cell produced while emulating MAKE_FUNCTION: it holds
+        # the inferred type of the captured variable, not an actual runtime
+        # value.
+        return val.value
       return Const(val)
+    try:
+      # A cell variable of the current frame. The frame state tracks the
+      # inferred *type* of each local variable rather than its value, so the
+      # tracked type can be returned directly.
+      return self.vars[self.co.co_varnames.index(name)]
+    except ValueError:
+      # The cell variable does not correspond to a tracked local variable
+      # (e.g. it is only ever assigned via STORE_DEREF, which is not
+      # modeled), so its type is unknown.
+      return typehints.Any
 
   def get_global(self, i):
     name = self.get_name(i)
@@ -468,13 +503,15 @@ def infer_return_type_func(f, input_types, debug=False, depth=0):
           print('(' + dis.cmp_op[arg] + ')', end=' ')
         elif op in dis.hasfree:
           if free is None:
-            free = co.co_cellvars + co.co_freevars
-          # From 3.11 on the arg is no longer offset by len(co_varnames)
-          # so we adjust it back
-          print_arg = arg
-          if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
-            print_arg = arg - len(co.co_varnames)
-          print('(' + free[print_arg] + ')', end=' ')
+            # From 3.11 on the arg indexes the localsplus storage, in which
+            # the cell of a captured parameter shares the parameter's slot.
+            if (sys.version_info.major, sys.version_info.minor) >= (3, 11):
+              free = co.co_varnames + tuple(
+                  c for c in co.co_cellvars
+                  if c not in co.co_varnames) + co.co_freevars
+            else:
+              free = co.co_cellvars + co.co_freevars
+          print('(' + free[arg] + ')', end=' ')
 
     # Actually emulate the op.
     if state is None and states[start] is None:

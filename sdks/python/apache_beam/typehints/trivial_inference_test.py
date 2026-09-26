@@ -20,6 +20,7 @@
 # pytype: skip-file
 
 import dataclasses
+import sys
 import types
 import unittest
 
@@ -276,7 +277,11 @@ class TrivialInferenceTest(unittest.TestCase):
     y = 1.0
     self.assertReturnType(typehints.Tuple[int, float], lambda: (x, y))
 
-  @unittest.skip("https://github.com/apache/beam/issues/28420")
+  @unittest.skipIf(
+      sys.version_info >= (3, 13),
+      'MAKE_FUNCTION closure emulation is not yet supported from Python '
+      '3.13, in which closures are attached via SET_FUNCTION_ATTRIBUTE '
+      'after function creation: https://github.com/apache/beam/issues/28420')
   def testLocalClosure(self):
     self.assertReturnType(
         typehints.Tuple[int, int], lambda x: (x, (lambda: x)()), [int])
@@ -513,6 +518,61 @@ class TrivialInferenceTest(unittest.TestCase):
           typehints.Tuple[int, str, typehints.Any, typehints.Any],
           python_callable.PythonCallableWithSource(
               "lambda x: (x.id, x.name, x.tags, x.custom)"), [MyDataClass])
+
+
+class ClosureTypeInferenceTest(unittest.TestCase):
+  def assertReturnType(self, expected, f, inputs=(), depth=5):
+    self.assertEqual(
+        expected,
+        trivial_inference.infer_return_type(
+            f, inputs, debug=False, depth=depth))
+
+  @unittest.skipIf(
+      sys.version_info >= (3, 13),
+      'MAKE_FUNCTION closure emulation is not yet supported from Python '
+      '3.13, in which closures are attached via SET_FUNCTION_ATTRIBUTE '
+      'after function creation: https://github.com/apache/beam/issues/28420')
+  def testClosureCallingCapturedArgument(self):
+    # https://github.com/apache/beam/issues/28420
+    self.assertReturnType(
+        typehints.Tuple[int, int], lambda x: (x, (lambda: x)()), [int])
+
+  @unittest.skipIf(
+      sys.version_info >= (3, 13),
+      'MAKE_FUNCTION closure emulation is not yet supported from Python '
+      '3.13, in which closures are attached via SET_FUNCTION_ATTRIBUTE '
+      'after function creation: https://github.com/apache/beam/issues/28420')
+  def testClosureCallingCapturedArgumentOnly(self):
+    self.assertReturnType(int, lambda x: (lambda: x)(), [int])
+
+  @unittest.skipIf(
+      sys.version_info >= (3, 13),
+      'MAKE_FUNCTION closure emulation is not yet supported from Python '
+      '3.13, in which closures are attached via SET_FUNCTION_ATTRIBUTE '
+      'after function creation: https://github.com/apache/beam/issues/28420')
+  def testNestedClosureCallingCapturedArgument(self):
+    self.assertReturnType(int, lambda x: (lambda: (lambda: x)())(), [int])
+
+  @unittest.skipIf(
+      sys.version_info >= (3, 13),
+      'MAKE_FUNCTION closure emulation is not yet supported from Python '
+      '3.13, in which closures are attached via SET_FUNCTION_ATTRIBUTE '
+      'after function creation: https://github.com/apache/beam/issues/28420')
+  def testClosureCapturedArgumentMixedWithParameter(self):
+    self.assertReturnType(
+        typehints.Tuple[int, str], lambda x, y: (lambda z: (x, z))(y),
+        [int, str])
+
+  def testRealClosureCellsHoldValues(self):
+    # Cells of an actual (non-emulated) closure contain runtime values and
+    # must still be inferred as constants of the value's type.
+    v = 123
+    self.assertReturnType(int, lambda: v)
+
+  def testRealClosureCellHoldingClass(self):
+    # A captured class is a constant and calling it constructs an instance.
+    cls = int
+    self.assertReturnType(int, lambda: cls('7'))
 
 
 if __name__ == '__main__':
