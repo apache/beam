@@ -1419,9 +1419,10 @@ class BeamModulePlugin implements Plugin<Project> {
         getSourceDirectories().setFrom(
             project.files(project.sourceSets.main.allSource.srcDirs)
             )
-        getExecutionData().setFrom(project.file(
-            project.getLayout().getBuildDirectory().file("jacoco/test.exec")
-            ))
+       getExecutionData().setFrom(project.fileTree(
+          dir: project.getLayout().getBuildDirectory().dir("jacoco"),
+          include: ['*.exec']
+         ))
         reports {
           html.required = true
           xml.required = true

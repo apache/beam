@@ -51,6 +51,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
   private final SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn;
   private final Duration ackDeadline;
   private final boolean nackOnTimeout;
+  private final boolean enableOpenTelemetryTracing;
 
   public Queue getQueue() {
     return queue;
@@ -84,6 +85,10 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     return nackOnTimeout;
   }
 
+  public boolean getEnableOpenTelemetryTracing() {
+    return enableOpenTelemetryTracing;
+  }
+
   public UnboundedSolaceSource(
       Queue queue,
       SempClientFactory sempClientFactory,
@@ -95,7 +100,8 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
       Duration watermarkIdleDurationThreshold,
       SerializableFunction<@Nullable BytesXMLMessage, @Nullable T> parseFn,
       Duration ackDeadline,
-      boolean nackOnTimeout) {
+      boolean nackOnTimeout,
+      boolean enableOpenTelemetryTracing) {
     this.queue = queue;
     this.sempClientFactory = sempClientFactory;
     this.sessionServiceFactory = sessionServiceFactory;
@@ -107,6 +113,7 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
     this.parseFn = parseFn;
     this.ackDeadline = ackDeadline;
     this.nackOnTimeout = nackOnTimeout;
+    this.enableOpenTelemetryTracing = enableOpenTelemetryTracing;
   }
 
   @Override
@@ -152,7 +159,8 @@ public class UnboundedSolaceSource<T> extends UnboundedSource<T, SolaceCheckpoin
               watermarkIdleDurationThreshold,
               parseFn,
               ackDeadline,
-              nackOnTimeout);
+              nackOnTimeout,
+              enableOpenTelemetryTracing);
       sourceList.add(source);
     }
     return sourceList;
