@@ -425,9 +425,7 @@ public class PackageUtil implements Closeable {
       switch (dest) {
         case "dataflow-worker.jar":
         case "windmill_main":
-          target =
-              Environments.createStagingFileName(
-                  file, Files.asByteSource(file).hash(Hashing.sha256()));
+          target = Environments.createStagingFileName(file, Environments.getFileHash(file));
           LOG.info("Staging custom {} as {}", dest, target);
           break;
         default:

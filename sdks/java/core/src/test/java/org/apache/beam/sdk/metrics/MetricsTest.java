@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -91,6 +92,9 @@ public class MetricsTest implements Serializable {
 
   /** Shared test helpers and setup/teardown. */
   public abstract static class SharedTestBase implements Serializable {
+    private static final ConcurrentHashMap<String, PipelineResult> CACHED_METRIC_PIPELINE_RESULTS =
+        new ConcurrentHashMap<>();
+
     @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -101,6 +105,14 @@ public class MetricsTest implements Serializable {
     }
 
     protected PipelineResult runPipelineWithMetrics() {
+      String cacheKey =
+          pipeline.getOptions().getRunner().getName()
+              + ":"
+              + System.getProperty(TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS, "");
+      PipelineResult cachedResult = CACHED_METRIC_PIPELINE_RESULTS.get(cacheKey);
+      if (cachedResult != null) {
+        return cachedResult;
+      }
       final Counter count = Metrics.counter(MetricsTest.class, "count");
       StringSet sideinputs = Metrics.stringSet(MetricsTest.class, "sideinputs");
       final TupleTag<Integer> output1 = new TupleTag<Integer>() {};
@@ -171,6 +183,7 @@ public class MetricsTest implements Serializable {
       PipelineResult result = pipeline.run();
 
       result.waitUntilFinish();
+      CACHED_METRIC_PIPELINE_RESULTS.put(cacheKey, result);
       return result;
     }
   }
