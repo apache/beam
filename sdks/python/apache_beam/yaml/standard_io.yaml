@@ -75,6 +75,8 @@
         'file_descriptor_path': 'file_descriptor_path'
         'message_name': 'message_name'
         'max_read_time_seconds': 'max_read_time_seconds'
+        'with_gcp_adc': 'with_gcp_adc'
+        'num_partitions': 'num_partitions'
       'WriteToKafka':
         'format': 'format'
         'topic': 'topic'
@@ -84,6 +86,7 @@
         'file_descriptor_path': 'file_descriptor_path'
         'message_name': 'message_name'
         'schema': 'schema'
+        'with_gcp_adc': 'with_gcp_adc'
     underlying_provider:
       type: beamJar
       transforms:
