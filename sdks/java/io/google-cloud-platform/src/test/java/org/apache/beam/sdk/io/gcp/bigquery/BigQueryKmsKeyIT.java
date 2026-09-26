@@ -32,7 +32,12 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -85,6 +90,11 @@ public class BigQueryKmsKeyIT {
    * <p>Verifies table creation with KMS key.
    */
   private void testQueryAndWrite(Method method) throws Exception {
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(5))
+            .withMaxRetries(2)
+            .backoff();
     for (int attempt = 1; ; attempt++) {
       String outputTableId = "testQueryAndWrite_" + method.name() + "_" + attempt;
       String outputTableSpec = project + ":" + BIG_QUERY_DATASET_ID + "." + outputTableId;
@@ -113,11 +123,10 @@ public class BigQueryKmsKeyIT {
         assertEquals(table.getEncryptionConfiguration().getKmsKeyName(), kmsKey);
         return;
       } catch (Exception e) {
-        if (attempt >= 3) {
+        if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
           throw e;
         }
         LOG.warn("Retrying testQueryAndWrite({}) after transient failure", method, e);
-        Thread.sleep(5000L * attempt);
       }
     }
   }

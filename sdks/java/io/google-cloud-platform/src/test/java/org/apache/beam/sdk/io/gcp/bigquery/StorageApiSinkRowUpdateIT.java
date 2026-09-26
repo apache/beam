@@ -33,9 +33,14 @@ import org.apache.beam.sdk.extensions.gcp.options.GcpOptions;
 import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -109,20 +114,7 @@ public class StorageApiSinkRowUpdateIT {
                 RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, 1)));
 
     List<String> primaryKey = Lists.newArrayList("key1", "key2");
-    String tableSpec = getTablespec();
-    Pipeline p = Pipeline.create();
-    p.apply("Create rows", Create.of(items))
-        .apply(
-            "Apply updates",
-            BigQueryIO.applyRowMutations()
-                .to(tableSpec)
-                .withSchema(tableSchema)
-                .withPrimaryKey(primaryKey)
-                .withClustering(new Clustering().setFields(primaryKey))
-                .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
-
-    runPipelineAndWait(p);
+    String tableSpec = runRowMutationPipeline(tableSchema, items, primaryKey);
 
     List<TableRow> expected =
         Lists.newArrayList(
@@ -170,20 +162,7 @@ public class StorageApiSinkRowUpdateIT {
                 RowMutationInformation.of(RowMutationInformation.MutationType.DELETE, "AAA/1")));
 
     List<String> primaryKey = Lists.newArrayList("key1", "key2");
-    String tableSpec = getTablespec();
-    Pipeline p = Pipeline.create();
-    p.apply("Create rows", Create.of(items))
-        .apply(
-            "Apply updates",
-            BigQueryIO.applyRowMutations()
-                .to(tableSpec)
-                .withSchema(tableSchema)
-                .withPrimaryKey(primaryKey)
-                .withClustering(new Clustering().setFields(primaryKey))
-                .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
-                .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
-
-    runPipelineAndWait(p);
+    String tableSpec = runRowMutationPipeline(tableSchema, items, primaryKey);
 
     List<TableRow> expected =
         Lists.newArrayList(
@@ -201,13 +180,30 @@ public class StorageApiSinkRowUpdateIT {
     assertThat(queryResponse, containsInAnyOrder(Iterables.toArray(expected, TableRow.class)));
   }
 
-  private void runPipelineAndWait(Pipeline p) {
-    int maxAttempts = 3;
-    for (int attempt = 1; ; attempt++) {
+  private String runRowMutationPipeline(
+      TableSchema tableSchema, List<RowMutation> items, List<String> primaryKey) {
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(5))
+            .withMaxRetries(2)
+            .backoff();
+    while (true) {
+      String tableSpec = getTablespec();
+      Pipeline p = Pipeline.create();
+      p.apply("Create rows", Create.of(items))
+          .apply(
+              "Apply updates",
+              BigQueryIO.applyRowMutations()
+                  .to(tableSpec)
+                  .withSchema(tableSchema)
+                  .withPrimaryKey(primaryKey)
+                  .withClustering(new Clustering().setFields(primaryKey))
+                  .withMethod(BigQueryIO.Write.Method.STORAGE_API_AT_LEAST_ONCE)
+                  .withCreateDisposition(BigQueryIO.Write.CreateDisposition.CREATE_IF_NEEDED));
       PipelineResult result = p.run();
       try {
         result.waitUntilFinish();
-        return;
+        return tableSpec;
       } catch (Pipeline.PipelineExecutionException e) {
         Throwable root = e.getCause();
         // Unwrap nested exceptions to find the root cause.
@@ -218,20 +214,19 @@ public class StorageApiSinkRowUpdateIT {
         // been
         // flushed.
         if (root instanceof Exceptions.StreamWriterClosedException) {
-          return;
+          return tableSpec;
         }
         String msg = e.getMessage() != null ? e.getMessage() : "";
-        if (attempt < maxAttempts
-            && (msg.contains("FAILED_PRECONDITION") || msg.contains("The stream may not exist"))) {
-          try {
-            Thread.sleep(5000L * attempt);
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
+        boolean retryable =
+            msg.contains("FAILED_PRECONDITION") || msg.contains("The stream may not exist");
+        try {
+          if (!retryable || !BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw e;
           }
-          continue;
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
+          throw e;
         }
-        throw e;
       }
     }
   }

@@ -23,9 +23,14 @@ import java.util.function.Function;
 import org.apache.beam.model.expansion.v1.ExpansionApi;
 import org.apache.beam.model.expansion.v1.ExpansionServiceGrpc;
 import org.apache.beam.model.pipeline.v1.Endpoints;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.ManagedChannel;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.Status;
 import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.StatusRuntimeException;
+import org.joda.time.Duration;
 
 /** Default factory for ExpansionServiceClient used by External transform. */
 public class DefaultExpansionServiceClientFactory implements ExpansionServiceClientFactory {
@@ -61,35 +66,38 @@ public class DefaultExpansionServiceClientFactory implements ExpansionServiceCli
                   ExpansionServiceGrpc.newBlockingStub(channel);
 
               private <T> T callWithRetry(java.util.concurrent.Callable<T> rpcCall) {
-                int maxAttempts = 4;
-                long backoffMs = 1000L;
-                for (int attempt = 1; ; attempt++) {
-                  try {
-                    return rpcCall.call();
-                  } catch (StatusRuntimeException ex) {
-                    Status.Code code = ex.getStatus().getCode();
-                    boolean retryable =
-                        code == Status.Code.UNAVAILABLE
-                            || code == Status.Code.DEADLINE_EXCEEDED
-                            || code == Status.Code.INTERNAL
-                            || code == Status.Code.UNKNOWN;
-                    if (!retryable || attempt >= maxAttempts) {
-                      throw ex;
-                    }
-                    channel.resetConnectBackoff();
+                BackOff backoff =
+                    FluentBackoff.DEFAULT
+                        .withInitialBackoff(Duration.standardSeconds(1))
+                        .withMaxBackoff(Duration.standardMinutes(1))
+                        .withMaxRetries(4)
+                        .backoff();
+
+                RuntimeException lastException = null;
+                boolean lastExceptionRetryable;
+                try {
+                  do {
                     try {
-                      Thread.sleep(backoffMs);
-                    } catch (InterruptedException ie) {
-                      Thread.currentThread().interrupt();
+                      return rpcCall.call();
+                    } catch (StatusRuntimeException ex) {
+                      lastException = ex;
+                      Status.Code code = ex.getStatus().getCode();
+                      lastExceptionRetryable =
+                          code == Status.Code.UNAVAILABLE
+                              || code == Status.Code.DEADLINE_EXCEEDED
+                              || code == Status.Code.INTERNAL
+                              || code == Status.Code.UNKNOWN;
+                      channel.resetConnectBackoff();
+                    } catch (RuntimeException ex) {
                       throw ex;
+                    } catch (Exception ex) {
+                      throw new RuntimeException(ex);
                     }
-                    backoffMs *= 2;
-                  } catch (RuntimeException ex) {
-                    throw ex;
-                  } catch (Exception ex) {
-                    throw new RuntimeException(ex);
-                  }
+                  } while (lastExceptionRetryable && BackOffUtils.next(Sleeper.DEFAULT, backoff));
+                } catch (InterruptedException ex) {
+                  Thread.currentThread().interrupt();
                 }
+                throw lastException;
               }
 
               @Override

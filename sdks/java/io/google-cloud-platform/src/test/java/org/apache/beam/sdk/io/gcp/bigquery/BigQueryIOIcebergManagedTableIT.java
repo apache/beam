@@ -41,6 +41,10 @@ import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.TypeDescriptors;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Splitter;
@@ -144,7 +148,12 @@ public class BigQueryIOIcebergManagedTableIT {
 
   /** Runs SQL in the connection's location and returns the result rows. */
   private static List<TableRow> runSql(String sql) throws IOException {
-    for (int attempt = 1; ; attempt++) {
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(3))
+            .withMaxRetries(2)
+            .backoff();
+    while (true) {
       try {
         QueryResponse response =
             RAW_BQ
@@ -162,11 +171,10 @@ public class BigQueryIOIcebergManagedTableIT {
         }
         return response.getRows();
       } catch (IOException e) {
-        if (attempt >= 3) {
-          throw e;
-        }
         try {
-          Thread.sleep(3000L * attempt);
+          if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
+            throw e;
+          }
         } catch (InterruptedException ie) {
           Thread.currentThread().interrupt();
           throw e;

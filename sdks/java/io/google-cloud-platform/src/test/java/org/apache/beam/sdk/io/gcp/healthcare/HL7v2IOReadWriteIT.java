@@ -35,6 +35,10 @@ import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Count;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.sdk.values.PCollection;
 import org.joda.time.Duration;
 import org.junit.After;
@@ -73,7 +77,12 @@ public class HL7v2IOReadWriteIT {
     healthcareDataset = String.format(HEALTHCARE_DATASET_TEMPLATE, project);
     HealthcareApiClient client = new HttpHealthcareApiClient();
     for (String storeName : new String[] {INPUT_HL7V2_STORE_NAME, OUTPUT_HL7V2_STORE_NAME}) {
-      for (int attempt = 0; ; attempt++) {
+      BackOff backoff =
+          FluentBackoff.DEFAULT
+              .withInitialBackoff(Duration.standardSeconds(2))
+              .withMaxRetries(3)
+              .backoff();
+      while (true) {
         try {
           client.createHL7v2Store(healthcareDataset, storeName);
           break;
@@ -81,10 +90,9 @@ public class HL7v2IOReadWriteIT {
           if (e.getMessage() != null && e.getMessage().contains("ALREADY_EXISTS")) {
             break;
           }
-          if (attempt >= 3) {
+          if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
             throw e;
           }
-          Thread.sleep(2000L * (attempt + 1));
         }
       }
     }
