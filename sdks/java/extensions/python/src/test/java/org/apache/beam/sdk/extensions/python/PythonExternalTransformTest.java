@@ -85,6 +85,17 @@ public class PythonExternalTransformTest implements Serializable {
   }
 
   @Test
+  public void testFilesToStage() {
+    PythonExternalTransform<?, ?> transform =
+        PythonExternalTransform
+            .<PCollection<KV<String, String>>, PCollection<KV<String, Iterable<String>>>>from(
+                "DummyTransform")
+            .withFilesToStage(ImmutableList.of("file1.py", "file2.py"));
+
+    assertEquals(ImmutableList.of("file1.py", "file2.py"), transform.getFilesToStage());
+  }
+
+  @Test
   public void generateArgsEmpty() {
     PythonExternalTransform<?, ?> transform =
         PythonExternalTransform
@@ -392,5 +403,30 @@ public class PythonExternalTransformTest implements Serializable {
                         from("apache_beam.GroupByKey"))
             .apply(Keys.create());
     PAssert.that(output).containsInAnyOrder("A", "B");
+  }
+
+  @Test
+  public void testFilesToStageWithTransformServiceThrows() {
+    PythonExternalTransformOptions options =
+        PipelineOptionsFactory.create().as(PythonExternalTransformOptions.class);
+    options.setUseTransformService(true);
+
+    Pipeline p = Pipeline.create(options);
+
+    PythonExternalTransform<PCollection<String>, PCollection<String>> transform =
+        PythonExternalTransform.<PCollection<String>, PCollection<String>>from("DummyTransform")
+            .withFilesToStage(ImmutableList.of("file1.py"));
+
+    PCollection<String> input = p.apply(Create.of("a"));
+
+    try {
+      input.apply(transform);
+      org.junit.Assert.fail("Expected UnsupportedOperationException");
+    } catch (UnsupportedOperationException e) {
+      assertTrue(
+          e.getMessage()
+              .contains(
+                  "Staging local files is not supported when using the Docker-based transform service"));
+    }
   }
 }
