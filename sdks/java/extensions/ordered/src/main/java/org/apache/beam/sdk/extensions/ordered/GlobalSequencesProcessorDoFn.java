@@ -175,6 +175,7 @@ class GlobalSequencesProcessorDoFn<
     if (numberOfResultsBeforeBundleStart == null) {
       // Per key processing is synchronized by Beam. There is no need to have it here.
       numberOfResultsBeforeBundleStart = processingState.getResultCount();
+      numberOfDuplicatesBeforeBundleStart = processingState.getDuplicates();
     }
 
     processingState.eventReceived();
@@ -262,6 +263,7 @@ class GlobalSequencesProcessorDoFn<
     }
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
+    this.numberOfDuplicatesBeforeBundleStart = processingState.getDuplicates();
 
     state =
         processBufferedEventRange(
