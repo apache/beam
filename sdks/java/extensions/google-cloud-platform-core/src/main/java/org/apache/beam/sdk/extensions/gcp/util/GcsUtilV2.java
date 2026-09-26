@@ -45,6 +45,7 @@ import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketField;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.BucketTargetOption;
 import com.google.cloud.storage.Storage.CopyRequest;
 import com.google.cloud.storage.StorageBatch;
 import com.google.cloud.storage.StorageBatchResult;
@@ -100,7 +101,16 @@ class GcsUtilV2 {
     }
   }
 
-  private Storage storage;
+  private final Storage storage;
+
+  /**
+   * The shared client. Every operation reaches it through this method, so that tests can substitute
+   * a mocked client for a spied instance.
+   */
+  @VisibleForTesting
+  Storage storage() {
+    return storage;
+  }
 
   private final @Nullable Integer uploadBufferSizeBytes;
 
@@ -115,6 +125,14 @@ class GcsUtilV2 {
 
   /** Maximum number of requests permitted in a GCS batch request. */
   private static final int MAX_REQUESTS_PER_BATCH = 100;
+
+  /**
+   * Upload chunk size applied when the pipeline does not ask for one. Mirrors gcsio's {@code
+   * AsyncWriteChannelOptions} default, which java-storage does not share.
+   */
+  @VisibleForTesting
+  static final int DEFAULT_UPLOAD_CHUNK_SIZE_BYTES =
+      Runtime.getRuntime().maxMemory() < 512 * 1024 * 1024 ? 8 * 1024 * 1024 : 3 * 8 * 1024 * 1024;
 
   /**
    * Limit the number of bytes Cloud Storage will attempt to copy before responding to an individual
@@ -294,13 +312,13 @@ class GcsUtilV2 {
   @VisibleForTesting
   Storage storageWithHttpMetrics(@Nullable MetricsContainer container, boolean isWrite) {
     if (container == null) {
-      return storage;
+      return storage();
     }
-    StorageOptions options = storage.getOptions();
+    StorageOptions options = storage().getOptions();
     TransportOptions transportOptions = options.getTransportOptions();
     if (!(transportOptions instanceof HttpTransportOptions)) {
       // A non-HTTP transport (e.g. gRPC) has no HttpRequestInitializer to wrap.
-      return storage;
+      return storage();
     }
     return options.toBuilder()
         .setTransportOptions(
@@ -346,7 +364,7 @@ class GcsUtilV2 {
   }
 
   public Blob getBlob(GcsPath gcsPath, BlobGetOption... options) throws IOException {
-    return getBlob(storage, gcsPath, options);
+    return getBlob(storage(), gcsPath, options);
   }
 
   /** As {@link #getBlob(GcsPath, BlobGetOption...)}, but issued through a specific client. */
@@ -399,7 +417,7 @@ class GcsUtilV2 {
         Lists.partition(Lists.newArrayList(gcsPaths), MAX_REQUESTS_PER_BATCH)) {
 
       // Create a new empty batch every time
-      StorageBatch batch = storage.batch();
+      StorageBatch batch = storage().batch();
       List<StorageBatchResult<Blob>> batchResultFutures = new ArrayList<>();
 
       for (GcsPath path : pathPartition) {
@@ -455,7 +473,7 @@ class GcsUtilV2 {
     }
 
     try {
-      return storage.list(bucket, blobListOptions.toArray(new BlobListOption[0]));
+      return storage().list(bucket, blobListOptions.toArray(new BlobListOption[0]));
     } catch (StorageException e) {
       throw translateStorageException(bucket, prefix, e);
     }
@@ -525,7 +543,7 @@ class GcsUtilV2 {
         Lists.partition(Lists.newArrayList(paths), MAX_REQUESTS_PER_BATCH)) {
 
       // Create a new empty batch every time
-      StorageBatch batch = storage.batch();
+      StorageBatch batch = storage().batch();
       List<StorageBatchResult<Boolean>> batchResultFutures = new ArrayList<>();
 
       for (GcsPath path : pathPartition) {
@@ -592,7 +610,7 @@ class GcsUtilV2 {
         // FAIL_IF_EXISTS, SKIP_IF_EXISTS and SAFE_OVERWRITE require checking the target blob
         BlobInfo existingTarget;
         try {
-          existingTarget = storage.get(dstId);
+          existingTarget = storage().get(dstId);
         } catch (StorageException e) {
           throw translateStorageException(dstPath, e);
         }
@@ -622,11 +640,11 @@ class GcsUtilV2 {
       }
 
       try {
-        CopyWriter copyWriter = storage.copy(copyRequestBuilder.build());
+        CopyWriter copyWriter = storage().copy(copyRequestBuilder.build());
         copyWriter.getResult();
 
         if (deleteSrc) {
-          if (!storage.delete(srcId)) {
+          if (!storage().delete(srcId)) {
             // This may happen if the source file is deleted by another process after copy.
             LOG.warn(
                 "Source file {} could not be deleted after move to {}. It may not have existed.",
@@ -664,7 +682,7 @@ class GcsUtilV2 {
   public Bucket getBucket(GcsPath path, BucketGetOption... options) throws IOException {
     String bucketName = path.getBucket();
     try {
-      Bucket bucket = storage.get(bucketName, options);
+      Bucket bucket = storage().get(bucketName, options);
       if (bucket == null) {
         throw new FileNotFoundException(
             String.format("The specified bucket does not exist: gs://%s", bucketName));
@@ -675,13 +693,17 @@ class GcsUtilV2 {
     }
   }
 
-  /** Returns whether the GCS bucket exists and is accessible. */
-  public boolean bucketAccessible(GcsPath path) {
+  /**
+   * Returns whether the GCS bucket exists and is accessible. This will return false if the bucket
+   * does not exist or is inaccessible due to permissions; any other failure is propagated, as
+   * {@link GcsUtilV1} does.
+   */
+  public boolean bucketAccessible(GcsPath path) throws IOException {
     try {
       // Fetch only the name field to minimize data transfer
       getBucket(path, BucketGetOption.fields(BucketField.NAME));
       return true;
-    } catch (IOException e) {
+    } catch (AccessDeniedException | FileNotFoundException e) {
       return false;
     }
   }
@@ -705,9 +727,27 @@ class GcsUtilV2 {
     return bucket.getProject().longValue();
   }
 
-  public void createBucket(BucketInfo bucketInfo) throws IOException {
+  public void createBucket(BucketInfo bucketInfo, BucketTargetOption... options)
+      throws IOException {
+    createBucket(null, bucketInfo, options);
+  }
+
+  /**
+   * As {@link #createBucket(BucketInfo, BucketTargetOption...)}, but creates the bucket in the
+   * given project instead of the one this instance is configured with.
+   */
+  public void createBucket(
+      @Nullable String projectId, BucketInfo bucketInfo, BucketTargetOption... options)
+      throws IOException {
+    Storage client = storage();
+    if (projectId != null && !projectId.equals(this.projectId)) {
+      // The owning project is a property of the client rather than of the insert request, so
+      // asking for a different one means deriving a client for it. The derived client shares the
+      // credentials, host and transport of the original.
+      client = storage().getOptions().toBuilder().setProjectId(projectId).build().getService();
+    }
     try {
-      storage.create(bucketInfo);
+      client.create(bucketInfo, options);
     } catch (StorageException e) {
       throw translateStorageException(bucketInfo.getName(), null, e);
     }
@@ -715,7 +755,7 @@ class GcsUtilV2 {
 
   public void removeBucket(BucketInfo bucketInfo) throws IOException {
     try {
-      if (!storage.delete(bucketInfo.getName())) {
+      if (!storage().delete(bucketInfo.getName())) {
         throw new FileNotFoundException(
             String.format("The specified bucket does not exist: gs://%s", bucketInfo.getName()));
       }
@@ -801,6 +841,11 @@ class GcsUtilV2 {
       serviceCallMetric.call("ok");
       return wrapInCounting(
           new GcsSeekableByteChannel(reader, blob.getSize()), path.getBucket(), container);
+    } catch (FileNotFoundException e) {
+      // getBlob reports a missing object as a FileNotFoundException rather than a
+      // StorageException, so record its status here like GcsUtilV1 does.
+      serviceCallMetric.call(404);
+      throw e;
     } catch (StorageException e) {
       serviceCallMetric.call(e.getCode());
       throw translateStorageException(path, e);
@@ -833,7 +878,12 @@ class GcsUtilV2 {
 
     @Override
     public void close() throws IOException {
-      writer.close();
+      // The upload is finalized here, so this is where a failed precondition surfaces.
+      try {
+        writer.close();
+      } catch (StorageException e) {
+        throw translateStorageException(gcsPath, e);
+      }
     }
   }
 
@@ -873,9 +923,8 @@ class GcsUtilV2 {
           options.getUploadBufferSizeBytes() != null
               ? options.getUploadBufferSizeBytes()
               : this.uploadBufferSizeBytes;
-      if (uploadBufferSizeBytes != null) {
-        writer.setChunkSize(uploadBufferSizeBytes);
-      }
+      writer.setChunkSize(
+          uploadBufferSizeBytes != null ? uploadBufferSizeBytes : DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
 
       serviceCallMetric.call("ok");
       // Return the bridge wrapper

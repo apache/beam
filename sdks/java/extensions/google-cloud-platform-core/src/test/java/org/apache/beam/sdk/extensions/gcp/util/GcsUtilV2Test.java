@@ -30,6 +30,7 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.auth.Credentials;
 import com.google.cloud.NoCredentials;
+import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageOptions;
@@ -414,5 +415,16 @@ public class GcsUtilV2Test {
     assertEquals(Long.valueOf(PAYLOAD.length), gcsCounter(bound, "gcs_http_write_wire_bytes_sent"));
     assertNull(gcsCounter(other, "gcs_http_read_wire_bytes_received"));
     assertNull(gcsCounter(other, "gcs_http_write_wire_bytes_sent"));
+  }
+
+  /**
+   * The chunk size decides how many requests a write costs, and the two clients do not default to
+   * the same one, so a drift here is a silent throughput regression rather than a test failure.
+   */
+  @Test
+  public void testDefaultUploadChunkSizeMatchesV1() {
+    assertEquals(
+        AsyncWriteChannelOptions.DEFAULT.getUploadChunkSize(),
+        GcsUtilV2.DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
   }
 }
