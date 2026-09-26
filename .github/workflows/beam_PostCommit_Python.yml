@@ -95,6 +95,25 @@ jobs:
           PY_VER=${{ matrix.python_version }}
           PY_VER_CLEAN=${PY_VER//.}
           echo "py_ver_clean=$PY_VER_CLEAN" >> $GITHUB_OUTPUT
+      - name: Authenticate on GCP
+        id: auth
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
+        with:
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      - name: Activate service account in runner gcloud config
+        env:
+          CLOUDSDK_CONFIG: ${{ env.KUBELET_GCLOUD_CONFIG_PATH}}
+        run: |
+          mkdir -p "$CLOUDSDK_CONFIG"
+          cp "${{ steps.auth.outputs.credentials_file_path }}" \
+              "$CLOUDSDK_CONFIG/application_default_credentials.json"
+          gcloud auth activate-service-account \
+              "${{ secrets.GCP_SA_EMAIL }}" \
+              --key-file="${{ steps.auth.outputs.credentials_file_path }}"
+          gcloud config set project apache-beam-testing
       - name: run PostCommit Python ${{ matrix.python_version }} script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
