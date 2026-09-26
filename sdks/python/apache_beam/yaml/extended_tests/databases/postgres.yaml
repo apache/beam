@@ -67,3 +67,42 @@ pipelines:
               - {value: 123, rank: 0}
               - {value: 456, rank: 1}
               - {value: 789, rank: 2}
+
+  # Postgres write pipeline using WriteToJdbc with date/time values
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - {event_name: 'User Login', event_date: '2025-06-23', event_time: '10:00:00'}
+              - {event_name: 'Data Backup', event_date: '2025-06-23', event_time: '14:30:00'}
+              - {event_name: 'Maintenance Start', event_date: null, event_time: null}
+        - type: WriteToJdbc
+          config:
+            url: "{TEMP_DB}"
+            driver_class_name: "org.postgresql.Driver"
+            query: "INSERT INTO test_date_time (event_name, event_date, event_time) VALUES(?, CAST(? AS DATE), CAST(? AS TIME))"
+
+  # Postgres read pipeline using ReadFromJdbc with date/time values
+  - pipeline:
+      type: chain
+      transforms:
+        - type: ReadFromJdbc
+          config:
+            url: "{TEMP_DB}"
+            driver_class_name: "org.postgresql.Driver"
+            table: "test_date_time"
+        - type: MapToFields
+          config:
+            language: python
+            fields:
+              event_name: event_name
+              event_date: "str(event_date) if event_date is not None else None"
+              event_time: "str(event_time) if event_time is not None else None"
+        - type: AssertEqual
+          config:
+            elements:
+              - {event_name: 'User Login', event_date: '2025-06-23', event_time: '10:00:00'}
+              - {event_name: 'Data Backup', event_date: '2025-06-23', event_time: '14:30:00'}
+              - {event_name: 'Maintenance Start', event_date: null, event_time: null}
