@@ -26,6 +26,9 @@ import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.GenericUrl;
@@ -38,7 +41,10 @@ import com.google.cloud.NoCredentials;
 import com.google.cloud.WriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.http.HttpTransportOptions;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.BucketInfo;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
@@ -51,6 +57,7 @@ import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.AccessDeniedException;
+import java.nio.file.FileAlreadyExistsException;
 import java.util.HashMap;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
@@ -461,7 +468,12 @@ public class GcsUtilV2Test {
    * GcsUtilV2#storageWithHttpMetrics} resolve to this one as well.
    */
   private GcsUtil gcsUtilWithV2Storage(com.google.cloud.storage.Storage storage) {
-    GcsOptions options = gcsOptions();
+    return gcsUtilWithV2Storage(gcsOptions(), storage);
+  }
+
+  /** As {@link #gcsUtilWithV2Storage(Storage)}, but configured from {@code options}. */
+  private GcsUtil gcsUtilWithV2Storage(
+      GcsOptions options, com.google.cloud.storage.Storage storage) {
     options.setProject("my_project");
     GcsUtil gcsUtil = options.getGcsUtil();
     GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
@@ -682,5 +694,117 @@ public class GcsUtilV2Test {
 
     assertThrows(AccessDeniedException.class, () -> gcsUtil.verifyBucketAccessible(path));
     assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucket(path));
+  }
+
+  /** A java-storage client whose uploads open {@code writer}. */
+  private static com.google.cloud.storage.Storage storageWritingTo(WriteChannel writer) {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    when(storage.writer(any(BlobInfo.class), any())).thenReturn(writer);
+    return storage;
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testCreate}. An upload that expects no object, or finds none, may
+   * only create one. Otherwise it may only replace the generation it saw, so that a concurrent
+   * change fails the upload rather than being overwritten, as gcsio does for V1 (G8).
+   */
+  @Test
+  public void testV2CreatePreconditions() throws IOException {
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    // Expected not to exist: no lookup is made.
+    com.google.cloud.storage.Storage expectedMissing =
+        storageWritingTo(Mockito.mock(WriteChannel.class));
+    gcsUtilWithV2Storage(expectedMissing)
+        .create(path, CreateOptions.builder().setExpectFileToNotExist(true).build());
+    verify(expectedMissing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
+    verify(expectedMissing, never()).get(anyString(), anyString(), any());
+
+    // Looked up and missing. An unstubbed get() returns null, which is how java-storage reports a
+    // missing object.
+    com.google.cloud.storage.Storage missing = storageWritingTo(Mockito.mock(WriteChannel.class));
+    gcsUtilWithV2Storage(missing).create(path, CreateOptions.builder().build());
+    verify(missing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.doesNotExist()));
+
+    // Looked up and found.
+    com.google.cloud.storage.Storage existing = storageWritingTo(Mockito.mock(WriteChannel.class));
+    com.google.cloud.storage.Blob blob = Mockito.mock(com.google.cloud.storage.Blob.class);
+    when(blob.getGeneration()).thenReturn(42L);
+    when(existing.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any())).thenReturn(blob);
+    gcsUtilWithV2Storage(existing).create(path, CreateOptions.builder().build());
+    verify(existing).writer(any(BlobInfo.class), Mockito.eq(BlobWriteOption.generationMatch(42L)));
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testUploadBufferSizeDefault} and {@link
+   * GcsUtilV1Test#testUploadBufferSizeUserSpecified}: the upload chunk size comes from the create
+   * options, then the pipeline options, then the default.
+   */
+  @Test
+  public void testV2UploadChunkSize() throws IOException {
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+    CreateOptions withSize =
+        CreateOptions.builder()
+            .setExpectFileToNotExist(true)
+            .setUploadBufferSizeBytes(1024)
+            .build();
+    CreateOptions withoutSize = CreateOptions.builder().setExpectFileToNotExist(true).build();
+    GcsOptions pipelineWithSize = gcsOptions();
+    pipelineWithSize.setGcsUploadBufferSizeBytes(2048);
+
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withSize);
+    verify(writer).setChunkSize(1024);
+
+    writer = Mockito.mock(WriteChannel.class);
+    gcsUtilWithV2Storage(pipelineWithSize, storageWritingTo(writer)).create(path, withoutSize);
+    verify(writer).setChunkSize(2048);
+
+    writer = Mockito.mock(WriteChannel.class);
+    gcsUtilWithV2Storage(storageWritingTo(writer)).create(path, withoutSize);
+    verify(writer).setChunkSize(GcsUtilV2.DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
+  }
+
+  /** Mirrors {@link GcsUtilV1Test#testGCSWriteMetricsIsSet}. */
+  @Test
+  public void testV2WriteMetricsIsSet() {
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    when(storage.writer(any(BlobInfo.class), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertThrows(
+        AccessDeniedException.class,
+        () -> gcsUtil.create(path, CreateOptions.builder().setExpectFileToNotExist(true).build()));
+
+    verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "permission_denied", 1);
+    verifyMetricWasSet("my_project", "testbucket", "GcsInsert", "ok", 0);
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testCreateBucketAccessErrors}, plus the other failures that
+   * callers tell apart: an existing bucket, and anything else, which keeps its cause.
+   */
+  @Test
+  public void testV2CreateBucketErrors() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    StorageException serverError = new StorageException(503, "Service Unavailable");
+    when(storage.create(any(BucketInfo.class), any()))
+        .thenThrow(new StorageException(403, "Forbidden"))
+        .thenThrow(new StorageException(409, "Conflict"))
+        .thenThrow(serverError);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    com.google.api.services.storage.model.Bucket bucket =
+        new com.google.api.services.storage.model.Bucket().setName("testbucket");
+
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.createBucket("my_project", bucket));
+    assertThrows(
+        FileAlreadyExistsException.class, () -> gcsUtil.createBucket("my_project", bucket));
+    IOException thrown =
+        assertThrows(IOException.class, () -> gcsUtil.createBucket("my_project", bucket));
+    assertSame(serverError, thrown.getCause());
   }
 }
