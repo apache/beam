@@ -709,7 +709,7 @@ public class ParquetIO {
     }
 
     @DoFn.BoundedPerElement
-    static class SplitReadFn<T> extends DoFn<ReadableFile, T> {
+    static final class SplitReadFn<T> extends DoFn<ReadableFile, T> {
       private final Class<? extends GenericData> modelClass;
       private final String requestSchemaString;
       // Default initial splitting the file into blocks of 64MB. Unit of SPLIT_LIMIT is byte.

@@ -17,6 +17,7 @@
  */
 package org.apache.beam.fn.harness.jmh.logging;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
 import java.util.HashMap;
 import java.util.UUID;
@@ -81,6 +82,11 @@ public class BeamFnLoggingClientBenchmark {
 
   /** Setup a simple logging service and configure the {@link BeamFnLoggingClient}. */
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Subclassed inside Beam, so it cannot be made final."
+              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
   public static class ManageLoggingClientAndService {
     public final LoggingClient loggingClient;
     public final CallCountLoggingService loggingService;

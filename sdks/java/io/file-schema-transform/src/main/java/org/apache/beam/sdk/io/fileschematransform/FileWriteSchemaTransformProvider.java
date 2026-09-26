@@ -99,7 +99,7 @@ public class FileWriteSchemaTransformProvider
    * #inputCollectionNames()} tagged {@link Row}s into a {@link PCollectionRowTuple} of {@link
    * #outputCollectionNames()} tagged {@link Row}s.
    */
-  static class FileWriteSchemaTransform extends SchemaTransform {
+  static final class FileWriteSchemaTransform extends SchemaTransform {
 
     final FileWriteSchemaTransformConfiguration configuration;
 

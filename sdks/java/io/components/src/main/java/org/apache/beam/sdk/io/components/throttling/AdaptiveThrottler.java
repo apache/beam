@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.components.throttling;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.MovingFunction;
@@ -28,6 +29,11 @@ import org.apache.beam.sdk.util.MovingFunction;
  * https://landing.google.com/sre/book/chapters/handling-overload.html#client-side-throttling-a7sYUg
  * for a full discussion of the use case and algorithm applied.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Subclassed inside Beam, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class AdaptiveThrottler {
 
   // The target minimum number of requests per samplePeriodMs, even if no

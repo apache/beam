@@ -111,6 +111,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides operations on GCS. */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Subclassed inside Beam, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 class GcsUtilV1 {
 
   /** Describes which GCS counters this {@link GcsUtilV1} emits. */
@@ -1140,7 +1145,7 @@ class GcsUtilV1 {
    * <p>Usage: create, enqueue(), and execute batch. Then, check getReadyToEnqueue() if another
    * round of enqueue() and execute is required. Repeat until getReadyToEnqueue() returns false.
    */
-  class RewriteOp extends JsonBatchCallback<RewriteResponse> {
+  final class RewriteOp extends JsonBatchCallback<RewriteResponse> {
     private final GcsPath from;
     private final GcsPath to;
     private final boolean deleteSource;

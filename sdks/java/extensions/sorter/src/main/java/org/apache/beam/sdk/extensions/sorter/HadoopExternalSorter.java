@@ -145,7 +145,7 @@ class HadoopExternalSorter extends ExternalSorter {
   }
 
   /** An {@link Iterator} producing the sorted data. */
-  private class SortedRecordsIterator implements Iterator<KV<byte[], byte[]>> {
+  private final class SortedRecordsIterator implements Iterator<KV<byte[], byte[]>> {
     private RawKeyValueIterator iterator;
 
     /** Next {@link KV} to return from {@link #next()}. */

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -53,6 +54,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p><b>Note:</b> This implementation is <b>read-only</b>. Calls to {@link #set(int, Object)} will
  * throw an {@link UnsupportedOperationException}.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class BeamRowWrapper implements StructLike {
 
   private final FieldType[] types;

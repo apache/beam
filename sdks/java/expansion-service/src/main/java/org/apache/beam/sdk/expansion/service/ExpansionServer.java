@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.expansion.service;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.util.concurrent.TimeUnit;
@@ -26,6 +27,11 @@ import org.apache.beam.vendor.grpc.v1p69p0.io.grpc.netty.NettyServerBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 
 /** A {@link Server gRPC Server} for an ExpansionService. */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class ExpansionServer implements AutoCloseable {
   /**
    * Create a {@link ExpansionServer} for the provided ExpansionService running on an arbitrary

@@ -25,6 +25,7 @@ import com.splunk.Job;
 import com.splunk.ResultsReader;
 import com.splunk.ResultsReaderXml;
 import com.splunk.ServiceArgs;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.time.Duration;
@@ -60,6 +61,11 @@ import org.testcontainers.utility.DockerImageName;
  * <p>Note: The Splunk TestContainer will only run on M1 Mac's if the Docker version is >= 4.16.0
  * and the "Use Rosetta for x86/amd64 emulation on Apple Silicon" setting is enabled.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class SplunkResourceManager extends TestContainerResourceManager<SplunkContainer>
     implements ResourceManager {
 

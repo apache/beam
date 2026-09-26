@@ -152,7 +152,7 @@ public class ManagedSchemaTransformProvider
     return new ManagedSchemaTransform(managedConfig, schemaTransformProvider);
   }
 
-  static class ManagedSchemaTransform extends SchemaTransform {
+  static final class ManagedSchemaTransform extends SchemaTransform {
     private final ManagedConfig managedConfig;
     private final Row underlyingRowConfig;
     private final SchemaTransformProvider underlyingTransformProvider;

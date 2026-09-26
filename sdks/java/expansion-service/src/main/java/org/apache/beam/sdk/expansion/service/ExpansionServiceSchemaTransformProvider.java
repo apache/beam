@@ -19,6 +19,7 @@ package org.apache.beam.sdk.expansion.service;
 
 import static org.apache.beam.sdk.util.construction.BeamUrns.getUrn;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
@@ -40,6 +41,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"rawtypes"})
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class ExpansionServiceSchemaTransformProvider
     implements TransformProvider<PCollectionRowTuple, PCollectionRowTuple> {
 

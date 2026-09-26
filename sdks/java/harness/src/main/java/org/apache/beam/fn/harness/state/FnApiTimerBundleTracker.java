@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.state;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import com.google.auto.value.AutoValue;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Comparator;
 import java.util.NavigableSet;
@@ -40,6 +41,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table.Cell;
 
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Public API, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 public class FnApiTimerBundleTracker<K> {
   private final Supplier<ByteString> encodedCurrentKeySupplier;
   private final Supplier<ByteString> encodedCurrentWindowSupplier;

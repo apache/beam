@@ -88,7 +88,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class GcsUtilV2 {
+final class GcsUtilV2 {
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GcsUtilV2.class);
 
   public static class GcsUtilFactory implements DefaultValueFactory<GcsUtilV2> {
