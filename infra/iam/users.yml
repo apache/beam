@@ -448,6 +448,11 @@
   - role: roles/eventarc.eventReceiver
   - role: roles/pubsub.publisher
   - role: roles/workflows.invoker
+- username: finops_test_user
+  email: finops.test.user@gmail.com
+  member_type: user
+  permissions:
+  - role: roles/beam_viewer
 - username: firebase-adminsdk-dpfsw
   email: firebase-adminsdk-dpfsw@apache-beam-testing.iam.gserviceaccount.com
   member_type: serviceAccount
