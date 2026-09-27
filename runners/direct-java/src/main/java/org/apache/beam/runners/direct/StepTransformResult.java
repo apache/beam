@@ -108,7 +108,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       return this;
     }
 
-    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals state) {
+    public Builder<InputT> withState(@Nullable CopyOnAccessInMemoryStateInternals state) {
       this.state = state;
       return this;
     }
