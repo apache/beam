@@ -148,13 +148,16 @@ public class BeamFnStateGrpcClientCacheTest {
         client.handle(StateRequest.newBuilder().setInstructionId(SUCCESS));
     CompletableFuture<StateResponse> unsuccessfulResponse =
         client.handle(StateRequest.newBuilder().setInstructionId(FAIL));
+    CompletableFuture<StateResponse> cancelledResponse =
+        client.handle(StateRequest.newBuilder().setInstructionId("CANCELLED"));
 
     // Wait for the client to connect.
     StreamObserver<StateResponse> outboundServerObserver = outboundServerObservers.take();
     // Ensure the client doesn't break when sent garbage.
     outboundServerObserver.onNext(StateResponse.newBuilder().setId("UNKNOWN ID").build());
 
-    // We expect to receive and handle two requests
+    // We expect to receive and handle three requests
+    handleServerRequest(outboundServerObserver, values.take());
     handleServerRequest(outboundServerObserver, values.take());
     handleServerRequest(outboundServerObserver, values.take());
 
@@ -165,6 +168,13 @@ public class BeamFnStateGrpcClientCacheTest {
       fail("Expected unsuccessful response");
     } catch (ExecutionException e) {
       assertThat(e.toString(), containsString(TEST_ERROR));
+    }
+    try {
+      cancelledResponse.get();
+      fail("Expected cancelled response");
+    } catch (ExecutionException e) {
+      assertThat(e.toString(), containsString(TEST_ERROR));
+      org.junit.Assert.assertTrue(WorkCancelledException.isWorkCancelledException(e));
     }
   }
 
@@ -236,6 +246,14 @@ public class BeamFnStateGrpcClientCacheTest {
       case FAIL:
         outboundObserver.onNext(
             StateResponse.newBuilder().setId(value.getId()).setError(TEST_ERROR).build());
+        return;
+      case "CANCELLED":
+        outboundObserver.onNext(
+            StateResponse.newBuilder()
+                .setId(value.getId())
+                .setError(TEST_ERROR)
+                .setErrorReason(StateResponse.ErrorReason.CANCELLED)
+                .build());
         return;
       default:
         outboundObserver.onNext(StateResponse.newBuilder().setId(value.getId()).build());
