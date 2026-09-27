@@ -84,11 +84,14 @@ def _prediction_is_equal_to(a: AnomalyPrediction, b: AnomalyPrediction):
     return False
 
   if a.threshold != b.threshold:
-    return False
+    if not (a.threshold is not None and b.threshold is not None and
+            math.isclose(a.threshold, b.threshold, rel_tol=1e-6, abs_tol=1e-6)):
+      return False
 
   if a.score != b.score:
     if not (a.score is not None and b.score is not None and
-            math.isnan(a.score) and math.isnan(b.score)):
+            ((math.isnan(a.score) and math.isnan(b.score)) or
+             math.isclose(a.score, b.score, rel_tol=1e-6, abs_tol=1e-6))):
       return False
 
   if a.label != b.label:
@@ -247,7 +250,8 @@ class TestAnomalyDetection(unittest.TestCase):
   def test_one_detector(self, input, expected):
     detector = ZScore(features=["x1"], model_id="zscore_x1")
     with TestPipeline() as p:
-      result = (p | beam.Create(input) | AnomalyDetection(detector))
+      result = (
+          p | beam.Create(input, reshuffle=False) | AnomalyDetection(detector))
 
       if isinstance(input[0], tuple):
         assert_that(result, equal_to(expected, _keyed_result_is_equal_to))
@@ -273,7 +277,7 @@ class TestAnomalyDetection(unittest.TestCase):
 
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(input)
+          p | beam.Create(input, reshuffle=False)
           | AnomalyDetection(EnsembleAnomalyDetector(sub_detectors)))
 
       if isinstance(input[0], tuple):
@@ -300,7 +304,7 @@ class TestAnomalyDetection(unittest.TestCase):
 
     with beam.Pipeline() as p:
       result = (
-          p | beam.Create(input)
+          p | beam.Create(input, reshuffle=False)
           | AnomalyDetection(
               EnsembleAnomalyDetector(
                   sub_detectors, aggregation_strategy=AnyVote())))
@@ -330,7 +334,7 @@ class TestAnomalyDetection(unittest.TestCase):
 
     with TestPipeline() as p:
       result = (
-          p | beam.Create(input)
+          p | beam.Create(input, reshuffle=False)
           | AnomalyDetection(EnsembleAnomalyDetector(detectors)))
       if not keyed:
         result = result | beam.WithKeys(0)
@@ -651,7 +655,7 @@ class TestStatefulThresholdDoFn(unittest.TestCase):
     with TestPipeline() as p:
       result = (
           p
-          | beam.Create(input)
+          | beam.Create(input, reshuffle=False)
           # use median just for test convenience
           | beam.ParDo(
               _StatefulThresholdDoFn(

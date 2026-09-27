@@ -327,6 +327,18 @@ def temp_mongodb_table():
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
 
+    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
+    # until the server is stably accepting connections and responds to ping.
+    for attempt in range(15):
+      try:
+        mongo_client = mongo_container.get_connection_client()
+        mongo_client.admin.command('ping')
+        break
+      except Exception:
+        if attempt == 14:
+          raise
+        time.sleep(1)
+
     db_name = f'db_{uuid.uuid4().hex}'
     collection_name = f'collection_{uuid.uuid4().hex}'
 
@@ -1361,6 +1373,10 @@ def create_test_methods(spec):
               self.skipTest(
                   'Runner does not support '
                   'beam:requirement:pardo:on_window_expiration:v1')
+            if ('VertexAIModelHandlerJSON' in str(exn) and
+                ('PermissionDenied' in str(exn) or 'NotFound' in str(exn) or
+                 'may not exist' in str(exn))):
+              self.skipTest(f'Vertex AI test endpoint unavailable: {exn}')
             raise
 
     yield f'test_{suffix}', test

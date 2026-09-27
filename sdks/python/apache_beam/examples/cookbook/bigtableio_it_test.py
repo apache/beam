@@ -106,13 +106,13 @@ class BigtableIOWriteTest(unittest.TestCase):
 
   """
   DEFAULT_TABLE_PREFIX = "python-test"
-  instance_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  cluster_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
-  table_id = DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
   number = 500
   LOCATION_ID = "us-east1-b"
 
   def setUp(self):
+    self.instance_id = self.DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    self.cluster_id = self.DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
+    self.table_id = self.DEFAULT_TABLE_PREFIX + "-" + str(uuid.uuid4())[:8]
     try:
       from google.cloud.bigtable import enums
       self.STORAGE_TYPE = enums.StorageType.HDD
@@ -136,8 +136,16 @@ class BigtableIOWriteTest(unittest.TestCase):
           self.cluster_id,
           self.LOCATION_ID,
           default_storage_type=self.STORAGE_TYPE)
-      operation = self.instance.create(clusters=[cluster])
-      operation.result(timeout=300)  # Wait up to 5 min.
+      for attempt in range(3):
+        try:
+          operation = self.instance.create(clusters=[cluster])
+          operation.result(timeout=300)  # Wait up to 5 min.
+          break
+        except Exception:
+          if attempt == 2:
+            raise
+          import time
+          time.sleep(5 * (attempt + 1))
 
     self.table = self.instance.table(self.table_id)
 
