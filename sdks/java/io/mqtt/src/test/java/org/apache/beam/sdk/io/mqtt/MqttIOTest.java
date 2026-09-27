@@ -239,13 +239,20 @@ public class MqttIOTest {
     // produce messages on the brokerService in another thread
     // This thread prevents to block the pipeline waiting for new messages
     Mqtt3BlockingClient publishClient =
-        Mqtt3Client.builder().serverHost("localhost").serverPort(port).buildBlocking();
+        Mqtt3Client.builder()
+            .identifier("PUBLISH_CLIENT")
+            .serverHost("localhost")
+            .serverPort(port)
+            .buildBlocking();
     publishClient.connect();
     Thread publisherThread =
         new Thread(
             () -> {
               try {
-                doConnect(connection -> !connection.getConnectionId().isEmpty());
+                doConnect(
+                    connection ->
+                        !connection.getConnectionId().isEmpty()
+                            && !connection.getConnectionId().startsWith("PUBLISH_CLIENT"));
                 // Sleep two seconds, to give enough time for client to be ready to accept messages
                 Thread.sleep(2 * 1000);
                 for (int i = 0; i < 5; i++) {
