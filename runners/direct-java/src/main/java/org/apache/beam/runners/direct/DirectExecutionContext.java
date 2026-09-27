@@ -28,6 +28,7 @@ import org.apache.beam.runners.direct.WatermarkManager.TimerUpdate;
 import org.apache.beam.runners.direct.WatermarkManager.TransformWatermarks;
 import org.apache.beam.runners.local.StructuralKey;
 import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Execution Context for the {@link DirectRunner}.
@@ -36,8 +37,7 @@ import org.apache.beam.sdk.transforms.DoFn.BundleFinalizer;
  * for each thread that requires it.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class DirectExecutionContext {
 
@@ -69,9 +69,9 @@ class DirectExecutionContext {
 
   /** Step Context for the {@link DirectRunner}. */
   public class DirectStepContext implements StepContext {
-    private CopyOnAccessInMemoryStateInternals<?> stateInternals;
-    private DirectTimerInternals timerInternals;
-    private InMemoryBundleFinalizer bundleFinalizer;
+    private @Nullable CopyOnAccessInMemoryStateInternals<?> stateInternals;
+    private @Nullable DirectTimerInternals timerInternals;
+    private @Nullable InMemoryBundleFinalizer bundleFinalizer;
 
     public DirectStepContext() {}
 
@@ -111,7 +111,7 @@ class DirectExecutionContext {
      * Commits the state of this step, and returns the committed state. If the step has not accessed
      * any state, return null.
      */
-    public CopyOnAccessInMemoryStateInternals commitState() {
+    public @Nullable CopyOnAccessInMemoryStateInternals commitState() {
       if (stateInternals != null) {
         return stateInternals.commit();
       }
