@@ -43,14 +43,14 @@ class DirectExecutionContext {
 
   private final Clock clock;
   private final StructuralKey<?> key;
-  private final CopyOnAccessInMemoryStateInternals existingState;
+  private final @Nullable CopyOnAccessInMemoryStateInternals existingState;
   private final TransformWatermarks watermarks;
   private Map<String, DirectStepContext> cachedStepContexts = new LinkedHashMap<>();
 
   public DirectExecutionContext(
       Clock clock,
       StructuralKey<?> key,
-      CopyOnAccessInMemoryStateInternals existingState,
+      @Nullable CopyOnAccessInMemoryStateInternals existingState,
       TransformWatermarks watermarks) {
     this.clock = clock;
     this.key = key;
