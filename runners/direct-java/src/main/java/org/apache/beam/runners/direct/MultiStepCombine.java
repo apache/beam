@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
@@ -64,8 +65,7 @@ import org.joda.time.Instant;
 
 /** A {@link Combine} that performs the combine in multiple steps. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class MultiStepCombine<
         K extends @Nullable Object,
@@ -234,11 +234,7 @@ class MultiStepCombine<
         .apply(MergeAndExtractAccumulatorOutput.of(combineFn, outputCoder));
   }
 
-  private static class CombineInputs<
-          K extends @Nullable Object,
-          InputT extends @Nullable Object,
-          AccumT extends @Nullable Object>
-      extends DoFn<KV<K, InputT>, KV<K, AccumT>> {
+  private static class CombineInputs<K, InputT, AccumT> extends DoFn<KV<K, InputT>, KV<K, AccumT>> {
     private final CombineFn<InputT, AccumT, ?> combineFn;
     private final TimestampCombiner timestampCombiner;
     private final Coder<K> keyCoder;
@@ -260,14 +256,10 @@ class MultiStepCombine<
       this.keyCoder = keyCoder;
     }
 
-    public static <
-            K extends @Nullable Object,
-            InputT extends @Nullable Object,
-            AccumT extends @Nullable Object>
-        CombineInputs<K, InputT, AccumT> of(
-            CombineFn<InputT, AccumT, ?> combineFn,
-            TimestampCombiner timestampCombiner,
-            Coder<K> coder) {
+    public static <K, InputT, AccumT> CombineInputs<K, InputT, AccumT> of(
+        CombineFn<InputT, AccumT, ?> combineFn,
+        TimestampCombiner timestampCombiner,
+        Coder<K> coder) {
       return new CombineInputs<>(combineFn, timestampCombiner, coder);
     }
 
@@ -316,9 +308,9 @@ class MultiStepCombine<
       for (Map.Entry<WindowedStructuralKey<K>, Instant> timestampEntry : timestamps.entrySet()) {
         WindowedStructuralKey<K> key = timestampEntry.getKey();
         Instant timestamp = timestampEntry.getValue();
-        // Note that preCombineAccum may be null because no data arrives, or may be null because
-        // the accumulator type allows null. For this reason, we must iterate the timestamp entrySet
-        AccumT preCombineAccum = accumulators.get(key);
+        // Every key present in timestamps was written to accumulators in the same processElement
+        // call, so the accumulator is always present for the key being iterated.
+        AccumT preCombineAccum = checkStateNotNull(accumulators.get(key));
         context.output(
             KV.of(key.getKey(), combineFn.compact(preCombineAccum)), timestamp, key.getWindow());
       }

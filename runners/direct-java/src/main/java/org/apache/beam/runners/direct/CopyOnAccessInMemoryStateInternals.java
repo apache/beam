@@ -56,6 +56,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.TimestampCombiner;
 import org.apache.beam.sdk.util.CombineFnUtil;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
+import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
@@ -65,10 +66,9 @@ import org.joda.time.Instant;
  * accessed, an independent copy will be created within this table.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
-class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
+class CopyOnAccessInMemoryStateInternals<K extends @NonNull Object> implements StateInternals {
   private final CopyOnAccessInMemoryStateTable table;
 
   private K key;
@@ -77,12 +77,13 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
    * Creates a new {@link CopyOnAccessInMemoryStateInternals} with the underlying (possibly null)
    * StateInternals.
    */
-  public static <K> CopyOnAccessInMemoryStateInternals withUnderlying(
+  public static <K extends @NonNull Object> CopyOnAccessInMemoryStateInternals withUnderlying(
       K key, @Nullable CopyOnAccessInMemoryStateInternals underlying) {
     return new CopyOnAccessInMemoryStateInternals<>(key, underlying);
   }
 
-  private CopyOnAccessInMemoryStateInternals(K key, CopyOnAccessInMemoryStateInternals underlying) {
+  private CopyOnAccessInMemoryStateInternals(
+      K key, @Nullable CopyOnAccessInMemoryStateInternals underlying) {
     this.key = key;
     table = new CopyOnAccessInMemoryStateTable(underlying == null ? null : underlying.table);
   }
@@ -169,7 +170,7 @@ class CopyOnAccessInMemoryStateInternals<K> implements StateInternals {
     /** The earliest watermark hold in this table. */
     private Optional<Instant> earliestWatermarkHold;
 
-    public CopyOnAccessInMemoryStateTable(StateTable underlying) {
+    public CopyOnAccessInMemoryStateTable(@Nullable StateTable underlying) {
       this.underlying = Optional.ofNullable(underlying);
       binderFactory = new CopyOnBindBinderFactory(this.underlying);
       earliestWatermarkHold = Optional.empty();
