@@ -249,7 +249,9 @@ class TestAnomalyDetection(unittest.TestCase):
   ])
   def test_one_detector(self, input, expected):
     detector = ZScore(features=["x1"], model_id="zscore_x1")
-    with TestPipeline() as p:
+    with TestPipeline(
+        additional_pipeline_args=["--experiments=prism_disable_sdf_split"
+                                  ]) as p:
       result = (
           p | beam.Create(input, reshuffle=False) | AnomalyDetection(detector))
 
@@ -275,7 +277,9 @@ class TestAnomalyDetection(unittest.TestCase):
             threshold_criterion=FixedThreshold(2),
             model_id="zscore_x2"))
 
-    with beam.Pipeline() as p:
+    with TestPipeline(
+        additional_pipeline_args=["--experiments=prism_disable_sdf_split"
+                                  ]) as p:
       result = (
           p | beam.Create(input, reshuffle=False)
           | AnomalyDetection(EnsembleAnomalyDetector(sub_detectors)))
@@ -302,7 +306,9 @@ class TestAnomalyDetection(unittest.TestCase):
             threshold_criterion=FixedThreshold(2),
             model_id="zscore_x2"))
 
-    with beam.Pipeline() as p:
+    with TestPipeline(
+        additional_pipeline_args=["--experiments=prism_disable_sdf_split"
+                                  ]) as p:
       result = (
           p | beam.Create(input, reshuffle=False)
           | AnomalyDetection(
@@ -332,7 +338,9 @@ class TestAnomalyDetection(unittest.TestCase):
                 for model_id in ('x1', 'x2')
                 for label in [-2, -2] + [0] * (count - 2)]
 
-    with TestPipeline() as p:
+    with TestPipeline(
+        additional_pipeline_args=["--experiments=prism_disable_sdf_split"
+                                  ]) as p:
       result = (
           p | beam.Create(input, reshuffle=False)
           | AnomalyDetection(EnsembleAnomalyDetector(detectors)))
@@ -652,7 +660,9 @@ class TestStatefulThresholdDoFn(unittest.TestCase):
                 AnomalyResult(
                     R, [AnomalyPrediction(score=30, label=1, threshold=20)]))),
     ]
-    with TestPipeline() as p:
+    with TestPipeline(
+        additional_pipeline_args=["--experiments=prism_disable_sdf_split"
+                                  ]) as p:
       result = (
           p
           | beam.Create(input, reshuffle=False)
