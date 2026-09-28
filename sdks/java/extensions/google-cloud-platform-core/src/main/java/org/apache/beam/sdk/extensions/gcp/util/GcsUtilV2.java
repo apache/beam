@@ -128,7 +128,8 @@ class GcsUtilV2 {
 
   /**
    * Upload chunk size applied when the pipeline does not ask for one. Mirrors gcsio's {@code
-   * AsyncWriteChannelOptions} default, which java-storage does not share.
+   * AsyncWriteChannelOptions} default, which java-storage does not share. Reference link:
+   * https://github.com/GoogleCloudDataproc/hadoop-connectors/blob/v3.1.14/util/src/main/java/com/google/cloud/hadoop/util/AsyncWriteChannelOptions.java#L72
    */
   @VisibleForTesting
   static final int DEFAULT_UPLOAD_CHUNK_SIZE_BYTES =
