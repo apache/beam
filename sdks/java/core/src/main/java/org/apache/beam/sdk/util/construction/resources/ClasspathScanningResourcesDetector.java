@@ -19,8 +19,12 @@ package org.apache.beam.sdk.util.construction.resources;
 
 import io.github.classgraph.ClassGraph;
 import java.io.File;
+import java.lang.ref.WeakReference;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Attempts to detect all the resources to be staged using classgraph library.
@@ -29,6 +33,11 @@ import java.util.stream.Collectors;
  * href="https://github.com/classgraph/classgraph">https://github.com/classgraph/classgraph</a>
  */
 public class ClasspathScanningResourcesDetector implements PipelineResourcesDetector {
+
+  private static final Object LOCK = new Object();
+  private static @Nullable WeakReference<ClassLoader> cachedClassLoader;
+  private static @Nullable String cachedJavaClassPath;
+  private static @Nullable List<String> cachedResult;
 
   private transient ClassGraph classGraph;
 
@@ -43,14 +52,33 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
    * @return A list of absolute paths to the resources the class loader uses.
    */
   @Override
-  public List<String> detect(ClassLoader classLoader) {
-    List<File> classpathContents =
-        classGraph
-            .disableNestedJarScanning()
-            .addClassLoader(classLoader)
-            .scan(1)
-            .getClasspathFiles();
+  public List<String> detect(@Nullable ClassLoader classLoader) {
+    synchronized (LOCK) {
+      String currentJavaClassPath = System.getProperty("java.class.path");
+      if (cachedResult != null
+          && Objects.equals(currentJavaClassPath, cachedJavaClassPath)
+          && classLoader != null
+          && cachedClassLoader != null
+          && cachedClassLoader.get() == classLoader) {
+        return new ArrayList<>(cachedResult);
+      }
 
-    return classpathContents.stream().map(File::getAbsolutePath).collect(Collectors.toList());
+      List<File> classpathContents;
+      if (classLoader != null) {
+        classpathContents =
+            classGraph.disableNestedJarScanning().addClassLoader(classLoader).getClasspathFiles();
+      } else {
+        classpathContents = classGraph.disableNestedJarScanning().getClasspathFiles();
+      }
+
+      List<String> result =
+          classpathContents.stream().map(File::getAbsolutePath).collect(Collectors.toList());
+      if (classLoader != null) {
+        cachedClassLoader = new WeakReference<>(classLoader);
+        cachedJavaClassPath = currentJavaClassPath;
+        cachedResult = new ArrayList<>(result);
+      }
+      return result;
+    }
   }
 }
