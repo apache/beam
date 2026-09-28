@@ -33,6 +33,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -60,6 +61,8 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
@@ -104,8 +107,8 @@ public class Environments {
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
 
-  private static final ConcurrentHashMap<FileHashCacheKey, HashCode> FILE_HASH_CACHE =
-      new ConcurrentHashMap<>();
+  private static final Cache<FileHashCacheKey, HashCode> FILE_HASH_CACHE =
+      CacheBuilder.newBuilder().maximumSize(10_000).build();
   private static final ConcurrentHashMap<HashCode, File> DIRECTORY_ZIP_CACHE =
       new ConcurrentHashMap<>();
 
@@ -556,17 +559,12 @@ public class Environments {
   public static HashCode getFileHash(File file) throws IOException {
     FileHashCacheKey key = new FileHashCacheKey(file);
     try {
-      return FILE_HASH_CACHE.computeIfAbsent(
-          key,
-          k -> {
-            try {
-              return Files.asByteSource(file).hash(Hashing.sha256());
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            }
-          });
-    } catch (UncheckedIOException e) {
-      throw e.getCause();
+      return FILE_HASH_CACHE.get(key, () -> Files.asByteSource(file).hash(Hashing.sha256()));
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+      throw new RuntimeException(e.getCause());
     }
   }
 
