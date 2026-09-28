@@ -112,16 +112,20 @@ Apache License 2.0
 ## Error handling and dead letter queues
 
 ### Summary
-Asgarde simplifies error handling in Beam pipelines. With plain Beam, each step needs its own `try/catch` block,
-tuple tags or `exceptionsInto`/`exceptionsVia`, and the failures of all the steps have to be flattened manually.
-Asgarde keeps the fluent style of the `apply` chain and gathers the failures of all the steps in a single
-`PCollection` of `Failure` objects (step name, input element and exception), ready for a dead letter queue.
+Asgarde simplifies error handling in the transformation steps of Beam pipelines. The Beam
+[`ErrorHandler`](https://beam.apache.org/releases/javadoc/current/org/apache/beam/sdk/transforms/errorhandling/ErrorHandler.html)
+aggregates bad records into a single dead letter queue, but each transformation step still has to catch its own errors
+(a `try/catch` block and a `BadRecordRouter` in each `DoFn`, or `exceptionsInto`/`exceptionsVia`). Asgarde keeps the
+fluent style of the `apply` chain: each step catches its errors as `Failure` objects (step name, input element and
+exception), gathered for the whole flow.
 
 It accepts the Beam `MapElements` and `FlatMapElements`, and provides `DoFn` classes with built-in error handling
 (`MapElementFn`, `FlatMapElementFn`, `FilterFn`...) supporting side inputs and the `DoFn` lifecycle. It can also keep,
-in the failures, the element that entered the flow, to replay a failure from the start. Beam is a `provided`
-dependency: the library isn't tied to a Beam version. Kotlin extensions are included, and a Python version is available
-on PyPI ([pasgarde](https://github.com/tosun-si/pasgarde)).
+in the failures, the element that entered the flow, to replay a failure from the start, and counts the failures per
+step with Beam metrics. The Asgarde failures can be converted to `BadRecord`s and added to an `ErrorHandler`, for a
+single dead letter queue together with the Beam IOs. Beam is a `provided` dependency: the library isn't tied to a Beam
+version. Kotlin extensions are included, and a Python version is available on PyPI
+([pasgarde](https://github.com/tosun-si/pasgarde)).
 
 ### Project page
 [https://github.com/tosun-si/asgarde](https://github.com/tosun-si/asgarde)
@@ -135,7 +139,7 @@ MIT License
     <dependency>
       <groupId>fr.groupbees</groupId>
       <artifactId>asgarde</artifactId>
-      <version>1.2.0</version>
+      <version>1.4.0</version>
     </dependency>
 
 ### Code example
@@ -147,3 +151,6 @@ MIT License
 
     PCollection<Integer> output = result.output();
     PCollection<Failure> failures = result.failures(); // The failures of all the steps
+
+    // Optional: a single dead letter queue with the Beam IOs using the ErrorHandler.
+    errorHandler.addErrorCollection(failures.apply("To bad records", FailureTransforms.toBadRecords()));
