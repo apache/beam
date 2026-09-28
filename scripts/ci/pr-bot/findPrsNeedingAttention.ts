@@ -133,6 +133,10 @@ async function assignToNewReviewers(
       labels: pull.labels,
     })
   );
+  await github.requestPrReviewers(
+    pull.number,
+    Object.values(prState.reviewersAssignedForLabels)
+  );
 
   await stateClient.writePrState(pull.number, prState);
   let labelsToUpdate = Object.keys(reviewerStateToUpdate);
