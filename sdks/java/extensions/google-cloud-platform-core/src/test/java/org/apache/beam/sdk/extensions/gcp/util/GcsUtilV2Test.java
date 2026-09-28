@@ -19,10 +19,13 @@ package org.apache.beam.sdk.extensions.gcp.util;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequestInitializer;
@@ -30,22 +33,32 @@ import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
 import com.google.auth.Credentials;
 import com.google.cloud.NoCredentials;
+import com.google.cloud.WriteChannel;
 import com.google.cloud.hadoop.util.AsyncWriteChannelOptions;
 import com.google.cloud.http.HttpTransportOptions;
 import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.HashMap;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
+import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
 import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
+import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
+import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.extensions.gcp.auth.NoopCredentialFactory;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
+import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.CreateOptions;
+import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
@@ -54,11 +67,12 @@ import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.Mockito;
 
 /**
  * Unit tests for {@link GcsUtilV2}.
  *
- * <p>Covers two things without making any request to GCS:
+ * <p>Covers three things without making any request to GCS:
  *
  * <ul>
  *   <li>The storage client is configured from the pipeline options (project, credentials,
@@ -66,6 +80,8 @@ import org.junit.runners.JUnit4;
  *   <li>HTTP metrics and byte counters are installed only when their flags ask for them, and only
  *       when there is a container to report into. The counting logic itself is covered by {@link
  *       TransportTest}.
+ *   <li>The results and exceptions that callers depend on match those of {@link GcsUtilV1}, for the
+ *       responses of a mocked java-storage client.
  * </ul>
  *
  * <p>End-to-end parity with {@link GcsUtilV1} against real GCS is covered by {@link
@@ -81,6 +97,7 @@ public class GcsUtilV2Test {
 
   @After
   public void tearDown() {
+    MetricsEnvironment.setProcessWideContainer(null);
     MetricsEnvironment.setCurrentContainer(null);
   }
 
@@ -426,5 +443,129 @@ public class GcsUtilV2Test {
     assertEquals(
         AsyncWriteChannelOptions.DEFAULT.getUploadChunkSize(),
         GcsUtilV2.DEFAULT_UPLOAD_CHUNK_SIZE_BYTES);
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Behavior shared with GcsUtilV1, through a mocked java-storage client. Each test mirrors the
+  // GcsUtilV1Test case it names; end-to-end parity is covered by GcsUtilParameterizedIT.
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * Returns a {@link GcsUtil} backed by a real {@link GcsUtilV2} that issues every call to {@code
+   * storage}. Performance metrics are off by default, so the per-operation clients of {@link
+   * GcsUtilV2#storageWithHttpMetrics} resolve to this one as well.
+   */
+  private GcsUtil gcsUtilWithV2Storage(com.google.cloud.storage.Storage storage) {
+    GcsOptions options = gcsOptions();
+    options.setProject("my_project");
+    GcsUtil gcsUtil = options.getGcsUtil();
+    GcsUtilV2 delegateV2 = Mockito.spy(new GcsUtilV2(options));
+    Mockito.doReturn(storage).when(delegateV2).storage();
+    gcsUtil.delegateV2 = delegateV2;
+    return gcsUtil;
+  }
+
+  private void verifyMetricWasSet(
+      String projectId, String bucketId, String method, String status, long count) {
+    // Verify the metric as reported.
+    HashMap<String, String> labels = new HashMap<>();
+    labels.put(MonitoringInfoConstants.Labels.PTRANSFORM, "");
+    labels.put(MonitoringInfoConstants.Labels.SERVICE, "Storage");
+    labels.put(MonitoringInfoConstants.Labels.METHOD, method);
+    labels.put(MonitoringInfoConstants.Labels.GCS_PROJECT_ID, projectId);
+    labels.put(MonitoringInfoConstants.Labels.GCS_BUCKET, bucketId);
+    labels.put(
+        MonitoringInfoConstants.Labels.RESOURCE,
+        GcpResourceIdentifiers.cloudStorageBucket(bucketId));
+    labels.put(MonitoringInfoConstants.Labels.STATUS, status);
+
+    MonitoringInfoMetricName name =
+        MonitoringInfoMetricName.named(MonitoringInfoConstants.Urns.API_REQUEST_COUNT, labels);
+    MetricsContainerImpl container =
+        (MetricsContainerImpl) MetricsEnvironment.getProcessWideContainer();
+    assertEquals(count, (long) container.getCounter(name).getCumulative());
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testGCSReadMetricsIsSet} for V2: opening a missing object records
+   * a {@code not_found} request, even though V2 detects it through a lookup rather than a {@link
+   * StorageException}.
+   */
+  @Test
+  public void testV2OpenMissingObjectRecordsNotFoundMetric() {
+    MetricsContainerImpl container = new MetricsContainerImpl(null);
+    MetricsEnvironment.setProcessWideContainer(container);
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    // An unstubbed get() returns null, which is how java-storage reports a missing object.
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.open(GcsPath.fromComponents("testbucket", "testobject")));
+
+    verifyMetricWasSet("my_project", "testbucket", "GcsGet", "not_found", 1);
+    verifyMetricWasSet("my_project", "testbucket", "GcsGet", "ok", 0);
+  }
+
+  /**
+   * An upload is finalized when its channel is closed, so a failed precondition surfaces there. V2
+   * must report it as an {@link IOException}, as V1 does, rather than an unchecked {@link
+   * StorageException}.
+   */
+  @Test
+  public void testV2WriteChannelCloseTranslatesStorageException() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    WriteChannel writer = Mockito.mock(WriteChannel.class);
+    StorageException preconditionFailed = new StorageException(412, "Precondition Failed");
+    Mockito.doThrow(preconditionFailed).when(writer).close();
+    when(storage.writer(any(com.google.cloud.storage.BlobInfo.class), any())).thenReturn(writer);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    WritableByteChannel channel =
+        gcsUtil.create(
+            GcsPath.fromComponents("testbucket", "testobject"),
+            CreateOptions.builder().setExpectFileToNotExist(true).build());
+
+    IOException thrown = assertThrows(IOException.class, channel::close);
+    assertSame(preconditionFailed, thrown.getCause());
+  }
+
+  /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExist} for V2. */
+  @Test
+  public void testV2BucketAccessibleIsFalseWhenBucketDoesNotExist() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    // An unstubbed get() returns null, which is how java-storage reports a missing bucket.
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  /** Mirrors {@link GcsUtilV1Test#testBucketDoesNotExistBecauseOfAccessError} for V2. */
+  @Test
+  public void testV2BucketAccessibleIsFalseWhenAccessIsDenied() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    when(storage.get(Mockito.eq("testbucket"), any(BucketGetOption.class)))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    assertFalse(gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
+  }
+
+  /**
+   * Any other failure (e.g. a 5xx) says nothing about whether the bucket is accessible, so it must
+   * propagate rather than be reported as an inaccessible bucket, as V1 does.
+   */
+  @Test
+  public void testV2BucketAccessiblePropagatesOtherFailures() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    StorageException serverError = new StorageException(503, "Service Unavailable");
+    when(storage.get(Mockito.eq("testbucket"), any(BucketGetOption.class))).thenThrow(serverError);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+
+    IOException thrown =
+        assertThrows(
+            IOException.class,
+            () -> gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
+    assertSame(serverError, thrown.getCause());
   }
 }
