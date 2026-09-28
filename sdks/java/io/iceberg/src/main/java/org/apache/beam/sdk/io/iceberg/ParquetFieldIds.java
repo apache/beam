@@ -135,7 +135,7 @@ final class ParquetFieldIds {
     for (Types.NestedField field : byId.values()) {
       int id = field.fieldId();
       String path = fileSchema.findColumnName(id);
-      if (knownAs(versions, mapping, id, path)) {
+      if (knownAs(current, versions, mapping, id, path)) {
         continue;
       }
       Types.@Nullable NestedField sameId = current.findField(id);
@@ -164,7 +164,12 @@ final class ParquetFieldIds {
 
   /** Paths are dotted full names, as both Iceberg schemas and name mappings index them. */
   private static boolean knownAs(
-      Collection<Schema> versions, NameMapping mapping, int id, String path) {
+      Schema current, Collection<Schema> versions, NameMapping mapping, int id, String path) {
+    // The current schema first: versions come oldest first, and walking them for every column
+    // costs columns x versions per file.
+    if (path.equals(current.findColumnName(id))) {
+      return true;
+    }
     for (Schema schema : versions) {
       if (path.equals(schema.findColumnName(id))) {
         return true;
