@@ -1626,10 +1626,15 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'The time limit (in minutes) for any PTransform to finish '
-            'processing a single element. If exceeded, the SDK worker '
-            'process self-terminates and processing may be restarted '
-            'by a runner.'))
+            'The time limit (in minutes) for any fused stage to finish '
+            'processing a single bundle. A fused stage may include '
+            'multiple consecutive PTransforms. It will also include the '
+            'IO steps used to populate data in the stage (this may be '
+            'a pipeline-level IO or an internal read like reading from a '
+            'Reshuffle or GroupByKey). Exact stage boundaries are determined '
+            'by the pipeline runner. If the timeout is exceeded, the SDK '
+            'worker process self-terminates and processing may be restarted '
+            'by a runner. All in-progress work in this bundle will be lost'))
 
   def validate(self, validator):
     errors = []
