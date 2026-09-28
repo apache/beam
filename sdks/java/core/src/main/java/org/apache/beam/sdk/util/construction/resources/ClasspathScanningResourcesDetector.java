@@ -21,6 +21,7 @@ import io.github.classgraph.ClassGraph;
 import java.io.File;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -34,10 +35,26 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 public class ClasspathScanningResourcesDetector implements PipelineResourcesDetector {
 
+  private static final class CachedClasspath {
+    private final WeakReference<ClassLoader> classLoader;
+    private final @Nullable String javaClassPath;
+    private final List<String> files;
+
+    CachedClasspath(ClassLoader classLoader, @Nullable String javaClassPath, List<String> files) {
+      this.classLoader = new WeakReference<>(classLoader);
+      this.javaClassPath = javaClassPath;
+      this.files = Collections.unmodifiableList(new ArrayList<>(files));
+    }
+
+    boolean matches(@Nullable ClassLoader loader, @Nullable String currentJavaClassPath) {
+      return loader != null
+          && classLoader.get() == loader
+          && Objects.equals(javaClassPath, currentJavaClassPath);
+    }
+  }
+
   private static final Object LOCK = new Object();
-  private static @Nullable WeakReference<ClassLoader> cachedClassLoader;
-  private static @Nullable String cachedJavaClassPath;
-  private static @Nullable List<String> cachedResult;
+  private static volatile @Nullable CachedClasspath cachedClasspath;
 
   private transient ClassGraph classGraph;
 
@@ -53,14 +70,17 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
    */
   @Override
   public List<String> detect(@Nullable ClassLoader classLoader) {
+    String currentJavaClassPath = System.getProperty("java.class.path");
+    CachedClasspath snapshot = cachedClasspath;
+    if (snapshot != null && snapshot.matches(classLoader, currentJavaClassPath)) {
+      return new ArrayList<>(snapshot.files);
+    }
+
     synchronized (LOCK) {
-      String currentJavaClassPath = System.getProperty("java.class.path");
-      if (cachedResult != null
-          && Objects.equals(currentJavaClassPath, cachedJavaClassPath)
-          && classLoader != null
-          && cachedClassLoader != null
-          && cachedClassLoader.get() == classLoader) {
-        return new ArrayList<>(cachedResult);
+      currentJavaClassPath = System.getProperty("java.class.path");
+      snapshot = cachedClasspath;
+      if (snapshot != null && snapshot.matches(classLoader, currentJavaClassPath)) {
+        return new ArrayList<>(snapshot.files);
       }
 
       List<File> classpathContents;
@@ -74,9 +94,7 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
       List<String> result =
           classpathContents.stream().map(File::getAbsolutePath).collect(Collectors.toList());
       if (classLoader != null) {
-        cachedClassLoader = new WeakReference<>(classLoader);
-        cachedJavaClassPath = currentJavaClassPath;
-        cachedResult = new ArrayList<>(result);
+        cachedClasspath = new CachedClasspath(classLoader, currentJavaClassPath, result);
       }
       return result;
     }
