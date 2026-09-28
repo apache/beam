@@ -242,19 +242,8 @@ def isValidatesRunnerTestClass = { FileTreeElement element ->
       element.name.startsWith('ValidateRunnerXlangTest')) {
     return false
   }
-  def content = new String(element.file.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
-  if (content.contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')) {
-    return true
-  }
-  if (content.contains('Lorg/junit/experimental/runners/Enclosed;')) {
-    def prefix = element.name.substring(0, element.name.length() - 6) + '$'
-    return element.file.parentFile.listFiles()?.any { File f ->
-      f.name.startsWith(prefix) && f.name.endsWith('.class') &&
-        new String(f.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
-          .contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')
-    } ?: false
-  }
-  return false
+  return new String(element.file.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+    .contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')
 }
 
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
