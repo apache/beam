@@ -979,8 +979,10 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
       Metrics partitionMetrics;
-      // Reuse the table's metrics only when they hold full bounds: a truncated string or binary
-      // bound is a range for pruning and cannot name a partition value.
+      // The table's metrics may truncate string bounds: under Iceberg's default, truncate(16), a
+      // 23-character value is stored as two different 16-character bounds. Those still work for
+      // pruning but cannot name the file's partition, so the table's metrics are reused only when
+      // every partition column is in full mode.
       if (orEmpty(metrics.lowerBounds()).keySet().containsAll(sourceIds)
           && orEmpty(metrics.upperBounds()).keySet().containsAll(sourceIds)
           && fullMetrics(table, sourceIds)) {
@@ -1407,20 +1409,9 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     static Map<Integer, BoundAdjustment> forSchema(
         MessageType fileSchema, org.apache.iceberg.Schema tableSchema) {
       Map<Integer, BoundAdjustment> adjustments = new HashMap<>();
-      collect(fileSchema, tableSchema, adjustments);
-      return adjustments;
-    }
-
-    private static void collect(
-        org.apache.parquet.schema.GroupType group,
-        org.apache.iceberg.Schema tableSchema,
-        Map<Integer, BoundAdjustment> out) {
-      for (org.apache.parquet.schema.Type field : group.getFields()) {
-        if (!field.isPrimitive()) {
-          collect(field.asGroupType(), tableSchema, out);
-          continue;
-        }
-        org.apache.parquet.schema.Type.ID id = field.getId();
+      for (ColumnDescriptor column : fileSchema.getColumns()) {
+        org.apache.parquet.schema.PrimitiveType primitive = column.getPrimitiveType();
+        org.apache.parquet.schema.Type.ID id = primitive.getId();
         if (id == null) {
           continue;
         }
@@ -1428,16 +1419,27 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         if (tableType == null) {
           continue;
         }
-        @Nullable BoundAdjustment adjustment = forPrimitive(field.asPrimitiveType(), tableType);
+        @Nullable BoundAdjustment adjustment = forPrimitive(primitive, tableType);
         if (adjustment != null) {
-          out.put(id.intValue(), adjustment);
+          adjustments.put(id.intValue(), adjustment);
         }
       }
+      return adjustments;
     }
 
     /**
-     * Null when the file and table units agree, or when the table type is not the matching
-     * timestamp, time or long type: such a column is left as Iceberg computes it.
+     * The conversion that puts this file column's bounds into the table column's unit. There are
+     * three cases:
+     *
+     * <ul>
+     *   <li>a millis or nanos timestamp under a micros timestamp column, or a millis or micros one
+     *       under a nanos column;
+     *   <li>a millis or nanos time under a time column;
+     *   <li>an unsigned 32-bit int under a long column.
+     * </ul>
+     *
+     * <p>Null for anything else, including units that already match: those bounds stay as Iceberg
+     * computes them.
      */
     private static @Nullable BoundAdjustment forPrimitive(
         org.apache.parquet.schema.PrimitiveType primitive, Type tableType) {
@@ -1544,43 +1546,54 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     /** The footer with annotations removed from adjusted INT32 columns. */
     static ParquetMetadata withNeutralTypes(
         ParquetMetadata footer, Map<Integer, BoundAdjustment> adjustments) {
-      MessageType schema = footer.getFileMetaData().getSchema();
-      List<org.apache.parquet.schema.Type> fields = neutralFields(schema, adjustments);
-      MessageType neutral = new MessageType(schema.getName(), fields);
+      MessageType neutral =
+          (MessageType)
+              footer.getFileMetaData().getSchema().convertWith(new WithoutAnnotations(adjustments));
       FileMetaData meta = footer.getFileMetaData();
       return new ParquetMetadata(
           new FileMetaData(neutral, meta.getKeyValueMetaData(), meta.getCreatedBy()),
           footer.getBlocks());
     }
 
-    private static List<org.apache.parquet.schema.Type> neutralFields(
-        org.apache.parquet.schema.GroupType group, Map<Integer, BoundAdjustment> adjustments) {
-      List<org.apache.parquet.schema.Type> fields = new ArrayList<>();
-      for (org.apache.parquet.schema.Type field : group.getFields()) {
-        if (field.isPrimitive()) {
-          fields.add(neutralPrimitive(field.asPrimitiveType(), adjustments));
-        } else {
-          fields.add(
-              field.asGroupType().withNewFields(neutralFields(field.asGroupType(), adjustments)));
-        }
-      }
-      return fields;
-    }
+    /** Rebuilds a schema with the annotation removed from each adjusted INT32 column. */
+    private static final class WithoutAnnotations
+        implements org.apache.parquet.schema.TypeConverter<org.apache.parquet.schema.Type> {
+      private final Map<Integer, BoundAdjustment> adjustments;
 
-    private static org.apache.parquet.schema.Type neutralPrimitive(
-        org.apache.parquet.schema.PrimitiveType primitive,
-        Map<Integer, BoundAdjustment> adjustments) {
-      boolean adjusted =
-          primitive.getId() != null && adjustments.containsKey(primitive.getId().intValue());
-      if (!adjusted
-          || primitive.getPrimitiveTypeName()
-              != org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32) {
-        return primitive;
+      WithoutAnnotations(Map<Integer, BoundAdjustment> adjustments) {
+        this.adjustments = adjustments;
       }
-      return org.apache.parquet.schema.Types.primitive(
-              primitive.getPrimitiveTypeName(), primitive.getRepetition())
-          .id(primitive.getId().intValue())
-          .named(primitive.getName());
+
+      @Override
+      public org.apache.parquet.schema.Type convertPrimitiveType(
+          List<org.apache.parquet.schema.GroupType> path,
+          org.apache.parquet.schema.PrimitiveType primitive) {
+        org.apache.parquet.schema.Type.ID id = primitive.getId();
+        if (id == null
+            || !adjustments.containsKey(id.intValue())
+            || primitive.getPrimitiveTypeName()
+                != org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32) {
+          return primitive;
+        }
+        return org.apache.parquet.schema.Types.primitive(
+                primitive.getPrimitiveTypeName(), primitive.getRepetition())
+            .id(id.intValue())
+            .named(primitive.getName());
+      }
+
+      @Override
+      public org.apache.parquet.schema.Type convertGroupType(
+          List<org.apache.parquet.schema.GroupType> path,
+          org.apache.parquet.schema.GroupType group,
+          List<org.apache.parquet.schema.Type> children) {
+        return group.withNewFields(children);
+      }
+
+      @Override
+      public org.apache.parquet.schema.Type convertMessageType(
+          MessageType message, List<org.apache.parquet.schema.Type> children) {
+        return new MessageType(message.getName(), children);
+      }
     }
 
     static Metrics apply(Metrics metrics, Map<Integer, BoundAdjustment> adjustments) {
