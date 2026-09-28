@@ -24,6 +24,7 @@ import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -31,6 +32,7 @@ import com.google.api.client.http.GenericUrl;
 import com.google.api.client.http.HttpRequestInitializer;
 import com.google.api.client.testing.http.MockHttpTransport;
 import com.google.api.client.testing.http.MockLowLevelHttpResponse;
+import com.google.api.services.storage.model.StorageObject;
 import com.google.auth.Credentials;
 import com.google.cloud.NoCredentials;
 import com.google.cloud.WriteChannel;
@@ -44,10 +46,12 @@ import com.google.cloud.storage.StorageOptions;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.nio.file.AccessDeniedException;
 import java.util.HashMap;
 import org.apache.beam.repackaged.core.org.apache.commons.compress.utils.SeekableInMemoryByteChannel;
 import org.apache.beam.runners.core.metrics.CounterCell;
@@ -63,6 +67,7 @@ import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.metrics.MetricName;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.After;
 import org.junit.Test;
@@ -567,5 +572,115 @@ public class GcsUtilV2Test {
             IOException.class,
             () -> gcsUtil.bucketAccessible(GcsPath.fromComponents("testbucket", "testobject")));
     assertSame(serverError, thrown.getCause());
+  }
+
+  private static com.google.cloud.storage.Blob mockBlob(String bucket, String object, long size) {
+    com.google.cloud.storage.Blob blob = Mockito.mock(com.google.cloud.storage.Blob.class);
+    when(blob.getBucket()).thenReturn(bucket);
+    when(blob.getName()).thenReturn(object);
+    when(blob.getSize()).thenReturn(size);
+    return blob;
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testFileSizeNonBatch}, plus the lookups that {@code getObject} and
+   * a literal {@code expand} make.
+   */
+  @Test
+  public void testV2FileSizeAndGetObject() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    com.google.cloud.storage.Blob blob = mockBlob("testbucket", "testobject", 1000L);
+    when(storage.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any())).thenReturn(blob);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertEquals(1000, gcsUtil.fileSize(path));
+    StorageObject object = gcsUtil.getObject(path);
+    assertEquals("testbucket", object.getBucket());
+    assertEquals("testobject", object.getName());
+    assertEquals(BigInteger.valueOf(1000), object.getSize());
+    assertEquals(ImmutableList.of(path), gcsUtil.expand(path));
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testFileSizeWhenFileNotFoundNonBatch} and {@link
+   * GcsUtilV1Test#testNonExistentObjectReturnsEmptyResult}.
+   */
+  @Test
+  public void testV2MissingObject() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    // An unstubbed get() returns null, which is how java-storage reports a missing object.
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.fileSize(path));
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.getObject(path));
+    assertEquals(ImmutableList.of(), gcsUtil.expand(path));
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testAccessDeniedObjectThrowsIOException}. V1 reports a plain
+   * {@link IOException}; V2 reports the more specific {@link AccessDeniedException} (G4).
+   */
+  @Test
+  public void testV2AccessDeniedObject() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    when(storage.get(Mockito.eq("testbucket"), Mockito.eq("testobject"), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.fileSize(path));
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.getObject(path));
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.expand(path));
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testBucketAccessible}, {@link
+   * GcsUtilV1Test#testVerifyBucketAccessible} and {@link GcsUtilV1Test#testGetBucket}.
+   */
+  @Test
+  public void testV2ExistingBucket() throws IOException {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    com.google.cloud.storage.Bucket bucket = Mockito.mock(com.google.cloud.storage.Bucket.class);
+    when(bucket.getName()).thenReturn("testbucket");
+    when(bucket.getProject()).thenReturn(BigInteger.valueOf(12345));
+    when(storage.get(Mockito.eq("testbucket"), any())).thenReturn(bucket);
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertTrue(gcsUtil.bucketAccessible(path));
+    gcsUtil.verifyBucketAccessible(path);
+    assertEquals("testbucket", gcsUtil.getBucket(path).getName());
+    assertEquals(12345L, gcsUtil.bucketOwner(path));
+  }
+
+  /**
+   * Mirrors {@link GcsUtilV1Test#testVerifyBucketAccessibleDoesNotExist} and {@link
+   * GcsUtilV1Test#testGetBucketNotExists}.
+   */
+  @Test
+  public void testV2VerifyBucketAccessibleWhenBucketDoesNotExist() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    // An unstubbed get() returns null, which is how java-storage reports a missing bucket.
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.verifyBucketAccessible(path));
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucket(path));
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.bucketOwner(path));
+  }
+
+  /** Mirrors {@link GcsUtilV1Test#testVerifyBucketAccessibleAccessError}. */
+  @Test
+  public void testV2VerifyBucketAccessibleWhenAccessIsDenied() {
+    com.google.cloud.storage.Storage storage = Mockito.mock(com.google.cloud.storage.Storage.class);
+    when(storage.get(Mockito.eq("testbucket"), any()))
+        .thenThrow(new StorageException(403, "Forbidden"));
+    GcsUtil gcsUtil = gcsUtilWithV2Storage(storage);
+    GcsPath path = GcsPath.fromComponents("testbucket", "testobject");
+
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.verifyBucketAccessible(path));
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucket(path));
   }
 }
