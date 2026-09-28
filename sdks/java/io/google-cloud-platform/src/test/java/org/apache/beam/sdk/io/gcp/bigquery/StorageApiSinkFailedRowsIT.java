@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import com.google.api.services.bigquery.model.Table;
@@ -74,7 +75,7 @@ public class StorageApiSinkFailedRowsIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "beam_temp_dataset_failed_rows" + System.nanoTime();
+      TEMP_DATASET_PREFIX + "failed_rows" + System.nanoTime();
 
   private static final List<TableFieldSchema> FIELDS =
       ImmutableList.<TableFieldSchema>builder()

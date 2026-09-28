@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.BackOff;
@@ -72,7 +73,8 @@ public class BigQueryToTableIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryToTableIT");
 
   private static final String BIG_QUERY_DATASET_ID =
-      "beam_temp_dataset_query_to_table_"
+      TEMP_DATASET_PREFIX
+          + "query_to_table_"
           + System.currentTimeMillis()
           + "_"
           + new SecureRandom().nextInt(32);

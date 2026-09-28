@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
@@ -101,7 +102,7 @@ public class IcebergReadWriteIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
   private static final String BQMS_CATALOG =
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "beam_temp_dataset_iceberg_sql_" + System.nanoTime();
+  static final String DATASET = TEMP_DATASET_PREFIX + "iceberg_sql_" + System.nanoTime();
   static String warehouse;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);

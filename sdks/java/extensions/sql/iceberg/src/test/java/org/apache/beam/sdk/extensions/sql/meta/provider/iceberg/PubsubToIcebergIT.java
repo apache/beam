@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.junit.Assert.assertEquals;
@@ -76,7 +77,7 @@ public class PubsubToIcebergIT implements Serializable {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("PubsubToIcebergIT");
   private static final String BQMS_CATALOG =
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "beam_temp_dataset_sql_pubsub_to_iceberg_" + System.nanoTime();
+  static final String DATASET = TEMP_DATASET_PREFIX + "sql_pubsub_to_iceberg_" + System.nanoTime();
   static String warehouse;
   private static Catalog icebergCatalog;
   protected static final GcpOptions OPTIONS =
