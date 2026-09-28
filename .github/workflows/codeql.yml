@@ -51,6 +51,7 @@ jobs:
               - '**/*.java'
               - '**/*.kt'
               - '**/*.gradle'
+              - '**/*.gradle.kts'
               - '**/gradle.properties'
               - '**/gradlew'
               - '**/gradlew.bat'
@@ -77,7 +78,7 @@ jobs:
           ALL_MATRIX='[
             {"language": "actions", "build-mode": "none"},
             {"language": "go", "build-mode": "manual"},
-            {"language": "java-kotlin", "build-mode": "autobuild"},
+            {"language": "java-kotlin", "build-mode": "none"},
             {"language": "javascript-typescript", "build-mode": "none"},
             {"language": "python", "build-mode": "none"},
             {"language": "rust", "build-mode": "none"}
