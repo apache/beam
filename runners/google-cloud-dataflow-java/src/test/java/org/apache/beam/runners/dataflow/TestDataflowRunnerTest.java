@@ -103,6 +103,24 @@ public class TestDataflowRunnerTest {
   }
 
   @Test
+  public void testFromOptionsUsesSharedStagingLocationUnderTempRoot() {
+    options.setJobName("test-job-1");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals("gs://test/test-job-1/output/results", options.getTempLocation());
+    assertEquals("gs://test/test-job-1/output/results", options.getGcpTempLocation());
+    assertEquals("gs://test/staging/", options.getStagingLocation());
+  }
+
+  @Test
+  public void testFromOptionsPreservesExplicitStagingLocation() {
+    options.setJobName("test-job-2");
+    options.setStagingLocation("gs://custom-bucket/custom-staging/");
+    TestDataflowRunner.fromOptions(options);
+    assertEquals("gs://test/test-job-2/output/results", options.getTempLocation());
+    assertEquals("gs://custom-bucket/custom-staging/", options.getStagingLocation());
+  }
+
+  @Test
   public void testRunBatchJobThatSucceeds() throws Exception {
     Pipeline p = Pipeline.create(options);
     PCollection<Integer> pc = p.apply(Create.of(1, 2, 3));

@@ -21,7 +21,11 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Mo
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import org.apache.beam.runners.dataflow.TestDataflowRunner;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.PackageUtil.StagedFile;
 import org.apache.beam.sdk.extensions.gcp.storage.GcsCreateOptions;
@@ -30,6 +34,9 @@ import org.apache.beam.sdk.util.MimeTypes;
 
 /** Utility class for staging files to GCS. */
 public class GcsStager implements Stager {
+  private static final ConcurrentHashMap<List<Object>, List<DataflowPackage>> STAGED_FILES_CACHE =
+      new ConcurrentHashMap<>();
+
   private DataflowPipelineOptions options;
 
   private GcsStager(DataflowPipelineOptions options) {
@@ -49,6 +56,16 @@ public class GcsStager implements Stager {
    */
   @Override
   public List<DataflowPackage> stageFiles(List<StagedFile> filesToStage) {
+    String stagingLocation = options.getStagingLocation();
+    if (stagingLocation != null && TestDataflowRunner.class.equals(options.getRunner())) {
+      List<Object> cacheKey = Arrays.asList(stagingLocation, filesToStage);
+      return STAGED_FILES_CACHE.computeIfAbsent(
+          cacheKey, k -> Collections.unmodifiableList(stageFilesUncached(filesToStage)));
+    }
+    return stageFilesUncached(filesToStage);
+  }
+
+  private List<DataflowPackage> stageFilesUncached(List<StagedFile> filesToStage) {
     try (PackageUtil packageUtil = PackageUtil.withDefaultThreadPool()) {
       return packageUtil.stageClasspathElements(
           filesToStage, options.getStagingLocation(), buildCreateOptions());
