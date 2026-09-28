@@ -23,6 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.sdk.io.iceberg.DynamicDestinations;
 import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.IcebergDestination;
@@ -269,5 +271,7 @@ public final class CdcSinkTestUtils {
     List<String> kept = new ArrayList<>(experiments);
     kept.removeAll(ImmutableList.of("use_runner_v2", "use_unified_worker"));
     experimental.setExperiments(kept);
+    // Custom container images are only supported for V2
+    options.as(DataflowPipelineOptions.class).setSdkContainerImage(null);
   }
 }
