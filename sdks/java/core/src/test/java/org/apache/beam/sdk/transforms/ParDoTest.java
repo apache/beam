@@ -98,6 +98,7 @@ import org.apache.beam.sdk.state.TimerMap;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -176,7 +177,6 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for ParDo. */
 @SuppressWarnings({
@@ -391,7 +391,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests for basic {@link ParDo} scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -682,7 +682,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate behaviors around multiple inputs or outputs. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class MultipleInputsAndOutputTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -1591,7 +1591,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BundleFinalizationTests extends SharedTestBase implements Serializable {
     private abstract static class BundleFinalizingDoFn extends DoFn<KV<String, Long>, String> {
       private static final long MAX_ATTEMPTS = 100;
@@ -1746,7 +1746,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests for ParDo lifecycle methods. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class LifecycleTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -1821,7 +1821,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate output timestamps. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimestampTests extends SharedTestBase implements Serializable {
 
     static final String TIMER_ELEMENT = "timer";
@@ -2278,7 +2278,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate ParDo state. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class StateTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
@@ -4124,7 +4124,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests for state coder inference behaviors. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class StateCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
@@ -4649,7 +4649,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate ParDo timers. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimerTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -6532,7 +6532,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests validating Timer coder inference behaviors. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimerCoderInferenceTests extends SharedTestBase implements Serializable {
     @Test
     @Category({ValidatesRunner.class, UsesStatefulParDo.class})
@@ -6904,7 +6904,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate ParDo timerFamily. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class TimerFamilyTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -7130,7 +7130,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate Key in OnTimer. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class KeyTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -7264,7 +7264,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate OnWindowExpiration. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class OnWindowExpirationTests extends SharedTestBase implements Serializable {
 
     @Test
@@ -7392,7 +7392,7 @@ public class ParDoTest implements Serializable {
   }
 
   /** Tests to validate SchemaInformation. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class SchemaInformationTests extends SharedTestBase implements Serializable {
 
     private static final Schema TEST_SCHEMA =
@@ -7514,7 +7514,7 @@ public class ParDoTest implements Serializable {
     }
   }
 
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BundleInvariantsTests extends SharedTestBase implements Serializable {
 
     @Test

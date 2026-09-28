@@ -34,6 +34,7 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -42,6 +43,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -68,7 +70,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** Tests for {@link Metrics}. */
@@ -91,6 +92,9 @@ public class MetricsTest implements Serializable {
 
   /** Shared test helpers and setup/teardown. */
   public abstract static class SharedTestBase implements Serializable {
+    private static final ConcurrentHashMap<String, PipelineResult> CACHED_METRIC_PIPELINE_RESULTS =
+        new ConcurrentHashMap<>();
+
     @Rule public final transient ExpectedException thrown = ExpectedException.none();
 
     @Rule public final transient TestPipeline pipeline = TestPipeline.create();
@@ -101,82 +105,93 @@ public class MetricsTest implements Serializable {
     }
 
     protected PipelineResult runPipelineWithMetrics() {
-      final Counter count = Metrics.counter(MetricsTest.class, "count");
-      StringSet sideinputs = Metrics.stringSet(MetricsTest.class, "sideinputs");
-      final TupleTag<Integer> output1 = new TupleTag<Integer>() {};
-      final TupleTag<Integer> output2 = new TupleTag<Integer>() {};
-      pipeline
-          .apply(Create.of(5, 8, 13))
-          .apply(
-              "MyStep1",
-              ParDo.of(
-                  new DoFn<Integer, Integer>() {
-                    Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
+      String cacheKey =
+          pipeline.getOptions().getRunner().getName()
+              + ":"
+              + System.getProperty(TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_OPTIONS, "");
+      synchronized (CACHED_METRIC_PIPELINE_RESULTS) {
+        PipelineResult cachedResult = CACHED_METRIC_PIPELINE_RESULTS.get(cacheKey);
+        if (cachedResult != null) {
+          return cachedResult;
+        }
+        final Counter count = Metrics.counter(MetricsTest.class, "count");
+        StringSet sideinputs = Metrics.stringSet(MetricsTest.class, "sideinputs");
+        final TupleTag<Integer> output1 = new TupleTag<Integer>() {};
+        final TupleTag<Integer> output2 = new TupleTag<Integer>() {};
+        pipeline
+            .apply(Create.of(5, 8, 13))
+            .apply(
+                "MyStep1",
+                ParDo.of(
+                    new DoFn<Integer, Integer>() {
+                      Distribution bundleDist = Metrics.distribution(MetricsTest.class, "bundle");
 
-                    @StartBundle
-                    public void startBundle() {
-                      bundleDist.update(10L);
-                    }
+                      @StartBundle
+                      public void startBundle() {
+                        bundleDist.update(10L);
+                      }
 
-                    @SuppressWarnings("unused")
-                    @ProcessElement
-                    public void processElement(ProcessContext c) {
-                      Distribution values = Metrics.distribution(MetricsTest.class, "input");
-                      StringSet sources = Metrics.stringSet(MetricsTest.class, "sources");
-                      BoundedTrie boundedTrieSources =
-                          Metrics.boundedTrie(MetricsTest.class, "boundedTrieSources");
-                      count.inc();
-                      values.update(c.element());
+                      @SuppressWarnings("unused")
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                        StringSet sources = Metrics.stringSet(MetricsTest.class, "sources");
+                        BoundedTrie boundedTrieSources =
+                            Metrics.boundedTrie(MetricsTest.class, "boundedTrieSources");
+                        count.inc();
+                        values.update(c.element());
 
-                      c.output(c.element());
-                      c.output(c.element());
-                      sources.add("gcs");
-                      sources.add("gcs"); // repeated should appear once
-                      sources.add("gcs", "gcs"); // repeated should appear once
-                      sideinputs.add("bigtable", "spanner");
-                      boundedTrieSources.add(ImmutableList.of("ab_source", "cd_source"));
-                      boundedTrieSources.add(ImmutableList.of("ef_source"));
-                    }
+                        c.output(c.element());
+                        c.output(c.element());
+                        sources.add("gcs");
+                        sources.add("gcs"); // repeated should appear once
+                        sources.add("gcs", "gcs"); // repeated should appear once
+                        sideinputs.add("bigtable", "spanner");
+                        boundedTrieSources.add(ImmutableList.of("ab_source", "cd_source"));
+                        boundedTrieSources.add(ImmutableList.of("ef_source"));
+                      }
 
-                    @DoFn.FinishBundle
-                    public void finishBundle() {
-                      bundleDist.update(40L);
-                    }
-                  }))
-          .apply(
-              "MyStep2",
-              ParDo.of(
-                      new DoFn<Integer, Integer>() {
-                        @SuppressWarnings("unused")
-                        @ProcessElement
-                        public void processElement(ProcessContext c) {
-                          Distribution values = Metrics.distribution(MetricsTest.class, "input");
-                          Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
-                          StringSet sinks = Metrics.stringSet(MetricsTest.class, "sinks");
-                          BoundedTrie boundedTrieSinks =
-                              Metrics.boundedTrie(MetricsTest.class, "boundedTrieSinks");
-                          Integer element = c.element();
-                          count.inc();
-                          values.update(element);
-                          gauge.set(12L);
-                          c.output(element);
-                          sinks.add("bq", "kafka", "kafka"); // repeated should appear once
-                          sideinputs.add("bigtable", "sql");
-                          boundedTrieSinks.add(ImmutableList.of("ab_sink", "cd_sink"));
-                          boundedTrieSinks.add(ImmutableList.of("ef_sink"));
-                          c.output(output2, element);
-                        }
-                      })
-                  .withOutputTags(output1, TupleTagList.of(output2)));
-      PipelineResult result = pipeline.run();
+                      @DoFn.FinishBundle
+                      public void finishBundle() {
+                        bundleDist.update(40L);
+                      }
+                    }))
+            .apply(
+                "MyStep2",
+                ParDo.of(
+                        new DoFn<Integer, Integer>() {
+                          @SuppressWarnings("unused")
+                          @ProcessElement
+                          public void processElement(ProcessContext c) {
+                            Distribution values = Metrics.distribution(MetricsTest.class, "input");
+                            Gauge gauge = Metrics.gauge(MetricsTest.class, "my-gauge");
+                            StringSet sinks = Metrics.stringSet(MetricsTest.class, "sinks");
+                            BoundedTrie boundedTrieSinks =
+                                Metrics.boundedTrie(MetricsTest.class, "boundedTrieSinks");
+                            Integer element = c.element();
+                            count.inc();
+                            values.update(element);
+                            gauge.set(12L);
+                            c.output(element);
+                            sinks.add("bq", "kafka", "kafka"); // repeated should appear once
+                            sideinputs.add("bigtable", "sql");
+                            boundedTrieSinks.add(ImmutableList.of("ab_sink", "cd_sink"));
+                            boundedTrieSinks.add(ImmutableList.of("ef_sink"));
+                            c.output(output2, element);
+                          }
+                        })
+                    .withOutputTags(output1, TupleTagList.of(output2)));
+        PipelineResult result = pipeline.run();
 
-      result.waitUntilFinish();
-      return result;
+        result.waitUntilFinish();
+        CACHED_METRIC_PIPELINE_RESULTS.put(cacheKey, result);
+        return result;
+      }
     }
   }
 
   /** Tests validating basic metric scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase {
     @Test
     public void testDistributionWithoutContainer() {
@@ -293,7 +308,7 @@ public class MetricsTest implements Serializable {
   }
 
   /** Tests for committed metrics. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class CommittedMetricTests extends SharedTestBase {
     @Category({
       ValidatesRunner.class,
@@ -430,7 +445,7 @@ public class MetricsTest implements Serializable {
   }
 
   /** Tests for attempted metrics. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class AttemptedMetricTests extends SharedTestBase {
     @Category({
       ValidatesRunner.class,

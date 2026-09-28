@@ -82,7 +82,6 @@ public class ClasspathScanningResourcesDetector implements PipelineResourcesDete
       if (snapshot != null && snapshot.matches(classLoader, currentJavaClassPath)) {
         return new ArrayList<>(snapshot.files);
       }
-
       List<File> classpathContents;
       if (classLoader != null) {
         classpathContents =
