@@ -21,7 +21,7 @@ import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Mo
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.api.services.dataflow.model.DataflowPackage;
-import java.util.Arrays;
+import com.google.auto.value.AutoValue;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -34,8 +34,19 @@ import org.apache.beam.sdk.util.MimeTypes;
 
 /** Utility class for staging files to GCS. */
 public class GcsStager implements Stager {
-  private static final ConcurrentHashMap<List<Object>, List<DataflowPackage>> STAGED_FILES_CACHE =
-      new ConcurrentHashMap<>();
+  @AutoValue
+  abstract static class StagedFilesCacheKey {
+    abstract String getStagingLocation();
+
+    abstract List<StagedFile> getFilesToStage();
+
+    static StagedFilesCacheKey of(String stagingLocation, List<StagedFile> filesToStage) {
+      return new AutoValue_GcsStager_StagedFilesCacheKey(stagingLocation, filesToStage);
+    }
+  }
+
+  private static final ConcurrentHashMap<StagedFilesCacheKey, List<DataflowPackage>>
+      STAGED_FILES_CACHE = new ConcurrentHashMap<>();
 
   private DataflowPipelineOptions options;
 
@@ -58,7 +69,7 @@ public class GcsStager implements Stager {
   public List<DataflowPackage> stageFiles(List<StagedFile> filesToStage) {
     String stagingLocation = options.getStagingLocation();
     if (stagingLocation != null && TestDataflowRunner.class.equals(options.getRunner())) {
-      List<Object> cacheKey = Arrays.asList(stagingLocation, filesToStage);
+      StagedFilesCacheKey cacheKey = StagedFilesCacheKey.of(stagingLocation, filesToStage);
       return STAGED_FILES_CACHE.computeIfAbsent(
           cacheKey, k -> Collections.unmodifiableList(stageFilesUncached(filesToStage)));
     }
