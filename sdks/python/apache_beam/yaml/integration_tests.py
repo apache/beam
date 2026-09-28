@@ -327,8 +327,8 @@ def temp_mongodb_table():
     mongo_container.start()
     mongo_uri = mongo_container.get_connection_url()
 
-    # MongoDbContainer's entrypoint restarts mongod after init scripts; wait
-    # until the server is stably accepting connections and responds to ping.
+    # MongoDbContainer's entrypoint restarts mongodb after initial scripts; wait
+    # until the server is stable, accepting connections and responds to ping.
     for attempt in range(15):
       try:
         mongo_client = mongo_container.get_connection_client()
