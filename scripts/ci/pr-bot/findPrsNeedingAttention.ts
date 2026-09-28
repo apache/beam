@@ -29,6 +29,7 @@ const {
   REASSIGNED_REVIEWERS_LABEL,
   AWAITING_TRIAGE_LABEL,
   NEXT_ACTION_REVIEWERS_LABEL,
+  AUTHOR_ACTION,
 } = require("./shared/constants");
 const { hasLabel } = github;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
@@ -165,6 +166,15 @@ async function processPull(
     console.log(`Skipping PR ${pull.number} - awaiting triage`);
     return;
   }
+  if (pull.draft) {
+    if (hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)) {
+      await github.nextActionAuthor(pull.number, pull.labels);
+      prState.nextAction = AUTHOR_ACTION;
+      await stateClient.writePrState(pull.number, prState);
+    }
+    console.log(`Skipping PR ${pull.number} - draft`);
+    return;
+  }
 
   const sixtyDaysAgo = new Date(Date.now() - 60 * ONE_DAY_MS);
   const initialReviewDate = prState.reviewersAssignedAt
@@ -187,7 +197,10 @@ async function processPull(
     return;
   }
 
-  if (hasLabel(pull, SLOW_REVIEW_LABEL)) {
+  if (
+    hasLabel(pull, SLOW_REVIEW_LABEL) &&
+    hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)
+  ) {
     const lastModified = new Date(pull.updated_at);
     const twoWeekDaysAgo = getTwoWeekdaysAgo();
     console.log(
