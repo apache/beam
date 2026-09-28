@@ -61,6 +61,9 @@ import org.junit.runners.JUnit4;
 public class BoundAdjustmentTest {
   @Rule public TemporaryFolder temp = new TemporaryFolder();
 
+  private static final Schema ID_TS =
+      new Schema(Types.NestedField.optional(1, "ts", Types.TimestampType.withZone()));
+
   private static final Schema TS_NS =
       new Schema(Types.NestedField.optional(1, "ts", Types.TimestampNanoType.withZone()));
 
@@ -172,6 +175,41 @@ public class BoundAdjustmentTest {
 
     assertEquals(3_600_000_000L, lower(metrics, schema));
     assertEquals(3_600_000_001L, upper(metrics, schema));
+  }
+
+  /** With evolution off the table may declare the column int: bounds stay ints. */
+  @Test
+  public void testUnsigned32BoundsUnderAnIntColumnStayInts() throws IOException {
+    String file = files.write("unsigned.parquet", true, Arrays.asList(UNSIGNED), row(7), row(9));
+    Schema schema = new Schema(Types.NestedField.optional(1, "u", Types.IntegerType.get()));
+
+    Metrics metrics = metricsOf(file, schema);
+
+    assertEquals(7, lower(metrics, schema));
+    assertEquals(9, upper(metrics, schema));
+  }
+
+  @Test
+  public void testUnsigned32ValueFrom2To31UnderAnIntColumnIsRefused() throws IOException {
+    String file =
+        files.write(
+            "unsigned.parquet", true, Arrays.asList(UNSIGNED), row(7), row((int) 3_000_000_000L));
+    Schema schema = new Schema(Types.NestedField.optional(1, "u", Types.IntegerType.get()));
+
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> metricsOf(file, schema));
+    assertTrue(e.getMessage(), e.getMessage().startsWith(BoundAdjustment.UNSIGNED_RANGE_ERROR));
+  }
+
+  /** Iceberg would cast the int statistics to the long it maps uint32 to, and throw. */
+  @Test
+  public void testUnsigned32UnderAStringColumnIsRefused() throws IOException {
+    String file = files.write("unsigned.parquet", true, Arrays.asList(UNSIGNED), row(7), row(9));
+    Schema schema = new Schema(Types.NestedField.optional(1, "u", Types.StringType.get()));
+
+    IllegalArgumentException e =
+        assertThrows(IllegalArgumentException.class, () -> metricsOf(file, schema));
+    assertEquals(BoundAdjustment.UNSIGNED_TYPE_ERROR + "u is string", e.getMessage());
   }
 
   @Test
@@ -308,6 +346,29 @@ public class BoundAdjustmentTest {
 
     assertEquals(EPOCH_SECONDS * 1_000_000_000L, lower(metrics, TS_NS));
     assertEquals(EPOCH_SECONDS * 1_000_000_000L + 7_000L, upper(metrics, TS_NS));
+  }
+
+  /** Stored bounds round outward for pruning; bounds for partition inference round down. */
+  @Test
+  public void testPartitionBoundsRoundNanosDown() throws IOException {
+    String file =
+        files.write(
+            "nanos.parquet",
+            true,
+            Arrays.asList(TS_NANOS),
+            row(EPOCH_SECONDS * 1_000_000_000L + 1),
+            row(EPOCH_SECONDS * 1_000_000_000L + 1_500));
+    ParquetFieldIds.Resolved footer = ParquetFieldIds.resolve(ParquetFooters.read(file), ID_TS);
+    MetricsConfig config = MetricsConfig.fromProperties(FULL_METRICS);
+
+    Metrics stored =
+        BoundAdjustment.footerMetrics(footer, ID_TS, config, MappingUtil.create(ID_TS));
+    Metrics partition =
+        BoundAdjustment.partitionMetrics(footer, ID_TS, config, MappingUtil.create(ID_TS));
+
+    assertEquals(EPOCH_SECONDS * 1_000_000L + 2, upper(stored, ID_TS));
+    assertEquals(EPOCH_SECONDS * 1_000_000L, lower(partition, ID_TS));
+    assertEquals(EPOCH_SECONDS * 1_000_000L + 1, upper(partition, ID_TS));
   }
 
   @Test

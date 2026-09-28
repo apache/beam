@@ -735,6 +735,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           } catch (UnknownPartitionException e) {
             return errorResult(
                 filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
+          } catch (RuntimeException e) {
+            // e.g. a bound that does not decode as the table's type: one error row, not a failed
+            // bundle
+            return errorResult(
+                filePath, UNKNOWN_PARTITION_ERROR + errorMessage(e), timestamp, window, paneInfo);
           }
         }
 
@@ -978,40 +983,39 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       List<PartitionField> fields = table.spec().fields();
       List<Integer> sourceIds =
           fields.stream().map(PartitionField::sourceId).collect(Collectors.toList());
+      // Iceberg looks metrics modes up by the file's column names, which differ from the table's
+      // after a rename.
+      List<String> metricsNames = new ArrayList<>();
+      if (footer != null) {
+        metricsNames = footer.columnNames(sourceIds);
+      } else {
+        for (int sourceId : sourceIds) {
+          metricsNames.add(table.schema().findColumnName(sourceId));
+        }
+      }
+      // The table's metrics are reused only when they hold every partition column's exact bounds.
+      // Truncated bounds (under Iceberg's default, truncate(16), a 23-character value is stored as
+      // two different 16-character bounds) and nanos bounds rounded outward work for pruning but
+      // cannot name the partition. Recollected metrics are not attached to the DataFile.
       Metrics partitionMetrics;
-      // The table's metrics may truncate string bounds: under Iceberg's default, truncate(16), a
-      // 23-character value is stored as two different 16-character bounds. Those still work for
-      // pruning but cannot name the file's partition, so the table's metrics are reused only when
-      // every partition column is in full mode.
       if (orEmpty(metrics.lowerBounds()).keySet().containsAll(sourceIds)
           && orEmpty(metrics.upperBounds()).keySet().containsAll(sourceIds)
-          && fullMetrics(table, sourceIds)) {
+          && fullMetrics(table, metricsNames)
+          && (footer == null || !BoundAdjustment.roundsBounds(footer, table.schema(), sourceIds))) {
         partitionMetrics = metrics;
+      } else if (footer != null) {
+        partitionMetrics =
+            BoundAdjustment.partitionMetrics(
+                footer, table.schema(), fullMetricsFor(metricsNames), mapping);
       } else {
-        // Otherwise, recollect metrics and ensure it includes all partition fields.
-        // Note: we don't attach these additional metrics to the DataFile because we can't assume
-        // that's in the user's best interest.
-        // Some tables are very wide and users may not want to store excessive metadata.
-        List<String> sourceNames =
-            fields.stream()
-                .map(pf -> table.schema().findColumnName(pf.sourceId()))
-                .collect(Collectors.toList());
-        // Only the partition columns: an unrelated column whose bounds cannot be collected must
-        // not fail the inference.
-        Map<String, String> configProps = new HashMap<>();
-        configProps.put(TableProperties.DEFAULT_WRITE_METRICS_MODE, "none");
-        for (String sourceName : sourceNames) {
-          configProps.put(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + sourceName, "full");
-        }
-        MetricsConfig configWithPartitionFields = MetricsConfig.fromProperties(configProps);
         partitionMetrics =
             getFileMetrics(
                 inputFile,
                 inferFormat(inputFile.location()),
-                configWithPartitionFields,
+                fullMetricsFor(metricsNames),
                 mapping,
                 table.schema(),
-                footer);
+                null);
       }
 
       PartitionKey pk = new PartitionKey(table.spec(), table.schema());
@@ -1066,10 +1070,22 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return pk;
     }
 
-    private static boolean fullMetrics(Table table, List<Integer> sourceIds) {
+    /**
+     * Full metrics for the named columns and none for the rest: another column whose bounds cannot
+     * be collected must not fail the inference.
+     */
+    private static MetricsConfig fullMetricsFor(List<String> columnNames) {
+      Map<String, String> props = new HashMap<>();
+      props.put(TableProperties.DEFAULT_WRITE_METRICS_MODE, "none");
+      for (String columnName : columnNames) {
+        props.put(TableProperties.METRICS_MODE_COLUMN_CONF_PREFIX + columnName, "full");
+      }
+      return MetricsConfig.fromProperties(props);
+    }
+
+    private static boolean fullMetrics(Table table, List<String> metricsNames) {
       MetricsConfig config = MetricsConfig.forTable(table);
-      for (int sourceId : sourceIds) {
-        String name = table.schema().findColumnName(sourceId);
+      for (String name : metricsNames) {
         if (!(config.columnMode(name) instanceof MetricsModes.Full)) {
           return false;
         }

@@ -17,8 +17,10 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
@@ -54,6 +56,22 @@ final class ParquetFieldIds {
 
     ParquetMetadata footer() {
       return footer;
+    }
+
+    /**
+     * The file's dotted names for the given table field ids, skipping ids the file lacks. Iceberg
+     * looks metrics modes up by these names, which differ from the table's after a rename.
+     */
+    List<String> columnNames(List<Integer> fieldIds) {
+      Schema fileSchema = ParquetSchemaUtil.convertAndPrune(footer.getFileMetaData().getSchema());
+      List<String> names = new ArrayList<>();
+      for (int fieldId : fieldIds) {
+        @Nullable String name = fileSchema.findColumnName(fieldId);
+        if (name != null) {
+          names.add(name);
+        }
+      }
+      return names;
     }
   }
 

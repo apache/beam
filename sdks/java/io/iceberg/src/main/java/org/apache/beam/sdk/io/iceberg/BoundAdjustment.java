@@ -56,13 +56,13 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 /**
  * Iceberg collects bounds in the file column's unit and width, but readers decode them with the
  * table column's type: a millis or nanos timestamp under a micros column, or a millis or micros one
- * under a nanos column, would be off by a factor of 1000 or more, and an unsigned 32-bit int under
- * a long column throws when the int is cast to a long. Bounds are what partition inference and
- * query pruning read, so they are rewritten in the table column's unit: the affected INT32 columns
- * are presented to Iceberg without their annotation (so it computes plain int bounds instead of
- * throwing) and every affected bound is converted afterwards, or dropped when it does not fit the
- * table's unit. Value counts and null counts are unaffected. A uint32 column must stay below 2^31:
- * see {@link #checkUnsignedRange}.
+ * under a nanos column, would be off by a factor of 1000 or more, and Iceberg types an unsigned
+ * 32-bit int as a long, so collecting its int statistics throws. Bounds are what partition
+ * inference and query pruning read, so they are rewritten in the table column's unit: the affected
+ * INT32 columns are presented to Iceberg without their annotation (so it computes plain int bounds
+ * instead of throwing) and every affected bound is converted afterwards, or dropped when it does
+ * not fit the table's unit. Value counts and null counts are unaffected. A uint32 column must stay
+ * below 2^31: see {@link #checkUnsignedRange}.
  */
 enum BoundAdjustment {
   /** Millis stored under a micros type: times 1000. */
@@ -71,14 +71,22 @@ enum BoundAdjustment {
   MILLIS_TO_NANOS,
   /** Micros stored under a nanos type: times 1000. */
   MICROS_TO_NANOS,
-  /** Nanos stored under a micros type: divided by 1000, lower rounded down, upper rounded up. */
+  /**
+   * Nanos stored under a micros type: divided by 1000, rounded outward for pruning and down for
+   * partition inference.
+   */
   NANOS_TO_MICROS,
   /** Unsigned 32-bit int stored under a long. */
-  UINT32_TO_LONG;
+  UINT32_TO_LONG,
+  /** Unsigned 32-bit int stored under an int: the bounds already are ints. */
+  UINT32_TO_INT;
 
   static final String UNSIGNED_RANGE_ERROR =
       "Iceberg readers return unsigned 32-bit values of 2^31 or more as negative numbers, and"
           + " this column holds one: ";
+
+  static final String UNSIGNED_TYPE_ERROR =
+      "An unsigned 32-bit column can only be registered under an int or long column: ";
 
   /**
    * Iceberg's metrics for the file, with every bound in the table column's unit. Throws for a
@@ -89,6 +97,28 @@ enum BoundAdjustment {
       Schema tableSchema,
       MetricsConfig config,
       NameMapping mapping) {
+    return collect(resolved, tableSchema, config, mapping, true);
+  }
+
+  /**
+   * Bounds for partition inference: nanos are rounded down at both ends. A value's day, hour or
+   * identity partition is that of its floor in micros, while the upper bound pruning needs, rounded
+   * up, would put 23:59:59.999999999 in the next day.
+   */
+  static Metrics partitionMetrics(
+      ParquetFieldIds.Resolved resolved,
+      Schema tableSchema,
+      MetricsConfig config,
+      NameMapping mapping) {
+    return collect(resolved, tableSchema, config, mapping, false);
+  }
+
+  private static Metrics collect(
+      ParquetFieldIds.Resolved resolved,
+      Schema tableSchema,
+      MetricsConfig config,
+      NameMapping mapping,
+      boolean roundUpperUp) {
     ParquetMetadata footer = resolved.footer();
     Map<Integer, BoundAdjustment> adjustments =
         forSchema(footer.getFileMetaData().getSchema(), tableSchema);
@@ -99,7 +129,20 @@ enum BoundAdjustment {
     Metrics raw =
         ParquetUtil.footerMetrics(
             withNeutralTypes(footer, adjustments), Stream.empty(), config, mapping);
-    return apply(raw, adjustments);
+    return apply(raw, adjustments, roundUpperUp);
+  }
+
+  /** Whether any of the columns' stored bounds are rounded outward: nanos under a micros column. */
+  static boolean roundsBounds(
+      ParquetFieldIds.Resolved resolved, Schema tableSchema, List<Integer> fieldIds) {
+    Map<Integer, BoundAdjustment> adjustments =
+        forSchema(resolved.footer().getFileMetaData().getSchema(), tableSchema);
+    for (int fieldId : fieldIds) {
+      if (adjustments.get(fieldId) == NANOS_TO_MICROS) {
+        return true;
+      }
+    }
+    return false;
   }
 
   static Map<Integer, BoundAdjustment> forSchema(MessageType fileSchema, Schema tableSchema) {
@@ -115,6 +158,11 @@ enum BoundAdjustment {
         continue;
       }
       @Nullable BoundAdjustment adjustment = forPrimitive(primitive, tableType.typeId());
+      if (adjustment == null && isUnsigned32(primitive)) {
+        // Iceberg would cast the int statistics to the long it maps uint32 to, and throw.
+        throw new IllegalArgumentException(
+            UNSIGNED_TYPE_ERROR + String.join(".", column.getPath()) + " is " + tableType);
+      }
       if (adjustment != null) {
         adjustments.put(id.intValue(), adjustment);
       }
@@ -130,7 +178,7 @@ enum BoundAdjustment {
    *   <li>a millis or nanos timestamp under a micros timestamp column, or a millis or micros one
    *       under a nanos column;
    *   <li>a millis or nanos time under a time column;
-   *   <li>an unsigned 32-bit int under a long column.
+   *   <li>an unsigned 32-bit int under a long or int column.
    * </ul>
    *
    * <p>Null for anything else, including units that already match: those bounds stay as Iceberg
@@ -154,13 +202,24 @@ enum BoundAdjustment {
       }
       return toMicros(((TimeLogicalTypeAnnotation) annotation).getUnit());
     }
-    if (annotation instanceof IntLogicalTypeAnnotation) {
-      IntLogicalTypeAnnotation intType = (IntLogicalTypeAnnotation) annotation;
-      if (intType.getBitWidth() == 32 && !intType.isSigned() && tableType == TypeID.LONG) {
+    if (isUnsigned32(primitive)) {
+      if (tableType == TypeID.LONG) {
         return UINT32_TO_LONG;
+      }
+      if (tableType == TypeID.INTEGER) {
+        return UINT32_TO_INT;
       }
     }
     return null;
+  }
+
+  private static boolean isUnsigned32(PrimitiveType primitive) {
+    LogicalTypeAnnotation annotation = primitive.getLogicalTypeAnnotation();
+    if (!(annotation instanceof IntLogicalTypeAnnotation)) {
+      return false;
+    }
+    IntLogicalTypeAnnotation intType = (IntLogicalTypeAnnotation) annotation;
+    return intType.getBitWidth() == 32 && !intType.isSigned();
   }
 
   private static @Nullable BoundAdjustment toMicros(TimeUnit fileUnit) {
@@ -196,7 +255,11 @@ enum BoundAdjustment {
     Set<ColumnPath> unsigned = new HashSet<>();
     for (ColumnDescriptor column : footer.getFileMetaData().getSchema().getColumns()) {
       Type.ID id = column.getPrimitiveType().getId();
-      if (id != null && adjustments.get(id.intValue()) == UINT32_TO_LONG) {
+      if (id == null) {
+        continue;
+      }
+      @Nullable BoundAdjustment adjustment = adjustments.get(id.intValue());
+      if (adjustment == UINT32_TO_LONG || adjustment == UINT32_TO_INT) {
         unsigned.add(ColumnPath.get(column.getPath()));
       }
     }
@@ -266,7 +329,8 @@ enum BoundAdjustment {
     }
   }
 
-  static Metrics apply(Metrics metrics, Map<Integer, BoundAdjustment> adjustments) {
+  static Metrics apply(
+      Metrics metrics, Map<Integer, BoundAdjustment> adjustments, boolean roundUpperUp) {
     Map<Integer, ByteBuffer> lower = metrics.lowerBounds();
     Map<Integer, ByteBuffer> upper = metrics.upperBounds();
     if (lower == null || upper == null) {
@@ -279,19 +343,19 @@ enum BoundAdjustment {
         metrics.nullValueCounts(),
         metrics.nanValueCounts(),
         adjust(lower, adjustments, false),
-        adjust(upper, adjustments, true));
+        adjust(upper, adjustments, roundUpperUp));
   }
 
   private static Map<Integer, ByteBuffer> adjust(
-      Map<Integer, ByteBuffer> bounds, Map<Integer, BoundAdjustment> adjustments, boolean upper) {
+      Map<Integer, ByteBuffer> bounds, Map<Integer, BoundAdjustment> adjustments, boolean roundUp) {
     Map<Integer, ByteBuffer> adjusted = new HashMap<>(bounds);
     for (Map.Entry<Integer, BoundAdjustment> entry : adjustments.entrySet()) {
       ByteBuffer bytes = bounds.get(entry.getKey());
-      if (bytes == null) {
+      if (bytes == null || entry.getValue() == UINT32_TO_INT) {
         continue;
       }
       try {
-        long value = entry.getValue().convert(bytes, upper);
+        long value = entry.getValue().convert(bytes, roundUp);
         adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.LongType.get(), value));
       } catch (ArithmeticException e) {
         // Beyond the table unit's range (e.g. year 9999 in nanos): a missing bound is safe, a
@@ -302,7 +366,7 @@ enum BoundAdjustment {
     return adjusted;
   }
 
-  private long convert(ByteBuffer bytes, boolean upper) {
+  private long convert(ByteBuffer bytes, boolean roundUp) {
     ByteBuffer little = bytes.duplicate().order(ByteOrder.LITTLE_ENDIAN);
     switch (this) {
       case UINT32_TO_LONG:
@@ -315,7 +379,7 @@ enum BoundAdjustment {
         return Math.multiplyExact(readLong(little), 1000L);
       case NANOS_TO_MICROS:
         long nanos = little.getLong(little.position());
-        return upper ? -Math.floorDiv(-nanos, 1000L) : Math.floorDiv(nanos, 1000L);
+        return roundUp ? -Math.floorDiv(-nanos, 1000L) : Math.floorDiv(nanos, 1000L);
       default:
         throw new IllegalStateException(name());
     }

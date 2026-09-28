@@ -242,6 +242,20 @@ public class ParquetFieldIdsTest {
     assertEquals(Arrays.asList("Record(1, a)"), read(file, table.schema()));
   }
 
+  /** Iceberg looks metrics modes up by the file's name, which a rename does not change. */
+  @Test
+  public void testColumnNameIsTheFilesNameAfterARename() throws IOException {
+    Table table = table(ID_NAME);
+    table.updateSchema().renameColumn("name", "full_name").commit();
+    String file =
+        files.write(
+            "older.parquet", true, Arrays.asList(ID.withId(1), NAME.withId(2)), row(1, "a"));
+
+    ParquetFieldIds.Resolved resolved = resolve(file, table);
+
+    assertEquals(Arrays.asList("name"), resolved.columnNames(Arrays.asList(2, 3)));
+  }
+
   /** A name the mapping gives an id counts as that column's, like a name from a schema version. */
   @Test
   public void testNameTheMappingGivesTheIdKeepsIt() throws IOException {

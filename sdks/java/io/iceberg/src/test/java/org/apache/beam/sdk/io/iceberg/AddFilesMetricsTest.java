@@ -121,6 +121,10 @@ public class AddFilesMetricsTest {
           Types.NestedField.optional(3, "age", Types.IntegerType.get()));
   private static final Schema UNSIGNED_ONLY =
       new Schema(Types.NestedField.optional(1, "u", Types.LongType.get()));
+  private static final Schema ID_U_INT =
+      new Schema(
+          Types.NestedField.optional(1, "id", Types.IntegerType.get()),
+          Types.NestedField.optional(2, "u", Types.IntegerType.get()));
   private static final Schema ID_FLAG_UNSIGNED =
       new Schema(
           Types.NestedField.optional(1, "id", Types.IntegerType.get()),
@@ -536,5 +540,141 @@ public class AddFilesMetricsTest {
     pipeline.run().waitUntilFinish();
 
     assertEquals(true, onlyPartitionValue());
+  }
+
+  // ---- a partition column's name, type or unit in the file differs from the table's
+
+  /**
+   * Iceberg looks metrics modes up by the file's column name, and a file written before a rename
+   * still uses the old one, so the recollection must ask for full metrics under that name.
+   */
+  @Test
+  public void testFileWithoutIdsWrittenBeforeARenameLandsInItsPartitionUnderDefaultMetrics()
+      throws IOException {
+    Table table =
+        catalog.createTable(
+            tableId, ID_NAME, PartitionSpec.builderFor(ID_NAME).identity("name").build());
+    table
+        .updateProperties()
+        .set(
+            TableProperties.DEFAULT_NAME_MAPPING,
+            NameMappingParser.toJson(MappingUtil.create(table.schema())))
+        .commit();
+    table.updateSchema().renameColumn("name", "full_name").commit();
+    String file =
+        files.write(
+            "older.parquet", true, Arrays.asList(ID, NAME), row(1, "alice"), row(2, "alice"));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals("alice", String.valueOf(onlyPartitionValue()));
+  }
+
+  @Test
+  public void testFileWithIdsWrittenBeforeARenameLandsInItsPartitionUnderDefaultMetrics()
+      throws IOException {
+    Table table =
+        catalog.createTable(
+            tableId, ID_NAME, PartitionSpec.builderFor(ID_NAME).identity("name").build());
+    table.updateSchema().renameColumn("name", "full_name").commit();
+    String file =
+        files.write(
+            "older.parquet",
+            true,
+            Arrays.asList(ID.withId(1), NAME.withId(2)),
+            row(1, "alice"),
+            row(2, "alice"));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals("alice", String.valueOf(onlyPartitionValue()));
+  }
+
+  /**
+   * Full mode set under the column's new name does not reach a file written before the rename:
+   * Iceberg stores that file's bounds truncated, so they must not be reused for the partition.
+   */
+  @Test
+  public void testTruncatedBoundsOfARenamedColumnAreNotReusedForItsPartition() throws IOException {
+    Table table =
+        catalog.createTable(
+            tableId, ID_NAME, PartitionSpec.builderFor(ID_NAME).identity("name").build());
+    table.updateSchema().renameColumn("name", "full_name").commit();
+    table.updateProperties().set("write.metadata.metrics.column.full_name", "full").commit();
+    String value = "customer-00000000000001";
+    String file =
+        files.write(
+            "older.parquet",
+            true,
+            Arrays.asList(ID.withId(1), NAME.withId(2)),
+            row(1, value),
+            row(2, value));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(value, String.valueOf(onlyPartitionValue()));
+  }
+
+  /**
+   * With metrics off for the table, the partition column is only read by the recollection; a uint32
+   * file column under an int table column used to throw there and fail the pipeline.
+   */
+  @Test
+  public void testUnsigned32UnderAnIntPartitionColumnRegistersUnderMetricsModeNone()
+      throws IOException {
+    catalog.createTable(
+        tableId,
+        ID_U_INT,
+        PartitionSpec.builderFor(ID_U_INT).identity("u").build(),
+        ImmutableMap.of("write.metadata.metrics.default", "none"));
+    String file = files.write("u.parquet", true, Arrays.asList(ID, UNSIGNED), row(1, 7), row(2, 7));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(7, onlyPartitionValue());
+  }
+
+  /**
+   * Rounding the upper bound up, as pruning needs, would put 23:59:59.999999999 in the next day.
+   */
+  @Test
+  public void testNanosFileEndingInTheLastNanoOfADayLandsInThatDay() throws IOException {
+    catalog.createTable(
+        tableId, ID_TS, PartitionSpec.builderFor(ID_TS).day("ts").build(), FULL_METRICS);
+    long dayStartNanos = EPOCH_SECONDS * 1_000_000_000L;
+    String file =
+        files.write(
+            "nanos.parquet",
+            true,
+            Arrays.asList(ID, TS_NANOS),
+            row(1, dayStartNanos + 1_000_000_000L),
+            row(2, dayStartNanos + 86_400_000_000_000L - 1));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(EPOCH_DAY, onlyPartitionValue());
+  }
+
+  /** A micros column cannot hold the extra nanos: the partition is the value's micros, floored. */
+  @Test
+  public void testSubMicroNanosValueLandsInTheIdentityPartitionOfItsMicros() throws IOException {
+    catalog.createTable(
+        tableId, ID_TS, PartitionSpec.builderFor(ID_TS).identity("ts").build(), FULL_METRICS);
+    String file =
+        files.write(
+            "nanos.parquet",
+            true,
+            Arrays.asList(ID, TS_NANOS),
+            row(1, EPOCH_SECONDS * 1_000_000_000L + 1_500));
+
+    expectNoErrors(register(file));
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(EPOCH_SECONDS * 1_000_000L + 1, onlyPartitionValue());
   }
 }
