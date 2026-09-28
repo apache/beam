@@ -79,7 +79,7 @@ or side input) at runtime.</p></li><li><p>Rather than introduce multiple-output 
 themselves, producing multiple outputs is done by following with a new
 <code>Split</code> primitive that takes a
 <code>PCollection&lt;{a?: AType, b: BType, ... }></code> and produces an object
-<code>{a: PCollection&lt;AType>, b: PCollection&lt;BType>, ...}</code>.</p></li><li><p>JavaScript supports (and encourages) an asynchronous programing model, with
+<code>{a: PCollection&lt;AType>, b: PCollection&lt;BType>, ...}</code>.</p></li><li><p>JavaScript supports (and encourages) an asynchronous programming model, with
 many libraries requiring use of the async/await paradigm.
 As there is no way (by design) to go from the asynchronous style back to
 the synchronous style, this needs to be taken into account

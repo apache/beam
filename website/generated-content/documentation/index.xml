@@ -4908,7 +4908,7 @@ return (SnowflakeIO.UserDataMapper&amp;lt;Long&amp;gt;) recordLine -&amp;gt; new
 &lt;/p>
 &lt;h3 id="additional-write-options">Additional write options&lt;/h3>
 &lt;h4 id="transformation-query">Transformation query&lt;/h4>
-&lt;p>The &lt;code>.withQueryTransformation()&lt;/code> option for the &lt;code>write()&lt;/code> operation accepts a SQL query as a String value, which will be performed while transfering data staged in CSV files directly to the target Snowflake table. For information about the transformation SQL syntax, see the &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html#transformation-parameters">Snowflake Documentation&lt;/a>.&lt;/p>
+&lt;p>The &lt;code>.withQueryTransformation()&lt;/code> option for the &lt;code>write()&lt;/code> operation accepts a SQL query as a String value, which will be performed while transferring data staged in CSV files directly to the target Snowflake table. For information about the transformation SQL syntax, see the &lt;a href="https://docs.snowflake.net/manuals/sql-reference/sql/copy-into-table.html#transformation-parameters">Snowflake Documentation&lt;/a>.&lt;/p>
 &lt;p>Usage:
 &lt;div class="snippet">
 &lt;div class="notebook-skip code-snippet without_switcher">
