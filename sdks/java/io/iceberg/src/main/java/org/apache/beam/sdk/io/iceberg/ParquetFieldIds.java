@@ -21,9 +21,9 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.TreeMap;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
-import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.mapping.MappedField;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
@@ -65,39 +65,33 @@ final class ParquetFieldIds {
   }
 
   /**
-   * A file without ids gets the table's, by name. A file with ids keeps them when they agree with
-   * the table and is refused otherwise: no metrics or mapping written at registration can change
-   * how readers resolve it.
+   * A file without ids gets the table's through {@code mapping}, which must be the one readers will
+   * use ({@link NameMappingUtils#forReaders}). A file with ids keeps them when they agree with the
+   * table and is refused otherwise: no metrics or mapping written at registration can change how
+   * readers resolve it.
    */
-  static Resolved resolve(ParquetMetadata footer, Table table) {
-    return resolve(
-        footer,
-        table.schema(),
-        table.schemas().values(),
-        NameMappingUtils.parseOrNull(table.properties().get(TableProperties.DEFAULT_NAME_MAPPING)));
+  static Resolved resolve(ParquetMetadata footer, Table table, NameMapping mapping) {
+    return resolve(footer, table.schema(), table.schemas().values(), mapping);
   }
 
-  /** Resolves against one schema alone: no earlier versions and no stored name mapping. */
+  /** Resolves against one schema alone: no earlier versions, and a mapping made from it. */
+  @VisibleForTesting
   static Resolved resolve(ParquetMetadata footer, Schema schema) {
-    return resolve(footer, schema, Collections.singletonList(schema), null);
+    return resolve(footer, schema, Collections.singletonList(schema), MappingUtil.create(schema));
   }
 
   private static Resolved resolve(
-      ParquetMetadata footer,
-      Schema current,
-      Collection<Schema> versions,
-      @Nullable NameMapping stored) {
+      ParquetMetadata footer, Schema current, Collection<Schema> versions, NameMapping mapping) {
     MessageType fileType = footer.getFileMetaData().getSchema();
     if (!ParquetSchemaUtil.hasIds(fileType)) {
-      MessageType mapped =
-          ParquetSchemaUtil.applyNameMapping(fileType, MappingUtil.create(current));
+      MessageType mapped = ParquetSchemaUtil.applyNameMapping(fileType, mapping);
       FileMetaData meta = footer.getFileMetaData();
       return new Resolved(
           new ParquetMetadata(
               new FileMetaData(mapped, meta.getKeyValueMetaData(), meta.getCreatedBy()),
               footer.getBlocks()));
     }
-    @Nullable String conflict = conflict(fileType, current, versions, stored);
+    @Nullable String conflict = conflict(fileType, current, versions, mapping);
     if (conflict != null) {
       throw new ConflictException(conflict);
     }
@@ -105,16 +99,14 @@ final class ParquetFieldIds {
   }
 
   /**
-   * An id agrees when some version of the table's schema, or its name mapping, gives it the file
-   * column's name, so files written before a rename stay valid. An id the table has never used
-   * agrees too, unless the column's name belongs to a table column with another id, which readers
-   * would then read as null.
+   * An id agrees when some version of the table's schema, or the name mapping, gives it the file
+   * column's full path, so files written before a rename stay valid. Comparing only the last name
+   * would accept a shipping.city that carries billing.city's id, which readers find under neither.
+   * An id the table has never used agrees too, unless the column's path belongs to a table column
+   * with another id, which readers would then read as null.
    */
   private static @Nullable String conflict(
-      MessageType fileType,
-      Schema current,
-      Collection<Schema> versions,
-      @Nullable NameMapping stored) {
+      MessageType fileType, Schema current, Collection<Schema> versions, NameMapping mapping) {
     Schema fileSchema;
     try {
       fileSchema = ParquetSchemaUtil.convert(fileType);
@@ -124,10 +116,10 @@ final class ParquetFieldIds {
     Map<Integer, Types.NestedField> byId = new TreeMap<>(TypeUtil.indexById(fileSchema.asStruct()));
     for (Types.NestedField field : byId.values()) {
       int id = field.fieldId();
-      if (knownAs(versions, stored, id, field.name())) {
+      String path = fileSchema.findColumnName(id);
+      if (knownAs(versions, mapping, id, path)) {
         continue;
       }
-      String path = fileSchema.findColumnName(id);
       Types.@Nullable NestedField sameId = current.findField(id);
       if (sameId != null) {
         return "column "
@@ -152,18 +144,19 @@ final class ParquetFieldIds {
     return null;
   }
 
+  /** Paths are dotted full names, as both Iceberg schemas and name mappings index them. */
   private static boolean knownAs(
-      Collection<Schema> versions, @Nullable NameMapping stored, int id, String name) {
+      Collection<Schema> versions, NameMapping mapping, int id, String path) {
     for (Schema schema : versions) {
-      Types.@Nullable NestedField field = schema.findField(id);
-      if (field != null && field.name().equals(name)) {
+      if (path.equals(schema.findColumnName(id))) {
         return true;
       }
     }
-    if (stored == null) {
+    @Nullable MappedField mapped = mapping.find(path);
+    if (mapped == null) {
       return false;
     }
-    @Nullable MappedField mapped = stored.find(id);
-    return mapped != null && mapped.names().contains(name);
+    @Nullable Integer mappedId = mapped.id();
+    return mappedId != null && mappedId == id;
   }
 }

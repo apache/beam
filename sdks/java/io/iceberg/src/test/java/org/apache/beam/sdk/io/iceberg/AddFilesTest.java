@@ -838,16 +838,12 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
+      NameMapping mapping = MappingUtil.create(icebergSchema);
       ParquetFieldIds.Resolved footer =
-          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table);
+          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table, mapping);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file,
-              FileFormat.PARQUET,
-              metricsConfig,
-              MappingUtil.create(icebergSchema),
-              icebergSchema,
-              footer);
+              file, FileFormat.PARQUET, metricsConfig, mapping, icebergSchema, footer);
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
         Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
@@ -861,7 +857,8 @@ public class AddFilesTest {
         assertEquals(caze.expectedUpper.get(i), upper);
       }
 
-      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer).toPath();
+      String partitionPath =
+          getPartitionFromMetrics(metrics, file, table, mapping, footer).toPath();
       assertEquals(caze.expectedPartition, partitionPath);
     }
   }
@@ -910,16 +907,12 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
+      NameMapping mapping = MappingUtil.create(icebergSchema);
       ParquetFieldIds.Resolved footer =
-          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table);
+          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table, mapping);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file,
-              FileFormat.PARQUET,
-              metricsConfig,
-              MappingUtil.create(icebergSchema),
-              icebergSchema,
-              footer);
+              file, FileFormat.PARQUET, metricsConfig, mapping, icebergSchema, footer);
       // check that lower/upper stats are still fetched correctly
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
@@ -936,7 +929,7 @@ public class AddFilesTest {
 
       assertThrows(
           AddFiles.UnknownPartitionException.class,
-          () -> getPartitionFromMetrics(metrics, file, table, footer));
+          () -> getPartitionFromMetrics(metrics, file, table, mapping, footer));
     }
   }
 

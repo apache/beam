@@ -40,7 +40,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.RowCoder;
 import org.apache.beam.sdk.coders.VarIntCoder;
@@ -105,17 +104,10 @@ import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.orc.OrcMetrics;
 import org.apache.iceberg.parquet.ParquetSchemaUtil;
-import org.apache.iceberg.parquet.ParquetUtil;
 import org.apache.iceberg.transforms.Transform;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Type;
-import org.apache.iceberg.types.Types;
 import org.apache.parquet.column.ColumnDescriptor;
-import org.apache.parquet.column.statistics.Statistics;
-import org.apache.parquet.hadoop.metadata.BlockMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnChunkMetaData;
-import org.apache.parquet.hadoop.metadata.ColumnPath;
-import org.apache.parquet.hadoop.metadata.FileMetaData;
 import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.apache.parquet.schema.MessageType;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
@@ -694,10 +686,17 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           return errorResult(filePath, verdict.error, timestamp, window, paneInfo);
         }
 
+        // What readers resolve a file without field ids with, so its metrics and partition agree
+        // with what they read.
+        NameMapping mapping =
+            NameMappingUtils.forReaders(
+                table.schema(),
+                NameMappingUtils.parseOrNull(
+                    table.properties().get(TableProperties.DEFAULT_NAME_MAPPING)));
         ParquetFieldIds.@Nullable Resolved resolvedFooter = null;
         if (parquetFooter != null) {
           try {
-            resolvedFooter = ParquetFieldIds.resolve(parquetFooter, table);
+            resolvedFooter = ParquetFieldIds.resolve(parquetFooter, table, mapping);
           } catch (ParquetFieldIds.ConflictException e) {
             return errorResult(
                 filePath, FIELD_ID_ERROR + e.getMessage(), timestamp, window, paneInfo);
@@ -713,7 +712,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                   inputFile,
                   format,
                   MetricsConfig.forTable(table),
-                  MappingUtil.create(table.schema()),
+                  mapping,
                   table.schema(),
                   resolvedFooter);
         } catch (Exception e) {
@@ -732,7 +731,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
           try {
             // option 2: examine DataFile min/max statistics to determine partition
             partitionFromMetrics =
-                getPartitionFromMetrics(metrics, inputFile, table, resolvedFooter);
+                getPartitionFromMetrics(metrics, inputFile, table, mapping, resolvedFooter);
           } catch (UnknownPartitionException e) {
             return errorResult(
                 filePath, UNKNOWN_PARTITION_ERROR + e.getMessage(), timestamp, window, paneInfo);
@@ -973,6 +972,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
         Metrics metrics,
         InputFile inputFile,
         Table table,
+        NameMapping mapping,
         ParquetFieldIds.@Nullable Resolved footer)
         throws UnknownPartitionException {
       List<PartitionField> fields = table.spec().fields();
@@ -1009,7 +1009,7 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
                 inputFile,
                 inferFormat(inputFile.location()),
                 configWithPartitionFields,
-                MappingUtil.create(table.schema()),
+                mapping,
                 table.schema(),
                 footer);
       }
@@ -1118,19 +1118,14 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       if (footer == null) {
         return false;
       }
-      return !containsFieldId(footer.footer().getFileMetaData().getSchema(), fieldId);
-    }
-
-    private static boolean containsFieldId(org.apache.parquet.schema.GroupType group, int fieldId) {
-      for (org.apache.parquet.schema.Type field : group.getFields()) {
-        if (field.getId() != null && field.getId().intValue() == fieldId) {
-          return true;
-        }
-        if (!field.isPrimitive() && containsFieldId(field.asGroupType(), fieldId)) {
-          return true;
+      // A partition source is a leaf column, so the file's leaf columns are enough.
+      for (ColumnDescriptor column : footer.footer().getFileMetaData().getSchema().getColumns()) {
+        org.apache.parquet.schema.Type.ID id = column.getPrimitiveType().getId();
+        if (id != null && id.intValue() == fieldId) {
+          return false;
         }
       }
-      return false;
+      return true;
     }
   }
 
@@ -1228,7 +1223,8 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
     private static void ensureNameMappingPresent(Table table) {
       // Forces name-based resolution: zero-copy files typically don't carry
       // field ids, so any schema column missing from the mapping is unreadable
-      // in registered files.
+      // in registered files. Registration resolves files with
+      // NameMappingUtils.forReaders, which must agree with what this stores.
       @Nullable NameMapping existing =
           NameMappingUtils.parseOrNull(
               table.properties().get(TableProperties.DEFAULT_NAME_MAPPING));
@@ -1335,22 +1331,11 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       ParquetFieldIds.@Nullable Resolved parquetFooter) {
     switch (format) {
       case PARQUET:
-        ParquetMetadata footer =
-            checkStateNotNull(parquetFooter, "Parquet metrics require the resolved footer")
-                .footer();
-        Map<Integer, BoundAdjustment> adjustments =
-            BoundAdjustment.forSchema(footer.getFileMetaData().getSchema(), tableSchema);
-        BoundAdjustment.checkUnsignedRange(footer, adjustments);
-        if (adjustments.isEmpty()) {
-          return ParquetUtil.footerMetrics(footer, Stream.empty(), config, mapping);
-        }
-        Metrics raw =
-            ParquetUtil.footerMetrics(
-                BoundAdjustment.withNeutralTypes(footer, adjustments),
-                Stream.empty(),
-                config,
-                mapping);
-        return BoundAdjustment.apply(raw, adjustments);
+        return BoundAdjustment.footerMetrics(
+            checkStateNotNull(parquetFooter, "Parquet metrics require the resolved footer"),
+            tableSchema,
+            config,
+            mapping);
       case ORC:
         return OrcMetrics.fromInputFile(file, config, mapping);
       case AVRO:
@@ -1380,283 +1365,6 @@ public class AddFiles extends PTransform<PCollection<String>, PCollectionRowTupl
       return FileFormat.AVRO;
     } else {
       throw new UnknownFormatException();
-    }
-  }
-
-  /**
-   * Iceberg collects bounds in the file column's unit and width, but readers decode them with the
-   * table column's type: a millis or nanos timestamp under a micros column, or a millis or micros
-   * one under a nanos column, would be off by a factor of 1000 or more, and an unsigned 32-bit int
-   * under a long column throws when the int is cast to a long. Bounds are what partition inference
-   * and query pruning read, so they are rewritten in the table column's unit: the affected INT32
-   * columns are presented to Iceberg without their annotation (so it computes plain int bounds
-   * instead of throwing) and every affected bound is converted afterwards, or dropped when it does
-   * not fit the table's unit. Value counts and null counts are unaffected. A uint32 column must
-   * stay below 2^31: see {@link #checkUnsignedRange}.
-   */
-  enum BoundAdjustment {
-    /** Millis stored under a micros type: times 1000. */
-    MILLIS_TO_MICROS,
-    /** Millis stored under a nanos type: times 1,000,000. */
-    MILLIS_TO_NANOS,
-    /** Micros stored under a nanos type: times 1000. */
-    MICROS_TO_NANOS,
-    /** Nanos stored under a micros type: divided by 1000, lower rounded down, upper rounded up. */
-    NANOS_TO_MICROS,
-    /** Unsigned 32-bit int stored under a long. */
-    UINT32_TO_LONG;
-
-    static Map<Integer, BoundAdjustment> forSchema(
-        MessageType fileSchema, org.apache.iceberg.Schema tableSchema) {
-      Map<Integer, BoundAdjustment> adjustments = new HashMap<>();
-      for (ColumnDescriptor column : fileSchema.getColumns()) {
-        org.apache.parquet.schema.PrimitiveType primitive = column.getPrimitiveType();
-        org.apache.parquet.schema.Type.ID id = primitive.getId();
-        if (id == null) {
-          continue;
-        }
-        @Nullable Type tableType = tableSchema.findType(id.intValue());
-        if (tableType == null) {
-          continue;
-        }
-        @Nullable BoundAdjustment adjustment = forPrimitive(primitive, tableType);
-        if (adjustment != null) {
-          adjustments.put(id.intValue(), adjustment);
-        }
-      }
-      return adjustments;
-    }
-
-    /**
-     * The conversion that puts this file column's bounds into the table column's unit. There are
-     * three cases:
-     *
-     * <ul>
-     *   <li>a millis or nanos timestamp under a micros timestamp column, or a millis or micros one
-     *       under a nanos column;
-     *   <li>a millis or nanos time under a time column;
-     *   <li>an unsigned 32-bit int under a long column.
-     * </ul>
-     *
-     * <p>Null for anything else, including units that already match: those bounds stay as Iceberg
-     * computes them.
-     */
-    private static @Nullable BoundAdjustment forPrimitive(
-        org.apache.parquet.schema.PrimitiveType primitive, Type tableType) {
-      org.apache.parquet.schema.LogicalTypeAnnotation annotation =
-          primitive.getLogicalTypeAnnotation();
-      if (annotation
-          instanceof
-          org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation) {
-        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit fileUnit =
-            ((org.apache.parquet.schema.LogicalTypeAnnotation.TimestampLogicalTypeAnnotation)
-                    annotation)
-                .getUnit();
-        if (tableType.typeId() == Type.TypeID.TIMESTAMP) {
-          return toMicros(fileUnit);
-        }
-        if (tableType.typeId() == Type.TypeID.TIMESTAMP_NANO) {
-          return toNanos(fileUnit);
-        }
-        return null;
-      }
-      if (annotation
-          instanceof org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation) {
-        if (tableType.typeId() != Type.TypeID.TIME) {
-          return null;
-        }
-        return toMicros(
-            ((org.apache.parquet.schema.LogicalTypeAnnotation.TimeLogicalTypeAnnotation) annotation)
-                .getUnit());
-      }
-      if (annotation
-          instanceof org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation) {
-        org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation intType =
-            (org.apache.parquet.schema.LogicalTypeAnnotation.IntLogicalTypeAnnotation) annotation;
-        if (intType.getBitWidth() == 32
-            && !intType.isSigned()
-            && tableType.typeId() == Type.TypeID.LONG) {
-          return UINT32_TO_LONG;
-        }
-      }
-      return null;
-    }
-
-    private static @Nullable BoundAdjustment toMicros(
-        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit fileUnit) {
-      switch (fileUnit) {
-        case MILLIS:
-          return MILLIS_TO_MICROS;
-        case NANOS:
-          return NANOS_TO_MICROS;
-        default:
-          return null;
-      }
-    }
-
-    private static @Nullable BoundAdjustment toNanos(
-        org.apache.parquet.schema.LogicalTypeAnnotation.TimeUnit fileUnit) {
-      switch (fileUnit) {
-        case MILLIS:
-          return MILLIS_TO_NANOS;
-        case MICROS:
-          return MICROS_TO_NANOS;
-        default:
-          return null;
-      }
-    }
-
-    static final String UNSIGNED_RANGE_ERROR =
-        "Iceberg readers return unsigned 32-bit values of 2^31 or more as negative numbers, and"
-            + " this column holds one: ";
-
-    /**
-     * Refuses a file whose uint32 column holds a value of 2^31 or more. Iceberg readers return such
-     * a value as a negative number (3000000000 reads back as -1294967296), so the file would read
-     * back wrong whatever bounds are stored for it. Below 2^31 a value reads back unchanged, and
-     * the bounds Iceberg computes by comparing values as signed ints are correct.
-     */
-    static void checkUnsignedRange(
-        ParquetMetadata footer, Map<Integer, BoundAdjustment> adjustments) {
-      for (ColumnDescriptor column : footer.getFileMetaData().getSchema().getColumns()) {
-        org.apache.parquet.schema.Type.ID id = column.getPrimitiveType().getId();
-        if (id == null || adjustments.get(id.intValue()) != UINT32_TO_LONG) {
-          continue;
-        }
-        ColumnPath path = ColumnPath.get(column.getPath());
-        for (BlockMetaData block : footer.getBlocks()) {
-          for (ColumnChunkMetaData chunk : block.getColumns()) {
-            if (chunk.getPath().equals(path) && maxIsNegative(chunk.getStatistics())) {
-              throw new IllegalArgumentException(UNSIGNED_RANGE_ERROR + path.toDotString());
-            }
-          }
-        }
-      }
-    }
-
-    /** A uint32 max that is negative as a signed int is 2^31 or more. */
-    private static boolean maxIsNegative(@Nullable Statistics<?> stats) {
-      if (stats == null || !stats.hasNonNullValue()) {
-        return false;
-      }
-      Object max = stats.genericGetMax();
-      return max instanceof Integer && (Integer) max < 0;
-    }
-
-    /** The footer with annotations removed from adjusted INT32 columns. */
-    static ParquetMetadata withNeutralTypes(
-        ParquetMetadata footer, Map<Integer, BoundAdjustment> adjustments) {
-      MessageType neutral =
-          (MessageType)
-              footer.getFileMetaData().getSchema().convertWith(new WithoutAnnotations(adjustments));
-      FileMetaData meta = footer.getFileMetaData();
-      return new ParquetMetadata(
-          new FileMetaData(neutral, meta.getKeyValueMetaData(), meta.getCreatedBy()),
-          footer.getBlocks());
-    }
-
-    /** Rebuilds a schema with the annotation removed from each adjusted INT32 column. */
-    private static final class WithoutAnnotations
-        implements org.apache.parquet.schema.TypeConverter<org.apache.parquet.schema.Type> {
-      private final Map<Integer, BoundAdjustment> adjustments;
-
-      WithoutAnnotations(Map<Integer, BoundAdjustment> adjustments) {
-        this.adjustments = adjustments;
-      }
-
-      @Override
-      public org.apache.parquet.schema.Type convertPrimitiveType(
-          List<org.apache.parquet.schema.GroupType> path,
-          org.apache.parquet.schema.PrimitiveType primitive) {
-        org.apache.parquet.schema.Type.ID id = primitive.getId();
-        if (id == null
-            || !adjustments.containsKey(id.intValue())
-            || primitive.getPrimitiveTypeName()
-                != org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName.INT32) {
-          return primitive;
-        }
-        return org.apache.parquet.schema.Types.primitive(
-                primitive.getPrimitiveTypeName(), primitive.getRepetition())
-            .id(id.intValue())
-            .named(primitive.getName());
-      }
-
-      @Override
-      public org.apache.parquet.schema.Type convertGroupType(
-          List<org.apache.parquet.schema.GroupType> path,
-          org.apache.parquet.schema.GroupType group,
-          List<org.apache.parquet.schema.Type> children) {
-        return group.withNewFields(children);
-      }
-
-      @Override
-      public org.apache.parquet.schema.Type convertMessageType(
-          MessageType message, List<org.apache.parquet.schema.Type> children) {
-        return new MessageType(message.getName(), children);
-      }
-    }
-
-    static Metrics apply(Metrics metrics, Map<Integer, BoundAdjustment> adjustments) {
-      Map<Integer, ByteBuffer> lower = metrics.lowerBounds();
-      Map<Integer, ByteBuffer> upper = metrics.upperBounds();
-      if (lower == null || upper == null) {
-        return metrics;
-      }
-      return new Metrics(
-          metrics.recordCount(),
-          metrics.columnSizes(),
-          metrics.valueCounts(),
-          metrics.nullValueCounts(),
-          metrics.nanValueCounts(),
-          adjust(lower, adjustments, false),
-          adjust(upper, adjustments, true));
-    }
-
-    private static Map<Integer, ByteBuffer> adjust(
-        Map<Integer, ByteBuffer> bounds, Map<Integer, BoundAdjustment> adjustments, boolean upper) {
-      Map<Integer, ByteBuffer> adjusted = new HashMap<>(bounds);
-      for (Map.Entry<Integer, BoundAdjustment> entry : adjustments.entrySet()) {
-        ByteBuffer bytes = bounds.get(entry.getKey());
-        if (bytes == null) {
-          continue;
-        }
-        try {
-          long value = entry.getValue().convert(bytes, upper);
-          adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.LongType.get(), value));
-        } catch (ArithmeticException e) {
-          // Beyond the table unit's range (e.g. year 9999 in nanos): a missing bound is safe, a
-          // wrapped one is not.
-          adjusted.remove(entry.getKey());
-        }
-      }
-      return adjusted;
-    }
-
-    private long convert(ByteBuffer bytes, boolean upper) {
-      ByteBuffer little = bytes.duplicate().order(java.nio.ByteOrder.LITTLE_ENDIAN);
-      switch (this) {
-        case UINT32_TO_LONG:
-          return Integer.toUnsignedLong(little.getInt(little.position()));
-        case MILLIS_TO_MICROS:
-          return Math.multiplyExact(readLong(little), 1000L);
-        case MILLIS_TO_NANOS:
-          return Math.multiplyExact(readLong(little), 1_000_000L);
-        case MICROS_TO_NANOS:
-          return Math.multiplyExact(readLong(little), 1000L);
-        case NANOS_TO_MICROS:
-          long nanos = little.getLong(little.position());
-          return upper ? -Math.floorDiv(-nanos, 1000L) : Math.floorDiv(nanos, 1000L);
-        default:
-          throw new IllegalStateException(name());
-      }
-    }
-
-    /** A millis TIME bound has 4 bytes: its INT32 column is presented without the annotation. */
-    private static long readLong(ByteBuffer little) {
-      if (little.remaining() == 4) {
-        return little.getInt(little.position());
-      }
-      return little.getLong(little.position());
     }
   }
 
