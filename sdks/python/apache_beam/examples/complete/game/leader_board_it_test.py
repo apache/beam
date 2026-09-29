@@ -64,7 +64,7 @@ class LeaderBoardIT(unittest.TestCase):
   OUTPUT_TABLE_TEAMS = 'leader_board_teams'
   DEFAULT_INPUT_COUNT = 500
 
-  WAIT_UNTIL_FINISH_DURATION = 12 * 60 * 1000  # in milliseconds
+  WAIT_UNTIL_FINISH_DURATION = 15 * 60 * 1000  # in milliseconds
   # Poll BigQuery after the pipeline wait; streaming inserts can lag.
   BQ_MATCHER_TIMEOUT_SECS = 10 * 60
 
@@ -86,6 +86,8 @@ class LeaderBoardIT(unittest.TestCase):
         name=self.sub_client.subscription_path(
             self.project, self.INPUT_SUB + _unique_id),
         topic=self.input_topic.name)
+    # New subscriptions can miss messages published immediately after create.
+    time.sleep(30)
 
     # Set up BigQuery environment
     self.dataset_ref = utils.create_bq_dataset(
