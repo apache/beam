@@ -134,308 +134,35 @@ except ImportError:
 # -----------------------------------------------------------------------------
 
 
-class _DatasetReferenceCompat(object):
-  """Compatibility model for BigQuery DatasetReference when google-cloud-bigquery is unavailable.
-
-  Supports both camelCase (projectId, datasetId) and snake_case (project, dataset_id, project_id).
-  """
-  def __init__(
-      self,
-      project=None,
-      dataset_id=None,
-      projectId=None,
-      datasetId=None,
-      project_id=None):
-    p = (
-        projectId if projectId is not None else
-        (project_id if project_id is not None else project))
-    d = datasetId if datasetId is not None else dataset_id
-    self._project = p or ''
-    self._dataset_id = d or ''
-
-  @classmethod
-  def from_string(cls, dataset_ref, default_project=None):
-    last_sep = max(dataset_ref.rfind('.'), dataset_ref.rfind(':'))
-    if last_sep != -1:
-      p = dataset_ref[:last_sep]
-      d = dataset_ref[last_sep + 1:]
-    else:
-      p = default_project or 'default'
-      d = dataset_ref
-    return cls(project=p, dataset_id=d)
-
-  @property
-  def projectId(self):
-    return self._project
-
-  @projectId.setter
-  def projectId(self, val):
-    self._project = val
-
-  @property
-  def project(self):
-    return self._project
-
-  @project.setter
-  def project(self, val):
-    self._project = val
-
-  @property
-  def project_id(self):
-    return self._project
-
-  @project_id.setter
-  def project_id(self, val):
-    self._project = val
-
-  @property
-  def datasetId(self):
-    return self._dataset_id
-
-  @datasetId.setter
-  def datasetId(self, val):
-    self._dataset_id = val
-
-  @property
-  def dataset_id(self):
-    return self._dataset_id
-
-  @dataset_id.setter
-  def dataset_id(self, val):
-    self._dataset_id = val
-
-  def __repr__(self):
-    return f"DatasetReference('{self.project}', '{self.dataset_id}')"
-
-  def __eq__(self, other):
-    if other is None:
-      return False
-    if not hasattr(other, 'project') and not hasattr(other, 'projectId'):
-      return NotImplemented
-    other_p = getattr(other, 'projectId', None) or getattr(
-        other, 'project', None)
-    other_d = getattr(other, 'datasetId', None) or getattr(
-        other, 'dataset_id', None)
-    return (self.projectId, self.datasetId) == (other_p, other_d)
-
-  def __hash__(self):
-    return hash((self.projectId, self.datasetId))
-
-
-class _TableReferenceCompat(object):
-  """Compatibility model for BigQuery TableReference when google-cloud-bigquery is unavailable.
-
-  Supports both camelCase (projectId, datasetId, tableId) and snake_case
-  (project, dataset_id, table_id, project_id).
-  """
-  def __init__(
-      self,
-      dataset_ref=None,
-      table_id=None,
-      projectId=None,
-      datasetId=None,
-      tableId=None,
-      project=None,
-      dataset_id=None,
-      project_id=None):
-    p = (
-        projectId if projectId is not None else
-        (project_id if project_id is not None else project))
-    d = datasetId if datasetId is not None else dataset_id
-    t = tableId if tableId is not None else table_id
-    if p is not None or d is not None or t is not None:
-      self._project = p
-      self._dataset_id = d
-      self._table_id = t
-    elif dataset_ref is not None:
-      self._project = getattr(dataset_ref, 'projectId', None) or getattr(
-          dataset_ref, 'project', None)
-      self._dataset_id = getattr(dataset_ref, 'datasetId', None) or getattr(
-          dataset_ref, 'dataset_id', None)
-      self._table_id = table_id or ''
-    else:
-      self._project = None
-      self._dataset_id = None
-      self._table_id = None
-
-  @classmethod
-  def from_string(cls, table_ref, default_project=None):
-    parsed = parse_table_reference(table_ref, project=default_project)
-    return cls(
-        projectId=parsed.projectId,
-        datasetId=parsed.datasetId,
-        tableId=parsed.tableId)
-
-  @property
-  def projectId(self):
-    return self._project
-
-  @projectId.setter
-  def projectId(self, val):
-    self._project = val
-
-  @property
-  def project(self):
-    return self._project
-
-  @project.setter
-  def project(self, val):
-    self._project = val
-
-  @property
-  def project_id(self):
-    return self._project
-
-  @project_id.setter
-  def project_id(self, val):
-    self._project = val
-
-  @property
-  def datasetId(self):
-    return self._dataset_id
-
-  @datasetId.setter
-  def datasetId(self, val):
-    self._dataset_id = val
-
-  @property
-  def dataset_id(self):
-    return self._dataset_id
-
-  @dataset_id.setter
-  def dataset_id(self, val):
-    self._dataset_id = val
-
-  @property
-  def tableId(self):
-    return self._table_id
-
-  @tableId.setter
-  def tableId(self, val):
-    self._table_id = val
-
-  @property
-  def table_id(self):
-    return self._table_id
-
-  @table_id.setter
-  def table_id(self, val):
-    self._table_id = val
-
-  @property
-  def dataset_reference(self):
-    return _DatasetReferenceCompat(
-        projectId=self.projectId, datasetId=self.datasetId)
-
-  @property
-  def datasetReference(self):
-    return self.dataset_reference
-
-  def __repr__(self):
-    return (
-        f"TableReference(projectId='{self.projectId}', "
-        f"datasetId='{self.datasetId}', tableId='{self.tableId}')")
-
-  def __eq__(self, other):
-    if other is None:
-      return False
-    if not hasattr(other, 'tableId') and not hasattr(other, 'table_id'):
-      return NotImplemented
-    other_p = getattr(other, 'projectId', None) or getattr(
-        other, 'project', None)
-    other_d = getattr(other, 'datasetId', None) or getattr(
-        other, 'dataset_id', None)
-    other_t = getattr(other, 'tableId', None) or getattr(
-        other, 'table_id', None)
-    return (self.projectId, self.datasetId,
-            self.tableId) == (other_p, other_d, other_t)
-
-  def __hash__(self):
-    return hash((self.projectId, self.datasetId, self.tableId))
-
-
-class _TableFieldSchemaCompat(object):
-  def __init__(
-      self,
-      name='',
-      type='STRING',
-      mode='NULLABLE',
-      description=None,
-      fields=(),
-      field_type=None,
-      **kwargs):
-    ft = type or field_type or 'STRING'
-    self.name = name
-    self.field_type = ft
-    self.mode = mode or 'NULLABLE'
-    self.description = description
-    self.fields = list(fields) if fields else []
-
-  @property
-  def type(self):
-    return self.field_type
-
-  @type.setter
-  def type(self, val):
-    self.field_type = val
-
-
-class _TableSchemaCompat(list):
-  def __init__(self, fields=None):
-    if fields:
-      super().__init__(fields)
-    else:
-      super().__init__()
-
-  @property
-  def fields(self):
-    return self
-
-  @fields.setter
-  def fields(self, value):
-    self.clear()
-    if value:
-      self.extend(value)
-
-
-class _TableCellCompat(object):
-  def __init__(self, v=None):
-    self.v = v
-
-
-class _TableRowCompat(object):
-  def __init__(self, f=None):
-    self.f = f or []
-
-
-if bigquery is not None and hasattr(bigquery, 'TableReference'):
-  TableReference = bigquery.TableReference
-  DatasetReference = getattr(
-      bigquery, 'DatasetReference', None) or _DatasetReferenceCompat
-  TableFieldSchema = bigquery.TableFieldSchema
-  TableSchema = bigquery.TableSchema
-  TableRow = getattr(bigquery, 'TableRow', None) or _TableRowCompat
-  TableCell = getattr(bigquery, 'TableCell', None) or _TableCellCompat
-  Table = getattr(bigquery, 'Table', None)
-  Dataset = getattr(bigquery, 'Dataset', None)
-  Job = getattr(bigquery, 'Job', None)
-  JobConfiguration = getattr(bigquery, 'JobConfiguration', None)
-  JobConfigurationLoad = getattr(bigquery, 'JobConfigurationLoad', None)
-  JobConfigurationQuery = getattr(bigquery, 'JobConfigurationQuery', None)
-  JobConfigurationExtract = getattr(bigquery, 'JobConfigurationExtract', None)
+# Check if an underlying type is available from the apitools client.
+if apitools_bigquery is not None and hasattr(apitools_bigquery,
+                                             'TableReference'):
+  TableReference = apitools_bigquery.TableReference
+  DatasetReference = getattr(apitools_bigquery, 'DatasetReference', None)
+  TableFieldSchema = apitools_bigquery.TableFieldSchema
+  TableSchema = apitools_bigquery.TableSchema
+  TableRow = getattr(apitools_bigquery, 'TableRow', None)
+  TableCell = getattr(apitools_bigquery, 'TableCell', None)
+  Table = getattr(apitools_bigquery, 'Table', None)
+  Dataset = getattr(apitools_bigquery, 'Dataset', None)
+  Job = getattr(apitools_bigquery, 'Job', None)
+  JobConfiguration = getattr(apitools_bigquery, 'JobConfiguration', None)
+  JobConfigurationLoad = getattr(apitools_bigquery, 'JobConfigurationLoad', None)
+  JobConfigurationQuery = getattr(apitools_bigquery, 'JobConfigurationQuery', None)
+  JobConfigurationExtract = getattr(apitools_bigquery, 'JobConfigurationExtract', None)
   JobConfigurationTableCopy = getattr(
-      bigquery, 'JobConfigurationTableCopy', None)
-  JobStatistics = getattr(bigquery, 'JobStatistics', None)
-  JobStatistics2 = getattr(bigquery, 'JobStatistics2', None)
-  JobStatistics4 = getattr(bigquery, 'JobStatistics4', None)
-  ErrorProto = getattr(bigquery, 'ErrorProto', None)
+      apitools_bigquery, 'JobConfigurationTableCopy', None)
+  JobStatistics = getattr(apitools_bigquery, 'JobStatistics', None)
+  JobStatistics2 = getattr(apitools_bigquery, 'JobStatistics2', None)
+  JobStatistics4 = getattr(apitools_bigquery, 'JobStatistics4', None)
+  ErrorProto = getattr(apitools_bigquery, 'ErrorProto', None)
 else:
-  TableReference = _TableReferenceCompat
-  DatasetReference = _DatasetReferenceCompat
-  TableFieldSchema = _TableFieldSchemaCompat
-  TableSchema = _TableSchemaCompat
-  TableRow = _TableRowCompat
-  TableCell = _TableCellCompat
+  TableReference = None
+  DatasetReference = None
+  TableFieldSchema = None
+  TableSchema = None
+  TableRow = None
+  TableCell = None
   Table = None
   Dataset = None
   Job = None
@@ -451,11 +178,7 @@ else:
 
 
 class JobReference(object):
-  """Compatibility model for BigQuery JobReference.
-
-  Supports both camelCase (jobId, projectId) and snake_case (job_id, project, project_id)
-  initialization and attribute access.
-  """
+  """Container for BigQuery job identification (jobId, projectId, location)."""
   def __init__(
       self,
       jobId=None,
@@ -501,21 +224,12 @@ class JobReference(object):
       return (
           self.jobId == other.jobId and self.projectId == other.projectId and
           self.location == other.location)
-    if apitools_bigquery and hasattr(apitools_bigquery,
-                                     'JobReference') and isinstance(
-                                         other, apitools_bigquery.JobReference):
-      return (
-          self.jobId == getattr(other, 'jobId', None) and
-          self.projectId == getattr(other, 'projectId', None) and
-          self.location == getattr(other, 'location', None))
-    if hasattr(other, 'job_id') or hasattr(other, 'jobId'):
-      other_j = getattr(other, 'jobId', None) or getattr(other, 'job_id', None)
-      other_p = getattr(other, 'projectId', None) or getattr(
-          other, 'project', None)
-      other_l = getattr(other, 'location', None)
-      return (self.jobId, self.projectId,
-              self.location) == (other_j, other_p, other_l)
-    return NotImplemented
+    other_j = getattr(other, 'jobId', None) or getattr(other, 'job_id', None)
+    other_p = getattr(other, 'projectId', None) or getattr(
+        other, 'project', None)
+    other_l = getattr(other, 'location', None)
+    return (self.jobId, self.projectId,
+            self.location) == (other_j, other_p, other_l)
 
   def __hash__(self):
     return hash((self.jobId, self.projectId, self.location))
@@ -525,51 +239,6 @@ class JobReference(object):
         f"JobReference(jobId={self.jobId!r}, "
         f"projectId={self.projectId!r}, "
         f"location={self.location!r})")
-
-
-try:
-  from apitools.base.protorpclite import messages as _protorpclite_messages
-  if _protorpclite_messages is not None and hasattr(_protorpclite_messages,
-                                                    'Message'):
-    _orig_message_eq = _protorpclite_messages.Message.__eq__
-
-    def _message_compat_eq(self, other):
-      if isinstance(other, JobReference) and apitools_bigquery and hasattr(
-          apitools_bigquery, 'JobReference') and isinstance(
-              self, apitools_bigquery.JobReference):
-        return (
-            getattr(self, 'jobId', None) == other.jobId and
-            getattr(self, 'projectId', None) == other.projectId and
-            getattr(self, 'location', None) == other.location)
-      if isinstance(other, TableReference) and apitools_bigquery and hasattr(
-          apitools_bigquery, 'TableReference') and isinstance(
-              self, apitools_bigquery.TableReference):
-        return (
-            getattr(self, 'projectId', None) == other.projectId and
-            getattr(self, 'datasetId', None) == other.datasetId and
-            getattr(self, 'tableId', None) == other.tableId)
-      if isinstance(other, DatasetReference) and apitools_bigquery and hasattr(
-          apitools_bigquery, 'DatasetReference') and isinstance(
-              self, apitools_bigquery.DatasetReference):
-        return (
-            getattr(self, 'projectId', None) == other.projectId and
-            getattr(self, 'datasetId', None) == other.datasetId)
-      return _orig_message_eq(self, other)
-
-    _protorpclite_messages.Message.__eq__ = _message_compat_eq
-except ImportError:
-  _protorpclite_messages = None
-
-
-def _set_table_ref_prop(ref, prop, val):
-  if hasattr(ref, '_properties') and isinstance(ref._properties, dict):
-    ref._properties[prop] = val
-  if prop == 'projectId':
-    setattr(ref, '_project', val)
-  elif prop == 'datasetId':
-    setattr(ref, '_dataset_id', val)
-  elif prop == 'tableId':
-    setattr(ref, '_table_id', val)
 
 
 def _extract_field(obj, *field_names):
@@ -585,20 +254,6 @@ def _extract_field(obj, *field_names):
       if val is not None and not hasattr(val, '_mock_methods'):
         return val
   return None
-
-
-class _ClusteringCompat(dict):
-  def __init__(self, fields=None):
-    fields_list = list(fields) if fields else []
-    super().__init__(fields=fields_list)
-
-  @property
-  def fields(self):
-    return self.get('fields', [])
-
-  @fields.setter
-  def fields(self, val):
-    self['fields'] = list(val) if val else []
 
 
 def _to_gcp_time_partitioning(tp):
@@ -676,373 +331,6 @@ def _to_gcp_clustering_fields(clustering):
   return None
 
 
-# Monkey-patch gcp_bigquery classes to ensure full backward compatibility
-if gcp_bigquery:
-  if not hasattr(gcp_bigquery.TableReference, 'projectId'):
-    gcp_bigquery.TableReference.projectId = property(
-        lambda self: self.project,
-        lambda self, val: _set_table_ref_prop(self, 'projectId', val))
-    gcp_bigquery.TableReference.datasetId = property(
-        lambda self: self.dataset_id,
-        lambda self, val: _set_table_ref_prop(self, 'datasetId', val))
-    gcp_bigquery.TableReference.tableId = property(
-        lambda self: self.table_id,
-        lambda self, val: _set_table_ref_prop(self, 'tableId', val))
-
-  if not hasattr(gcp_bigquery.DatasetReference, 'projectId'):
-    gcp_bigquery.DatasetReference.projectId = property(
-        lambda self: self.project,
-        lambda self, val: setattr(self, '_project', val))
-    gcp_bigquery.DatasetReference.datasetId = property(
-        lambda self: self.dataset_id,
-        lambda self, val: setattr(self, '_dataset_id', val))
-
-  if not hasattr(gcp_bigquery.SchemaField, 'type'):
-    gcp_bigquery.SchemaField.type = property(
-        lambda self: self.field_type,
-        lambda self, val: setattr(self, '_field_type', val))
-
-  if not hasattr(gcp_bigquery.Table, 'tableReference'):
-    gcp_bigquery.Table.tableReference = property(lambda self: self.reference)
-    gcp_bigquery.Table.numRows = property(lambda self: self.num_rows)
-    gcp_bigquery.Table.numBytes = property(lambda self: self.num_bytes)
-    gcp_bigquery.Table.timePartitioning = property(
-        lambda self: self.time_partitioning,
-        lambda self, val: setattr(
-            self, 'time_partitioning', _to_gcp_time_partitioning(val)))
-    gcp_bigquery.Table.rangePartitioning = property(
-        lambda self: self.range_partitioning,
-        lambda self, val: setattr(
-            self, 'range_partitioning', _to_gcp_range_partitioning(val)))
-
-  if hasattr(gcp_bigquery.Table, 'time_partitioning'):
-    orig_tp_setter = gcp_bigquery.Table.time_partitioning.fset
-    if orig_tp_setter is not None:
-      gcp_bigquery.Table.time_partitioning = property(
-          gcp_bigquery.Table.time_partitioning.fget,
-          lambda self, val: orig_tp_setter(self, _to_gcp_time_partitioning(val))
-      )
-
-  if hasattr(gcp_bigquery.Table, 'range_partitioning'):
-    orig_rp_setter = gcp_bigquery.Table.range_partitioning.fset
-    if orig_rp_setter is not None:
-      gcp_bigquery.Table.range_partitioning = property(
-          gcp_bigquery.Table.range_partitioning.fget,
-          lambda self, val: orig_rp_setter(
-              self, _to_gcp_range_partitioning(val)))
-
-  if not hasattr(gcp_bigquery.Table, 'clustering'):
-    gcp_bigquery.Table.clustering = property(
-        lambda self: _ClusteringCompat(self.clustering_fields)
-        if self.clustering_fields else None,
-        lambda self, val: setattr(
-            self, 'clustering_fields', _to_gcp_clustering_fields(val)))
-
-  if hasattr(gcp_bigquery.Table, 'clustering_fields'):
-    orig_cf_setter = gcp_bigquery.Table.clustering_fields.fset
-    if orig_cf_setter is not None:
-      gcp_bigquery.Table.clustering_fields = property(
-          gcp_bigquery.Table.clustering_fields.fget,
-          lambda self, val: orig_cf_setter(self, _to_gcp_clustering_fields(val))
-      )
-
-  if hasattr(gcp_bigquery, 'TimePartitioning'):
-    if not hasattr(gcp_bigquery.TimePartitioning, 'type'):
-      gcp_bigquery.TimePartitioning.type = property(
-          lambda self: self.type_,
-          lambda self, val: setattr(self, 'type_', val))
-    if not hasattr(gcp_bigquery.TimePartitioning, 'expirationMs'):
-      gcp_bigquery.TimePartitioning.expirationMs = property(
-          lambda self: self.expiration_ms,
-          lambda self, val: setattr(self, 'expiration_ms', val))
-    if not hasattr(gcp_bigquery.TimePartitioning, 'requirePartitionFilter'):
-      gcp_bigquery.TimePartitioning.requirePartitionFilter = property(
-          lambda self: self.require_partition_filter,
-          lambda self, val: setattr(self, 'require_partition_filter', val))
-
-  if hasattr(gcp_bigquery, 'RangePartitioning'):
-    if not hasattr(gcp_bigquery.RangePartitioning, 'range'):
-      gcp_bigquery.RangePartitioning.range = property(
-          lambda self: self.range_,
-          lambda self, val: setattr(self, 'range_', val))
-
-  if not hasattr(gcp_bigquery.Dataset, 'datasetReference'):
-    gcp_bigquery.Dataset.datasetReference = property(
-        lambda self: self.reference)
-    gcp_bigquery.Dataset.defaultTableExpirationMs = property(
-        lambda self: self.default_table_expiration_ms,
-        lambda self, val: setattr(self, 'default_table_expiration_ms', val))
-
-  if hasattr(gcp_bigquery, 'LoadJobConfig'):
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'schemaUpdateOptions'):
-      gcp_bigquery.LoadJobConfig.schemaUpdateOptions = property(
-          lambda self: self.schema_update_options,
-          lambda self, val: setattr(self, 'schema_update_options', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'ignoreUnknownValues'):
-      gcp_bigquery.LoadJobConfig.ignoreUnknownValues = property(
-          lambda self: self.ignore_unknown_values,
-          lambda self, val: setattr(self, 'ignore_unknown_values', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'maxBadRecords'):
-      gcp_bigquery.LoadJobConfig.maxBadRecords = property(
-          lambda self: self.max_bad_records,
-          lambda self, val: setattr(self, 'max_bad_records', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'nullMarker'):
-      gcp_bigquery.LoadJobConfig.nullMarker = property(
-          lambda self: self.null_marker,
-          lambda self, val: setattr(self, 'null_marker', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'fieldDelimiter'):
-      gcp_bigquery.LoadJobConfig.fieldDelimiter = property(
-          lambda self: self.field_delimiter,
-          lambda self, val: setattr(self, 'field_delimiter', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'skipLeadingRows'):
-      gcp_bigquery.LoadJobConfig.skipLeadingRows = property(
-          lambda self: self.skip_leading_rows,
-          lambda self, val: setattr(self, 'skip_leading_rows', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'allowJaggedRows'):
-      gcp_bigquery.LoadJobConfig.allowJaggedRows = property(
-          lambda self: self.allow_jagged_rows,
-          lambda self, val: setattr(self, 'allow_jagged_rows', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'allowQuotedNewlines'):
-      gcp_bigquery.LoadJobConfig.allowQuotedNewlines = property(
-          lambda self: self.allow_quoted_newlines,
-          lambda self, val: setattr(self, 'allow_quoted_newlines', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'decimalTargetTypes'):
-      gcp_bigquery.LoadJobConfig.decimalTargetTypes = property(
-          lambda self: self.decimal_target_types,
-          lambda self, val: setattr(self, 'decimal_target_types', val))
-    if not hasattr(gcp_bigquery.LoadJobConfig, 'useAvroLogicalTypes'):
-      gcp_bigquery.LoadJobConfig.useAvroLogicalTypes = property(
-          lambda self: self.use_avro_logical_types,
-          lambda self, val: setattr(self, 'use_avro_logical_types', val))
-
-  if hasattr(gcp_bigquery, 'QueryJobConfig'):
-    if not hasattr(gcp_bigquery.QueryJobConfig, 'schemaUpdateOptions'):
-      gcp_bigquery.QueryJobConfig.schemaUpdateOptions = property(
-          lambda self: self.schema_update_options,
-          lambda self, val: setattr(self, 'schema_update_options', val))
-    if not hasattr(gcp_bigquery.QueryJobConfig, 'useLegacySql'):
-      gcp_bigquery.QueryJobConfig.useLegacySql = property(
-          lambda self: self.use_legacy_sql,
-          lambda self, val: setattr(self, 'use_legacy_sql', val))
-    if not hasattr(gcp_bigquery.QueryJobConfig, 'flattenResults'):
-      gcp_bigquery.QueryJobConfig.flattenResults = property(
-          lambda self: self.flatten_results,
-          lambda self, val: setattr(self, 'flatten_results', val))
-    if not hasattr(gcp_bigquery.QueryJobConfig, 'allowLargeResults'):
-      gcp_bigquery.QueryJobConfig.allowLargeResults = property(
-          lambda self: self.allow_large_results,
-          lambda self, val: setattr(self, 'allow_large_results', val))
-    if not hasattr(gcp_bigquery.QueryJobConfig, 'maximumBytesBilled'):
-      gcp_bigquery.QueryJobConfig.maximumBytesBilled = property(
-          lambda self: self.maximum_bytes_billed,
-          lambda self, val: setattr(self, 'maximum_bytes_billed', val))
-
-  if hasattr(gcp_bigquery, 'Table') and hasattr(gcp_bigquery.Table, 'labels'):
-    _orig_tbl_labels_setter = gcp_bigquery.Table.labels.fset
-    if _orig_tbl_labels_setter:
-
-      def _safe_tbl_labels_setter(self, value):
-        if value is None:
-          value = {}
-        elif not isinstance(value, dict) and hasattr(value,
-                                                     'additionalProperties'):
-          from apitools.base.py import encoding
-          value = encoding.MessageToDict(value)
-        _orig_tbl_labels_setter(self, value)
-
-      gcp_bigquery.Table.labels = gcp_bigquery.Table.labels.setter(
-          _safe_tbl_labels_setter)
-
-  if hasattr(gcp_bigquery, 'Dataset') and hasattr(gcp_bigquery.Dataset,
-                                                  'labels'):
-    _orig_ds_labels_setter = gcp_bigquery.Dataset.labels.fset
-    if _orig_ds_labels_setter:
-
-      def _safe_ds_labels_setter(self, value):
-        if value is None:
-          value = {}
-        elif not isinstance(value, dict) and hasattr(value,
-                                                     'additionalProperties'):
-          from apitools.base.py import encoding
-          value = encoding.MessageToDict(value)
-        _orig_ds_labels_setter(self, value)
-
-      gcp_bigquery.Dataset.labels = gcp_bigquery.Dataset.labels.setter(
-          _safe_ds_labels_setter)
-
-  try:
-    from google.cloud.bigquery.job.base import _JobConfig as _GcpJobConfig
-    if hasattr(_GcpJobConfig, 'labels') and hasattr(_GcpJobConfig.labels,
-                                                    'fset'):
-      _orig_job_labels_setter = _GcpJobConfig.labels.fset
-      if _orig_job_labels_setter:
-
-        def _safe_job_labels_setter(self, value):
-          if value is None:
-            value = {}
-          elif not isinstance(value, dict) and hasattr(value,
-                                                       'additionalProperties'):
-            from apitools.base.py import encoding
-            value = encoding.MessageToDict(value)
-          _orig_job_labels_setter(self, value)
-
-        _GcpJobConfig.labels = _GcpJobConfig.labels.setter(
-            _safe_job_labels_setter)
-  except ImportError:
-    pass
-
-  class _JobStatusCompat:
-    def __init__(self, job):
-      self._job = job
-
-    @property
-    def state(self):
-      return self._job.state
-
-    @property
-    def errorResult(self):
-      return self._job.error_result
-
-    @property
-    def errors(self):
-      return self._job.errors
-
-  class _JobStatsCompat:
-    def __init__(self, job):
-      self._job = job
-
-    @property
-    def query(self):
-      return self
-
-    @property
-    def totalBytesBilled(self):
-      return getattr(self._job, 'total_bytes_billed', None)
-
-    @property
-    def totalBytesProcessed(self):
-      return getattr(self._job, 'total_bytes_processed', None)
-
-    @property
-    def referencedTables(self):
-      tables = getattr(self._job, 'referenced_tables', None)
-      if tables is not None:
-        return [
-            TableReference(
-                projectId=t.project,
-                datasetId=t.dataset_id,
-                tableId=t.table_id) for t in tables
-        ]
-      return None
-
-  class _ClientTablesCompat:
-    def __init__(self, client):
-      self._client = client
-
-    def Get(self, request):
-      proj = getattr(request, 'projectId', None)
-      ds_id = getattr(request, 'datasetId', None)
-      tbl_id = getattr(request, 'tableId', None)
-      if ds_id and tbl_id:
-        table_ref = gcp_bigquery.TableReference(
-            gcp_bigquery.DatasetReference(
-                proj or getattr(self._client, 'project', None) or 'default',
-                ds_id),
-            tbl_id)
-      else:
-        t_ref = getattr(request, 'tableReference', None) or getattr(
-            request, 'tableId', None) or request
-        table_ref = _to_gcp_table_ref(
-            t_ref,
-            default_project=proj or getattr(self._client, 'project', None))
-      return self._client.get_table(table_ref)
-
-    def Insert(self, request):
-      table = getattr(request, 'table', None)
-      if table is not None:
-        t_ref = getattr(table, 'tableReference', None)
-        proj = getattr(t_ref, 'projectId', None) or getattr(
-            request, 'projectId', None)
-        ds_id = getattr(t_ref, 'datasetId', None) or getattr(
-            request, 'datasetId', None)
-        tbl_id = getattr(t_ref, 'tableId', None)
-        schema = getattr(table, 'schema', None)
-      else:
-        proj = getattr(request, 'projectId', None)
-        ds_id = getattr(request, 'datasetId', None)
-        tbl_id = getattr(request, 'tableId', None)
-        schema = None
-      if ds_id and tbl_id:
-        dest_ref = gcp_bigquery.TableReference(
-            gcp_bigquery.DatasetReference(
-                proj or getattr(self._client, 'project', None) or 'default',
-                ds_id),
-            tbl_id)
-      else:
-        dest_ref = _to_gcp_table_ref(
-            t_ref if table else request,
-            default_project=proj or getattr(self._client, 'project', None))
-      gcp_table = gcp_bigquery.Table(dest_ref)
-      if schema:
-        gcp_table.schema = _to_gcp_schema(schema)
-      if table:
-        if getattr(table, 'description', None):
-          gcp_table.description = table.description
-        if getattr(table, 'friendlyName', None):
-          gcp_table.friendly_name = table.friendlyName
-        if getattr(table, 'timePartitioning', None):
-          gcp_table.time_partitioning = _to_gcp_time_partitioning(
-              table.timePartitioning)
-        if getattr(table, 'rangePartitioning', None):
-          gcp_table.range_partitioning = _to_gcp_range_partitioning(
-              table.rangePartitioning)
-        if getattr(table, 'clustering', None):
-          gcp_table.clustering_fields = _to_gcp_clustering_fields(
-              table.clustering)
-      return self._client.create_table(gcp_table, exists_ok=True)
-
-  class _ClientDatasetsCompat:
-    def __init__(self, client):
-      self._client = client
-
-    def Get(self, request):
-      proj = getattr(request, 'projectId', None)
-      ds_id = getattr(request, 'datasetId', None)
-      if ds_id:
-        ds_ref = gcp_bigquery.DatasetReference(
-            proj or getattr(self._client, 'project', None) or 'default', ds_id)
-      else:
-        ds_ref = _to_gcp_dataset_ref(
-            request,
-            default_project=proj or getattr(self._client, 'project', None))
-      return self._client.get_dataset(ds_ref)
-
-  class _ClientJobsCompat:
-    def __init__(self, client):
-      self._client = client
-
-    def GetQueryResults(self, request):
-      job_id = getattr(request, 'jobId', None)
-      proj = getattr(request, 'projectId',
-                     None) or getattr(self._client, 'project', None)
-      loc = getattr(request, 'location', None)
-      page_token = getattr(request, 'pageToken', None)
-      max_results = getattr(request, 'maxResults', None)
-      job = self._client.get_job(job_id, project=proj, location=loc)
-      if page_token is not None:
-        return self._client.list_rows(
-            job, page_token=page_token, max_results=max_results)
-      return job.result(max_results=max_results)
-
-  if hasattr(gcp_job,
-             '_AsyncJob') and not hasattr(gcp_job._AsyncJob, 'jobReference'):
-    gcp_job._AsyncJob.jobReference = property(
-        lambda self: JobReference(
-            job_id=self.job_id, project=self.project, location=self.location))
-    gcp_job._AsyncJob.status = property(lambda self: _JobStatusCompat(self))
-    gcp_job._AsyncJob.statistics = property(lambda self: _JobStatsCompat(self))
-
-
 def _to_json_compatible(obj):
   """Converts an object or nested structure to JSON/API-compatible dicts/types.
 
@@ -1062,14 +350,13 @@ def _to_json_compatible(obj):
     return {k: _to_json_compatible(v) for k, v in obj.items()}
   if hasattr(obj, 'to_api_repr') and callable(obj.to_api_repr):
     return obj.to_api_repr()
-  if _protorpclite_messages is not None and hasattr(
-      _protorpclite_messages, 'Message') and isinstance(
-          obj, _protorpclite_messages.Message):
-    try:
+  try:
+    from apitools.base.protorpclite import messages as _protorpclite_messages
+    if isinstance(obj, _protorpclite_messages.Message):
       from apitools.base.py import encoding
       return encoding.MessageToDict(obj)
-    except Exception:
-      pass
+  except Exception:
+    pass
   return obj
 
 
@@ -1112,8 +399,6 @@ def _to_gcp_table_ref(table_ref, default_project=None):
                                                     'DatasetReference'):
       return gcp_bigquery.TableReference(
           gcp_bigquery.DatasetReference(proj, dataset_id), table_id)
-    return _TableReferenceCompat(
-        projectId=proj, datasetId=dataset_id, tableId=table_id)
   return table_ref
 
 
@@ -1131,11 +416,11 @@ def _to_gcp_dataset_ref(dataset_ref, project=None):
       ds_id = dataset_ref[last_sep + 1:]
       if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
         return gcp_bigquery.DatasetReference(proj, ds_id)
-      return _DatasetReferenceCompat(projectId=proj, datasetId=ds_id)
+      return dataset_ref
     proj = project or 'default'
     if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
       return gcp_bigquery.DatasetReference(proj, dataset_ref)
-    return _DatasetReferenceCompat(projectId=proj, datasetId=dataset_ref)
+    return dataset_ref
   if hasattr(dataset_ref, 'projectId') or hasattr(dataset_ref, 'project'):
     proj = getattr(dataset_ref, 'projectId', None) or getattr(
         dataset_ref, 'project', None) or getattr(
@@ -1144,7 +429,6 @@ def _to_gcp_dataset_ref(dataset_ref, project=None):
         dataset_ref, 'dataset_id', None)
     if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
       return gcp_bigquery.DatasetReference(proj, ds_id)
-    return _DatasetReferenceCompat(projectId=proj, datasetId=ds_id)
   return dataset_ref
 
 
