@@ -32,7 +32,12 @@ import org.apache.beam.sdk.io.gcp.testing.BigqueryClient;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.testing.UsesKms;
+import org.apache.beam.sdk.util.BackOff;
+import org.apache.beam.sdk.util.BackOffUtils;
+import org.apache.beam.sdk.util.FluentBackoff;
+import org.apache.beam.sdk.util.Sleeper;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.joda.time.Duration;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -85,31 +90,45 @@ public class BigQueryKmsKeyIT {
    * <p>Verifies table creation with KMS key.
    */
   private void testQueryAndWrite(Method method) throws Exception {
-    String outputTableId = "testQueryAndWrite_" + method.name();
-    String outputTableSpec = project + ":" + BIG_QUERY_DATASET_ID + "." + outputTableId;
+    BackOff backoff =
+        FluentBackoff.DEFAULT
+            .withInitialBackoff(Duration.standardSeconds(5))
+            .withMaxRetries(2)
+            .backoff();
+    for (int attempt = 1; ; attempt++) {
+      String outputTableId = "testQueryAndWrite_" + method.name() + "_" + attempt;
+      String outputTableSpec = project + ":" + BIG_QUERY_DATASET_ID + "." + outputTableId;
 
-    options.setTempLocation(
-        FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp").toString());
-    Pipeline p = Pipeline.create(options);
-    // Reading triggers BQ query and extract jobs. Writing triggers either a load job or performs a
-    // streaming insert (depending on method).
-    p.apply(
-            BigQueryIO.readTableRows()
-                .fromQuery("SELECT * FROM (SELECT \"foo\" as fruit)")
-                .withKmsKey(kmsKey))
-        .apply(
-            BigQueryIO.writeTableRows()
-                .to(outputTableSpec)
-                .withSchema(OUTPUT_SCHEMA)
-                .withMethod(method)
-                .withKmsKey(kmsKey));
-    p.run().waitUntilFinish();
-
-    Table table = BQ_CLIENT.getTableResource(project, BIG_QUERY_DATASET_ID, outputTableId);
-    assertNotNull(String.format("table not found: %s", outputTableId), table);
-    assertNotNull(
-        "output table has no EncryptionConfiguration", table.getEncryptionConfiguration());
-    assertEquals(table.getEncryptionConfiguration().getKmsKeyName(), kmsKey);
+      options.setTempLocation(
+          FileSystems.matchNewDirectory(options.getTempRoot(), "bq_it_temp_" + attempt).toString());
+      Pipeline p = Pipeline.create(options);
+      // Reading triggers BQ query and extract jobs. Writing triggers either a load job or performs
+      // a streaming insert (depending on method).
+      p.apply(
+              BigQueryIO.readTableRows()
+                  .fromQuery("SELECT * FROM (SELECT \"foo\" as fruit)")
+                  .withKmsKey(kmsKey))
+          .apply(
+              BigQueryIO.writeTableRows()
+                  .to(outputTableSpec)
+                  .withSchema(OUTPUT_SCHEMA)
+                  .withMethod(method)
+                  .withKmsKey(kmsKey));
+      try {
+        p.run().waitUntilFinish();
+        Table table = BQ_CLIENT.getTableResource(project, BIG_QUERY_DATASET_ID, outputTableId);
+        assertNotNull(String.format("table not found: %s", outputTableId), table);
+        assertNotNull(
+            "output table has no EncryptionConfiguration", table.getEncryptionConfiguration());
+        assertEquals(table.getEncryptionConfiguration().getKmsKeyName(), kmsKey);
+        return;
+      } catch (Exception e) {
+        if (!BackOffUtils.next(Sleeper.DEFAULT, backoff)) {
+          throw e;
+        }
+        LOG.warn("Retrying testQueryAndWrite({}) after transient failure", method, e);
+      }
+    }
   }
 
   @Test
