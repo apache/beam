@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.iceberg;
 
+import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.FIELD_ID_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.PREFIX_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.UNKNOWN_PARTITION_ERROR;
 import static org.apache.beam.sdk.io.iceberg.AddFiles.ConvertToDataFile.getPartitionFromMetrics;
@@ -95,19 +96,21 @@ import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.data.GenericRecord;
 import org.apache.iceberg.data.Record;
+import org.apache.iceberg.data.parquet.GenericParquetReaders;
 import org.apache.iceberg.data.parquet.GenericParquetWriter;
 import org.apache.iceberg.exceptions.CommitFailedException;
 import org.apache.iceberg.hadoop.HadoopCatalog;
+import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.DataWriter;
 import org.apache.iceberg.io.InputFile;
 import org.apache.iceberg.mapping.MappingUtil;
 import org.apache.iceberg.mapping.NameMapping;
 import org.apache.iceberg.mapping.NameMappingParser;
 import org.apache.iceberg.parquet.Parquet;
+import org.apache.iceberg.parquet.ParquetSchemaUtil;
 import org.apache.iceberg.types.Conversions;
 import org.apache.iceberg.types.Types;
 import org.apache.iceberg.util.SerializableFunction;
-import org.apache.parquet.hadoop.metadata.ParquetMetadata;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
@@ -835,10 +838,12 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
-      ParquetMetadata footer = ParquetFooters.read(fileName);
+      NameMapping mapping = MappingUtil.create(icebergSchema);
+      ParquetFieldIds.Resolved footer =
+          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table, mapping);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
+              file, FileFormat.PARQUET, metricsConfig, mapping, icebergSchema, footer);
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
         Types.NestedField field = icebergSchema.findField(partitionField.sourceId());
@@ -852,7 +857,8 @@ public class AddFilesTest {
         assertEquals(caze.expectedUpper.get(i), upper);
       }
 
-      String partitionPath = getPartitionFromMetrics(metrics, file, table, footer);
+      String partitionPath =
+          getPartitionFromMetrics(metrics, file, table, mapping, footer).toPath();
       assertEquals(caze.expectedPartition, partitionPath);
     }
   }
@@ -901,10 +907,12 @@ public class AddFilesTest {
       writer.close();
       InputFile file = table.io().newInputFile(fileName);
 
-      ParquetMetadata footer = ParquetFooters.read(fileName);
+      NameMapping mapping = MappingUtil.create(icebergSchema);
+      ParquetFieldIds.Resolved footer =
+          ParquetFieldIds.resolve(ParquetFooters.read(fileName), table, mapping);
       Metrics metrics =
           AddFiles.getFileMetrics(
-              file, FileFormat.PARQUET, metricsConfig, MappingUtil.create(icebergSchema), footer);
+              file, FileFormat.PARQUET, metricsConfig, mapping, icebergSchema, footer);
       // check that lower/upper stats are still fetched correctly
       for (int i = 0; i < partitionSpec.fields().size(); i++) {
         PartitionField partitionField = partitionSpec.fields().get(i);
@@ -921,7 +929,7 @@ public class AddFilesTest {
 
       assertThrows(
           AddFiles.UnknownPartitionException.class,
-          () -> getPartitionFromMetrics(metrics, file, table, footer));
+          () -> getPartitionFromMetrics(metrics, file, table, mapping, footer));
     }
   }
 
@@ -1425,8 +1433,13 @@ public class AddFilesTest {
 
   @Test
   public void testMissingTableIsCreatedFromTheFilesUnion() throws Exception {
-    String narrow = writeOneRecord("narrow.parquet");
-    String wide = writeWider("wide.parquet");
+    String narrow = writeWithoutFieldIds("narrow.parquet", icebergSchema, record(1, "a", 1));
+    Record wider = GenericRecord.create(WIDER);
+    wider.setField("id", 1);
+    wider.setField("name", "a");
+    wider.setField("age", 1);
+    wider.setField("email", "e");
+    String wide = writeWithoutFieldIds("wide.parquet", WIDER, wider);
 
     PCollectionRowTuple output =
         pipeline.apply("Create Input", Create.of(narrow, wide)).apply(addFiles(ADDITIONS));
@@ -1438,6 +1451,93 @@ public class AddFilesTest {
     assertTrue(
         "created columns are optional",
         catalog.loadTable(tableId).schema().findField("id").isOptional());
+    assertEquals(
+        Arrays.asList("id=1 name=a age=1 email=e", "id=1 name=a age=1 email=null"),
+        readRows("id", "name", "age", "email"));
+  }
+
+  /**
+   * The created table numbers its columns by sorted name, not by the ids an Iceberg-written file
+   * carries, and readers resolve such a file by its own ids: registered, its id values read back as
+   * age and its names as id. It goes to the error output instead.
+   */
+  @Test
+  public void testFileCarryingOtherFieldIdsIsRefusedByTheTableCreatedForIt() throws Exception {
+    String narrow = writeOneRecord("narrow.parquet");
+
+    PCollectionRowTuple output =
+        pipeline.apply("Create Input", Create.of(narrow)).apply(addFiles(ADDITIONS));
+    PAssert.that(output.get("errors"))
+        .satisfies(
+            rows -> {
+              Row error = Iterables.getOnlyElement(rows);
+              assertEquals(narrow, error.getString("file"));
+              assertThat(error.getString("error"), containsString(FIELD_ID_ERROR));
+              return null;
+            });
+
+    pipeline.run().waitUntilFinish();
+
+    assertEquals(0, Iterables.size(catalog.loadTable(tableId).newScan().planFiles()));
+  }
+
+  /** Plain Parquet, as pyarrow or Beam's WriteToParquet write it: no field ids. */
+  private String writeWithoutFieldIds(String name, Schema schema, Record... records)
+      throws IOException {
+    org.apache.avro.Schema avro = org.apache.iceberg.avro.AvroSchemaUtil.convert(schema, "row");
+    String file = root + name;
+    try (org.apache.parquet.hadoop.ParquetWriter<org.apache.avro.generic.GenericData.Record>
+        writer =
+            org.apache.parquet.avro.AvroParquetWriter
+                .<org.apache.avro.generic.GenericData.Record>builder(
+                    new org.apache.hadoop.fs.Path(file))
+                .withSchema(avro)
+                .build()) {
+      for (Record record : records) {
+        org.apache.avro.generic.GenericData.Record row =
+            new org.apache.avro.generic.GenericData.Record(avro);
+        for (Types.NestedField field : schema.columns()) {
+          row.put(field.name(), record.getField(field.name()));
+        }
+        writer.write(row);
+      }
+    }
+    assertFalse(
+        "fixture must carry no field ids",
+        ParquetSchemaUtil.hasIds(ParquetFooters.read(file).getFileMetaData().getSchema()));
+    return file;
+  }
+
+  /**
+   * The table's rows as sorted {@code column=value} strings, read the way an engine that honors the
+   * table's name mapping reads them; IcebergGenerics passes no mapping at all.
+   */
+  private List<String> readRows(String... columns) throws IOException {
+    Table table = catalog.loadTable(tableId);
+    Schema schema = table.schema();
+    NameMapping mapping = MappingUtil.create(schema);
+    List<String> rows = new ArrayList<>();
+    try (CloseableIterable<FileScanTask> tasks = table.newScan().planFiles()) {
+      for (FileScanTask task : tasks) {
+        try (CloseableIterable<Record> records =
+            Parquet.read(table.io().newInputFile(task.file().location()))
+                .project(schema)
+                .withNameMapping(mapping)
+                .createReaderFunc(
+                    fileSchema -> GenericParquetReaders.buildReader(schema, fileSchema))
+                .build()) {
+          for (Record record : records) {
+            List<String> values = new ArrayList<>();
+            for (String column : columns) {
+              values.add(column + "=" + record.getField(column));
+            }
+            rows.add(String.join(" ", values));
+          }
+        }
+      }
+    }
+    Collections.sort(rows);
+    return rows;
   }
 
   /** Streaming schema evolution comes in a follow-up: until then the front door rejects it. */
