@@ -25,6 +25,7 @@ client to modern ``google-cloud-bigquery``.
    Importing this module is disabled by default and requires explicit opt-in.
    To enable these compatibility shims, set the environment variable
    ``BEAM_USE_BIGQUERY_COMPAT_SHIMS=1``.
+   For detailed usage and migration guidance, see ``BIGQUERY_COMPAT.md``.
 
 .. note::
    This module is intended to be removed in a future Beam release once the
@@ -68,12 +69,13 @@ def _check_compat_opt_in():
     raise ImportError(
         f"BigQuery compatibility shims in {__name__} are disabled by default "
         f"and require explicit opt-in. Set the environment variable "
-        f"{BIGQUERY_COMPAT_ENV_VAR}=1 to enable them.")
+        f"{BIGQUERY_COMPAT_ENV_VAR}=1 to enable them. For migration guidance, "
+        "see apache_beam/io/gcp/BIGQUERY_COMPAT.md.")
 
   warnings.warn(
       f"BigQuery compatibility shims in {__name__} are deprecated and will be "
       "removed in a future release of Apache Beam. Please migrate to using "
-      "google-cloud-bigquery directly.",
+      "google-cloud-bigquery directly (see apache_beam/io/gcp/BIGQUERY_COMPAT.md).",
       BeamDeprecationWarning,
       stacklevel=2)
 
