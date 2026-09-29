@@ -142,7 +142,6 @@ import org.apache.beam.sdk.state.SetState;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
-import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.ExpectedLogs;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -206,6 +205,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
+import org.junit.runners.JUnit4;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 
@@ -214,7 +214,7 @@ import org.mockito.Mockito;
  *
  * <p>Implements {@link Serializable} because it is caught in closures.
  */
-@RunWith(BeamParallelJunit4Runner.class)
+@RunWith(JUnit4.class)
 // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of errorprone is
 // released (2.11.0)
 @SuppressWarnings("unused")

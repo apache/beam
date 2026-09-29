@@ -28,6 +28,7 @@ import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.BigEndianIntegerCoder;
 import org.apache.beam.sdk.coders.Coder;
@@ -279,11 +280,11 @@ public class CombineFnsTest {
 
   private static class DisplayDataCombineFn extends Combine.CombineFn<String, String, String> {
     private final String value;
-    private static int i;
+    private static final AtomicInteger NEXT_ID = new AtomicInteger();
     private final int id;
 
     DisplayDataCombineFn(String value) {
-      id = ++i;
+      id = NEXT_ID.incrementAndGet();
       this.value = value;
     }
 

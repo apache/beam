@@ -53,13 +53,13 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 import java.util.stream.Collectors;
@@ -1597,7 +1597,7 @@ public class ParDoTest implements Serializable {
       private static final long MAX_ATTEMPTS = 100;
       // We use the UUID to uniquely identify this DoFn in case this test is run with
       // other tests in the same JVM.
-      private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new HashMap();
+      private static final Map<UUID, AtomicBoolean> WAS_FINALIZED = new ConcurrentHashMap<>();
       private final UUID uuid = UUID.randomUUID();
 
       public void testFinalization(BundleFinalizer bundleFinalizer, OutputReceiver<String> output)

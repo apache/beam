@@ -274,6 +274,7 @@ public class MetricsTest implements Serializable {
     }
 
     @Test
+    @BeamParallelJunit4Runner.SerialTest
     public void testMetricsFlag() {
       Metrics.resetDefaultPipelineOptions();
       assertFalse(Metrics.MetricsFlag.counterDisabled());

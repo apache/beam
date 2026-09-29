@@ -273,6 +273,7 @@ public class PipelineTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testStableUniqueNameOff() {
     pipeline.enableAbandonedNodeEnforcement(false);
 
@@ -285,6 +286,7 @@ public class PipelineTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testStableUniqueNameWarning() {
     pipeline.enableAbandonedNodeEnforcement(false);
 
@@ -297,6 +299,7 @@ public class PipelineTest {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   public void testStableUniqueNameError() {
     pipeline.getOptions().setStableUniqueNames(CheckEnabled.ERROR);
 
