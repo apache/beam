@@ -154,6 +154,9 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       return;
     }
     if (isClassMarkedSerial(getTestClass().getJavaClass()) || isMethodMarkedSerial(method)) {
+      // This is a serial test. Make sure to wait for any in-flight tests to complete, and then run
+      // this test
+      // serially.
       awaitPendingFutures();
       super.runChild(method, notifier);
       return;
@@ -165,9 +168,6 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     int defaultThreads = Integer.getInteger(DEFAULT_TEST_THREADS_PROPERTY, 1);
     if (isValidatesRunnerMethod(method)) {
       int vrThreads = Integer.getInteger(VALIDATES_RUNNER_THREADS_PROPERTY, defaultThreads);
-      if (vrThreads == defaultThreads) {
-        return getOrCreateExecutor("beam-test-worker", defaultThreads);
-      }
       return getOrCreateExecutor("beam-vr-worker", vrThreads);
     }
     return getOrCreateExecutor("beam-test-worker", defaultThreads);
