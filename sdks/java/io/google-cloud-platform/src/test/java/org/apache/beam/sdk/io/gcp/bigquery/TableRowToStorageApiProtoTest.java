@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.bigquery;
 
 import static org.apache.beam.sdk.io.gcp.bigquery.BigQueryUtils.TIMESTAMP_FORMATTER;
 import static org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.TYPE_MAP_PROTO_CONVERTERS;
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -55,6 +56,10 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.io.gcp.bigquery.TableRowToStorageApiProto.SchemaConversionException;
@@ -1901,6 +1906,147 @@ public class TableRowToStorageApiProtoTest {
     List<DynamicMessage> repeatednof2 =
         (List<DynamicMessage>) msg.getField(fieldDescriptors.get("repeatednof2"));
     assertTrue(repeatednof2.isEmpty());
+  }
+
+  @Test
+  public void testMessageFromTableRowWithReorderedDescriptor() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("stringvalue").setType("STRING"),
+                    new TableFieldSchema().setName("intvalue").setType("INT64")));
+    TableSchema reorderedTableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("intvalue").setType("INT64"),
+                    new TableFieldSchema().setName("stringvalue").setType("STRING")));
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor reorderedDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(reorderedTableSchema, true, false);
+
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            reorderedDescriptor,
+            new TableRow().set("stringvalue", "string").set("intvalue", 42),
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    DynamicMessage expectedMessage =
+        DynamicMessage.newBuilder(reorderedDescriptor)
+            .setField(reorderedDescriptor.findFieldByName("stringvalue"), "string")
+            .setField(reorderedDescriptor.findFieldByName("intvalue"), 42L)
+            .build();
+    assertArrayEquals(expectedMessage.toByteArray(), message.toByteArray());
+  }
+
+  @Test
+  public void testMessageFromTableRowWithShorterDescriptor() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("firstvalue").setType("STRING"),
+                    new TableFieldSchema().setName("secondvalue").setType("INT64")));
+    TableSchema shorterTableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(new TableFieldSchema().setName("secondvalue").setType("INT64")));
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor shorterDescriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(shorterTableSchema, true, false);
+
+    DynamicMessage message =
+        TableRowToStorageApiProto.messageFromTableRow(
+            schemaInformation,
+            shorterDescriptor,
+            new TableRow().set("secondvalue", 42),
+            false,
+            false,
+            null,
+            null,
+            -1,
+            TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+
+    DynamicMessage expectedMessage =
+        DynamicMessage.newBuilder(shorterDescriptor)
+            .setField(shorterDescriptor.findFieldByName("secondvalue"), 42L)
+            .build();
+    assertArrayEquals(expectedMessage.toByteArray(), message.toByteArray());
+  }
+
+  @Test
+  public void testMessageFromTableRowPreservesRequiredFieldValidation() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema()
+                        .setName("requiredvalue")
+                        .setType("STRING")
+                        .setMode("REQUIRED")));
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+
+    thrown.expect(TableRowToStorageApiProto.SchemaMissingRequiredFieldException.class);
+    TableRowToStorageApiProto.messageFromTableRow(
+        schemaInformation,
+        descriptor,
+        new TableRow(),
+        false,
+        false,
+        null,
+        null,
+        -1,
+        TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT);
+  }
+
+  @Test
+  public void testMessageFromTableRowIsThreadSafe() throws Exception {
+    TableSchema tableSchema =
+        new TableSchema()
+            .setFields(
+                ImmutableList.of(
+                    new TableFieldSchema().setName("stringvalue").setType("STRING"),
+                    new TableFieldSchema().setName("intvalue").setType("INT64")));
+    SchemaInformation schemaInformation = SchemaInformation.fromTableSchema(tableSchema);
+    Descriptor descriptor =
+        TableRowToStorageApiProto.getDescriptorFromTableSchema(tableSchema, true, false);
+    TableRow tableRow = new TableRow().set("stringvalue", "string").set("intvalue", 42);
+    byte[] expected =
+        DynamicMessage.newBuilder(descriptor)
+            .setField(descriptor.findFieldByName("stringvalue"), "string")
+            .setField(descriptor.findFieldByName("intvalue"), 42L)
+            .build()
+            .toByteArray();
+    Callable<byte[]> conversion =
+        () ->
+            TableRowToStorageApiProto.messageFromTableRow(
+                    schemaInformation,
+                    descriptor,
+                    tableRow,
+                    false,
+                    false,
+                    null,
+                    null,
+                    -1,
+                    TableRowToStorageApiProto.ErrorCollector.DONT_COLLECT)
+                .toByteArray();
+    ExecutorService executor = Executors.newFixedThreadPool(4);
+    try {
+      for (Future<byte[]> result : executor.invokeAll(Collections.nCopies(100, conversion))) {
+        assertArrayEquals(expected, result.get());
+      }
+    } finally {
+      executor.shutdownNow();
+    }
   }
 
   @Test
