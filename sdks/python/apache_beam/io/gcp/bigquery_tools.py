@@ -134,47 +134,19 @@ except ImportError:
 # -----------------------------------------------------------------------------
 
 
-# Check if an underlying type is available from the apitools client.
-if apitools_bigquery is not None and hasattr(apitools_bigquery,
-                                             'TableReference'):
-  TableReference = apitools_bigquery.TableReference
-  DatasetReference = getattr(apitools_bigquery, 'DatasetReference', None)
-  TableFieldSchema = apitools_bigquery.TableFieldSchema
-  TableSchema = apitools_bigquery.TableSchema
-  TableRow = getattr(apitools_bigquery, 'TableRow', None)
-  TableCell = getattr(apitools_bigquery, 'TableCell', None)
-  Table = getattr(apitools_bigquery, 'Table', None)
-  Dataset = getattr(apitools_bigquery, 'Dataset', None)
-  Job = getattr(apitools_bigquery, 'Job', None)
-  JobConfiguration = getattr(apitools_bigquery, 'JobConfiguration', None)
-  JobConfigurationLoad = getattr(apitools_bigquery, 'JobConfigurationLoad', None)
-  JobConfigurationQuery = getattr(apitools_bigquery, 'JobConfigurationQuery', None)
-  JobConfigurationExtract = getattr(apitools_bigquery, 'JobConfigurationExtract', None)
-  JobConfigurationTableCopy = getattr(
-      apitools_bigquery, 'JobConfigurationTableCopy', None)
-  JobStatistics = getattr(apitools_bigquery, 'JobStatistics', None)
-  JobStatistics2 = getattr(apitools_bigquery, 'JobStatistics2', None)
-  JobStatistics4 = getattr(apitools_bigquery, 'JobStatistics4', None)
-  ErrorProto = getattr(apitools_bigquery, 'ErrorProto', None)
-else:
-  TableReference = None
-  DatasetReference = None
-  TableFieldSchema = None
-  TableSchema = None
-  TableRow = None
-  TableCell = None
-  Table = None
-  Dataset = None
-  Job = None
-  JobConfiguration = None
-  JobConfigurationLoad = None
-  JobConfigurationQuery = None
-  JobConfigurationExtract = None
-  JobConfigurationTableCopy = None
-  JobStatistics = None
-  JobStatistics2 = None
-  JobStatistics4 = None
-  ErrorProto = None
+# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
+try:
+  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
+  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
+except ImportError:
+  DatasetReference = getattr(gcp_bigquery, 'DatasetReference', None)
+  TableReference = getattr(gcp_bigquery, 'TableReference', None)
+# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+
+TableCell = getattr(apitools_bigquery, 'TableCell', None)
+TableFieldSchema = getattr(apitools_bigquery, 'TableFieldSchema', None)
+TableRow = getattr(apitools_bigquery, 'TableRow', None)
+TableSchema = getattr(apitools_bigquery, 'TableSchema', None)
 
 
 class JobReference(object):
@@ -1728,9 +1700,7 @@ class BigQueryWrapper(object):
       default_table_expiration_ms=None):
     # Check if dataset already exists otherwise create it
     if self._is_modern_client:
-      dataset_ref = _to_gcp_dataset_ref(
-          DatasetReference(projectId=project_id, datasetId=dataset_id),
-          project=project_id)
+      dataset_ref = _to_gcp_dataset_ref(dataset_id, project=project_id)
       try:
         dataset = self.client.get_dataset(dataset_ref)
         self.created_temp_dataset = False
@@ -1776,8 +1746,11 @@ class BigQueryWrapper(object):
             project_id,
             dataset_id,
             location)
-        dataset_reference = DatasetReference(
-            projectId=project_id, datasetId=dataset_id)
+        dataset_reference = (
+            apitools_bigquery.DatasetReference(
+                projectId=project_id, datasetId=dataset_id)
+            if apitools_bigquery and hasattr(apitools_bigquery, 'DatasetReference')
+            else None)
         dataset = apitools_bigquery.Dataset(datasetReference=dataset_reference)
         if location is not None:
           dataset.location = location
@@ -1859,9 +1832,7 @@ class BigQueryWrapper(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def _delete_dataset(self, project_id, dataset_id, delete_contents=True):
     if self._is_modern_client:
-      dataset_ref = _to_gcp_dataset_ref(
-          DatasetReference(projectId=project_id, datasetId=dataset_id),
-          project=project_id)
+      dataset_ref = _to_gcp_dataset_ref(dataset_id, project=project_id)
       try:
         self.client.delete_dataset(
             dataset_ref, delete_contents=delete_contents, not_found_ok=True)
@@ -1929,9 +1900,7 @@ class BigQueryWrapper(object):
     temp_table = self._get_temp_table(project_id)
     if self._is_modern_client:
       dataset_ref = _to_gcp_dataset_ref(
-          DatasetReference(
-              projectId=project_id, datasetId=temp_table.datasetId),
-          project=project_id)
+          temp_table.datasetId, project=project_id)
       try:
         self.client.get_dataset(dataset_ref)
       except (NotFound, HttpError, ClientError) as exn:
