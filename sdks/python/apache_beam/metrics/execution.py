@@ -203,10 +203,10 @@ class _TypedMetricName(object):
 
 _DEFAULT = None  # type: Any
 
-# Metric cell types whose updates are dropped process-wide, owned and populated
+# Names of the metric cell types whose updates are dropped process-wide, owned
 # by apache_beam.metrics.metrics_flag.MetricsFlag from the disable*Metrics
 # experiments. Empty (the default) means every update is delivered.
-_DISABLED_CELL_TYPES = metrics_flag.DISABLED_CELL_TYPES  # type: Set[Any]
+_DISABLED_CELL_TYPES = metrics_flag.DISABLED_CELL_TYPES  # type: Set[str]
 
 
 class MetricUpdater(object):
@@ -223,8 +223,9 @@ class MetricUpdater(object):
 
   def __call__(self, value=_DEFAULT):
     # type: (Any) -> None
-    if _DISABLED_CELL_TYPES and (self.typed_metric_name.cell_type
-                                 in _DISABLED_CELL_TYPES):
+    if _DISABLED_CELL_TYPES and (getattr(self.typed_metric_name.cell_type,
+                                         '__name__',
+                                         None) in _DISABLED_CELL_TYPES):
       return
     if value is _DEFAULT:
       if self.default_value is _DEFAULT:

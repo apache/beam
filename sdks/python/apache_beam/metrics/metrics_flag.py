@@ -26,10 +26,7 @@ minimum to avoid circular imports.
 
 import logging
 from typing import TYPE_CHECKING
-from typing import Any
 from typing import Set
-
-from apache_beam.metrics import cells
 
 if TYPE_CHECKING:
   from apache_beam.options.pipeline_options import PipelineOptions
@@ -38,10 +35,10 @@ __all__ = ['MetricsFlag']
 
 _LOGGER = logging.getLogger(__name__)
 
-# Metric cell types whose updates are dropped process-wide. Empty (the default)
-# means every update is delivered. apache_beam.metrics.execution holds a
-# reference to this set, so it is only ever mutated in place, never rebound.
-DISABLED_CELL_TYPES = set()  # type: Set[Any]
+# Names of the metric cell types whose updates are dropped process-wide. Empty
+# (the default) means every update is delivered. apache_beam.metrics.execution
+# holds a reference to this set, so it is only ever mutated in place.
+DISABLED_CELL_TYPES = set()  # type: Set[str]
 
 
 class MetricsFlag(object):
@@ -55,9 +52,9 @@ class MetricsFlag(object):
   unchanged, so code that holds on to them keeps working.
   """
   _EXPERIMENTS = (
-      ('disableCounterMetrics', cells.CounterCell, 'Counter'),
-      ('disableStringSetMetrics', cells.StringSetCell, 'StringSet'),
-      ('disableBoundedTrieMetrics', cells.BoundedTrieCell, 'BoundedTrie'),
+      ('disableCounterMetrics', 'CounterCell', 'Counter'),
+      ('disableStringSetMetrics', 'StringSetCell', 'StringSet'),
+      ('disableBoundedTrieMetrics', 'BoundedTrieCell', 'BoundedTrie'),
   )
   _initialized = False
 
@@ -76,9 +73,9 @@ class MetricsFlag(object):
     from apache_beam.options.pipeline_options import DebugOptions
     debug_options = options.view_as(DebugOptions)
     disabled = set()
-    for experiment, cell_type, kind in cls._EXPERIMENTS:
+    for experiment, cell_type_name, kind in cls._EXPERIMENTS:
       if debug_options.lookup_experiment(experiment):
-        disabled.add(cell_type)
+        disabled.add(cell_type_name)
         _LOGGER.info('%s metrics are disabled.', kind)
     DISABLED_CELL_TYPES.clear()
     DISABLED_CELL_TYPES.update(disabled)
@@ -86,15 +83,15 @@ class MetricsFlag(object):
 
   @classmethod
   def counter_disabled(cls) -> bool:
-    return cells.CounterCell in DISABLED_CELL_TYPES
+    return 'CounterCell' in DISABLED_CELL_TYPES
 
   @classmethod
   def string_set_disabled(cls) -> bool:
-    return cells.StringSetCell in DISABLED_CELL_TYPES
+    return 'StringSetCell' in DISABLED_CELL_TYPES
 
   @classmethod
   def bounded_trie_disabled(cls) -> bool:
-    return cells.BoundedTrieCell in DISABLED_CELL_TYPES
+    return 'BoundedTrieCell' in DISABLED_CELL_TYPES
 
   @classmethod
   def reset(cls) -> None:
