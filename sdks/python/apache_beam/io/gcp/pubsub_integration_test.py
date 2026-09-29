@@ -138,23 +138,39 @@ class PubSubIntegrationTest(unittest.TestCase):
     self.project = self.test_pipeline.get_option('project')
     self.uuid = str(uuid.uuid4())
 
-    # Set up PubSub environment.
+    # Set up PubSub environment with retries for transient 504/403 API errors.
     from google.cloud import pubsub
     self.pub_client = pubsub.PublisherClient()
-    self.input_topic = self.pub_client.create_topic(
-        name=self.pub_client.topic_path(self.project, INPUT_TOPIC + self.uuid))
-    self.output_topic = self.pub_client.create_topic(
-        name=self.pub_client.topic_path(self.project, OUTPUT_TOPIC + self.uuid))
-
     self.sub_client = pubsub.SubscriberClient()
-    self.input_sub = self.sub_client.create_subscription(
-        name=self.sub_client.subscription_path(
-            self.project, INPUT_SUB + self.uuid),
-        topic=self.input_topic.name)
-    self.output_sub = self.sub_client.create_subscription(
-        name=self.sub_client.subscription_path(
-            self.project, OUTPUT_SUB + self.uuid),
-        topic=self.output_topic.name)
+
+    def _retry_pubsub(fn):
+      for attempt in range(4):
+        try:
+          return fn()
+        except Exception:
+          if attempt == 3:
+            raise
+          time.sleep(2**(attempt + 1))
+
+    self.input_topic = _retry_pubsub(
+        lambda: self.pub_client.create_topic(
+            name=self.pub_client.topic_path(
+                self.project, INPUT_TOPIC + self.uuid)))
+    self.output_topic = _retry_pubsub(
+        lambda: self.pub_client.create_topic(
+            name=self.pub_client.topic_path(
+                self.project, OUTPUT_TOPIC + self.uuid)))
+
+    self.input_sub = _retry_pubsub(
+        lambda: self.sub_client.create_subscription(
+            name=self.sub_client.subscription_path(
+                self.project, INPUT_SUB + self.uuid), topic=self.input_topic.
+            name))
+    self.output_sub = _retry_pubsub(
+        lambda: self.sub_client.create_subscription(
+            name=self.sub_client.subscription_path(
+                self.project, OUTPUT_SUB + self.uuid), topic=self.output_topic.
+            name))
     # Add a 30 second sleep after resource creation to ensure subscriptions will
     # receive messages.
     time.sleep(30)
