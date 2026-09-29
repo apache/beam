@@ -21,14 +21,10 @@ import unittest
 from unittest import mock
 
 from apache_beam.io.gcp import bigquery_read_internal
+from apache_beam.io.gcp.bigquery_tools import DatasetReference
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import StaticValueProvider
-
-try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-except ImportError:
-  DatasetReference = None
 
 
 class BigQueryReadSplitTest(unittest.TestCase):

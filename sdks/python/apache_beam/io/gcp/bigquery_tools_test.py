@@ -41,8 +41,10 @@ from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import DatasetReference
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
+from apache_beam.io.gcp.bigquery_tools import TableReference
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
 from apache_beam.io.gcp.bigquery_tools import check_schema_equal
 from apache_beam.io.gcp.bigquery_tools import generate_bq_job_name
@@ -148,7 +150,10 @@ class TestTableReferenceParser(unittest.TestCase):
       table_id: str,
   ):
     parsed_ref = parse_table_reference(fully_qualified_table)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertIsInstance(parsed_ref, TableReference)
+    self.assertEqual(parsed_ref.project, project_id)
+    self.assertEqual(parsed_ref.dataset_id, dataset_id)
+    self.assertEqual(parsed_ref.table_id, table_id)
     self.assertEqual(parsed_ref.projectId, project_id)
     self.assertEqual(parsed_ref.datasetId, dataset_id)
     self.assertEqual(parsed_ref.tableId, table_id)
@@ -158,7 +163,9 @@ class TestTableReferenceParser(unittest.TestCase):
     tableId = 'test_table'
     partially_qualified_table = '{}.{}'.format(datasetId, tableId)
     parsed_ref = parse_table_reference(partially_qualified_table)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertIsInstance(parsed_ref, TableReference)
+    self.assertEqual(parsed_ref.dataset_id, datasetId)
+    self.assertEqual(parsed_ref.table_id, tableId)
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
@@ -172,7 +179,10 @@ class TestTableReferenceParser(unittest.TestCase):
     tableId = 'test_table'
     parsed_ref = parse_table_reference(
         tableId, dataset=datasetId, project=projectId)
-    self.assertIsInstance(parsed_ref, bigquery.TableReference)
+    self.assertIsInstance(parsed_ref, TableReference)
+    self.assertEqual(parsed_ref.project, projectId)
+    self.assertEqual(parsed_ref.dataset_id, datasetId)
+    self.assertEqual(parsed_ref.table_id, tableId)
     self.assertEqual(parsed_ref.projectId, projectId)
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
@@ -180,12 +190,18 @@ class TestTableReferenceParser(unittest.TestCase):
   def test_parse_table_reference_without_regex_package(self):
     with mock.patch.object(bigquery_tools, 'regex', None):
       parsed_ref = parse_table_reference('my-project:my_dataset.my_table')
+      self.assertEqual(parsed_ref.project, 'my-project')
+      self.assertEqual(parsed_ref.dataset_id, 'my_dataset')
+      self.assertEqual(parsed_ref.table_id, 'my_table')
       self.assertEqual(parsed_ref.projectId, 'my-project')
       self.assertEqual(parsed_ref.datasetId, 'my_dataset')
       self.assertEqual(parsed_ref.tableId, 'my_table')
 
       parsed_ref2 = parse_table_reference('my_dataset.my_table$20250101')
+      self.assertIsNone(parsed_ref2.project)
       self.assertIsNone(parsed_ref2.projectId)
+      self.assertEqual(parsed_ref2.dataset_id, 'my_dataset')
+      self.assertEqual(parsed_ref2.table_id, 'my_table$20250101')
       self.assertEqual(parsed_ref2.datasetId, 'my_dataset')
       self.assertEqual(parsed_ref2.tableId, 'my_table$20250101')
 
@@ -1554,6 +1570,128 @@ class TestBigQueryClientExperimentFallback(unittest.TestCase):
   def test_kwarg_use_legacy_client(self):
     wrapper = BigQueryWrapper(use_legacy_client=True)
     self.assertFalse(wrapper._is_modern_client)
+
+
+class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
+  def test_dataset_reference_init_and_properties(self):
+    ref1 = DatasetReference(project='my-proj', dataset_id='my_ds')
+    self.assertEqual(ref1.project, 'my-proj')
+    self.assertEqual(ref1.dataset_id, 'my_ds')
+    self.assertEqual(ref1.projectId, 'my-proj')
+    self.assertEqual(ref1.datasetId, 'my_ds')
+
+    # Mutability
+    ref1.project = 'new-proj'
+    ref1.dataset_id = 'new_ds'
+    self.assertEqual(ref1.projectId, 'new-proj')
+    self.assertEqual(ref1.datasetId, 'new_ds')
+
+    # Legacy kwargs
+    ref2 = DatasetReference(projectId='legacy-proj', datasetId='legacy_ds')
+    self.assertEqual(ref2.project, 'legacy-proj')
+    self.assertEqual(ref2.dataset_id, 'legacy_ds')
+
+    # Equality
+    ref3 = DatasetReference(project='legacy-proj', dataset_id='legacy_ds')
+    self.assertEqual(ref2, ref3)
+    self.assertEqual(hash(ref2), hash(ref3))
+
+  def test_table_reference_init_and_properties(self):
+    # Keyword init
+    ref1 = TableReference(
+        project='my-proj', dataset_id='my_ds', table_id='my_tbl')
+    self.assertEqual(ref1.project, 'my-proj')
+    self.assertEqual(ref1.dataset_id, 'my_ds')
+    self.assertEqual(ref1.table_id, 'my_tbl')
+    self.assertEqual(ref1.projectId, 'my-proj')
+    self.assertEqual(ref1.datasetId, 'my_ds')
+    self.assertEqual(ref1.tableId, 'my_tbl')
+    self.assertEqual(
+        ref1.dataset_ref, DatasetReference(project='my-proj', dataset_id='my_ds'))
+
+    # Positional init with DatasetReference
+    ds_ref = DatasetReference(project='my-proj', dataset_id='my_ds')
+    ref2 = TableReference(ds_ref, 'my_tbl')
+    self.assertEqual(ref1, ref2)
+
+    # Legacy kwargs
+    ref3 = TableReference(
+        projectId='my-proj', datasetId='my_ds', tableId='my_tbl')
+    self.assertEqual(ref1, ref3)
+
+    # Mutability
+    ref3.table_id = 'mutated_tbl'
+    self.assertEqual(ref3.table_id, 'mutated_tbl')
+    self.assertEqual(ref3.tableId, 'mutated_tbl')
+
+    ref3.tableId = 'mutated_again'
+    self.assertEqual(ref3.table_id, 'mutated_again')
+
+  def test_conversions_to_gcp_and_apitools(self):
+    table_ref = TableReference(
+        project='proj', dataset_id='ds', table_id='tbl')
+    gcp_ref = bigquery_tools._to_gcp_table_ref(table_ref)
+    if bigquery_tools.gcp_bigquery is not None:
+      self.assertIsInstance(gcp_ref, bigquery_tools.gcp_bigquery.TableReference)
+      self.assertEqual(gcp_ref.project, 'proj')
+      self.assertEqual(gcp_ref.dataset_id, 'ds')
+      self.assertEqual(gcp_ref.table_id, 'tbl')
+
+    api_ref = bigquery_tools._to_apitools_table_ref(table_ref)
+    if bigquery_tools.apitools_bigquery is not None and hasattr(
+        bigquery_tools.apitools_bigquery, 'TableReference'):
+      self.assertIsInstance(
+          api_ref, bigquery_tools.apitools_bigquery.TableReference)
+      self.assertEqual(api_ref.projectId, 'proj')
+      self.assertEqual(api_ref.datasetId, 'ds')
+      self.assertEqual(api_ref.tableId, 'tbl')
+
+  def test_legacy_client_fallback_job_insertion_converts_modern_references(self):
+    wrapper = BigQueryWrapper(use_legacy_client=True)
+    wrapper.client = mock.MagicMock()
+    mock_insert = mock.MagicMock()
+    wrapper.client.jobs.Insert = mock_insert
+    mock_job = mock.MagicMock()
+    mock_job.jobReference = bigquery_tools.JobReference(job_id='test_job')
+    mock_insert.return_value = mock_job
+
+    table_ref = TableReference(
+        project='test_proj', dataset_id='test_ds', table_id='test_tbl')
+
+    # Test _insert_load_job with modern table reference on legacy client
+    wrapper._insert_load_job(
+        project_id='test_proj',
+        job_id='load_job_1',
+        table_reference=table_ref,
+        source_uris=['gs://bucket/file.csv'])
+    self.assertTrue(mock_insert.called)
+    req = mock_insert.call_args[0][0]
+    if bigquery_tools.apitools_bigquery and hasattr(
+        bigquery_tools.apitools_bigquery, 'TableReference'):
+      self.assertIsInstance(
+          req.job.configuration.load.destinationTable,
+          bigquery_tools.apitools_bigquery.TableReference)
+      self.assertEqual(
+          req.job.configuration.load.destinationTable.tableId, 'test_tbl')
+
+    # Test _insert_copy_job with modern table references on legacy client
+    mock_insert.reset_mock()
+    wrapper._insert_copy_job(
+        project_id='test_proj',
+        job_id='copy_job_1',
+        from_table_reference=table_ref,
+        to_table_reference=TableReference(
+            project='test_proj', dataset_id='test_ds', table_id='dest_tbl'))
+    self.assertTrue(mock_insert.called)
+    req = mock_insert.call_args[0][0]
+    if bigquery_tools.apitools_bigquery and hasattr(
+        bigquery_tools.apitools_bigquery, 'TableReference'):
+      self.assertIsInstance(
+          req.job.configuration.copy.destinationTable,
+          bigquery_tools.apitools_bigquery.TableReference)
+      self.assertIsInstance(
+          req.job.configuration.copy.sourceTable,
+          bigquery_tools.apitools_bigquery.TableReference)
 
 
 if __name__ == '__main__':

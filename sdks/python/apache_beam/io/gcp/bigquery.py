@@ -2371,8 +2371,8 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
     p = pcoll.pipeline
 
     if (isinstance(self.table_reference, TableReference) and
-        self.table_reference.projectId is None):
-      self.table_reference.projectId = pcoll.pipeline.options.view_as(
+        self.table_reference.project is None):
+      self.table_reference.project = pcoll.pipeline.options.view_as(
           GoogleCloudOptions).project
 
     # TODO(pabloem): Use a different method to determine if streaming or batch.
@@ -3223,14 +3223,14 @@ class ReadFromBigQuery(PTransform):
               GoogleCloudOptions).project
           dataset_id = temp_dataset
       else:
-        project_id = getattr(temp_dataset, 'projectId', None) or getattr(
-            temp_dataset, 'project', None)
-        dataset_id = getattr(temp_dataset, 'datasetId', None) or getattr(
-            temp_dataset, 'dataset_id', None)
+        project_id = getattr(temp_dataset, 'project', None) or getattr(
+            temp_dataset, 'projectId', None)
+        dataset_id = getattr(temp_dataset, 'dataset_id', None) or getattr(
+            temp_dataset, 'datasetId', None)
       temp_table_ref = TableReference(
-          projectId=project_id,
-          datasetId=dataset_id,
-          tableId='beam_temp_table_' + uuid.uuid4().hex)
+          project=project_id,
+          dataset_id=dataset_id,
+          table_id='beam_temp_table_' + uuid.uuid4().hex)
     else:
       project_id = pcoll.pipeline.options.view_as(GoogleCloudOptions).project
 

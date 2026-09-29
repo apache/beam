@@ -226,10 +226,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def _get_temp_dataset_id(self):
     if self.temp_dataset is None:
       return None
-    elif hasattr(self.temp_dataset, 'datasetId'):
-      return self.temp_dataset.datasetId
     elif hasattr(self.temp_dataset, 'dataset_id'):
       return self.temp_dataset.dataset_id
+    elif hasattr(self.temp_dataset, 'datasetId'):
+      return self.temp_dataset.datasetId
     elif isinstance(self.temp_dataset, str):
       return self.temp_dataset
     else:
@@ -238,13 +238,13 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
   def _get_temp_dataset_project(self):
     """Returns the project ID for temporary dataset operations.
 
-    If temp_dataset is a DatasetReference, returns its projectId.
+    If temp_dataset is a DatasetReference, returns its project.
     Otherwise, returns the pipeline project for billing.
     """
-    if hasattr(self.temp_dataset, 'projectId') and self.temp_dataset.projectId:
-      return self.temp_dataset.projectId
-    elif hasattr(self.temp_dataset, 'project') and self.temp_dataset.project:
+    if hasattr(self.temp_dataset, 'project') and self.temp_dataset.project:
       return self.temp_dataset.project
+    elif hasattr(self.temp_dataset, 'projectId') and self.temp_dataset.projectId:
+      return self.temp_dataset.projectId
     else:
       return self._get_project()
 

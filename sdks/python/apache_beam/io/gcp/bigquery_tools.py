@@ -81,6 +81,11 @@ except ImportError:
   regex = None
 
 try:
+  from apitools.base.protorpclite import messages as _protorpclite_messages
+except ImportError:
+  _protorpclite_messages = None
+
+try:
   from apitools.base.py import extra_types
   from apitools.base.py.exceptions import HttpError
   from apitools.base.py.exceptions import HttpForbiddenError
@@ -134,14 +139,212 @@ except ImportError:
 # -----------------------------------------------------------------------------
 
 
-# pylint: disable=wrong-import-order, wrong-import-position, ungrouped-imports
-try:
-  from apache_beam.io.gcp.internal.clients.bigquery import DatasetReference
-  from apache_beam.io.gcp.internal.clients.bigquery import TableReference
-except ImportError:
-  DatasetReference = getattr(gcp_bigquery, 'DatasetReference', None)
-  TableReference = getattr(gcp_bigquery, 'TableReference', None)
-# pylint: enable=wrong-import-order, wrong-import-position, ungrouped-imports
+class DatasetReference(object):
+  """Container for BigQuery dataset identification (dataset_id, project).
+
+  Supports both modern snake_case (project, dataset_id) and legacy camelCase
+  (projectId, datasetId) initialization and attribute access.
+  """
+  def __init__(
+      self,
+      project=None,
+      dataset_id=None,
+      projectId=None,
+      datasetId=None,
+      project_id=None):
+    p = (
+        projectId if projectId is not None else
+        (project_id if project_id is not None else project))
+    d = datasetId if datasetId is not None else dataset_id
+    self._project = p
+    self._dataset_id = d
+
+  @classmethod
+  def from_string(cls, dataset_ref, default_project=None):
+    last_sep = max(dataset_ref.rfind('.'), dataset_ref.rfind(':'))
+    if last_sep != -1:
+      p = dataset_ref[:last_sep]
+      d = dataset_ref[last_sep + 1:]
+    else:
+      p = default_project
+      d = dataset_ref
+    return cls(project=p, dataset_id=d)
+
+  @property
+  def project(self):
+    return self._project
+
+  @project.setter
+  def project(self, val):
+    self._project = val
+
+  @property
+  def projectId(self):
+    return self._project
+
+  @projectId.setter
+  def projectId(self, val):
+    self._project = val
+
+  @property
+  def project_id(self):
+    return self._project
+
+  @project_id.setter
+  def project_id(self, val):
+    self._project = val
+
+  @property
+  def dataset_id(self):
+    return self._dataset_id
+
+  @dataset_id.setter
+  def dataset_id(self, val):
+    self._dataset_id = val
+
+  @property
+  def datasetId(self):
+    return self._dataset_id
+
+  @datasetId.setter
+  def datasetId(self, val):
+    self._dataset_id = val
+
+  def __repr__(self):
+    return (
+        f"DatasetReference(project='{self._project}', "
+        f"dataset_id='{self._dataset_id}')")
+
+  def __eq__(self, other):
+    if other is None:
+      return False
+    if not hasattr(other, 'project') and not hasattr(other, 'projectId'):
+      return NotImplemented
+    other_p = getattr(other, 'project', None) or getattr(other, 'projectId', None)
+    other_d = getattr(other, 'dataset_id', None) or getattr(other, 'datasetId', None)
+    return (self._project, self._dataset_id) == (other_p, other_d)
+
+  def __hash__(self):
+    return hash((self._project, self._dataset_id))
+
+
+class TableReference(object):
+  """Container for BigQuery table identification (table_id, dataset_id, project).
+
+  Supports both modern snake_case (project, dataset_id, table_id) and legacy
+  camelCase (projectId, datasetId, tableId) initialization and attribute access.
+  """
+  def __init__(
+      self,
+      dataset_ref=None,
+      table_id=None,
+      projectId=None,
+      datasetId=None,
+      tableId=None,
+      project=None,
+      dataset_id=None,
+      project_id=None):
+    p = (
+        projectId if projectId is not None else
+        (project_id if project_id is not None else project))
+    d = datasetId if datasetId is not None else dataset_id
+    t = tableId if tableId is not None else table_id
+    if dataset_ref is not None:
+      self._project = getattr(dataset_ref, 'project', None) or getattr(
+          dataset_ref, 'projectId', None) or p
+      self._dataset_id = getattr(dataset_ref, 'dataset_id', None) or getattr(
+          dataset_ref, 'datasetId', None) or d
+      self._table_id = t
+    else:
+      self._project = p
+      self._dataset_id = d
+      self._table_id = t
+
+  @classmethod
+  def from_string(cls, table_ref, default_project=None):
+    return parse_table_reference(table_ref, project=default_project)
+
+  @property
+  def dataset_ref(self):
+    if self._dataset_id is not None or self._project is not None:
+      return DatasetReference(project=self._project, dataset_id=self._dataset_id)
+    return None
+
+  @property
+  def project(self):
+    return self._project
+
+  @project.setter
+  def project(self, val):
+    self._project = val
+
+  @property
+  def projectId(self):
+    return self._project
+
+  @projectId.setter
+  def projectId(self, val):
+    self._project = val
+
+  @property
+  def project_id(self):
+    return self._project
+
+  @project_id.setter
+  def project_id(self, val):
+    self._project = val
+
+  @property
+  def dataset_id(self):
+    return self._dataset_id
+
+  @dataset_id.setter
+  def dataset_id(self, val):
+    self._dataset_id = val
+
+  @property
+  def datasetId(self):
+    return self._dataset_id
+
+  @datasetId.setter
+  def datasetId(self, val):
+    self._dataset_id = val
+
+  @property
+  def table_id(self):
+    return self._table_id
+
+  @table_id.setter
+  def table_id(self, val):
+    self._table_id = val
+
+  @property
+  def tableId(self):
+    return self._table_id
+
+  @tableId.setter
+  def tableId(self, val):
+    self._table_id = val
+
+  def __repr__(self):
+    return (
+        f"TableReference(project='{self._project}', "
+        f"dataset_id='{self._dataset_id}', table_id='{self._table_id}')")
+
+  def __eq__(self, other):
+    if other is None:
+      return False
+    if not hasattr(other, 'table_id') and not hasattr(other, 'tableId'):
+      return NotImplemented
+    other_p = getattr(other, 'project', None) or getattr(other, 'projectId', None)
+    other_d = getattr(other, 'dataset_id', None) or getattr(other, 'datasetId', None)
+    other_t = getattr(other, 'table_id', None) or getattr(other, 'tableId', None)
+    return (self._project, self._dataset_id, self._table_id) == (
+        other_p, other_d, other_t)
+
+  def __hash__(self):
+    return hash((self._project, self._dataset_id, self._table_id))
+
 
 TableCell = getattr(apitools_bigquery, 'TableCell', None)
 TableFieldSchema = getattr(apitools_bigquery, 'TableFieldSchema', None)
@@ -211,6 +414,36 @@ class JobReference(object):
         f"JobReference(jobId={self.jobId!r}, "
         f"projectId={self.projectId!r}, "
         f"location={self.location!r})")
+
+
+if _protorpclite_messages is not None and hasattr(_protorpclite_messages,
+                                                  'Message'):
+  _orig_message_eq = _protorpclite_messages.Message.__eq__
+
+  def _message_compat_eq(self, other):
+    if isinstance(other, JobReference) and apitools_bigquery and hasattr(
+        apitools_bigquery, 'JobReference') and isinstance(
+            self, apitools_bigquery.JobReference):
+      return (
+          getattr(self, 'jobId', None) == other.jobId and
+          getattr(self, 'projectId', None) == other.projectId and
+          getattr(self, 'location', None) == other.location)
+    if isinstance(other, TableReference) and apitools_bigquery and hasattr(
+        apitools_bigquery, 'TableReference') and isinstance(
+            self, apitools_bigquery.TableReference):
+      return (
+          getattr(self, 'projectId', None) == other.projectId and
+          getattr(self, 'datasetId', None) == other.datasetId and
+          getattr(self, 'tableId', None) == other.tableId)
+    if isinstance(other, DatasetReference) and apitools_bigquery and hasattr(
+        apitools_bigquery, 'DatasetReference') and isinstance(
+            self, apitools_bigquery.DatasetReference):
+      return (
+          getattr(self, 'projectId', None) == other.projectId and
+          getattr(self, 'datasetId', None) == other.datasetId)
+    return _orig_message_eq(self, other)
+
+  _protorpclite_messages.Message.__eq__ = _message_compat_eq
 
 
 def _extract_field(obj, *field_names):
@@ -401,6 +634,67 @@ def _to_gcp_dataset_ref(dataset_ref, project=None):
         dataset_ref, 'dataset_id', None)
     if gcp_bigquery is not None and hasattr(gcp_bigquery, 'DatasetReference'):
       return gcp_bigquery.DatasetReference(proj, ds_id)
+  return dataset_ref
+
+
+def _to_apitools_table_ref(table_ref, default_project=None):
+  """Converts a TableReference, dict, or string into an apitools TableReference.
+
+  .. note::
+     This helper supports backward compatibility with the legacy BigQuery
+     client and will be removed once the apitools client code is excised.
+  """
+  if table_ref is None:
+    return None
+  if (apitools_bigquery is not None and
+      hasattr(apitools_bigquery, 'TableReference') and
+      isinstance(table_ref, apitools_bigquery.TableReference)):
+    return table_ref
+  if isinstance(table_ref, str):
+    table_ref = parse_table_reference(table_ref, project=default_project)
+  proj = getattr(table_ref, 'project', None) or getattr(
+      table_ref, 'projectId', None) or getattr(
+          table_ref, 'project_id', None) or default_project
+  dataset_id = getattr(table_ref, 'dataset_id', None) or getattr(
+      table_ref, 'datasetId', None) or getattr(table_ref, 'dataset', None)
+  table_id = getattr(table_ref, 'table_id', None) or getattr(
+      table_ref, 'tableId', None) or getattr(table_ref, 'table', None)
+  if apitools_bigquery and hasattr(apitools_bigquery, 'TableReference'):
+    return apitools_bigquery.TableReference(
+        projectId=proj, datasetId=dataset_id, tableId=table_id)
+  return table_ref
+
+
+def _to_apitools_dataset_ref(dataset_ref, default_project=None):
+  """Converts a DatasetReference, dict, or string into an apitools DatasetReference.
+
+  .. note::
+     This helper supports backward compatibility with the legacy BigQuery
+     client and will be removed once the apitools client code is excised.
+  """
+  if dataset_ref is None:
+    return None
+  if (apitools_bigquery is not None and
+      hasattr(apitools_bigquery, 'DatasetReference') and
+      isinstance(dataset_ref, apitools_bigquery.DatasetReference)):
+    return dataset_ref
+  if isinstance(dataset_ref, str):
+    last_sep = max(dataset_ref.rfind('.'), dataset_ref.rfind(':'))
+    if last_sep != -1:
+      proj = dataset_ref[:last_sep]
+      ds_id = dataset_ref[last_sep + 1:]
+    else:
+      proj = default_project
+      ds_id = dataset_ref
+  else:
+    proj = getattr(dataset_ref, 'project', None) or getattr(
+        dataset_ref, 'projectId', None) or getattr(
+            dataset_ref, 'project_id', None) or default_project
+    ds_id = getattr(dataset_ref, 'dataset_id', None) or getattr(
+        dataset_ref, 'datasetId', None)
+  if apitools_bigquery and hasattr(apitools_bigquery, 'DatasetReference'):
+    return apitools_bigquery.DatasetReference(
+        projectId=proj, datasetId=ds_id)
   return dataset_ref
 
 
@@ -598,17 +892,29 @@ def get_hashable_destination(destination):
   """Parses a table reference into a (project, dataset, table) tuple.
 
   Args:
-    destination: Either a TableReference object from the bigquery API.
-      The object has the following attributes: projectId, datasetId, and
-      tableId. Or a string representing the destination containing
-      'PROJECT:DATASET.TABLE'.
+    destination: Either a TableReference object or a string representing the
+      destination containing 'PROJECT:DATASET.TABLE'.
   Returns:
-    A string representing the destination containing
-    'PROJECT:DATASET.TABLE'.
+    A string representing the destination containing 'PROJECT:DATASET.TABLE'.
   """
-  if isinstance(destination, TableReference):
-    return '%s:%s.%s' % (
-        destination.projectId, destination.datasetId, destination.tableId)
+  if isinstance(destination, TableReference) or (
+      gcp_bigquery is not None and
+      isinstance(destination, getattr(gcp_bigquery, 'TableReference', ()))):
+    proj = getattr(destination, 'project', None) or getattr(
+        destination, 'projectId', None)
+    ds = getattr(destination, 'dataset_id', None) or getattr(
+        destination, 'datasetId', None)
+    tbl = getattr(destination, 'table_id', None) or getattr(
+        destination, 'tableId', None)
+    return '%s:%s.%s' % (proj, ds, tbl)
+  elif hasattr(destination, 'tableId') or hasattr(destination, 'table_id'):
+    proj = getattr(destination, 'project', None) or getattr(
+        destination, 'projectId', None)
+    ds = getattr(destination, 'dataset_id', None) or getattr(
+        destination, 'datasetId', None)
+    tbl = getattr(destination, 'table_id', None) or getattr(
+        destination, 'tableId', None)
+    return '%s:%s.%s' % (proj, ds, tbl)
   else:
     return destination
 
@@ -692,8 +998,9 @@ def parse_table_reference(table, dataset=None, project=None):
       argument.
 
   Returns:
-    A TableReference object from the bigquery API. The object has the following
-    attributes: projectId, datasetId, and tableId.
+    A TableReference object. The object supports both modern snake_case
+    attributes (project, dataset_id, table_id) and legacy camelCase attributes
+    (projectId, datasetId, tableId).
     If the input is a TableReference object, a new object will be returned.
 
   Raises:
@@ -702,14 +1009,20 @@ def parse_table_reference(table, dataset=None, project=None):
   """
   if isinstance(table, TableReference):
     return TableReference(
-        projectId=table.projectId,
-        datasetId=table.datasetId,
-        tableId=table.tableId)
+        project=project or table.project,
+        dataset_id=table.dataset_id,
+        table_id=table.table_id)
   elif isinstance(table, getattr(gcp_bigquery, 'TableReference', ())):
     return TableReference(
-        projectId=table.project,
-        datasetId=table.dataset_id,
-        tableId=table.table_id)
+        project=project or getattr(table, 'project', None),
+        dataset_id=getattr(table, 'dataset_id', None),
+        table_id=getattr(table, 'table_id', None))
+  elif (apitools_bigquery and hasattr(apitools_bigquery, 'TableReference') and
+        isinstance(table, apitools_bigquery.TableReference)):
+    return TableReference(
+        project=project or getattr(table, 'projectId', None),
+        dataset_id=getattr(table, 'datasetId', None),
+        table_id=getattr(table, 'tableId', None))
   elif callable(table):
     return table
   elif isinstance(table, value_provider.ValueProvider):
@@ -732,11 +1045,11 @@ def parse_table_reference(table, dataset=None, project=None):
           'Expected a table reference (PROJECT:DATASET.TABLE or '
           'DATASET.TABLE) instead of %s.' % table)
     return TableReference(
-        projectId=match.group('project'),
-        datasetId=match.group('dataset'),
-        tableId=match.group('table'))
+        project=match.group('project') or project,
+        dataset_id=match.group('dataset'),
+        table_id=match.group('table'))
   else:
-    return TableReference(projectId=project, datasetId=dataset, tableId=table)
+    return TableReference(project=project, dataset_id=dataset, table_id=table)
 
 
 # -----------------------------------------------------------------------------
@@ -907,13 +1220,17 @@ class BigQueryWrapper(object):
     Otherwise, returns the fallback_project_id.
     """
     if self.temp_table_ref:
-      return self.temp_table_ref.projectId
+      return (
+          getattr(self.temp_table_ref, 'project', None) or
+          getattr(self.temp_table_ref, 'projectId', None))
     else:
       return fallback_project_id
 
   def _get_temp_dataset(self):
     if self.temp_table_ref:
-      return self.temp_table_ref.datasetId
+      return (
+          getattr(self.temp_table_ref, 'dataset_id', None) or
+          getattr(self.temp_table_ref, 'datasetId', None))
     return BigQueryWrapper.TEMP_DATASET + self._temporary_table_suffix
 
   @retry.with_exponential_backoff(
@@ -1082,8 +1399,10 @@ class BigQueryWrapper(object):
         job=apitools_bigquery.Job(
             configuration=apitools_bigquery.JobConfiguration(
                 copy=apitools_bigquery.JobConfigurationTableCopy(
-                    destinationTable=to_table_reference,
-                    sourceTable=from_table_reference,
+                    destinationTable=_to_apitools_table_ref(
+                        to_table_reference, default_project=project_id),
+                    sourceTable=_to_apitools_table_ref(
+                        from_table_reference, default_project=project_id),
                     createDisposition=create_disposition,
                     writeDisposition=write_disposition,
                 ),
@@ -1215,7 +1534,8 @@ class BigQueryWrapper(object):
             configuration=apitools_bigquery.JobConfiguration(
                 load=apitools_bigquery.JobConfigurationLoad(
                     sourceUris=source_uris,
-                    destinationTable=table_reference,
+                    destinationTable=_to_apitools_table_ref(
+                        table_reference, default_project=project_id),
                     schema=job_schema,
                     writeDisposition=write_disposition,
                     createDisposition=create_disposition,
@@ -1352,12 +1672,13 @@ class BigQueryWrapper(object):
                     query=query,
                     useLegacySql=use_legacy_sql,
                     allowLargeResults=not dry_run,
-                    destinationTable=(
+                    destinationTable=_to_apitools_table_ref(
                         destination_table if destination_table is not None else
                         (
                             self._get_temp_table(
                                 self._get_temp_table_project(project_id))
-                            if not dry_run else None)),
+                            if not dry_run else None),
+                        default_project=project_id),
                     flattenResults=flatten_results,
                     priority=priority,
                     destinationEncryptionConfiguration=apitools_bigquery.
@@ -1597,7 +1918,7 @@ class BigQueryWrapper(object):
     if self._is_modern_client:
       table_ref = _to_gcp_table_ref(
           TableReference(
-              projectId=project_id, datasetId=dataset_id, tableId=table_id),
+              project=project_id, dataset_id=dataset_id, table_id=table_id),
           default_project=project_id)
       return self.client.get_table(table_ref)
 
@@ -1746,11 +2067,8 @@ class BigQueryWrapper(object):
             project_id,
             dataset_id,
             location)
-        dataset_reference = (
-            apitools_bigquery.DatasetReference(
-                projectId=project_id, datasetId=dataset_id)
-            if apitools_bigquery and hasattr(apitools_bigquery, 'DatasetReference')
-            else None)
+        dataset_reference = _to_apitools_dataset_ref(
+            dataset_id, default_project=project_id)
         dataset = apitools_bigquery.Dataset(datasetReference=dataset_reference)
         if location is not None:
           dataset.location = location
@@ -1801,7 +2119,7 @@ class BigQueryWrapper(object):
     if self._is_modern_client:
       table_ref = _to_gcp_table_ref(
           TableReference(
-              projectId=project_id, datasetId=dataset_id, tableId=table_id),
+              project=project_id, dataset_id=dataset_id, table_id=table_id),
           default_project=project_id)
       try:
         self.client.delete_table(table_ref, not_found_ok=True)
@@ -1898,34 +2216,39 @@ class BigQueryWrapper(object):
       retry_filter=retry.retry_on_server_errors_and_timeout_filter)
   def clean_up_temporary_dataset(self, project_id):
     temp_table = self._get_temp_table(project_id)
+    temp_ds_id = getattr(temp_table, 'dataset_id', None) or getattr(
+        temp_table, 'datasetId', None)
+    temp_proj_id = getattr(temp_table, 'project', None) or getattr(
+        temp_table, 'projectId', None) or project_id
+    temp_tbl_id = getattr(temp_table, 'table_id', None) or getattr(
+        temp_table, 'tableId', None)
+
     if self._is_modern_client:
-      dataset_ref = _to_gcp_dataset_ref(
-          temp_table.datasetId, project=project_id)
+      dataset_ref = _to_gcp_dataset_ref(temp_ds_id, project=project_id)
       try:
         self.client.get_dataset(dataset_ref)
       except (NotFound, HttpError, ClientError) as exn:
         if getattr(exn, 'code', None) == 404 or getattr(
             exn, 'status_code', None) == 404 or isinstance(exn, NotFound):
           _LOGGER.warning(
-              'Dataset %s:%s does not exist', project_id, temp_table.datasetId)
+              'Dataset %s:%s does not exist', project_id, temp_ds_id)
           return
         raise
       try:
         # We do not want to delete temporary datasets configured by the user hence
         # we just delete the temporary table in that case.
         if not self.is_user_configured_dataset():
-          self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+          self._delete_dataset(temp_proj_id, temp_ds_id, True)
         else:
-          self._delete_table(
-              temp_table.projectId, temp_table.datasetId, temp_table.tableId)
+          self._delete_table(temp_proj_id, temp_ds_id, temp_tbl_id)
         self.created_temp_dataset = False
       except (Forbidden, HttpForbiddenError, HttpError) as exn:
         if getattr(exn, 'code', None) == 403 or getattr(
             exn, 'status_code', None) == 403 or isinstance(exn, Forbidden):
           _LOGGER.warning(
               'Permission denied to delete temporary dataset %s:%s for clean up',
-              temp_table.projectId,
-              temp_table.datasetId)
+              temp_proj_id,
+              temp_ds_id)
           return
         raise
       return
@@ -1934,11 +2257,11 @@ class BigQueryWrapper(object):
     try:
       self.client.datasets.Get(
           apitools_bigquery.BigqueryDatasetsGetRequest(
-              projectId=project_id, datasetId=temp_table.datasetId))
+              projectId=project_id, datasetId=temp_ds_id))
     except HttpError as exn:
       if exn.status_code == 404:
         _LOGGER.warning(
-            'Dataset %s:%s does not exist', project_id, temp_table.datasetId)
+            'Dataset %s:%s does not exist', project_id, temp_ds_id)
         return
       else:
         raise
@@ -1946,17 +2269,16 @@ class BigQueryWrapper(object):
       # We do not want to delete temporary datasets configured by the user hence
       # we just delete the temporary table in that case.
       if not self.is_user_configured_dataset():
-        self._delete_dataset(temp_table.projectId, temp_table.datasetId, True)
+        self._delete_dataset(temp_proj_id, temp_ds_id, True)
       else:
-        self._delete_table(
-            temp_table.projectId, temp_table.datasetId, temp_table.tableId)
+        self._delete_table(temp_proj_id, temp_ds_id, temp_tbl_id)
       self.created_temp_dataset = False
     except HttpError as exn:
       if exn.status_code == 403:
         _LOGGER.warning(
             'Permission denied to delete temporary dataset %s:%s for clean up',
-            temp_table.projectId,
-            temp_table.datasetId)
+            temp_proj_id,
+            temp_ds_id)
         return
       else:
         raise
@@ -2140,7 +2462,8 @@ class BigQueryWrapper(object):
             configuration=apitools_bigquery.JobConfiguration(
                 extract=apitools_bigquery.JobConfigurationExtract(
                     destinationUris=destination,
-                    sourceTable=table_reference,
+                    sourceTable=_to_apitools_table_ref(
+                        table_reference, default_project=job_project),
                     printHeader=include_header,
                     destinationFormat=destination_format,
                     compression=compression,
