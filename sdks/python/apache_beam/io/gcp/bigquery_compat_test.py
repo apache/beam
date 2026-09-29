@@ -27,12 +27,19 @@ interfaces in ``apache_beam.io.gcp.bigquery_compat``.
 
 # pytype: skip-file
 
+import importlib
 import logging
+import os
 import pickle
 import unittest
+import warnings
 from unittest import mock
 
 import apache_beam as beam
+from apache_beam.utils.annotations import BeamDeprecationWarning
+
+# Opt in to BigQuery compatibility shims so the compatibility test suite can run.
+os.environ["BEAM_USE_BIGQUERY_COMPAT_SHIMS"] = "1"
 
 try:
   from apache_beam.io.gcp import bigquery_compat
@@ -50,6 +57,50 @@ try:
   from google.cloud import bigquery as gcp_bigquery
 except ImportError:
   gcp_bigquery = None
+
+
+@unittest.skipIf(bigquery_compat is None, 'GCP dependencies are not installed')
+class TestBigQueryCompatOptIn(unittest.TestCase):
+  """Tests for explicit opt-in environment variable check and warnings."""
+  def test_check_compat_opt_in_disabled(self):
+    # Disabled when unset or empty
+    with mock.patch.dict(os.environ, {"BEAM_USE_BIGQUERY_COMPAT_SHIMS": ""}):
+      with self.assertRaises(ImportError) as ctx:
+        bigquery_compat._check_compat_opt_in()
+      self.assertIn("BEAM_USE_BIGQUERY_COMPAT_SHIMS", str(ctx.exception))
+      self.assertIn("disabled by default", str(ctx.exception))
+
+    # Disabled when 0 or false or no
+    for disabled_val in ("0", "false", "False", "no", "NO"):
+      with mock.patch.dict(os.environ,
+                           {"BEAM_USE_BIGQUERY_COMPAT_SHIMS": disabled_val}):
+        with self.assertRaises(ImportError):
+          bigquery_compat._check_compat_opt_in()
+
+  def test_check_compat_opt_in_enabled_warning(self):
+    for enabled_val in ("1", "true", "True", "yes", "enabled", "on"):
+      with mock.patch.dict(os.environ,
+                           {"BEAM_USE_BIGQUERY_COMPAT_SHIMS": enabled_val}):
+        with warnings.catch_warnings(record=True) as recorded:
+          warnings.simplefilter("always")
+          bigquery_compat._check_compat_opt_in()
+          self.assertTrue(
+              any(
+                  issubclass(w.category, BeamDeprecationWarning)
+                  for w in recorded),
+              f"Expected BeamDeprecationWarning for {enabled_val}")
+          self.assertTrue(
+              any("deprecated" in str(w.message).lower() for w in recorded),
+              f"Expected deprecation message for {enabled_val}")
+
+  def test_reload_without_env_var_raises_import_error(self):
+    try:
+      with mock.patch.dict(os.environ, {"BEAM_USE_BIGQUERY_COMPAT_SHIMS": ""}):
+        with self.assertRaises(ImportError):
+          importlib.reload(bigquery_compat)
+    finally:
+      with mock.patch.dict(os.environ, {"BEAM_USE_BIGQUERY_COMPAT_SHIMS": "1"}):
+        importlib.reload(bigquery_compat)
 
 
 @unittest.skipIf(bigquery_compat is None, 'GCP dependencies are not installed')

@@ -21,6 +21,11 @@ This module contains temporary compatibility models, monkey patches, and
 helpers designed to ease migration away from the deprecated apitools BigQuery
 client to modern ``google-cloud-bigquery``.
 
+.. warning::
+   Importing this module is disabled by default and requires explicit opt-in.
+   To enable these compatibility shims, set the environment variable
+   ``BEAM_USE_BIGQUERY_COMPAT_SHIMS=1``.
+
 .. note::
    This module is intended to be removed in a future Beam release once the
    apitools client dependency is completely removed.
@@ -42,6 +47,38 @@ client to modern ``google-cloud-bigquery``.
 # pytype: skip-file
 
 import logging
+import os
+import warnings
+
+from apache_beam.utils.annotations import BeamDeprecationWarning
+
+_LOGGER = logging.getLogger(__name__)
+
+BIGQUERY_COMPAT_ENV_VAR = "BEAM_USE_BIGQUERY_COMPAT_SHIMS"
+
+
+def _check_compat_opt_in():
+  """Checks whether BigQuery compatibility shims are enabled via environment variable.
+
+  Raises:
+    ImportError: If the environment variable is not set to an enabled value.
+  """
+  val = os.environ.get(BIGQUERY_COMPAT_ENV_VAR, "").strip().lower()
+  if val not in ("1", "true", "yes", "enabled", "on"):
+    raise ImportError(
+        f"BigQuery compatibility shims in {__name__} are disabled by default "
+        f"and require explicit opt-in. Set the environment variable "
+        f"{BIGQUERY_COMPAT_ENV_VAR}=1 to enable them.")
+
+  warnings.warn(
+      f"BigQuery compatibility shims in {__name__} are deprecated and will be "
+      "removed in a future release of Apache Beam. Please migrate to using "
+      "google-cloud-bigquery directly.",
+      BeamDeprecationWarning,
+      stacklevel=2)
+
+
+_check_compat_opt_in()
 
 try:
   from google.cloud import bigquery as gcp_bigquery
@@ -460,9 +497,16 @@ class JobReference(object):
         f"location={self.location!r})")
 
 
+_PATCHED_PROTORPCLITE = False
+
+
 def _patch_protorpclite_equality():
+  global _PATCHED_PROTORPCLITE
+  if _PATCHED_PROTORPCLITE:
+    return
   if _protorpclite_messages is not None and hasattr(_protorpclite_messages,
                                                     "Message"):
+    _PATCHED_PROTORPCLITE = True
     _orig_message_eq = _protorpclite_messages.Message.__eq__
 
     def _message_compat_eq(self, other):
