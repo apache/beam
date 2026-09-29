@@ -74,7 +74,7 @@ For manually identified critical dependency updates, Beam community members shou
 
 __Dependencies of Java SDK components that may cause issues to other components if leaked should be vendored.__
 
-[Vendoring](https://www.ardanlabs.com/blog/2013/10/manage-dependencies-with-godep.html) is the process of creating copies of third party dependencies. Combined with repackaging, vendoring allows Beam components to depend on third party libraries without causing conflicts to other components. Vendoring should be done in a case-by-case basis since this can increase the total number of dependencies deployed in user's enviroment.
+[Vendoring](https://www.ardanlabs.com/blog/2013/10/manage-dependencies-with-godep.html) is the process of creating copies of third party dependencies. Combined with repackaging, vendoring allows Beam components to depend on third party libraries without causing conflicts to other components. Vendoring should be done in a case-by-case basis since this can increase the total number of dependencies deployed in user's environment.
 
 ## Dependency updates and backwards compatibility
 
