@@ -35,7 +35,6 @@ import java.io.OutputStreamWriter;
 import java.io.Serializable;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.CopyOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -249,30 +248,44 @@ public class FileIOTest implements Serializable {
       // unpack value as output
       context.output(Objects.requireNonNull(context.element()).getValue());
 
-      CopyOption[] cpOptions = {StandardCopyOption.COPY_ATTRIBUTES};
-      CopyOption[] updOptions = {
-        StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES
-      };
       final Path sourcePath = Paths.get(sourcePathStr);
       final Path watchPath = Paths.get(watchPathStr);
 
       if (0 == current) {
         Thread.sleep(100);
-        // Ensure overwrite updates get a distinct mtime even when COPY_ATTRIBUTES is enabled.
-        Files.setLastModifiedTime(
-            sourcePath.resolve("first"), FileTime.fromMillis(baseTimestampMillis + 2000));
-        Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
-        Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), cpOptions);
+        // Stage with final mtime before atomic move so the poller never sees an intermediate
+        // current-wall-clock mtime while attributes are being copied.
+        FileTime firstUpdateTime = FileTime.fromMillis(baseTimestampMillis + 2000);
+        Files.setLastModifiedTime(sourcePath.resolve("first"), firstUpdateTime);
+        atomicCopyWithTimestamp(
+            sourcePath.resolve("first"), watchPath.resolve("first"), firstUpdateTime);
+        atomicCopyWithTimestamp(
+            sourcePath.resolve("second"),
+            watchPath.resolve("second"),
+            Files.getLastModifiedTime(sourcePath.resolve("second")));
       } else if (1 == current) {
         Thread.sleep(100);
         FileTime updateTime = FileTime.fromMillis(baseTimestampMillis + 4000);
         Files.setLastModifiedTime(sourcePath.resolve("first"), updateTime);
         Files.setLastModifiedTime(sourcePath.resolve("second"), updateTime);
-        Files.copy(sourcePath.resolve("first"), watchPath.resolve("first"), updOptions);
-        Files.copy(sourcePath.resolve("second"), watchPath.resolve("second"), updOptions);
-        Files.copy(sourcePath.resolve("third"), watchPath.resolve("third"), cpOptions);
+        atomicCopyWithTimestamp(
+            sourcePath.resolve("first"), watchPath.resolve("first"), updateTime);
+        atomicCopyWithTimestamp(
+            sourcePath.resolve("second"), watchPath.resolve("second"), updateTime);
+        atomicCopyWithTimestamp(
+            sourcePath.resolve("third"),
+            watchPath.resolve("third"),
+            Files.getLastModifiedTime(sourcePath.resolve("third")));
       }
       count.write(current + 1);
+    }
+
+    private static void atomicCopyWithTimestamp(Path src, Path dst, FileTime timestamp)
+        throws IOException {
+      Path tmp = src.getParent().resolve(".staging_" + dst.getFileName());
+      Files.copy(src, tmp, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.COPY_ATTRIBUTES);
+      Files.setLastModifiedTime(tmp, timestamp);
+      Files.move(tmp, dst, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
     }
 
     // Member variables need to be serializable.
