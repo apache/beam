@@ -615,6 +615,7 @@ public class AvroIO {
         .setMetadata(ImmutableMap.of())
         .setWindowedWrites(false)
         .setNoSpilling(false)
+        .setEvictWritersWhenFull(false)
         .setSyncInterval(DataFileConstants.DEFAULT_SYNC_INTERVAL);
   }
 
@@ -1426,6 +1427,8 @@ public class AvroIO {
 
     abstract boolean getNoSpilling();
 
+    abstract boolean getEvictWritersWhenFull();
+
     abstract @Nullable Integer getMaxNumWritersPerBundle();
 
     abstract @Nullable FilenamePolicy getFilenamePolicy();
@@ -1487,6 +1490,9 @@ public class AvroIO {
       abstract Builder<UserT, DestinationT, OutputT> setWindowedWrites(boolean windowedWrites);
 
       abstract Builder<UserT, DestinationT, OutputT> setNoSpilling(boolean noSpilling);
+
+      abstract Builder<UserT, DestinationT, OutputT> setEvictWritersWhenFull(
+          boolean evictWritersWhenFull);
 
       abstract Builder<UserT, DestinationT, OutputT> setMaxNumWritersPerBundle(
           @Nullable Integer maxNumWritersPerBundle);
@@ -1698,6 +1704,11 @@ public class AvroIO {
       return toBuilder().setNoSpilling(true).build();
     }
 
+    /** See {@link WriteFiles#withEvictWritersWhenFull()}. */
+    public TypedWrite<UserT, DestinationT, OutputT> withEvictWritersWhenFull() {
+      return toBuilder().setEvictWritersWhenFull(true).build();
+    }
+
     /** See {@link WriteFiles#withMaxNumWritersPerBundle()}. */
     public TypedWrite<UserT, DestinationT, OutputT> withMaxNumWritersPerBundle(
         @Nullable Integer maxNumWritersPerBundle) {
@@ -1818,6 +1829,9 @@ public class AvroIO {
       }
       if (getBadRecordErrorHandler() != null) {
         write = write.withBadRecordErrorHandler(getBadRecordErrorHandler());
+      }
+      if (getEvictWritersWhenFull()) {
+        write = write.withEvictWritersWhenFull();
       }
       return input.apply("Write", write);
     }
