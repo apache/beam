@@ -1044,7 +1044,14 @@ if gcp_bigquery:
 
 
 def _to_json_compatible(obj):
-  """Converts an object or nested structure to JSON/API-compatible dicts/types."""
+  """Converts an object or nested structure to JSON/API-compatible dicts/types.
+
+  .. note::
+     This is a temporary helper used to extract dictionary representations
+     from legacy apitools ``protorpclite.Message`` objects via
+     ``encoding.MessageToDict``. It will be removed once the legacy apitools
+     client code is excised.
+  """
   if obj is None:
     return None
   if isinstance(obj, (str, int, float, bool)):
@@ -1067,7 +1074,14 @@ def _to_json_compatible(obj):
 
 
 def _extract_dict_labels(labels):
-  """Converts labels to a non-empty dictionary or returns None."""
+  """Converts labels to a non-empty dictionary or returns None.
+
+  .. note::
+     This is a temporary helper to translate legacy apitools ``LabelsValue``
+     protobuf messages into standard Python dictionaries. It will be removed
+     or simplified to a direct dictionary check once the legacy client code
+     is excised.
+  """
   if not labels:
     return None
   labels = _to_json_compatible(labels)
@@ -1193,7 +1207,15 @@ def _to_gcp_schema(schema):
 
 
 def _to_table_schema(schema):
-  """Converts a list of google.cloud.bigquery.SchemaField, dict, or TableSchema into a TableSchema."""
+  """Converts a list of google.cloud.bigquery.SchemaField, dict, or TableSchema into a TableSchema.
+
+  .. note::
+     This is a temporary backwards-compatibility helper that translates modern
+     ``google.cloud.bigquery.SchemaField`` instances back into the legacy
+     ``TableSchema`` model for operators like ``TableRowJsonCoder``. It will be
+     removed in a future release once Beam coders and schema utilities natively
+     consume modern schema types.
+  """
   if schema is None:
     return TableSchema()
   if isinstance(schema, TableSchema):
