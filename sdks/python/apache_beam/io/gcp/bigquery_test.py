@@ -230,6 +230,26 @@ class TestTableRowJsonCoder(unittest.TestCase):
   def test_invalid_json_neg_inf(self):
     self.json_compliance_exception(float('-inf'))
 
+  def test_schema_as_list(self):
+    if gcp_bigquery is not None:
+      schema_fields = [
+          gcp_bigquery.SchemaField('s', 'STRING'),
+          gcp_bigquery.SchemaField('i', 'INTEGER'),
+      ]
+    else:
+      schema_fields = [
+          bigquery_tools._TableFieldSchemaCompat('s', 'STRING'),
+          bigquery_tools._TableFieldSchemaCompat('i', 'INTEGER'),
+      ]
+    coder = TableRowJsonCoder(table_schema=schema_fields)
+    test_row = bigquery.TableRow(
+        f=[
+            bigquery.TableCell(v=to_json_value('abc')),
+            bigquery.TableCell(v=to_json_value(123))
+        ])
+    encoded = coder.encode(test_row)
+    self.assertEqual('{"s": "abc", "i": 123}', encoded)
+
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class TestJsonToDictCoder(unittest.TestCase):
@@ -328,6 +348,24 @@ class TestJsonToDictCoder(unittest.TestCase):
     ])
     coder = _JsonToDictCoder(schema)
 
+    actual = coder.decode(input_row)
+    self.assertEqual(expected_row, actual)
+
+  def test_schema_as_list_of_schema_fields(self):
+    if gcp_bigquery is not None:
+      schema_fields = [
+          gcp_bigquery.SchemaField('float', 'FLOAT', mode='NULLABLE'),
+          gcp_bigquery.SchemaField('string', 'STRING', mode='NULLABLE'),
+      ]
+    else:
+      schema_fields = [
+          bigquery_tools._TableFieldSchemaCompat('float', 'FLOAT', 'NULLABLE'),
+          bigquery_tools._TableFieldSchemaCompat(
+              'string', 'STRING', 'NULLABLE'),
+      ]
+    coder = _JsonToDictCoder(schema_fields)
+    input_row = b'{"float": "10.5", "string": "abc"}'
+    expected_row = {'float': 10.5, 'string': 'abc'}
     actual = coder.decode(input_row)
     self.assertEqual(expected_row, actual)
 
@@ -448,8 +486,11 @@ class TestReadFromBigQuery(unittest.TestCase):
   def test_create_temp_dataset_exception(self, exception_type, error_message):
 
     # Uses the FnApiRunner to ensure errors are mocked/passed through correctly
-    with mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
-                           'Insert'),\
+    with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
+                           'estimate_size'),\
+      mock.patch.object(BigQueryWrapper,
+                        'get_query_location',
+                        return_value='US'),\
       mock.patch.object(BigQueryWrapper,
                         'get_or_create_dataset') as mock_insert, \
       mock.patch('time.sleep'), \
@@ -515,14 +556,21 @@ class TestReadFromBigQuery(unittest.TestCase):
         fields = []
 
       numBytes = 5
+      num_bytes = 5
       schema = DummySchema()
+      location = 'US'
+      table_id = 'table'
+      tableId = 'table'
+      dataset_id = 'dataset'
+      datasetId = 'dataset'
+      project = 'project'
+      projectId = 'project'
 
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
     # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
     # to FnApiRunner instead.
     with mock.patch('time.sleep'), \
-            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
-                              'Get') as mock_get_table, \
+            mock.patch('google.cloud.bigquery.Client.get_table') as mock_get_table, \
             mock.patch.object(BigQueryWrapper,
                               'wait_for_bq_job'), \
             mock.patch.object(BigQueryWrapper,
@@ -534,7 +582,7 @@ class TestReadFromBigQuery(unittest.TestCase):
             beam.Pipeline('FnApiRunner') as p:
       call_counter = 0
 
-      def store_callback(unused_request):
+      def store_callback(*unused_args, **unused_kwargs):
         nonlocal call_counter
         if call_counter < len(responses):
           exception = responses[call_counter]
@@ -630,11 +678,18 @@ class TestReadFromBigQuery(unittest.TestCase):
         fields = []
 
       numBytes = 5
+      num_bytes = 5
       schema = DummySchema()
+      location = 'US'
+      table_id = 'table'
+      tableId = 'table'
+      dataset_id = 'dataset'
+      datasetId = 'dataset'
+      project = 'project'
+      projectId = 'project'
 
     with mock.patch('time.sleep'), \
-            mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService,
-                              'Get') as mock_get_table, \
+            mock.patch('google.cloud.bigquery.Client.get_table') as mock_get_table, \
             mock.patch.object(BigQueryWrapper,
                               'wait_for_bq_job'), \
             mock.patch.object(BigQueryWrapper,
@@ -647,7 +702,7 @@ class TestReadFromBigQuery(unittest.TestCase):
             beam.Pipeline() as p:
       call_counter = 0
 
-      def store_callback(unused_request):
+      def store_callback(*unused_args, **unused_kwargs):
         nonlocal call_counter
         if call_counter < len(responses):
           exception = responses[call_counter]
@@ -688,9 +743,8 @@ class TestReadFromBigQuery(unittest.TestCase):
                            'estimate_size') as mock_estimate,\
       mock.patch.object(BigQueryWrapper,
                         'get_query_location') as mock_query_location,\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
-                        'Insert') as mock_query_job,\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.DatasetsService, 'Get'), \
+      mock.patch('google.cloud.bigquery.Client.query') as mock_query_job,\
+      mock.patch('google.cloud.bigquery.Client.get_dataset'), \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc, \
       beam.Pipeline('FnApiRunner') as p:
@@ -704,7 +758,7 @@ class TestReadFromBigQuery(unittest.TestCase):
           gcs_location='gs://temp_location')
 
     mock_query_job.assert_called()
-    self.assertIn(error_message, exc.exception.args[0])
+    self.assertIn(error_message, str(exc.exception))
 
   @parameterized.expand([
       param(
@@ -718,9 +772,8 @@ class TestReadFromBigQuery(unittest.TestCase):
 
     with mock.patch.object(beam.io.gcp.bigquery._CustomBigQuerySource,
                            'estimate_size') as mock_estimate,\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.TablesService, 'Get'),\
-      mock.patch.object(bigquery_v2_client.BigqueryV2.JobsService,
-                        'Insert') as mock_query_job, \
+      mock.patch('google.cloud.bigquery.Client.get_table'),\
+      mock.patch('google.cloud.bigquery.Client.extract_table') as mock_query_job, \
       mock.patch('time.sleep'), \
       self.assertRaises(Exception) as exc,\
       beam.Pipeline() as p:
@@ -743,8 +796,8 @@ class TestReadFromBigQuery(unittest.TestCase):
     # to FnApiRunner instead.
     with mock.patch.object(bigquery_tools.BigQueryWrapper,
                         '_bigquery_client'),\
-         mock.patch.object(bq_storage.BigQueryReadClient,
-                        'create_read_session'),\
+         mock.patch.object(bq_storage,
+                        'BigQueryReadClient'),\
         beam.Pipeline('FnApiRunner') as p:
 
       _ = p | ReadFromBigQuery(
@@ -2349,7 +2402,7 @@ class BigQueryStreamingInsertTransformTests(unittest.TestCase):
     # created.
     fn.process(('project-id:dataset_id.table_id', ({'month': 1}, 'insertid3')))
 
-    self.assertTrue(client.tables.Get.called)
+    self.assertTrue(client.get_table.called or client.tables.Get.called)
     # InsertRows not called as batch size is not hit
     self.assertFalse(client.insert_rows_json.called)
 

@@ -35,10 +35,12 @@ import pytz
 from parameterized import parameterized
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.io.gcp import resource_identifiers
 from apache_beam.io.gcp.bigquery_tools import JSON_COMPLIANCE_ERROR
 from apache_beam.io.gcp.bigquery_tools import AvroRowWriter
 from apache_beam.io.gcp.bigquery_tools import BigQueryJobTypes
+from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
 from apache_beam.io.gcp.bigquery_tools import JsonRowWriter
 from apache_beam.io.gcp.bigquery_tools import RowAsDictJsonCoder
 from apache_beam.io.gcp.bigquery_tools import beam_row_from_dict
@@ -50,6 +52,7 @@ from apache_beam.io.gcp.bigquery_tools import parse_table_schema_from_json
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.execution import MetricsEnvironment
+from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.value_provider import StaticValueProvider
 from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
@@ -173,6 +176,21 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.projectId, projectId)
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
+
+  def test_parse_table_reference_without_regex_package(self):
+    with mock.patch.object(bigquery_tools, 'regex', None):
+      parsed_ref = parse_table_reference('my-project:my_dataset.my_table')
+      self.assertEqual(parsed_ref.projectId, 'my-project')
+      self.assertEqual(parsed_ref.datasetId, 'my_dataset')
+      self.assertEqual(parsed_ref.tableId, 'my_table')
+
+      parsed_ref2 = parse_table_reference('my_dataset.my_table$20250101')
+      self.assertIsNone(parsed_ref2.projectId)
+      self.assertEqual(parsed_ref2.datasetId, 'my_dataset')
+      self.assertEqual(parsed_ref2.tableId, 'my_table$20250101')
+
+      with self.assertRaises(ValueError):
+        parse_table_reference('invalid_table_ref')
 
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
@@ -565,6 +583,8 @@ class TestBigQueryWrapper(unittest.TestCase):
             [],
         ])
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
+    wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
     wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
 
     # Expect two failing calls, then a success (i.e. two retries).
@@ -1407,6 +1427,133 @@ class TestTypeOverrides(unittest.TestCase):
     # Or map to dict
     typehints_dict = get_beam_typehints_from_tableschema(schema, {"JSON": dict})
     self.assertEqual(typehints_dict, [("data", Optional[dict])])
+
+  def test_perform_load_job_with_modern_client_additional_parameters(self):
+    if bigquery_tools.gcp_bigquery is None:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    client = mock.MagicMock(spec=bigquery_tools.gcp_bigquery.Client)
+    mock_job = mock.MagicMock()
+    mock_job.job_id = 'test_job_id'
+    mock_job.project = 'test-project'
+    mock_job.location = 'US'
+    client.load_table_from_uri.return_value = mock_job
+
+    wrapper = bigquery_tools.BigQueryWrapper(client)
+    job_ref = wrapper.perform_load_job(
+        destination='test-project:test_dataset.test_table',
+        source_uris=['gs://test-bucket/data.csv'],
+        job_id='test_job_id',
+        additional_load_parameters={
+            'schemaUpdateOptions': ['ALLOW_FIELD_ADDITION'],
+            'timePartitioning': {
+                'type': 'DAY', 'field': 'date'
+            },
+            'ignoreUnknownValues': True,
+        })
+
+    self.assertEqual(job_ref.jobId, 'test_job_id')
+    self.assertEqual(job_ref.projectId, 'test-project')
+    client.load_table_from_uri.assert_called_once()
+    called_config = client.load_table_from_uri.call_args.kwargs['job_config']
+    self.assertEqual(
+        called_config.schema_update_options, ['ALLOW_FIELD_ADDITION'])
+    self.assertEqual(called_config.time_partitioning.type_, 'DAY')
+    self.assertEqual(called_config.time_partitioning.field, 'date')
+    self.assertTrue(called_config.ignore_unknown_values)
+
+  def test_start_query_job_with_none_labels(self):
+    if bigquery_tools.gcp_bigquery is None:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    client = mock.MagicMock(spec=bigquery_tools.gcp_bigquery.Client)
+    mock_job = mock.MagicMock()
+    mock_job.job_id = 'query_job_id'
+    mock_job.project = 'test-project'
+    mock_job.location = 'US'
+    client.query.return_value = mock_job
+
+    wrapper = bigquery_tools.BigQueryWrapper(client)
+    job = wrapper._start_query_job(
+        project_id='test-project',
+        query='SELECT 1',
+        use_legacy_sql=False,
+        flatten_results=False,
+        job_id='query_job_id',
+        priority='BATCH',
+        dry_run=False,
+        job_labels=None,
+    )
+    self.assertEqual(job, mock_job)
+    client.query.assert_called_once()
+    called_config = client.query.call_args.kwargs['job_config']
+    self.assertEqual(called_config.labels, {})
+
+  def test_create_table_with_additional_parameters_partitioning_and_clustering(
+      self):
+    if bigquery_tools.gcp_bigquery is None:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+
+    mock_client = mock.Mock(spec=bigquery_tools.gcp_bigquery.Client)
+    mock_client.create_table = mock.Mock(side_effect=lambda table: table)
+    wrapper = BigQueryWrapper(client=mock_client)
+
+    schema = {
+        'fields': [{
+            'name': 'name', 'type': 'STRING', 'mode': 'NULLABLE'
+        }, {
+            'name': 'language', 'type': 'STRING', 'mode': 'NULLABLE'
+        }]
+    }
+    additional_params = {
+        'timePartitioning': {
+            'type': 'DAY'
+        },
+        'clustering': {
+            'fields': ['language']
+        }
+    }
+    res = wrapper._create_table(
+        project_id='test-project',
+        dataset_id='test_dataset',
+        table_id='test_table',
+        schema=schema,
+        additional_parameters=additional_params)
+    mock_client.create_table.assert_called_once()
+    created_table = mock_client.create_table.call_args[0][0]
+    self.assertEqual(created_table.time_partitioning.type_, 'DAY')
+    self.assertEqual(created_table.clustering_fields, ['language'])
+    self.assertEqual(len(created_table.schema), 2)
+    self.assertEqual(res, created_table)
+
+
+@unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
+class TestBigQueryClientExperimentFallback(unittest.TestCase):
+  def test_default_client_is_modern(self):
+    if bigquery_tools.gcp_bigquery is None:
+      raise unittest.SkipTest('google-cloud-bigquery is not installed')
+    wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
+    self.assertTrue(wrapper._is_modern_client)
+
+  def test_default_client_is_legacy_when_no_modern_client(self):
+    if bigquery_tools.gcp_bigquery is not None:
+      raise unittest.SkipTest('google-cloud-bigquery is installed')
+    wrapper = BigQueryWrapper.from_pipeline_options(PipelineOptions([]))
+    self.assertFalse(wrapper._is_modern_client)
+
+  def test_experiment_flag_use_legacy_bigquery_client(self):
+    options = PipelineOptions(['--experiments=use_legacy_bigquery_client'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+    self.assertFalse(wrapper._is_modern_client)
+
+  def test_experiment_flag_use_legacy_bq_client(self):
+    options = PipelineOptions(['--experiments=use_legacy_bq_client'])
+    wrapper = BigQueryWrapper.from_pipeline_options(options)
+    self.assertFalse(wrapper._is_modern_client)
+
+  def test_kwarg_use_legacy_client(self):
+    wrapper = BigQueryWrapper(use_legacy_client=True)
+    self.assertFalse(wrapper._is_modern_client)
 
 
 if __name__ == '__main__':

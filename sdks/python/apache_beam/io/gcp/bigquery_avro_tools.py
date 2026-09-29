@@ -60,6 +60,8 @@ BIG_QUERY_TO_AVRO_TYPES = {
         "precision": 38,
         "scale": 9,
     },
+    "BIGNUMERIC": "string",
+    "JSON": "string",
     "GEOGRAPHY": "string",
 }
 
@@ -108,11 +110,12 @@ def table_field_to_avro_field(table_field: dict[str, Any],
   """
   assert "type" in table_field, \
     "Unable to get type for table field {}".format(table_field)
-  assert table_field["type"] in BIG_QUERY_TO_AVRO_TYPES, \
+  field_type_str = table_field["type"].upper()
+  assert field_type_str in BIG_QUERY_TO_AVRO_TYPES, \
     "Unable to map BigQuery field type {} to avro type".format(
       table_field["type"])
 
-  avro_type = BIG_QUERY_TO_AVRO_TYPES[table_field["type"]]
+  avro_type = BIG_QUERY_TO_AVRO_TYPES[field_type_str]
 
   if avro_type == "record":
     element_type = get_record_schema_from_dict_table_schema(
@@ -122,9 +125,9 @@ def table_field_to_avro_field(table_field: dict[str, Any],
   else:
     element_type = avro_type
 
-  field_mode = table_field.get("mode", "NULLABLE")
+  field_mode = (table_field.get("mode") or "NULLABLE").upper()
 
-  if field_mode in (None, "NULLABLE"):
+  if field_mode in (None, "NULLABLE", ""):
     field_type = ["null", element_type]
   elif field_mode == "REQUIRED":
     field_type = element_type
