@@ -24,7 +24,10 @@ import org.junit.BeforeClass;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-@RunWith(Parameterized.class)
+// Runs the two changeTableSchema cases in parallel. Splitting the suite into two concrete
+// classes additionally lets Gradle's maxParallelForks run the with/without-input-schema
+// halves in separate JVMs.
+@RunWith(StorageApiSinkSchemaUpdateITBase.ParallelParameterized.class)
 public class StorageApiSinkSchemaUpdateWithoutInputSchemaIT
     extends StorageApiSinkSchemaUpdateITBase {
   private static final String BIG_QUERY_DATASET_ID =

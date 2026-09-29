@@ -296,7 +296,7 @@ The I/O Connector development guidelines are written with the following principl
       </td>
       <td>
          <p>An I/O should rarely rely on a PipelineOptions subclass to tune internal parameters.
-         <p>If neccesary, a connector-related pipeline options class should:
+         <p>If necessary, a connector-related pipeline options class should:
          <ul>
             <li>Document clearly, for each option, the effect it has and why one may modify it.
             <li>Option names must be namespaced to avoid collisions
@@ -1180,7 +1180,7 @@ When possible, unit tests are favored over integration tests due to faster execu
          <p>For every option available to users. For example, writing to dynamic destinations.
       </td>
       <td>
-         <p><a href="https://github.com/apache/beam/blob/5b3f70bec72b6b646fe97d4eb7f8bd715dd562a8/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L1410">BigTableIOTest.testReadWithBigTableOptionsSetsRetryOptions</a>
+         <p><a href="https://github.com/apache/beam/blob/5b3f70bec72b6b646fe97d4eb7f8bd715dd562a8/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L1410">BigtableIOTest.testReadWithBigtableOptionsSetsRetryOptions</a>
          <p><a href="https://github.com/apache/beam/blob/cd05896ebc385d12f7a7801f3bbba0127bef8b3b/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigquery/BigQueryIOWriteTest.java#L270">BigQueryIOWriteTest.testWriteDynamicDestinations</a>
       </td>
    </tr>
@@ -1238,7 +1238,7 @@ When possible, unit tests are favored over integration tests due to faster execu
          <p>There can be many variations of these tests. Please refer to examples for details.
       </td>
       <td>
-         <p><a href="https://github.com/apache/beam/blob/09bbb48187301f18bec6d9110741c69b955e2b5a/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L670">BigTableIOTest.testReadingSplitAtFractionExhaustive</a>
+         <p><a href="https://github.com/apache/beam/blob/09bbb48187301f18bec6d9110741c69b955e2b5a/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/bigtable/BigtableIOTest.java#L670">BigtableIOTest.testReadingSplitAtFractionExhaustive</a>
          <p><a href="https://github.com/apache/beam/blob/cb28a5b0265a04d60ad005684d0fbb4db74128f2/sdks/python/apache_beam/io/avroio_test.py#L309">avroio_test.AvroBase.test_dynamic_work_rebalancing_exhaustive</a>
       </td>
    </tr>
@@ -1296,7 +1296,7 @@ When possible, unit tests are favored over integration tests due to faster execu
          <p>Sink batching test
       </td>
       <td>
-         <p>Make sure that sinks batch data before writing if the sinks performace batching for performance reasons.
+         <p>Make sure that sinks batch data before writing if the sinks perform batching for performance reasons.
       </td>
       <td>
          <p><a href="https://github.com/apache/beam/blob/c57c983c8ae7d84926f9cf42f7c40af8eaf60545/sdks/java/io/google-cloud-platform/src/test/java/org/apache/beam/sdk/io/gcp/spanner/SpannerIOWriteTest.java#L1200">SpannerIOWriteTest.testBatchFn_cells</a>

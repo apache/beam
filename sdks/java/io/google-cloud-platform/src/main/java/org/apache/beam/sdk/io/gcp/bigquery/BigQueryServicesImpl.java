@@ -191,6 +191,15 @@ public class BigQueryServicesImpl implements BigQueryServices {
 
   private static final String NO_ROWS_PRESENT = "No rows present in the request.";
 
+  private static final String BIGQUERY_NOT_ENABLED = "has not enabled BigQuery";
+
+  private static final String BIGQUERY_NOT_ENABLED_GUIDANCE =
+      "Please verify that the project ID is correct and that the BigQuery API is enabled for the"
+          + " project at https://console.cloud.google.com/apis/library/bigquery.googleapis.com."
+          + " If the BigQuery API is already enabled, check the Google Cloud Status Dashboard"
+          + " (https://status.cloud.google.com/) for any ongoing authentication or service"
+          + " outages.";
+
   protected static final Map<String, String> API_METRIC_LABEL =
       ImmutableMap.of(
           MonitoringInfoConstants.Labels.SERVICE, "BigQuery",
@@ -814,20 +823,35 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
+     * <p>A table that BigQuery reports as not found is treated as deleted successfully, since that
+     * is the state the caller asked for.
+     *
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteTable(TableReference tableRef) throws IOException, InterruptedException {
-      executeWithRetries(
-          client
-              .tables()
-              .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
-          String.format(
-              "Unable to delete table: %s, aborting after %d retries.",
-              tableRef.getTableId(), MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
-          createDefaultBackoff(),
-          ALWAYS_RETRY);
+      try {
+        executeWithRetries(
+            client
+                .tables()
+                .delete(tableRef.getProjectId(), tableRef.getDatasetId(), tableRef.getTableId()),
+            String.format(
+                "Unable to delete table: %s, aborting after %d retries.",
+                tableRef.getTableId(), MAX_RPC_RETRIES),
+            Sleeper.DEFAULT,
+            createDefaultBackoff(),
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (!errorExtractor.itemNotFound(e)) {
+          throw e;
+        }
+
+        // a delete can succeed at bigquery and still have its work item fail to commit afterwards.
+        // the runner then replays that work item, and the replayed delete gets a 404 because the
+        // first attempt already removed the table. failing here would make the work item retry
+        // forever, which in a streaming job stalls the drain indefinitely
+        LOG.info("Table {} is already deleted, treating as success.", tableRef.getTableId());
+      }
     }
 
     @Override
@@ -960,18 +984,32 @@ public class BigQueryServicesImpl implements BigQueryServices {
      *
      * <p>Tries executing the RPC for at most {@code MAX_RPC_RETRIES} times until it succeeds.
      *
+     * <p>A dataset that BigQuery reports as not found is treated as deleted successfully, since
+     * that is the state the caller asked for.
+     *
      * @throws IOException if it exceeds {@code MAX_RPC_RETRIES} attempts.
      */
     @Override
     public void deleteDataset(String projectId, String datasetId)
         throws IOException, InterruptedException {
-      executeWithRetries(
-          client.datasets().delete(projectId, datasetId),
-          String.format(
-              "Unable to delete table: %s, aborting after %d retries.", datasetId, MAX_RPC_RETRIES),
-          Sleeper.DEFAULT,
-          createDefaultBackoff(),
-          ALWAYS_RETRY);
+      try {
+        executeWithRetries(
+            client.datasets().delete(projectId, datasetId),
+            String.format(
+                "Unable to delete table: %s, aborting after %d retries.",
+                datasetId, MAX_RPC_RETRIES),
+            Sleeper.DEFAULT,
+            createDefaultBackoff(),
+            DONT_RETRY_NOT_FOUND);
+      } catch (IOException e) {
+        if (!errorExtractor.itemNotFound(e)) {
+          throw e;
+        }
+
+        // see deleteTable: a replayed work item can find the dataset its own earlier attempt
+        // already removed, and treating that 404 as a failure would retry forever
+        LOG.info("Dataset {} is already deleted, treating as success.", datasetId);
+      }
     }
 
     static class InsertBatchofRowsCallable implements Callable<List<InsertErrors>> {
@@ -1058,14 +1096,17 @@ public class BigQueryServicesImpl implements BigQueryServices {
             if (!ApiErrorExtractor.INSTANCE.rateLimited(e)
                 && !errorInfo.getReason().equals(QUOTA_EXCEEDED)) {
               String exceptionMessage = e.getMessage();
-              if (ApiErrorExtractor.INSTANCE.badRequest(e)
-                  && exceptionMessage != null
-                  && exceptionMessage.contains(NO_ROWS_PRESENT)) {
-                LOG.error(
-                    "No rows present in the request error likely caused by BigQuery Insert"
-                        + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
-                        + " or 0 to disable timeouts",
-                    e.getCause());
+              if (ApiErrorExtractor.INSTANCE.badRequest(e) && exceptionMessage != null) {
+                if (exceptionMessage.contains(NO_ROWS_PRESENT)) {
+                  LOG.error(
+                      "No rows present in the request error likely caused by BigQuery Insert"
+                          + " timing out. Update BigQueryOptions.setHTTPWriteTimeout to be longer,"
+                          + " or 0 to disable timeouts",
+                      e.getCause());
+                } else if (exceptionMessage.contains(BIGQUERY_NOT_ENABLED)) {
+                  LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+                  throw new IOException(exceptionMessage + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+                }
               }
               throw e;
             }
@@ -1734,6 +1775,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
         return request.execute();
       } catch (IOException e) {
         lastException = e;
+        if (ApiErrorExtractor.INSTANCE.badRequest(e)
+            && e.getMessage() != null
+            && e.getMessage().contains(BIGQUERY_NOT_ENABLED)) {
+          LOG.error(BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+          throw new IOException(e.getMessage() + " " + BIGQUERY_NOT_ENABLED_GUIDANCE, e);
+        }
         if (!shouldRetry.apply(e)) {
           break;
         }

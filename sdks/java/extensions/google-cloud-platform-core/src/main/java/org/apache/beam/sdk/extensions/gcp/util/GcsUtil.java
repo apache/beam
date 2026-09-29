@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.extensions.gcp.util;
 
+import com.google.api.client.util.DateTime;
 import com.google.api.gax.paging.Page;
 import com.google.api.services.storage.model.Bucket;
 import com.google.api.services.storage.model.Objects;
@@ -28,10 +29,17 @@ import com.google.cloud.storage.Storage.BlobListOption;
 import com.google.cloud.storage.Storage.BlobSourceOption;
 import com.google.cloud.storage.Storage.BlobWriteOption;
 import com.google.cloud.storage.Storage.BucketGetOption;
+import com.google.cloud.storage.Storage.BucketTargetOption;
+import com.google.cloud.storage.Storage.PredefinedAcl;
+import com.google.cloud.storage.StorageClass;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.channels.SeekableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.time.Duration;
+import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -47,8 +55,12 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class GcsUtil {
+  private static final Logger LOG = LoggerFactory.getLogger(GcsUtil.class);
+
   /**
    * Namespace for every GCS metric. The namespace is dropped when Dataflow exports counters to
    * Cloud Monitoring, so the layer is carried by the metric name instead: {@code gcs_http_*} for
@@ -119,8 +131,12 @@ public class GcsUtil {
     this.delegate = new GcsUtilV1.GcsUtilFactory().create(options);
     if (ExperimentalOptions.hasExperiment(options, "use_gcsutil_v2")) {
       this.delegateV2 = new GcsUtilV2.GcsUtilFactory().create(options);
+      // INFO only for V2, which is opt-in. V1 is still the default for every pipeline,
+      // so logging it at INFO would be noise.
+      LOG.info("Using GcsUtilV2 (java-storage) for GCS operations.");
     } else {
       this.delegateV2 = null;
+      LOG.debug("Using GcsUtilV1 (gcsio) for GCS operations.");
     }
   }
 
@@ -143,6 +159,9 @@ public class GcsUtil {
    */
   @Deprecated
   public StorageObject getObject(GcsPath gcsPath) throws IOException {
+    if (delegateV2 != null) {
+      return toStorageObject(delegateV2.getBlob(gcsPath));
+    }
     return delegate.getObject(gcsPath);
   }
 
@@ -158,6 +177,21 @@ public class GcsUtil {
    */
   @Deprecated
   public List<StorageObjectOrIOException> getObjects(List<GcsPath> gcsPaths) throws IOException {
+    if (delegateV2 != null) {
+      List<StorageObjectOrIOException> results = new ArrayList<>();
+      for (BlobResult blobResult : delegateV2.getBlobs(gcsPaths)) {
+        Blob blob = blobResult.blob();
+        IOException ioException = blobResult.ioException();
+        if (blob != null) {
+          results.add(StorageObjectOrIOException.create(toStorageObject(blob)));
+        } else if (ioException != null) {
+          results.add(StorageObjectOrIOException.create(ioException));
+        } else {
+          throw new IOException("Invalid blob result: it holds neither a blob nor an error.");
+        }
+      }
+      return results;
+    }
     List<GcsUtilV1.StorageObjectOrIOException> legacy = delegate.getObjects(gcsPaths);
     return legacy.stream()
         .map(StorageObjectOrIOException::fromLegacy)
@@ -178,6 +212,9 @@ public class GcsUtil {
   @Deprecated
   public Objects listObjects(String bucket, String prefix, @Nullable String pageToken)
       throws IOException {
+    if (delegateV2 != null) {
+      return toObjects(delegateV2.listBlobs(bucket, prefix, pageToken));
+    }
     return delegate.listObjects(bucket, prefix, pageToken);
   }
 
@@ -188,6 +225,9 @@ public class GcsUtil {
   public Objects listObjects(
       String bucket, String prefix, @Nullable String pageToken, @Nullable String delimiter)
       throws IOException {
+    if (delegateV2 != null) {
+      return toObjects(delegateV2.listBlobs(bucket, prefix, pageToken, delimiter));
+    }
     return delegate.listObjects(bucket, prefix, pageToken, delimiter);
   }
 
@@ -232,7 +272,9 @@ public class GcsUtil {
    */
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type) throws IOException {
-    return delegate.create(path, type);
+    // Built the same way as GcsUtilV1#create(GcsPath, String), but through this class so that it
+    // follows GcsUtilV2 when enabled.
+    return create(path, CreateOptions.builder().setContentType(type).build());
   }
 
   /**
@@ -241,7 +283,12 @@ public class GcsUtil {
   @Deprecated
   public WritableByteChannel create(GcsPath path, String type, Integer uploadBufferSizeBytes)
       throws IOException {
-    return delegate.create(path, type, uploadBufferSizeBytes);
+    return create(
+        path,
+        CreateOptions.builder()
+            .setContentType(type)
+            .setUploadBufferSizeBytes(uploadBufferSizeBytes)
+            .build());
   }
 
   public static class CreateOptions {
@@ -297,7 +344,7 @@ public class GcsUtil {
 
   public WritableByteChannel create(GcsPath path, CreateOptions options) throws IOException {
     if (delegateV2 != null) {
-      delegateV2.create(path, options.delegate);
+      return delegateV2.create(path, options.delegate);
     }
     return delegate.create(path, options.delegate);
   }
@@ -333,16 +380,27 @@ public class GcsUtil {
   }
 
   /**
-   * @deprecated use {@link #createBucket(BucketInfo)}.
+   * @deprecated use {@link #createBucket(BucketInfo, BucketTargetOption...)}.
    */
   @Deprecated
   public void createBucket(String projectId, Bucket bucket) throws IOException {
+    if (delegateV2 != null) {
+      // GcsUtilV1 always creates buckets with projectPrivate ACLs, which java-storage does not do
+      // on its own, so they have to be requested explicitly to keep the same access.
+      delegateV2.createBucket(
+          projectId,
+          toBucketInfo(bucket),
+          BucketTargetOption.predefinedAcl(PredefinedAcl.PROJECT_PRIVATE),
+          BucketTargetOption.predefinedDefaultObjectAcl(PredefinedAcl.PROJECT_PRIVATE));
+      return;
+    }
     delegate.createBucket(projectId, bucket);
   }
 
-  public void createBucket(BucketInfo bucketInfo) throws IOException {
+  public void createBucket(BucketInfo bucketInfo, BucketTargetOption... options)
+      throws IOException {
     if (delegateV2 != null) {
-      delegateV2.createBucket(bucketInfo);
+      delegateV2.createBucket(bucketInfo, options);
     } else {
       throw new IOException("GcsUtil V2 not initialized.");
     }
@@ -353,6 +411,9 @@ public class GcsUtil {
    */
   @Deprecated
   public @Nullable Bucket getBucket(GcsPath path) throws IOException {
+    if (delegateV2 != null) {
+      return toBucket(delegateV2.getBucket(path));
+    }
     return delegate.getBucket(path);
   }
 
@@ -369,6 +430,10 @@ public class GcsUtil {
    */
   @Deprecated
   public void removeBucket(Bucket bucket) throws IOException {
+    if (delegateV2 != null) {
+      delegateV2.removeBucket(toBucketInfo(bucket));
+      return;
+    }
     delegate.removeBucket(bucket);
   }
 
@@ -382,6 +447,14 @@ public class GcsUtil {
 
   public void copy(Iterable<String> srcFilenames, Iterable<String> destFilenames)
       throws IOException {
+    if (delegateV2 != null) {
+      // GcsUtilV1 issues a rewrite without any destination precondition, so ALWAYS_OVERWRITE is
+      // the strategy that preserves its behavior. The strategies that inspect the destination
+      // would also cost an extra GET per file.
+      delegateV2.copy(
+          toGcsPaths(srcFilenames), toGcsPaths(destFilenames), OverwriteStrategy.ALWAYS_OVERWRITE);
+      return;
+    }
     delegate.copy(srcFilenames, destFilenames);
   }
 
@@ -404,6 +477,22 @@ public class GcsUtil {
   public void rename(
       Iterable<String> srcFilenames, Iterable<String> destFilenames, MoveOptions... moveOptions)
       throws IOException {
+    GcsUtilV2 v2 = delegateV2;
+    if (v2 != null) {
+      Set<MoveOptions> moveOptionSet = Sets.newHashSet(moveOptions);
+      // Note this differs from renameV2, which defaults to SAFE_OVERWRITE. GcsUtilV1 rewrites
+      // without a destination precondition, so ALWAYS_OVERWRITE is the behavior preserving choice.
+      v2.move(
+          toGcsPaths(srcFilenames),
+          toGcsPaths(destFilenames),
+          moveOptionSet.contains(StandardMoveOptions.IGNORE_MISSING_FILES)
+              ? MissingStrategy.SKIP_IF_MISSING
+              : MissingStrategy.FAIL_IF_MISSING,
+          moveOptionSet.contains(StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS)
+              ? OverwriteStrategy.SKIP_IF_EXISTS
+              : OverwriteStrategy.ALWAYS_OVERWRITE);
+      return;
+    }
     delegate.rename(srcFilenames, destFilenames, moveOptions);
   }
 
@@ -445,6 +534,11 @@ public class GcsUtil {
   }
 
   public void remove(Collection<String> filenames) throws IOException {
+    if (delegateV2 != null) {
+      // GcsUtilV1 ignores a 404 on delete, which is SKIP_IF_MISSING.
+      delegateV2.remove(toGcsPaths(filenames), MissingStrategy.SKIP_IF_MISSING);
+      return;
+    }
     delegate.remove(filenames);
   }
 
@@ -460,6 +554,128 @@ public class GcsUtil {
     } else {
       throw new IOException("GcsUtil V2 not initialized.");
     }
+  }
+
+  private static List<GcsPath> toGcsPaths(Iterable<String> filenames) {
+    List<GcsPath> paths = new ArrayList<>();
+    for (String filename : filenames) {
+      paths.add(GcsPath.fromUri(filename));
+    }
+    return paths;
+  }
+
+  /**
+   * Converts a JSON API {@link Bucket} into the java-storage {@link BucketInfo} model.
+   *
+   * <p>Only the properties that callers of the deprecated {@link #createBucket(String, Bucket)} set
+   * are carried over. Like {@link #toStorageObject}, this is expected to go away with the
+   * deprecated methods it serves.
+   */
+  private static BucketInfo toBucketInfo(Bucket bucket) {
+    BucketInfo.Builder builder = BucketInfo.newBuilder(bucket.getName());
+    if (bucket.getLocation() != null) {
+      builder.setLocation(bucket.getLocation());
+    }
+    if (bucket.getStorageClass() != null) {
+      builder.setStorageClass(StorageClass.valueOf(bucket.getStorageClass()));
+    }
+    Bucket.SoftDeletePolicy softDeletePolicy = bucket.getSoftDeletePolicy();
+    if (softDeletePolicy != null && softDeletePolicy.getRetentionDurationSeconds() != null) {
+      builder.setSoftDeletePolicy(
+          BucketInfo.SoftDeletePolicy.newBuilder()
+              .setRetentionDuration(
+                  Duration.ofSeconds(softDeletePolicy.getRetentionDurationSeconds()))
+              .build());
+    }
+    return builder.build();
+  }
+
+  /**
+   * Converts a java-storage {@link com.google.cloud.storage.Bucket} back into the JSON API {@link
+   * Bucket} model, for the deprecated {@link #getBucket(GcsPath)}.
+   *
+   * <p>The reverse of {@link #toBucketInfo}, plus the owning project number. Like it, this is
+   * expected to go away with the deprecated methods it serves.
+   */
+  private static Bucket toBucket(com.google.cloud.storage.Bucket bucketInfo) {
+    Bucket bucket =
+        new Bucket()
+            .setName(bucketInfo.getName())
+            .setLocation(bucketInfo.getLocation())
+            .setProjectNumber(bucketInfo.getProject());
+    StorageClass storageClass = bucketInfo.getStorageClass();
+    if (storageClass != null) {
+      bucket.setStorageClass(storageClass.name());
+    }
+    BucketInfo.SoftDeletePolicy softDeletePolicy = bucketInfo.getSoftDeletePolicy();
+    Duration retention = softDeletePolicy == null ? null : softDeletePolicy.getRetentionDuration();
+    if (retention != null) {
+      bucket.setSoftDeletePolicy(
+          new Bucket.SoftDeletePolicy().setRetentionDurationSeconds(retention.getSeconds()));
+    }
+    return bucket;
+  }
+
+  /**
+   * Converts a java-storage {@link Blob} back into the JSON API {@link StorageObject} model.
+   *
+   * <p>This lets the deprecated, legacy typed methods of this class be served by {@link GcsUtilV2}
+   * without their callers having to change. It is expected to go away once those methods do.
+   */
+  private static StorageObject toStorageObject(Blob blob) {
+    StorageObject storageObject =
+        new StorageObject()
+            .setBucket(blob.getBucket())
+            .setName(blob.getName())
+            .setGeneration(blob.getGeneration())
+            .setMetageneration(blob.getMetageneration())
+            .setContentType(blob.getContentType())
+            .setContentEncoding(blob.getContentEncoding())
+            .setMd5Hash(blob.getMd5())
+            .setCrc32c(blob.getCrc32c())
+            .setEtag(blob.getEtag());
+    Long size = blob.getSize();
+    if (size != null) {
+      storageObject.setSize(BigInteger.valueOf(size));
+    }
+    OffsetDateTime updated = blob.getUpdateTimeOffsetDateTime();
+    if (updated != null) {
+      storageObject.setUpdated(new DateTime(updated.toInstant().toEpochMilli()));
+    }
+    OffsetDateTime created = blob.getCreateTimeOffsetDateTime();
+    if (created != null) {
+      storageObject.setTimeCreated(new DateTime(created.toInstant().toEpochMilli()));
+    }
+    return storageObject;
+  }
+
+  /** Converts a single page of java-storage {@link Blob}s into the JSON API {@link Objects}. */
+  private static Objects toObjects(Page<Blob> page) {
+    List<StorageObject> items = new ArrayList<>();
+    List<String> prefixes = new ArrayList<>();
+    for (Blob blob : page.getValues()) {
+      // A delimited listing reports each common prefix as a directory placeholder.
+      if (blob.isDirectory()) {
+        prefixes.add(blob.getName());
+      } else {
+        items.add(toStorageObject(blob));
+      }
+    }
+    Objects objects = new Objects();
+    // Leave items and prefixes null when empty, as the JSON API does, so that callers looping on
+    // getItems() != null keep terminating.
+    if (!items.isEmpty()) {
+      objects.setItems(items);
+    }
+    if (!prefixes.isEmpty()) {
+      objects.setPrefixes(prefixes);
+    }
+    // Page.getNextPageToken() may be an empty string rather than null on the last page.
+    String nextPageToken = page.hasNextPage() ? page.getNextPageToken() : null;
+    if (nextPageToken != null) {
+      objects.setNextPageToken(nextPageToken);
+    }
+    return objects;
   }
 
   @SuppressFBWarnings("NM_CLASS_NOT_EXCEPTION")

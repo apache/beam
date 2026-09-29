@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import org.apache.beam.runners.direct.DirectRunner.Enforcement;
@@ -31,6 +32,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.HashMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.SetMultimap;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /**
@@ -43,9 +45,6 @@ import org.joda.time.Instant;
  * <p>This catches errors during the execution of a {@link DoFn} caused by modifying an element
  * after it is added to an output {@link PCollection}.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class ImmutabilityCheckingBundleFactory implements BundleFactory {
   /**
    * Create a new {@link ImmutabilityCheckingBundleFactory} that uses the underlying {@link
@@ -100,11 +99,12 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
     public ImmutabilityEnforcingBundle(UncommittedBundle<T> underlying) {
       this.underlying = underlying;
       mutationDetectors = HashMultimap.create();
-      coder = getPCollection().getCoder();
+      // Immutability enforcement only wraps non-root bundles, whose PCollection is always present.
+      coder = checkStateNotNull(underlying.getPCollection()).getCoder();
     }
 
     @Override
-    public PCollection<T> getPCollection() {
+    public @Nullable PCollection<T> getPCollection() {
       return underlying.getPCollection();
     }
 
@@ -130,7 +130,7 @@ class ImmutabilityCheckingBundleFactory implements BundleFactory {
               String.format(
                   "PTransform %s mutated value %s after it was output (new value was %s)."
                       + " Values must not be mutated in any way after being output.",
-                  graph.getProducer(underlying.getPCollection()).getFullName(),
+                  graph.getProducer(checkStateNotNull(underlying.getPCollection())).getFullName(),
                   exn.getSavedValue(),
                   exn.getNewValue()),
               exn.getSavedValue(),

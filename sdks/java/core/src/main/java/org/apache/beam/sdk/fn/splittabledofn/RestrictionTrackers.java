@@ -45,8 +45,9 @@ public class RestrictionTrackers {
    * RestrictionTracker}.
    */
   @ThreadSafe
-  private static class RestrictionTrackerObserver<RestrictionT, PositionT>
+  static class RestrictionTrackerObserver<RestrictionT, PositionT>
       extends RestrictionTracker<RestrictionT, PositionT> {
+    private static final int SPLIT_TIMEOUT_SEC = 300;
     protected final RestrictionTracker<RestrictionT, PositionT> delegate;
     protected ReentrantLock lock = new ReentrantLock();
     protected volatile Progress lastProgress = Progress.NONE;
@@ -98,14 +99,42 @@ public class RestrictionTrackers {
 
     @Override
     public SplitResult<RestrictionT> trySplit(double fractionOfRemainder) {
-      lock.lock();
-      try {
-        SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
-        needsProgressUpdate = true;
-        return result;
-      } finally {
-        updateProgressAndUnlock();
+      return trySplit(fractionOfRemainder, SPLIT_TIMEOUT_SEC);
+    }
+
+    @VisibleForTesting
+    SplitResult<RestrictionT> trySplit(double fractionOfRemainder, int timeOutSec) {
+      // When fractionOfRemainder == 0 (a checkpoint), returning null has a special meaning in the
+      // RestrictionTracker contract: it MUST imply that the restriction tracker is done and there
+      // is no more work left to do. Therefore, we cannot time out and return null when
+      // fractionOfRemainder == 0, and must block until the lock is acquired.
+      if (fractionOfRemainder == 0) {
+        lock.lock();
+        try {
+          SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
+          needsProgressUpdate = true;
+          return result;
+        } finally {
+          updateProgressAndUnlock();
+        }
       }
+      try {
+        // For dynamic splits (fractionOfRemainder > 0), lock can be held long by a long-running
+        // tryClaim. We tolerate this scenario by returning null (declining to split) when lock
+        // timeout occurs.
+        if (lock.tryLock(timeOutSec, TimeUnit.SECONDS)) {
+          try {
+            SplitResult<RestrictionT> result = delegate.trySplit(fractionOfRemainder);
+            needsProgressUpdate = true;
+            return result;
+          } finally {
+            updateProgressAndUnlock();
+          }
+        }
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
+      return null;
     }
 
     @Override

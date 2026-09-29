@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
+
 import java.util.IdentityHashMap;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.coders.Coder;
@@ -36,8 +38,7 @@ import org.apache.beam.sdk.values.WindowedValue;
  * element.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
   public static ModelEnforcementFactory create() {
@@ -112,7 +113,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
     private ImmutabilityCheckingEnforcement(
         CommittedBundle<T> input, AppliedPTransform<?, ?, ?> transform) {
       this.transform = transform;
-      coder = input.getPCollection().getCoder();
+      coder = checkStateNotNull(input.getPCollection()).getCoder();
       mutationElements = new IdentityHashMap<>();
     }
 
@@ -128,7 +129,7 @@ class ImmutabilityEnforcementFactory implements ModelEnforcementFactory {
 
     @Override
     public void afterElement(WindowedValue<T> element) {
-      verifyUnmodified(mutationElements.get(element));
+      verifyUnmodified(checkStateNotNull(mutationElements.get(element)));
     }
 
     @Override

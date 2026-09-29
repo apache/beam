@@ -393,7 +393,7 @@ public class IcebergIO {
         .setCatalogConfig(catalog)
         .setDistributionMode(DistributionMode.NONE)
         .setAutoSharding(false)
-        .setUsingSideInputTableCache(false)
+        .setUseSideInputTableCache(false)
         .build();
   }
 
@@ -437,13 +437,13 @@ public class IcebergIO {
 
     abstract @Nullable List<String> getSortFields();
 
-    abstract boolean getUsingSideInputTableCache();
+    abstract boolean getUseSideInputTableCache();
 
-    abstract @Nullable Integer getMaximumCacheSize();
+    abstract @Nullable Integer getMaximumTableCacheSize();
 
-    abstract @Nullable Duration getTableRefreshInterval();
+    abstract @Nullable Duration getTableCacheRefreshInterval();
 
-    abstract @Nullable Integer getPollingBuckets();
+    abstract @Nullable Integer getTableCachePollingBuckets();
 
     abstract Builder toBuilder();
 
@@ -469,13 +469,13 @@ public class IcebergIO {
 
       abstract Builder setSortFields(List<String> sortFields);
 
-      abstract Builder setUsingSideInputTableCache(boolean usingSideInputTableCache);
+      abstract Builder setUseSideInputTableCache(boolean useSideInputTableCache);
 
-      abstract Builder setMaximumCacheSize(@Nullable Integer maximumCacheSize);
+      abstract Builder setMaximumTableCacheSize(@Nullable Integer maximumTableCacheSize);
 
-      abstract Builder setTableRefreshInterval(@Nullable Duration refreshInterval);
+      abstract Builder setTableCacheRefreshInterval(@Nullable Duration refreshInterval);
 
-      abstract Builder setPollingBuckets(@Nullable Integer pollingBuckets);
+      abstract Builder setTableCachePollingBuckets(@Nullable Integer pollingBuckets);
 
       abstract WriteRows build();
     }
@@ -569,7 +569,7 @@ public class IcebergIO {
      * representations without issuing remote catalog RPCs, drastically reducing catalog load.
      */
     public WriteRows withSideInputTableCache() {
-      return toBuilder().setUsingSideInputTableCache(true).build();
+      return toBuilder().setUseSideInputTableCache(true).build();
     }
 
     /**
@@ -579,9 +579,10 @@ public class IcebergIO {
      * <p><b>Note:</b> This option is only supported for bounded (batch) pipelines. Calling this on
      * an unbounded streaming pipeline will throw an exception at pipeline construction.
      */
-    public WriteRows withMaximumCacheSize(int maximumCacheSize) {
-      Preconditions.checkArgument(maximumCacheSize > 0, "maximumCacheSize must be greater than 0");
-      return toBuilder().setMaximumCacheSize(maximumCacheSize).build();
+    public WriteRows withMaximumTableCacheSize(int maximumTableCacheSize) {
+      Preconditions.checkArgument(
+          maximumTableCacheSize > 0, "maximumTableCacheSize must be greater than 0");
+      return toBuilder().setMaximumTableCacheSize(maximumTableCacheSize).build();
     }
 
     /**
@@ -589,11 +590,11 @@ public class IcebergIO {
      *
      * <p>Applicable for unbounded streaming pipelines. Defaults to 5 minutes.
      */
-    public WriteRows withTableRefreshInterval(Duration refreshInterval) {
+    public WriteRows withTableCacheRefreshInterval(Duration refreshInterval) {
       Preconditions.checkNotNull(refreshInterval, "refreshInterval must not be null");
       Preconditions.checkArgument(
           refreshInterval.isLongerThan(Duration.ZERO), "refreshInterval must be greater than 0");
-      return toBuilder().setTableRefreshInterval(refreshInterval).build();
+      return toBuilder().setTableCacheRefreshInterval(refreshInterval).build();
     }
 
     /**
@@ -601,25 +602,26 @@ public class IcebergIO {
      * refreshes. Defaults to 1 to serialize catalog queries and protect catalogs from connection
      * spikes.
      */
-    public WriteRows withPollingBuckets(int pollingBuckets) {
-      Preconditions.checkArgument(pollingBuckets > 0, "pollingBuckets must be greater than 0");
-      return toBuilder().setPollingBuckets(pollingBuckets).build();
+    public WriteRows withTableCachePollingBuckets(int pollingBuckets) {
+      Preconditions.checkArgument(
+          pollingBuckets > 0, "tableCachePollingBuckets must be greater than 0");
+      return toBuilder().setTableCachePollingBuckets(pollingBuckets).build();
     }
 
     @Override
     public void populateDisplayData(DisplayData.Builder builder) {
       super.populateDisplayData(builder);
       builder.add(
-          DisplayData.item("usingSideInputTableCache", getUsingSideInputTableCache())
+          DisplayData.item("useSideInputTableCache", getUseSideInputTableCache())
               .withLabel("Using Side-Input Table Cache"));
       builder.addIfNotNull(
-          DisplayData.item("maximumCacheSize", getMaximumCacheSize())
+          DisplayData.item("maximumTableCacheSize", getMaximumTableCacheSize())
               .withLabel("Maximum Cache Size"));
       builder.addIfNotNull(
-          DisplayData.item("tableRefreshInterval", getTableRefreshInterval())
+          DisplayData.item("tableCacheRefreshInterval", getTableCacheRefreshInterval())
               .withLabel("Table Refresh Interval"));
       builder.addIfNotNull(
-          DisplayData.item("pollingBuckets", getPollingBuckets())
+          DisplayData.item("tableCachePollingBuckets", getTableCachePollingBuckets())
               .withLabel("Catalog Polling Buckets"));
     }
 
@@ -649,29 +651,29 @@ public class IcebergIO {
       }
 
       boolean hasSideInputOptions =
-          getMaximumCacheSize() != null
-              || getTableRefreshInterval() != null
-              || getPollingBuckets() != null;
+          getMaximumTableCacheSize() != null
+              || getTableCacheRefreshInterval() != null
+              || getTableCachePollingBuckets() != null;
       Preconditions.checkArgument(
-          getUsingSideInputTableCache() || !hasSideInputOptions,
-          "Cannot specify side-input cache sub-options (maximumCacheSize, "
-              + "tableRefreshInterval, pollingBuckets) without enabling side-input table cache via withSideInputTableCache().");
+          getUseSideInputTableCache() || !hasSideInputOptions,
+          "Cannot specify side-input cache sub-options (maximumTableCacheSize, "
+              + "tableCacheRefreshInterval, tableCachePollingBuckets) without enabling side-input table cache via withSideInputTableCache().");
 
       PCollectionView<Map<String, SerializableTableSpec>> metadataView = null;
-      if (getUsingSideInputTableCache()) {
+      if (getUseSideInputTableCache()) {
         TableMetadataDriver.Builder driverBuilder =
             TableMetadataDriver.builder()
                 .setCatalogConfig(getCatalogConfig())
                 .setDynamicDestinations(destinations);
 
-        if (getMaximumCacheSize() != null) {
-          driverBuilder.setMaximumCacheSize(getMaximumCacheSize());
+        if (getMaximumTableCacheSize() != null) {
+          driverBuilder.setMaximumCacheSize(getMaximumTableCacheSize());
         }
-        if (getTableRefreshInterval() != null) {
-          driverBuilder.setRefreshInterval(getTableRefreshInterval());
+        if (getTableCacheRefreshInterval() != null) {
+          driverBuilder.setRefreshInterval(getTableCacheRefreshInterval());
         }
-        if (getPollingBuckets() != null) {
-          driverBuilder.setPollingBuckets(getPollingBuckets());
+        if (getTableCachePollingBuckets() != null) {
+          driverBuilder.setPollingBuckets(getTableCachePollingBuckets());
         }
 
         metadataView = input.apply("GenerateTableMetadataView", driverBuilder.build().asView());

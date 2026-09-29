@@ -18,6 +18,8 @@
 package org.apache.beam.sdk.extensions.gcp.storage;
 
 import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
@@ -69,9 +71,6 @@ import org.slf4j.LoggerFactory;
  * href="https://github.com/apache/beam/blob/master/sdks/java/extensions/google-cloud-platform-core/OWNERS">
  * here</a>.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class GcsFileSystem extends FileSystem<GcsResourceId> {
   private static final Logger LOG = LoggerFactory.getLogger(GcsFileSystem.class);
 
@@ -183,7 +182,7 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     if (createOptions instanceof GcsCreateOptions) {
       builder =
           builder.setUploadBufferSizeBytes(
-              ((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes());
+              checkArgumentNotNull(((GcsCreateOptions) createOptions).gcsUploadBufferSizeBytes()));
     }
     Stopwatch stopwatch = Stopwatch.createStarted();
     try {
@@ -376,8 +375,9 @@ class GcsFileSystem extends FileSystem<GcsResourceId> {
     } else if (exception != null) {
       return MatchResult.create(Status.ERROR, exception);
     } else {
-      StorageObject object = objectOrException.storageObject();
-      assert object != null; // fix a warning; guaranteed by StorageObjectOrIOException semantics.
+      // Guaranteed non-null by StorageObjectOrIOException semantics: exactly one of
+      // storageObject/ioException is set, and ioException was null above.
+      StorageObject object = checkStateNotNull(objectOrException.storageObject());
       return MatchResult.create(Status.OK, ImmutableList.of(toMetadata(object)));
     }
   }

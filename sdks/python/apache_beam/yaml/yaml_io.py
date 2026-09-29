@@ -651,6 +651,20 @@ def write_to_iceberg(
     only: Optional[str] = None,
     distribution_mode: Optional[str] = None,
     autosharding: Optional[bool] = None,
+    mode: Optional[str] = None,
+    sequence_number_column: Optional[str] = None,
+    change_type_column: Optional[str] = None,
+    change_type_map: Optional[Mapping[str, str]] = None,
+    upsert: Optional[bool] = None,
+    equality_columns: Optional[Iterable[str]] = None,
+    num_shards: Optional[int] = None,
+    shards_per_partition: Optional[int] = None,
+    allowed_lateness_seconds: Optional[int] = None,
+    sink_id: Optional[str] = None,
+    token_heartbeat_seconds: Optional[int] = None,
+    snapshot_properties: Optional[Mapping[str, str]] = None,
+    error_handling: Optional[Mapping[str, Any]] = None,
+    sorter_memory_mb: Optional[int] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -709,6 +723,51 @@ def write_to_iceberg(
       further sub-dividing partitions into multiple shards to prevent
       bottlenecks during high-throughput writes. Only available with 'hash'
       distribution mode.
+    mode: Controls how rows are written. 'append' (default) appends every row
+      as new data. 'merge-on-read' treats each row as a change (INSERT,
+      UPDATE_BEFORE, UPDATE_AFTER, or DELETE) applied to the table by primary
+      key.
+    sequence_number_column: Merge-on-read only. the required column name
+      representing the monotonic sequence number used to order a single key's
+      changes. Default column name is '_commit_snapshot_sequence_number'. This
+      column will be stripped from the data row before writing to Iceberg.
+    change_type_column: Merge-on-read only. The optional column name
+      representing the row's change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER,
+      or DELETE). This column will be stripped from the data row before writing
+      to Iceberg.
+    change_type_map: Merge-on-read only. Optional map from the
+      `change_type_column` value to the canonical change type name (see above).
+    upsert: Merge-on-read only. If true, only the after-image of each change
+      (INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records
+      are dropped. Default: false.
+    equality_columns: Columns defining row identity (equality-delete fields).
+      Defaults to the destination table's identifier (primary-key) fields.
+      Required if the table doesn't exist yet. Currently only supported in
+      'merge-on-read' mode.
+    num_shards: The number of deterministic primary-key-hash shards per
+      destination, i.e. the max write parallelism per destination. Defaults to
+      16. Currently only supported in 'merge-on-read' mode.
+    shards_per_partition: Maximum number of shards a single partition's rows
+      may occupy. Defaults to `num_shards`. Currently only supported in
+      'merge-on-read' mode.
+    allowed_lateness_seconds: How long a late record may lag behind the
+      watermark before it is dropped entirely. Defaults to 21600 (6 hours).
+      Currently only supported in 'merge-on-read' mode.
+    sink_id: A stable identifier namespacing the idempotency tokens written to
+      each commit. Defaults to a unique per-write UUID. Override with a stable
+      ID for exactly-once commits across relaunches of a particular streaming
+      write. Currently only relevant in 'merge-on-read' mode.
+    token_heartbeat_seconds: Streaming only. Refresh each idle
+      destination's commit token every this many seconds. Disabled by default.
+      Currently only relevant in 'merge-on-read' mode.
+    snapshot_properties: Extra properties added to every commit's snapshot
+      summary. Currently only supported in 'merge-on-read' mode.
+    error_handling: Where to send records the sink cannot apply (e.g. an
+      unknown change type) instead of failing the pipeline. Currently only
+      supported in 'merge-on-read' mode.
+    sorter_memory_mb: The in-memory buffer size (MB) for the pre-write sort.
+      Groups larger than this spill to disk. Default: 100MB. Currently only
+      relevant in 'merge-on-read' mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -724,7 +783,21 @@ def write_to_iceberg(
           drop=drop,
           only=only,
           distribution_mode=distribution_mode,
-          autosharding=autosharding))
+          autosharding=autosharding,
+          mode=mode,
+          sequence_number_column=sequence_number_column,
+          change_type_column=change_type_column,
+          change_type_map=change_type_map,
+          upsert=upsert,
+          equality_columns=equality_columns,
+          num_shards=num_shards,
+          shards_per_partition=shards_per_partition,
+          allowed_lateness_seconds=allowed_lateness_seconds,
+          sink_id=sink_id,
+          token_heartbeat_seconds=token_heartbeat_seconds,
+          snapshot_properties=snapshot_properties,
+          error_handling=error_handling,
+          sorter_memory_mb=sorter_memory_mb))
 
 
 def io_providers():

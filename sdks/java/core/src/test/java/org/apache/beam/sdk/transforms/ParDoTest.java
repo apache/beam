@@ -3356,7 +3356,8 @@ public class ParDoTest implements Serializable {
       ValidatesRunner.class,
       UsesStatefulParDo.class,
       UsesOrderedListState.class,
-      UsesOnWindowExpiration.class
+      UsesOnWindowExpiration.class,
+      UsesUnboundedPCollections.class
     })
     public void testOrderedListStateUnbounded() {
       testOrderedListStateImpl(true);
@@ -3420,7 +3421,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesUnboundedPCollections.class
+    })
     public void testOrderedListStateRangeFetchUnbounded() {
       testOrderedListStateRangeFetchImpl(true);
     }
@@ -3493,7 +3499,12 @@ public class ParDoTest implements Serializable {
     }
 
     @Test
-    @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesOrderedListState.class})
+    @Category({
+      ValidatesRunner.class,
+      UsesStatefulParDo.class,
+      UsesOrderedListState.class,
+      UsesUnboundedPCollections.class
+    })
     public void testOrderedListStateRangeDeleteUnbounded() {
       testOrderedListStateRangeDeleteImpl(true);
     }
