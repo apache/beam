@@ -28,7 +28,7 @@ require (
 	cloud.google.com/go/bigquery v1.85.0
 	cloud.google.com/go/bigtable v1.57.0
 	cloud.google.com/go/datastore v1.27.0
-	cloud.google.com/go/profiler v0.6.0
+	cloud.google.com/go/profiler v0.7.0
 	cloud.google.com/go/pubsub v1.51.1
 	cloud.google.com/go/spanner v1.95.1
 	cloud.google.com/go/storage v1.68.0
@@ -168,7 +168,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/golang/snappy v1.0.0 // indirect
 	github.com/google/flatbuffers v25.12.19+incompatible // indirect
-	github.com/google/pprof v0.0.0-20260507013755-92041b743c96 // indirect
+	github.com/google/pprof v0.0.0-20260604005048-7023385849c0 // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.10 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.22 // indirect
