@@ -73,7 +73,7 @@ from apache_beam import pvalue
 from apache_beam.coders import typecoders
 from apache_beam.internal import pickler
 from apache_beam.io.filesystems import FileSystems
-from apache_beam.metrics.metric import MetricsFlag
+from apache_beam.metrics.metrics_flag import MetricsFlag
 from apache_beam.options.pipeline_options import CrossLanguageOptions
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import PipelineOptions

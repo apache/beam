@@ -38,13 +38,13 @@ from typing import TYPE_CHECKING
 from typing import Any
 from typing import Dict
 from typing import FrozenSet
-from typing import Iterable
 from typing import Optional
 from typing import Set
 from typing import Type
 from typing import Union
 from typing import cast
 
+from apache_beam.metrics import metrics_flag
 from apache_beam.metrics import monitoring_infos
 from apache_beam.metrics.cells import BoundedTrieCell
 from apache_beam.metrics.cells import CounterCell
@@ -203,23 +203,10 @@ class _TypedMetricName(object):
 
 _DEFAULT = None  # type: Any
 
-# Metric cell types whose updates are dropped process-wide. Populated from the
-# disable*Metrics experiments by apache_beam.metrics.metric.MetricsFlag; empty
-# (the default) means every update is delivered.
-_DISABLED_CELL_TYPES = set()  # type: Set[Any]
-
-
-def set_disabled_cell_types(cell_types):
-  # type: (Iterable[Any]) -> None
-
-  """Replaces the set of metric cell types whose updates are dropped."""
-  _DISABLED_CELL_TYPES.clear()
-  _DISABLED_CELL_TYPES.update(cell_types)
-
-
-def is_cell_type_disabled(cell_type):
-  # type: (Any) -> bool
-  return cell_type in _DISABLED_CELL_TYPES
+# Metric cell types whose updates are dropped process-wide, owned and populated
+# by apache_beam.metrics.metrics_flag.MetricsFlag from the disable*Metrics
+# experiments. Empty (the default) means every update is delivered.
+_DISABLED_CELL_TYPES = metrics_flag.DISABLED_CELL_TYPES  # type: Set[Any]
 
 
 class MetricUpdater(object):

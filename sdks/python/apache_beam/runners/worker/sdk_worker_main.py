@@ -33,7 +33,7 @@ from google.protobuf import text_format
 
 from apache_beam.internal import pickler
 from apache_beam.io import filesystems
-from apache_beam.metrics.metric import MetricsFlag
+from apache_beam.metrics.metrics_flag import MetricsFlag
 from apache_beam.options.pipeline_options import DebugOptions
 from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
