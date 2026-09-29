@@ -454,6 +454,27 @@ class TestPubSubSource(unittest.TestCase):
 
     hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
 
+  def test_display_data_max_read_time_seconds(self):
+    source = _PubSubSource(
+        'projects/fakeprj/topics/a_topic', max_read_time_seconds=60)
+    dd = DisplayData.create_from(source)
+    expected_items = [
+        DisplayDataItemMatcher('topic', 'projects/fakeprj/topics/a_topic'),
+        DisplayDataItemMatcher('with_attributes', False),
+        DisplayDataItemMatcher('max_read_time_seconds', 60),
+    ]
+
+    hc.assert_that(dd.items, hc.contains_inanyorder(*expected_items))
+
+  def test_invalid_max_read_time_seconds(self):
+    with self.assertRaisesRegex(ValueError,
+                                'max_read_time_seconds must be positive'):
+      ReadFromPubSub('projects/fakeprj/topics/a_topic', max_read_time_seconds=0)
+    with self.assertRaisesRegex(ValueError,
+                                'max_read_time_seconds must be positive'):
+      ReadFromPubSub(
+          'projects/fakeprj/topics/a_topic', max_read_time_seconds=-10)
+
 
 @unittest.skipIf(pubsub is None, 'GCP dependencies are not installed')
 class TestPubSubSink(unittest.TestCase):
@@ -506,6 +527,7 @@ class TestReadFromPubSub(unittest.TestCase):
   def setUp(self):
     _PubSubReadEvaluator._subscription_cache.clear()
     _PubSubReadEvaluator._subscriber_client_cache.clear()
+    _PubSubReadEvaluator._start_times.clear()
 
   def test_subscriber_client_is_reused_for_transform(self, mock_pubsub):
     class Transform(object):
