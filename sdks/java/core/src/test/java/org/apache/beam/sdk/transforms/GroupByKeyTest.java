@@ -94,7 +94,6 @@ import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
-import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -104,7 +103,6 @@ import org.junit.runners.JUnit4;
   "unchecked",
   "unused"
 })
-@RunWith(Enclosed.class)
 public class GroupByKeyTest implements Serializable {
   /** Shared test base class with setup/teardown helpers. */
   public abstract static class SharedTestBase {
