@@ -89,6 +89,7 @@
 * (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
 * (Java) IcebergIO now writes rows containing `EnumerationType` (proto enum) fields as strings, instead of throwing `Unsupported Beam logical type Enum` ([#40299](https://github.com/apache/beam/issues/40299)).
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
+* (Java) ParquetIO now uses the schema passed to `read()`/`readFiles()` as the Avro reader schema and matches file columns to its fields by name. Reading files that predate a newly added field no longer fails with `ArrayIndexOutOfBoundsException`, and a schema that omits some of the file's columns no longer returns values from the wrong column ([#27234](https://github.com/apache/beam/issues/27234)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
