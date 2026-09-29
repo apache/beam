@@ -34,6 +34,10 @@ const configContents = `labels:
   priority: 1
   reviewers: ["testReviewer4"]
   exclusionList: [] # These users will never be suggested as reviewers
+- name: "Kafka"
+  priority: 1
+  reviewers: ["testReviewer5"]
+  exclusionList: []
 fallbackReviewers: ["testReviewer5", "testReviewer1", "testReviewer3"] # List of committers to use when no label matches
 `;
 describe("ReviewerConfig", function () {
@@ -88,6 +92,28 @@ describe("ReviewerConfig", function () {
         Object.keys(reviewersForLabels).indexOf("Python") == -1,
         "No reviewers should be included for python"
       );
+    });
+
+    it("should choose randomly when multiple labels share the highest priority", function () {
+      const config = new ReviewerConfig(configPath);
+      const origRandom = Math.random;
+      try {
+        Math.random = () => 0.1;
+        const firstChoice = config.getReviewersForLabels(
+          [{ name: "Python" }, { name: "Kafka" }, { name: "Java" }],
+          []
+        );
+        assert.deepEqual(Object.keys(firstChoice), ["Python"]);
+
+        Math.random = () => 0.9;
+        const secondChoice = config.getReviewersForLabels(
+          [{ name: "Python" }, { name: "Kafka" }, { name: "Java" }],
+          []
+        );
+        assert.deepEqual(Object.keys(secondChoice), ["Kafka"]);
+      } finally {
+        Math.random = origRandom;
+      }
     });
 
     it("should fall back to next highest-priority label if top priority label has all reviewers excluded", function () {

@@ -45,29 +45,31 @@ export class ReviewerConfig {
 
   // Given a list of labels and an exclusion list of reviewers not to include (e.g. the author)
   // returns all possible reviewers for the single highest-priority matching label
-  // (lower priority number = higher priority).
+  // (lower priority number = higher priority; ties broken randomly).
   getReviewersForLabels(
     labels: Label[],
     exclusionList: string[]
   ): { [key: string]: string[] } {
     let labelToReviewerMapping: { [key: string]: string[] } = {};
-    let bestLabel: string | null = null;
     let bestPriority: number = Number.MAX_SAFE_INTEGER;
-    let bestReviewers: string[] = [];
+    let bestMatches: { label: string; reviewers: string[] }[] = [];
 
     for (const label of labels || []) {
       let reviewers = this.getReviewersForLabel(label.name, exclusionList);
       if (reviewers.length > 0) {
         const priority = this.getPriorityForLabel(label.name);
-        if (bestLabel === null || priority < bestPriority) {
-          bestLabel = label.name;
+        if (bestMatches.length === 0 || priority < bestPriority) {
           bestPriority = priority;
-          bestReviewers = reviewers;
+          bestMatches = [{ label: label.name, reviewers }];
+        } else if (priority === bestPriority) {
+          bestMatches.push({ label: label.name, reviewers });
         }
       }
     }
-    if (bestLabel !== null) {
-      labelToReviewerMapping[bestLabel] = bestReviewers;
+    if (bestMatches.length > 0) {
+      const chosenMatch =
+        bestMatches[Math.floor(Math.random() * bestMatches.length)];
+      labelToReviewerMapping[chosenMatch.label] = chosenMatch.reviewers;
     } else {
       const fallbackReviewers = this.getFallbackReviewers(exclusionList);
       if (fallbackReviewers.length > 0) {
