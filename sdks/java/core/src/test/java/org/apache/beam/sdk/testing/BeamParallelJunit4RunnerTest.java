@@ -27,7 +27,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import javax.annotation.concurrent.NotThreadSafe;
 import org.apache.beam.sdk.testing.BeamParallelJunit4Runner.SerialTest;
 import org.junit.Rule;
 import org.junit.Test;
@@ -93,9 +92,9 @@ public class BeamParallelJunit4RunnerTest {
     }
   }
 
-  @NotThreadSafe
+  @SerialTest
   @RunWith(BeamParallelJunit4Runner.class)
-  public static class SampleNotThreadSafeCases {
+  public static class SampleSerialClassCases {
     static final AtomicInteger ACTIVE = new AtomicInteger(0);
     static final AtomicInteger MAX_ACTIVE = new AtomicInteger(0);
 
@@ -173,15 +172,15 @@ public class BeamParallelJunit4RunnerTest {
   }
 
   @Test
-  public void testNotThreadSafeClassRunsSerially() {
+  public void testSerialTestClassRunsSerially() {
     System.setProperty(BeamParallelJunit4Runner.VALIDATES_RUNNER_THREADS_PROPERTY, "4");
 
     IN_TEST_HARNESS.set(true);
     try {
-      Result result = JUnitCore.runClasses(SampleNotThreadSafeCases.class);
+      Result result = JUnitCore.runClasses(SampleSerialClassCases.class);
       assertEquals(0, result.getFailureCount());
       assertEquals(2, result.getRunCount());
-      assertEquals(1, SampleNotThreadSafeCases.MAX_ACTIVE.get());
+      assertEquals(1, SampleSerialClassCases.MAX_ACTIVE.get());
     } finally {
       IN_TEST_HARNESS.set(false);
     }

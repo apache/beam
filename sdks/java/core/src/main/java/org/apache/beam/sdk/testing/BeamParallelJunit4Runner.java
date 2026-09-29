@@ -17,18 +17,13 @@
  */
 package org.apache.beam.sdk.testing;
 
-import java.io.IOException;
-import java.io.InputStream;
-import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -36,8 +31,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.notification.RunNotifier;
@@ -58,10 +51,8 @@ import org.junit.runners.model.RunnerScheduler;
  *       all other {@code @Test} methods (defaults to {@code 1}, i.e., sequential execution).
  * </ul>
  *
- * <p>Classes or methods annotated with {@link SerialTest}, {@code @NotThreadSafe} (such as {@code
- * javax.annotation.concurrent.NotThreadSafe} or {@code net.jcip.annotations.NotThreadSafe}),
- * {@code @Serial}, or {@code @Isolated} are always executed sequentially on the calling thread
- * after draining any in-flight parallel test methods in the class.
+ * <p>Classes or methods annotated with {@link SerialTest} are always executed sequentially on the
+ * calling thread after draining any in-flight parallel test methods in the class.
  */
 @Internal
 public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
@@ -77,9 +68,6 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
   public static final String VALIDATES_RUNNER_THREADS_PROPERTY =
       "beam.validatesRunner.parallelThreads";
   public static final String DEFAULT_TEST_THREADS_PROPERTY = "beam.test.parallelThreads";
-
-  private static final Set<String> SERIAL_ANNOTATION_SIMPLE_NAMES =
-      ImmutableSet.of("NotThreadSafe", "SerialTest", "Serial", "Isolated");
 
   private static final ConcurrentHashMap<String, ExecutorService> EXECUTORS =
       new ConcurrentHashMap<>();
@@ -203,7 +191,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
   }
 
   private static boolean isMethodMarkedSerial(FrameworkMethod method) {
-    return hasSerialAnnotation(method.getAnnotations());
+    return method.getAnnotation(SerialTest.class) != null;
   }
 
   private static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
@@ -217,40 +205,8 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     if (clazz == null || clazz == Object.class) {
       return false;
     }
-    return hasSerialAnnotation(clazz.getAnnotations())
-        || hasClassFileNotThreadSafeAnnotation(clazz)
+    return clazz.isAnnotationPresent(SerialTest.class)
         || computeClassSerial(clazz.getSuperclass())
         || computeClassSerial(clazz.getEnclosingClass());
-  }
-
-  private static boolean hasSerialAnnotation(Annotation[] annotations) {
-    for (Annotation annotation : annotations) {
-      if (SERIAL_ANNOTATION_SIMPLE_NAMES.contains(annotation.annotationType().getSimpleName())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  /**
-   * Inspects the {@code .class} bytecode for {@code RetentionPolicy.CLASS} annotations such as
-   * {@code javax.annotation.concurrent.NotThreadSafe} or {@code net.jcip.annotations.NotThreadSafe}
-   * that are not retained for runtime reflection via {@link Class#getAnnotations()}.
-   */
-  private static boolean hasClassFileNotThreadSafeAnnotation(Class<?> clazz) {
-    String resourceName = clazz.getName().replace('.', '/') + ".class";
-    ClassLoader classLoader = clazz.getClassLoader();
-    try (InputStream in =
-        classLoader != null
-            ? classLoader.getResourceAsStream(resourceName)
-            : ClassLoader.getSystemResourceAsStream(resourceName)) {
-      if (in == null) {
-        return false;
-      }
-      String raw = new String(ByteStreams.toByteArray(in), StandardCharsets.ISO_8859_1);
-      return raw.contains("/NotThreadSafe;");
-    } catch (IOException e) {
-      return false;
-    }
   }
 }
