@@ -21,14 +21,10 @@ import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -75,7 +71,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
   private static final ConcurrentHashMap<Class<?>, Boolean> CLASS_SERIAL_CACHE =
       new ConcurrentHashMap<>();
 
-  private final List<Future<?>> pendingFutures = Collections.synchronizedList(new ArrayList<>());
+  private CompletableFuture<Void> pendingFutures = CompletableFuture.allOf();
 
   private static @Nullable ExecutorService getOrCreateExecutor(String poolKey, int threads) {
     if (threads <= 1) {
@@ -113,32 +109,10 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
   }
 
   private void awaitPendingFutures() {
-    Throwable firstError = null;
-    List<Future<?>> snapshot;
-    synchronized (pendingFutures) {
-      snapshot = new ArrayList<>(pendingFutures);
-      pendingFutures.clear();
-    }
-    for (Future<?> future : snapshot) {
-      try {
-        future.get();
-      } catch (InterruptedException e) {
-        Thread.currentThread().interrupt();
-        if (firstError == null) {
-          firstError = e;
-        }
-      } catch (ExecutionException e) {
-        if (firstError == null) {
-          firstError = e.getCause() != null ? e.getCause() : e;
-        }
-      }
-    }
-    if (firstError instanceof RuntimeException) {
-      throw (RuntimeException) firstError;
-    } else if (firstError instanceof Error) {
-      throw (Error) firstError;
-    } else if (firstError != null) {
-      throw new RuntimeException(firstError);
+    try {
+      pendingFutures.join();
+    } finally {
+      pendingFutures = CompletableFuture.allOf();
     }
   }
 
@@ -161,7 +135,10 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       super.runChild(method, notifier);
       return;
     }
-    pendingFutures.add(executor.submit(() -> super.runChild(method, notifier)));
+    pendingFutures =
+        CompletableFuture.allOf(
+            pendingFutures,
+            CompletableFuture.runAsync(() -> super.runChild(method, notifier), executor));
   }
 
   private @Nullable ExecutorService selectExecutor(FrameworkMethod method) {
