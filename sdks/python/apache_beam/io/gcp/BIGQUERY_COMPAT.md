@@ -29,7 +29,7 @@ To facilitate a smooth transition for pipelines that interact with internal or l
 
 ## Enabling the Compatibility Shims (Explicit Opt-In)
 
-The compatibility shims are **disabled by default** to encourage modern client adoption. If your pipeline or test code directly imports or depends on legacy `bigquery_compat` interfaces, you must explicitly opt in.
+The compatibility shims are **disabled by default** to encourage modern client adoption. If your pipeline or test code directly imports or depends on legacy `bigquery_v2_client` or `bigquery_client_messages` interfaces, you must explicitly opt in.
 
 ### Setting the Environment Variable
 
@@ -118,7 +118,8 @@ print(table_ref.projectId)
 
 #### Modern (Recommended):
 ```python
-from google.cloud.bigquery import TableReference, DatasetReference
+from google.cloud.bigquery import DatasetReference
+from google.cloud.bigquery import TableReference
 
 # Using from_string (easiest):
 table_ref = TableReference.from_string("my-project.my_dataset.my_table")
@@ -138,7 +139,8 @@ print(table_ref.table_id)
 
 #### Legacy (Deprecated):
 ```python
-from apache_beam.io.gcp.internal.clients.bigquery import TableSchema, TableFieldSchema
+from apache_beam.io.gcp.internal.clients.bigquery import TableFieldSchema
+from apache_beam.io.gcp.internal.clients.bigquery import TableSchema
 
 schema = TableSchema(fields=[
     TableFieldSchema(name='id', type='INTEGER', mode='REQUIRED'),
@@ -167,7 +169,9 @@ schema = [
 In `WriteToBigQuery(additional_bq_parameters=...)`, you can continue passing dictionaries or use modern classes:
 
 ```python
-from google.cloud.bigquery import TimePartitioning, RangePartitioning, PartitionRange
+from google.cloud.bigquery import PartitionRange
+from google.cloud.bigquery import RangePartitioning
+from google.cloud.bigquery import TimePartitioning
 
 # Native Time Partitioning:
 time_partitioning = TimePartitioning(type_="DAY", field="timestamp")
@@ -185,7 +189,8 @@ range_partitioning = RangePartitioning(
 
 #### Legacy (Deprecated):
 ```python
-from apitools.base.py.exceptions import HttpError, HttpForbiddenError
+from apitools.base.py.exceptions import HttpError
+from apitools.base.py.exceptions import HttpForbiddenError
 
 try:
   ...
@@ -225,7 +230,7 @@ flowchart LR
    * Modern `google-cloud-bigquery` is the default execution engine.
    * `bigquery_compat.py` provides opt-in shims via `BEAM_USE_BIGQUERY_COMPAT_SHIMS=1`.
    * `apache_beam.io.gcp.internal.clients.bigquery` is deprecated.
-2. **Upcoming Release (Target: Beam 2.65.0+)**:
+2. **Upcoming Release (Target: Beam 2.80.0)**:
    * `apache_beam.io.gcp.internal.clients.bigquery` will be deleted.
    * `apache_beam.io.gcp.bigquery_compat` and its test suite will be deleted.
    * The `BEAM_USE_BIGQUERY_COMPAT_SHIMS` environment variable will be decommissioned.
