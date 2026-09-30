@@ -30,6 +30,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -474,6 +475,29 @@ public interface SdkHarnessOptions extends PipelineOptions, MemoryMonitorOptions
   Map<String, String> getOpenTelemetryProperties();
 
   void setOpenTelemetryProperties(Map<String, String> value);
+
+  static void configureOpenTelemetry(PipelineOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      if (System.getProperty("otel.service.instance.id") == null) {
+        String instanceId = UUID.randomUUID().toString();
+        System.setProperty("otel.service.instance.id", instanceId);
+      }
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
+    }
+  }
 
   @JsonIgnore
   @Hidden
