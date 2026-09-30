@@ -534,7 +534,8 @@ if __name__ == '__main__':
               'google-cloud-core>=2.0.0,<3',
               # 2.44.0 changed DirectRow mutation storage; native WriteToBigTable
               # requires this version on both driver and workers.
-              'google-cloud-bigtable>=2.44.0,<3',
+              # TODO: restore upper bound to "<3". Tests breaking in 2.48.0.
+              'google-cloud-bigtable>=2.44.0,<2.48.0',
               'google-cloud-build>=3.35.0,<4',
               'google-cloud-spanner>=3.0.0,<4',
               # GCP Packages required by ML functionality
