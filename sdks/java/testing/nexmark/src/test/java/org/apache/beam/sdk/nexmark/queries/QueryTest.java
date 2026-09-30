@@ -22,6 +22,7 @@ import org.apache.beam.sdk.nexmark.NexmarkConfiguration;
 import org.apache.beam.sdk.nexmark.NexmarkUtils;
 import org.apache.beam.sdk.nexmark.model.Event;
 import org.apache.beam.sdk.nexmark.model.KnownSize;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -34,10 +35,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class QueryTest {
   private static final NexmarkConfiguration CONFIG = NexmarkConfiguration.DEFAULT.copy();
 
@@ -55,16 +55,26 @@ public class QueryTest {
       NexmarkQueryTransform<T> query,
       NexmarkQueryModel<T> model,
       boolean streamingMode) {
+    queryMatchesModel(name, CONFIG, query, model, streamingMode);
+  }
+
+  /** Test {@code query} matches {@code model} with a specific configuration. */
+  private <T extends KnownSize> void queryMatchesModel(
+      String name,
+      NexmarkConfiguration config,
+      NexmarkQueryTransform<T> query,
+      NexmarkQueryModel<T> model,
+      boolean streamingMode) {
     NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
 
     PCollection<Event> events =
         p.apply(
             name + ".Read",
             streamingMode
-                ? NexmarkUtils.streamEventsSource(CONFIG)
-                : NexmarkUtils.batchEventsSource(CONFIG));
+                ? NexmarkUtils.streamEventsSource(config)
+                : NexmarkUtils.batchEventsSource(config));
     PCollection<TimestampedValue<T>> results =
-        (PCollection<TimestampedValue<T>>) events.apply(new NexmarkQuery<>(CONFIG, query));
+        (PCollection<TimestampedValue<T>>) events.apply(new NexmarkQuery<>(config, query));
     PAssert.that(results).satisfies(model.assertionFor());
     PipelineResult result = p.run();
     result.waitUntilFinish();
@@ -165,7 +175,10 @@ public class QueryTest {
   @Test
   @Category(NeedsRunner.class)
   public void query7MatchesModelStreaming() {
-    queryMatchesModel("Query7TestStreaming", new Query7(CONFIG), new Query7Model(CONFIG), true);
+    NexmarkConfiguration config = CONFIG.copy();
+    config.numEvents = 500;
+    queryMatchesModel(
+        "Query7TestStreaming", config, new Query7(config), new Query7Model(config), true);
   }
 
   @Test

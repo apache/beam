@@ -69,6 +69,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -99,7 +100,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link ContextualTextIO.Read}. */
@@ -507,7 +507,7 @@ public class ContextualTextIOTest {
   }
 
   /** Tests Specific for checking functionality of ContextualTextIO. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class ContextualTextIOSpecificTests {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
@@ -787,7 +787,7 @@ public class ContextualTextIOTest {
   }
 
   /** Tests for some basic operations in {@link ContextualTextIO.Read}. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicIOTest {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();

@@ -1259,6 +1259,7 @@ class BeamModulePlugin implements Plugin<Project> {
         useJUnit {}
         // default maxHeapSize on gradle 5 is 512m, lets increase to handle more demanding tests
         maxHeapSize = '2g'
+        systemProperty 'beam.test.parallelThreads', project.findProperty('testParallelThreads') ?: '8'
         // Windows OS: Snappy needs an executable temp dir for native lib. Default AppData/Temp
         // failing with Access error without elevated permissions
         if (System.getProperty("os.name").toLowerCase().contains("windows")) {
