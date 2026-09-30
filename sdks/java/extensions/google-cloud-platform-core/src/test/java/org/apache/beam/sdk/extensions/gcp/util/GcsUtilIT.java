@@ -39,6 +39,7 @@ import com.google.protobuf.ByteString;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.math.BigInteger;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SeekableByteChannel;
@@ -50,10 +51,12 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -100,6 +103,10 @@ public class GcsUtilIT {
   private static final String READ_COUNTER_PREFIX = "it_read_bytes";
   private static final String WRITE_COUNTER_PREFIX = "it_write_bytes";
 
+  private static final String KINGLEAR = "gs://apache-beam-samples/shakespeare/kinglear.txt";
+  private static final String NONEXISTENT_BUCKET = "my-random-test-bucket-12345";
+  private static final String FORBIDDEN_BUCKET = "test-bucket";
+
   @Parameters(name = "{0}")
   public static Iterable<String> data() {
     return Arrays.asList("use_gcsutil_v1", "use_gcsutil_v2");
@@ -122,6 +129,10 @@ public class GcsUtilIT {
     gcsUtil = gcsOptions.getGcsUtil();
   }
 
+  private boolean isV2() {
+    return experiment.equals("use_gcsutil_v2");
+  }
+
   /** Returns a bucket name unique to this test run, so concurrent runs don't collide. */
   private static String randomBucketName() {
     return "apache-beam-temp-bucket-" + UUID.randomUUID();
@@ -142,7 +153,7 @@ public class GcsUtilIT {
     final String expectedCRC = "s0a3Tg==";
 
     String crc;
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       Blob blob = gcsUtil.getBlob(existingPath);
       crc = blob.getCrc32c();
     } else {
@@ -155,7 +166,7 @@ public class GcsUtilIT {
         GcsPath.fromUri("gs://my-random-test-bucket-12345/unknown-12345.txt");
     final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket/unknown-12345.txt");
 
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getBlob(nonExistentPath));
       // For V2, we are returning AccessDeniedException (a subclass of IOException) for forbidden
       // paths.
@@ -174,7 +185,7 @@ public class GcsUtilIT {
         GcsPath.fromUri("gs://my-random-test-bucket-12345/unknown-12345.txt");
     final List<GcsPath> paths = Arrays.asList(existingPath, nonExistentPath);
 
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       List<GcsUtilV2.BlobResult> results = gcsUtil.getBlobs(paths);
       assertEquals(2, results.size());
       assertTrue(results.get(0).blob() != null);
@@ -197,7 +208,7 @@ public class GcsUtilIT {
     final String prefix = "shakespeare/kingrichard";
 
     List<String> names;
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       Page<Blob> blobs = gcsUtil.listBlobs(bucket, prefix, null);
       names = blobs.streamAll().map(blob -> blob.getName()).collect(Collectors.toList());
     } else {
@@ -208,7 +219,7 @@ public class GcsUtilIT {
         Arrays.asList("shakespeare/kingrichardii.txt", "shakespeare/kingrichardiii.txt"), names);
 
     final String randomPrefix = "my-random-prefix/random";
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       Page<Blob> blobs = gcsUtil.listBlobs(bucket, randomPrefix, null);
       assertEquals(0, blobs.streamAll().count());
     } else {
@@ -243,7 +254,7 @@ public class GcsUtilIT {
     final GcsPath existingPath = GcsPath.fromUri("gs://apache-beam-samples");
 
     String bucket;
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       bucket = gcsUtil.getBucketWithOptions(existingPath).getName();
     } else {
       bucket = gcsUtil.getBucket(existingPath).getName();
@@ -253,7 +264,7 @@ public class GcsUtilIT {
     final GcsPath nonExistentPath = GcsPath.fromUri("gs://my-random-test-bucket-12345");
     final GcsPath forbiddenPath = GcsPath.fromUri("gs://test-bucket");
 
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       assertThrows(
           FileNotFoundException.class, () -> gcsUtil.getBucketWithOptions(nonExistentPath));
       assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucketWithOptions(forbiddenPath));
@@ -290,7 +301,7 @@ public class GcsUtilIT {
   public void testCreateAndRemoveBucket() throws IOException {
     final GcsPath gcsPath = GcsPath.fromUri("gs://" + randomBucketName());
 
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       BucketInfo bucketInfo = BucketInfo.of(gcsPath.getBucket());
       try {
         assertFalse(gcsUtil.bucketAccessible(gcsPath));
@@ -355,7 +366,7 @@ public class GcsUtilIT {
             .collect(Collectors.toList());
 
     // create bucket and copy some initial files into there
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       gcsUtil.createBucket(BucketInfo.of(bucketName));
 
       if (copyData) {
@@ -386,7 +397,7 @@ public class GcsUtilIT {
       // use "**" in the pattern to match any characters including "/".
       final List<GcsPath> paths =
           gcsUtil.expand(GcsPath.fromUri(String.format("gs://%s/**", bucketName)));
-      if (experiment.equals("use_gcsutil_v2")) {
+      if (isV2()) {
         gcsUtil.remove(paths, MissingStrategy.SKIP_IF_MISSING);
         gcsUtil.removeBucket(BucketInfo.of(bucketName));
       } else {
@@ -418,7 +429,7 @@ public class GcsUtilIT {
       assertNotExists(dstPaths.get(0));
       assertNotExists(dstPaths.get(1));
 
-      if (experiment.equals("use_gcsutil_v2")) {
+      if (isV2()) {
         // (1) when the target files do not exist
         gcsUtil.copyV2(srcPaths, dstPaths);
         assertExists(dstPaths.get(0));
@@ -482,7 +493,7 @@ public class GcsUtilIT {
       assertExists(srcPaths.get(0));
       assertExists(srcPaths.get(1));
 
-      if (experiment.equals("use_gcsutil_v2")) {
+      if (isV2()) {
         // (1) when the files to remove exist
         gcsUtil.removeV2(srcPaths);
         assertNotExists(srcPaths.get(0));
@@ -551,7 +562,7 @@ public class GcsUtilIT {
 
       assertNotExists(dstPaths.get(0));
       assertNotExists(dstPaths.get(1));
-      if (experiment.equals("use_gcsutil_v2")) {
+      if (isV2()) {
         // Make a copy of sources
         gcsUtil.copyV2(srcPaths, tmpPaths);
 
@@ -566,13 +577,17 @@ public class GcsUtilIT {
         // (2a) no exception if IGNORE_MISSING_FILES is set
         gcsUtil.renameV2(errPaths, dstPaths, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
 
-        // (2b) raise exception if if IGNORE_MISSING_FILES is not set
+        // (2b) raise exception if IGNORE_MISSING_FILES is not set
         assertThrows(FileNotFoundException.class, () -> gcsUtil.renameV2(errPaths, dstPaths));
 
         // (3) when both source files and target files exist
         gcsUtil.renameV2(
             srcPaths, dstPaths, MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+        assertExists(srcPaths.get(0));
+        assertExists(srcPaths.get(1));
         gcsUtil.renameV2(srcPaths, dstPaths);
+        assertNotExists(srcPaths.get(0));
+        assertNotExists(srcPaths.get(1));
       } else {
         final List<String> srcList =
             srcPaths.stream().map(o -> o.toString()).collect(Collectors.toList());
@@ -597,7 +612,7 @@ public class GcsUtilIT {
         // (2a) no exception if IGNORE_MISSING_FILES is set
         gcsUtil.rename(errList, dstList, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
 
-        // (2b) raise exception if if IGNORE_MISSING_FILES is not set
+        // (2b) raise exception if IGNORE_MISSING_FILES is not set
         assertThrows(FileNotFoundException.class, () -> gcsUtil.rename(errList, dstList));
 
         // (3) when both source files and target files exist
@@ -612,8 +627,6 @@ public class GcsUtilIT {
 
         assertNotExists(srcPaths.get(0)); // BUG! The renaming is supposed to be skipped
         assertNotExists(srcPaths.get(1)); // BUG! The renaming is supposed to be skipped
-        // assertExists(srcPaths.get(0));
-        // assertExists(srcPaths.get(1));
         assertExists(dstPaths.get(0));
         assertExists(dstPaths.get(1));
       }
@@ -623,7 +636,7 @@ public class GcsUtilIT {
   }
 
   private void assertExists(GcsPath path) throws IOException {
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       gcsUtil.getBlob(path);
     } else {
       gcsUtil.getObject(path);
@@ -631,7 +644,7 @@ public class GcsUtilIT {
   }
 
   private void assertNotExists(GcsPath path) throws IOException {
-    if (experiment.equals("use_gcsutil_v2")) {
+    if (isV2()) {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getBlob(path));
     } else {
       assertThrows(FileNotFoundException.class, () -> gcsUtil.getObject(path));
@@ -712,6 +725,469 @@ public class GcsUtilIT {
     } finally {
       tearDownTestBucketHelper(bucketName);
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Legacy API parity: the same legacy calls and assertions must hold for both GcsUtilV1 and
+  // GcsUtilV2. Documented divergences are asserted per mode.
+  // ---------------------------------------------------------------------------------------------
+
+  private static List<String> toStrings(List<GcsPath> paths) {
+    return paths.stream().map(GcsPath::toString).collect(Collectors.toList());
+  }
+
+  private static List<GcsPath> objectPaths(String bucket, String... objects) {
+    return Arrays.stream(objects)
+        .map(o -> GcsPath.fromComponents(bucket, o))
+        .collect(Collectors.toList());
+  }
+
+  private static List<String> itemNames(Objects objects) {
+    if (objects.getItems() == null) {
+      return Collections.emptyList();
+    }
+    return objects.getItems().stream().map(StorageObject::getName).collect(Collectors.toList());
+  }
+
+  private void writeObject(GcsPath path, byte[] content, CreateOptions createOptions)
+      throws IOException {
+    try (WritableByteChannel writer = gcsUtil.create(path, createOptions)) {
+      ByteBuffer buffer = ByteBuffer.wrap(content);
+      while (buffer.hasRemaining()) {
+        writer.write(buffer);
+      }
+    }
+  }
+
+  private byte[] readObject(GcsPath path) throws IOException {
+    ByteArrayOutputStream readContent = new ByteArrayOutputStream();
+    try (ReadableByteChannel reader = gcsUtil.open(path)) {
+      ByteBuffer buffer = ByteBuffer.allocate(64 * 1024);
+      while (reader.read(buffer) != -1) {
+        buffer.flip();
+        readContent.write(buffer.array(), 0, buffer.limit());
+        buffer.clear();
+      }
+    }
+    return readContent.toByteArray();
+  }
+
+  @Test
+  public void testLegacyGetObject() throws IOException {
+    StorageObject obj = gcsUtil.getObject(GcsPath.fromUri(KINGLEAR));
+    assertEquals("apache-beam-samples", obj.getBucket());
+    assertEquals("shakespeare/kinglear.txt", obj.getName());
+    assertEquals(BigInteger.valueOf(157283L), obj.getSize());
+    assertEquals("s0a3Tg==", obj.getCrc32c());
+    assertNotNull(obj.getMd5Hash());
+    assertNotNull(obj.getGeneration());
+    assertNotNull(obj.getUpdated());
+
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.getObject(GcsPath.fromComponents("apache-beam-samples", "unknown-12345")));
+    assertThrows(
+        FileNotFoundException.class,
+        () -> gcsUtil.getObject(GcsPath.fromComponents(NONEXISTENT_BUCKET, "unknown-12345")));
+
+    IOException forbidden =
+        assertThrows(
+            IOException.class,
+            () -> gcsUtil.getObject(GcsPath.fromComponents(FORBIDDEN_BUCKET, "unknown-12345")));
+    assertFalse(forbidden instanceof FileNotFoundException);
+    if (isV2()) {
+      // V2 reports it as an AccessDeniedException, a subclass of IOException.
+      assertTrue(forbidden instanceof AccessDeniedException);
+    }
+  }
+
+  @Test
+  public void testLegacyGetObjects() throws IOException {
+    List<GcsPath> paths =
+        Arrays.asList(
+            GcsPath.fromUri(KINGLEAR),
+            GcsPath.fromComponents("apache-beam-samples", "unknown-12345"),
+            GcsPath.fromComponents(NONEXISTENT_BUCKET, "unknown-12345"),
+            GcsPath.fromComponents(FORBIDDEN_BUCKET, "unknown-12345"));
+
+    List<GcsUtil.StorageObjectOrIOException> results = gcsUtil.getObjects(paths);
+
+    assertEquals(4, results.size());
+    assertNull(results.get(0).ioException());
+    assertEquals("s0a3Tg==", results.get(0).storageObject().getCrc32c());
+    assertNull(results.get(1).storageObject());
+    assertTrue(results.get(1).ioException() instanceof FileNotFoundException);
+    assertNull(results.get(2).storageObject());
+    assertTrue(results.get(2).ioException() instanceof FileNotFoundException);
+    assertNull(results.get(3).storageObject());
+    IOException forbidden = results.get(3).ioException();
+    assertNotNull(forbidden);
+    assertFalse(forbidden instanceof FileNotFoundException);
+    if (isV2()) {
+      // V2 reports it as an AccessDeniedException, a subclass of IOException.
+      assertTrue(forbidden instanceof AccessDeniedException);
+    }
+  }
+
+  @Test
+  public void testLegacyGetObjectsAboveBatchLimit() throws IOException {
+    // Both versions send at most 100 requests per batch, so this spans three batches.
+    final int count = 250;
+    List<GcsPath> paths = new ArrayList<>();
+    for (int i = 0; i < count; i++) {
+      paths.add(
+          i % 2 == 0
+              ? GcsPath.fromUri(KINGLEAR)
+              : GcsPath.fromComponents("apache-beam-samples", "unknown-" + i));
+    }
+
+    List<GcsUtil.StorageObjectOrIOException> results = gcsUtil.getObjects(paths);
+
+    assertEquals(count, results.size());
+    for (int i = 0; i < count; i++) {
+      if (i % 2 == 0) {
+        assertEquals("result " + i, "s0a3Tg==", results.get(i).storageObject().getCrc32c());
+      } else {
+        assertTrue("result " + i, results.get(i).ioException() instanceof FileNotFoundException);
+      }
+    }
+  }
+
+  @Test
+  public void testLegacyListObjectsAndExpandWithDirectories() throws IOException {
+    final String bucket = randomBucketName();
+    final GcsPath placeholder = GcsPath.fromComponents(bucket, "dir/");
+    final byte[] content = "content".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      createTestBucketHelper(bucket, false);
+      writeObject(placeholder, new byte[0], CreateOptions.builder().build());
+      for (GcsPath path : objectPaths(bucket, "dir/a.txt", "dir/b.csv", "dir/sub/c.txt")) {
+        writeObject(path, content, CreateOptions.builder().build());
+      }
+
+      // A flat listing returns every object, including the directory placeholder.
+      Objects flat = gcsUtil.listObjects(bucket, "dir/", null);
+      assertEquals(
+          Arrays.asList("dir/", "dir/a.txt", "dir/b.csv", "dir/sub/c.txt"), itemNames(flat));
+      assertNull(flat.getPrefixes());
+      assertNull(flat.getNextPageToken());
+
+      // A delimited listing returns sub-directories as prefixes.
+      Objects delimited = gcsUtil.listObjects(bucket, "dir/", null, "/");
+      assertEquals(Arrays.asList("dir/", "dir/a.txt", "dir/b.csv"), itemNames(delimited));
+      assertEquals(Collections.singletonList("dir/sub/"), delimited.getPrefixes());
+      assertNull(delimited.getNextPageToken());
+
+      // An empty listing has null items, which callers use to stop paging.
+      Objects empty = gcsUtil.listObjects(bucket, "no-such-prefix/", null);
+      assertNull(empty.getItems());
+      assertNull(empty.getNextPageToken());
+
+      // Globs skip the directory placeholder.
+      assertEquals(
+          objectPaths(bucket, "dir/a.txt", "dir/b.csv"),
+          gcsUtil.expand(GcsPath.fromComponents(bucket, "dir/*")));
+      assertEquals(
+          objectPaths(bucket, "dir/a.txt"),
+          gcsUtil.expand(GcsPath.fromComponents(bucket, "dir/*.txt")));
+      assertEquals(
+          objectPaths(bucket, "dir/a.txt", "dir/b.csv", "dir/sub/c.txt"),
+          gcsUtil.expand(GcsPath.fromComponents(bucket, "dir/**")));
+      assertEquals(
+          objectPaths(bucket, "dir/sub/c.txt"),
+          gcsUtil.expand(GcsPath.fromComponents(bucket, "dir/*/c.txt")));
+
+      // A path without a wildcard expands to itself if it exists, and to nothing otherwise.
+      assertEquals(
+          objectPaths(bucket, "dir/a.txt"),
+          gcsUtil.expand(GcsPath.fromComponents(bucket, "dir/a.txt")));
+      assertTrue(gcsUtil.expand(GcsPath.fromComponents(bucket, "dir/missing.txt")).isEmpty());
+    } finally {
+      // tearDownTestBucketHelper expands a glob, which skips the placeholder, so remove it here.
+      try {
+        gcsUtil.remove(Collections.singletonList(placeholder.toString()));
+      } catch (IOException e) {
+      }
+      tearDownTestBucketHelper(bucket);
+    }
+  }
+
+  @Test
+  public void testLegacyGetBucket() throws IOException {
+    Bucket bucket = gcsUtil.getBucket(GcsPath.fromUri("gs://apache-beam-samples"));
+    assertEquals("apache-beam-samples", bucket.getName());
+    assertEquals(BigInteger.valueOf(844138762903L), bucket.getProjectNumber());
+    assertNotNull(bucket.getLocation());
+
+    final GcsPath nonExistentPath = GcsPath.fromUri("gs://" + NONEXISTENT_BUCKET);
+    final GcsPath forbiddenPath = GcsPath.fromUri("gs://" + FORBIDDEN_BUCKET);
+    assertThrows(FileNotFoundException.class, () -> gcsUtil.getBucket(nonExistentPath));
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.getBucket(forbiddenPath));
+    assertThrows(
+        FileNotFoundException.class, () -> gcsUtil.verifyBucketAccessible(nonExistentPath));
+    assertThrows(AccessDeniedException.class, () -> gcsUtil.verifyBucketAccessible(forbiddenPath));
+  }
+
+  @Test
+  public void testLegacyCreateAndRemoveBucket() throws IOException {
+    final String name = randomBucketName();
+    final GcsPath path = GcsPath.fromUri("gs://" + name);
+    final String projectId = options.as(GcsOptions.class).getProject();
+    final Bucket bucket =
+        new Bucket()
+            .setName(name)
+            .setLocation("US-CENTRAL1")
+            .setStorageClass("NEARLINE")
+            .setSoftDeletePolicy(new Bucket.SoftDeletePolicy().setRetentionDurationSeconds(0L));
+
+    try {
+      assertFalse(gcsUtil.bucketAccessible(path));
+      gcsUtil.createBucket(projectId, bucket);
+      assertTrue(gcsUtil.bucketAccessible(path));
+
+      // The settings passed at creation are persisted.
+      Bucket created = gcsUtil.getBucket(path);
+      assertEquals(name, created.getName());
+      assertEquals("US-CENTRAL1", created.getLocation());
+      assertEquals("NEARLINE", created.getStorageClass());
+      assertEquals(Long.valueOf(0L), created.getSoftDeletePolicy().getRetentionDurationSeconds());
+      assertEquals(created.getProjectNumber().longValue(), gcsUtil.bucketOwner(path));
+
+      // raise exception when the bucket already exists during creation
+      assertThrows(FileAlreadyExistsException.class, () -> gcsUtil.createBucket(projectId, bucket));
+
+      gcsUtil.removeBucket(bucket);
+      assertFalse(gcsUtil.bucketAccessible(path));
+
+      // raise exception when the bucket does not exist during removal
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.removeBucket(bucket));
+    } finally {
+      // clean up and ignore errors no matter what
+      try {
+        gcsUtil.removeBucket(bucket);
+      } catch (IOException e) {
+      }
+    }
+  }
+
+  @Test
+  public void testLegacyCopyAndRemove() throws IOException {
+    final String bucket = randomBucketName();
+
+    try {
+      final List<GcsPath> srcPaths = createTestBucketHelper(bucket, true);
+      final List<GcsPath> dstPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(bucket, o.getObject() + ".bak"))
+              .collect(Collectors.toList());
+      final List<GcsPath> errPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(NONEXISTENT_BUCKET, o.getObject()))
+              .collect(Collectors.toList());
+      final List<String> srcList = toStrings(srcPaths);
+      final List<String> dstList = toStrings(dstPaths);
+      final List<String> errList = toStrings(errPaths);
+      final String srcMd5 = gcsUtil.getObject(srcPaths.get(0)).getMd5Hash();
+
+      // (1) when the target files do not exist
+      gcsUtil.copy(srcList, dstList);
+      assertEquals(srcMd5, gcsUtil.getObject(dstPaths.get(0)).getMd5Hash());
+      assertExists(dstPaths.get(1));
+
+      // (2) when the target files exist, they are overwritten
+      writeObject(
+          dstPaths.get(0),
+          "stale".getBytes(StandardCharsets.UTF_8),
+          CreateOptions.builder().build());
+      gcsUtil.copy(srcList, dstList);
+      assertEquals(srcMd5, gcsUtil.getObject(dstPaths.get(0)).getMd5Hash());
+
+      // (3) raise exception when the target bucket is nonexistent.
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(srcList, errList));
+
+      // (4) raise exception when the source files are nonexistent.
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.copy(errList, dstList));
+
+      // (5) remove existing files
+      gcsUtil.remove(dstList);
+      assertNotExists(dstPaths.get(0));
+      assertNotExists(dstPaths.get(1));
+      assertExists(srcPaths.get(0));
+
+      // (6) removing missing files, or files in a nonexistent bucket, raises no exception
+      gcsUtil.remove(dstList);
+      gcsUtil.remove(errList);
+    } finally {
+      tearDownTestBucketHelper(bucket);
+    }
+  }
+
+  @Test
+  public void testLegacyRename() throws IOException {
+    final String bucket = randomBucketName();
+
+    try {
+      final List<GcsPath> srcPaths = createTestBucketHelper(bucket, true);
+      final List<GcsPath> dstPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(bucket, o.getObject() + ".bak"))
+              .collect(Collectors.toList());
+      final List<GcsPath> missingPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(bucket, "missing/" + o.getObject()))
+              .collect(Collectors.toList());
+      final List<String> dstList = toStrings(dstPaths);
+      final List<String> missingList = toStrings(missingPaths);
+      final String srcMd5 = gcsUtil.getObject(srcPaths.get(0)).getMd5Hash();
+
+      // (1) when the source files exist and target files do not
+      gcsUtil.rename(toStrings(srcPaths), dstList);
+      assertNotExists(srcPaths.get(0));
+      assertNotExists(srcPaths.get(1));
+      assertEquals(srcMd5, gcsUtil.getObject(dstPaths.get(0)).getMd5Hash());
+      assertExists(dstPaths.get(1));
+
+      // (2) when the source files do not exist
+      // (2a) no exception if IGNORE_MISSING_FILES is set, and the targets are untouched
+      gcsUtil.rename(missingList, dstList, MoveOptions.StandardMoveOptions.IGNORE_MISSING_FILES);
+      assertExists(dstPaths.get(0));
+      assertExists(dstPaths.get(1));
+
+      // (2b) raise exception if IGNORE_MISSING_FILES is not set
+      assertThrows(FileNotFoundException.class, () -> gcsUtil.rename(missingList, dstList));
+    } finally {
+      tearDownTestBucketHelper(bucket);
+    }
+  }
+
+  @Test
+  public void testLegacyRenameSkipDestinationExists() throws IOException {
+    final String bucket = randomBucketName();
+    final String otherBucket = randomBucketName();
+
+    try {
+      final List<GcsPath> srcPaths = createTestBucketHelper(bucket, true);
+      createTestBucketHelper(otherBucket, false);
+      final List<GcsPath> dstPaths =
+          srcPaths.stream()
+              .map(o -> GcsPath.fromComponents(bucket, o.getObject() + ".bak"))
+              .collect(Collectors.toList());
+      final List<GcsPath> otherPaths =
+          dstPaths.stream()
+              .map(o -> GcsPath.fromComponents(otherBucket, o.getObject()))
+              .collect(Collectors.toList());
+      final List<String> srcList = toStrings(srcPaths);
+      final List<String> dstList = toStrings(dstPaths);
+      final List<String> otherList = toStrings(otherPaths);
+      gcsUtil.copy(srcList, dstList);
+
+      // Within a bucket, when the targets exist.
+      gcsUtil.rename(srcList, dstList, MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+      assertExists(dstPaths.get(0));
+      assertExists(dstPaths.get(1));
+      if (isV2()) {
+        // V2 skips the rename and keeps the sources.
+        assertExists(srcPaths.get(0));
+        assertExists(srcPaths.get(1));
+      } else {
+        // There is a bug in V1 where SKIP_IF_DESTINATION_EXISTS is not honored.
+        assertNotExists(srcPaths.get(0));
+        assertNotExists(srcPaths.get(1));
+      }
+
+      // Across buckets, when the targets do not exist.
+      if (isV2()) {
+        gcsUtil.rename(
+            dstList, otherList, MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS);
+        assertNotExists(dstPaths.get(0));
+        assertNotExists(dstPaths.get(1));
+        assertExists(otherPaths.get(0));
+        assertExists(otherPaths.get(1));
+      } else {
+        // V1 only supports SKIP_IF_DESTINATION_EXISTS within a bucket.
+        assertThrows(
+            UnsupportedOperationException.class,
+            () ->
+                gcsUtil.rename(
+                    dstList,
+                    otherList,
+                    MoveOptions.StandardMoveOptions.SKIP_IF_DESTINATION_EXISTS));
+        assertExists(dstPaths.get(0));
+        assertExists(dstPaths.get(1));
+      }
+    } finally {
+      tearDownTestBucketHelper(bucket);
+      tearDownTestBucketHelper(otherBucket);
+    }
+  }
+
+  @Test
+  public void testLegacyCreateOverExistingObject() throws IOException {
+    final String bucket = randomBucketName();
+    final GcsPath path = GcsPath.fromComponents(bucket, "test-object.txt");
+    final byte[] first = "first".getBytes(StandardCharsets.UTF_8);
+    final byte[] second = "second".getBytes(StandardCharsets.UTF_8);
+
+    try {
+      createTestBucketHelper(bucket, false);
+      writeObject(path, first, CreateOptions.builder().build());
+
+      // Without expectFileToNotExist, an existing object is overwritten.
+      writeObject(path, second, CreateOptions.builder().build());
+      assertArrayEquals(second, readObject(path));
+
+      // With expectFileToNotExist, the write fails and the object is left unchanged.
+      assertThrows(
+          IOException.class,
+          () ->
+              writeObject(
+                  path, first, CreateOptions.builder().setExpectFileToNotExist(true).build()));
+      assertArrayEquals(second, readObject(path));
+    } finally {
+      tearDownTestBucketHelper(bucket);
+    }
+  }
+
+  @Test
+  public void testLegacyWriteAndReadMultipleChunks() throws IOException {
+    final String bucket = randomBucketName();
+    final GcsPath path = GcsPath.fromComponents(bucket, "test-object.bin");
+    final int chunkSize = 256 * 1024;
+    // Four full chunks plus a partial one.
+    final byte[] content = new byte[4 * chunkSize + 13];
+    new Random(42).nextBytes(content);
+
+    try {
+      createTestBucketHelper(bucket, false);
+      writeObject(
+          path,
+          content,
+          CreateOptions.builder()
+              .setContentType("application/octet-stream")
+              .setUploadBufferSizeBytes(chunkSize)
+              .setExpectFileToNotExist(true)
+              .build());
+
+      assertEquals(content.length, gcsUtil.fileSize(path));
+      StorageObject obj = gcsUtil.getObject(path);
+      assertEquals(BigInteger.valueOf(content.length), obj.getSize());
+      assertEquals("application/octet-stream", obj.getContentType());
+      assertArrayEquals(content, readObject(path));
+    } finally {
+      tearDownTestBucketHelper(bucket);
+    }
+  }
+
+  @Test
+  public void testReadChannelCloseTwice() throws IOException {
+    SeekableByteChannel channel = gcsUtil.open(GcsPath.fromUri(KINGLEAR));
+    assertTrue(channel.isOpen());
+    channel.close();
+    assertFalse(channel.isOpen());
+    // Closing again is a no-op.
+    channel.close();
+    assertFalse(channel.isOpen());
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -816,8 +1292,7 @@ public class GcsUtilIT {
 
   @Test
   public void testWriteMetrics() throws IOException {
-    final String bucket =
-        "apache-beam-temp-metrics-" + UUID.randomUUID().toString().substring(0, 8);
+    final String bucket = randomBucketName();
     final GcsPath targetPath = GcsPath.fromComponents(bucket, "test-object.txt");
     final byte[] content = "Hello, GCS metrics!".getBytes(StandardCharsets.UTF_8);
     GcsUtil metricsGcsUtil = gcsUtilWithAllMetrics();
@@ -862,8 +1337,8 @@ public class GcsUtilIT {
   /** Tests a rewrite operation that requires multiple API calls (using a continuation token). */
   @Test
   public void testRewriteMultiPart() throws IOException {
-    // V2 copies each file with a single call, without rewrite tokens.
-    assumeTrue(experiment.equals("use_gcsutil_v1"));
+    // Exercises GcsUtilV1's maxBytesRewrittenPerCall and numRewriteTokensUsed fields.
+    assumeTrue(!isV2());
 
     TestPipelineOptions options =
         TestPipeline.testingPipelineOptions().as(TestPipelineOptions.class);
@@ -900,7 +1375,7 @@ public class GcsUtilIT {
   @Test
   public void testWriteAndReadGcsWithGrpc() throws IOException {
     // GcsUtilV2 does not support gRPC yet.
-    assumeTrue(experiment.equals("use_gcsutil_v1"));
+    assumeTrue(!isV2());
 
     final String outputPattern =
         "%s/GcsUtilIT-%tF-%<tH-%<tM-%<tS-%<tL.testWriteAndReadGcsWithGrpc.txt";

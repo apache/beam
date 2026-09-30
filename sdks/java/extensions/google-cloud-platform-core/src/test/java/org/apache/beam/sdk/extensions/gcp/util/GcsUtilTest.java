@@ -47,17 +47,13 @@ import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.beam.runners.core.metrics.MetricsContainerImpl;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.options.GcsOptions;
 import org.apache.beam.sdk.extensions.gcp.util.GcsUtil.StorageObjectOrIOException;
 import org.apache.beam.sdk.extensions.gcp.util.gcsfs.GcsPath;
 import org.apache.beam.sdk.io.fs.MoveOptions.StandardMoveOptions;
-import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
-import org.junit.After;
-import org.junit.Before;
 import org.junit.Test;
 import org.junit.function.ThrowingRunnable;
 import org.junit.runner.RunWith;
@@ -67,22 +63,6 @@ import org.mockito.Mockito;
 /** Test case for {@link GcsUtil}. */
 @RunWith(JUnit4.class)
 public class GcsUtilTest {
-  MetricsContainerImpl testMetricsContainer;
-
-  @Before
-  public void setUp() {
-    // Setup the ProcessWideContainer for testing metrics are set.
-    testMetricsContainer = new MetricsContainerImpl(null);
-    MetricsEnvironment.setProcessWideContainer(testMetricsContainer);
-    MetricsEnvironment.setCurrentContainer(testMetricsContainer);
-  }
-
-  @After
-  public void tearDown() {
-    // Don't leak the containers installed by setUp into later tests in the same JVM.
-    MetricsEnvironment.setProcessWideContainer(null);
-    MetricsEnvironment.setCurrentContainer(null);
-  }
 
   private static GcsOptions gcsOptionsWithTestCredential() {
     GcsOptions pipelineOptions = PipelineOptionsFactory.as(GcsOptions.class);
@@ -290,10 +270,6 @@ public class GcsUtilTest {
     assertNull(objects.getNextPageToken());
   }
 
-  /**
-   * The storage class is checked here because the emulator ignores it, so only a unit test can see
-   * it carried over.
-   */
   @Test
   public void testCreateBucketIsRoutedToV2WithProjectPrivateAcls() throws IOException {
     GcsUtil gcsUtil = gcsUtilRoutingToV2();
