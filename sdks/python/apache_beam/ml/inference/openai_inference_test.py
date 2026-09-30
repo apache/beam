@@ -100,6 +100,13 @@ def _make_mock_http_response(status_code: int) -> httpx.Response:
   return httpx.Response(status_code=status_code, request=req)
 
 
+def _make_mock_async_client() -> mock.MagicMock:
+  client = mock.MagicMock()
+  client.chat.completions.create = mock.AsyncMock()
+  client.embeddings.create = mock.AsyncMock()
+  return client
+
+
 class RetryOnErrorTest(unittest.TestCase):
   def test_retry_on_rate_limit(self):
     e = APIStatusError(
@@ -158,7 +165,7 @@ class RetryOnErrorTest(unittest.TestCase):
 
 class ChatCompletionFromStringTest(unittest.TestCase):
   def test_sends_each_prompt(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     client.chat.completions.create.side_effect = [
         _make_fake_chat_response("answer 1"),
         _make_fake_chat_response("answer 2"),
@@ -166,6 +173,8 @@ class ChatCompletionFromStringTest(unittest.TestCase):
     results = chat_completion_from_string(
         _TEST_MODEL, ['hello', 'world'], client, {})
     self.assertEqual(len(results), 2)
+    self.assertEqual(results[0].choices[0].message.content, "answer 1")
+    self.assertEqual(results[1].choices[0].message.content, "answer 2")
     self.assertEqual(client.chat.completions.create.call_count, 2)
 
     call_args = client.chat.completions.create.call_args_list[0]
@@ -176,7 +185,7 @@ class ChatCompletionFromStringTest(unittest.TestCase):
         }])
 
   def test_passes_inference_args(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     client.chat.completions.create.return_value = _make_fake_chat_response("ok")
     chat_completion_from_string(
         _TEST_MODEL, ['test'], client, {
@@ -187,7 +196,7 @@ class ChatCompletionFromStringTest(unittest.TestCase):
     self.assertEqual(call_args.kwargs['temperature'], 0.5)
 
   def test_prepends_system_prompt(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     client.chat.completions.create.return_value = _make_fake_chat_response("ok")
     chat_completion_from_string(
         _TEST_MODEL, ['test'], client, {'system': 'You are helpful.'})
@@ -207,7 +216,7 @@ class ChatCompletionFromStringTest(unittest.TestCase):
 
 class ChatCompletionFromConversationTest(unittest.TestCase):
   def test_sends_conversation(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     client.chat.completions.create.return_value = (
         _make_fake_chat_response("Paris!"))
     convo = [
@@ -222,7 +231,7 @@ class ChatCompletionFromConversationTest(unittest.TestCase):
     self.assertEqual(call_args.kwargs['messages'], convo)
 
   def test_prepends_system_prompt_to_conversation(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     client.chat.completions.create.return_value = _make_fake_chat_response("ok")
     convo = [
         {
@@ -247,7 +256,7 @@ class ChatCompletionFromConversationTest(unittest.TestCase):
 
 class EmbeddingFromStringTest(unittest.TestCase):
   def test_sends_batch_to_embeddings(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     fake_resp = _make_fake_embedding_response(['hello', 'world'])
     client.embeddings.create.return_value = fake_resp
 
@@ -258,7 +267,7 @@ class EmbeddingFromStringTest(unittest.TestCase):
         model=_TEST_EMBEDDING_MODEL, input=['hello', 'world'])
 
   def test_preserves_order_via_index(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     # Out of order data
     fake_resp = FakeEmbeddingResponse(
         data=[
@@ -275,7 +284,7 @@ class EmbeddingFromStringTest(unittest.TestCase):
     self.assertEqual(results[1].embedding, [0.2])
 
   def test_passes_inference_args(self):
-    client = mock.MagicMock()
+    client = _make_mock_async_client()
     client.embeddings.create.return_value = _make_fake_embedding_response(['a'])
     embedding_from_string(
         _TEST_EMBEDDING_MODEL, ['a'], client, {'dimensions': 256})
@@ -284,23 +293,23 @@ class EmbeddingFromStringTest(unittest.TestCase):
 
 
 class OpenAIModelHandlerTest(unittest.TestCase):
-  @mock.patch('apache_beam.ml.inference.openai_inference.OpenAI')
+  @mock.patch('apache_beam.ml.inference.openai_inference.AsyncOpenAI')
   def test_create_client_with_api_key(self, mock_openai):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
         api_key='test-key-123')
     handler.create_client()
-    mock_openai.assert_called_once_with(api_key='test-key-123')
+    mock_openai.assert_called_once_with(api_key='test-key-123', max_retries=0)
 
-  @mock.patch('apache_beam.ml.inference.openai_inference.OpenAI')
+  @mock.patch('apache_beam.ml.inference.openai_inference.AsyncOpenAI')
   def test_create_client_from_env(self, mock_openai):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL, request_fn=chat_completion_from_string)
     handler.create_client()
-    mock_openai.assert_called_once_with()
+    mock_openai.assert_called_once_with(max_retries=0)
 
-  @mock.patch('apache_beam.ml.inference.openai_inference.OpenAI')
+  @mock.patch('apache_beam.ml.inference.openai_inference.AsyncOpenAI')
   def test_create_client_with_all_options(self, mock_openai):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL,
@@ -316,6 +325,7 @@ class OpenAIModelHandlerTest(unittest.TestCase):
         organization='test-org',
         project='test-proj',
         base_url='https://custom.endpoint.com/v1',
+        max_retries=0,
         timeout=30.0)
 
   def test_request_returns_prediction_results(self):
@@ -323,7 +333,7 @@ class OpenAIModelHandlerTest(unittest.TestCase):
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
         api_key='fake')
-    mock_client = mock.MagicMock()
+    mock_client = _make_mock_async_client()
     resp1 = _make_fake_chat_response("answer 1")
     resp2 = _make_fake_chat_response("answer 2")
     mock_client.chat.completions.create.side_effect = [resp1, resp2]
@@ -368,7 +378,7 @@ class SystemPromptTest(unittest.TestCase):
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
         api_key='fake')
-    mock_client = mock.MagicMock()
+    mock_client = _make_mock_async_client()
     mock_client.chat.completions.create.return_value = (
         _make_fake_chat_response("ok"))
 
@@ -386,7 +396,7 @@ class SystemPromptTest(unittest.TestCase):
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
         api_key='fake')
-    mock_client = mock.MagicMock()
+    mock_client = _make_mock_async_client()
     mock_client.chat.completions.create.return_value = (
         _make_fake_chat_response("ok"))
 
@@ -423,7 +433,7 @@ class ResponseFormatTest(unittest.TestCase):
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
         api_key='fake')
-    mock_client = mock.MagicMock()
+    mock_client = _make_mock_async_client()
     mock_client.chat.completions.create.return_value = (
         _make_fake_chat_response('{"answer":"ok"}'))
 
@@ -437,7 +447,7 @@ class ResponseFormatTest(unittest.TestCase):
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
         api_key='fake')
-    mock_client = mock.MagicMock()
+    mock_client = _make_mock_async_client()
     mock_client.chat.completions.create.return_value = (
         _make_fake_chat_response("ok"))
 

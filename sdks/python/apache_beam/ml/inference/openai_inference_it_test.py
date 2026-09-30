@@ -24,7 +24,7 @@ import unittest
 import pytest
 
 try:
-  from openai import OpenAI
+  from openai import AsyncOpenAI  # pylint: disable=unused-import
 
   from apache_beam.ml.inference.openai_inference import OpenAIModelHandler
   from apache_beam.ml.inference.openai_inference import chat_completion_from_conversation
@@ -61,7 +61,7 @@ class OpenAIInferenceIT(unittest.TestCase):
         model_name=_TEST_CHAT_MODEL,
         request_fn=chat_completion_from_string,
         api_key=_OPENAI_API_KEY,
-        max_batch_size=1,
+        max_batch_size=2,
     )
 
     prompts = [
