@@ -98,6 +98,7 @@ runs:
       with:
         cache-disabled: ${{ inputs.disable-cache }}
         validate-wrappers: false
+        cache-read-only: ${{ !(github.event_name == 'schedule' || github.event_name == 'push' || github.run_attempt > 1) }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v6
