@@ -220,8 +220,10 @@ class DatasetReference(object):
       return False
     if not hasattr(other, 'project') and not hasattr(other, 'projectId'):
       return NotImplemented
-    other_p = getattr(other, 'project', None) or getattr(other, 'projectId', None)
-    other_d = getattr(other, 'dataset_id', None) or getattr(other, 'datasetId', None)
+    other_p = getattr(other, 'project', None) or getattr(
+        other, 'projectId', None)
+    other_d = getattr(other, 'dataset_id', None) or getattr(
+        other, 'datasetId', None)
     return (self._project, self._dataset_id) == (other_p, other_d)
 
   def __hash__(self):
@@ -267,7 +269,8 @@ class TableReference(object):
   @property
   def dataset_ref(self):
     if self._dataset_id is not None or self._project is not None:
-      return DatasetReference(project=self._project, dataset_id=self._dataset_id)
+      return DatasetReference(
+          project=self._project, dataset_id=self._dataset_id)
     return None
 
   @property
@@ -336,11 +339,14 @@ class TableReference(object):
       return False
     if not hasattr(other, 'table_id') and not hasattr(other, 'tableId'):
       return NotImplemented
-    other_p = getattr(other, 'project', None) or getattr(other, 'projectId', None)
-    other_d = getattr(other, 'dataset_id', None) or getattr(other, 'datasetId', None)
-    other_t = getattr(other, 'table_id', None) or getattr(other, 'tableId', None)
-    return (self._project, self._dataset_id, self._table_id) == (
-        other_p, other_d, other_t)
+    other_p = getattr(other, 'project', None) or getattr(
+        other, 'projectId', None)
+    other_d = getattr(other, 'dataset_id', None) or getattr(
+        other, 'datasetId', None)
+    other_t = getattr(other, 'table_id', None) or getattr(
+        other, 'tableId', None)
+    return (self._project, self._dataset_id,
+            self._table_id) == (other_p, other_d, other_t)
 
   def __hash__(self):
     return hash((self._project, self._dataset_id, self._table_id))
@@ -514,8 +520,8 @@ def _to_gcp_range_partitioning(rp):
 
   if gcp_bigquery is not None and hasattr(gcp_bigquery, 'RangePartitioning'):
     pr = None
-    if (start is not None or end is not None
-        or interval is not None) and hasattr(gcp_bigquery, 'PartitionRange'):
+    if (start is not None or end is not None or
+        interval is not None) and hasattr(gcp_bigquery, 'PartitionRange'):
       pr = gcp_bigquery.PartitionRange(start=start, end=end, interval=interval)
     return gcp_bigquery.RangePartitioning(range_=pr, field=rp_field)
   return rp
@@ -525,8 +531,8 @@ def _to_gcp_clustering_fields(clustering):
   """Extracts clustering fields list from list, dict, or Clustering model."""
   if clustering is None:
     return None
-  if hasattr(clustering, '_mock_methods') or hasattr(
-      clustering, '_mock_children'):
+  if hasattr(clustering, '_mock_methods') or hasattr(clustering,
+                                                     '_mock_children'):
     return clustering
   if isinstance(clustering, (list, tuple)):
     return list(clustering)
@@ -693,8 +699,7 @@ def _to_apitools_dataset_ref(dataset_ref, default_project=None):
     ds_id = getattr(dataset_ref, 'dataset_id', None) or getattr(
         dataset_ref, 'datasetId', None)
   if apitools_bigquery and hasattr(apitools_bigquery, 'DatasetReference'):
-    return apitools_bigquery.DatasetReference(
-        projectId=proj, datasetId=ds_id)
+    return apitools_bigquery.DatasetReference(projectId=proj, datasetId=ds_id)
   return dataset_ref
 
 
@@ -766,6 +771,8 @@ def _to_table_schema(schema):
      removed in a future release once Beam coders and schema utilities natively
      consume modern schema types.
   """
+  if TableSchema is None:
+    return schema
   if schema is None:
     return TableSchema()
   if isinstance(schema, TableSchema):
@@ -776,6 +783,8 @@ def _to_table_schema(schema):
     return _to_table_schema(schema.fields)
 
   def _to_field_schema(f):
+    if TableFieldSchema is None:
+      return f
     if isinstance(f, TableFieldSchema):
       return f
     if isinstance(f, dict):
@@ -815,6 +824,7 @@ def _to_table_schema(schema):
   if isinstance(schema, (list, tuple)):
     return TableSchema(fields=[_to_field_schema(f) for f in schema])
   return TableSchema()
+
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -897,9 +907,9 @@ def get_hashable_destination(destination):
   Returns:
     A string representing the destination containing 'PROJECT:DATASET.TABLE'.
   """
-  if isinstance(destination, TableReference) or (
-      gcp_bigquery is not None and
-      isinstance(destination, getattr(gcp_bigquery, 'TableReference', ()))):
+  if isinstance(destination,
+                TableReference) or (gcp_bigquery is not None and isinstance(
+                    destination, getattr(gcp_bigquery, 'TableReference', ()))):
     proj = getattr(destination, 'project', None) or getattr(
         destination, 'projectId', None)
     ds = getattr(destination, 'dataset_id', None) or getattr(
@@ -1156,7 +1166,9 @@ class BigQueryWrapper(object):
 
     if temp_table_ref is not None:
       self.temp_table_ref = temp_table_ref
-      self.temp_dataset_id = temp_table_ref.datasetId
+      self.temp_dataset_id = (
+          getattr(temp_table_ref, 'dataset_id', None) or
+          getattr(temp_table_ref, 'datasetId', None))
     else:
       self.temp_table_ref = None
       self._temporary_table_suffix = uuid.uuid4().hex
@@ -1515,6 +1527,21 @@ class BigQueryWrapper(object):
     if source_uris is None:
       source_uris = []
     additional_load_parameters = additional_load_parameters or {}
+    legacy_load_params = {}
+    if apitools_bigquery and hasattr(apitools_bigquery, 'JobConfigurationLoad'):
+      for k, v in additional_load_parameters.items():
+        if '_' in k:
+          parts = k.split('_')
+          camel_k = parts[0] + ''.join(x.title() for x in parts[1:])
+        else:
+          camel_k = k
+        if hasattr(apitools_bigquery.JobConfigurationLoad, camel_k):
+          legacy_load_params[camel_k] = v
+        elif hasattr(apitools_bigquery.JobConfigurationLoad, k):
+          legacy_load_params[k] = v
+    else:
+      legacy_load_params = additional_load_parameters
+
     if schema == 'SCHEMA_AUTODETECT':
       job_schema = None
     elif isinstance(schema, (dict, str)):
@@ -1542,7 +1569,7 @@ class BigQueryWrapper(object):
                     sourceFormat=source_format,
                     useAvroLogicalTypes=True,
                     autodetect=schema == 'SCHEMA_AUTODETECT',
-                    **additional_load_parameters),
+                    **legacy_load_params),
                 labels=_build_job_labels(job_labels),
             ),
             jobReference=reference,
@@ -1825,11 +1852,10 @@ class BigQueryWrapper(object):
                   err, 'reason', None)
               service_call_metric.call(reason or 'unknown')
       except (ClientError, GoogleAPICallError, HttpError) as e:
-        # e.code contains the numeric http status code.
         status_code = getattr(e, 'code', None) or getattr(
             e, 'status_code', None) or 500
         service_call_metric.call(status_code)
-        # Package exception with required fields
+        # Package exception with required fields for BigQueryWriteFn
         reason = None
         if hasattr(e, 'response') and getattr(e.response, 'reason', None):
           reason = e.response.reason
@@ -1840,7 +1866,6 @@ class BigQueryWrapper(object):
           reason = e.errors[0].get('reason')
         if not reason:
           reason = e.__class__.__name__
-        # Add all rows to the errors list along with the error
         errors = [{
             'index': i, 'errors': [{
                 'reason': reason, 'message': str(e)
@@ -1996,11 +2021,13 @@ class BigQueryWrapper(object):
 
     # Fallback for legacy client
     additional_parameters = additional_parameters or {}
+    table_ref = _to_apitools_table_ref(
+        TableReference(
+            project=project_id, dataset_id=dataset_id, table_id=table_id),
+        default_project=project_id)
+    table_schema = _to_table_schema(schema) if schema is not None else None
     table = apitools_bigquery.Table(
-        tableReference=TableReference(
-            projectId=project_id, datasetId=dataset_id, tableId=table_id),
-        schema=schema,
-        **additional_parameters)
+        tableReference=table_ref, schema=table_schema, **additional_parameters)
     request = apitools_bigquery.BigqueryTablesInsertRequest(
         projectId=project_id, datasetId=dataset_id, table=table)
     response = self.client.tables.Insert(request)
@@ -2260,8 +2287,7 @@ class BigQueryWrapper(object):
               projectId=project_id, datasetId=temp_ds_id))
     except HttpError as exn:
       if exn.status_code == 404:
-        _LOGGER.warning(
-            'Dataset %s:%s does not exist', project_id, temp_ds_id)
+        _LOGGER.warning('Dataset %s:%s does not exist', project_id, temp_ds_id)
         return
       else:
         raise
@@ -2456,12 +2482,13 @@ class BigQueryWrapper(object):
         apitools_bigquery.JobReference(jobId=job_id, projectId=job_project)
         if apitools_bigquery and hasattr(apitools_bigquery, 'JobReference') else
         JobReference(jobId=job_id, projectId=job_project))
+    dest_uris = destination if isinstance(destination, list) else [destination]
     request = apitools_bigquery.BigqueryJobsInsertRequest(
         projectId=job_project,
         job=apitools_bigquery.Job(
             configuration=apitools_bigquery.JobConfiguration(
                 extract=apitools_bigquery.JobConfigurationExtract(
-                    destinationUris=destination,
+                    destinationUris=dest_uris,
                     sourceTable=_to_apitools_table_ref(
                         table_reference, default_project=job_project),
                     printHeader=include_header,

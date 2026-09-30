@@ -231,6 +231,10 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     elif hasattr(self.temp_dataset, 'datasetId'):
       return self.temp_dataset.datasetId
     elif isinstance(self.temp_dataset, str):
+      if ':' in self.temp_dataset:
+        return self.temp_dataset.split(':', 1)[1]
+      elif '.' in self.temp_dataset:
+        return self.temp_dataset.split('.', 1)[1]
       return self.temp_dataset
     else:
       raise ValueError("temp_dataset has to be either str or DatasetReference")
@@ -243,10 +247,15 @@ class _BigQueryReadSplit(beam.transforms.DoFn):
     """
     if hasattr(self.temp_dataset, 'project') and self.temp_dataset.project:
       return self.temp_dataset.project
-    elif hasattr(self.temp_dataset, 'projectId') and self.temp_dataset.projectId:
+    elif hasattr(self.temp_dataset,
+                 'projectId') and self.temp_dataset.projectId:
       return self.temp_dataset.projectId
-    else:
-      return self._get_project()
+    elif isinstance(self.temp_dataset, str):
+      if ':' in self.temp_dataset:
+        return self.temp_dataset.split(':', 1)[0]
+      elif '.' in self.temp_dataset:
+        return self.temp_dataset.split('.', 1)[0]
+    return self._get_project()
 
   def start_bundle(self):
     self.bq = bigquery_tools.BigQueryWrapper(

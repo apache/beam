@@ -599,6 +599,7 @@ class TestBigQueryWrapper(unittest.TestCase):
             [],
         ])
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    # Simulate caller (BigQueryWriteFn) retrying across 3 sequential attempts
     wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
     wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
     wrapper.insert_rows("my_project", "my_dataset", "my_table", [])
@@ -1607,7 +1608,8 @@ class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
     self.assertEqual(ref1.datasetId, 'my_ds')
     self.assertEqual(ref1.tableId, 'my_tbl')
     self.assertEqual(
-        ref1.dataset_ref, DatasetReference(project='my-proj', dataset_id='my_ds'))
+        ref1.dataset_ref,
+        DatasetReference(project='my-proj', dataset_id='my_ds'))
 
     # Positional init with DatasetReference
     ds_ref = DatasetReference(project='my-proj', dataset_id='my_ds')
@@ -1628,8 +1630,7 @@ class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
     self.assertEqual(ref3.table_id, 'mutated_again')
 
   def test_conversions_to_gcp_and_apitools(self):
-    table_ref = TableReference(
-        project='proj', dataset_id='ds', table_id='tbl')
+    table_ref = TableReference(project='proj', dataset_id='ds', table_id='tbl')
     gcp_ref = bigquery_tools._to_gcp_table_ref(table_ref)
     if bigquery_tools.gcp_bigquery is not None:
       self.assertIsInstance(gcp_ref, bigquery_tools.gcp_bigquery.TableReference)
@@ -1646,7 +1647,8 @@ class TestTableAndDatasetReferenceCompatibility(unittest.TestCase):
       self.assertEqual(api_ref.datasetId, 'ds')
       self.assertEqual(api_ref.tableId, 'tbl')
 
-  def test_legacy_client_fallback_job_insertion_converts_modern_references(self):
+  def test_legacy_client_fallback_job_insertion_converts_modern_references(
+      self):
     wrapper = BigQueryWrapper(use_legacy_client=True)
     wrapper.client = mock.MagicMock()
     mock_insert = mock.MagicMock()

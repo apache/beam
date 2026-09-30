@@ -1424,6 +1424,8 @@ class _ClientJobsCompat:
           _to_gcp_table_ref(s, default_project=proj)
           for s in getattr(cp, "sourceTables", [])
       ]
+      if not sources and getattr(cp, "sourceTable", None):
+        sources = [_to_gcp_table_ref(cp.sourceTable, default_project=proj)]
       dest = _to_gcp_table_ref(
           getattr(cp, "destinationTable", None), default_project=proj)
       job_config = gcp_bigquery.CopyJobConfig()

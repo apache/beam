@@ -238,8 +238,8 @@ class TestTableRowJsonCoder(unittest.TestCase):
       ]
     else:
       schema_fields = [
-          bigquery_tools._TableFieldSchemaCompat('s', 'STRING'),
-          bigquery_tools._TableFieldSchemaCompat('i', 'INTEGER'),
+          bigquery.TableFieldSchema(name='s', type='STRING'),
+          bigquery.TableFieldSchema(name='i', type='INTEGER'),
       ]
     coder = TableRowJsonCoder(table_schema=schema_fields)
     test_row = bigquery.TableRow(
@@ -359,9 +359,10 @@ class TestJsonToDictCoder(unittest.TestCase):
       ]
     else:
       schema_fields = [
-          bigquery_tools._TableFieldSchemaCompat('float', 'FLOAT', 'NULLABLE'),
-          bigquery_tools._TableFieldSchemaCompat(
-              'string', 'STRING', 'NULLABLE'),
+          bigquery.TableFieldSchema(
+              name='float', type='FLOAT', mode='NULLABLE'),
+          bigquery.TableFieldSchema(
+              name='string', type='STRING', mode='NULLABLE'),
       ]
     coder = _JsonToDictCoder(schema_fields)
     input_row = b'{"float": "10.5", "string": "abc"}'

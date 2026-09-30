@@ -659,10 +659,10 @@ class _ExecuteQueryFn(beam.DoFn):
         _utc(qr.chunk_start),
         _utc(qr.chunk_end))
 
-    temp_table_ref = bigquery.TableReference(
-        projectId=self._project,
-        datasetId=self._temp_dataset,
-        tableId=temp_table_id)
+    temp_table_ref = TableReference(
+        project=self._project,
+        dataset_id=self._temp_dataset,
+        table_id=temp_table_id)
 
     if self._bq_wrapper._is_modern_client:
       _LOGGER.info('[Query] Submitting BQ job %s...', job_id)
@@ -675,7 +675,7 @@ class _ExecuteQueryFn(beam.DoFn):
           priority='INTERACTIVE',
           destination_table=temp_table_ref)
       _LOGGER.info('[Query] BQ job %s submitted, waiting...', job_id)
-      self._bq_wrapper.wait_for_bq_job(job.jobReference, sleep_duration_sec=2)
+      self._bq_wrapper.wait_for_bq_job(job, sleep_duration_sec=2)
     else:
       reference = bigquery.JobReference(
           jobId=job_id, projectId=self._project, location=self._location)
