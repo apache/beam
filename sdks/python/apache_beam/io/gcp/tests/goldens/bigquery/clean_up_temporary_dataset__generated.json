@@ -1,0 +1,21 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "clean_up_temporary_dataset__generated",
+  "description": "clean_up_temporary_dataset('p') with a Beam-generated temp dataset: dataset deleted with contents",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {
+        "deleteContents": "True"
+      }
+    }
+  ]
+}

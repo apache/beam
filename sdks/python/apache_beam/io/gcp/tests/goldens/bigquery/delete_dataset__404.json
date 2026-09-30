@@ -1,0 +1,15 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "delete_dataset__404",
+  "description": "_delete_dataset('p','d', True) on a missing dataset: 404 swallowed",
+  "requests": [
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/d",
+      "query": {
+        "deleteContents": "True"
+      }
+    }
+  ]
+}
