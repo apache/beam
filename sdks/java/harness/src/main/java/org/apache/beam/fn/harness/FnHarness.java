@@ -30,6 +30,7 @@ import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import org.apache.beam.fn.harness.control.BeamFnControlClient;
@@ -305,23 +306,7 @@ public class FnHarness {
       // Register standard file systems.
       FileSystems.setDefaultPipelineOptions(options);
       CoderTranslation.verifyModelCodersRegistered();
-      SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-      Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
-      if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
-        openTelemetryProperties.forEach(
-            (k, v) -> {
-              if (k != null && v != null) {
-                System.setProperty(k, v);
-              }
-            });
-        LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
-      } else {
-        // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
-        // JvmInitializer.
-        if (System.getProperty("google.otel.auth.target.signals") == null) {
-          System.setProperty("google.otel.auth.target.signals", "none");
-        }
-      }
+      configureOpenTelemetry(options);
       EnumMap<
               BeamFnApi.InstructionRequest.RequestCase,
               ThrowingFunction<InstructionRequest, BeamFnApi.InstructionResponse.Builder>>
@@ -460,6 +445,30 @@ public class FnHarness {
       LOG.info("Shutting SDK harness down.");
       executionStateSampler.stop();
       executorService.shutdown();
+    }
+  }
+
+  private static void configureOpenTelemetry(PipelineOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      if (System.getProperty("otel.service.instance.id") == null) {
+        String instanceId = UUID.randomUUID().toString();
+        System.setProperty("otel.service.instance.id", instanceId);
+      }
+      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
     }
   }
 }
