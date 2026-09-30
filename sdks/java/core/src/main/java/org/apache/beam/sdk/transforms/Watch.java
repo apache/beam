@@ -35,6 +35,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.PriorityQueue;
 import java.util.Set;
 import org.apache.beam.sdk.coders.AtomicCoder;
 import org.apache.beam.sdk.coders.CannotProvideCoderException;
@@ -124,6 +125,10 @@ import org.slf4j.LoggerFactory;
  * input that is watched indefinitely grows without bound. {@link Growth#withTimestampCursor} bounds
  * that state by event time, for a {@link Growth.PollFn} whose outputs arrive in roughly
  * non-decreasing timestamp order.
+ *
+ * <p>For an incomplete {@link Growth.PollResult} whose omitted outputs will be reported again,
+ * {@link Growth#withMaxPendingResults} limits how many outputs are stored as checkpointed pending
+ * work in each polling round. Complete results are never limited.
  *
  * <p>Note: This transform works only in runners supporting Splittable DoFn: see <a
  * href="https://beam.apache.org/documentation/runners/capability-matrix/">capability matrix</a>.
@@ -683,6 +688,8 @@ public class Watch {
 
     abstract @Nullable Duration getTimestampCursorAllowedLateness();
 
+    abstract @Nullable Integer getMaxPendingResults();
+
     abstract Builder<InputT, OutputT, KeyT> toBuilder();
 
     @AutoValue.Builder
@@ -703,6 +710,9 @@ public class Watch {
 
       abstract Builder<InputT, OutputT, KeyT> setTimestampCursorAllowedLateness(
           Duration allowedLateness);
+
+      abstract Builder<InputT, OutputT, KeyT> setMaxPendingResults(
+          @Nullable Integer maxPendingResults);
 
       abstract Growth<InputT, OutputT, KeyT> build();
     }
@@ -767,6 +777,40 @@ public class Watch {
           "allowedLateness must not be negative, but was %s",
           allowedLateness);
       return toBuilder().setTimestampCursorAllowedLateness(allowedLateness).build();
+    }
+
+    /**
+     * Limits how many previously unseen outputs from one poll are kept as checkpointed pending
+     * work.
+     *
+     * <p>If an incomplete poll contains more than {@code maxPendingResults} distinct unseen
+     * outputs, the oldest outputs are emitted first and the rest are omitted from that round. The
+     * poll's watermark is held at or before the omitted outputs so the function will be called
+     * again to retrieve them. A {@link PollResult#complete} is never limited because its contract
+     * promises that the function will not be called again.
+     *
+     * <p>This option must only be used with a {@link PollFn} that reports omitted outputs again in
+     * subsequent polls. Otherwise those outputs cannot be recovered. Without this option, all
+     * unseen outputs from each poll continue to be kept, preserving the existing behavior. This
+     * limits the persisted pending outputs, not the result list returned by {@link PollFn} or the
+     * temporary hashes used to preserve duplicate-key semantics while selecting the oldest outputs.
+     *
+     * <p>While a poll is truncated, its termination condition is deferred until a later poll is not
+     * truncated, so omitted outputs are not silently lost. This option is therefore intended for a
+     * snapshot-style {@link PollFn} that repeats a finite set of outputs until they are observed. A
+     * function that continuously returns more distinct unseen outputs than this limit can keep the
+     * input polling indefinitely even if its termination condition would otherwise stop it.
+     *
+     * <p>Combine this with {@link #withTimestampCursor()} to time-bound the completed-key state
+     * when output timestamps advance past the retention floor. It does not impose a count bound on
+     * completed keys that share a timestamp still at or above that floor.
+     */
+    public Growth<InputT, OutputT, KeyT> withMaxPendingResults(int maxPendingResults) {
+      checkArgument(
+          maxPendingResults > 0,
+          "maxPendingResults must be greater than zero, but was %s",
+          maxPendingResults);
+      return toBuilder().setMaxPendingResults(maxPendingResults).build();
     }
 
     @Override
@@ -945,7 +989,9 @@ public class Watch {
 
       @Nullable Duration allowedLateness = spec.getTimestampCursorAllowedLateness();
       @Nullable Instant cursor = pollingRestriction.getCursor();
-      if (retentionFloorAtMaxTimestamp(cursor, allowedLateness)) {
+      if (retentionFloorAtMaxTimestamp(cursor, allowedLateness)
+          && (spec.getMaxPendingResults() == null
+              || BoundedWindow.TIMESTAMP_MAX_VALUE.equals(pollingRestriction.getPollWatermark()))) {
         // Nothing can be claimed above the floor, so claim an empty round and stop.
         LOG.info("{} - will not poll, retention floor is already at max timestamp.", c.element());
         tracker.tryClaim(
@@ -962,8 +1008,9 @@ public class Watch {
 
       // Produce a poll result that only contains never seen before results in timestamp
       // sorted order.
-      Growth.PollResult<OutputT> newResults =
+      PendingResults<OutputT> pendingResults =
           computeNeverSeenBeforeResults(pollingRestriction, res);
+      Growth.PollResult<OutputT> newResults = pendingResults.pollResult;
 
       // If we had zero new results, attempt to update the watermark if the poll result
       // provided a watermark or the retention floor bounds future outputs. Otherwise attempt
@@ -1015,20 +1062,30 @@ public class Watch {
                 .max(
                     cursor,
                     newResults.getOutputs().get(newResults.getOutputs().size() - 1).getTimestamp());
-        if (retentionFloorAtMaxTimestamp(newCursor, allowedLateness)) {
+        if (retentionFloorAtMaxTimestamp(newCursor, allowedLateness) && !pendingResults.truncated) {
           LOG.info("{} - will stop polling, retention floor reached max timestamp.", c.element());
           return stop();
         }
       }
 
       Instant currentTime = Instant.now();
-      if (getTerminationCondition().canStopPolling(currentTime, terminationState)) {
+      boolean terminationRequested =
+          getTerminationCondition().canStopPolling(currentTime, terminationState);
+      if (!pendingResults.truncated && terminationRequested) {
         LOG.info(
             "{} - told to stop polling by polling function at {} with termination state {}.",
             c.element(),
             currentTime,
             getTerminationCondition().toString(terminationState));
         return stop();
+      } else if (pendingResults.truncated && terminationRequested) {
+        LOG.info(
+            "{} - deferring termination until omitted outputs from the truncated poll are recovered.",
+            c.element());
+      }
+
+      if (pendingResults.truncated && BoundedWindow.TIMESTAMP_MAX_VALUE.equals(computedWatermark)) {
+        computedWatermark = BoundedWindow.TIMESTAMP_MAX_VALUE.minus(Duration.millis(1));
       }
 
       if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(computedWatermark)) {
@@ -1049,36 +1106,91 @@ public class Watch {
       return Hashing.murmur3_128().hashObject(value, coderFunnel);
     }
 
-    private Growth.PollResult<OutputT> computeNeverSeenBeforeResults(
+    private PendingResults<OutputT> computeNeverSeenBeforeResults(
         PollingGrowthState<TerminationStateT> state, Growth.PollResult<OutputT> pollResult) {
       // Collect results to include as newly pending. Note that the poll result may in theory
       // contain multiple outputs mapping to the same output key - we need to ignore duplicates
       // here already.
       Instant retentionFloor = retentionFloor(state, spec.getTimestampCursorAllowedLateness());
-      Map<HashCode, TimestampedValue<OutputT>> newPending = Maps.newHashMap();
+      @Nullable Integer maxPendingResults = spec.getMaxPendingResults();
+      if (maxPendingResults == null
+          || BoundedWindow.TIMESTAMP_MAX_VALUE.equals(pollResult.getWatermark())) {
+        Map<HashCode, TimestampedValue<OutputT>> newPending = Maps.newHashMap();
+        for (TimestampedValue<OutputT> output : pollResult.getOutputs()) {
+          if (retentionFloor != null && output.getTimestamp().isBefore(retentionFloor)) {
+            continue;
+          }
+          HashCode hash = hash128(output.getValue());
+          if (!state.getCompleted().containsKey(hash) && !newPending.containsKey(hash)) {
+            newPending.put(hash, output);
+          }
+        }
+        return new PendingResults<>(
+            pollResult.withOutputs(
+                Ordering.natural()
+                    .onResultOf((TimestampedValue<OutputT> value) -> value.getTimestamp())
+                    .sortedCopy(newPending.values())),
+            false);
+      }
+
+      Ordering<TimestampedValue<OutputT>> byTimestamp =
+          Ordering.natural().onResultOf((TimestampedValue<OutputT> value) -> value.getTimestamp());
+      PriorityQueue<TimestampedValue<OutputT>> oldestPending =
+          new PriorityQueue<>(
+              Math.min(maxPendingResults, Math.max(1, pollResult.getOutputs().size())),
+              byTimestamp.reverse());
+      Set<HashCode> hashesInPoll = new HashSet<>();
+      @Nullable Instant oldestOmittedTimestamp = null;
       for (TimestampedValue<OutputT> output : pollResult.getOutputs()) {
         if (retentionFloor != null && output.getTimestamp().isBefore(retentionFloor)) {
           // The key that would prove this output already seen has been retired, so treat the
           // output as seen.
           continue;
         }
-        OutputT value = output.getValue();
-        HashCode hash = hash128(value);
-        if (state.getCompleted().containsKey(hash) || newPending.containsKey(hash)) {
+        HashCode hash = hash128(output.getValue());
+        if (state.getCompleted().containsKey(hash) || !hashesInPoll.add(hash)) {
           continue;
         }
-        // TODO (https://github.com/apache/beam/issues/18459):
-        // Consider adding only at most N pending elements and ignoring others,
-        // instead relying on future poll rounds to provide them, in order to avoid
-        // blowing up the state. Combined with a timestamp cursor, this would make the transform
-        // scalable to very large poll results.
-        newPending.put(hash, output);
+        if (oldestPending.size() < maxPendingResults) {
+          oldestPending.add(output);
+        } else if (byTimestamp.compare(output, oldestPending.peek()) < 0) {
+          TimestampedValue<OutputT> omitted = oldestPending.remove();
+          if (oldestOmittedTimestamp == null
+              || omitted.getTimestamp().isBefore(oldestOmittedTimestamp)) {
+            oldestOmittedTimestamp = omitted.getTimestamp();
+          }
+          oldestPending.add(output);
+        } else {
+          if (oldestOmittedTimestamp == null
+              || output.getTimestamp().isBefore(oldestOmittedTimestamp)) {
+            oldestOmittedTimestamp = output.getTimestamp();
+          }
+        }
       }
 
-      return pollResult.withOutputs(
-          Ordering.natural()
-              .onResultOf((TimestampedValue<OutputT> value) -> value.getTimestamp())
-              .sortedCopy(newPending.values()));
+      List<TimestampedValue<OutputT>> outputs = byTimestamp.sortedCopy(oldestPending);
+      if (oldestOmittedTimestamp == null) {
+        return new PendingResults<>(pollResult.withOutputs(outputs), false);
+      }
+
+      @Nullable Instant watermark = pollResult.getWatermark();
+      if (watermark != null && watermark.isAfter(oldestOmittedTimestamp)) {
+        watermark = oldestOmittedTimestamp;
+      }
+      if (BoundedWindow.TIMESTAMP_MAX_VALUE.equals(watermark)) {
+        watermark = watermark.minus(Duration.millis(1));
+      }
+      return new PendingResults<>(new PollResult<>(outputs, watermark), true);
+    }
+
+    private static final class PendingResults<OutputT> {
+      private final Growth.PollResult<OutputT> pollResult;
+      private final boolean truncated;
+
+      private PendingResults(Growth.PollResult<OutputT> pollResult, boolean truncated) {
+        this.pollResult = pollResult;
+        this.truncated = truncated;
+      }
     }
 
     private Growth.TerminationCondition<InputT, TerminationStateT> getTerminationCondition() {
