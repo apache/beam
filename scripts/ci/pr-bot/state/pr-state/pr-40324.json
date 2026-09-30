@@ -1,9 +1,13 @@
 {
   "commentedAboutFailingChecks": false,
-  "reviewersAssignedForLabels": {},
-  "nextAction": "Author",
+  "reviewersAssignedForLabels": {
+    "java": "kennknowles",
+    "build": "Amar3tto",
+    "website": "Abacn"
+  },
+  "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
   "remindAfterTestsPass": [],
   "committerAssigned": false,
-  "reviewersAssignedAt": 0
+  "reviewersAssignedAt": 1790729217021
 }
