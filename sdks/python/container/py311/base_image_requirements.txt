@@ -198,7 +198,7 @@ typing_extensions==4.16.0
 tzdata==2026.3
 uc-micro-py==2.0.0
 uritemplate==4.2.0
-urllib3==2.7.0
+urllib3==2.8.0
 virtualenv-clone==0.5.7
 websockets==16.1.1
 wheel==0.48.0
