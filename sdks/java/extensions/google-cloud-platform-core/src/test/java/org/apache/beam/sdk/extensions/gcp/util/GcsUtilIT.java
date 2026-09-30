@@ -684,7 +684,7 @@ public class GcsUtilIT {
   public void testWriteAndRead() throws IOException {
     final String bucketName = randomBucketName();
     final GcsPath targetPath =
-        GcsPath.fromComponents(bucketName, "test-object-" + java.util.UUID.randomUUID() + ".txt");
+        GcsPath.fromComponents(bucketName, "test-object-" + UUID.randomUUID() + ".txt");
     final byte[] content = "Hello, GCS!".getBytes(StandardCharsets.UTF_8);
 
     try {
@@ -817,7 +817,7 @@ public class GcsUtilIT {
   @Test
   public void testWriteMetrics() throws IOException {
     final String bucket =
-        "apache-beam-temp-metrics-" + java.util.UUID.randomUUID().toString().substring(0, 8);
+        "apache-beam-temp-metrics-" + UUID.randomUUID().toString().substring(0, 8);
     final GcsPath targetPath = GcsPath.fromComponents(bucket, "test-object.txt");
     final byte[] content = "Hello, GCS metrics!".getBytes(StandardCharsets.UTF_8);
     GcsUtil metricsGcsUtil = gcsUtilWithAllMetrics();
