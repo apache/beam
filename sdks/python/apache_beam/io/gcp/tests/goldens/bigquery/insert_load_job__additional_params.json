@@ -1,0 +1,74 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_load_job__additional_params",
+  "description": "perform_load_job with additional_load_parameters passthrough",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "labels": {},
+          "load": {
+            "autodetect": false,
+            "clustering": {
+              "fields": [
+                "a"
+              ]
+            },
+            "destinationTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "t"
+            },
+            "ignoreUnknownValues": true,
+            "maxBadRecords": 5,
+            "schema": {
+              "fields": [
+                {
+                  "mode": "REQUIRED",
+                  "name": "a",
+                  "type": "STRING"
+                },
+                {
+                  "fields": [
+                    {
+                      "mode": "NULLABLE",
+                      "name": "x",
+                      "type": "INTEGER"
+                    },
+                    {
+                      "description": "nested ts",
+                      "mode": "NULLABLE",
+                      "name": "y",
+                      "type": "TIMESTAMP"
+                    }
+                  ],
+                  "mode": "REPEATED",
+                  "name": "r",
+                  "type": "RECORD"
+                }
+              ]
+            },
+            "schemaUpdateOptions": [
+              "ALLOW_FIELD_ADDITION"
+            ],
+            "sourceUris": [
+              "gs://b/a.json"
+            ],
+            "timePartitioning": {
+              "field": "ts",
+              "type": "DAY"
+            },
+            "useAvroLogicalTypes": true
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}
