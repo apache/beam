@@ -1025,7 +1025,6 @@ class RowDictionariesToArrowTableTest(unittest.TestCase):
   the DoFn must buffer and emit tables per window instead of attributing
   every row to the last window seen.
   """
-
   def _make_dofn(self, **kwargs):
     from apache_beam.io.parquetio import _RowDictionariesToArrowTable
     schema = pa.schema([('id', pa.int64()), ('name', pa.string())])
@@ -1045,9 +1044,13 @@ class RowDictionariesToArrowTableTest(unittest.TestCase):
     w_b = window.IntervalWindow(10, 20)
     outputs = self._drain(
         self._make_dofn(),
-        [({'id': 1, 'name': 'a1'}, w_a),
-         ({'id': 2, 'name': 'b1'}, w_b),
-         ({'id': 3, 'name': 'a2'}, w_a)])
+        [({
+            'id': 1, 'name': 'a1'
+        }, w_a), ({
+            'id': 2, 'name': 'b1'
+        }, w_b), ({
+            'id': 3, 'name': 'a2'
+        }, w_a)])
     self.assertEqual(2, len(outputs))
     by_window = {o.windows[0]: o.value.to_pydict() for o in outputs}
     self.assertEqual({'id': [1, 3], 'name': ['a1', 'a2']}, by_window[w_a])
@@ -1062,13 +1065,19 @@ class RowDictionariesToArrowTableTest(unittest.TestCase):
     w_b = window.IntervalWindow(10, 20)
     outputs = self._drain(
         self._make_dofn(record_batch_size=2),
-        [({'id': 1, 'name': 'a1'}, w_a),
-         ({'id': 2, 'name': 'a2'}, w_a),
-         ({'id': 3, 'name': 'a3'}, w_a),
-         ({'id': 4, 'name': 'b1'}, w_b)])
+        [({
+            'id': 1, 'name': 'a1'
+        }, w_a), ({
+            'id': 2, 'name': 'a2'
+        }, w_a), ({
+            'id': 3, 'name': 'a3'
+        }, w_a), ({
+            'id': 4, 'name': 'b1'
+        }, w_b)])
     ids_by_window = {}
     for o in outputs:
-      ids_by_window.setdefault(o.windows[0], []).extend(o.value.to_pydict()['id'])
+      ids_by_window.setdefault(o.windows[0],
+                               []).extend(o.value.to_pydict()['id'])
     self.assertEqual([1, 2, 3], ids_by_window[w_a])
     self.assertEqual([4], ids_by_window[w_b])
 
@@ -1076,7 +1085,9 @@ class RowDictionariesToArrowTableTest(unittest.TestCase):
     window = beam.transforms.window
     outputs = self._drain(
         self._make_dofn(),
-        [({'id': i, 'name': 'n%d' % i}, window.GlobalWindow()) for i in range(3)])
+        [({
+            'id': i, 'name': 'n%d' % i
+        }, window.GlobalWindow()) for i in range(3)])
     self.assertEqual(1, len(outputs))
     self.assertIsInstance(outputs[0].windows[0], window.GlobalWindow)
     self.assertEqual([0, 1, 2], outputs[0].value.to_pydict()['id'])
