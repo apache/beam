@@ -21,6 +21,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
 import org.apache.iceberg.Schema;
@@ -421,5 +422,35 @@ public class NameMappingUtilsTest {
 
     assertEquals(1, merged.find("new_name").id().intValue());
     assertEquals(1, merged.find("old_name").id().intValue());
+  }
+
+  @Test
+  public void testForReadersKeepsAStoredMappingThatCoversTheSchema() {
+    Schema schema = new Schema(Types.NestedField.required(1, "new_name", Types.IntegerType.get()));
+    NameMapping stored = mapping("[ {'field-id': 1, 'names': ['new_name', 'old_name']} ]");
+
+    assertSame(stored, NameMappingUtils.forReaders(schema, stored));
+  }
+
+  /** The commit regenerates a mapping that misses a column; the old names it had are kept. */
+  @Test
+  public void testForReadersRegeneratesAStoredMappingThatMissesAColumn() {
+    Schema schema =
+        new Schema(
+            Types.NestedField.required(1, "new_name", Types.IntegerType.get()),
+            Types.NestedField.optional(2, "added", Types.StringType.get()));
+    NameMapping stored = mapping("[ {'field-id': 1, 'names': ['new_name', 'old_name']} ]");
+
+    NameMapping forReaders = NameMappingUtils.forReaders(schema, stored);
+
+    assertEquals(1, forReaders.find("old_name").id().intValue());
+    assertEquals(2, forReaders.find("added").id().intValue());
+  }
+
+  @Test
+  public void testForReadersWithoutAStoredMappingUsesTheSchemas() {
+    assertEquals(
+        NameMappingParser.toJson(MappingUtil.create(FULL_SCHEMA)),
+        NameMappingParser.toJson(NameMappingUtils.forReaders(FULL_SCHEMA, null)));
   }
 }
