@@ -55,6 +55,7 @@ import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.state.Timer;
 import org.apache.beam.sdk.state.TimerSpec;
 import org.apache.beam.sdk.state.TimerSpecs;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.LargeKeys;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
@@ -95,7 +96,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for GroupByKey. */
 @SuppressWarnings({
@@ -110,7 +110,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Tests validating basic {@link GroupByKey} scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase implements Serializable {
     @Test
     @Category(ValidatesRunner.class)
@@ -615,7 +615,7 @@ public class GroupByKeyTest implements Serializable {
   }
 
   /** Tests validating GroupByKey behaviors with windowing. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class WindowTests extends SharedTestBase {
     @Test
     @Category(ValidatesRunner.class)

@@ -29,6 +29,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.coders.IterableCoder;
 import org.apache.beam.sdk.coders.KvCoder;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -66,12 +67,11 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Test Class for {@link GroupIntoBatches}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class GroupIntoBatchesTest implements Serializable {
 
   private static final int BATCH_SIZE = 5;

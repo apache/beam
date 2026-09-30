@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.io.Read;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesAttemptedMetrics;
@@ -69,7 +70,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.mockito.Mockito;
 
 /** Tests for {@link Metrics}. */
@@ -191,7 +191,7 @@ public class MetricsTest implements Serializable {
   }
 
   /** Tests validating basic metric scenarios. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicTests extends SharedTestBase {
     @Test
     public void testDistributionWithoutContainer() {
@@ -274,6 +274,7 @@ public class MetricsTest implements Serializable {
     }
 
     @Test
+    @BeamParallelJunit4Runner.SerialTest
     public void testMetricsFlag() {
       Metrics.resetDefaultPipelineOptions();
       assertFalse(Metrics.MetricsFlag.counterDisabled());
@@ -308,7 +309,7 @@ public class MetricsTest implements Serializable {
   }
 
   /** Tests for committed metrics. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class CommittedMetricTests extends SharedTestBase {
     @Category({
       ValidatesRunner.class,
@@ -445,7 +446,7 @@ public class MetricsTest implements Serializable {
   }
 
   /** Tests for attempted metrics. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class AttemptedMetricTests extends SharedTestBase {
     @Category({
       ValidatesRunner.class,
