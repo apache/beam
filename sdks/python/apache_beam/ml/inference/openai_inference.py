@@ -37,13 +37,10 @@ Example usage::
       request_fn=chat_completion_from_string,
   )
 
-  # With system prompt and structured output
-  model_handler = OpenAIModelHandler(
-      model_name='gpt-4o-mini',
-      api_key='your-api-key',
-      request_fn=chat_completion_from_string,
-      system='You are a helpful assistant that responds concisely.',
-      response_format={
+  # With system prompt and structured output passed via inference_args
+  inference_args = {
+      'system': 'You are a helpful assistant that responds concisely.',
+      'response_format': {
           'type': 'json_schema',
           'json_schema': {
               'name': 'answer_response',
@@ -59,13 +56,13 @@ Example usage::
               'strict': True,
           },
       },
-  )
+  }
 
   with beam.Pipeline() as p:
     results = (
         p
         | beam.Create(['What is Apache Beam?', 'Explain MapReduce.'])
-        | RunInference(model_handler)
+        | RunInference(model_handler, inference_args=inference_args)
     )
 """
 
@@ -75,7 +72,6 @@ from collections.abc import Iterable
 from collections.abc import Sequence
 from typing import Any
 from typing import Optional
-from typing import Union
 
 from openai import APIConnectionError
 from openai import APIStatusError
@@ -217,8 +213,6 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
       project: Optional[str] = None,
       base_url: Optional[str] = None,
       client_args: Optional[dict[str, Any]] = None,
-      system: Optional[str] = None,
-      response_format: Optional[dict[str, Any]] = None,
       min_batch_size: Optional[int] = None,
       max_batch_size: Optional[int] = None,
       max_batch_duration_secs: Optional[int] = None,
@@ -257,12 +251,6 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
       client_args: optional dictionary of additional keyword arguments
         passed when instantiating the OpenAI client (e.g. timeout,
         default_headers).
-      system: optional system prompt to set the model's behavior for all
-        requests. Per-request overrides can be passed via inference_args.
-      response_format: optional response format specification (e.g.
-        `{'type': 'json_object'}` or structured outputs schema) to
-        constrain responses. Per-request overrides can be passed via
-        inference_args.
       min_batch_size: optional. the minimum batch size to use when
         batching inputs.
       max_batch_size: optional. the maximum batch size to use when
@@ -303,8 +291,6 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
     self.project = project
     self.base_url = base_url
     self.client_args = client_args
-    self.system = system
-    self.response_format = response_format
 
     retry_filter = kwargs.pop('retry_filter', _retry_on_appropriate_error)
 
@@ -343,10 +329,6 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
   ) -> Iterable[PredictionResult]:
     """Sends a prediction request to the OpenAI API.
 
-    Handler-level system and response_format are injected into
-    inference_args before calling the request function. Per-request
-    values in inference_args take precedence over handler-level values.
-
     Args:
       batch: a sequence of inputs to be passed to the request function.
       model: an OpenAI client instance.
@@ -361,11 +343,6 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
       inference_args = {}
     else:
       inference_args = dict(inference_args)
-
-    if self.system is not None and 'system' not in inference_args:
-      inference_args['system'] = self.system
-    if self.response_format is not None and 'response_format' not in inference_args:
-      inference_args['response_format'] = self.response_format
 
     responses = self.request_fn(self.model_name, batch, model, inference_args)
     return utils._convert_to_result(batch, responses, self.model_name)

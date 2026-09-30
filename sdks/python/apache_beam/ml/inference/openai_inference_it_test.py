@@ -116,17 +116,19 @@ class OpenAIInferenceIT(unittest.TestCase):
         model_name=_TEST_CHAT_MODEL,
         request_fn=chat_completion_from_string,
         api_key=_OPENAI_API_KEY,
-        system='You are a pirate. Respond only in pirate speak.',
         max_batch_size=1,
     )
 
     prompts = ['What is your name?']
+    inference_args = {
+        'system': 'You are a pirate. Respond only in pirate speak.',
+    }
 
     with TestPipeline() as p:
       results = (
           p
           | beam.Create(prompts)
-          | RunInference(handler)
+          | RunInference(handler, inference_args=inference_args)
           | beam.Map(_extract_chat_text))
       assert_that(results, is_not_empty())
 
@@ -137,8 +139,13 @@ class OpenAIInferenceIT(unittest.TestCase):
         model_name=_TEST_CHAT_MODEL,
         request_fn=chat_completion_from_string,
         api_key=_OPENAI_API_KEY,
-        system="You respond only with JSON conforming to the schema.",
-        response_format={
+        max_batch_size=1,
+    )
+
+    prompts = ['Count from 1 to 5.']
+    inference_args = {
+        'system': 'You respond only with JSON conforming to the schema.',
+        'response_format': {
             'type': 'json_schema',
             'json_schema': {
                 'name': 'fizz_buzz_response',
@@ -165,16 +172,13 @@ class OpenAIInferenceIT(unittest.TestCase):
                 'strict': True,
             },
         },
-        max_batch_size=1,
-    )
-
-    prompts = ['Count from 1 to 5.']
+    }
 
     with TestPipeline() as p:
       results = (
           p
           | beam.Create(prompts)
-          | RunInference(handler)
+          | RunInference(handler, inference_args=inference_args)
           | beam.Map(_extract_chat_text))
       assert_that(results, is_not_empty())
 

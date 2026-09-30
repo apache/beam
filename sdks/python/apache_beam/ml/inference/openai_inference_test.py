@@ -363,43 +363,25 @@ class OpenAIModelHandlerTest(unittest.TestCase):
 
 
 class SystemPromptTest(unittest.TestCase):
-  def test_system_prompt_injected(self):
+  def test_system_prompt_passed_via_inference_args(self):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
-        api_key='fake',
-        system='Be concise.')
+        api_key='fake')
     mock_client = mock.MagicMock()
     mock_client.chat.completions.create.return_value = (
         _make_fake_chat_response("ok"))
 
-    handler.request(['test'], mock_client, {})
+    handler.request(['test'], mock_client, {'system': 'Be concise.'})
 
     call_args = mock_client.chat.completions.create.call_args
     self.assertEqual(
         call_args.kwargs['messages'][0], {
             "role": "system", "content": "Be concise."
         })
+    self.assertNotIn('system', call_args.kwargs)
 
-  def test_system_prompt_not_overridden_by_handler(self):
-    handler = OpenAIModelHandler(
-        model_name=_TEST_MODEL,
-        request_fn=chat_completion_from_string,
-        api_key='fake',
-        system='Handler system prompt.')
-    mock_client = mock.MagicMock()
-    mock_client.chat.completions.create.return_value = (
-        _make_fake_chat_response("ok"))
-
-    handler.request(['test'], mock_client, {'system': 'Per-request override.'})
-
-    call_args = mock_client.chat.completions.create.call_args
-    self.assertEqual(
-        call_args.kwargs['messages'][0], {
-            "role": "system", "content": "Per-request override."
-        })
-
-  def test_no_system_prompt_when_none(self):
+  def test_no_system_prompt_when_omitted(self):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
@@ -436,38 +418,21 @@ class ResponseFormatTest(unittest.TestCase):
       },
   }
 
-  def test_response_format_injected(self):
+  def test_response_format_passed_via_inference_args(self):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
-        api_key='fake',
-        response_format=self._SCHEMA)
+        api_key='fake')
     mock_client = mock.MagicMock()
     mock_client.chat.completions.create.return_value = (
         _make_fake_chat_response('{"answer":"ok"}'))
 
-    handler.request(['test'], mock_client, {})
+    handler.request(['test'], mock_client, {'response_format': self._SCHEMA})
 
     call_args = mock_client.chat.completions.create.call_args
     self.assertEqual(call_args.kwargs['response_format'], self._SCHEMA)
 
-  def test_response_format_not_overridden_by_handler(self):
-    handler = OpenAIModelHandler(
-        model_name=_TEST_MODEL,
-        request_fn=chat_completion_from_string,
-        api_key='fake',
-        response_format=self._SCHEMA)
-    mock_client = mock.MagicMock()
-    mock_client.chat.completions.create.return_value = (
-        _make_fake_chat_response('{}'))
-    override = {'type': 'json_object'}
-
-    handler.request(['test'], mock_client, {'response_format': override})
-
-    call_args = mock_client.chat.completions.create.call_args
-    self.assertEqual(call_args.kwargs['response_format'], override)
-
-  def test_no_response_format_when_none(self):
+  def test_no_response_format_when_omitted(self):
     handler = OpenAIModelHandler(
         model_name=_TEST_MODEL,
         request_fn=chat_completion_from_string,
@@ -523,7 +488,6 @@ class OpenAIRunInferencePipelineTest(unittest.TestCase):
         model_name=_TEST_MODEL,
         request_fn=_fake_chat_request_fn,
         api_key='fake-key',
-        system='You respond in haiku form.',
         max_batch_size=5,
     )
 
@@ -533,7 +497,8 @@ class OpenAIRunInferencePipelineTest(unittest.TestCase):
       results = (
           p
           | beam.Create(prompts)
-          | RunInference(handler)
+          | RunInference(
+              handler, inference_args={'system': 'You respond in haiku form.'})
           | beam.Map(lambda r: r.example))
       assert_that(results, equal_to(prompts))
 
