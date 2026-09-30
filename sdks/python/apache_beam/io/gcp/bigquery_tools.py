@@ -778,8 +778,7 @@ class BigQueryWrapper(object):
       else:
         for insert_error in errors:
           # Record the BigQuery reason (e.g. 'invalid') of the first error for
-          # each failed row. ServiceCallMetric cannot interpret the raw error
-          # dict and would otherwise record the status 'None'.
+          # each failed row.
           row_errors = insert_error.get('errors') or [{}]
           service_call_metric.call(row_errors[0].get('reason') or 'unknown')
     except (ClientError, GoogleAPICallError) as e:
