@@ -1014,6 +1014,36 @@ class WriteStreamingTest(unittest.TestCase):
         "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
 
+  def test_write_streaming_rows_land_in_their_own_window(self):
+    # One add_elements call is delivered as one bundle spanning 3 windows.
+    # Regression test for the _ParquetSink file-handle bug: several writers
+    # may be open on the sink at once (one per window), so each writer must
+    # close its own file handle or the windowed files come out corrupted.
+    base = datetime(2021, 3, 1, tzinfo=pytz.UTC).timestamp()
+    offsets = [1, 11, 21, 3, 13, 23]
+    stream = TestStream().add_elements([
+        beam.window.TimestampedValue({'offset': o}, base + o) for o in offsets
+    ]).advance_watermark_to_infinity()
+    with TestPipeline() as p:
+      _ = (
+          p
+          | stream
+          | beam.WindowInto(beam.window.FixedWindows(10))
+          | beam.io.WriteToParquet(
+              file_path_prefix=self.tempdir + '/out',
+              file_name_suffix='.parquet',
+              num_shards=1,
+              schema=pa.schema([('offset', pa.int64())])))
+
+    pattern = re.compile(r'.*-\[(?P<start>[\d\.]+), [\d\.]+\)-.*\.parquet$')
+    rows_by_window = {}
+    for file_name in glob.glob(self.tempdir + '/out*'):
+      start = float(pattern.match(file_name).group('start')) - base
+      rows = pq.read_table(file_name).column('offset').to_pylist()
+      rows_by_window[start] = sorted(rows)
+    self.assertEqual({0: [1, 3], 10: [11, 13], 20: [21, 23]}, rows_by_window)
+
+
 @unittest.skipIf(pa is None, "PyArrow is not installed.")
 @pytest.mark.uses_pyarrow
 class RowDictionariesToArrowTableTest(unittest.TestCase):

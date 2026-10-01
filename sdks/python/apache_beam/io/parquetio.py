@@ -848,31 +848,35 @@ class _ParquetSink(filebasedsink.FileBasedSink):
           "pyarrow version >= 4.x, please use a different pyarrow version. "
           f"Your pyarrow version: {pa.__version__}")
     self._use_compliant_nested_type = use_compliant_nested_type
-    self._file_handle = None
 
   def open(self, temp_path):
-    self._file_handle = super().open(temp_path)
+    # Several writers may be open on this sink at once (one per window in
+    # streaming writes), so the file handle travels with its writer rather
+    # than being stored on the sink.
+    file_handle = super().open(temp_path)
     if ARROW_MAJOR_VERSION < 4:
-      return pq.ParquetWriter(
-          self._file_handle,
+      writer = pq.ParquetWriter(
+          file_handle,
           self._schema,
           compression=self._codec,
           use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps)
-    return pq.ParquetWriter(
-        self._file_handle,
-        self._schema,
-        compression=self._codec,
-        use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps,
-        use_compliant_nested_type=self._use_compliant_nested_type)
+    else:
+      writer = pq.ParquetWriter(
+          file_handle,
+          self._schema,
+          compression=self._codec,
+          use_deprecated_int96_timestamps=self._use_deprecated_int96_timestamps,
+          use_compliant_nested_type=self._use_compliant_nested_type)
+    return writer, file_handle
 
-  def write_record(self, writer, table: paTable):
+  def write_record(self, writer_and_handle, table: paTable):
+    writer, _ = writer_and_handle
     writer.write_table(table)
 
-  def close(self, writer):
+  def close(self, writer_and_handle):
+    writer, file_handle = writer_and_handle
     writer.close()
-    if self._file_handle:
-      self._file_handle.close()
-      self._file_handle = None
+    file_handle.close()
 
   def display_data(self):
     res = super().display_data()
