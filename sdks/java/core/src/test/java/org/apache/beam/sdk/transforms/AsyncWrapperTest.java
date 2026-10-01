@@ -20,6 +20,7 @@ package org.apache.beam.sdk.transforms;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -247,6 +248,33 @@ public class AsyncWrapperTest implements Serializable {
       Thread.sleep(5);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
+    }
+  }
+
+  /**
+   * Polls until the buffer holds exactly {@code capacity} items, asserting along the way that it
+   * never holds more than that. Avoids relying on a fixed sleep, which is racy on loaded machines
+   * where freshly started submitter threads may not be scheduled for a while.
+   */
+  private void waitForBufferToFill(
+      AsyncWrapper<?, ?, ?> asyncWrapper, int capacity, int timeoutSeconds) {
+    long limit = System.currentTimeMillis() + timeoutSeconds * 1000L;
+    while (true) {
+      int count = asyncWrapper.getItemsInBufferCount();
+      assertTrue("Buffer exceeded its capacity of " + capacity + ": " + count, count <= capacity);
+      if (count == capacity) {
+        return;
+      }
+      if (System.currentTimeMillis() > limit) {
+        throw new AssertionError(
+            "Timed out waiting for buffer to fill to " + capacity + "; last observed " + count);
+      }
+      try {
+        Thread.sleep(5);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
     }
   }
 
@@ -669,13 +697,9 @@ public class AsyncWrapperTest implements Serializable {
               }));
     }
 
-    try {
-      Thread.sleep(100);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-    }
-
-    assertEquals(5, asyncWrapper.getItemsInBufferCount());
+    // With 10 concurrent submitters and a capacity of 5, the buffer must fill up to exactly 5 and
+    // never beyond; the remaining submitters are throttled until space frees up.
+    waitForBufferToFill(asyncWrapper, 5, 10);
 
     waitForEmpty(asyncWrapper, 100);
 
