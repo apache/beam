@@ -18,11 +18,11 @@ name: IcebergIO Managed Integration Tests on Dataflow
 on:
   schedule:
     - cron: '30 4/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: [ 'release/trigger_all_tests.json', '.github/trigger_files/IO_Iceberg_Managed_Integration_Tests_Dataflow.json' ]
   workflow_dispatch:
 
-# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -51,7 +51,7 @@ env:
 jobs:
   IO_Iceberg_Managed_Integration_Tests_Dataflow:
     if: |
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run IcebergIO Managed Integration Tests on Dataflow'

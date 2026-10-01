@@ -24,7 +24,7 @@ name: Modify the GCP User Roles according to the infra/users.yml file
 
 on:
   workflow_dispatch:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened, closed]
     paths:
       - 'infra/iam/users.yml'
@@ -83,6 +83,7 @@ jobs:
 
       - name: Upload plan as a comment to PR
         if: github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened'
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}

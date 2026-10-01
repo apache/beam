@@ -18,13 +18,13 @@ name: PostCommit Python ValidatesContainer Dataflow
 on:
   schedule:
     - cron: '15 5/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_ValidatesContainer_Dataflow.json']
   workflow_dispatch:
   issue_comment:
     types: [created]
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -55,7 +55,7 @@ jobs:
     if: |
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       startsWith(github.event.comment.body, 'Run Python Dataflow ValidatesContainer')
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
@@ -125,5 +125,6 @@ jobs:
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/pytest*.xml'
           large_files: true

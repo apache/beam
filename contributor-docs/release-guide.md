@@ -310,7 +310,7 @@ Note: Only these variables need to be set in your local repository: RELEASE_VER,
        (cd release/src/main/scripts && ./verify_release_build.sh)
        ```
     4. Trigger all Github Action jobs from the PR created by the previous step.
-       For GitHub Action jobs, they should be triggered by the pull_request_target event of a specific placeholder file
+       For GitHub Action jobs, they should be triggered by the pull_request event of a specific placeholder file
        added to the PR (`release/trigger_all_tests.json`), so no additional action should be needed.
   **NOTE**
   The GitHub Action jobs triggered by this script often run for several hours, and concurrency issues may cause some to fail. These, and any flaky tests, should be retried. Test failures related to unreleased container images (e.g., see https://github.com/apache/beam/pull/34381#issuecomment-2745245273) can be temporarily ignored, but these workflows must be revisited after the container images are released.
