@@ -53,7 +53,8 @@ env:
   DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
-  ALLOYDB_PASSWORD: ${{ secrets.ALLOYDB_PASSWORD }}
+  # This database resource is sandboxed for testing only
+  ALLOYDB_PASSWORD: '2z,b}g_],1-,4A,X'
 
 jobs:
   beam_PreCommit_Python_Examples:
