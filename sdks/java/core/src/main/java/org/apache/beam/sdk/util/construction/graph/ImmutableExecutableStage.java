@@ -39,8 +39,7 @@ public abstract class ImmutableExecutableStage implements ExecutableStage {
       Collection<PipelineNode.PCollectionNode> outputs,
       Collection<WireCoderSetting> wireCoderSettings) {
     Components prunedComponents =
-        components
-            .toBuilder()
+        components.toBuilder()
             .clearTransforms()
             .putAllTransforms(
                 transforms.stream()

@@ -73,6 +73,7 @@ public class DicomIO {
 
     /** TupleTag for the main output. */
     public static final TupleTag<String> METADATA = new TupleTag<String>() {};
+
     /** TupleTag for any error response. */
     public static final TupleTag<String> ERROR_MESSAGE = new TupleTag<String>() {};
 

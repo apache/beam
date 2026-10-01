@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects.firstNonNull;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -82,7 +83,7 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   private static final String BIG_QUERY_DATASET_ID =
-      "storage_api_data_triggered_schema_update_" + System.nanoTime();
+      TEMP_DATASET_PREFIX + "triggered_schema_update_" + System.nanoTime();
 
   private static String bigQueryLocation;
 
@@ -174,7 +175,8 @@ public class StorageApiDataTriggeredSchemaUpdateIT {
         row.set("req", ImmutableList.of("43", "44"));
       }
       return row;
-    };
+    }
+    ;
   }
 
   @Test

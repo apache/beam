@@ -17,7 +17,10 @@ limitations under the License.
 
 # Google Cloud Dataflow Runner Roadmap
 
-This roadmap is in progress. In the meantime, here are available resources:
+Please check GitHub Issue tracker for recent developments on this topic:
 
- - [Runner documentation](/documentation/runners/dataflow)
- - Issues: [runner-dataflow](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Arunner-dataflow)
+ - Issues: [runner-dataflow](https://github.com/apache/beam/issues?q=is%3Aopen+is%3Aissue+label%3Adataflow)
+
+Available resources:
+
+- [Runner documentation](/documentation/runners/dataflow)

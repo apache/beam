@@ -214,6 +214,22 @@ class TimestampPrecisionTest(unittest.TestCase):
     self.assertEqual(ts.subseconds(), 500000)
     self.assertEqual(ts, Timestamp(-1.5))
 
+  def test_constructor_float_rounds_to_nearest(self):
+    # Float seconds that are not exactly representable must round to the
+    # nearest subsecond unit rather than truncating one unit low.
+    self.assertEqual(Timestamp(2.000002).micros, 2000002)
+    self.assertEqual(Timestamp(1.000001).micros, 1000001)
+    self.assertEqual(Timestamp.of(2.000002).micros, 2000002)
+    # Rounding is symmetric about zero (truncation was not).
+    self.assertEqual(Timestamp(-2.000002).micros, -2000002)
+    self.assertEqual(Timestamp(-2.000002).micros, -Timestamp(2.000002).micros)
+    # Exact values are unaffected.
+    self.assertEqual(Timestamp(1.5).micros, 1500000)
+    self.assertEqual(Timestamp(2).micros, 2000000)
+    # Rounding at finer precisions.
+    ts = Timestamp(1.234567895, precision=9)
+    self.assertEqual(ts.nanos, 1234567895)
+
   def test_constructor_validation(self):
     with self.assertRaises(ValueError):
       Timestamp(0, 0, precision=10)

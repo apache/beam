@@ -19,6 +19,8 @@ package org.apache.beam.sdk.io.solace.write;
 
 import com.solacesystems.jcsmp.DeliveryMode;
 import com.solacesystems.jcsmp.Destination;
+import java.util.HashSet;
+import java.util.Set;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.solace.SolaceIO;
 import org.apache.beam.sdk.io.solace.broker.SessionServiceFactory;
@@ -63,6 +65,8 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
   private final Counter rejectedByBroker =
       Metrics.counter(UnboundedStreamingSolaceWriter.class, "msgs_rejected_by_broker");
 
+  private final Set<String> messageIdsToAck = new HashSet<>();
+
   // We use a state variable to force a shuffling and ensure the cardinality of the processing
   @SuppressWarnings("UnusedVariable")
   @StateId("current_key")
@@ -84,6 +88,13 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
         publishLatencyMetrics);
   }
 
+  @StartBundle
+  @Override
+  public void startBundle() {
+    super.startBundle();
+    messageIdsToAck.clear();
+  }
+
   @ProcessElement
   public void processElement(
       @Element KV<Integer, Solace.Record> element,
@@ -103,6 +114,10 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
     if (record == null) {
       LOG.error("SolaceIO.Write: Found null record with key {}. Ignoring record.", elementKey);
       return;
+    }
+
+    if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+      messageIdsToAck.add(record.getMessageId());
     }
 
     // The publish method will retry, let's send a failure message if all the retries fail
@@ -133,6 +148,10 @@ public final class UnboundedStreamingSolaceWriter extends UnboundedSolaceWriter 
 
   @FinishBundle
   public void finishBundle(FinishBundleContext context) {
-    publishResults(BeamContextWrapper.of(context));
+    if (getDeliveryMode() == DeliveryMode.PERSISTENT) {
+      waitForAcks(BeamContextWrapper.of(context), messageIdsToAck);
+    } else {
+      publishResults(BeamContextWrapper.of(context), null);
+    }
   }
 }

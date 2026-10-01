@@ -22,12 +22,18 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.model.pipeline.v1.Endpoints.ApiServiceDescriptor;
@@ -55,10 +61,13 @@ import org.apache.beam.vendor.grpc.v1p69p0.com.google.protobuf.InvalidProtocolBu
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.MoreObjects;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Strings;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.Cache;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.cache.CacheBuilder;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.HashCode;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hasher;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.Files;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -97,6 +106,11 @@ public class Environments {
           .put(ENVIRONMENT_EXTERNAL, ImmutableSet.of(externalServiceAddressOption))
           .put(ENVIRONMENT_PROCESS, ImmutableSet.of(processCommandOption, processVariablesOption))
           .build();
+
+  private static final Cache<FileHashCacheKey, HashCode> FILE_HASH_CACHE =
+      CacheBuilder.newBuilder().maximumSize(10_000).build();
+  private static final ConcurrentHashMap<HashCode, File> DIRECTORY_ZIP_CACHE =
+      new ConcurrentHashMap<>();
 
   public enum JavaVersion {
     java11("java11", "11", 11),
@@ -214,8 +228,7 @@ public class Environments {
           defaultEnvironment = createDockerEnvironment(getDockerContainerImage(options));
       }
     }
-    return defaultEnvironment
-        .toBuilder()
+    return defaultEnvironment.toBuilder()
         .addAllDependencies(getDeferredArtifacts(options))
         .addAllCapabilities(getJavaCapabilities())
         .build();
@@ -324,7 +337,8 @@ public class Environments {
                   .equals(environment.getUrn())) {
                 try {
                   return AnyOfEnvironmentPayload.parseFrom(environment.getPayload())
-                      .getEnvironmentsList().stream()
+                      .getEnvironmentsList()
+                      .stream()
                       .flatMap(subenv -> expandAnyOfEnvironments(subenv).stream());
                 } catch (InvalidProtocolBufferException exn) {
                   throw new RuntimeException(exn);
@@ -434,7 +448,7 @@ public class Environments {
         File zippedFile;
         try {
           zippedFile = zipDirectory(file);
-          hashCode = Files.asByteSource(zippedFile).hash(Hashing.sha256());
+          hashCode = getFileHash(zippedFile);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -448,7 +462,7 @@ public class Environments {
 
       } else {
         try {
-          hashCode = Files.asByteSource(file).hash(Hashing.sha256());
+          hashCode = getFileHash(file);
         } catch (IOException e) {
           throw new RuntimeException(e);
         }
@@ -538,6 +552,53 @@ public class Environments {
     return String.format("%s-%s%s", fileName, encodedHash, suffix);
   }
 
+  /**
+   * Returns the SHA-256 {@link HashCode} for {@code file}, caching the result in memory keyed by
+   * the file's absolute path, length, and last-modified timestamp.
+   */
+  public static HashCode getFileHash(File file) throws IOException {
+    FileHashCacheKey key = new FileHashCacheKey(file);
+    try {
+      return FILE_HASH_CACHE.get(key, () -> Files.asByteSource(file).hash(Hashing.sha256()));
+    } catch (ExecutionException e) {
+      if (e.getCause() instanceof IOException) {
+        throw (IOException) e.getCause();
+      }
+      throw new RuntimeException(e.getCause());
+    }
+  }
+
+  private static final class FileHashCacheKey {
+    private final String absolutePath;
+    private final long length;
+    private final long lastModified;
+
+    FileHashCacheKey(File file) {
+      this.absolutePath = file.getAbsolutePath();
+      this.length = file.length();
+      this.lastModified = file.lastModified();
+    }
+
+    @Override
+    public boolean equals(@Nullable Object o) {
+      if (this == o) {
+        return true;
+      }
+      if (!(o instanceof FileHashCacheKey)) {
+        return false;
+      }
+      FileHashCacheKey that = (FileHashCacheKey) o;
+      return length == that.length
+          && lastModified == that.lastModified
+          && Objects.equals(absolutePath, that.absolutePath);
+    }
+
+    @Override
+    public int hashCode() {
+      return Objects.hash(absolutePath, length, lastModified);
+    }
+  }
+
   public static String getExternalServiceAddress(PortablePipelineOptions options) {
     String environmentConfig = options.getDefaultEnvironmentConfig();
     String environmentOption =
@@ -549,11 +610,52 @@ public class Environments {
   }
 
   private static File zipDirectory(File directory) throws IOException {
-    File zipFile = File.createTempFile(directory.getName(), ".zip");
-    try (FileOutputStream fos = new FileOutputStream(zipFile)) {
-      ZipFiles.zipDirectory(directory, fos);
+    HashCode metadataHash = computeDirectoryMetadataHash(directory);
+    try {
+      return DIRECTORY_ZIP_CACHE.compute(
+          metadataHash,
+          (k, cachedZip) -> {
+            if (cachedZip != null && cachedZip.exists()) {
+              return cachedZip;
+            }
+            try {
+              File zipFile = File.createTempFile(directory.getName(), ".zip");
+              zipFile.deleteOnExit();
+              try (FileOutputStream fos = new FileOutputStream(zipFile)) {
+                ZipFiles.zipDirectory(directory, fos);
+              }
+              return zipFile;
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
+            }
+          });
+    } catch (UncheckedIOException e) {
+      throw e.getCause();
     }
-    return zipFile;
+  }
+
+  private static HashCode computeDirectoryMetadataHash(File directory) {
+    Hasher hasher = Hashing.sha256().newHasher();
+    hasher.putString(directory.getAbsolutePath(), StandardCharsets.UTF_8);
+    hashDirectoryMetadataRecursive(directory, "", hasher);
+    return hasher.hash();
+  }
+
+  private static void hashDirectoryMetadataRecursive(File inputFile, String prefix, Hasher hasher) {
+    String entryName = prefix + inputFile.getName();
+    hasher.putString(entryName, StandardCharsets.UTF_8);
+    if (inputFile.isDirectory()) {
+      File[] children = inputFile.listFiles();
+      if (children != null) {
+        Arrays.sort(children);
+        for (File child : children) {
+          hashDirectoryMetadataRecursive(child, entryName + "/", hasher);
+        }
+      }
+    } else {
+      hasher.putLong(inputFile.length());
+      hasher.putLong(inputFile.lastModified());
+    }
   }
 
   private static class ProcessPayloadReferenceJSON {

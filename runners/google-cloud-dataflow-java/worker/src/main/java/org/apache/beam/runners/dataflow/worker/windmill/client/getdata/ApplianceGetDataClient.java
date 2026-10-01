@@ -137,8 +137,7 @@ public final class ApplianceGetDataClient implements GetDataClient {
       boolean hadInvalidResponse = false;
       for (Windmill.ComputationGetDataResponse computationResponse : response.getDataList()) {
         for (Windmill.KeyedGetDataResponse keyResponse : computationResponse.getDataList()) {
-          @Nullable
-          SettableFuture<Windmill.KeyedGetDataResponse> responseFuture =
+          @Nullable SettableFuture<Windmill.KeyedGetDataResponse> responseFuture =
               pendingResponses.get(
                   WindmillComputationKey.create(
                       computationResponse.getComputationId(),

@@ -139,6 +139,7 @@ public class HadoopFormatIOElasticIT implements Serializable {
               return convertMapWRowToString(mapw);
             }
           });
+
   /*
    * Function to create a toString implementation of a MapWritable row by writing all field values
    * in a string row.

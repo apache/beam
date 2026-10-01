@@ -113,8 +113,24 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
             .setCode(code)
             .setErrorMessage(errorMessage)
             .build();
+    int grpcCode = io.grpc.Status.Code.OK.value();
+    if (code == StorageError.StorageErrorCode.SCHEMA_MISMATCH_EXTRA_FIELDS) {
+      grpcCode = io.grpc.Status.Code.INVALID_ARGUMENT.value();
+    } else if (code == StorageError.StorageErrorCode.STREAM_NOT_FOUND) {
+      grpcCode = io.grpc.Status.Code.NOT_FOUND.value();
+    } else if (code == StorageError.StorageErrorCode.STREAM_FINALIZED) {
+      grpcCode = io.grpc.Status.Code.FAILED_PRECONDITION.value();
+    } else if (code == StorageError.StorageErrorCode.OFFSET_OUT_OF_RANGE) {
+      grpcCode = io.grpc.Status.Code.OUT_OF_RANGE.value();
+    } else if (code == StorageError.StorageErrorCode.OFFSET_ALREADY_EXISTS) {
+      grpcCode = io.grpc.Status.Code.ALREADY_EXISTS.value();
+    }
     com.google.rpc.Status status =
-        com.google.rpc.Status.newBuilder().addDetails(Any.pack(storageError)).build();
+        com.google.rpc.Status.newBuilder()
+            .setCode(grpcCode)
+            .setMessage(errorMessage)
+            .addDetails(Any.pack(storageError))
+            .build();
     return org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull(
         Exceptions.toStorageException(status, null));
   }
@@ -241,11 +257,20 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
 
   private volatile String appendRowsErrorCode = null;
   private volatile String appendRowsErrorDescription = null;
+  private volatile @Nullable StorageError.StorageErrorCode appendRowsStorageErrorCode = null;
+  private static AtomicInteger appendRowsStorageErrorRemainingCount = new AtomicInteger(0);
 
   public void setAppendRowsError(Throwable t) {
     io.grpc.Status status = io.grpc.Status.fromThrowable(t);
     this.appendRowsErrorCode = status.getCode().name();
     this.appendRowsErrorDescription = status.getDescription();
+  }
+
+  public void setAppendRowsStorageError(
+      StorageError.StorageErrorCode code, String description, int failureCount) {
+    this.appendRowsStorageErrorCode = code;
+    this.appendRowsErrorDescription = description;
+    appendRowsStorageErrorRemainingCount.set(failureCount);
   }
 
   Map<String, List<String>> insertErrors = Maps.newHashMap();
@@ -257,6 +282,7 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
     synchronized (FakeDatasetService.class) {
       tables = HashBasedTable.create();
       insertCount = new AtomicInteger(0);
+      appendRowsStorageErrorRemainingCount = new AtomicInteger(0);
       writeStreams = Maps.newHashMap();
       FakeJobService.setUp();
     }
@@ -811,6 +837,16 @@ public class FakeDatasetService implements DatasetService, WriteStreamService, S
       @Override
       public ApiFuture<AppendRowsResponse> appendRows(long offset, ProtoRows rows)
           throws Exception {
+        if (appendRowsStorageErrorCode != null
+            && appendRowsStorageErrorRemainingCount.getAndDecrement() > 0) {
+          return ApiFutures.immediateFailedFuture(
+              getStorageException(
+                  streamName,
+                  appendRowsStorageErrorCode,
+                  appendRowsErrorDescription != null
+                      ? appendRowsErrorDescription
+                      : "Storage error"));
+        }
         if (appendRowsErrorCode != null) {
           io.grpc.Status.Code code = io.grpc.Status.Code.valueOf(appendRowsErrorCode);
           io.grpc.Status status =

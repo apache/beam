@@ -28,6 +28,7 @@ import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.sdk.io.gcp.bigquery.BigQueryServices.DatasetService;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.util.Preconditions;
 import org.checkerframework.checker.nullness.qual.NonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
@@ -90,7 +91,6 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
     public void updateSchemaFromTable() throws IOException, InterruptedException {}
 
     @Override
-    @SuppressWarnings("nullness")
     public StorageApiWritePayload toMessage(
         T element,
         @Nullable RowMutationInformation rowMutationInformation,
@@ -102,7 +102,7 @@ class StorageApiDynamicDestinationsGenericRecord<T, DestinationT extends @NonNul
       if (rowMutationInformation != null) {
         changeType = rowMutationInformation.getMutationType().toString();
         changeSequenceNum = rowMutationInformation.getChangeSequenceNumber();
-        descriptorToUse = cdcDescriptor;
+        descriptorToUse = Preconditions.checkStateNotNull(cdcDescriptor);
       }
       Message msg =
           AvroGenericRecordToStorageApiProto.messageFromGenericRecord(

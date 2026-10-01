@@ -24,6 +24,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
 import com.google.api.services.storage.model.StorageObject;
@@ -34,7 +35,9 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -131,7 +134,9 @@ public class AddFilesIT {
           "warehouse", WAREHOUSE,
           "header.x-goog-user-project", PROJECT,
           "rest.auth.type", "google",
-          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO");
+          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
+          // required by vended-credentials catalogs, harmless on end-user ones
+          "header.X-Iceberg-Access-Delegation", "vended-credentials");
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
@@ -495,6 +500,113 @@ public class AddFilesIT {
 
     // check all records are there.
     checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
+  }
+
+  /**
+   * Schema evolution against the live catalog: a narrow pre-existing table and files that add a
+   * column. Everything must register with stats for the added column and read back.
+   */
+  @Test
+  public void testBatchParquetImportWithSchemaEvolution() throws IOException {
+    Schema narrow = Schema.builder().addInt64Field("id").addStringField("name").build();
+    catalog.createTable(destTableId, beamSchemaToIcebergSchema(narrow));
+
+    String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
+    String tempDir = format("%s/%s-tmp/", WAREHOUSE, dirName);
+    writeParquet(TEST_ROWS, ROW_SCHEMA, parquetDir + "plain/", tempDir + "plain/");
+
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<String> writtenFilePaths =
+        Lists.newArrayList(
+                gcsUtil.listObjects(WAREHOUSE.replace("gs://", ""), dirName, null).getItems())
+            .stream()
+            .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
+            .collect(Collectors.toList());
+    assertEquals(20, writtenFilePaths.size());
+
+    SchemaEvolutionConfig evolution =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .build();
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(writtenFilePaths))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    namespace + "." + destTableName,
+                    null,
+                    null,
+                    null,
+                    TABLE_PROPS,
+                    null,
+                    null,
+                    evolution));
+    PAssert.that(tuple.get("errors")).empty();
+    p.run().waitUntilFinish();
+
+    Table destTable = catalog.loadTable(destTableId);
+    org.apache.iceberg.types.Types.NestedField age = destTable.schema().findField("age");
+    assertNotNull("column added by the pre-pass", age);
+    assertTrue(checkTableHasRegisteredParquetFiles(writtenFilePaths));
+    int nameId = destTable.schema().findField("name").fieldId();
+    for (org.apache.iceberg.FileScanTask task :
+        destTable.newScan().includeColumnStats().planFiles()) {
+      assertEquals(
+          "stats for name on " + task.file().path(),
+          Long.valueOf(0),
+          task.file().nullValueCounts().get(nameId));
+      assertEquals(
+          "stats for age on " + task.file().path(),
+          Long.valueOf(0),
+          task.file().nullValueCounts().get(age.fieldId()));
+    }
+    // every row reads back
+    List<Row> expected = new ArrayList<>();
+    Schema wide =
+        Schema.builder()
+            .addInt64Field("id")
+            .addStringField("name")
+            .addNullableInt32Field("age")
+            .build();
+    for (Row row : TEST_ROWS) {
+      expected.add(
+          Row.withSchema(wide)
+              .addValues(row.getInt64("id"), row.getString("name"), row.getInt32("age"))
+              .build());
+    }
+    Pipeline s = Pipeline.create();
+    PCollection<String> destRows =
+        s.apply(
+                Managed.read(Managed.ICEBERG)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
+            .getSinglePCollection()
+            .apply(MapElements.into(strings()).via(AddFilesIT::canonicalRecord));
+    PAssert.that(destRows)
+        .containsInAnyOrder(
+            expected.stream().map(AddFilesIT::canonicalRecord).collect(Collectors.toList()));
+    s.run().waitUntilFinish();
+  }
+
+  private static void writeParquet(List<Row> rows, Schema schema, String dir, String tempDir) {
+    Pipeline q = Pipeline.create();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
+    q.apply(Create.of(rows).withRowSchema(schema))
+        .apply(
+            MapElements.into(TypeDescriptor.of(GenericRecord.class))
+                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
+        .setCoder(AvroCoder.of(avroSchema))
+        .apply(
+            FileIO.<String, GenericRecord>writeDynamic()
+                .by(record -> String.valueOf(record.get("id")))
+                .via(ParquetIO.sink(avroSchema))
+                .withNaming(name -> defaultNaming(name, ".parquet"))
+                .withTempDirectory(tempDir)
+                .to(dir)
+                .withDestinationCoder(StringUtf8Coder.of()));
+    q.run().waitUntilFinish();
   }
 
   private void checkRecordsInDestinationTable(boolean alsoCheckWithBigQueryIO) {

@@ -27,6 +27,7 @@ import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.Serializer;
@@ -45,6 +46,33 @@ public class KStreamsPayloadSerdeTest {
     Serializer<KStreamsPayload<Integer>> serializer = serde.serializer();
     Deserializer<KStreamsPayload<Integer>> deserializer = serde.deserializer();
     return deserializer.deserialize(TOPIC, serializer.serialize(TOPIC, payload));
+  }
+
+  @Test
+  public void roundTripsFlushPayload() {
+    KStreamsPayload<Integer> payload = KStreamsPayload.flush(ImmutableSet.of(0, 3, 7));
+    KStreamsPayload<Integer> out = roundTrip(payload);
+    assertThat(out.isFlush(), is(true));
+    assertThat(out.isData(), is(false));
+    assertThat(out.isWatermark(), is(false));
+    assertThat(out.asFlush().getTargetPartitions(), is(ImmutableSet.of(0, 3, 7)));
+    assertThat(out, is(payload));
+  }
+
+  @Test
+  public void aFlushPayloadMustTargetSomething() {
+    // A producer with nothing to address emits no marker at all, so an empty set is a bug rather
+    // than a case to encode.
+    assertThrows(IllegalArgumentException.class, () -> KStreamsPayload.flush(ImmutableSet.of()));
+  }
+
+  @Test
+  public void aFlushPayloadIsNotAWatermarkOrData() {
+    KStreamsPayload<Integer> flush = KStreamsPayload.flush(ImmutableSet.of(0));
+    assertThrows(IllegalStateException.class, flush::asWatermark);
+    assertThrows(IllegalStateException.class, flush::getData);
+    KStreamsPayload<Integer> data = KStreamsPayload.data(WindowedValues.valueInGlobalWindow(1));
+    assertThrows(IllegalStateException.class, data::asFlush);
   }
 
   @Test

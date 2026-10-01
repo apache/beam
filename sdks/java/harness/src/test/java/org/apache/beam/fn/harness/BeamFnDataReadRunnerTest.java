@@ -105,9 +105,7 @@ public class BeamFnDataReadRunnerTest {
       MessageWithComponents coderAndComponents = CoderTranslation.toProto(CODER);
       CODER_SPEC = coderAndComponents.getCoder();
       COMPONENTS =
-          coderAndComponents
-              .getComponents()
-              .toBuilder()
+          coderAndComponents.getComponents().toBuilder()
               .putCoders(CODER_SPEC_ID, CODER_SPEC)
               .putCoders(ELEMENT_CODER_SPEC_ID, CoderTranslation.toProto(ELEMENT_CODER).getCoder())
               .build();

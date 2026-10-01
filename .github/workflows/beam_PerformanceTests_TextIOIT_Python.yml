@@ -20,7 +20,7 @@ on:
     - cron: '30 11 * * *'
   workflow_dispatch:
 
-# Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write

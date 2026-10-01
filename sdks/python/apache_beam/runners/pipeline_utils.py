@@ -93,16 +93,30 @@ def validate_pipeline_graph(pipeline_proto):
       if output_coder.spec.urn != common_urns.coders.KV.urn:
         raise ValueError(
             "Bad coder for output of %s: %s" % (transform_id, output_coder))
-      output_values_coder = pipeline_proto.components.coders[
-          output_coder.component_coder_ids[1]]
-      if (input_coder.component_coder_ids[0]
-          != output_coder.component_coder_ids[0] or
-          output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn or
-          output_values_coder.component_coder_ids[0]
-          != input_coder.component_coder_ids[1]):
+      input_key_coder_id = input_coder.component_coder_ids[0]
+      output_key_coder_id = output_coder.component_coder_ids[0]
+      if input_key_coder_id != output_key_coder_id:
         raise ValueError(
-            "Incompatible input coder %s and output coder %s for transform %s" %
-            (transform_id, input_coder, output_coder))
+            "Input key coder %s does not match output key coder %s for "
+            "transform %s" %
+            (input_key_coder_id, output_key_coder_id, transform_id))
+      output_values_coder_id = output_coder.component_coder_ids[1]
+      output_values_coder = pipeline_proto.components.coders[
+          output_values_coder_id]
+      if output_values_coder.spec.urn != common_urns.coders.ITERABLE.urn:
+        raise ValueError(
+            "Output value coder %s for transform %s must be an iterable "
+            "coder, but uses URN %s" % (
+                output_values_coder_id,
+                transform_id,
+                output_values_coder.spec.urn))
+      input_value_coder_id = input_coder.component_coder_ids[1]
+      output_value_coder_id = output_values_coder.component_coder_ids[0]
+      if output_value_coder_id != input_value_coder_id:
+        raise ValueError(
+            "Input value coder %s does not match output value coder %s for "
+            "transform %s" %
+            (input_value_coder_id, output_value_coder_id, transform_id))
     elif transform_proto.spec.urn == common_urns.primitives.ASSIGN_WINDOWS.urn:
       if not transform_proto.inputs:
         raise ValueError("Missing input for transform: %s" % transform_proto)

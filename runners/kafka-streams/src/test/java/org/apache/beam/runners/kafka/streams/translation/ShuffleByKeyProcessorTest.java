@@ -21,16 +21,18 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 import java.util.Properties;
+import java.util.Set;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.kafka.streams.processor.TaskId;
 import org.apache.kafka.streams.processor.api.MockProcessorContext;
 import org.apache.kafka.streams.processor.api.Record;
 import org.junit.Test;
 
 /**
- * Tests how {@link ShuffleByKeyProcessor} restamps a watermark report as it is about to cross a
- * repartition topic.
+ * Tests how {@link ShuffleByKeyProcessor} restamps watermark reports and addresses flush markers as
+ * they are about to cross a repartition topic.
  *
  * <p>Upstream of the shuffle a transform forwards its watermark in process, to its fused children,
  * which see exactly one instance of it — so the report names a single source. The sink below the
@@ -42,13 +44,19 @@ public class ShuffleByKeyProcessorTest {
 
   private static final String UPSTREAM_ID = "upstream";
 
-  @SuppressWarnings("unchecked")
   private static ShuffleByKeyProcessor processorFor(int taskPartition, int upstreamPartitions) {
+    return processorFor(taskPartition, upstreamPartitions, upstreamPartitions);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static ShuffleByKeyProcessor processorFor(
+      int taskPartition, int upstreamPartitions, int downstreamPartitions) {
     ShuffleByKeyProcessor processor =
         new ShuffleByKeyProcessor(
             (org.apache.beam.sdk.coders.Coder<Object>)
                 (org.apache.beam.sdk.coders.Coder<?>) StringUtf8Coder.of(),
             upstreamPartitions,
+            downstreamPartitions,
             "shuffle-node",
             new TerminationTracker());
     MockProcessorContext<byte[], KStreamsPayload<?>> ctx =
@@ -121,5 +129,66 @@ public class ShuffleByKeyProcessorTest {
 
     assertThat(lastContext.forwarded().size(), is(1));
     assertThat(lastContext.forwarded().get(0).record().value().isData(), is(true));
+  }
+
+  private static Record<byte[], KStreamsPayload<?>> flush() {
+    // The shuffle ignores these targets and picks its own.
+    return new Record<>(new byte[0], KStreamsPayload.flush(ImmutableSet.of(0)), 0L);
+  }
+
+  @Test
+  public void aFlushIsAddressedToThisInstancesShareOfTheRepartitionTopic() {
+    // Partition 2 of 10 upstream, 8 downstream.
+    processorFor(2, 10, 8).process(flush());
+
+    assertThat(lastContext.forwarded().size(), is(1));
+    FlushPayload out = lastContext.forwarded().get(0).record().value().asFlush();
+    assertThat(out.getTargetPartitions(), is(ImmutableSet.of(1)));
+  }
+
+  @Test
+  public void anInstanceWithNothingToAddressForwardsNoFlush() {
+    // 10 upstream into 8 downstream: partition 0 addresses nothing.
+    processorFor(0, 10, 8).process(flush());
+
+    assertThat(lastContext.forwarded().isEmpty(), is(true));
+  }
+
+  @Test
+  public void flushTargetsMatchTheWorkedExample() {
+    // 10 upstream partitions owned in pairs, 8 downstream.
+    assertThat(pairTargets(0, 10, 8), is(ImmutableSet.of(0)));
+    assertThat(pairTargets(2, 10, 8), is(ImmutableSet.of(1, 2)));
+    assertThat(pairTargets(4, 10, 8), is(ImmutableSet.of(3)));
+    assertThat(pairTargets(6, 10, 8), is(ImmutableSet.of(4, 5)));
+    assertThat(pairTargets(8, 10, 8), is(ImmutableSet.of(6, 7)));
+  }
+
+  private static Set<Integer> pairTargets(int first, int upstream, int downstream) {
+    return ImmutableSet.<Integer>builder()
+        .addAll(ShuffleByKeyProcessor.flushTargets(first, upstream, downstream))
+        .addAll(ShuffleByKeyProcessor.flushTargets(first + 1, upstream, downstream))
+        .build();
+  }
+
+  @Test
+  public void everyDownstreamPartitionIsTargetedExactlyOnce() {
+    int[][] shapes = {{10, 8}, {2, 8}, {8, 2}, {4, 4}, {1, 1}, {1, 16}, {16, 1}, {3, 7}, {7, 3}};
+    for (int[] shape : shapes) {
+      int upstream = shape[0];
+      int downstream = shape[1];
+      int[] hits = new int[downstream];
+      for (int partition = 0; partition < upstream; partition++) {
+        for (int target : ShuffleByKeyProcessor.flushTargets(partition, upstream, downstream)) {
+          hits[target]++;
+        }
+      }
+      for (int target = 0; target < downstream; target++) {
+        assertThat(
+            "upstream=" + upstream + " downstream=" + downstream + " target=" + target,
+            hits[target],
+            is(1));
+      }
+    }
   }
 }

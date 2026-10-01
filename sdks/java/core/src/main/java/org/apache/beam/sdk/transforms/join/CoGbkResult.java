@@ -667,6 +667,7 @@ public class CoGbkResult {
 
         /** Keeps track of the index, in head, that this iterator points to. */
         int index = -1;
+
         /** If the index is beyond what was cached in head, this is this iterators view of tail. */
         Iterator<T> tailIter;
 

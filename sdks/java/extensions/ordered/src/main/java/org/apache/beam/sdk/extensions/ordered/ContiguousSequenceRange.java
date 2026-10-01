@@ -91,8 +91,8 @@ public abstract class ContiguousSequenceRange
     @Override
     public void encode(
         ContiguousSequenceRange value, @UnknownKeyFor @NonNull @Initialized OutputStream outStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+        throws @UnknownKeyFor @NonNull @Initialized CoderException,
+            @UnknownKeyFor @NonNull @Initialized IOException {
       VarLongCoder.of().encode(value.getStart(), outStream);
       VarLongCoder.of().encode(value.getEnd(), outStream);
       InstantCoder.of().encode(value.getTimestamp(), outStream);
@@ -100,8 +100,8 @@ public abstract class ContiguousSequenceRange
 
     @Override
     public ContiguousSequenceRange decode(@UnknownKeyFor @NonNull @Initialized InputStream inStream)
-        throws @UnknownKeyFor @NonNull @Initialized CoderException, @UnknownKeyFor @NonNull
-            @Initialized IOException {
+        throws @UnknownKeyFor @NonNull @Initialized CoderException,
+            @UnknownKeyFor @NonNull @Initialized IOException {
       long start = VarLongCoder.of().decode(inStream);
       long end = VarLongCoder.of().decode(inStream);
       Instant timestamp = InstantCoder.of().decode(inStream);

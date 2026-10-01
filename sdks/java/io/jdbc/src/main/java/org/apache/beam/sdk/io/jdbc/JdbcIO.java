@@ -752,15 +752,13 @@ public class JdbcIO {
         if (getUsername() != null) {
           @SuppressWarnings(
               "nullness") // this is actually nullable, but apache commons dbcp2 not annotated
-          @NonNull
-          String username = getUsername().get();
+          @NonNull String username = getUsername().get();
           basicDataSource.setUsername(username);
         }
         if (getPassword() != null) {
           @SuppressWarnings(
               "nullness") // this is actually nullable, but apache commons dbcp2 not annotated
-          @NonNull
-          String password = getPassword().get();
+          @NonNull String password = getPassword().get();
           if (password != null) {
             String secretManager = null;
             if (secretManagerProvider != null) {

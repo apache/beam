@@ -30,11 +30,15 @@ import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.text.DecimalFormat;
@@ -44,6 +48,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -88,6 +94,7 @@ import org.apache.beam.sdk.transforms.windowing.IntervalWindow;
 import org.apache.beam.sdk.transforms.windowing.PaneInfo;
 import org.apache.beam.sdk.transforms.windowing.Sessions;
 import org.apache.beam.sdk.transforms.windowing.Window;
+import org.apache.beam.sdk.util.MimeTypes;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollection.IsBounded;
@@ -492,6 +499,168 @@ public class WriteFilesTest {
   }
 
   @Test
+  @Category(NeedsRunner.class)
+  public void testWriteEvictWritersWhenFull() throws IOException {
+    List<String> inputs = Lists.newArrayList();
+    for (int i = 0; i < 100; ++i) {
+      inputs.add("mambo_number_" + i);
+    }
+    runWrite(
+        inputs,
+        Window.into(FixedWindows.of(Duration.millis(1))),
+        getBaseOutputFilename(),
+        WriteFiles.to(makeSimpleSink())
+            .withMaxNumWritersPerBundle(2)
+            .withWindowedWrites()
+            .withEvictWritersWhenFull());
+  }
+
+  private static class EmitElementsInSingleBundleFn extends DoFn<String, String> {
+    private final List<String> elementsToEmit;
+
+    EmitElementsInSingleBundleFn(List<String> elementsToEmit) {
+      this.elementsToEmit = elementsToEmit;
+    }
+
+    @ProcessElement
+    public void processElement(ProcessContext c) {
+      for (String elem : elementsToEmit) {
+        c.output(elem);
+      }
+    }
+  }
+
+  private static final class FailingCloseOnEvictSink
+      extends FileBasedSink<String, Integer, String> {
+    static final AtomicReference<ResourceId> EVICTED_TEMP_FILE = new AtomicReference<>();
+    static final AtomicBoolean THREW_ON_CLOSE = new AtomicBoolean(false);
+
+    FailingCloseOnEvictSink(
+        ResourceId tempDirectory,
+        DynamicDestinations<String, Integer, String> dynamicDestinations) {
+      super(StaticValueProvider.of(tempDirectory), dynamicDestinations, Compression.UNCOMPRESSED);
+    }
+
+    @Override
+    public WriteOperation<Integer, String> createWriteOperation() {
+      return new FailingCloseWriteOperation(this);
+    }
+
+    private static final class FailingCloseWriteOperation extends WriteOperation<Integer, String> {
+      FailingCloseWriteOperation(FailingCloseOnEvictSink sink) {
+        super(sink);
+      }
+
+      @Override
+      public Writer<Integer, String> createWriter() {
+        return new Writer<Integer, String>(this, MimeTypes.TEXT) {
+          private WritableByteChannel channel;
+
+          @Override
+          protected void prepareWrite(WritableByteChannel channel) {
+            this.channel = channel;
+          }
+
+          @Override
+          public void write(String value) throws Exception {
+            channel.write(ByteBuffer.wrap((value + "\n").getBytes(StandardCharsets.UTF_8)));
+          }
+
+          @Override
+          protected void writeFooter() throws Exception {
+            if (THREW_ON_CLOSE.compareAndSet(false, true)) {
+              EVICTED_TEMP_FILE.set(getOutputFile());
+              assertTrue(new File(getOutputFile().toString()).exists());
+              throw new IOException("Simulated close failure on eviction");
+            }
+          }
+        };
+      }
+    }
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteEvictWritersWhenFullLruOrderAndReopen() throws IOException {
+    TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
+    SimpleSink<Integer> sink =
+        new SimpleSink<>(getBaseOutputDirectory(), dynamicDestinations, Compression.UNCOMPRESSED);
+
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
+
+    // Emit all elements in a single bundle with maxNumWritersPerBundle = 1 (allows up to 2 open
+    // writers simultaneously before evicting):
+    // - "0" (dest 0): opens dest 0. Open writers (LRU -> MRU): [0]
+    // - "1" (dest 1): opens dest 1. Open writers (LRU -> MRU): [0, 1]
+    // - "5" (dest 0): writes to existing open writer for dest 0, refreshing its recency.
+    //                 Open writers (LRU -> MRU): [1, 0]
+    // - "2" (dest 2): capacity exceeded -> evicts least recently used writer (dest 1, even though
+    //                 dest 0 was opened first), opens dest 2. Open writers (LRU -> MRU): [0, 2]
+    // - "10" (dest 0): writes to still-open writer for dest 0 (proving dest 1 was evicted, not
+    //                  dest 0). Open writers (LRU -> MRU): [2, 0]
+    // - "6" (dest 1): dest 1 was previously evicted -> evicts least recently used writer (dest 2),
+    //                 re-opens a second writer for dest 1. Open writers (LRU -> MRU): [0, 1]
+    List<String> bundleElements = Arrays.asList("0", "1", "5", "2", "10", "6");
+
+    WriteFilesResult<Integer> res =
+        p.apply(Create.of("trigger"))
+            .apply(ParDo.of(new EmitElementsInSingleBundleFn(bundleElements)))
+            .apply(WriteFiles.to(sink).withMaxNumWritersPerBundle(1).withEvictWritersWhenFull());
+    res.getPerDestinationOutputFilenames().apply(new VerifyFilesExist<>());
+    p.run();
+
+    // Destination 0 stayed open across all three of its elements due to LRU refresh -> 1 shard.
+    ResourceId base0 =
+        getBaseOutputDirectory().resolve("file_0", StandardResolveOptions.RESOLVE_FILE);
+    checkFileContents(
+        base0.toString(), Arrays.asList("record_0", "record_5", "record_10"), Optional.of(1), true);
+
+    // Destination 1 became LRU after "5" accessed dest 0, was evicted when "2" arrived, and was
+    // re-opened when "6" arrived -> 2 shards.
+    ResourceId base1 =
+        getBaseOutputDirectory().resolve("file_1", StandardResolveOptions.RESOLVE_FILE);
+    checkFileContents(
+        base1.toString(), Arrays.asList("record_1", "record_6"), Optional.of(2), true);
+
+    // Destination 2 was opened once and evicted when "6" arrived -> 1 shard.
+    ResourceId base2 =
+        getBaseOutputDirectory().resolve("file_2", StandardResolveOptions.RESOLVE_FILE);
+    checkFileContents(
+        base2.toString(), Collections.singletonList("record_2"), Optional.of(1), true);
+  }
+
+  @Test
+  @Category(NeedsRunner.class)
+  public void testWriteEvictWritersWhenFullCloseExceptionCleanup() {
+    FailingCloseOnEvictSink.EVICTED_TEMP_FILE.set(null);
+    FailingCloseOnEvictSink.THREW_ON_CLOSE.set(false);
+
+    TestDestinations dynamicDestinations = new TestDestinations(getBaseOutputDirectory());
+    FailingCloseOnEvictSink sink =
+        new FailingCloseOnEvictSink(getBaseOutputDirectory(), dynamicDestinations);
+
+    WriteOptions options = TestPipeline.testingPipelineOptions().as(WriteOptions.class);
+    options.setTestFlag("test_value");
+    Pipeline p = TestPipeline.create(options);
+
+    // Emitting 3 distinct destinations ("0", "1", "2") in a single bundle with
+    // maxNumWritersPerBundle = 1 triggers evictOldestWriter() when "2" arrives.
+    p.apply(Create.of("trigger"))
+        .apply(ParDo.of(new EmitElementsInSingleBundleFn(Arrays.asList("0", "1", "2"))))
+        .apply(WriteFiles.to(sink).withMaxNumWritersPerBundle(1).withEvictWritersWhenFull());
+
+    Pipeline.PipelineExecutionException thrownException =
+        assertThrows(Pipeline.PipelineExecutionException.class, p::run);
+    assertThat(
+        thrownException.getCause().getMessage(),
+        containsString("Simulated close failure on eviction"));
+    assertNotNull(FailingCloseOnEvictSink.EVICTED_TEMP_FILE.get());
+    assertFalse(new File(FailingCloseOnEvictSink.EVICTED_TEMP_FILE.get().toString()).exists());
+  }
+
+  @Test
   public void testBuildWrite() {
     SimpleSink<Void> sink = makeSimpleSink();
     WriteFiles<String, ?, String> write = WriteFiles.to(sink).withNumShards(3);
@@ -512,6 +681,10 @@ public class WriteFilesTest {
     WriteFiles<String, ?, ?> writeUnsharded = write2.withRunnerDeterminedSharding();
     assertThat(writeUnsharded.getComputeNumShards(), nullValue());
     assertThat(write.getComputeNumShards(), equalTo(originalSharding));
+    assertFalse(write.getEvictWritersWhenFull());
+    assertTrue(write.withEvictWritersWhenFull().getEvictWritersWhenFull());
+    assertTrue(write.withEvictWritersWhenFull(true).getEvictWritersWhenFull());
+    assertFalse(write.withEvictWritersWhenFull(false).getEvictWritersWhenFull());
   }
 
   @Test

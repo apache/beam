@@ -18,6 +18,7 @@
 package org.apache.beam.runners.fnexecution.environment;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.SystemUtils.IS_OS_WINDOWS;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.File;
@@ -113,7 +114,7 @@ public class ProcessManager {
     } else {
       // Pipe stdout and stderr to /dev/null to avoid blocking the process due to filled PIPE
       // buffer
-      if (System.getProperty("os.name", "").startsWith("Windows")) {
+      if (IS_OS_WINDOWS) {
         outputFile = new File("nul");
       } else {
         outputFile = new File("/dev/null");

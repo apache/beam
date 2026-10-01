@@ -53,7 +53,7 @@ import org.junit.Rule;
 import org.junit.Test;
 
 /**
- * BigTableIO performance tests.
+ * BigtableIO performance tests.
  *
  * <p>Example trigger command for all tests: "mvn test -pl it/google-cloud-platform -am
  * -Dtest=BigTableIOLT \ -Dproject=[gcpProject] -DartifactBucket=[temp bucket]
@@ -248,7 +248,7 @@ public class BigTableIOLT extends IOLoadTestBase {
     abstract Builder toBuilder();
   }
 
-  /** Maps long number to the BigTable format record. */
+  /** Maps long number to the Bigtable format record. */
   private static class MapToBigTableFormat extends DoFn<Long, KV<ByteString, Iterable<Mutation>>>
       implements Serializable {
 

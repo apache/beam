@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
+
 import com.google.api.services.bigquery.model.TableFieldSchema;
 import com.google.api.services.bigquery.model.TableRow;
 import com.google.api.services.bigquery.model.TableSchema;
@@ -56,7 +58,11 @@ public class BigQueryTimestampPicosIT {
 
   private static String project;
   private static final String DATASET_ID =
-      "bq_ts_picos_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      TEMP_DATASET_PREFIX
+          + "ts_picos_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("BigQueryTimestampPicosIT");
   private static TestBigQueryOptions bqOptions;
   private static String nestedTableSpec;

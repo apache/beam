@@ -56,7 +56,7 @@ public class TimerOrElementTest {
     List<CloudObject> component =
         Collections.singletonList(
             CloudObjects.asCloudObject(
-                KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()), /*sdkComponents=*/ null));
+                KvCoder.of(VarLongCoder.of(), ByteArrayCoder.of()), /* sdkComponents= */ null));
     Structs.addList(cloudObject, PropertyNames.COMPONENT_ENCODINGS, component);
 
     Coder<?> decoded = CloudObjects.coderFromCloudObject(cloudObject);

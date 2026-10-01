@@ -152,8 +152,7 @@ public final class RpcQosTest {
 
     // init here after mocks have been initialized
     options =
-        RpcQosOptions.defaultOptions()
-            .toBuilder()
+        RpcQosOptions.defaultOptions().toBuilder()
             .withInitialBackoff(Duration.millis(1))
             .withSamplePeriod(Duration.millis(100))
             .withSamplePeriodBucketSize(Duration.millis(10))

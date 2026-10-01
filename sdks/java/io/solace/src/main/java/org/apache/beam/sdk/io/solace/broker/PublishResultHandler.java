@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.solace.broker;
 
 import com.solacesystems.jcsmp.JCSMPException;
 import com.solacesystems.jcsmp.JCSMPStreamingPublishCorrelatingEventHandler;
-import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import org.apache.beam.sdk.io.solace.data.Solace;
 import org.apache.beam.sdk.io.solace.data.Solace.PublishResult;
 import org.apache.beam.sdk.io.solace.write.UnboundedSolaceWriter;
@@ -41,11 +41,11 @@ import org.slf4j.LoggerFactory;
 public final class PublishResultHandler implements JCSMPStreamingPublishCorrelatingEventHandler {
 
   private static final Logger LOG = LoggerFactory.getLogger(PublishResultHandler.class);
-  private final Queue<PublishResult> publishResultsQueue;
+  private final BlockingQueue<PublishResult> publishResultsQueue;
   private final Counter batchesRejectedByBroker =
       Metrics.counter(UnboundedSolaceWriter.class, "batches_rejected");
 
-  public PublishResultHandler(Queue<PublishResult> publishResultsQueue) {
+  public PublishResultHandler(BlockingQueue<PublishResult> publishResultsQueue) {
     this.publishResultsQueue = publishResultsQueue;
   }
 

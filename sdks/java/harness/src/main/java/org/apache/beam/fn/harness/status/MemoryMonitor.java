@@ -620,8 +620,11 @@ public class MemoryMonitor implements Runnable {
    * repeated dumps. These files can be of comparable size to the local disk.
    */
   public File dumpHeap()
-      throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
-          MBeanException, IOException {
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException,
+          IOException {
     Preconditions.checkState(
         canDumpHeap, "Bug! Attempt to dump heap even though it should be disabled.");
     return dumpHeap(localDumpFolder);
@@ -634,8 +637,11 @@ public class MemoryMonitor implements Runnable {
    * repeated dumps. These files can be of comparable size to the local disk.
    */
   private static synchronized File dumpHeap(File directory)
-      throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
-          MBeanException, IOException {
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException,
+          IOException {
 
     boolean liveObjectsOnly = false;
     File fileName = new File(directory, "heap_dump.hprof");
