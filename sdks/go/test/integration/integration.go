@@ -119,7 +119,7 @@ var portableFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
-	// TestStream-based wait tests run on Prism; bounded variants run here.
+	// The portable runner does not support the TestStream primitive; only bounded tests run here.
 	"TestWaitStream.*",
 	// TODO(https://github.com/apache/beam/issues/21058): Python portable runner times out on Kafka reads.
 	"TestKafkaIO.*",
@@ -268,7 +268,7 @@ var dataflowFilters = []string{
 	// The trigger and pane tests uses TestStream
 	"TestTrigger.*",
 	"TestPanes",
-	// TestStream-based wait tests run on Prism; bounded variants run here.
+	// The Dataflow runner does not support the TestStream primitive; only bounded tests run here.
 	"TestWaitStream.*",
 	// There is no infrastructure for running KafkaIO tests with Dataflow.
 	"TestKafkaIO.*",
