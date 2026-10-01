@@ -55,26 +55,16 @@ public class QueryTest {
       NexmarkQueryTransform<T> query,
       NexmarkQueryModel<T> model,
       boolean streamingMode) {
-    queryMatchesModel(name, CONFIG, query, model, streamingMode);
-  }
-
-  /** Test {@code query} matches {@code model} with a specific configuration. */
-  private <T extends KnownSize> void queryMatchesModel(
-      String name,
-      NexmarkConfiguration config,
-      NexmarkQueryTransform<T> query,
-      NexmarkQueryModel<T> model,
-      boolean streamingMode) {
     NexmarkUtils.setupPipeline(NexmarkUtils.CoderStrategy.HAND, p);
 
     PCollection<Event> events =
         p.apply(
             name + ".Read",
             streamingMode
-                ? NexmarkUtils.streamEventsSource(config)
-                : NexmarkUtils.batchEventsSource(config));
+                ? NexmarkUtils.streamEventsSource(CONFIG)
+                : NexmarkUtils.batchEventsSource(CONFIG));
     PCollection<TimestampedValue<T>> results =
-        (PCollection<TimestampedValue<T>>) events.apply(new NexmarkQuery<>(config, query));
+        (PCollection<TimestampedValue<T>>) events.apply(new NexmarkQuery<>(CONFIG, query));
     PAssert.that(results).satisfies(model.assertionFor());
     PipelineResult result = p.run();
     result.waitUntilFinish();
@@ -175,10 +165,7 @@ public class QueryTest {
   @Test
   @Category(NeedsRunner.class)
   public void query7MatchesModelStreaming() {
-    NexmarkConfiguration config = CONFIG.copy();
-    config.numEvents = 500;
-    queryMatchesModel(
-        "Query7TestStreaming", config, new Query7(config), new Query7Model(config), true);
+    queryMatchesModel("Query7TestStreaming", new Query7(CONFIG), new Query7Model(CONFIG), true);
   }
 
   @Test

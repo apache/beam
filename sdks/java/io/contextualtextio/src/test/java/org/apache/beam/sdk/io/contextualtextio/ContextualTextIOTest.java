@@ -1276,6 +1276,9 @@ public class ContextualTextIOTest {
 
     @Test
     @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+    // The watch terminates after 3s without new output; running concurrently with other pipelines
+    // in this JVM can stall the in-pipeline writer long enough to truncate the results.
+    @BeamParallelJunit4Runner.SerialTest
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
       basePath.toFile().mkdir();
