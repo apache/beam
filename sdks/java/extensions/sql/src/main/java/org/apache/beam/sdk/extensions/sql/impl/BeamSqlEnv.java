@@ -339,6 +339,8 @@ public class BeamSqlEnv {
       // this reflective access.
       QueryPlanner.Factory factory;
       try {
+        // Field.get(null) reads a static field; the checker's annotated JDK stub marks the
+        // receiver as @NonNull, so this narrow suppression is required.
         // See https://github.com/typetools/jdk/pull/235#pullrequestreview-3400922783
         @SuppressWarnings("nullness")
         Object queryPlannerFactoryObj =

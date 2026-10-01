@@ -31,7 +31,9 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.UUID;
@@ -120,9 +122,9 @@ import org.junit.runners.MethodSorters;
  *
  * <p>Whichever is chosen, the job is launched with an explicit experiment, {@code use_runner_v2} or
  * {@code disable_runner_v2}. Leaving the choice to the service is not an option here because the
- * container image is resolved on the client, see {@link #dataflowWorkerExperiment()}: a job
- * submitted without an experiment ends up asking for an image tag that does not exist and hangs
- * with the workers in ImagePullBackOff.
+ * container image is resolved on the client, see {@link #dataflowExperiments()}: a job submitted
+ * without an experiment ends up asking for an image tag that does not exist and hangs with the
+ * workers in ImagePullBackOff.
  *
  * <p>Note that Runner v2 stages the locally built SDK jars, so a local SDK change is measured as
  * is, while the legacy worker runs the Beam code baked into its container image.
@@ -198,7 +200,7 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
   /**
    * Experiment that keeps the job on the legacy worker. Needed even though the legacy worker is
    * what a job without experiments is submitted as, because the service upgrades such a job to
-   * Runner v2 on its own, see {@link #dataflowWorkerExperiment()}.
+   * Runner v2 on its own, see {@link #dataflowExperiments()}.
    */
   private static final String LEGACY_WORKER_EXPERIMENT = "disable_runner_v2";
 
@@ -499,8 +501,8 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
       // the gcs_* metrics measure.
       // maxNumWorkers is deliberately not set, it only bounds an autoscaling pool.
       builder
-          // Picks the worker, see dataflowWorkerExperiment().
-          .addParameter("experiments", dataflowWorkerExperiment())
+          // Picks the worker and the GcsUtil version, see dataflowExperiments().
+          .addParameter("experiments", dataflowExperiments())
           .addParameter("autoscalingAlgorithm", "NONE")
           .addParameter("numWorkers", String.valueOf(DATAFLOW_NUM_WORKERS))
           .addParameter("workerMachineType", DATAFLOW_MACHINE_TYPE);
@@ -510,14 +512,19 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
   }
 
   /**
-   * Experiment that selects the Dataflow worker, {@code use_runner_v2} or {@code
-   * disable_runner_v2}.
+   * Every experiment the Dataflow job is submitted with, as the comma separated list the {@code
+   * experiments} pipeline option parses.
    *
-   * <p>The worker is always selected explicitly, even though Runner v2 is what the service picks on
-   * its own, because the container image is resolved on the client: {@code
-   * DataflowRunner.getDefaultContainerImageUrl} takes the image name and the image tag from the
-   * same branch of its {@code useUnifiedWorker()} check, and the two tags ({@code
-   * dataflowFnapiContainerVersion} and {@code dataflowLegacyContainerVersion} in {@code
+   * <p>They have to be joined into one value because the launcher carries the parameters in a map,
+   * so {@code experiments} can only be given once. That map is also the only channel that reaches
+   * the job: the launcher rebuilds the pipeline options from these parameters alone, so an
+   * experiment set on the options of the pipeline would be dropped.
+   *
+   * <p>The list always names the worker, {@code use_runner_v2} or {@code disable_runner_v2}, even
+   * though Runner v2 is what the service picks on its own, because the container image is resolved
+   * on the client: {@code DataflowRunner.getDefaultContainerImageUrl} takes the image name and the
+   * image tag from the same branch of its {@code useUnifiedWorker()} check, and the two tags
+   * ({@code dataflowFnapiContainerVersion} and {@code dataflowLegacyContainerVersion} in {@code
    * runners/google-cloud-dataflow-java/build.gradle}) are bumped independently.
    *
    * <p>A job submitted without an experiment therefore resolves the legacy pair {@code
@@ -529,8 +536,13 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
    * gives {@code beam_javaNN_sdk:<fnapi tag>}, {@code disable_runner_v2} keeps the service from
    * upgrading the job so {@code beam-javaNN-batch:<legacy tag>} stays correct.
    */
-  private static String dataflowWorkerExperiment() {
-    return configuration.useRunnerV2 ? RUNNER_V2_EXPERIMENT : LEGACY_WORKER_EXPERIMENT;
+  private static String dataflowExperiments() {
+    List<String> experiments = new ArrayList<>();
+    experiments.add(configuration.useRunnerV2 ? RUNNER_V2_EXPERIMENT : LEGACY_WORKER_EXPERIMENT);
+    if (configuration.useGcsUtilV2) {
+      experiments.add(GCS_UTIL_V2_EXPERIMENT);
+    }
+    return String.join(",", experiments);
   }
 
   /**
@@ -669,7 +681,7 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
         DATAFLOW_RUNNER.equalsIgnoreCase(configuration.runner)
             ? String.format(
                 "%s (--experiments=%s)",
-                configuration.useRunnerV2 ? "Runner v2" : "legacy", dataflowWorkerExperiment())
+                configuration.useRunnerV2 ? "Runner v2" : "legacy", dataflowExperiments())
             : "n/a",
         DATAFLOW_RUNNER.equalsIgnoreCase(configuration.runner)
             ? String.format("%d x %s, autoscaling off", DATAFLOW_NUM_WORKERS, DATAFLOW_MACHINE_TYPE)
@@ -875,8 +887,7 @@ public final class ParquetIOLT extends GcsIOLoadTestBase {
     /**
      * Dataflow only. {@code true} runs the job on Runner v2, i.e. the unified worker, {@code false}
      * on the legacy worker. Either way the choice is sent to the service as an explicit experiment,
-     * see {@link ParquetIOLT#dataflowWorkerExperiment()} for why it must not be left to the
-     * service.
+     * see {@link ParquetIOLT#dataflowExperiments()} for why it must not be left to the service.
      */
     @JsonProperty public boolean useRunnerV2 = true;
 

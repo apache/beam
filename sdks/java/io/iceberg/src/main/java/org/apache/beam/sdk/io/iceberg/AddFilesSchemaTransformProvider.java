@@ -120,7 +120,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
     public abstract @Nullable List<String> getSortFields();
 
     @SchemaFieldDescription(
-        "Lets the transform change the table schema so that every file's columns are covered."
+        "Lets the transform change the table schema so that the table has a column for every"
+            + " column the files have."
             + " Values: ALLOW_FIELD_ADDITION (columns a file has and the table lacks are added, as"
             + " optional), ALLOW_FIELD_RELAXATION (a required table column becomes optional when a"
             + " file lacks it or may hold nulls in it), ALLOW_TYPE_PROMOTION (a column type is"
@@ -131,8 +132,10 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " that is not allowed is incompatible; see incompatible_schema_handling. Only"
             + " Parquet files can be checked: ORC and Avro files are sent to the error output"
             + " unless unverifiable_file_handling is ACCEPT. Files sent to the error output are"
-            + " dropped unless error_handling is set. Batch pipelines only; streaming pipelines"
-            + " cannot use schema evolution yet.")
+            + " dropped unless error_handling is set. If the table does not exist it is created"
+            + " from the union of the Parquet schemas; with none, every file goes to the error"
+            + " output. Batch pipelines only; streaming pipelines cannot use schema evolution"
+            + " yet.")
     public abstract @Nullable List<String> getSchemaEvolutionOptions();
 
     @SchemaFieldDescription(
@@ -144,6 +147,19 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " has no null-count statistics for it, unless unverifiable_file_handling is ACCEPT."
             + " Requires schema_evolution_options.")
     public abstract @Nullable List<String> getRequiredColumns();
+
+    @SchemaFieldDescription(
+        "When true, nothing is committed or registered: the transform reads the files' schemas"
+            + " and emits a `dry_run_report` output with one row that describes what a real run"
+            + " would do. Its `allowed` field is true when every file schema can be merged and the"
+            + " configuration raises no problem; otherwise its `reason` field says what a real run"
+            + " would do about it (fail, or route the files to the error output). Its `schemas`"
+            + " field lists each distinct file schema with the changes a real run would make for"
+            + " it and, when it cannot be merged, why. The output only exists when this is set;"
+            + " consume it as input: `<this transform's name>.dry_run_report`. Against a missing"
+            + " table, a REST catalog needs table-create permission even though no table is"
+            + " created.")
+    public abstract @Nullable Boolean getDryRun();
 
     @SchemaFieldDescription(
         "What happens when a file's schema cannot be made to fit the table: it needs a change"
@@ -158,8 +174,9 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
             + " Parquet footers only), or a Parquet file with no null-count statistics for a"
             + " required column (statistics disabled by the writer, or a column under a list or"
             + " map). REJECT (the default) sends the file to the error output (see"
-            + " error_handling). ACCEPT registers it without checks, counted and logged. A file"
-            + " that fails a check is always sent to the error output. An accepted file that"
+            + " error_handling). ACCEPT registers it without the checks; such files are counted"
+            + " and logged. A file that fails a check is always sent to the error output. An"
+            + " accepted file that"
             + " lacks a required column, or holds nulls in it, makes reads of the table fail.")
     public abstract @Nullable String getUnverifiableFileHandling();
 
@@ -198,6 +215,8 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
 
       public abstract Builder setUnverifiableFileHandling(String handling);
 
+      public abstract Builder setDryRun(Boolean dryRun);
+
       public abstract Configuration build();
     }
 
@@ -207,19 +226,21 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
       List<String> pins = getRequiredColumns();
       String handlingName = getIncompatibleSchemaHandling();
       String unverifiableName = getUnverifiableFileHandling();
+      boolean dryRun = Boolean.TRUE.equals(getDryRun());
       boolean nothingSet =
           (optionNames == null || optionNames.isEmpty())
               && (pins == null || pins.isEmpty())
               && handlingName == null
-              && unverifiableName == null;
+              && unverifiableName == null
+              && !dryRun;
       if (nothingSet) {
         return null;
       }
       // SchemaEvolutionConfig.build() checks this too; this copy names the YAML keys
       Preconditions.checkArgument(
           optionNames != null && !optionNames.isEmpty(),
-          "required_columns, incompatible_schema_handling and unverifiable_file_handling need at"
-              + " least one schema_evolution_options entry");
+          "required_columns, incompatible_schema_handling, unverifiable_file_handling and"
+              + " dry_run need at least one schema_evolution_options entry");
       Set<SchemaEvolutionOption> options = EnumSet.noneOf(SchemaEvolutionOption.class);
       for (String name : checkStateNotNull(optionNames)) {
         options.add(parseEnum(SchemaEvolutionOption.class, name, "schema_evolution_options"));
@@ -228,6 +249,7 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
       if (pins != null) {
         builder = builder.setRequiredColumns(new LinkedHashSet<>(pins));
       }
+      builder = builder.setDryRun(dryRun);
       if (handlingName != null) {
         SchemaEvolutionConfig.IncompatibleSchemaHandling handling =
             parseEnum(
@@ -315,6 +337,9 @@ public class AddFilesSchemaTransformProvider extends TypedSchemaTransformProvide
       ErrorHandling errorHandling = configuration.getErrorHandling();
       if (errorHandling != null) {
         output = output.and(errorHandling.getOutput(), result.get(ERROR_TAG));
+      }
+      if (Boolean.TRUE.equals(configuration.getDryRun())) {
+        output = output.and(AddFiles.DRY_RUN_TAG, result.get(AddFiles.DRY_RUN_TAG));
       }
       return output;
     }

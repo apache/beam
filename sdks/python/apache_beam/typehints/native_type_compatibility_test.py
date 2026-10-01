@@ -33,6 +33,7 @@ from parameterized import parameterized
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.options.pipeline_options_context import scoped_pipeline_options
 from apache_beam.typehints import typehints
+from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 from apache_beam.typehints.native_type_compatibility import convert_builtin_to_typing
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_type
 from apache_beam.typehints.native_type_compatibility import convert_to_beam_types
@@ -41,7 +42,6 @@ from apache_beam.typehints.native_type_compatibility import convert_to_python_ty
 from apache_beam.typehints.native_type_compatibility import convert_typing_to_builtin
 from apache_beam.typehints.native_type_compatibility import is_any
 from apache_beam.typehints.native_type_compatibility import match_dataclass_for_row
-from apache_beam.typehints.native_type_compatibility import _safe_issubclass
 
 _TestNamedTuple = typing.NamedTuple(
     '_TestNamedTuple', [('age', int), ('name', bytes)])

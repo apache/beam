@@ -17,10 +17,12 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.runners.core.DoFnRunners;
 import org.apache.beam.runners.core.KeyedWorkItem;
 import org.apache.beam.runners.core.OutputAndTimeBoundedSplittableProcessElementInvoker;
@@ -39,12 +41,11 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurren
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.joda.time.Duration;
 
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class SplittableProcessElementsEvaluatorFactory<
         InputT, OutputT, RestrictionT, PositionT, WatermarkEstimatorStateT>
     implements TransformEvaluatorFactory {
+  private static final AtomicInteger FACTORY_INSTANCE_IDS = new AtomicInteger();
+
   private final ParDoEvaluatorFactory<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>, OutputT>
       delegateFactory;
   private final ScheduledExecutorService ses;
@@ -82,7 +83,8 @@ class SplittableProcessElementsEvaluatorFactory<
             new ThreadFactoryBuilder()
                 .setThreadFactory(MoreExecutors.platformThreadFactory())
                 .setNameFormat(
-                    "direct-splittable-process-element-checkpoint-executor_" + hashCode())
+                    "direct-splittable-process-element-checkpoint-executor_"
+                        + FACTORY_INSTANCE_IDS.getAndIncrement())
                 .build());
   }
 
@@ -120,7 +122,7 @@ class SplittableProcessElementsEvaluatorFactory<
             delegateFactory.createEvaluator(
                 (AppliedPTransform) application,
                 (PCollection<KeyedWorkItem<byte[], KV<InputT, RestrictionT>>>)
-                    inputBundle.getPCollection(),
+                    checkStateNotNull(inputBundle.getPCollection()),
                 inputBundle.getKey(),
                 application.getTransform().getSideInputs(),
                 application.getTransform().getMainOutputTag(),

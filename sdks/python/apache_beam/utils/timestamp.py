@@ -64,7 +64,7 @@ class Timestamp(object):
   fraction of a second (e.g. 3 for millis, 6 for micros, 9 for
   nanos). Defaults to microseconds.
   If ``seconds`` is a float, the fractional part will be captured up
-  to ``precision`` digits.
+  to ``precision`` digits, rounded to the nearest subsecond unit.
 
   Lossy conversion operations will throw an error unless
   ``allow_lossy_conversion=True`` is specified (e.g. see ``to_utc_datetime``).
@@ -107,7 +107,10 @@ class Timestamp(object):
             'use subseconds instead.' % precision)
       subseconds = micros
     self._precision = precision
-    total = int(seconds * _POW_10[precision]) + int(subseconds)
+    # Round (rather than truncate) so that float inputs like 2.000002, which
+    # cannot be represented exactly in binary, land on the nearest subsecond
+    # unit instead of one unit low.
+    total = round(seconds * _POW_10[precision]) + int(subseconds)
     self._seconds, self._subseconds = divmod(total, _POW_10[precision])
 
   def _total(self, precision: int) -> int:

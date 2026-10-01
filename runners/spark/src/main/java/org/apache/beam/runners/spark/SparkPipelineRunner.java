@@ -115,6 +115,8 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
             ? trimmedPipeline
             : GreedyPipelineFuser.fuse(trimmedPipeline).toPipeline();
 
+    // Avoid inheriting a stale Spark ExecutorClassLoader leaked onto shared executor threads.
+    Thread.currentThread().setContextClassLoader(SparkPipelineRunner.class.getClassLoader());
     prepareFilesToStage(pipelineOptions);
     PortablePipelineResult result;
     final JavaSparkContext jsc = SparkContextFactory.getSparkContext(pipelineOptions);
@@ -129,6 +131,12 @@ public class SparkPipelineRunner implements PortablePipelineRunner {
     final ExecutorService executorService =
         Executors.newSingleThreadExecutor(
             new ThreadFactoryBuilder()
+                .setThreadFactory(
+                    r -> {
+                      Thread t = new Thread(r);
+                      t.setContextClassLoader(SparkPipelineRunner.class.getClassLoader());
+                      return t;
+                    })
                 .setDaemon(true)
                 .setNameFormat("DefaultSparkRunner-thread")
                 .build());

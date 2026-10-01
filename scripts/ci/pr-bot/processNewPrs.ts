@@ -300,6 +300,7 @@ async function processPull(
           pull.number,
           commentStrings.assignCommitter(chosenCommitter)
         );
+        await github.requestPrReviewers(pull.number, [chosenCommitter]);
         await github.nextActionReviewers(pull.number, pull.labels);
         prState.nextAction = REVIEWERS_ACTION;
 
@@ -358,6 +359,10 @@ async function processPull(
     commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
       labels: pull.labels,
     })
+  );
+  await github.requestPrReviewers(
+    pull.number,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
   github.nextActionReviewers(pull.number, pull.labels);

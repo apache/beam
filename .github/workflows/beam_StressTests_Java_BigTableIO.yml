@@ -73,7 +73,7 @@ jobs:
           github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
-      - name: run BigTable StressTest Large
+      - name: run Bigtable StressTest Large
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
           gradle-command: :it:google-cloud-platform:BigTableStressTestLarge --info -DinfluxHost="http://10.128.0.96:8086" -DinfluxDatabase="beam_test_metrics" -DinfluxMeasurement="java_stress_test_bigtable"

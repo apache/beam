@@ -60,7 +60,14 @@ final class SchemaDelta {
    * (dotted, empty, case-colliding) come back as conflicts without attempting the union.
    */
   static SchemaDelta classify(Table table, Schema fileSchema) {
-    Schema before = table.schema();
+    return classify(table, table.schema(), fileSchema);
+  }
+
+  /**
+   * Classifies against {@code before}, the caller's snapshot of the table schema. The union itself
+   * is applied to the table's current metadata, which the caller keeps equal to the snapshot.
+   */
+  static SchemaDelta classify(Table table, Schema before, Schema fileSchema) {
     if (before.sameSchema(fileSchema)) {
       return new SchemaDelta(Collections.emptyList());
     }

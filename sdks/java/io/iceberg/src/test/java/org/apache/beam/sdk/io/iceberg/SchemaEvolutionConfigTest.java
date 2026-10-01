@@ -116,4 +116,14 @@ public class SchemaEvolutionConfigTest {
         IncompatibleSchemaHandling.ROUTE_TO_ERRORS,
         forced.incompatibleSchemaHandlingFor(PCollection.IsBounded.BOUNDED));
   }
+
+  /** A dry run of nothing is a config error, not a silent real run. */
+  @Test
+  public void testDryRunAloneIsRejectedAtBuild() {
+    IllegalArgumentException e =
+        assertThrows(
+            IllegalArgumentException.class,
+            () -> SchemaEvolutionConfig.builder().setDryRun(true).build());
+    assertTrue(e.getMessage(), e.getMessage().contains("dry run"));
+  }
 }

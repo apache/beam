@@ -52,8 +52,7 @@ import org.joda.time.Instant;
 
 /** The {@link TransformEvaluatorFactory} for the {@link TestStream} primitive. */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class TestStreamEvaluatorFactory implements TransformEvaluatorFactory {
   private final EvaluationContext evaluationContext;
