@@ -15,7 +15,7 @@
 
 name: PreCommit Python
 on:
-  pull_request_target:
+  pull_request:
     branches: [ "master", "release-*" ]
     paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Python.json']
   issue_comment:
@@ -28,7 +28,7 @@ on:
     - cron: '0 3/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -86,7 +86,7 @@ jobs:
         python_version: ['3.10','3.14']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       startsWith(github.event.comment.body, 'Run Python PreCommit')
@@ -150,5 +150,6 @@ jobs:
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/pytest*.xml'
           large_files: true
