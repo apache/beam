@@ -58,7 +58,7 @@ jobs:
     # apache-beam-testing Snapshots image tagged with sdk_version, plus an
     # aarch64 wheel from this checkout. Keep headroom for the IT suite and
     # qemu wheel build.
-    timeout-minutes: 180
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
