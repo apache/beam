@@ -20,7 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['website/**','.github/workflows/beam_PreCommit_Website_Stage_GCS.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths: ['website/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Website_Stage_GCS.json']
   issue_comment:
@@ -41,7 +41,7 @@ env:
   gcsbucket: apache-beam-website-pull-requests
   ghprbPullId:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -68,7 +68,7 @@ jobs:
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Website_Stage_GCS PreCommit'

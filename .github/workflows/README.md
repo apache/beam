@@ -44,7 +44,7 @@ If you would like to manually trigger a job, you have 2 options:
 
 1) Trigger Phrases: Some jobs have trigger phrases associated with them (e.g. `Run XYZ PreCommit`). These will appear in statuses of previous PR runs of that check. You can trigger the job on any PR by commenting that trigger phrase in the PR.
 
-   **Note:** this approach is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and currently only enabled for PreCommit workflows. For PostCommit jobs, it is currently replaced by a temporary approach: test suites are configured to trigger whenever a particular trigger file is modified. Test [workflows](https://github.com/apache/beam/tree/master/.github/workflows) have [pull_request_target paths](https://github.com/apache/beam/blob/e33dec69c7cfd01c0b827538e1dad8567e3ff95e/.github/workflows/beam_PreCommit_Whitespace.yml#L25), which include a trigger file. Whenever a trigger file is modified, the test suite will trigger on the pull request. Make any change to this file to trigger the job. The trigger file looks like the following: `.github/trigger_files/<workflow_file_name.json>`.
+   **Note:** this approach is found not scalable ([#28909](https://github.com/apache/beam/issues/28909)) and currently only enabled for PreCommit workflows. For PostCommit jobs, it is currently replaced by a temporary approach: test suites are configured to trigger whenever a particular trigger file is modified. Test [workflows](https://github.com/apache/beam/tree/master/.github/workflows) have [pull_request paths](https://github.com/apache/beam/blob/e33dec69c7cfd01c0b827538e1dad8567e3ff95e/.github/workflows/beam_PreCommit_Whitespace.yml#L25), which include a trigger file. Whenever a trigger file is modified, the test suite will trigger on the pull request. Make any change to this file to trigger the job. The trigger file looks like the following: `.github/trigger_files/<workflow_file_name.json>`.
 
 2) **Committers only** - Manual triggering: Any committer can start any job with a [workflow_dispatch](https://docs.github.com/en/actions/using-workflows/events-that-trigger-workflows#workflow_dispatch) trigger defined (all jobs should have these). To do so, navigate to the [Actions tab](https://github.com/apache/beam/actions), click on your desired workflow in the left navigation bar, and then click `Run Workflow`.
 
@@ -73,7 +73,7 @@ jobs:
         job_phrase: [Run Job Phrase]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Job Phrase'
@@ -102,7 +102,7 @@ jobs:
         python_version: ['3.9','3.10','3.11','3.12']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'issue_comment' && github.event.comment.body == format('{0} {1}', matrix.job_phrase, matrix.python_version))
@@ -124,16 +124,16 @@ GitHub allows workflows to define a set of triggers that dictate when a job shou
 For the purposes of Beam, each CI workflow should define the following triggers:
 
 1) A `push` trigger
-2) A `pull_request_target` trigger
+2) A `pull_request` trigger
 3) An issue_comment trigger (for issue created). This is needed for comment triggering support (see section below).
 4) A scheduled trigger
 5) A workflow_dispatch trigger
 
-The `push`/`pull_request_target` triggers should only run when appropriate paths are modified. See https://github.com/apache/beam/blob/master/.github/workflows/beam_PreCommit_Go.yml#L4 for an example (you can copy and paste this into your workflow, you just need to change the paths).
+The `push`/`pull_request` triggers should only run when appropriate paths are modified. See https://github.com/apache/beam/blob/master/.github/workflows/beam_PreCommit_Go.yml#L4 for an example (you can copy and paste this into your workflow, you just need to change the paths).
 
 ## Checkout step
 
-Because we use the `pull_request_target` trigger instead of `pull_request`, we need an explicit checkout of the correct commit. This can be done as a step that uses the `setup-action` action in your workflow. See https://github.com/apache/beam/blob/0ee2dc73ec6f555a5bf1a643dffd37f4927be67e/.github/workflows/beam_PreCommit_Go.yml#L65-L70 for an example (you can copy and paste this into your workflow). Please make sure that you checkout the code before using the composite action.
+For comment triggering support, we need an explicit checkout of the correct commit. This can be done as a step that uses the `setup-action` action in your workflow. See https://github.com/apache/beam/blob/0ee2dc73ec6f555a5bf1a643dffd37f4927be67e/.github/workflows/beam_PreCommit_Go.yml#L65-L70 for an example (you can copy and paste this into your workflow). Please make sure that you checkout the code before using the composite action.
 
 ## Token Permissions
 

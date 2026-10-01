@@ -20,7 +20,7 @@ name: PostCommit Java InfluxDbIO Integration Test
 on:
   schedule:
     - cron: '0 4/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_InfluxDbIO_IT.json']
   workflow_dispatch:
 
@@ -34,7 +34,7 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -62,7 +62,7 @@ jobs:
     if: |
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       github.event.comment.body == 'Run Java InfluxDbIO_IT'
     steps:
       - uses: actions/checkout@v7
