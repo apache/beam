@@ -17,10 +17,14 @@
  */
 package org.apache.beam.sdk.testing;
 
+import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -29,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.annotations.Internal;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.experimental.categories.Category;
+import org.junit.rules.ExpectedException;
 import org.junit.runner.notification.RunNotifier;
 import org.junit.runners.BlockJUnit4ClassRunner;
 import org.junit.runners.model.FrameworkMethod;
@@ -62,50 +67,124 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
   public @interface SerialTest {}
 
   public static final String VALIDATES_RUNNER_THREADS_PROPERTY =
-    "beam.validatesRunner.parallelThreads";
+      "beam.validatesRunner.parallelThreads";
   public static final String DEFAULT_TEST_THREADS_PROPERTY = "beam.test.parallelThreads";
 
   private static final ConcurrentHashMap<String, ExecutorService> EXECUTORS =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
 
   private static final ConcurrentHashMap<Class<?>, Boolean> CLASS_SERIAL_CACHE =
-    new ConcurrentHashMap<>();
+      new ConcurrentHashMap<>();
 
   private CompletableFuture<Void> pendingFutures = CompletableFuture.allOf();
+
+  /**
+   * The test-class instance currently executing on this thread (and threads it spawns), so that
+   * framework code such as {@link TestPipeline} can inspect the test's rules.
+   */
+  private static final ThreadLocal<@Nullable Object> CURRENT_TEST_INSTANCE =
+      new InheritableThreadLocal<>();
 
   private static @Nullable ExecutorService getOrCreateExecutor(String poolKey, int threads) {
     if (threads <= 1) {
       return null;
     }
     return EXECUTORS.computeIfAbsent(
-      poolKey + ":" + threads,
-      k -> {
-        AtomicInteger counter = new AtomicInteger(1);
-        return Executors.newFixedThreadPool(
-          threads,
-          runnable -> {
-            Thread thread = new Thread(runnable);
-            thread.setDaemon(true);
-            thread.setName(poolKey + "-" + counter.getAndIncrement());
-            return thread;
-          });
-      });
+        poolKey + ":" + threads,
+        k -> {
+          AtomicInteger counter = new AtomicInteger(1);
+          return Executors.newFixedThreadPool(
+              threads,
+              runnable -> {
+                Thread thread = new Thread(runnable);
+                thread.setDaemon(true);
+                thread.setName(poolKey + "-" + counter.getAndIncrement());
+                return thread;
+              });
+        });
   }
 
   public BeamParallelJunit4Runner(Class<?> klass) throws InitializationError {
     super(klass);
     setScheduler(
-      new RunnerScheduler() {
-        @Override
-        public void schedule(Runnable childStatement) {
-          childStatement.run();
-        }
+        new RunnerScheduler() {
+          @Override
+          public void schedule(Runnable childStatement) {
+            childStatement.run();
+          }
 
-        @Override
-        public void finished() {
-          awaitPendingFutures();
+          @Override
+          public void finished() {
+            awaitPendingFutures();
+          }
+        });
+  }
+
+  @Override
+  protected Object createTest() throws Exception {
+    Object instance = super.createTest();
+    CURRENT_TEST_INSTANCE.set(instance);
+    return instance;
+  }
+
+  /**
+   * Returns {@code true} if the test currently executing on this thread has configured an active
+   * {@link ExpectedException} rule expectation (i.e. the test expects to fail), which means its
+   * pipeline must not be merged into a shared batch execution.
+   */
+  public static boolean isExpectingException() {
+    Object instance = CURRENT_TEST_INSTANCE.get();
+    if (instance == null) {
+      return false;
+    }
+    for (Class<?> clazz = instance.getClass();
+        clazz != null && clazz != Object.class;
+        clazz = clazz.getSuperclass()) {
+      for (Field field : clazz.getDeclaredFields()) {
+        if (ExpectedException.class.isAssignableFrom(field.getType())) {
+          try {
+            field.setAccessible(true);
+            Object ruleValue = field.get(instance);
+            if (ruleValue instanceof ExpectedException
+                && isExpectedExceptionActive((ExpectedException) ruleValue)) {
+              return true;
+            }
+          } catch (ReflectiveOperationException | SecurityException ignored) {
+            // Ignore and continue inspecting remaining fields.
+          }
         }
-      });
+      }
+    }
+    return false;
+  }
+
+  private static boolean isExpectedExceptionActive(ExpectedException rule) {
+    try {
+      Method method = ExpectedException.class.getDeclaredMethod("isAnyExceptionExpected");
+      method.setAccessible(true);
+      Object result = method.invoke(rule);
+      if (result instanceof Boolean) {
+        return (Boolean) result;
+      }
+    } catch (ReflectiveOperationException | SecurityException ignored) {
+      // Fall back to inspecting the matcherBuilder field below.
+    }
+    try {
+      Field builderField = ExpectedException.class.getDeclaredField("matcherBuilder");
+      builderField.setAccessible(true);
+      Object builder = builderField.get(rule);
+      if (builder != null) {
+        Method method = builder.getClass().getDeclaredMethod("isAnyExceptionExpected");
+        method.setAccessible(true);
+        Object result = method.invoke(builder);
+        if (result instanceof Boolean) {
+          return (Boolean) result;
+        }
+      }
+    } catch (ReflectiveOperationException | SecurityException ignored) {
+      // Ignore.
+    }
+    return false;
   }
 
   private void awaitPendingFutures() {
@@ -113,6 +192,14 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       pendingFutures.join();
     } finally {
       pendingFutures = CompletableFuture.allOf();
+    }
+  }
+
+  private void runChildInternal(final FrameworkMethod method, final RunNotifier notifier) {
+    try {
+      super.runChild(method, notifier);
+    } finally {
+      CURRENT_TEST_INSTANCE.remove();
     }
   }
 
@@ -124,7 +211,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     }
     ExecutorService executor = selectExecutor(method);
     if (executor == null) {
-      super.runChild(method, notifier);
+      runChildInternal(method, notifier);
       return;
     }
     if (isClassMarkedSerial(getTestClass().getJavaClass()) || isMethodMarkedSerial(method)) {
@@ -132,13 +219,13 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       // this test
       // serially.
       awaitPendingFutures();
-      super.runChild(method, notifier);
+      runChildInternal(method, notifier);
       return;
     }
     pendingFutures =
-      CompletableFuture.allOf(
-        pendingFutures,
-        CompletableFuture.runAsync(() -> super.runChild(method, notifier), executor));
+        CompletableFuture.allOf(
+            pendingFutures,
+            CompletableFuture.runAsync(() -> runChildInternal(method, notifier), executor));
   }
 
   private @Nullable ExecutorService selectExecutor(FrameworkMethod method) {
@@ -152,7 +239,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
 
   private boolean isValidatesRunnerMethod(FrameworkMethod method) {
     return hasValidatesRunnerCategory(method.getAnnotation(Category.class))
-      || hasValidatesRunnerCategory(getTestClass().getAnnotation(Category.class));
+        || hasValidatesRunnerCategory(getTestClass().getAnnotation(Category.class));
   }
 
   private static boolean hasValidatesRunnerCategory(@Nullable Category category) {
@@ -171,7 +258,21 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     return method.getAnnotation(SerialTest.class) != null;
   }
 
-  private static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
+  /** Returns {@code true} if {@code annotations} contains {@link SerialTest}. */
+  static boolean hasSerialAnnotation(Collection<Annotation> annotations) {
+    for (Annotation annotation : annotations) {
+      if (annotation.annotationType() == SerialTest.class) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Returns {@code true} if {@code clazz}, any of its superclasses, or any of its enclosing classes
+   * is annotated with {@link SerialTest}.
+   */
+  static boolean isClassMarkedSerial(@Nullable Class<?> clazz) {
     if (clazz == null || clazz == Object.class) {
       return false;
     }
@@ -183,7 +284,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
       return false;
     }
     return clazz.isAnnotationPresent(SerialTest.class)
-      || computeClassSerial(clazz.getSuperclass())
-      || computeClassSerial(clazz.getEnclosingClass());
+        || computeClassSerial(clazz.getSuperclass())
+        || computeClassSerial(clazz.getEnclosingClass());
   }
 }

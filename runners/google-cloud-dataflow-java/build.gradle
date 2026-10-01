@@ -239,7 +239,6 @@ def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
-def validatesRunnerParallelThreads = project.findProperty('parallelThreads') ?: '6'
 def validatesRunnerTestBatching = project.findProperty('testBatching') ?: 'true'
 def validatesRunnerParallelThreads = project.findProperty('parallelThreads') ?: (validatesRunnerTestBatching == 'true' ? '30' : '6')
 def validatesRunnerTestBatchMaxSize = project.findProperty('testBatchMaxSize') ?: validatesRunnerParallelThreads
