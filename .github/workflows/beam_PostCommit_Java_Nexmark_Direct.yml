@@ -20,7 +20,7 @@ name: PostCommit Java Nexmark Direct
 on:
   schedule:
     - cron: '15 4/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Nexmark_Direct.json']
   workflow_dispatch:
 
@@ -29,7 +29,7 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -84,7 +84,7 @@ jobs:
         queryLanguage: [sql, none]
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Direct Runner Nexmark Tests'
     steps:
