@@ -45,6 +45,16 @@ public interface StreamingOptions extends ApplicationNameOptions, PipelineOption
 
   void setUpdateCompatibilityVersion(@Nullable String updateCompatibilityVersion);
 
+  /**
+   * The desired number of initial splits for UnboundedSources. If this value is <=0, a default
+   * number of splits will be chosen.
+   */
+  @Description("The desired number of initial splits for UnboundedSources.")
+  @Default.Integer(0)
+  int getDesiredNumUnboundedSourceSplits();
+
+  void setDesiredNumUnboundedSourceSplits(int value);
+
   static boolean updateCompatibilityVersionLessThan(PipelineOptions options, String version) {
     if (options == null) {
       return false;
