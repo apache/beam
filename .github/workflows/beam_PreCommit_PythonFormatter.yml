@@ -15,7 +15,7 @@
 
 name: PreCommit Python Formatter
 on:
-  pull_request_target:
+  pull_request:
     branches: [ "master", "release-*" ]
     paths: [ "sdks/python/apache_beam/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonFormatter.json']
   issue_comment:
@@ -28,7 +28,7 @@ on:
     - cron: '0 3/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -65,7 +65,7 @@ jobs:
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run PythonFormatter PreCommit'

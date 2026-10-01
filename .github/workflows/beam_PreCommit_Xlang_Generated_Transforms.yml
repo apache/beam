@@ -29,7 +29,7 @@ on:
       - 'sdks/java/extensions/sql/**'
       - 'release/**'
       - '.github/workflows/beam_PreCommit_Xlang_Generated_Transforms.yml'
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - 'model/**'
@@ -48,7 +48,7 @@ on:
     - cron: '30 2/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -88,7 +88,7 @@ jobs:
     if: |
       github.event_name == 'push' ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       startsWith(github.event.comment.body, 'Run Xlang_Generated_Transforms PreCommit')
     steps:

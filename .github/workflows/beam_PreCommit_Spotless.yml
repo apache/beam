@@ -15,7 +15,7 @@
 name: PreCommit Spotless
 
 on:
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - 'buildSrc/**'
@@ -38,7 +38,7 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
   cancel-in-progress: true
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -71,7 +71,7 @@ jobs:
         job_phrase: [Run Spotless PreCommit]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Spotless PreCommit'

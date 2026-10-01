@@ -42,7 +42,7 @@ runs:
         PHRASE: "${{ github.event.comment.body }}"
     - name: Check out repository code if pull request commit
       shell: bash
-      if: ${{ github.event_name == 'pull_request_target' }}
+      if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
       run: |
           # GitHub will automatically generate a merge commit when there are no merge conflicts.
           # We first try to check that out, and fall back to checking out the tip of the pull request branch.

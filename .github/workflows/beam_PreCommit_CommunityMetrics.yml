@@ -20,7 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts', '.github/workflows/beam_PreCommit_CommunityMetrics.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths: ['.test-infra/metrics/**', 'buildSrc/build.gradle.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_CommunityMetrics.json']
   issue_comment:
@@ -29,7 +29,7 @@ on:
     - cron: '0 1/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -66,7 +66,7 @@ jobs:
         job_phrase: [Run CommunityMetrics PreCommit]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run CommunityMetrics PreCommit'

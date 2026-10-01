@@ -50,10 +50,10 @@ task check {
       if ( fname.startsWith("beam_PreCommit") || fname.startsWith("beam_PostCommit") ) {
         List paths
         try {
-          paths = workflow.getAt(true).pull_request_target.paths as List
+          paths = (workflow.getAt(true).pull_request ?: workflow.getAt(true).pull_request_target).paths as List
         } catch (Exception e) {
           errors.add("Fail to get the trigger path for ${fname}. " +
-                    "Make sure it has a pull_request_target trigger.")
+                    "Make sure it has a pull_request or pull_request_target trigger.")
           return
         }
 
