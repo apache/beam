@@ -20,6 +20,7 @@ package org.apache.beam.fn.harness.data;
 import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.is;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
@@ -50,6 +51,7 @@ import org.apache.beam.fn.harness.debug.DataSampler;
 import org.apache.beam.fn.harness.logging.BeamFnLoggingMDC;
 import org.apache.beam.fn.harness.logging.LoggingClient;
 import org.apache.beam.fn.harness.logging.LoggingClientFactory;
+import org.apache.beam.fn.harness.state.WorkCancelledException;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi;
 import org.apache.beam.model.fnexecution.v1.BeamFnApi.ProcessBundleDescriptor;
 import org.apache.beam.model.fnexecution.v1.BeamFnLoggingGrpc;
@@ -708,8 +710,7 @@ public class PCollectionConsumerRegistryTest {
     final String pTransformId = "pTransformId";
     final String message = "Work item cancelled";
     final String instructionId = "instruction";
-    final Exception thrownException =
-        new RuntimeException(new org.apache.beam.fn.harness.state.WorkCancelledException(message));
+    final Exception thrownException = new RuntimeException(new WorkCancelledException(message));
 
     AtomicBoolean clientClosedStream = new AtomicBoolean();
     Collection<BeamFnApi.LogEntry> values = new ConcurrentLinkedQueue<>();
@@ -776,8 +777,7 @@ public class PCollectionConsumerRegistryTest {
               (FnDataReceiver) consumers.getMultiplexingConsumer(P_COLLECTION_A);
 
       doThrow(thrownException).when(consumer).accept(any());
-      expectedException.expectMessage(message);
-      expectedException.expect(Exception.class);
+      expectedException.expect(is(thrownException));
 
       wrapperConsumer.accept(valueInGlobalWindow("elem"));
 

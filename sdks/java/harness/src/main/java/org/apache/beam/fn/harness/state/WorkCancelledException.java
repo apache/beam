@@ -17,13 +17,15 @@
  */
 package org.apache.beam.fn.harness.state;
 
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Throwables;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * Indicates that the work item is no longer valid on the runner and should be cancelled without
  * logging an error.
  */
-public class WorkCancelledException extends IllegalStateException {
+public class WorkCancelledException extends RuntimeException {
 
   public WorkCancelledException(String message) {
     super(message);
@@ -35,13 +37,8 @@ public class WorkCancelledException extends IllegalStateException {
 
   /** Returns whether an exception was caused by a {@link WorkCancelledException}. */
   public static boolean isWorkCancelledException(@Nullable Throwable t) {
-    @Nullable Throwable throwable = t;
-    while (throwable != null) {
-      if (throwable instanceof WorkCancelledException) {
-        return true;
-      }
-      throwable = throwable.getCause();
-    }
-    return false;
+    return t != null
+        && !Iterables.isEmpty(
+            Iterables.filter(Throwables.getCausalChain(t), WorkCancelledException.class));
   }
 }

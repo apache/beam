@@ -22,6 +22,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 import static org.junit.Assert.assertSame;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.util.UUID;
@@ -174,7 +175,7 @@ public class BeamFnStateGrpcClientCacheTest {
       fail("Expected cancelled response");
     } catch (ExecutionException e) {
       assertThat(e.toString(), containsString(TEST_ERROR));
-      org.junit.Assert.assertTrue(WorkCancelledException.isWorkCancelledException(e));
+      assertTrue(WorkCancelledException.isWorkCancelledException(e));
     }
   }
 
