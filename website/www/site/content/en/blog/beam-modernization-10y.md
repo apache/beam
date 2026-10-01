@@ -3,8 +3,10 @@ title:  "Beam modernization at project 10-year mark"
 date:   2026-09-30 20:00:01 -0800
 categories:
   - blog
+  - update
 authors:
   - yhu
+
 ---
 <!--
 Licensed under the Apache License, Version 2.0 (the "License");
