@@ -1013,7 +1013,6 @@ class WriteStreamingTest(unittest.TestCase):
         1 * 3,  #25s of data covered by 3 10s windows
         "expected %d files, but got: %d" % (1 * 3, len(file_names)))
 
-
   def test_write_streaming_rows_land_in_their_own_window(self):
     # One add_elements call is delivered as one bundle spanning 3 windows.
     # Regression test for the _ParquetSink file-handle bug: several writers
