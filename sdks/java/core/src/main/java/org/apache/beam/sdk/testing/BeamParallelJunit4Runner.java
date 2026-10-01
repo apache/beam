@@ -182,6 +182,7 @@ public final class BeamParallelJunit4Runner extends BlockJUnit4ClassRunner {
     if (clazz == null || clazz == Object.class) {
       return false;
     }
+    // Don't access CLASS_SERIAL_CACHE here, as ConcurrentHashMap does not support reentrancy.
     return clazz.isAnnotationPresent(SerialTest.class)
         || computeClassSerial(clazz.getSuperclass())
         || computeClassSerial(clazz.getEnclosingClass());

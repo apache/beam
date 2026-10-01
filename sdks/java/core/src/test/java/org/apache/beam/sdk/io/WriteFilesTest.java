@@ -67,6 +67,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactoryTest.TestPipelineOptions;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -116,10 +117,9 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for the WriteFiles PTransform. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class WriteFilesTest {
   @Rule public TemporaryFolder tmpFolder = new TemporaryFolder();
   @Rule public final TestPipeline p = TestPipeline.create();
@@ -633,6 +633,7 @@ public class WriteFilesTest {
 
   @Test
   @Category(NeedsRunner.class)
+  @BeamParallelJunit4Runner.SerialTest
   public void testWriteEvictWritersWhenFullCloseExceptionCleanup() {
     FailingCloseOnEvictSink.EVICTED_TEMP_FILE.set(null);
     FailingCloseOnEvictSink.THREW_ON_CLOSE.set(false);

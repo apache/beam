@@ -120,6 +120,7 @@ task needsRunnerTests(type: Test) {
   group = "Verification"
   description = "Runs tests that require a runner to validate that pipelines/transforms work correctly"
 
+  maxParallelForks 4
   testLogging.showStandardStreams = true
 
   String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
@@ -159,6 +160,8 @@ task needsRunnerTests(type: Test) {
 task validatesRunner(type: Test) {
   group = "Verification"
   description "Validates Direct runner"
+
+  maxParallelForks 4
 
   String[] pipelineOptions = ["--runner=DirectRunner", "--runnerDeterminedSharding=false"]
   systemProperty "beamTestPipelineOptions", pipelineOptionsStringCrossPlatformHandling(pipelineOptions)
