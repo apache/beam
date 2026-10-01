@@ -18,6 +18,7 @@ package harness
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -641,6 +642,74 @@ func TestTimerWriterSendEOF(t *testing.T) {
 		}
 	case <-time.After(5 * time.Second):
 		t.Fatal("send blocked")
+	}
+}
+
+func TestDataChannelTerminate_recreate(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &DataChannelManager{ports: map[string]*DataChannel{}}
+	port := exec.Port{URL: "localhost:1"}
+	c := makeDataChannel(ctx, "id", &fakeChanClient{ch: make(chan *fnpb.Elements)}, cancel)
+	c.forceRecreate = func(id string, err error) {
+		go func() {
+			m.mu.Lock()
+			if m.ports[port.URL] == c {
+				delete(m.ports, port.URL)
+			}
+			m.mu.Unlock()
+		}()
+	}
+	m.ports[port.URL] = c
+
+	closed := make(chan struct{})
+	failed := make(chan struct{})
+	c.mu.Lock()
+	go func() {
+		defer close(closed)
+		_ = m.closeInstruction("inst1", []exec.Port{port})
+	}()
+	time.Sleep(50 * time.Millisecond)
+	go func() {
+		defer close(failed)
+		c.terminateStreamOnError(errors.New("stream broke"))
+		c.mu.Unlock()
+	}()
+
+	deadline := time.After(2 * time.Second)
+	for _, ch := range []chan struct{}{failed, closed} {
+		select {
+		case <-ch:
+		case <-deadline:
+			t.Fatal("recreate and closeInstruction deadlocked")
+		}
+	}
+}
+
+func TestDataChannelTerminate_recreateReplacement(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &DataChannelManager{ports: map[string]*DataChannel{}}
+	port := exec.Port{URL: "localhost:1"}
+	dead := makeDataChannel(ctx, "dead", &fakeChanClient{ch: make(chan *fnpb.Elements)}, cancel)
+	live := makeDataChannel(ctx, "live", &fakeChanClient{ch: make(chan *fnpb.Elements)}, cancel)
+	m.ports[port.URL] = live
+	dead.forceRecreate = func(id string, err error) {
+		go func() {
+			m.mu.Lock()
+			if m.ports[port.URL] == dead {
+				delete(m.ports, port.URL)
+			}
+			m.mu.Unlock()
+		}()
+	}
+	dead.forceRecreate("dead", errors.New("stream broke"))
+	time.Sleep(50 * time.Millisecond)
+	m.mu.Lock()
+	got := m.ports[port.URL]
+	m.mu.Unlock()
+	if got != live {
+		t.Fatal("recreate removed the replacement channel")
 	}
 }
 

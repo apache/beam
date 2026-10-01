@@ -619,9 +619,15 @@ func (m *StateChannelManager) Open(ctx context.Context, port exec.Port) (*StateC
 		default:
 			log.Warnf(ctx, "forcing StateChannel[%v] reconnection on port %v due to %v", id, port, err)
 		}
-		m.mu.Lock()
-		delete(m.ports, port.URL)
-		m.mu.Unlock()
+		// Remove this channel from the port map after releasing the channel lock.
+		// Keep the mapping if Open has already stored a replacement.
+		go func() {
+			m.mu.Lock()
+			if m.ports[port.URL] == ch {
+				delete(m.ports, port.URL)
+			}
+			m.mu.Unlock()
+		}()
 	}
 	m.ports[port.URL] = ch
 	return ch, nil
