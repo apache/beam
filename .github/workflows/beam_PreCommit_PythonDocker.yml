@@ -15,7 +15,7 @@
 
 name: PreCommit Python Docker
 on:
-  pull_request_target:
+  pull_request:
     branches: [ "master", "release-*" ]
     paths: [ "model/**","sdks/python/**","release/**", 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_PythonDocker.json']
   push:
@@ -26,7 +26,7 @@ on:
     - cron: '0 3/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -65,7 +65,7 @@ jobs:
         python_version: ['3.10','3.11','3.12','3.13','3.14']
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       github.event_name == 'workflow_dispatch' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:

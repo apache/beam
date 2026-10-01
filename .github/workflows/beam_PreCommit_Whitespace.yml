@@ -20,7 +20,7 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['**.md', '**.gradle', '**.kts', '.github/workflows/beam_PreCommit_Whitespace.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths: ['**.md', '**.gradle', '**.kts', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Whitespace.json']
   issue_comment:
@@ -65,7 +65,7 @@ jobs:
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Whitespace PreCommit'

@@ -23,7 +23,7 @@ on:
     paths:
       - 'runners/google-cloud-dataflow-java/worker/**'
       - '.github/workflows/beam_PreCommit_Java_Dataflow.yml'
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - 'runners/google-cloud-dataflow-java/worker/**'
@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 240
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java Dataflow Non-portable Worker PreCommit'
@@ -111,6 +111,7 @@ jobs:
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
@@ -121,7 +122,7 @@ jobs:
           path: '**/build/reports/spotbugs/*.html'
       - name: Publish SpotBugs Results
         uses: jwgmeligmeyling/spotbugs-github-action@v1.2
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'

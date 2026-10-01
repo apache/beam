@@ -35,7 +35,7 @@ on:
       - "sdks/java/io/hadoop-common/**"
       - "sdks/java/io/hadoop-format/**"
       - ".github/workflows/beam_PreCommit_Java_Hadoop_IO_Direct.yml"
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - "sdks/java/io/hadoop-file-system/**"
@@ -60,7 +60,7 @@ on:
     - cron: '45 1/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -96,7 +96,7 @@ jobs:
     timeout-minutes: 60
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
       github.event.comment.body == 'Run Java_Hadoop_IO_Direct PreCommit'
@@ -146,6 +146,7 @@ jobs:
         with:
           commit: '${{ env.prsha || env.GITHUB_SHA }}'
           comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
@@ -156,7 +157,7 @@ jobs:
           path: '**/build/reports/spotbugs/*.html'
       - name: Publish SpotBugs Results
         uses: jwgmeligmeyling/spotbugs-github-action@v1.2
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
