@@ -615,7 +615,10 @@ func (w *dataWriter) Close() error {
 			},
 		},
 	}
-	return w.send(msg)
+	if err := w.send(msg); err != nil {
+		return errors.Wrapf(err, "dataWriter[%v;%v].Close: sending last data", w.id, w.ch.id)
+	}
+	return nil
 }
 
 const largeBufferNotificationThreshold = 1024 * 1024 * 1024 // 1GB
@@ -723,7 +726,10 @@ func (w *timerWriter) Close() error {
 			},
 		},
 	}
-	return w.send(msg)
+	if err := w.send(msg); err != nil {
+		return errors.Wrapf(err, "timerWriter[%v;%v].Close: sending last timers", w.id, w.ch.id)
+	}
+	return nil
 }
 
 func (w *timerWriter) writeTimers(p []byte) error {
