@@ -17,7 +17,9 @@
  */
 package org.apache.beam.sdk.io.iceberg.catalog;
 
+import java.io.IOException;
 import java.util.Map;
+import org.apache.beam.sdk.io.iceberg.BigLakeTestCatalog;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.rest.RESTCatalog;
@@ -28,27 +30,19 @@ import org.junit.BeforeClass;
 public class LakehouseCatalogCdcWriteIT extends IcebergCdcWriteBaseIT {
   private static Map<String, String> catalogProps;
 
-  private static final String LAKEHOUSE_WAREHOUSE =
-      System.getProperty("beam.iceberg.biglake.warehouse", "gs://managed-iceberg-biglake-its");
-
   @BeforeClass
   public static void setup() {
-    warehouse = LAKEHOUSE_WAREHOUSE;
-    catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", "rest")
-            .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
-            .put("warehouse", LAKEHOUSE_WAREHOUSE)
-            .put("header.x-goog-user-project", OPTIONS.getProject())
-            .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
-            .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
-            .build();
+    warehouse = BigLakeTestCatalog.defaultLocation();
+    catalogProps = BigLakeTestCatalog.catalogProperties();
   }
 
   @After
-  public void after() {
+  public void after() throws IOException {
+    // BigLake keeps a dropped table's files, so remove them before the base class drops the
+    // namespace.
+    BigLakeTestCatalog.dropTablesAndFiles(catalog, namespace());
     // The base class points its cleanup at this warehouse.
-    warehouse = LAKEHOUSE_WAREHOUSE;
+    warehouse = BigLakeTestCatalog.defaultLocation();
   }
 
   @Override

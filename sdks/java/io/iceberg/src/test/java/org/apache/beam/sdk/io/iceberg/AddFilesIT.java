@@ -30,6 +30,7 @@ import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Notification;
@@ -188,6 +189,7 @@ public class AddFilesIT {
         // try creating it again
         notification = storage.createNotification(DATA_BUCKET, notificationInfo);
       } else {
+        logNotificationFailure(e);
         throw e;
       }
     }
@@ -209,6 +211,35 @@ public class AddFilesIT {
     catalog.initialize("test_catalog", BIGLAKE_PROPS);
     cleanupCatalog();
     catalog.createNamespace(Namespace.of(namespace));
+  }
+
+  /**
+   * GCS reports server-side errors (5xx) without a cause, so log what identifies the request to GCS
+   * support and the bucket's notification count at the time.
+   */
+  private void logNotificationFailure(StorageException e) {
+    @Nullable String requestId = null;
+    Throwable cause = e.getCause();
+    if (cause instanceof HttpResponseException) {
+      HttpResponseException response = (HttpResponseException) cause;
+      requestId = response.getHeaders().getFirstHeaderStringValue("x-guploader-uploadid");
+    }
+    String existingNotifications;
+    try {
+      existingNotifications = String.valueOf(storage.listNotifications(DATA_BUCKET).size());
+    } catch (StorageException listError) {
+      existingNotifications = "unknown (" + listError.getMessage() + ")";
+    }
+    LOG.error(
+        "Failed to create a GCS notification on bucket {} for topic {}: HTTP {}, reason={},"
+            + " retryable={}, x-guploader-uploadid={}, notifications on bucket={}",
+        DATA_BUCKET,
+        notificationsTopic,
+        e.getCode(),
+        e.getReason(),
+        e.isRetryable(),
+        requestId,
+        existingNotifications);
   }
 
   private void cleanupCatalog() throws IOException {

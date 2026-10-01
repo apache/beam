@@ -142,22 +142,34 @@ public final class BigLakeTestCatalog {
 
   /**
    * Drops every table in the namespaces and then the namespaces themselves, and deletes the tables'
-   * files from Cloud Storage: BigLake keeps a dropped table's data and metadata (even with purge),
-   * and table locations carry a random suffix, so they are captured before the drop.
+   * files from Cloud Storage.
    */
   public static void dropNamespacesAndFiles(Catalog catalog, List<String> namespaces)
       throws IOException {
-    List<String> tableLocations = new ArrayList<>();
     for (String name : namespaces) {
       Namespace namespace = Namespace.of(name);
       if (!((SupportsNamespaces) catalog).namespaceExists(namespace)) {
         continue;
       }
-      for (TableIdentifier identifier : catalog.listTables(namespace)) {
-        tableLocations.add(catalog.loadTable(identifier).location());
-        catalog.dropTable(identifier);
-      }
+      dropTablesAndFiles(catalog, name);
       ((SupportsNamespaces) catalog).dropNamespace(namespace);
+    }
+  }
+
+  /**
+   * Drops every table in the namespace and deletes the tables' files from Cloud Storage: BigLake
+   * keeps a dropped table's data and metadata (even with purge), and table locations carry a random
+   * suffix, so they are captured before the drop.
+   */
+  public static void dropTablesAndFiles(Catalog catalog, String namespaceName) throws IOException {
+    Namespace namespace = Namespace.of(namespaceName);
+    if (!((SupportsNamespaces) catalog).namespaceExists(namespace)) {
+      return;
+    }
+    List<String> tableLocations = new ArrayList<>();
+    for (TableIdentifier identifier : catalog.listTables(namespace)) {
+      tableLocations.add(catalog.loadTable(identifier).location());
+      catalog.dropTable(identifier);
     }
     for (String location : tableLocations) {
       deleteObjects(location);
