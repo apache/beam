@@ -788,7 +788,9 @@ class TestReadFromBigQuery(unittest.TestCase):
         'projects/project/datasets/catalog.namespace/tables/table')
 
   @parameterized.expand([
-      param(num_bytes=None, expected_size=0),
+      # A table without storage statistics has an unknown size, not a size
+      # of zero.
+      param(num_bytes=None, expected_size=None),
       param(num_bytes=5, expected_size=5),
   ])
   def test_export_estimate_size(self, num_bytes, expected_size):

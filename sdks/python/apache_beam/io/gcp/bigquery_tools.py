@@ -258,10 +258,13 @@ def parse_table_reference(table, dataset=None, project=None):
       then the table argument must contain the entire table reference:
       'DATASET.TABLE', 'PROJECT:DATASET.TABLE' or 'PROJECT.DATASET.TABLE'.
       Lakehouse runtime catalog (BigLake metastore) tables use four parts,
-      'PROJECT.CATALOG.NAMESPACE.TABLE' or 'PROJECT:CATALOG.NAMESPACE.TABLE',
-      which parse to a composite 'CATALOG.NAMESPACE' dataset id. This argument
-      can be a TableReference instance in which case dataset and project are
-      ignored and the reference is returned as a result.  Additionally, for date
+      'PROJECT.CATALOG.NAMESPACE.TABLE' (the canonical spelling) or
+      'PROJECT:CATALOG.NAMESPACE.TABLE', which parse to a composite
+      'CATALOG.NAMESPACE' dataset id. The project id is not optional for
+      these: a three-part string binds as 'PROJECT.DATASET.TABLE' whenever its
+      first segment is a valid project id. This argument can be a
+      TableReference instance in which case dataset and project are ignored
+      and the reference is returned as a result.  Additionally, for date
       partitioned tables, appending '$YYYYmmdd' to the table name is supported,
       e.g. 'DATASET.TABLE$YYYYmmdd'.
     dataset: The ID of the dataset containing this table or null if the table
