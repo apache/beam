@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
@@ -131,6 +132,22 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   }
 
   DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
+    return runStandalone(pipeline, runner, true);
+  }
+
+  /**
+   * Runs {@code pipeline} as its own Dataflow job.
+   *
+   * @param limitConcurrency whether to take a permit from the per-JVM standalone-job limiter.
+   *     Re-runs of members of an already-attempted merged job pass {@code false}: their number is
+   *     bounded by the batch size, and queueing them behind the limiter would add the wait time to
+   *     tests that have already spent the merged job's duration.
+   */
+  DataflowPipelineJob runStandalone(
+      Pipeline pipeline, DataflowRunner runner, boolean limitConcurrency) {
+    if (!limitConcurrency) {
+      return runStandaloneInternal(pipeline, runner);
+    }
     Semaphore semaphore = getStandaloneSemaphore();
     boolean acquired = false;
     try {
@@ -144,6 +161,20 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       if (acquired) {
         semaphore.release();
       }
+    }
+  }
+
+  /**
+   * Fetches {@code job} with {@code JOB_VIEW_ALL}, which carries per-stage execution states and the
+   * stage-to-user-step description needed to attribute stages to batch members. Returns {@code
+   * null} if the service call fails.
+   */
+  @Nullable Job getJobWithExecutionDetails(DataflowPipelineJob job) {
+    try {
+      return dataflowClient.getJob(job.getJobId(), "JOB_VIEW_ALL");
+    } catch (IOException e) {
+      LOG.warn("Failed to get execution details for Dataflow job {}: ", job.getJobId(), e);
+      return null;
     }
   }
 

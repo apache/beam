@@ -18,34 +18,8 @@
 package org.apache.beam.runners.dataflow;
 
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
-import org.apache.beam.sdk.options.Default;
-import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 /** A set of options used to configure the {@link TestPipeline}. */
-public interface TestDataflowPipelineOptions extends TestPipelineOptions, DataflowPipelineOptions {
-
-  @Description(
-      "If true, concurrent batch TestPipeline runs in the same JVM will be merged into a single"
-          + " Dataflow job per batch. If null, defaults to the beam.dataflow.testBatching system"
-          + " property.")
-  @Nullable Boolean getEnableTestBatching();
-
-  void setEnableTestBatching(@Nullable Boolean value);
-
-  @Description("Maximum number of test pipelines to merge into a single Dataflow job.")
-  @Default.Integer(0)
-  int getTestBatchMaxSize();
-
-  void setTestBatchMaxSize(int value);
-
-  @Description(
-      "Time window in milliseconds to wait for additional concurrent test pipelines before"
-          + " launching a merged Dataflow job.")
-  @Default.Long(0L)
-  long getTestBatchWindowMs();
-
-  void setTestBatchWindowMs(long value);
-}
+public interface TestDataflowPipelineOptions extends TestPipelineOptions, DataflowPipelineOptions {}
