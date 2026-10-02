@@ -43,6 +43,7 @@
 
 ## Bugfixes
 
+* (Python) Fixed `AsyncWrapper` finalizing bundles before generator processing, which could drop buffered writes, and nesting iterable outputs ([#40000](https://github.com/apache/beam/pull/40000)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
