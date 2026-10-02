@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -48,18 +48,16 @@ env:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.python_version }})
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_Python_ValidatesContainer_Dataflow_ARM]
-        job_phrase: [Run Python ValidatesContainer Dataflow ARM]
         python_version: ['3.10','3.11','3.12','3.13','3.14']
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
+      github.event_name == 'workflow_dispatch'
 
     runs-on: ubuntu-22.04
     # Python 3.14 multiarch container builds compile many deps from source on arm64.
@@ -72,10 +70,6 @@ jobs:
         uses: jlumbroso/free-disk-space@v2.0.0
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

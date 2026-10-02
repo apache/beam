@@ -24,7 +24,7 @@
 Continuous Integration is important component of making Apache Beam robust and stable.
 
 Our execution environment for CI is the [GitHub Actions](https://github.com/features/actions).
-See [.github/workflow/README](.github/workflow/README.md) for trigger phrase,
+See [.github/workflows/README.md](.github/workflows/README.md) for trigger files,
 status and link of all GHA jobs.
 
 GitHub Actions (GHA) are very well integrated with GitHub code and Workflow and
