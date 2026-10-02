@@ -1149,7 +1149,7 @@ func (enc *intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 	}
 	for _, elm := range ws {
 		if err := enc.EncodeSingle(elm, w); err != nil {
-			return nil
+			return err
 		}
 	}
 	return nil
@@ -1157,7 +1157,10 @@ func (enc *intervalWindowEncoder) Encode(ws []typex.Window, w io.Writer) error {
 
 func (*intervalWindowEncoder) EncodeSingle(elm typex.Window, w io.Writer) error {
 	// Encoding: upper bound and duration
-	iw := elm.(window.IntervalWindow)
+	iw, ok := elm.(window.IntervalWindow)
+	if !ok {
+		return errors.Errorf("cannot encode %T with the interval window coder; a custom WindowFn must return window.IntervalWindow values from AssignWindows", elm)
+	}
 	if err := coder.EncodeEventTime(iw.End, w); err != nil {
 		return err
 	}
@@ -1203,7 +1206,11 @@ type intervalWindowValueEncoder struct {
 }
 
 func (e *intervalWindowValueEncoder) Encode(v *FullValue, w io.Writer) error {
-	return e.EncodeSingle(v.Elm.(window.IntervalWindow), w)
+	iw, ok := v.Elm.(typex.Window)
+	if !ok {
+		return errors.Errorf("cannot encode %T with the interval window coder: not a window", v.Elm)
+	}
+	return e.EncodeSingle(iw, w)
 }
 
 type intervalWindowValueDecoder struct {
