@@ -80,6 +80,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
 
   private final Duration ackDeadline;
   private final boolean nackOnTimeout;
+  private final boolean enableOpenTelemetryTracing;
 
   /**
    * Map to track pending checkpoints and their messages. Accessed by both reader
@@ -135,6 +136,7 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
     this.ackExecutor = Executors.newFixedThreadPool(4);
     this.ackDeadline = java.time.Duration.ofMillis(currentSource.getAckDeadline().getMillis());
     this.nackOnTimeout = currentSource.getNackOnTimeout();
+    this.enableOpenTelemetryTracing = currentSource.getEnableOpenTelemetryTracing();
   }
 
   private SessionService getSessionService() {
@@ -175,6 +177,9 @@ class UnboundedSolaceReader<T> extends UnboundedReader<T> {
       return false;
     }
     solaceOriginalRecord = receivedXmlMessage;
+    if (enableOpenTelemetryTracing) {
+      LOG.debug("SolaceIO.Read: OpenTelemetry tracing is enabled for the received message.");
+    }
     solaceMappedRecord = getCurrentSource().getParseFn().apply(receivedXmlMessage);
     receivedMessages.add(receivedXmlMessage);
     messagesReceived.inc();

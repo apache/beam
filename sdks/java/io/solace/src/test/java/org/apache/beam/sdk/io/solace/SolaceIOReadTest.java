@@ -99,7 +99,8 @@ public class SolaceIOReadTest {
         configuration.getWatermarkIdleDurationThreshold(),
         configuration.getParseFn(),
         configuration.getAckDeadline(),
-        configuration.getNackOnTimeout());
+        configuration.getNackOnTimeout(),
+        configuration.getEnableOpenTelemetryTracing());
   }
 
   @Test
@@ -542,7 +543,8 @@ public class SolaceIOReadTest {
   @Test
   public void testDefaultCoder() {
     Coder<SolaceCheckpointMark> coder =
-        new UnboundedSolaceSource<>(null, null, null, 0, false, null, null, null, null, null, false)
+        new UnboundedSolaceSource<>(
+                null, null, null, 0, false, null, null, null, null, null, false, false)
             .getCheckpointMarkCoder();
     CoderProperties.coderSerializable(coder);
   }

@@ -67,7 +67,8 @@ public class UnboundedSolaceReaderTest {
             org.joda.time.Duration.standardSeconds(1), // watermarkIdleDurationThreshold
             input -> SolaceDataUtils.getSolaceRecord("payload_test0", "450"), // parseFn
             org.joda.time.Duration.standardSeconds(30), // ackDeadline
-            false // nackOnTimeout (default)
+            false, // nackOnTimeout (default)
+            false // enableOpenTelemetryTracing (default)
             );
 
     UnboundedSolaceReader<Solace.Record> reader =
@@ -122,7 +123,8 @@ public class UnboundedSolaceReaderTest {
             org.joda.time.Duration.standardSeconds(1), // watermarkIdleDurationThreshold
             input -> SolaceDataUtils.getSolaceRecord("payload_test0", "450"), // parseFn
             org.joda.time.Duration.standardSeconds(30), // ackDeadline
-            true // nackOnTimeout
+            true, // nackOnTimeout
+            false // enableOpenTelemetryTracing (default)
             );
 
     UnboundedSolaceReader<Solace.Record> reader =
@@ -188,7 +190,8 @@ public class UnboundedSolaceReaderTest {
             org.joda.time.Duration.standardSeconds(1), // watermarkIdleDurationThreshold
             input -> SolaceDataUtils.getSolaceRecord("payload_test0", "450"), // parseFn
             org.joda.time.Duration.standardSeconds(30), // ackDeadline
-            true // nackOnTimeout
+            true, // nackOnTimeout
+            false // enableOpenTelemetryTracing (default)
             );
 
     UnboundedSolaceReader<Solace.Record> reader =
