@@ -52,6 +52,7 @@ import com.google.cloud.storage.StorageBatchResult;
 import com.google.cloud.storage.StorageChannelUtils;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
+import java.io.Closeable;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -67,6 +68,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -87,6 +93,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
 class GcsUtilV2 {
@@ -140,6 +147,9 @@ class GcsUtilV2 {
    * request. If you see Read Timeout errors, try reducing this value.
    */
   private static final long MEGABYTES_COPIED_PER_CHUNK = 2048L;
+
+  /** Maximum number of files rewritten concurrently by {@link #copy} and {@link #move}. */
+  @VisibleForTesting static final int MAX_CONCURRENT_REWRITES = 32;
 
   GcsUtilV2(PipelineOptions options) {
     GcsOptions gcsOptions = options.as(GcsOptions.class);
@@ -594,73 +604,159 @@ class GcsUtilV2 {
         srcList.size(),
         dstList.size());
 
-    for (int i = 0; i < srcList.size(); i++) {
-      GcsPath srcPath = srcList.get(i);
-      GcsPath dstPath = dstList.get(i);
-      BlobId srcId = BlobId.of(srcPath.getBucket(), srcPath.getObject());
-      BlobId dstId = BlobId.of(dstPath.getBucket(), dstPath.getObject());
+    if (srcList.isEmpty()) {
+      return;
+    }
+    if (srcList.size() == 1) {
+      // Nothing to overlap, so skip the thread pool.
+      rewriteOne(srcList.get(0), dstList.get(0), deleteSrc, srcMissing, dstOverwrite);
+      return;
+    }
 
-      CopyRequest.Builder copyRequestBuilder =
-          CopyRequest.newBuilder()
-              .setSource(srcId)
-              .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK);
+    // Each file costs up to three dependent round trips (target lookup, rewrite, source delete),
+    // and java-storage cannot batch rewrites, so issue the files concurrently instead.
+    int numThreads = Math.min(srcList.size(), MAX_CONCURRENT_REWRITES);
+    ExecutorService executor =
+        Executors.newFixedThreadPool(
+            numThreads,
+            new ThreadFactoryBuilder()
+                .setDaemon(true)
+                .setNameFormat("gcsutil-v2-rewrite-%d")
+                .build());
+    // Requests run on the pool's threads, so carry the caller's container over to them.
+    MetricsContainer container = MetricsEnvironment.getCurrentContainer();
+    List<Future<Void>> futures = new ArrayList<>(srcList.size());
+    try {
+      for (int i = 0; i < srcList.size(); i++) {
+        GcsPath srcPath = srcList.get(i);
+        GcsPath dstPath = dstList.get(i);
+        futures.add(
+            executor.submit(
+                () -> {
+                  if (container != null) {
+                    try (Closeable scope = MetricsEnvironment.scopedMetricsContainer(container)) {
+                      rewriteOne(srcPath, dstPath, deleteSrc, srcMissing, dstOverwrite);
+                    }
+                  } else {
+                    rewriteOne(srcPath, dstPath, deleteSrc, srcMissing, dstOverwrite);
+                  }
+                  return null;
+                }));
+      }
 
-      if (dstOverwrite == OverwriteStrategy.ALWAYS_OVERWRITE) {
-        copyRequestBuilder.setTarget(dstId);
-      } else {
-        // FAIL_IF_EXISTS, SKIP_IF_EXISTS and SAFE_OVERWRITE require checking the target blob
-        BlobInfo existingTarget;
+      // Like the sequential loop this replaces, stop at the first failure: files not yet started
+      // are cancelled, while the ones already in flight are allowed to finish.
+      @Nullable Throwable failure = null;
+      for (Future<Void> future : futures) {
         try {
-          existingTarget = storage().get(dstId);
-        } catch (StorageException e) {
-          throw translateStorageException(dstPath, e);
-        }
-
-        if (existingTarget == null) {
-          copyRequestBuilder.setTarget(dstId, Storage.BlobTargetOption.doesNotExist());
-        } else {
-          switch (dstOverwrite) {
-            case SKIP_IF_EXISTS:
-              LOG.warn("Ignoring rewriting from {} to {} because target exists.", srcPath, dstPath);
-              continue; // Skip to next file in for-loop
-
-            case SAFE_OVERWRITE:
-              copyRequestBuilder.setTarget(
-                  dstId, Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration()));
-              break;
-
-            case FAIL_IF_EXISTS:
-              throw new FileAlreadyExistsException(
-                  srcPath.toString(),
-                  dstPath.toString(),
-                  "Target object already exists and strategy is FAIL_IF_EXISTS");
-            default:
-              throw new IllegalStateException("Unknown OverwriteStrategy: " + dstOverwrite);
+          future.get();
+        } catch (CancellationException e) {
+          // Cancelled below after an earlier failure.
+        } catch (ExecutionException e) {
+          Throwable cause = e.getCause() != null ? e.getCause() : e;
+          if (failure == null) {
+            failure = cause;
+            for (Future<Void> other : futures) {
+              other.cancel(false);
+            }
+          } else {
+            failure.addSuppressed(cause);
           }
         }
       }
+      if (failure != null) {
+        // Rethrow as is, so that callers still see the specific type (e.g. FileNotFoundException,
+        // FileAlreadyExistsException, AccessDeniedException) the sequential version threw.
+        if (failure instanceof IOException) {
+          throw (IOException) failure;
+        }
+        if (failure instanceof RuntimeException) {
+          throw (RuntimeException) failure;
+        }
+        if (failure instanceof Error) {
+          throw (Error) failure;
+        }
+        throw new IOException("Error rewriting objects", failure);
+      }
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new IOException("Interrupted while rewriting objects", e);
+    } finally {
+      executor.shutdownNow();
+    }
+  }
 
+  /** Rewrites a single object, then deletes the source if {@code deleteSrc}. */
+  private void rewriteOne(
+      GcsPath srcPath,
+      GcsPath dstPath,
+      boolean deleteSrc,
+      MissingStrategy srcMissing,
+      OverwriteStrategy dstOverwrite)
+      throws IOException {
+    BlobId srcId = BlobId.of(srcPath.getBucket(), srcPath.getObject());
+    BlobId dstId = BlobId.of(dstPath.getBucket(), dstPath.getObject());
+
+    CopyRequest.Builder copyRequestBuilder =
+        CopyRequest.newBuilder()
+            .setSource(srcId)
+            .setMegabytesCopiedPerChunk(MEGABYTES_COPIED_PER_CHUNK);
+
+    if (dstOverwrite == OverwriteStrategy.ALWAYS_OVERWRITE) {
+      copyRequestBuilder.setTarget(dstId);
+    } else {
+      // FAIL_IF_EXISTS, SKIP_IF_EXISTS and SAFE_OVERWRITE require checking the target blob
+      BlobInfo existingTarget;
       try {
-        CopyWriter copyWriter = storage().copy(copyRequestBuilder.build());
-        copyWriter.getResult();
-
-        if (deleteSrc) {
-          if (!storage().delete(srcId)) {
-            // This may happen if the source file is deleted by another process after copy.
-            LOG.warn(
-                "Source file {} could not be deleted after move to {}. It may not have existed.",
-                srcPath,
-                dstPath);
-          }
-        }
+        existingTarget = storage().get(dstId);
       } catch (StorageException e) {
-        if (e.getCode() == 404 && srcMissing == MissingStrategy.SKIP_IF_MISSING) {
-          LOG.warn(
-              "Ignoring rewriting from {} to {} because source does not exist.", srcPath, dstPath);
-          continue;
-        }
-        throw translateStorageException(srcPath, e);
+        throw translateStorageException(dstPath, e);
       }
+
+      if (existingTarget == null) {
+        copyRequestBuilder.setTarget(dstId, Storage.BlobTargetOption.doesNotExist());
+      } else {
+        switch (dstOverwrite) {
+          case SKIP_IF_EXISTS:
+            LOG.warn("Ignoring rewriting from {} to {} because target exists.", srcPath, dstPath);
+            return; // Skip this file
+
+          case SAFE_OVERWRITE:
+            copyRequestBuilder.setTarget(
+                dstId, Storage.BlobTargetOption.generationMatch(existingTarget.getGeneration()));
+            break;
+
+          case FAIL_IF_EXISTS:
+            throw new FileAlreadyExistsException(
+                srcPath.toString(),
+                dstPath.toString(),
+                "Target object already exists and strategy is FAIL_IF_EXISTS");
+          default:
+            throw new IllegalStateException("Unknown OverwriteStrategy: " + dstOverwrite);
+        }
+      }
+    }
+
+    try {
+      CopyWriter copyWriter = storage().copy(copyRequestBuilder.build());
+      copyWriter.getResult();
+
+      if (deleteSrc) {
+        if (!storage().delete(srcId)) {
+          // This may happen if the source file is deleted by another process after copy.
+          LOG.warn(
+              "Source file {} could not be deleted after move to {}. It may not have existed.",
+              srcPath,
+              dstPath);
+        }
+      }
+    } catch (StorageException e) {
+      if (e.getCode() == 404 && srcMissing == MissingStrategy.SKIP_IF_MISSING) {
+        LOG.warn(
+            "Ignoring rewriting from {} to {} because source does not exist.", srcPath, dstPath);
+        return;
+      }
+      throw translateStorageException(srcPath, e);
     }
   }
 
