@@ -21,15 +21,6 @@ description: 'Setup repository and configure the required steps'
 runs:
   using: composite
   steps:
-    - name: Check out repository code if pull request commit
-      shell: bash
-      if: ${{ github.event_name == 'pull_request' || github.event_name == 'pull_request_target' }}
-      run: |
-          # GitHub will automatically generate a merge commit when there are no merge conflicts.
-          # We first try to check that out, and fall back to checking out the tip of the pull request branch.
-          git fetch --depth=1 origin +refs/pull/${{ github.event.number }}/merge:refs/remotes/pull/${{ github.event.number }}/merge || \
-          git fetch --depth=1 origin +refs/pull/${{ github.event.number }}/head:refs/remotes/pull/${{ github.event.number }}/head
-          git checkout pull/${{ github.event.number }}/merge || git checkout pull/${{ github.event.number }}/head
     ## Used for jobs that spawn docker containers and need to mount gcloud config directory
     - name: expose gcloud path
       shell: bash
