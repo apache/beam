@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
@@ -46,7 +47,8 @@ import org.slf4j.LoggerFactory;
  *       return splits way larger than requested.
  *   <li>While the split sizes vary a lot (high coefficient of variation), re-split the larger
  *       splits.
- *   <li>Halve the largest splits until the number of splits is a multiple of the parallelism.
+ *   <li>Halve the largest splits until the number of splits is close to a multiple of the
+ *       parallelism.
  *   <li>Order the splits so that round-robin assignment gives each reader a similar amount of data.
  * </ol>
  *
@@ -65,6 +67,12 @@ public final class BoundedSourceSplitter {
 
   /** Splits larger than this factor times the target size are re-split during balancing. */
   static final double OVERSIZED_SPLIT_FACTOR = 1.5;
+
+  /**
+   * How far, as a fraction of the parallelism, the split count may be from a multiple of the
+   * parallelism. Re-splitting introduces some skew anyway, so an exact multiple is not required.
+   */
+  static final double MULTIPLE_OF_PARALLELISM_TOLERANCE = 0.1;
 
   /** Lower bound of the balancing target size, relative to {@code estimatedSize/parallelism}. */
   static final int MAX_SPLITS_PER_READER_FOR_BALANCING = 4;
@@ -195,35 +203,57 @@ public final class BoundedSourceSplitter {
         .collect(Collectors.toList());
   }
 
-  /** Halves the largest splits until the number of splits is a multiple of the parallelism. */
+  /**
+   * Halves the largest splits until the number of splits is close to a multiple of the parallelism.
+   * Splits that cannot be halved are set aside so they are not retried. The result is not ordered.
+   */
   private static <T> List<SizedSource<T>> roundToMultipleOfParallelism(
-      List<SizedSource<T>> splits, PipelineOptions options, int readers) throws Exception {
-    List<SizedSource<T>> result = new ArrayList<>(splits);
-    result.sort(Comparator.comparingLong((SizedSource<T> s) -> s.sizeBytes).reversed());
-    // Splits that could not be split further are moved here so they are not retried.
+      List<SizedSource<T>> splits, PipelineOptions options, int readers) {
+    PriorityQueue<SizedSource<T>> candidates = new PriorityQueue<>(bySizeDescending());
+    candidates.addAll(splits);
     List<SizedSource<T>> unsplittable = new ArrayList<>();
     for (int attempt = 0;
-        attempt < 2 * readers && (result.size() + unsplittable.size()) % readers != 0;
+        attempt < 2 * readers
+            && !candidates.isEmpty()
+            && !isCloseToMultipleOf(candidates.size() + unsplittable.size(), readers);
         attempt++) {
-      if (result.isEmpty()) {
-        break;
-      }
-      SizedSource<T> largest = result.remove(0);
-      List<SizedSource<T>> parts;
-      if (largest.sizeBytes > 1) {
-        parts = resplit(largest, options, Math.max(1L, largest.sizeBytes / 2));
+      SizedSource<T> largest = candidates.remove();
+      List<SizedSource<T>> halves = halve(largest, options);
+      if (halves.size() > 1) {
+        candidates.addAll(halves);
       } else {
-        parts = Collections.singletonList(largest);
-      }
-      if (parts.size() <= 1 || !allSizesKnown(parts)) {
         unsplittable.add(largest);
-        continue;
       }
-      result.addAll(parts);
-      result.sort(Comparator.comparingLong((SizedSource<T> s) -> s.sizeBytes).reversed());
     }
+    List<SizedSource<T>> result = new ArrayList<>(candidates);
     result.addAll(unsplittable);
     return result;
+  }
+
+  /**
+   * Whether {@code count} is within {@link #MULTIPLE_OF_PARALLELISM_TOLERANCE} x {@code readers} of
+   * a multiple of {@code readers}, e.g. 1.1x or 1.9x the parallelism with a 10% tolerance.
+   */
+  private static boolean isCloseToMultipleOf(int count, int readers) {
+    int remainder = count % readers;
+    return Math.min(remainder, readers - remainder) <= MULTIPLE_OF_PARALLELISM_TOLERANCE * readers;
+  }
+
+  /** Splits {@code split} in two, or returns it alone if that is not possible. */
+  private static <T> List<SizedSource<T>> halve(SizedSource<T> split, PipelineOptions options) {
+    if (split.sizeBytes <= 1) {
+      return Collections.singletonList(split);
+    }
+    List<SizedSource<T>> parts = resplit(split, options, split.sizeBytes / 2);
+    if (allSizesKnown(parts)) {
+      return parts;
+    } else {
+      return Collections.singletonList(split);
+    }
+  }
+
+  private static <T> Comparator<SizedSource<T>> bySizeDescending() {
+    return Comparator.comparingLong((SizedSource<T> s) -> s.sizeBytes).reversed();
   }
 
   /**
@@ -233,7 +263,7 @@ public final class BoundedSourceSplitter {
   private static <T> List<SizedSource<T>> orderForRoundRobin(
       List<SizedSource<T>> splits, int readers) {
     List<SizedSource<T>> sorted = new ArrayList<>(splits);
-    sorted.sort(Comparator.comparingLong((SizedSource<T> s) -> s.sizeBytes).reversed());
+    sorted.sort(bySizeDescending());
     List<SizedSource<T>> ordered = new ArrayList<>(sorted.size());
     for (int start = 0; start < sorted.size(); start += readers) {
       int end = Math.min(start + readers, sorted.size());

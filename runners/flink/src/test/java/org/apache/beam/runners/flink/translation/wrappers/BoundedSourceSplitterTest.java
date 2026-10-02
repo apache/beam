@@ -103,6 +103,20 @@ public class BoundedSourceSplitterTest {
   }
 
   @Test
+  public void testToleratesSplitCountCloseToMultipleOfParallelism() throws Exception {
+    List<RangeSource> files = new ArrayList<>();
+    for (int i = 0; i < 21; i++) {
+      files.add(range(i * 1000, (i + 1) * 1000));
+    }
+    BoundedSource<Long> source = new CoarseSource(files);
+
+    // 21 splits for 20 readers is within 10% of a multiple: nothing is halved.
+    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 20, 21_000);
+
+    assertEquals(21, splits.size());
+  }
+
+  @Test
   public void testKeepsUnsplittableSources() throws Exception {
     BoundedSource<Long> source =
         new CoarseSource(Arrays.asList(new UnsplittableSource(), new UnsplittableSource()));
