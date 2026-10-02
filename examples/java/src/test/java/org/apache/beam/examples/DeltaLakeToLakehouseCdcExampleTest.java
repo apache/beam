@@ -140,25 +140,25 @@ public class DeltaLakeToLakehouseCdcExampleTest {
   public void testResolveLakehouseTableSpecFourPart() {
     Options options = PipelineOptionsFactory.as(Options.class);
     options.setLakehouseTable(
-        "apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc");
+        "my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table");
 
     LakehouseTableSpec spec = DeltaLakeToLakehouseCdcExample.resolveLakehouseTableSpec(options);
-    assertEquals("apache-beam-testing", spec.project);
-    assertEquals("gs://apache-beam-testing-chamikara", spec.warehouse);
-    assertEquals("delta_lake_test.delta_lake_to_lakehouse_cdc", spec.tableId);
+    assertEquals("my-gcp-project", spec.project);
+    assertEquals("gs://my-lakehouse-warehouse-bucket", spec.warehouse);
+    assertEquals("my_namespace.my_iceberg_table", spec.tableId);
   }
 
   @Test
   public void testResolveLakehouseTableSpecTwoPartWithExplicitWarehouseAndProject() {
     Options options = PipelineOptionsFactory.as(Options.class);
-    options.setProject("apache-beam-testing");
-    options.setWarehouse("gs://apache-beam-testing-chamikara");
-    options.setLakehouseTable("delta_lake_test.delta_lake_to_lakehouse_cdc");
+    options.setProject("my-gcp-project");
+    options.setWarehouse("gs://my-lakehouse-warehouse-bucket");
+    options.setLakehouseTable("my_namespace.my_iceberg_table");
 
     LakehouseTableSpec spec = DeltaLakeToLakehouseCdcExample.resolveLakehouseTableSpec(options);
-    assertEquals("apache-beam-testing", spec.project);
-    assertEquals("gs://apache-beam-testing-chamikara", spec.warehouse);
-    assertEquals("delta_lake_test.delta_lake_to_lakehouse_cdc", spec.tableId);
+    assertEquals("my-gcp-project", spec.project);
+    assertEquals("gs://my-lakehouse-warehouse-bucket", spec.warehouse);
+    assertEquals("my_namespace.my_iceberg_table", spec.tableId);
   }
 
   @Test
@@ -197,9 +197,9 @@ public class DeltaLakeToLakehouseCdcExampleTest {
   @SuppressWarnings("unchecked")
   public void testBuildManagedConfigs() {
     Options options = PipelineOptionsFactory.as(Options.class);
-    options.setDeltaTable("gs://apache-beam-testing-delta-lake/delta_lake/demo_employee_data/");
+    options.setDeltaTable("gs://my-delta-lake-bucket/delta_lake/employee_data/");
     options.setLakehouseTable(
-        "apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc");
+        "my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table");
     options.setEqualityColumns("employee_id");
     options.setStartVersion(2L);
     options.setEndVersion(4L);
@@ -207,37 +207,35 @@ public class DeltaLakeToLakehouseCdcExampleTest {
     LakehouseTableSpec spec = DeltaLakeToLakehouseCdcExample.resolveLakehouseTableSpec(options);
     Map<String, Object> readConfig =
         DeltaLakeToLakehouseCdcExample.buildDeltaCdcReadConfig(options, spec.project);
-    assertEquals(
-        "gs://apache-beam-testing-delta-lake/delta_lake/demo_employee_data/",
-        readConfig.get("table"));
+    assertEquals("gs://my-delta-lake-bucket/delta_lake/employee_data/", readConfig.get("table"));
     assertEquals(2L, readConfig.get("start_version"));
     assertEquals(4L, readConfig.get("end_version"));
     assertEquals(
         Arrays.asList("_change_type", "_commit_version"),
         readConfig.get("include_metadata_columns"));
     Map<String, String> hadoopConfig = (Map<String, String>) readConfig.get("hadoop_config");
-    assertEquals("apache-beam-testing", hadoopConfig.get("fs.gs.project.id"));
+    assertEquals("my-gcp-project", hadoopConfig.get("fs.gs.project.id"));
 
     Map<String, Object> writeConfig =
         DeltaLakeToLakehouseCdcExample.buildLakehouseCdcWriteConfig(options, spec);
-    assertEquals("delta_lake_test.delta_lake_to_lakehouse_cdc", writeConfig.get("table"));
+    assertEquals("my_namespace.my_iceberg_table", writeConfig.get("table"));
     assertEquals("merge-on-read", writeConfig.get("mode"));
     assertEquals("_commit_version", writeConfig.get("sequence_number_column"));
     assertEquals("_change_type", writeConfig.get("change_type_column"));
     assertEquals(Arrays.asList("employee_id"), writeConfig.get("equality_columns"));
     Map<String, String> catalogProps = (Map<String, String>) writeConfig.get("catalog_properties");
     assertEquals("rest", catalogProps.get("type"));
-    assertEquals("gs://apache-beam-testing-chamikara", catalogProps.get("warehouse"));
-    assertEquals("apache-beam-testing", catalogProps.get("header.x-goog-user-project"));
+    assertEquals("gs://my-lakehouse-warehouse-bucket", catalogProps.get("warehouse"));
+    assertEquals("my-gcp-project", catalogProps.get("header.x-goog-user-project"));
   }
 
   @Test
-  public void testBuildManagedConfigsRunnerV1SkipsChangeTypeColumn() {
+  public void testBuildManagedConfigsStreamingJavaRunnerSkipsChangeTypeColumn() {
     Options options = PipelineOptionsFactory.as(Options.class);
-    options.setUseRunnerV2(false);
-    options.setDeltaTable("gs://apache-beam-testing-delta-lake/delta_lake/demo_employee_data/");
+    options.setUsePortableRunner(false);
+    options.setDeltaTable("gs://my-delta-lake-bucket/delta_lake/employee_data/");
     options.setLakehouseTable(
-        "apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc");
+        "my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table");
     options.setEqualityColumns("employee_id");
     options.setStartVersion(2L);
     options.setEndVersion(4L);

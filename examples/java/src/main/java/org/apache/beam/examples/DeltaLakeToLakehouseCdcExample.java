@@ -100,13 +100,14 @@ import org.slf4j.LoggerFactory;
  *       GCS buckets, BigLake Metastore ({@code roles/biglake.admin}), and Dataflow.
  * </ul>
  *
- * <h2>Running the Example on Dataflow Runner v2</h2>
+ * <h2>Running the Example on Dataflow Portable Runner (Example Default)</h2>
  *
- * <p>By default ({@code --useRunnerV2=true}), the pipeline runs on Dataflow Runner v2 ({@code
- * --experiments=use_runner_v2}). Because Dataflow Runner v2 does not yet propagate an element's
- * native Beam {@code ValueKind} metadata across the FnAPI boundary, the source includes {@code
- * _change_type} in {@code include_metadata_columns} and the Iceberg CDC sink is configured with
- * {@code change_type_column: "_change_type"} and {@code change_type_map}.
+ * <p>This example configures the <b>Dataflow Portable Runner</b> ({@code
+ * --experiments=use_runner_v2}) by default ({@code --usePortableRunner=true}). Because the Dataflow
+ * Portable Runner does not yet propagate an element's native Beam {@code ValueKind} metadata across
+ * the FnAPI boundary, the source includes {@code _change_type} in {@code include_metadata_columns}
+ * and the Iceberg CDC sink is configured with {@code change_type_column: "_change_type"} and {@code
+ * change_type_map}.
  *
  * <h3>1. Reading by Commit Version Range</h3>
  *
@@ -116,11 +117,11 @@ import org.slf4j.LoggerFactory;
  * ./gradlew :examples:java:execute \
  *   -PmainClass=org.apache.beam.examples.DeltaLakeToLakehouseCdcExample \
  *   -Pexec.args="--runner=DataflowRunner \
- *     --project=apache-beam-testing \
+ *     --project=my-gcp-project \
  *     --region=us-central1 \
- *     --tempLocation=gs://apache-beam-testing-chamikara/temp \
- *     --deltaTable=gs://apache-beam-testing-delta-lake/delta_lake/demo_employee_data/ \
- *     --lakehouseTable=apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc \
+ *     --tempLocation=gs://my-temp-bucket/temp \
+ *     --deltaTable=gs://my-delta-lake-bucket/delta_lake/employee_data/ \
+ *     --lakehouseTable=my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table \
  *     --equalityColumns=employee_id \
  *     --startVersion=2 \
  *     --endVersion=4"
@@ -134,31 +135,33 @@ import org.slf4j.LoggerFactory;
  * ./gradlew :examples:java:execute \
  *   -PmainClass=org.apache.beam.examples.DeltaLakeToLakehouseCdcExample \
  *   -Pexec.args="--runner=DataflowRunner \
- *     --project=apache-beam-testing \
+ *     --project=my-gcp-project \
  *     --region=us-central1 \
- *     --tempLocation=gs://apache-beam-testing-chamikara/temp \
- *     --deltaTable=gs://apache-beam-testing-delta-lake/delta_lake/demo_employee_data/ \
- *     --lakehouseTable=apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc \
+ *     --tempLocation=gs://my-temp-bucket/temp \
+ *     --deltaTable=gs://my-delta-lake-bucket/delta_lake/employee_data/ \
+ *     --lakehouseTable=my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table \
  *     --equalityColumns=employee_id \
  *     --startTimestamp=2026-10-01T00:00:00Z \
  *     --endTimestamp=2026-10-02T00:00:00Z"
  * }</pre>
  *
- * <h2>Running the Example on Dataflow Runner v1</h2>
+ * <h2>Running the Example on Dataflow Streaming Java Runner</h2>
  *
- * <p>When running on <b>Dataflow Runner v1</b> (the legacy worker, without {@code use_runner_v2}),
- * {@code change_type_column} (and {@code change_type_map}) <b>can be skipped</b> on the Iceberg CDC
- * sink, and {@code _change_type} does not need to be included in {@code include_metadata_columns}
- * on the Delta Lake CDC source. The Delta Lake CDC reader ({@code Managed.DELTA_LAKE_CDC})
- * automatically sets each emitted {@link Row}'s native Beam {@code ValueKind} ({@code INSERT},
- * {@code DELETE}, {@code UPDATE_BEFORE}, {@code UPDATE_AFTER}), which Dataflow Runner v1 preserves
- * and passes directly to the Iceberg CDC sink.
+ * <p>When running on the <b>Dataflow Streaming Java Runner</b> (which is Dataflow's default runner
+ * when {@code --experiments=use_runner_v2} is not enabled), {@code change_type_column} (and {@code
+ * change_type_map}) <b>can be skipped</b> on the Iceberg CDC sink, and {@code _change_type} does
+ * not need to be included in {@code include_metadata_columns} on the Delta Lake CDC source. The
+ * Delta Lake CDC reader ({@code Managed.DELTA_LAKE_CDC}) automatically sets each emitted {@link
+ * Row}'s native Beam {@code ValueKind} ({@code INSERT}, {@code DELETE}, {@code UPDATE_BEFORE},
+ * {@code UPDATE_AFTER}), which the Dataflow Streaming Java Runner preserves and passes directly to
+ * the Iceberg CDC sink.
  *
- * <p>In custom pipelines running on Dataflow Runner v1, the {@code Managed} configurations only
- * need {@code _commit_version} for ordering:
+ * <p>In your own pipelines running on the Dataflow Streaming Java Runner, you do not need to set
+ * any runner-version flag (since it is Dataflow's default when {@code use_runner_v2} is not added),
+ * and the {@code Managed} configurations only need {@code _commit_version} for ordering:
  *
  * <pre>{@code
- * // Delta Lake CDC read config on Dataflow Runner v1 (no _change_type column needed):
+ * // Delta Lake CDC read config on Dataflow Streaming Java Runner (no _change_type column needed):
  * Map<String, Object> readConfig = ImmutableMap.of(
  *     "table", deltaTable,
  *     "start_version", 2L,
@@ -166,7 +169,7 @@ import org.slf4j.LoggerFactory;
  *     "include_metadata_columns", ImmutableList.of("_commit_version"),
  *     "hadoop_config", hadoopConfig);
  *
- * // Iceberg CDC write config on Dataflow Runner v1 (change_type_column can be skipped):
+ * // Iceberg CDC write config on Dataflow Streaming Java Runner (change_type_column can be skipped):
  * Map<String, Object> writeConfig = ImmutableMap.of(
  *     "table", tableId,
  *     "catalog_name", "lakehouse",
@@ -176,8 +179,9 @@ import org.slf4j.LoggerFactory;
  *     "equality_columns", ImmutableList.of("employee_id"));
  * }</pre>
  *
- * <p>To run this example on Dataflow Runner v1 (which omits {@code use_runner_v2} and skips {@code
- * change_type_column}), pass {@code --useRunnerV2=false}:
+ * <p>Because this example enables the Dataflow Portable Runner by default ({@code
+ * --usePortableRunner=true}), you can override it to run on the Dataflow Streaming Java Runner (and
+ * skip {@code change_type_column}) by passing {@code --usePortableRunner=false}:
  *
  * <pre>{@code
  * export GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account-key.json
@@ -185,12 +189,12 @@ import org.slf4j.LoggerFactory;
  * ./gradlew :examples:java:execute \
  *   -PmainClass=org.apache.beam.examples.DeltaLakeToLakehouseCdcExample \
  *   -Pexec.args="--runner=DataflowRunner \
- *     --useRunnerV2=false \
- *     --project=apache-beam-testing \
+ *     --usePortableRunner=false \
+ *     --project=my-gcp-project \
  *     --region=us-central1 \
- *     --tempLocation=gs://apache-beam-testing-chamikara/temp \
- *     --deltaTable=gs://apache-beam-testing-delta-lake/delta_lake/demo_employee_data/ \
- *     --lakehouseTable=apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc \
+ *     --tempLocation=gs://my-temp-bucket/temp \
+ *     --deltaTable=gs://my-delta-lake-bucket/delta_lake/employee_data/ \
+ *     --lakehouseTable=my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table \
  *     --equalityColumns=employee_id \
  *     --startVersion=2 \
  *     --endVersion=4"
@@ -234,7 +238,7 @@ public class DeltaLakeToLakehouseCdcExample {
     @Description(
         "Target GCP Lakehouse Iceberg table identifier. Accepts either a 4-part BigLake table "
             + "identifier '<project>.<warehouse_bucket>.<namespace>.<table>' "
-            + "(e.g. 'apache-beam-testing.apache-beam-testing-chamikara.delta_lake_test.delta_lake_to_lakehouse_cdc'), "
+            + "(e.g. 'my-gcp-project.my-lakehouse-warehouse-bucket.my_namespace.my_iceberg_table'), "
             + "a 3-part identifier '<warehouse_bucket>.<namespace>.<table>', or a 2-part Iceberg "
             + "table identifier '<namespace>.<table>' (when --warehouse is also specified).")
     @Validation.Required
@@ -296,14 +300,15 @@ public class DeltaLakeToLakehouseCdcExample {
     void setUpsert(boolean value);
 
     @Description(
-        "If true (default), runs on Dataflow Runner v2 ('use_runner_v2') and configures "
-            + "'change_type_column' ('_change_type') on the Iceberg CDC sink. If false, runs on "
-            + "Dataflow Runner v1 (legacy worker) and skips 'change_type_column', relying on the "
-            + "native Beam ValueKind metadata attached to each Row by the Delta Lake CDC reader.")
+        "If true (default for this example), runs on the Dataflow Portable Runner ('use_runner_v2') "
+            + "and configures 'change_type_column' ('_change_type') on the Iceberg CDC sink. "
+            + "Set to false to override and run on the Dataflow Streaming Java Runner, which skips "
+            + "'change_type_column' and relies on the native Beam ValueKind metadata attached to "
+            + "each Row by the Delta Lake CDC reader.")
     @Default.Boolean(true)
-    boolean getUseRunnerV2();
+    boolean getUsePortableRunner();
 
-    void setUseRunnerV2(boolean value);
+    void setUsePortableRunner(boolean value);
 
     @Description("Name of the Iceberg catalog instance. Defaults to 'lakehouse'.")
     @Default.String("lakehouse")
@@ -351,9 +356,7 @@ public class DeltaLakeToLakehouseCdcExample {
     String tableId;
 
     if (parts.size() == 4) {
-      if (project == null || project.trim().isEmpty()) {
-        project = parts.get(0);
-      }
+      project = parts.get(0);
       if (warehouse == null || warehouse.trim().isEmpty()) {
         warehouse = "gs://" + parts.get(1);
       }
@@ -542,7 +545,7 @@ public class DeltaLakeToLakehouseCdcExample {
     }
     readConfig.put(
         "include_metadata_columns",
-        options.getUseRunnerV2()
+        options.getUsePortableRunner()
             ? ImmutableList.of(CHANGE_TYPE_COLUMN, COMMIT_VERSION_COLUMN)
             : ImmutableList.of(COMMIT_VERSION_COLUMN));
     readConfig.put("hadoop_config", hadoopConfig);
@@ -569,7 +572,7 @@ public class DeltaLakeToLakehouseCdcExample {
     writeConfig.put("catalog_properties", catalogProps);
     writeConfig.put("mode", "merge-on-read");
     writeConfig.put("sequence_number_column", COMMIT_VERSION_COLUMN);
-    if (options.getUseRunnerV2()) {
+    if (options.getUsePortableRunner()) {
       writeConfig.put("change_type_column", CHANGE_TYPE_COLUMN);
       writeConfig.put("change_type_map", DELTA_TO_ICEBERG_CHANGE_TYPES);
     }
@@ -594,8 +597,9 @@ public class DeltaLakeToLakehouseCdcExample {
       options.setProject(tableSpec.project);
     }
 
-    // Configure Dataflow Runner v2 by default unless --useRunnerV2=false (Runner v1) is specified.
-    if (options.getUseRunnerV2()) {
+    // Configure Dataflow Portable Runner by default unless --usePortableRunner=false (Dataflow
+    // Streaming Java Runner) is specified.
+    if (options.getUsePortableRunner()) {
       ExperimentalOptions.addExperiment(options.as(ExperimentalOptions.class), "use_runner_v2");
     }
 
