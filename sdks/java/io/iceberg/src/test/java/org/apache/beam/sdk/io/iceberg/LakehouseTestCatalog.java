@@ -39,7 +39,7 @@ import org.apache.iceberg.catalog.SupportsNamespaces;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 /**
- * Test-side description of the BigLake (Lakehouse) Iceberg REST catalog the ITs run against.
+ * Test-side description of the Lakehouse Iceberg REST catalog the ITs run against.
  *
  * <p>The catalog is a multiple-bucket catalog addressed by a {@code
  * bl://projects/PROJECT/catalogs/CATALOG} warehouse and allowed to store resources under a fixed
@@ -48,24 +48,24 @@ import org.apache.iceberg.catalog.TableIdentifier;
  * system properties
  *
  * <ul>
- *   <li>{@code beam.iceberg.biglake.warehouse}: the {@code bl://} warehouse URI
- *   <li>{@code beam.iceberg.biglake.locations}: comma-separated {@code gs://} prefixes the catalog
- *       may write to; the first is the catalog's default location, the rest are additional
+ *   <li>{@code beam.iceberg.lakehouse.warehouse}: the {@code bl://} warehouse URI
+ *   <li>{@code beam.iceberg.lakehouse.locations}: comma-separated {@code gs://} prefixes the
+ *       catalog may write to; the first is the catalog's default location, the rest are additional
  *       restricted locations
  * </ul>
  */
-public final class BigLakeTestCatalog {
+public final class LakehouseTestCatalog {
   private static final Pattern WAREHOUSE_PATTERN =
       Pattern.compile("bl://projects/([^/]+)/catalogs/([^/]+)");
 
-  public static final String WAREHOUSE = requiredProperty("beam.iceberg.biglake.warehouse");
+  public static final String WAREHOUSE = requiredProperty("beam.iceberg.lakehouse.warehouse");
 
   public static final List<String> LOCATIONS =
       ImmutableList.copyOf(
           Splitter.on(',')
               .trimResults()
               .omitEmptyStrings()
-              .split(requiredProperty("beam.iceberg.biglake.locations")));
+              .split(requiredProperty("beam.iceberg.lakehouse.locations")));
 
   /** Catalog id, which is also the second segment of BigQuery's 4-part table reference. */
   public static final String CATALOG_ID = parseCatalogId(WAREHOUSE);
@@ -73,7 +73,7 @@ public final class BigLakeTestCatalog {
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
 
-  private BigLakeTestCatalog() {}
+  private LakehouseTestCatalog() {}
 
   private static String requiredProperty(String name) {
     String value = System.getProperty(name);
@@ -108,7 +108,7 @@ public final class BigLakeTestCatalog {
   public static String additionalLocation() {
     checkArgument(
         LOCATIONS.size() >= 2,
-        "beam.iceberg.biglake.locations must list at least two locations, got %s",
+        "beam.iceberg.lakehouse.locations must list at least two locations, got %s",
         LOCATIONS);
     return LOCATIONS.get(1);
   }
@@ -157,7 +157,7 @@ public final class BigLakeTestCatalog {
   }
 
   /**
-   * Drops every table in the namespace and deletes the tables' files from Cloud Storage: BigLake
+   * Drops every table in the namespace and deletes the tables' files from Cloud Storage: Lakehouse
    * keeps a dropped table's data and metadata (even with purge), and table locations carry a random
    * suffix, so they are captured before the drop.
    */

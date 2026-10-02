@@ -19,7 +19,7 @@ package org.apache.beam.sdk.io.iceberg.catalog;
 
 import java.io.IOException;
 import java.util.Map;
-import org.apache.beam.sdk.io.iceberg.BigLakeTestCatalog;
+import org.apache.beam.sdk.io.iceberg.LakehouseTestCatalog;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.rest.RESTCatalog;
@@ -32,17 +32,17 @@ public class LakehouseCatalogCdcWriteIT extends IcebergCdcWriteBaseIT {
 
   @BeforeClass
   public static void setup() {
-    warehouse = BigLakeTestCatalog.defaultLocation();
-    catalogProps = BigLakeTestCatalog.catalogProperties();
+    warehouse = LakehouseTestCatalog.defaultLocation();
+    catalogProps = LakehouseTestCatalog.catalogProperties();
   }
 
   @After
   public void after() throws IOException {
-    // BigLake keeps a dropped table's files, so remove them before the base class drops the
+    // Lakehouse keeps a dropped table's files, so remove them before the base class drops the
     // namespace.
-    BigLakeTestCatalog.dropTablesAndFiles(catalog, namespace());
+    LakehouseTestCatalog.dropTablesAndFiles(catalog, namespace());
     // The base class points its cleanup at this warehouse.
-    warehouse = BigLakeTestCatalog.defaultLocation();
+    warehouse = LakehouseTestCatalog.defaultLocation();
   }
 
   @Override

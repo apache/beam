@@ -175,10 +175,9 @@ public abstract class IcebergCatalogBaseIT implements Serializable {
   /**
    * Catalogs whose tables are also queryable with BigQuery return the BigQuery table reference for
    * the given Iceberg table id: either the 4-part {@code project.catalog.namespace.table} form for
-   * Lakehouse runtime catalog (BigLake metastore REST) tables, or the 3-part {@code
-   * project.dataset.table} form for the BigQuery metastore federation, where namespaces surface as
-   * datasets. Returning null (the default) disables the cross-engine read checks in {@link
-   * #testReadWithBigQueryIO()}.
+   * Lakehouse runtime catalog (Iceberg REST) tables, or the 3-part {@code project.dataset.table}
+   * form for the BigQuery metastore federation, where namespaces surface as datasets. Returning
+   * null (the default) disables the cross-engine read checks in {@link #testReadWithBigQueryIO()}.
    */
   public @Nullable String bigQueryTableSpec(String tableId) {
     return null;

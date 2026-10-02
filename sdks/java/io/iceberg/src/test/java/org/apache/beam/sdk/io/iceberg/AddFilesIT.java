@@ -110,11 +110,11 @@ import org.slf4j.LoggerFactory;
 public class AddFilesIT {
   private static final Logger LOG = LoggerFactory.getLogger(AddFilesIT.class);
 
-  // Multiple-bucket BigLake catalog (see BigLakeTestCatalog). Source parquet files, and the
+  // Multiple-bucket Lakehouse catalog (see LakehouseTestCatalog). Source parquet files, and the
   // GCS notifications announcing them, live under the catalog's default location.
-  private static final String DATA_LOCATION = BigLakeTestCatalog.defaultLocation();
-  private static final String DATA_BUCKET = BigLakeTestCatalog.bucketOf(DATA_LOCATION);
-  private static final String DATA_PREFIX = BigLakeTestCatalog.prefixOf(DATA_LOCATION);
+  private static final String DATA_LOCATION = LakehouseTestCatalog.defaultLocation();
+  private static final String DATA_BUCKET = LakehouseTestCatalog.bucketOf(DATA_LOCATION);
+  private static final String DATA_PREFIX = LakehouseTestCatalog.prefixOf(DATA_LOCATION);
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   @Rule public TestName testName = new TestName();
@@ -131,7 +131,8 @@ public class AddFilesIT {
           .addStringField("name")
           .addStringField("kind")
           .build();
-  private static final Map<String, String> BIGLAKE_PROPS = BigLakeTestCatalog.catalogProperties();
+  private static final Map<String, String> LAKEHOUSE_PROPS =
+      LakehouseTestCatalog.catalogProperties();
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
@@ -208,7 +209,7 @@ public class AddFilesIT {
     srcTableId = TableIdentifier.of(namespace, srcTableName);
     destTableId = TableIdentifier.of(namespace, destTableName);
 
-    catalog.initialize("test_catalog", BIGLAKE_PROPS);
+    catalog.initialize("test_catalog", LAKEHOUSE_PROPS);
     cleanupCatalog();
     catalog.createNamespace(Namespace.of(namespace));
   }
@@ -243,7 +244,7 @@ public class AddFilesIT {
   }
 
   private void cleanupCatalog() throws IOException {
-    BigLakeTestCatalog.dropNamespacesAndFiles(catalog, Arrays.asList(namespace, altNamespace));
+    LakehouseTestCatalog.dropNamespacesAndFiles(catalog, Arrays.asList(namespace, altNamespace));
   }
 
   @After
@@ -283,7 +284,7 @@ public class AddFilesIT {
     // first create a source iceberg table
     catalog.createTable(srcTableId, beamSchemaToIcebergSchema(ROW_SCHEMA), SPEC);
 
-    // BigLake may write under {namespace}/{table}/{id}/data/... rather than the Hive-style
+    // Lakehouse may write under {namespace}/{table}/{id}/data/... rather than the Hive-style
     // {namespace}/{table}/data/... layout, so match the table prefix and a /data/ segment.
     String tablePrefix = format("%s/%s/", namespace, srcTableName);
 
@@ -303,7 +304,7 @@ public class AddFilesIT {
             Managed.write(Managed.ICEBERG)
                 .withConfig(
                     ImmutableMap.of(
-                        "table", srcTableId.toString(), "catalog_properties", BIGLAKE_PROPS)));
+                        "table", srcTableId.toString(), "catalog_properties", LAKEHOUSE_PROPS)));
     q.run().waitUntilFinish();
 
     // check that the destination table has been created
@@ -454,17 +455,17 @@ public class AddFilesIT {
 
   /**
    * The destination table lives in the catalog's additional location (a second bucket) while the
-   * source parquet files stay in the default one. BigLake pins tables under their namespace's
+   * source parquet files stay in the default one. Lakehouse pins tables under their namespace's
    * location, so the table is created in a namespace placed in the second bucket; AddFiles must
    * commit metadata there and reference the files in place across buckets.
    */
   @Test
   public void testBatchParquetImportToTableInAdditionalLocation() throws IOException {
-    String namespaceLocation = BigLakeTestCatalog.additionalLocation() + "/" + altNamespace;
+    String namespaceLocation = LakehouseTestCatalog.additionalLocation() + "/" + altNamespace;
     assertNotEquals(
         "Test needs two distinct buckets",
         DATA_BUCKET,
-        BigLakeTestCatalog.bucketOf(namespaceLocation));
+        LakehouseTestCatalog.bucketOf(namespaceLocation));
     catalog.createNamespace(
         Namespace.of(altNamespace), ImmutableMap.of("location", namespaceLocation));
     destTableId = TableIdentifier.of(altNamespace, destTableName);
@@ -477,7 +478,7 @@ public class AddFilesIT {
         p.apply(Create.of(writtenFilePaths))
             .apply(
                 new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
                     destTableId.toString(),
                     null,
                     PARTITION_FIELDS,
@@ -491,7 +492,7 @@ public class AddFilesIT {
     assertTrue(checkTableHasRegisteredParquetFiles(writtenFilePaths));
     Table destTable = catalog.loadTable(destTableId);
     String metadataLocation = ((BaseTable) destTable).operations().current().metadataFileLocation();
-    assertThat(metadataLocation, startsWith(BigLakeTestCatalog.additionalLocation()));
+    assertThat(metadataLocation, startsWith(LakehouseTestCatalog.additionalLocation()));
     for (String path : writtenFilePaths) {
       assertThat(path, startsWith("gs://" + DATA_BUCKET + "/"));
     }
@@ -584,7 +585,7 @@ public class AddFilesIT {
         p.apply(Create.of(writtenFilePaths))
             .apply(
                 new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
                     isUIT ? null : PARTITION_FIELDS,
@@ -637,7 +638,7 @@ public class AddFilesIT {
         p.apply(Create.of(writtenFilePaths))
             .apply(
                 new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
                     null,
@@ -685,7 +686,10 @@ public class AddFilesIT {
                 Managed.read(Managed.ICEBERG)
                     .withConfig(
                         ImmutableMap.of(
-                            "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
+                            "table",
+                            destTableId.toString(),
+                            "catalog_properties",
+                            LAKEHOUSE_PROPS)))
             .getSinglePCollection()
             .apply(MapElements.into(strings()).via(AddFilesIT::canonicalRecord));
     PAssert.that(destRows)
@@ -720,7 +724,10 @@ public class AddFilesIT {
                 Managed.read(Managed.ICEBERG)
                     .withConfig(
                         ImmutableMap.of(
-                            "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
+                            "table",
+                            destTableId.toString(),
+                            "catalog_properties",
+                            LAKEHOUSE_PROPS)))
             .getSinglePCollection();
     PAssert.that(destRows).containsInAnyOrder(TEST_ROWS);
 
@@ -738,7 +745,7 @@ public class AddFilesIT {
                               format(
                                   "%s.%s.%s.%s",
                                   PROJECT,
-                                  BigLakeTestCatalog.CATALOG_ID,
+                                  LakehouseTestCatalog.CATALOG_ID,
                                   destTableId.namespace(),
                                   destTableId.name()))))
               .getSinglePCollection()
@@ -796,7 +803,7 @@ public class AddFilesIT {
             .apply(Deduplicate.values())
             .apply(
                 new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
                     PARTITION_FIELDS,
