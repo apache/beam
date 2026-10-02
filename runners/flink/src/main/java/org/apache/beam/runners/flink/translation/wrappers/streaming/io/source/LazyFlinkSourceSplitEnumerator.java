@@ -176,7 +176,8 @@ public class LazyFlinkSourceSplitEnumerator<T>
       return;
     }
 
-    FlinkSourceSplit<T> split = pendingSplits.remove(pendingSplits.size() - 1);
+    // Splits are ordered largest first; handing those out first evens out the reader load.
+    FlinkSourceSplit<T> split = pendingSplits.remove(0);
     context.assignSplit(split, subtaskId);
     LOG.info("Assigned split to subtask {} on host {}: {}", subtaskId, requesterHostname, split);
   }

@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.util.function.Function;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.BoundedSourceSplitter;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.bounded.FlinkBoundedSource;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.impulse.BeamImpulseSource;
@@ -104,15 +105,15 @@ public abstract class FlinkSource<T, OutputT>
       SplitEnumeratorContext<FlinkSourceSplit<T>> enumContext) throws Exception {
     FlinkPipelineOptions options = serializablePipelineOptions.get().as(FlinkPipelineOptions.class);
     if (boundedness == Boundedness.BOUNDED) {
-      long thresholdMb = options.getSourceStaticSplitThresholdMb();
-      if (thresholdMb < 0) {
-        return new FlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
+      switch (BoundedSourceSplitter.assignment(options)) {
+        case STATIC:
+          return new FlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
+        case SIZE_BASED:
+          return new SizeBasedFlinkSourceSplitEnumerator<>(
+              enumContext, (BoundedSource<T>) beamSource, options, numSplits);
+        case LAZY:
+          return new LazyFlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
       }
-      if (thresholdMb > 0) {
-        return new SizeBasedFlinkSourceSplitEnumerator<>(
-            enumContext, (BoundedSource<T>) beamSource, options, numSplits);
-      }
-      return new LazyFlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
     }
     return new FlinkSourceSplitEnumerator<>(enumContext, beamSource, options, numSplits);
   }

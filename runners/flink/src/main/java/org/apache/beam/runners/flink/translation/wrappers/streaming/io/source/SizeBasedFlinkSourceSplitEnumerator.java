@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import javax.annotation.Nullable;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
+import org.apache.beam.runners.flink.translation.wrappers.BoundedSourceSplitter;
 import org.apache.beam.runners.flink.translation.wrappers.streaming.io.source.FlinkSourceEnumeratorState.AssignmentMode;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.options.PipelineOptions;
@@ -135,13 +136,12 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
   }
 
   private AssignmentMode selectAssignmentMode(long estimatedSizeBytes) {
-    long thresholdMb =
-        pipelineOptions.as(FlinkPipelineOptions.class).getSourceStaticSplitThresholdMb();
-    if (thresholdMb <= 0) {
+    long thresholdBytes = BoundedSourceSplitter.staticSplitThresholdBytes(pipelineOptions);
+    if (thresholdBytes <= 0) {
       throw new IllegalArgumentException(
           "Size-based source assignment requires a positive threshold, but received "
-              + thresholdMb
-              + ".");
+              + pipelineOptions.as(FlinkPipelineOptions.class).getSourceStaticSplitThresholdMb()
+              + " MiB.");
     }
     if (estimatedSizeBytes <= 0 || estimatedSizeBytes == Long.MAX_VALUE) {
       LOG.info(
@@ -156,7 +156,6 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
           "Source parallelism must be positive, but was " + sourceParallelism + ".");
     }
     long estimatedBytesPerReader = estimatedSizeBytes / sourceParallelism;
-    long thresholdBytes = FlinkSourceSplitUtils.mebibytesToBytes(thresholdMb);
     AssignmentMode selectedMode =
         estimatedBytesPerReader >= thresholdBytes ? AssignmentMode.LAZY : AssignmentMode.STATIC;
     LOG.info(
