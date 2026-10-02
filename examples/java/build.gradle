@@ -113,8 +113,9 @@ dependencies {
     runtimeOnly project(path: project.getProperty("runnerDependency"))
   }
 
-  def javaVer = project.findProperty('testJavaVersion') ?: JavaVersion.current().majorVersion
-  if ((javaVer as int) >= 17 && !project.hasProperty('compileAndRunTestsWithJava11')) {
+  def javaVer = (project.findProperty('testJavaVersion') ?: JavaVersion.current().majorVersion) as int
+  def isDeltaLakeCdcExecute = project.findProperty('mainClass')?.toString()?.contains('DeltaLakeToLakehouseCdcExample')
+  if (isDeltaLakeCdcExecute && javaVer >= 17 && !project.hasProperty('compileAndRunTestsWithJava11')) {
     runtimeOnly project(":sdks:java:io:iceberg")
     runtimeOnly(project(":sdks:java:io:delta")) {
       exclude group: "org.apache.hadoop", module: "hadoop-aws"
@@ -124,7 +125,8 @@ dependencies {
 }
 
 def activeJavaVer = (project.findProperty('testJavaVersion') ?: JavaVersion.current().majorVersion) as int
-if (activeJavaVer >= 17 && !project.hasProperty('compileAndRunTestsWithJava11')) {
+def isDeltaLakeCdcExecute = project.findProperty('mainClass')?.toString()?.contains('DeltaLakeToLakehouseCdcExample')
+if (isDeltaLakeCdcExecute && activeJavaVer >= 17 && !project.hasProperty('compileAndRunTestsWithJava11')) {
   configurations.all {
     if (canBeResolved) {
       attributes {
