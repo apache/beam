@@ -18,11 +18,11 @@ name: PostCommit Java Tpcds Dataflow
 on:
   schedule:
     - cron: '30 4/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Java_Tpcds_Dataflow.json']
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -79,7 +79,7 @@ jobs:
   beam_PostCommit_Java_Tpcds_Dataflow:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event.comment.body == 'Run Dataflow Runner Tpcds Tests'
     runs-on: [self-hosted, ubuntu-24.04, main]
