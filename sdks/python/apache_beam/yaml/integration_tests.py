@@ -337,7 +337,7 @@ def temp_bigtable_change_stream_table(project, prefix='yaml_bt_cdc_it_'):
       _LOGGER.info('Deleting Bigtable CDC instance [%s]', instance_id)
       bigtable_instance.delete()
     except HttpError:
-        _LOGGER.warning('Failed to clean up Bigtable CDC resources')
+      _LOGGER.warning('Failed to clean up Bigtable CDC resources')
 
 
 @contextlib.contextmanager
