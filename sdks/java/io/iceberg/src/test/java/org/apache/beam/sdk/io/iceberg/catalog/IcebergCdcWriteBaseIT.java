@@ -236,13 +236,13 @@ public abstract class IcebergCdcWriteBaseIT implements Serializable {
     try {
       GcsUtil gcsUtil = OPTIONS.as(GcsOptions.class).getGcsUtil();
       GcsPath path = GcsPath.fromUri(warehouse);
+      // The warehouse may be a bare bucket (no object path), where getFileName() throws.
+      String prefix =
+          path.getObject().isEmpty()
+              ? getClass().getSimpleName()
+              : getClass().getSimpleName() + "/" + path.getFileName();
       @Nullable List<StorageObject> objects =
-          gcsUtil
-              .listObjects(
-                  path.getBucket(),
-                  getClass().getSimpleName() + "/" + path.getFileName().toString(),
-                  null)
-              .getItems();
+          gcsUtil.listObjects(path.getBucket(), prefix, null).getItems();
       // A catalog's cleanup sometimes removes every file; delete whatever is left.
       if (objects != null) {
         gcsUtil.remove(
