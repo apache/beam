@@ -56,18 +56,23 @@ import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.PartitionQueryPair
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1ReadFn.RunQueryFn;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BatchWriteFnWithDeadLetterQueue;
 import org.apache.beam.sdk.io.gcp.firestore.FirestoreV1WriteFn.BatchWriteFnWithSummary;
+import org.apache.beam.sdk.options.StreamingOptions;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.Reshuffle;
 import org.apache.beam.sdk.transforms.SimpleFunction;
+import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.transforms.display.HasDisplayData;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.PDone;
 import org.apache.beam.sdk.values.PInput;
 import org.apache.beam.sdk.values.POutput;
+import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
@@ -229,6 +234,29 @@ public final class FirestoreV1 {
   static final FirestoreV1 INSTANCE = new FirestoreV1();
 
   private FirestoreV1() {}
+
+  /**
+   * Creates a side input holding a single pipeline-wide instant, from which the write ramp-up
+   * budget of every worker grows, rather than each worker starting its own ramp-up from its first
+   * write. Follows the approach of {@code DatastoreV1.Mutate}.
+   *
+   * <p>Returns {@code null} when {@code updateCompatibilityVersion} requests a pipeline shape from
+   * before this side input was introduced.
+   */
+  private static @Nullable PCollectionView<Instant> createRampUpStartView(
+      PCollection<?> input, JodaClock clock) {
+    if (StreamingOptions.updateCompatibilityVersionLessThan(
+        input.getPipeline().getOptions(), "2.78.0")) {
+      return null;
+    }
+    return input
+        .getPipeline()
+        .apply("Create ramp-up start", Create.of("rampUpStart"))
+        .apply(
+            "Generate ramp-up start timestamp",
+            MapElements.into(TypeDescriptor.of(Instant.class)).via(ignored -> clock.instant()))
+        .apply("Ramp-up start view", View.asSingleton());
+  }
 
   /**
    * The class returned by this method provides the ability to create {@link PTransform PTransforms}
@@ -1485,8 +1513,8 @@ public final class FirestoreV1 {
     @Override
     public PCollection<WriteSuccessSummary> expand(
         PCollection<com.google.firestore.v1.Write> input) {
-      return input.apply(
-          "batchWrite",
+      @Nullable PCollectionView<Instant> rampUpStartView = createRampUpStartView(input, clock);
+      ParDo.SingleOutput<com.google.firestore.v1.Write, WriteSuccessSummary> batchWrite =
           ParDo.of(
               new BatchWriteFnWithSummary(
                   clock,
@@ -1494,7 +1522,11 @@ public final class FirestoreV1 {
                   rpcQosOptions,
                   CounterFactory.DEFAULT,
                   projectId,
-                  databaseId)));
+                  databaseId,
+                  rampUpStartView));
+      return input.apply(
+          "batchWrite",
+          rampUpStartView == null ? batchWrite : batchWrite.withSideInputs(rampUpStartView));
     }
 
     @Override
@@ -1618,8 +1650,8 @@ public final class FirestoreV1 {
 
     @Override
     public PCollection<WriteFailure> expand(PCollection<com.google.firestore.v1.Write> input) {
-      return input.apply(
-          "batchWrite",
+      @Nullable PCollectionView<Instant> rampUpStartView = createRampUpStartView(input, clock);
+      ParDo.SingleOutput<com.google.firestore.v1.Write, WriteFailure> batchWrite =
           ParDo.of(
               new BatchWriteFnWithDeadLetterQueue(
                   clock,
@@ -1627,7 +1659,11 @@ public final class FirestoreV1 {
                   rpcQosOptions,
                   CounterFactory.DEFAULT,
                   projectId,
-                  databaseId)));
+                  databaseId,
+                  rampUpStartView));
+      return input.apply(
+          "batchWrite",
+          rampUpStartView == null ? batchWrite : batchWrite.withSideInputs(rampUpStartView));
     }
 
     @Override
