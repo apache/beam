@@ -64,7 +64,7 @@
 
 ## I/Os
 
-* Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
+* Added PostgreSQLIO, a native PostgreSQL connector for the Go SDK, with a vectorized sink using staged `COPY` and parameterized `UNNEST` upserts, dead-letter routing for failed mutations, and PgBouncer transaction-pooling support (Go) ([#39959](https://github.com/apache/beam/issues/39959)).
 
 ## New Features / Improvements
 
