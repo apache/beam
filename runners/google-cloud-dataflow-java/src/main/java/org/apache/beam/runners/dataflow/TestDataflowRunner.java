@@ -71,12 +71,21 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private final TestDataflowPipelineOptions options;
   private final DataflowClient dataflowClient;
   private final DataflowRunner runner;
+  private final DataflowTestBatchCoordinator batchCoordinator;
   private int expectedNumberOfAssertions = 0;
 
   TestDataflowRunner(TestDataflowPipelineOptions options, DataflowClient client) {
+    this(options, client, DataflowTestBatchCoordinator.shared());
+  }
+
+  TestDataflowRunner(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
     this.options = options;
     this.dataflowClient = client;
     this.runner = DataflowRunner.fromOptions(options);
+    this.batchCoordinator = batchCoordinator;
   }
 
   /** Constructs a runner from the provided options. */
@@ -110,14 +119,22 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return new TestDataflowRunner(options, client);
   }
 
+  @VisibleForTesting
+  static TestDataflowRunner fromOptionsAndClient(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
+    return new TestDataflowRunner(options, client, batchCoordinator);
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     return run(pipeline, runner);
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
-    if (DataflowTestBatchCoordinator.isEligibleForBatching(pipeline, options)) {
-      return DataflowTestBatchCoordinator.runInBatch(pipeline, options, this, runner);
+    if (batchCoordinator.isEligibleForBatching(pipeline, options)) {
+      return batchCoordinator.runInBatch(pipeline, options, this, runner);
     }
     return runStandalone(pipeline, runner);
   }

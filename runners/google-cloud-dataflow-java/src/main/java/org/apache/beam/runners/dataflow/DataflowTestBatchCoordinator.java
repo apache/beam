@@ -87,6 +87,11 @@ import org.slf4j.LoggerFactory;
  * Coordinates merging concurrent batch {@code TestPipeline} executions within a JVM into a single
  * Dataflow job per batch, with scoped {@link PAssert} and {@link MetricResults} verification.
  *
+ * <p>Batching spans runner instances: every test builds its own {@link TestDataflowRunner}, and the
+ * pipelines merged into one job come from different tests, threads and classes. Runners therefore
+ * share the single process-wide coordinator returned by {@link #shared()}; tests may construct
+ * private instances instead.
+ *
  * <p>Threading model: a test thread only enqueues its pipeline and then blocks on a per-pipeline
  * future. Per {@linkplain #compatibilityKey options-compatibility group}, a daemon scheduler thread
  * drains the queue and groups pipelines into batches; each closed batch is handed to a daemon
@@ -141,12 +146,46 @@ class DataflowTestBatchCoordinator {
     }
   }
 
-  private static volatile BatchingConfig config = BatchingConfig.fromSystemProperties();
+  private static final AtomicInteger INSTANCE_COUNTER = new AtomicInteger(1);
+  private static volatile @Nullable DataflowTestBatchCoordinator shared;
 
-  /** Overrides the run-wide configuration; {@code null} re-reads the system properties. */
+  /** The process-wide coordinator shared by all {@link TestDataflowRunner} instances. */
+  static DataflowTestBatchCoordinator shared() {
+    DataflowTestBatchCoordinator result = shared;
+    if (result == null) {
+      synchronized (DataflowTestBatchCoordinator.class) {
+        result = shared;
+        if (result == null) {
+          result = new DataflowTestBatchCoordinator(BatchingConfig.fromSystemProperties());
+          shared = result;
+        }
+      }
+    }
+    return result;
+  }
+
+  private final BatchingConfig config;
+  private final String name;
+  private final AtomicInteger batchCounter = new AtomicInteger(1);
+  private final AtomicInteger collectorCounter = new AtomicInteger(1);
+  private final ConcurrentHashMap<String, BatchCollector> collectors = new ConcurrentHashMap<>();
+
+  /** Runs merged jobs so that schedulers keep collecting while jobs are in flight. */
+  private final ExecutorService batchRunners;
+
+  DataflowTestBatchCoordinator(BatchingConfig config) {
+    this.config = config;
+    this.name = "beam-test-batch-" + INSTANCE_COUNTER.getAndIncrement();
+    this.batchRunners = Executors.newCachedThreadPool(daemonThreadFactory(name + "-runner-"));
+  }
+
+  /** Stops the scheduler threads and the batch-runner pool; pending items fail. Tests only. */
   @VisibleForTesting
-  static void setConfigForTesting(@Nullable BatchingConfig override) {
-    config = override == null ? BatchingConfig.fromSystemProperties() : override;
+  void shutdown() {
+    for (BatchCollector collector : collectors.values()) {
+      collector.stop();
+    }
+    batchRunners.shutdownNow();
   }
 
   private static final ObjectMapper MAPPER =
@@ -173,11 +212,6 @@ class DataflowTestBatchCoordinator {
           "gcpTempLocation",
           // Local harness behaviour; does not affect the submitted job.
           "testTimeoutSeconds");
-
-  private static final AtomicInteger BATCH_COUNTER = new AtomicInteger(1);
-  private static final AtomicInteger COLLECTOR_COUNTER = new AtomicInteger(1);
-  private static final ConcurrentHashMap<String, BatchCollector> COLLECTORS =
-      new ConcurrentHashMap<>();
 
   /**
    * Returns a key identifying the group of pipelines that may share a merged job with one built
@@ -251,9 +285,8 @@ class DataflowTestBatchCoordinator {
     return sorted;
   }
 
-  static boolean isEligibleForBatching(Pipeline pipeline, TestDataflowPipelineOptions options) {
-    BatchingConfig current = config;
-    if (!current.enabled || current.maxBatchSize <= 1) {
+  boolean isEligibleForBatching(Pipeline pipeline, TestDataflowPipelineOptions options) {
+    if (!config.enabled || config.maxBatchSize <= 1) {
       return false;
     }
     if (options.isStreaming() || !options.isBlockOnRun()) {
@@ -277,7 +310,7 @@ class DataflowTestBatchCoordinator {
         || SerializableMatchers.anything().equals(matcher);
   }
 
-  static DataflowPipelineJob runInBatch(
+  DataflowPipelineJob runInBatch(
       Pipeline pipeline,
       TestDataflowPipelineOptions options,
       TestDataflowRunner runner,
@@ -289,11 +322,11 @@ class DataflowTestBatchCoordinator {
     String key = digest(canonicalOptions);
     PendingItem item = new PendingItem(pipeline, options, runner, delegateRunner);
     BatchCollector collector =
-        COLLECTORS.computeIfAbsent(
+        collectors.computeIfAbsent(
             key,
             k -> {
               BatchCollector created =
-                  new BatchCollector("beam-test-batch-" + COLLECTOR_COUNTER.getAndIncrement());
+                  new BatchCollector(name + "-group-" + collectorCounter.getAndIncrement());
               LOG.info(
                   "Created Dataflow test batch group {} ({}) for options compatible with {}",
                   created.name,
@@ -423,25 +456,22 @@ class DataflowTestBatchCoordinator {
   }
 
   /**
-   * Groups pipelines that share a {@link BatchKey} into batches.
+   * Groups pipelines that share an options-compatibility key into batches.
    *
    * <p>Test threads only {@link #enqueue} and then wait on their {@link PendingItem#resultFuture}.
    * A single daemon scheduler thread drains the queue: it takes the first pipeline, waits up to the
-   * batch window for more (closing early once the batch is full), and hands the closed batch to a
-   * daemon executor so that it can immediately start collecting the next batch while the merged job
-   * is in flight. A batch of one is not worth a merged job and is sent straight back to its test
-   * thread to run standalone.
+   * batch window for more (closing early once the batch is full), and hands the closed batch to the
+   * coordinator's {@link #batchRunners} so that it can immediately start collecting the next batch
+   * while the merged job is in flight. A batch of one is not worth a merged job and is sent
+   * straight back to its test thread to run standalone.
    */
-  private static final class BatchCollector {
+  private final class BatchCollector {
     private final String name;
     private final LinkedBlockingQueue<PendingItem> queue = new LinkedBlockingQueue<>();
-    private final ExecutorService batchRunners;
     private @Nullable Thread scheduler;
 
     BatchCollector(String name) {
       this.name = name;
-      this.batchRunners =
-          Executors.newCachedThreadPool(daemonThreadFactory(name + "-batch-runner-"));
     }
 
     synchronized void start() {
@@ -449,6 +479,12 @@ class DataflowTestBatchCoordinator {
         scheduler = new Thread(this::schedulerLoop, name + "-scheduler");
         scheduler.setDaemon(true);
         scheduler.start();
+      }
+    }
+
+    synchronized void stop() {
+      if (scheduler != null) {
+        scheduler.interrupt();
       }
     }
 
@@ -479,9 +515,8 @@ class DataflowTestBatchCoordinator {
     private List<PendingItem> collectBatch(PendingItem first) throws InterruptedException {
       List<PendingItem> batch = new ArrayList<>();
       batch.add(first);
-      BatchingConfig current = config;
-      long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(current.windowMs);
-      while (batch.size() < current.maxBatchSize) {
+      long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(config.windowMs);
+      while (batch.size() < config.maxBatchSize) {
         long remainingNanos = deadlineNanos - System.nanoTime();
         if (remainingNanos <= 0) {
           break;
@@ -495,9 +530,22 @@ class DataflowTestBatchCoordinator {
       return batch;
     }
 
+    /**
+     * Hands a closed batch off without doing any job work on the scheduler thread; this returns
+     * immediately either way.
+     *
+     * <p>A batch of one is not executed through {@link #executeBatch}: that would wrap the lone
+     * pipeline in a renamed composite, apply scoped PAssert/stage verification, and &mdash; on
+     * failure &mdash; re-run it standalone, i.e. a second Dataflow job. Instead the member is told
+     * that batching was declined, which makes it behave exactly like an ineligible pipeline: its
+     * own test thread runs it standalone (see {@link PendingItem#awaitResult()}) with the full
+     * {@link TestDataflowRunner} semantics, unmodified names, and the first-attempt concurrency
+     * limiter.
+     */
     private void dispatch(List<PendingItem> batch) {
       try {
         if (batch.size() == 1) {
+          // Verdict only; the job is submitted by the test thread.
           batch.get(0).resultFuture.complete(BatchOutcome.runStandalone(true));
           return;
         }
@@ -516,7 +564,7 @@ class DataflowTestBatchCoordinator {
    * propagated to all member test threads instead of hanging them.
    */
   @VisibleForTesting
-  static void executeBatch(List<PendingItem> items) {
+  void executeBatch(List<PendingItem> items) {
     try {
       executeBatchInternal(items);
     } catch (Throwable t) {
@@ -543,8 +591,8 @@ class DataflowTestBatchCoordinator {
     return "t" + memberIndex;
   }
 
-  private static void executeBatchInternal(List<PendingItem> items) {
-    int batchNumber = BATCH_COUNTER.getAndIncrement();
+  private void executeBatchInternal(List<PendingItem> items) {
+    int batchNumber = batchCounter.getAndIncrement();
     List<Pipeline> memberPipelines = new ArrayList<>(items.size());
     List<String> scopes = new ArrayList<>(items.size());
     StringBuilder membership = new StringBuilder();

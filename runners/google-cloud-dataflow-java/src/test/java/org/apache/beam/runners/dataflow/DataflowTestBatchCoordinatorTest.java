@@ -113,6 +113,7 @@ public class DataflowTestBatchCoordinatorTest {
   @Mock private DataflowClient mockClient;
   private TestDataflowPipelineOptions options;
   private ExecutorService pool;
+  private DataflowTestBatchCoordinator coordinator;
 
   /** Metrics served by {@link #mockClient}, keyed by job id. Safe to populate from any thread. */
   private final Map<String, JobMetrics> metricsByJobId = new ConcurrentHashMap<>();
@@ -142,13 +143,20 @@ public class DataflowTestBatchCoordinatorTest {
   @After
   public void tearDown() {
     pool.shutdownNow();
-    DataflowTestBatchCoordinator.setConfigForTesting(null);
+    coordinator.shutdown();
   }
 
-  /** Installs the run-wide batching configuration for the current test. */
-  private static void configureBatching(int maxBatchSize, long windowMs) {
-    DataflowTestBatchCoordinator.setConfigForTesting(
-        new BatchingConfig(/* enabled= */ true, maxBatchSize, windowMs));
+  /**
+   * Gives the current test a private coordinator with the given run-wide configuration. Must be
+   * called before any {@link Member} is created.
+   */
+  private void configureBatching(int maxBatchSize, long windowMs) {
+    if (coordinator != null) {
+      coordinator.shutdown();
+    }
+    coordinator =
+        new DataflowTestBatchCoordinator(
+            new BatchingConfig(/* enabled= */ true, maxBatchSize, windowMs));
   }
 
   private static TestDataflowPipelineOptions createTestOptions(String appName) {
@@ -173,7 +181,7 @@ public class DataflowTestBatchCoordinatorTest {
     Member(String appName) {
       this.opts = createTestOptions(appName);
       this.pipeline = Pipeline.create(opts);
-      this.runner = TestDataflowRunner.fromOptionsAndClient(opts, mockClient);
+      this.runner = TestDataflowRunner.fromOptionsAndClient(opts, mockClient, coordinator);
     }
 
     /** Applies {@code Create -> ParDo(stepName)} and a PAssert expecting {@code expected}. */
@@ -257,25 +265,33 @@ public class DataflowTestBatchCoordinatorTest {
   public void testEligibilityChecks() {
     Pipeline boundedPipeline = Pipeline.create(options);
     boundedPipeline.apply(Create.of(1, 2, 3));
-    assertTrue(DataflowTestBatchCoordinator.isEligibleForBatching(boundedPipeline, options));
+    assertTrue(coordinator.isEligibleForBatching(boundedPipeline, options));
 
     // Streaming pipelines bypass batching.
     TestDataflowPipelineOptions streamingOpts = createTestOptions("StreamingApp");
     streamingOpts.setStreaming(true);
-    assertFalse(DataflowTestBatchCoordinator.isEligibleForBatching(boundedPipeline, streamingOpts));
+    assertFalse(coordinator.isEligibleForBatching(boundedPipeline, streamingOpts));
 
     // Unbounded pipelines bypass batching.
     Pipeline unboundedPipeline = Pipeline.create(options);
     unboundedPipeline.apply(GenerateSequence.from(0));
-    assertFalse(DataflowTestBatchCoordinator.isEligibleForBatching(unboundedPipeline, options));
+    assertFalse(coordinator.isEligibleForBatching(unboundedPipeline, options));
 
-    // Batching is a run-wide switch, not a per-pipeline option.
-    DataflowTestBatchCoordinator.setConfigForTesting(new BatchingConfig(false, 2, 5000L));
-    assertFalse(DataflowTestBatchCoordinator.isEligibleForBatching(boundedPipeline, options));
-    DataflowTestBatchCoordinator.setConfigForTesting(new BatchingConfig(true, 1, 5000L));
-    assertFalse(DataflowTestBatchCoordinator.isEligibleForBatching(boundedPipeline, options));
-    configureBatching(2, 5000L);
-    assertTrue(DataflowTestBatchCoordinator.isEligibleForBatching(boundedPipeline, options));
+    // Batching is a run-wide switch (coordinator config), not a per-pipeline option.
+    DataflowTestBatchCoordinator disabled =
+        new DataflowTestBatchCoordinator(new BatchingConfig(false, 2, 5000L));
+    try {
+      assertFalse(disabled.isEligibleForBatching(boundedPipeline, options));
+    } finally {
+      disabled.shutdown();
+    }
+    DataflowTestBatchCoordinator singletonBatches =
+        new DataflowTestBatchCoordinator(new BatchingConfig(true, 1, 5000L));
+    try {
+      assertFalse(singletonBatches.isEligibleForBatching(boundedPipeline, options));
+    } finally {
+      singletonBatches.shutdown();
+    }
   }
 
   // ---------------------------------------------------------------------------------------------
