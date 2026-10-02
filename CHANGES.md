@@ -71,6 +71,7 @@
 * (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 * The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
+* Added `RpcQosOptions.Builder.withRampupThrottlingDisabled()` to FirestoreIO, mirroring the existing DatastoreIO option, to opt out of the 500/50/5 write ramp-up (Java) ([#27170](https://github.com/apache/beam/issues/27170)).
 
 ## Breaking Changes
 

@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.gcp.firestore;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists.newArrayList;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
@@ -60,6 +61,20 @@ public final class RpcQosOptionsTest {
   }
 
   @Test
+  public void rampupThrottlingEnabledByDefault() {
+    assertTrue(RpcQosOptions.defaultOptions().isShouldThrottleRampup());
+  }
+
+  @Test
+  public void withRampupThrottlingDisabled_survivesToBuilder() {
+    RpcQosOptions disabled = RpcQosOptions.newBuilder().withRampupThrottlingDisabled().build();
+
+    assertFalse(disabled.isShouldThrottleRampup());
+    assertNotEquals(RpcQosOptions.defaultOptions(), disabled);
+    assertEquals(disabled, disabled.toBuilder().build());
+  }
+
+  @Test
   public void populateDisplayData() {
     //noinspection unchecked
     ArgumentCaptor<ItemSpec<?>> captor = ArgumentCaptor.forClass(DisplayData.ItemSpec.class);
@@ -85,6 +100,7 @@ public final class RpcQosOptionsTest {
             "samplePeriod",
             "samplePeriodBucketSize",
             "shouldReportDiagnosticMetrics",
+            "shouldThrottleRampup",
             "throttleDuration");
 
     assertEquals(expectedKeys, actualKeys);
