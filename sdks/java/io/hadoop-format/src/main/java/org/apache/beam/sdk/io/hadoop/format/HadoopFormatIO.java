@@ -979,6 +979,9 @@ public class HadoopFormatIO {
                   valueCoder,
                   skipValueClone);
         } catch (IOException | InterruptedException e) {
+          if (e instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
           LOG.error("Unable to read data: ", e);
           throw new IllegalStateException("Unable to read data: " + "{}", e);
         }
@@ -1569,6 +1572,9 @@ public class HadoopFormatIO {
             taskAttemptContext.getJobID().getJtIdentifier());
         return outputFormatObj.getRecordWriter(taskAttemptContext);
       } catch (InterruptedException | IOException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         throw new IllegalStateException("Unable to create RecordWriter object: ", e);
       }
     }

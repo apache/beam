@@ -187,6 +187,7 @@ public class SplittableDoFnOperator<InputT, OutputT, RestrictionT>
       }
     } catch (InterruptedException e) {
       LOG.debug("Could not properly await the termination of the scheduled executor service.", e);
+      Thread.currentThread().interrupt();
       executorService.shutdownNow();
       executorService = null;
     }

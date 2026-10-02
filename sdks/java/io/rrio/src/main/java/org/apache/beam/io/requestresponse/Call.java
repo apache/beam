@@ -297,7 +297,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
         try {
           boolean ignored = executor.awaitTermination(3L, TimeUnit.SECONDS);
         } catch (InterruptedException ignored) {
-          // Ignore the interrupt during teardown.
+          Thread.currentThread().interrupt();
         }
       }
     }
@@ -354,7 +354,7 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
           incIfPresent(sleeperCounter);
           sleeper.sleep(backOff.nextBackOffMillis());
         } catch (InterruptedException ignored) {
-          // Ignore the interrupt and try again.
+          Thread.currentThread().interrupt();
         }
       }
     }
@@ -535,6 +535,9 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       try {
         return future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         future.cancel(true);
         throw new UserCodeTimeoutException(e);
       } catch (ExecutionException e) {
@@ -585,6 +588,9 @@ class Call<RequestT, ResponseT> extends PTransform<PCollection<RequestT>, Result
       try {
         future.get(timeout.getMillis(), TimeUnit.MILLISECONDS);
       } catch (TimeoutException | InterruptedException e) {
+        if (e instanceof InterruptedException) {
+          Thread.currentThread().interrupt();
+        }
         future.cancel(true);
         throw new UserCodeTimeoutException(e);
       } catch (ExecutionException e) {
