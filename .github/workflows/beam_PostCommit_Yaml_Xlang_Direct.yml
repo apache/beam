@@ -40,7 +40,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -56,11 +56,10 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 180
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.test_set }})
+    name: ${{ matrix.job_name }} (${{ matrix.test_set }})
     strategy:
       matrix:
         job_name: ["beam_PostCommit_Yaml_Xlang_Direct"]
-        job_phrase: ["Run Yaml_Xlang_Direct PostCommit"]
         test_set: ["data", "databases", "messaging", "e2e"]
     steps:
       - uses: actions/checkout@v7
@@ -68,10 +67,6 @@ jobs:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.test_set }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.test_set }} (${{ matrix.job_phrase }} ${{ matrix.test_set }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -93,8 +88,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          commit: '${{ env.prsha || env.GITHUB_SHA }}'
-          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          commit: '${{ env.GITHUB_SHA }}'
+          comment_mode: 'off'
           check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/pytest*.xml'
           large_files: true

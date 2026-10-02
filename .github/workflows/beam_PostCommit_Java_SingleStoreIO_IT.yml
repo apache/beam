@@ -42,7 +42,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -52,30 +52,24 @@ env:
 
 jobs:
   beam_PostCommit_Java_SingleStoreIO_IT:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
     strategy:
       fail-fast: false
       matrix: 
         job_name: [beam_PostCommit_Java_SingleStoreIO_IT]
-        job_phrase: [Run Java SingleStoreIO_IT]
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request' ||
-      github.event.comment.body == 'Run Java SingleStoreIO_IT'
+      github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: Set k8s access

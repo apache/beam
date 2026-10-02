@@ -66,8 +66,6 @@ task check {
         }
 
         // postcommit should be triggered by a specific file so that there is a way to exercise post for open PR
-        // TODO(https://github.com/apache/beam/issues/28909)
-        //  remove file match trigger once a better trigger (e.g. comment trigger) is implemented
         if (fname.startsWith("beam_PostCommit")) {
           String triggerFile = '.github/trigger_files/' + fname.take(fname.lastIndexOf('.')) + '.json'
           if (paths != null && !paths.contains(triggerFile)) {

@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -52,18 +52,14 @@ jobs:
   beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_JavaVersions:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      (contains(github.event.comment.body, 'Run Load Tests Java') &&
-         contains(github.event.comment.body, 'CoGBK Dataflow V2 Batch'))
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 720
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
+    name: ${{ matrix.job_name }} (${{ matrix.java_version }})
     strategy:
       fail-fast: false
       matrix:
         job_name: ["beam_LoadTests_Java_CoGBK_Dataflow_V2_Batch_JavaVersions"]
-        job_phrase_1: ["Run Load Tests Java"]
-        job_phrase_2: ["CoGBK Dataflow V2 Batch"]
         java_version: ['11','17']
     steps:
       - uses: actions/checkout@v7
@@ -71,10 +67,6 @@ jobs:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase_1 }} ${{ matrix.java_version }} ${{ matrix.job_phrase_2 }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
