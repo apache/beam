@@ -243,6 +243,10 @@ class ExternalProvider(Provider):
             underlying_transform_identifier=urn,
             update_compatibility_version=self._managed_replacement[type])
 
+      known_fields = set(
+          self.schema_transforms()[urn].configuration_schema._fields)
+      args = {k: v for k, v in args.items() if k in known_fields}
+
       return external.SchemaAwareExternalTransform(
           urn,
           self._service,

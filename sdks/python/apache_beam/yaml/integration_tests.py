@@ -101,8 +101,10 @@ from testcontainers.postgres import PostgresContainer
 import apache_beam as beam
 from apache_beam.io import filesystems
 from apache_beam.io.gcp.bigquery_tools import BigQueryWrapper
+from apache_beam.io.gcp.bigquery_tools import get_table_schema_from_string
 from apache_beam.io.gcp.internal.clients import bigquery
 from apache_beam.io.gcp.spanner_wrapper import SpannerWrapper
+from apache_beam.options.pipeline_options import GoogleCloudOptions
 from apache_beam.options.pipeline_options import PipelineOptions
 from apache_beam.utils import python_callable
 from apache_beam.yaml import yaml_provider
@@ -219,14 +221,55 @@ def temp_firestore_collection(
       batch.commit()
 
 
+class AssertBigQueryQueryEqual(beam.PTransform):
+  """Asserts that a BigQuery SQL query returns exactly the expected rows.
+
+  Used by CDC YAML ITs: Storage Read (ReadFromBigQuery table:) does not see
+  unapplied CDC UPSERTs, while a query job applies them (same approach as
+  xlang_bigqueryio_it_test.BigqueryFullResultMatcher).
+  """
+  def __init__(self, project, query, expected):
+    self._project = project
+    self._query = query
+    self._expected = expected
+
+  def expand(self, pcoll):
+    project = self._project
+    query = self._query
+    expected = [dict(row) for row in self._expected]
+
+    def _verify(_):
+      # Local import: google-cloud-bigquery is a gcp_test extra.
+      from google.cloud import bigquery as gcbq
+      client = gcbq.Client(project=project)
+      actual = [dict(row.items()) for row in client.query(query).result()]
+
+      # Compare as sorted JSON for stable, type-tolerant equality.
+      def _key(row):
+        return json.dumps(row, sort_keys=True, default=str)
+
+      if sorted(actual, key=_key) != sorted(expected, key=_key):
+        raise AssertionError(
+            'BigQuery query %r returned %r, expected %r' %
+            (query, actual, expected))
+      return _
+
+    return pcoll | beam.Map(_verify)
+
+
 @contextlib.contextmanager
-def temp_bigquery_table(project, prefix='yaml_bq_it_'):
+def temp_bigquery_table(
+    project,
+    prefix='yaml_bq_it_',
+    use_colon_table_spec=False,
+    table_schema=None,
+    primary_key=None):
   """Context manager to create and clean up a temporary BigQuery dataset.
 
   Creates a unique temporary BigQuery dataset within the specified project.
   It yields a placeholder table name string within that dataset (e.g.,
   'project.dataset_id.tmp_table'). The actual table is expected to be
-  created by the test using this context.
+  created by the test using this context, unless ``table_schema`` is set.
 
   Upon exiting the context, the temporary dataset and all its contents
   (including any tables created within it) are deleted.
@@ -235,17 +278,58 @@ def temp_bigquery_table(project, prefix='yaml_bq_it_'):
     project (str): The Google Cloud project ID.
     prefix (str): A prefix to use for the temporary dataset name.
       Defaults to 'yaml_bq_it_'.
+    use_colon_table_spec (bool): If True, yield ``project:dataset.tmp_table``.
+      Defaults to False (``project.dataset.tmp_table``).
+    table_schema (str|None): Optional BigQuery schema string
+      (``name:TYPE,...``). When set, creates ``tmp_table`` before yield.
+    primary_key (list|None): Optional primary-key column names. Requires
+      ``table_schema``. Primary-key columns are created as REQUIRED.
 
   Yields:
     str: The full path for a temporary BigQuery table within the created
     dataset.
          Example: 'my-project.yaml_bq_it_a1b2c3d4e5f6...tmp_table'
   """
-  bigquery_client = BigQueryWrapper()
+  if primary_key and not table_schema:
+    raise ValueError('primary_key requires table_schema')
+  options = PipelineOptions()
+  options.view_as(GoogleCloudOptions).project = project
+  bigquery_client = BigQueryWrapper.from_pipeline_options(options)
   dataset_id = '%s_%s' % (prefix, uuid.uuid4().hex)
+  table_id = 'tmp_table'
   bigquery_client.get_or_create_dataset(project, dataset_id)
   logging.info("Created dataset %s in project %s", dataset_id, project)
-  yield f'{project}.{dataset_id}.tmp_table'
+  if table_schema:
+    schema = get_table_schema_from_string(table_schema)
+    additional_create_parameters = None
+    if primary_key:
+      pk_columns = set(primary_key)
+      for field in schema.fields:
+        if field.name in pk_columns:
+          field.mode = 'REQUIRED'
+      additional_create_parameters = {
+          'tableConstraints': bigquery.TableConstraints(
+              primaryKey=bigquery.TableConstraints.PrimaryKeyValue(
+                  columns=list(primary_key)))
+      }
+    bigquery_client.get_or_create_table(
+        project_id=project,
+        dataset_id=dataset_id,
+        table_id=table_id,
+        schema=schema,
+        create_disposition='CREATE_IF_NEEDED',
+        write_disposition='WRITE_APPEND',
+        additional_create_parameters=additional_create_parameters)
+    logging.info(
+        "Created table %s.%s.%s (primary_key=%s)",
+        project,
+        dataset_id,
+        table_id,
+        primary_key)
+  if use_colon_table_spec:
+    yield f'{project}:{dataset_id}.{table_id}'
+  else:
+    yield f'{project}.{dataset_id}.{table_id}'
   request = bigquery.BigqueryDatasetsDeleteRequest(
       projectId=project, datasetId=dataset_id, deleteContents=True)
   logging.info("Deleting dataset %s in project %s", dataset_id, project)
