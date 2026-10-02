@@ -21,6 +21,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.beam.runners.flink.FlinkPipelineOptions;
 import org.apache.beam.sdk.io.BoundedSource;
 import org.apache.beam.sdk.io.FileBasedSource;
@@ -40,7 +42,8 @@ import org.slf4j.LoggerFactory;
  * <ol>
  *   <li>Split the source using {@code estimatedSize / parallelism} as the desired split size,
  *       capped by {@link FlinkPipelineOptions#getFileInputSplitMaxSizeMB()} for file sources.
- *   <li>While there are fewer splits than readers, re-split each split.
+ *   <li>Re-split the splits that are much larger than the desired split size, as some sources
+ *       return splits way larger than requested.
  *   <li>While the split sizes vary a lot (high coefficient of variation), re-split the larger
  *       splits.
  *   <li>Halve the largest splits until the number of splits is a multiple of the parallelism.
@@ -117,9 +120,13 @@ public final class BoundedSourceSplitter {
     List<SizedSource<T>> splits = sized(source.split(desiredSizeBytes, options), options);
     int initialSplits = splits.size();
 
-    splits = ensureEnoughSplits(splits, options, readers, desiredSizeBytes);
+    // Some sources (e.g. BigQuery) return splits way larger than requested that can still be
+    // split further.
+    splits = resplitLargerThan(splits, options, desiredSizeBytes);
     if (allSizesKnown(splits)) {
-      splits = balanceSizes(splits, options, readers, estimatedSizeBytes, maxSplitSizeBytes);
+      long minTargetBytes =
+          Math.max(1L, estimatedSizeBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
+      splits = balanceSizes(splits, options, minTargetBytes, maxSplitSizeBytes, MAX_RESPLIT_ROUNDS);
       splits = roundToMultipleOfParallelism(splits, options, readers);
       splits = orderForRoundRobin(splits, readers);
     }
@@ -151,57 +158,41 @@ public final class BoundedSourceSplitter {
     return Long.MAX_VALUE;
   }
 
-  /** Re-splits every split while there are fewer splits than readers. */
-  private static <T> List<SizedSource<T>> ensureEnoughSplits(
-      List<SizedSource<T>> splits, PipelineOptions options, int readers, long desiredSizeBytes)
-      throws Exception {
-    for (int round = 0; round < MAX_RESPLIT_ROUNDS && splits.size() < readers; round++) {
-      int factor = (readers + splits.size() - 1) / Math.max(1, splits.size());
-      List<SizedSource<T>> next = new ArrayList<>();
-      for (SizedSource<T> split : splits) {
-        long base = split.sizeBytes > 0 ? split.sizeBytes : desiredSizeBytes;
-        next.addAll(resplit(split, options, Math.max(1L, base / factor)));
-      }
-      if (next.size() <= splits.size()) {
-        break;
-      }
-      splits = next;
-    }
-    return splits;
-  }
-
-  /** Re-splits the larger splits while the split sizes vary a lot. */
+  /**
+   * Re-splits the splits larger than the mean size (bounded by {@code minTargetBytes} and {@code
+   * maxSplitSizeBytes}) while the split sizes vary a lot, at most {@code roundsLeft} times.
+   */
   private static <T> List<SizedSource<T>> balanceSizes(
       List<SizedSource<T>> splits,
       PipelineOptions options,
-      int readers,
-      long estimatedSizeBytes,
-      long maxSplitSizeBytes)
-      throws Exception {
-    long minTargetBytes =
-        Math.max(1L, estimatedSizeBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
-    for (int round = 0; round < MAX_RESPLIT_ROUNDS; round++) {
-      if (coefficientOfVariation(splits) <= MAX_SIZE_COEFFICIENT_OF_VARIATION) {
-        break;
-      }
-      long targetBytes = Math.min(Math.max((long) mean(splits), minTargetBytes), maxSplitSizeBytes);
-      List<SizedSource<T>> next = new ArrayList<>();
-      boolean progress = false;
-      for (SizedSource<T> split : splits) {
-        if (split.sizeBytes > OVERSIZED_SPLIT_FACTOR * targetBytes) {
-          List<SizedSource<T>> parts = resplit(split, options, targetBytes);
-          progress |= parts.size() > 1;
-          next.addAll(parts);
-        } else {
-          next.add(split);
-        }
-      }
-      if (!progress || !allSizesKnown(next)) {
-        break;
-      }
-      splits = next;
+      long minTargetBytes,
+      long maxSplitSizeBytes,
+      int roundsLeft) {
+    if (roundsLeft == 0 || coefficientOfVariation(splits) <= MAX_SIZE_COEFFICIENT_OF_VARIATION) {
+      return splits;
     }
-    return splits;
+    long targetBytes = Math.min(Math.max((long) mean(splits), minTargetBytes), maxSplitSizeBytes);
+    List<SizedSource<T>> next = resplitLargerThan(splits, options, targetBytes);
+    if (next.size() > splits.size() && allSizesKnown(next)) {
+      return balanceSizes(next, options, minTargetBytes, maxSplitSizeBytes, roundsLeft - 1);
+    } else {
+      return splits;
+    }
+  }
+
+  /** Re-splits, once, each split larger than {@link #OVERSIZED_SPLIT_FACTOR} x the target. */
+  private static <T> List<SizedSource<T>> resplitLargerThan(
+      List<SizedSource<T>> splits, PipelineOptions options, long targetBytes) {
+    return splits.stream()
+        .flatMap(
+            split -> {
+              if (split.sizeBytes > OVERSIZED_SPLIT_FACTOR * targetBytes) {
+                return resplit(split, options, targetBytes).stream();
+              } else {
+                return Stream.of(split);
+              }
+            })
+        .collect(Collectors.toList());
   }
 
   /** Halves the largest splits until the number of splits is a multiple of the parallelism. */
@@ -218,10 +209,12 @@ public final class BoundedSourceSplitter {
         break;
       }
       SizedSource<T> largest = result.remove(0);
-      List<SizedSource<T>> parts =
-          largest.sizeBytes > 1
-              ? resplit(largest, options, Math.max(1L, largest.sizeBytes / 2))
-              : Collections.singletonList(largest);
+      List<SizedSource<T>> parts;
+      if (largest.sizeBytes > 1) {
+        parts = resplit(largest, options, Math.max(1L, largest.sizeBytes / 2));
+      } else {
+        parts = Collections.singletonList(largest);
+      }
       if (parts.size() <= 1 || !allSizesKnown(parts)) {
         unsplittable.add(largest);
         continue;
