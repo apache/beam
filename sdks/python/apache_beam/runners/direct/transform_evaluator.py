@@ -618,6 +618,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
   _subscription_cache = weakref.WeakKeyDictionary()
   _subscriber_client_cache = weakref.WeakKeyDictionary()
   _subscriber_client_cache_lock = threading.Lock()
+  _start_times = weakref.WeakKeyDictionary()
 
   def __init__(
       self,
@@ -636,6 +637,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     if self.source.id_label:
       raise NotImplementedError(
           'DirectRunner: id_label is not supported for PubSub reads')
+
+    with self._subscriber_client_cache_lock:
+      if self._applied_ptransform not in self._start_times:
+        self._start_times[self._applied_ptransform] = time.time()
 
     sub_project = None
     if hasattr(self._evaluation_context, 'pipeline_options'):
@@ -739,17 +744,43 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
       return timestamp, parsed_message
 
+    # Check if timeout has elapsed.
+    timeout = 30
+    max_read_time_seconds = getattr(self.source, 'max_read_time_seconds', None)
+    if max_read_time_seconds:
+      with self._subscriber_client_cache_lock:
+        start_time = self._start_times.get(
+            self._applied_ptransform, time.time())
+      elapsed = time.time() - start_time
+      timeout = max(0, min(timeout, max_read_time_seconds - elapsed))
+      if timeout <= 0:
+        return []
+
     # Because of the AutoAck, we are not able to reread messages if this
     # evaluator fails with an exception before emitting a bundle. However,
     # the DirectRunner currently doesn't retry work items anyway, so the
     # pipeline would enter an inconsistent state on any error.
     sub_client = self._get_subscriber_client(self._applied_ptransform)
-    response = sub_client.pull(
-        subscription=self._sub_name, max_messages=10, timeout=30)
-    results = [_get_element(rm.message) for rm in response.received_messages]
-    ack_ids = [rm.ack_id for rm in response.received_messages]
-    if ack_ids:
-      sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
+    try:
+      response = sub_client.pull(
+          subscription=self._sub_name, max_messages=10, timeout=timeout)
+      results = [_get_element(rm.message) for rm in response.received_messages]
+      ack_ids = [rm.ack_id for rm in response.received_messages]
+      if ack_ids:
+        sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)
+    except Exception as e:
+      try:
+        from google.api_core import exceptions
+        if isinstance(e, exceptions.DeadlineExceeded) or type(
+            e).__name__ == 'DeadlineExceeded':
+          results = []
+        else:
+          raise
+      except ImportError:
+        if type(e).__name__ == 'DeadlineExceeded':
+          results = []
+        else:
+          raise
 
     return results
 
@@ -769,6 +800,17 @@ class _PubSubReadEvaluator(_TransformEvaluator):
       bundles = [bundle]
     else:
       bundles = []
+
+    max_read_time_seconds = getattr(self.source, 'max_read_time_seconds', None)
+    if max_read_time_seconds:
+      with self._subscriber_client_cache_lock:
+        start_time = self._start_times.get(
+            self._applied_ptransform, time.time())
+      elapsed = time.time() - start_time
+      if elapsed >= max_read_time_seconds:
+        return TransformResult(
+            self, bundles, [], None, {None: WatermarkManager.WATERMARK_POS_INF})
+
     assert self._applied_ptransform.transform is not None
     if self._applied_ptransform.inputs:
       input_pvalue = self._applied_ptransform.inputs[0]

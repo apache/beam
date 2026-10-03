@@ -218,7 +218,8 @@ class ReadFromPubSub(PTransform):
       subscription: Optional[str] = None,
       id_label: Optional[str] = None,
       with_attributes: bool = False,
-      timestamp_attribute: Optional[str] = None) -> None:
+      timestamp_attribute: Optional[str] = None,
+      max_read_time_seconds: Optional[int] = None) -> None:
     """Initializes ``ReadFromPubSub``.
 
     Args:
@@ -250,15 +251,21 @@ class ReadFromPubSub(PTransform):
           ``2015-10-29T23:41:41.123Z``. The sub-second component of the
           timestamp is optional, and digits beyond the first three (i.e., time
           units smaller than milliseconds) may be ignored.
+      max_read_time_seconds: Maximum time in seconds to read from Pub/Sub.
+        Default is forever.
     """
     super().__init__()
+    if max_read_time_seconds is not None and max_read_time_seconds <= 0:
+      raise ValueError('max_read_time_seconds must be positive.')
+    self.max_read_time_seconds = max_read_time_seconds
     self.with_attributes = with_attributes
     self._source = _PubSubSource(
         topic=topic,
         subscription=subscription,
         id_label=id_label,
         with_attributes=self.with_attributes,
-        timestamp_attribute=timestamp_attribute)
+        timestamp_attribute=timestamp_attribute,
+        max_read_time_seconds=self.max_read_time_seconds)
 
   def expand(self, pvalue):
     # TODO(BEAM-27443): Apply a proper transform rather than Read.
@@ -523,7 +530,8 @@ class _PubSubSource(iobase.SourceBase):
       subscription: Optional[str] = None,
       id_label: Optional[str] = None,
       with_attributes: bool = False,
-      timestamp_attribute: Optional[str] = None):
+      timestamp_attribute: Optional[str] = None,
+      max_read_time_seconds: Optional[int] = None):
     self.coder = coders.BytesCoder()
     self.full_topic = topic
     self.full_subscription = subscription
@@ -532,6 +540,7 @@ class _PubSubSource(iobase.SourceBase):
     self.id_label = id_label
     self.with_attributes = with_attributes
     self.timestamp_attribute = timestamp_attribute
+    self.max_read_time_seconds = max_read_time_seconds
 
     # Perform some validation on the topic and subscription.
     if not (topic or subscription):
@@ -557,6 +566,9 @@ class _PubSubSource(iobase.SourceBase):
         'timestamp_attribute': DisplayDataItem(
             self.timestamp_attribute,
             label='Timestamp Attribute').drop_if_none(),
+        'max_read_time_seconds': DisplayDataItem(
+            self.max_read_time_seconds,
+            label='Max Read Time Seconds').drop_if_none(),
     }
 
   def default_output_coder(self):
