@@ -31,7 +31,9 @@ import functools
 import logging
 import os
 import pickle
+import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
@@ -403,6 +405,251 @@ class ModelHandler(Generic[ExampleT, PredictionT, ModelT]):
     not be overriden unless the model handler implements other mechanisms for
     garbage collection."""
     return self.share_model_across_processes()
+
+
+class SubprocessModelHandler(ModelHandler[ExampleT, PredictionT, ModelT], ABC):
+  """Base class for model handlers that spin up a subprocess server."""
+  @abstractmethod
+  def get_port(self, model: ModelT) -> int:
+    """Returns the port the subprocess server is listening on."""
+    pass
+
+  @abstractmethod
+  def get_model_name(self) -> str:
+    """Returns the model name."""
+    pass
+
+  @abstractmethod
+  def check_connectivity(self, model: ModelT) -> None:
+    """Checks connectivity to the server and attempts to recover/mark for restart."""
+    pass
+
+
+class SubProcessModelServer:
+  """Manages the lifecycle of a generic subprocess model server."""
+  def __init__(
+      self,
+      handler_path: str,
+      model_name: str,
+      port: Optional[int] = None,
+      temp_dir: Optional[tempfile.TemporaryDirectory] = None):
+    self._handler_path = handler_path
+    self._model_name = model_name
+    self._port = port
+    self._temp_dir = temp_dir
+    self._process = None
+    self._server_started = False
+    self._server_process_lock = threading.RLock()
+    self.start_server()
+
+  def _terminate_process(self):
+    if self._process:
+      logging.info("Terminating generic subprocess model server")
+      try:
+        self._process.terminate()
+        self._process.wait(timeout=5)
+      except Exception:
+        try:
+          self._process.kill()
+          self._process.wait(timeout=5)
+        except Exception:
+          pass
+      if self._process.stdout:
+        try:
+          self._process.stdout.close()
+        except Exception:
+          pass
+      self._process = None
+      self._port = None
+
+  def start_server(self, retries=3):
+    with self._server_process_lock:
+      if self._process and self._process.poll() is not None:
+        self._server_started = False
+      if not self._server_started:
+        if self._process:
+          self._terminate_process()
+
+        from apache_beam.utils import subprocess_server
+        if self._port is None:
+          self._port, = subprocess_server.pick_port(None)
+        
+        cmd = [
+            sys.executable,
+            '-m',
+            'apache_beam.ml.inference.subprocess_server',
+            '--handler_path',
+            self._handler_path,
+            '--port',
+            str(self._port),
+            '--model_name',
+            self._model_name,
+        ]
+        logging.info("Starting generic model server with %s", cmd)
+        proc = subprocess.Popen(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self._process = proc
+        
+        # Emit the output of this command as info level logging.
+        def log_stdout():
+          if not proc.stdout:
+            return
+          try:
+            line = proc.stdout.readline()
+            while line:
+              logging.info(line.decode(errors='backslashreplace').rstrip())
+              line = proc.stdout.readline()
+          except (ValueError, OSError):
+            pass
+
+        t = threading.Thread(target=log_stdout)
+        t.daemon = True
+        t.start()
+
+      self.check_connectivity(retries)
+
+  def get_server_port(self) -> int:
+    if not self._server_started or (
+        self._process and self._process.poll() is not None):
+      self.start_server()
+    return self._port
+
+  def check_connectivity(self, retries=3):
+    with self._server_process_lock:
+      import urllib.request
+      import urllib.error
+      
+      url = f"http://localhost:{self._port}/v1/models"
+      attempts = 0
+      max_attempts = 12  # 12 * 5s = 60s timeout
+      while (self._process is not None and self._process.poll() is None and
+             attempts < max_attempts):
+        try:
+          # Use standard library to check connectivity to avoid extra dependencies
+          req = urllib.request.Request(url, method="GET")
+          with urllib.request.urlopen(req, timeout=5) as response:
+            if response.status == 200:
+              self._server_started = True
+              return
+        except urllib.error.URLError:
+          pass
+        except Exception as e:
+          logging.warning("Error checking connectivity: %s", e)
+        attempts += 1
+        time.sleep(5)
+
+      self._server_started = False
+      if retries == 0:
+        exit_code = self._process.poll() if self._process else None
+        raise Exception(
+            "Failed to start generic subprocess server, polling process exited with code " +
+            f"{exit_code}. Next time a request is tried, the server will be restarted"
+        )
+      else:
+        self.start_server(retries - 1)
+
+  def __del__(self):
+    self._terminate_process()
+    if self._temp_dir:
+      try:
+        self._temp_dir.cleanup()
+      except Exception:
+        pass
+
+
+class SubProcessModel(SubprocessModelHandler[ExampleT, PredictionT, Any]):
+  """Wrapper to adapt any ModelHandler to SubprocessModelHandler."""
+  def __init__(
+      self,
+      handler: ModelHandler[ExampleT, PredictionT, ModelT],
+      model_name: str,
+      timeout: int = 300):
+    super().__init__()
+    self._handler = handler
+    self._model_name = model_name
+    self._timeout = timeout
+    self._handler_path = None
+
+  def load_model(self) -> Any:
+    if isinstance(self._handler, SubprocessModelHandler):
+      return self._handler.load_model()
+      
+    import tempfile
+    from apache_beam.internal import pickler
+    temp_dir = tempfile.TemporaryDirectory(prefix="beam-subprocess-")
+    self._handler_path = os.path.join(temp_dir.name, "handler.pickle")
+    with open(self._handler_path, "wb") as f:
+      f.write(pickler.dumps(self._handler))
+      
+    return SubProcessModelServer(self._handler_path, self._model_name, temp_dir=temp_dir)
+
+  def run_inference(self, batch, model, inference_args=None):
+    if isinstance(model, SubProcessModelServer):
+      try:
+        return self._run_inference_via_http(batch, model.get_server_port(), inference_args)
+      except Exception as e:
+        model.check_connectivity()
+        raise e
+    else:
+      return self._handler.run_inference(batch, model, inference_args)
+
+  def _run_inference_via_http(self, batch, port, inference_args):
+    import urllib.request
+    import urllib.error
+    from apache_beam.internal import pickler
+    
+    url = f"http://localhost:{port}/v1/beam/inference"
+    payload = {
+        "batch": batch,
+        "inference_args": inference_args
+    }
+    data = pickler.dumps(payload)
+    
+    req = urllib.request.Request(url, data=data, method="POST")
+    req.add_header('Content-Type', 'application/octet-stream')
+    
+    try:
+      with urllib.request.urlopen(req, timeout=self._timeout) as response:
+        resp_data = response.read()
+        results = pickler.loads(resp_data)
+        return results
+    except urllib.error.HTTPError as e:
+      try:
+        err_details = e.read().decode('utf-8')
+        logging.error("Subprocess server returned error: %s", err_details)
+      except Exception:
+        pass
+      logging.exception("Failed to run inference via HTTP raw endpoint (HTTPError)")
+      raise e
+    except Exception as e:
+      logging.exception("Failed to run inference via HTTP raw endpoint")
+      raise e
+
+  def get_port(self, model: Any) -> int:
+    if hasattr(model, 'get_server_port'):
+      return model.get_server_port()
+    elif hasattr(model, 'port'):
+      return model.port
+    raise ValueError(f"Could not determine port from model of type {type(model)}")
+
+  def get_model_name(self) -> str:
+    return self._model_name
+
+  def check_connectivity(self, model: Any) -> None:
+    if hasattr(model, 'check_connectivity'):
+      model.check_connectivity()
+    elif hasattr(self._handler, 'check_connectivity'):
+      self._handler.check_connectivity(model)
+
+  def share_model_across_processes(self) -> bool:
+    return self._handler.share_model_across_processes()
+
+  def __getattr__(self, name):
+    if name == '_handler':
+      raise AttributeError()
+    if '_handler' not in self.__dict__:
+      raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+    return getattr(self._handler, name)
 
 
 class RemoteModelHandler(ABC, ModelHandler[ExampleT, PredictionT, ModelT]):
