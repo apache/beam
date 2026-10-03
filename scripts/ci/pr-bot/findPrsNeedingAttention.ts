@@ -112,9 +112,11 @@ async function assignToNewReviewers(
   reviewersToExclude.push(pull.user.login);
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(labelObjects, reviewersToExclude);
-  const fallbackReviewers = reviewerConfig.getFallbackReviewers();
-  for (const labelObject of labelObjects) {
-    const label = labelObject.name;
+  const fallbackReviewers =
+    reviewerConfig.getFallbackReviewers(reviewersToExclude);
+  let backupReviewersForLabels: { [key: string]: string } = {};
+  prState.reviewersAssignedForLabels = {};
+  for (const label of Object.keys(reviewersForLabels)) {
     let availableReviewers = reviewersForLabels[label];
     if (availableReviewers && availableReviewers.length > 0) {
       let reviewersState = await stateClient.getReviewersForLabelState(label);
@@ -122,8 +124,16 @@ async function assignToNewReviewers(
         availableReviewers,
         fallbackReviewers
       );
+      let backupReviewer = reviewersState.getBackupReviewer(
+        availableReviewers,
+        chosenReviewer,
+        fallbackReviewers
+      );
       reviewerStateToUpdate[label] = reviewersState;
       prState.reviewersAssignedForLabels[label] = chosenReviewer;
+      if (backupReviewer) {
+        backupReviewersForLabels[label] = backupReviewer;
+      }
     }
   }
 
@@ -132,6 +142,7 @@ async function assignToNewReviewers(
     pull.number,
     commentStrings.assignNewReviewer(prState.reviewersAssignedForLabels, {
       labels: pull.labels,
+      backupReviewers: backupReviewersForLabels,
     })
   );
   await github.requestPrReviewers(

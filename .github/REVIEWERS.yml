@@ -17,14 +17,18 @@
 # add yourself to that label's exclusionList
 # FallbackReviewers is for reviewers who can review any area of the code base that might
 # not receive a label. These should generally be more experienced committers.
+# Priority determines which label is used to select a reviewer when a PR has multiple labels
+# (lower number = higher priority).
 labels:
   - name: Go
+    priority: 2
     reviewers:
       - jrmccluskey
       - lostluck
       - shunping
     exclusionList: []
   - name: Python
+    priority: 2
     reviewers:
       - claudevdm
       - damccorm
@@ -33,6 +37,7 @@ labels:
       - shunping
     exclusionList: []
   - name: Java
+    priority: 2
     reviewers:
       - Abacn
       - ahmedabu98
@@ -40,33 +45,40 @@ labels:
       - kennknowles
     exclusionList: []
   - name: spanner
+    priority: 1
     reviewers:
       - nielm
   - name: bigtable
+    priority: 1
     reviewers:
       - igorbernstein2
       - mutianf
     exclusionList: []
   - name: kafka
+    priority: 1
     reviewers:
       - johnjcasey
       - Dippatel98
       - sjvanrossum
   - name: delta
+    priority: 1
     reviewers:
       - ahmedabu98
       - chamikaramj
     exclusionList: []
   - name: iceberg
+    priority: 1
     reviewers:
       - ahmedabu98
       - chamikaramj
     exclusionList: []
   - name: yaml
+    priority: 1
     reviewers:
       - chamikaramj
       - derrickaw
   - name: Build
+    priority: 3
     reviewers:
       - Abacn
       - Amar3tto
@@ -74,6 +86,7 @@ labels:
       - derrickaw
     exclusionList: []
   - name: website
+    priority: 3
     reviewers:
       - Abacn
       - damccorm
