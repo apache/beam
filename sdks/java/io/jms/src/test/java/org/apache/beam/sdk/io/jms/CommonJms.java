@@ -26,6 +26,7 @@ import java.util.function.Supplier;
 import javax.jms.BytesMessage;
 import javax.jms.ConnectionFactory;
 import javax.jms.Message;
+import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.broker.BrokerPlugin;
 import org.apache.activemq.broker.BrokerService;
 import org.apache.activemq.security.AuthenticationUser;
@@ -97,6 +98,7 @@ public class CommonJms implements Serializable {
   void startBroker() throws Exception {
     broker = new BrokerService();
     broker.setUseJmx(false);
+    broker.setAdvisorySupport(false);
     broker.setPersistenceAdapter(new MemoryPersistenceAdapter());
     TransportFactory.registerTransportFactory("amqp", new AmqpTransportFactory());
     if (shouldAppendPort()) {
@@ -135,7 +137,12 @@ public class CommonJms implements Serializable {
           InvocationTargetException,
           InstantiationException,
           IllegalAccessException {
-    return connectionFactoryClass.getConstructor(String.class).newInstance(getBrokerUrlWithPort());
+    ConnectionFactory factory =
+        connectionFactoryClass.getConstructor(String.class).newInstance(getBrokerUrlWithPort());
+    if (factory instanceof ActiveMQConnectionFactory) {
+      ((ActiveMQConnectionFactory) factory).setWatchTopicAdvisories(false);
+    }
+    return factory;
   }
 
   ConnectionFactory createConnectionFactoryWithSyncAcksAndWithoutPrefetch()
@@ -143,9 +150,15 @@ public class CommonJms implements Serializable {
           InvocationTargetException,
           InstantiationException,
           IllegalAccessException {
-    return connectionFactoryClass
-        .getConstructor(String.class)
-        .newInstance(getBrokerUrlWithPort() + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
+    ConnectionFactory factory =
+        connectionFactoryClass
+            .getConstructor(String.class)
+            .newInstance(
+                getBrokerUrlWithPort() + BROKER_WITHOUT_PREFETCH_PARAM + forceAsyncAcksParam);
+    if (factory instanceof ActiveMQConnectionFactory) {
+      ((ActiveMQConnectionFactory) factory).setWatchTopicAdvisories(false);
+    }
+    return factory;
   }
 
   void stopBroker() throws Exception {
