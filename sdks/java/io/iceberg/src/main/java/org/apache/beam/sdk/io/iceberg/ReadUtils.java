@@ -34,6 +34,7 @@ import org.apache.iceberg.ContentScanTask;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableProperties;
 import org.apache.iceberg.data.InternalRecordWrapper;
@@ -64,6 +65,34 @@ public class ReadUtils {
           "parquet.private.read.filter.predicate",
           "parquet.read.support.class",
           "parquet.crypto.factory.class");
+
+  public static CloseableIterable<Record> createReader(
+      FileScanTask task, Table table, Schema schema) {
+    return createReader(
+        table,
+        null,
+        schema,
+        task.spec(),
+        task.file(),
+        null,
+        task.start(),
+        task.length(),
+        task.residual());
+  }
+
+  public static CloseableIterable<Record> createReader(
+      FileScanTask task, Table table, Schema schema, long dataSequenceNumber) {
+    return createReader(
+        table,
+        null,
+        schema,
+        task.spec(),
+        task.file(),
+        dataSequenceNumber,
+        task.start(),
+        task.length(),
+        task.residual());
+  }
 
   public static CloseableIterable<Record> createReader(
       ContentScanTask<?> task, Table table, IcebergScanConfig scanConfig) {
