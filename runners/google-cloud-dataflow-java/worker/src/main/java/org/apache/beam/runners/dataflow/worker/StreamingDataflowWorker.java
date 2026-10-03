@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
@@ -1082,23 +1083,7 @@ public final class StreamingDataflowWorker {
       WindowedValues.FullWindowedValueCoder.setMetadataSupported();
     }
 
-    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
-    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
-    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
-      openTelemetryProperties.forEach(
-          (k, v) -> {
-            if (k != null && v != null) {
-              System.setProperty(k, v);
-            }
-          });
-      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
-    } else {
-      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
-      // JvmInitializer.
-      if (System.getProperty("google.otel.auth.target.signals") == null) {
-        System.setProperty("google.otel.auth.target.signals", "none");
-      }
-    }
+    configureOpenTelemetry(options);
 
     LOG.debug("Creating StreamingDataflowWorker from options: {}", options);
     StreamingDataflowWorker worker = StreamingDataflowWorker.fromOptions(options);
@@ -1115,6 +1100,30 @@ public final class StreamingDataflowWorker {
     JvmInitializers.runBeforeProcessing(options);
     worker.startStatusPages();
     worker.start();
+  }
+
+  private static void configureOpenTelemetry(DataflowWorkerHarnessOptions options) {
+    SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
+    Map<String, String> openTelemetryProperties = sdkHarnessOptions.getOpenTelemetryProperties();
+    if (openTelemetryProperties != null && !openTelemetryProperties.isEmpty()) {
+      openTelemetryProperties.forEach(
+          (k, v) -> {
+            if (k != null && v != null) {
+              System.setProperty(k, v);
+            }
+          });
+      if (System.getProperty("otel.service.instance.id") == null) {
+        String instanceId = UUID.randomUUID().toString();
+        System.setProperty("otel.service.instance.id", instanceId);
+      }
+      LOG.info("Enabled Open Telemetry with properties: {}", openTelemetryProperties);
+    } else {
+      // turn off auth extension so it doesn't interfere if user is configuring otel e.g. via
+      // JvmInitializer.
+      if (System.getProperty("google.otel.auth.target.signals") == null) {
+        System.setProperty("google.otel.auth.target.signals", "none");
+      }
+    }
   }
 
   private static int chooseMaxThreads(DataflowWorkerHarnessOptions options) {
