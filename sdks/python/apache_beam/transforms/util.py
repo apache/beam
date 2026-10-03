@@ -1978,7 +1978,12 @@ class LogElements(PTransform):
     def format_timestamp(self, timestamp):
       if self.use_epoch_time:
         return timestamp.seconds()
-      return timestamp.to_rfc3339()
+      try:
+        return timestamp.to_rfc3339()
+      except OverflowError:
+        # MIN_TIMESTAMP and the global window bounds are outside the datetime
+        # range.
+        return str(timestamp)
 
     def process(
         self,
