@@ -45,6 +45,11 @@ from apache_beam.yaml.yaml_mapping import normalize_mapping
 from apache_beam.yaml.yaml_mapping import validate_generic_expressions
 from apache_beam.yaml.yaml_utils import SafeLineLoader
 
+
+def _make_annotations_fn(annotations):
+  return lambda: annotations
+
+
 __all__ = ["YamlTransform"]
 
 _LOGGER = logging.getLogger(__name__)
@@ -420,7 +425,7 @@ class Scope(LightweightScope):
           },
           **ptransform.annotations()
       }
-      ptransform.annotations = lambda: annotations
+      ptransform.annotations = _make_annotations_fn(annotations)
       original_expand = ptransform.expand
 
       def recording_expand(pvalue):
@@ -438,6 +443,11 @@ class Scope(LightweightScope):
               self.input_providers[pvalueish] = provider
 
         record_providers(result)
+        if getattr(ptransform, 'expand', None) == recording_expand:
+          try:
+            del ptransform.expand
+          except AttributeError:
+            pass
         return result
 
       ptransform.expand = recording_expand
