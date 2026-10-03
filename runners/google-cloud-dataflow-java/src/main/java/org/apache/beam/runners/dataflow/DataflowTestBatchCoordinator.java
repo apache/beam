@@ -17,6 +17,8 @@
  */
 package org.apache.beam.runners.dataflow;
 
+import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
@@ -48,10 +50,14 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.model.pipeline.v1.RunnerApi;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
+import org.apache.beam.sdk.CompositePipeline;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.Pipeline.PipelineVisitor;
 import org.apache.beam.sdk.PipelineResult.State;
@@ -68,6 +74,7 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatchers;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.util.HistogramData;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
@@ -79,7 +86,10 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.BiMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.hash.Hashing;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +102,13 @@ import org.slf4j.LoggerFactory;
  * share the single process-wide coordinator returned by {@link #shared()}; tests may construct
  * private instances instead.
  *
+ * <p>Scoping: members of a merged job are told apart by their {@linkplain TestPipeline#getRootName
+ * unique root name}, which {@link TestPipeline} assigns (when {@code
+ * -DbeamTestPipelineUniqueRootNames=true}) before the test applies any transform, so that every
+ * step, PCollection and metric of a member is named {@code <root>/...}. The coordinator never
+ * renames or otherwise mutates a member pipeline; a pipeline without a root name simply runs as its
+ * own job.
+ *
  * <p>Threading model: a test thread only enqueues its pipeline and then blocks on a per-pipeline
  * future. Per {@linkplain #compatibilityKey options-compatibility group}, a daemon scheduler thread
  * drains the queue and groups pipelines into batches; each closed batch is handed to a daemon
@@ -101,6 +118,12 @@ import org.slf4j.LoggerFactory;
  * {@link StageAttribution}). Any other member is told to run standalone, which it does on its own
  * test thread. No test thread ever performs work on behalf of another test, so a test timeout or
  * interrupt affects only that test.
+ *
+ * <p>No-hang guarantee: a member's future is always completed, whatever happens on the scheduler or
+ * batch-runner threads (see {@link BatchCollector} and {@link #executeBatch}); the merged job is
+ * waited on for at most the shortest member test timeout ({@link #mergedJobTimeout}); and as a last
+ * resort each test thread's wait is bounded ({@link PendingItem#awaitResult()}), so an unforeseen
+ * failure surfaces as a diagnosable test failure rather than a fork that never finishes.
  */
 @SuppressWarnings({
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
@@ -169,6 +192,7 @@ class DataflowTestBatchCoordinator {
   private final AtomicInteger batchCounter = new AtomicInteger(1);
   private final AtomicInteger collectorCounter = new AtomicInteger(1);
   private final ConcurrentHashMap<String, BatchCollector> collectors = new ConcurrentHashMap<>();
+  private volatile boolean closed;
 
   /** Runs merged jobs so that schedulers keep collecting while jobs are in flight. */
   private final ExecutorService batchRunners;
@@ -179,9 +203,13 @@ class DataflowTestBatchCoordinator {
     this.batchRunners = Executors.newCachedThreadPool(daemonThreadFactory(name + "-runner-"));
   }
 
-  /** Stops the scheduler threads and the batch-runner pool; pending items fail. Tests only. */
+  /**
+   * Stops the scheduler threads and the batch-runner pool. Members still waiting for a verdict fail
+   * promptly and later submissions are rejected. Tests only.
+   */
   @VisibleForTesting
   void shutdown() {
+    closed = true;
     for (BatchCollector collector : collectors.values()) {
       collector.stop();
     }
@@ -292,7 +320,22 @@ class DataflowTestBatchCoordinator {
     if (options.isStreaming() || !options.isBlockOnRun()) {
       return false;
     }
-    if (pipeline instanceof CompositeBatchPipeline || pipeline.isStandaloneExecutionRequired()) {
+    if (!(pipeline instanceof TestPipeline)) {
+      return false;
+    }
+    TestPipeline testPipeline = (TestPipeline) pipeline;
+    if (testPipeline.isStandaloneExecutionRequired()) {
+      return false;
+    }
+    if (testPipeline.getRootName().isEmpty()) {
+      // Members of a merged job are told apart purely by their root name, so an unnamed pipeline
+      // can never be merged. This is a configuration problem worth pointing out, but only once.
+      if (UNNAMED_PIPELINE_WARNED.compareAndSet(false, true)) {
+        LOG.warn(
+            "Dataflow test batching is enabled but test pipelines have no unique root name, so"
+                + " every test runs as its own job. Set -D{}=true to enable merging.",
+            TestPipeline.PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES);
+      }
       return false;
     }
     if (!isDefaultMatcher(options.getOnCreateMatcher())
@@ -304,14 +347,21 @@ class DataflowTestBatchCoordinator {
     return visitor.hasPrimitiveTransform && !visitor.hasUnboundedPCollection;
   }
 
+  private static final AtomicBoolean UNNAMED_PIPELINE_WARNED = new AtomicBoolean(false);
+
   private static boolean isDefaultMatcher(@Nullable Object matcher) {
     return matcher == null
         || matcher instanceof TestPipelineOptions.AlwaysPassMatcher
         || SerializableMatchers.anything().equals(matcher);
   }
 
+  /**
+   * Submits {@code pipeline} for batched execution and blocks until a verdict has been reached.
+   * Callers must have checked {@link #isEligibleForBatching} first; in particular the pipeline must
+   * have a unique root name.
+   */
   DataflowPipelineJob runInBatch(
-      Pipeline pipeline,
+      TestPipeline pipeline,
       TestDataflowPipelineOptions options,
       TestDataflowRunner runner,
       DataflowRunner delegateRunner) {
@@ -320,24 +370,69 @@ class DataflowTestBatchCoordinator {
       return runner.runStandalone(pipeline, delegateRunner);
     }
     String key = digest(canonicalOptions);
-    PendingItem item = new PendingItem(pipeline, options, runner, delegateRunner);
-    BatchCollector collector =
-        collectors.computeIfAbsent(
-            key,
-            k -> {
-              BatchCollector created =
-                  new BatchCollector(name + "-group-" + collectorCounter.getAndIncrement());
-              LOG.info(
-                  "Created Dataflow test batch group {} ({}) for options compatible with {}",
-                  created.name,
-                  k,
-                  options.getAppName());
-              LOG.debug("Batch group {} options: {}", created.name, canonicalOptions);
-              created.start();
-              return created;
-            });
-    collector.enqueue(item);
+    PendingItem item =
+        new PendingItem(pipeline, options, runner, delegateRunner, verdictTimeoutMillis(options));
+    while (true) {
+      if (closed) {
+        throw new IllegalStateException(
+            "Dataflow test batch coordinator " + name + " has been shut down");
+      }
+      BatchCollector collector =
+          collectors.computeIfAbsent(
+              key,
+              k -> {
+                BatchCollector created =
+                    new BatchCollector(k, name + "-group-" + collectorCounter.getAndIncrement());
+                LOG.info(
+                    "Created Dataflow test batch group {} ({}) for options compatible with {}",
+                    created.name,
+                    k,
+                    options.getAppName());
+                LOG.debug("Batch group {} options: {}", created.name, canonicalOptions);
+                created.start();
+                return created;
+              });
+      if (collector.enqueue(item)) {
+        break;
+      }
+      // The collector's scheduler stopped between lookup and enqueue; make sure it is unregistered
+      // and try again with a fresh one.
+      collectors.remove(key, collector);
+    }
     return item.awaitResult();
+  }
+
+  /**
+   * How long a test thread waits for the batch machinery's verdict before failing its test, or a
+   * negative value for no limit. Every path through the machinery completes the member's future, so
+   * this is a safety net that turns an unknown bug into a diagnosable failure rather than a hung
+   * fork. It is deliberately generous: the merged job itself is only waited on for the shortest
+   * member test timeout (see {@link #mergedJobTimeout}); the rest is slack for queueing (at most
+   * two batch windows), submission, metrics retrieval and cancellation.
+   */
+  private long verdictTimeoutMillis(TestDataflowPipelineOptions options) {
+    Long testTimeoutSeconds = options.getTestTimeoutSeconds();
+    if (testTimeoutSeconds == null || testTimeoutSeconds <= 0) {
+      return -1;
+    }
+    return 2 * config.windowMs + 2 * TimeUnit.SECONDS.toMillis(testTimeoutSeconds);
+  }
+
+  /**
+   * The bound on waiting for a merged job: the shortest {@code testTimeoutSeconds} among its
+   * members, so that no member waits longer for the merged job than it would have for its own
+   * standalone job. Negative (unbounded) only if no member has a timeout configured.
+   */
+  @VisibleForTesting
+  static Duration mergedJobTimeout(List<PendingItem> items) {
+    long minSeconds = Long.MAX_VALUE;
+    for (PendingItem item : items) {
+      Long timeout = item.options.getTestTimeoutSeconds();
+      if (timeout != null && timeout > 0) {
+        minSeconds = Math.min(minSeconds, timeout);
+      }
+    }
+    return Duration.standardSeconds(minSeconds == Long.MAX_VALUE ? -1 : minSeconds);
   }
 
   private static class EligibilityVisitor extends PipelineVisitor.Defaults {
@@ -389,43 +484,73 @@ class DataflowTestBatchCoordinator {
 
   @VisibleForTesting
   static final class PendingItem {
-    final Pipeline pipeline;
+    final TestPipeline pipeline;
     final TestDataflowPipelineOptions options;
     final TestDataflowRunner runner;
     final DataflowRunner delegateRunner;
     final int expectedAssertions;
-    final Runnable restoreSnapshot;
+    final long verdictTimeoutMillis;
     final CompletableFuture<BatchOutcome> resultFuture = new CompletableFuture<>();
 
-    /** Assigned by the batch runner when the merged job is assembled; {@code null} before that. */
-    @Nullable String scopePrefix;
+    /**
+     * The pipeline's unique root name (see {@link TestPipeline#getRootName()}). Every transform and
+     * PCollection of this member is named {@code <scope>/...}, which is how the member's steps,
+     * stages and metrics are told apart from the other members' in the merged job.
+     */
+    final String scope;
+
+    /** Assigned by the batch runner once the merged job is submitted; {@code null} before that. */
+    volatile @Nullable String mergedJobId;
 
     PendingItem(
-        Pipeline pipeline,
+        TestPipeline pipeline,
         TestDataflowPipelineOptions options,
         TestDataflowRunner runner,
-        DataflowRunner delegateRunner) {
+        DataflowRunner delegateRunner,
+        long verdictTimeoutMillis) {
       this.pipeline = pipeline;
       this.options = options;
       this.runner = runner;
       this.delegateRunner = delegateRunner;
+      this.verdictTimeoutMillis = verdictTimeoutMillis;
       this.expectedAssertions = PAssert.countAsserts(pipeline);
-      this.restoreSnapshot = pipeline.captureStateSnapshot();
+      this.scope = pipeline.getRootName();
+      checkArgument(!scope.isEmpty(), "Batched test pipelines must have a root name");
     }
 
     /**
      * Blocks the calling (test) thread until the batch machinery has reached a verdict, then either
      * returns the merged job or runs this pipeline standalone on the calling thread.
+     *
+     * <p>The wait is bounded by {@link #verdictTimeoutMillis}. Exceeding it means the machinery
+     * failed to deliver a verdict at all, which is a harness bug; the test fails with a description
+     * of where the member got stuck rather than silently hanging its fork. The pipeline is
+     * deliberately not re-run in that case: the batch runner may still be using it.
      */
     DataflowPipelineJob awaitResult() {
       BatchOutcome outcome;
       try {
-        outcome = resultFuture.get();
+        outcome =
+            verdictTimeoutMillis < 0
+                ? resultFuture.get()
+                : resultFuture.get(verdictTimeoutMillis, TimeUnit.MILLISECONDS);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
         throw new RuntimeException(
             "Interrupted while waiting for the merged Dataflow test batch containing "
                 + options.getAppName(),
+            e);
+      } catch (TimeoutException e) {
+        String jobId = mergedJobId;
+        throw new IllegalStateException(
+            String.format(
+                "No verdict for test %s from the Dataflow test batch machinery after %d ms"
+                    + " (batch scope: %s; merged job: %s). This is a bug in the test batching"
+                    + " machinery, not in the test.",
+                options.getAppName(),
+                verdictTimeoutMillis,
+                scope,
+                jobId == null ? "never submitted" : jobId),
             e);
       } catch (ExecutionException e) {
         Throwable cause = e.getCause();
@@ -436,12 +561,11 @@ class DataflowTestBatchCoordinator {
         }
         throw new RuntimeException(cause != null ? cause : e);
       }
-      // The batch runner is done with this pipeline once the future is complete, so it is safe to
-      // undo the root-name prefix and any transform-override surgery performed for the merged job.
-      restoreSnapshot.run();
       if (outcome.job != null) {
         return outcome.job;
       }
+      // The batch runner is done with this pipeline once the future is complete. Running it
+      // standalone re-applies the same (idempotent) runner overrides the merged attempt applied.
       return runner.runStandalone(pipeline, delegateRunner, outcome.limitConcurrency);
     }
   }
@@ -464,13 +588,23 @@ class DataflowTestBatchCoordinator {
    * coordinator's {@link #batchRunners} so that it can immediately start collecting the next batch
    * while the merged job is in flight. A batch of one is not worth a merged job and is sent
    * straight back to its test thread to run standalone.
+   *
+   * <p>Lifecycle: however the scheduler thread ends (interrupt, or an unexpected error), the
+   * collector {@link #close}s: it marks itself closed, unregisters from the coordinator so that the
+   * next submission gets a fresh collector, and fails everything still queued. {@link #enqueue}
+   * cooperates with that so no item can be added after the final drain and never be seen again.
    */
   private final class BatchCollector {
+    private final String key;
     private final String name;
     private final LinkedBlockingQueue<PendingItem> queue = new LinkedBlockingQueue<>();
     private @Nullable Thread scheduler;
 
-    BatchCollector(String name) {
+    /** Once set, nothing in {@link #queue} will ever be dispatched; see {@link #enqueue}. */
+    private volatile boolean closed;
+
+    BatchCollector(String key, String name) {
+      this.key = key;
       this.name = name;
     }
 
@@ -488,27 +622,61 @@ class DataflowTestBatchCoordinator {
       }
     }
 
-    void enqueue(PendingItem item) {
+    /**
+     * Returns {@code false} if this collector is already closed and the caller must use another
+     * one. Returns {@code true} once {@code item} is guaranteed a verdict: either the scheduler
+     * dispatches it, or it is failed when the collector closes.
+     */
+    boolean enqueue(PendingItem item) {
+      if (closed) {
+        return false;
+      }
       queue.add(item);
+      if (closed) {
+        // Raced with close(): its drain may have run before our add. Draining again is idempotent
+        // (futures complete at most once), so whichever side sees the item fails it.
+        failQueued(null);
+      }
+      return true;
     }
 
     private void schedulerLoop() {
-      while (true) {
-        List<PendingItem> batch;
-        try {
-          batch = collectBatch(queue.take());
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          break;
+      Throwable failure = null;
+      try {
+        while (true) {
+          dispatch(collectBatch(queue.take()));
         }
-        dispatch(batch);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      } catch (Throwable t) {
+        failure = t;
+        LOG.error(
+            "Dataflow test batch scheduler {} died unexpectedly; queued tests will fail and later"
+                + " tests will use a new scheduler.",
+            name,
+            t);
+      } finally {
+        close(failure);
       }
-      IllegalStateException stopped =
-          new IllegalStateException("Dataflow test batch scheduler " + name + " was interrupted");
+    }
+
+    private void close(@Nullable Throwable cause) {
+      closed = true;
+      collectors.remove(key, this);
+      failQueued(cause);
+    }
+
+    private void failQueued(@Nullable Throwable cause) {
       List<PendingItem> orphans = new ArrayList<>();
       queue.drainTo(orphans);
       for (PendingItem orphan : orphans) {
-        orphan.resultFuture.completeExceptionally(stopped);
+        orphan.resultFuture.completeExceptionally(
+            new IllegalStateException(
+                "Dataflow test batch scheduler "
+                    + name
+                    + " stopped before scheduling "
+                    + orphan.options.getAppName(),
+                cause));
       }
     }
 
@@ -516,16 +684,22 @@ class DataflowTestBatchCoordinator {
       List<PendingItem> batch = new ArrayList<>();
       batch.add(first);
       long deadlineNanos = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(config.windowMs);
-      while (batch.size() < config.maxBatchSize) {
-        long remainingNanos = deadlineNanos - System.nanoTime();
-        if (remainingNanos <= 0) {
-          break;
+      try {
+        while (batch.size() < config.maxBatchSize) {
+          long remainingNanos = deadlineNanos - System.nanoTime();
+          if (remainingNanos <= 0) {
+            break;
+          }
+          PendingItem next = queue.poll(remainingNanos, TimeUnit.NANOSECONDS);
+          if (next == null) {
+            break;
+          }
+          batch.add(next);
         }
-        PendingItem next = queue.poll(remainingNanos, TimeUnit.NANOSECONDS);
-        if (next == null) {
-          break;
-        }
-        batch.add(next);
+      } catch (InterruptedException e) {
+        // Hand the partial batch back so that close() fails these members too.
+        queue.addAll(batch);
+        throw e;
       }
       return batch;
     }
@@ -587,8 +761,48 @@ class DataflowTestBatchCoordinator {
     }
   }
 
-  static String scopePrefix(int memberIndex) {
-    return "t" + memberIndex;
+  /**
+   * The most conservative Dataflow job-name length we know of. The current REST reference allows
+   * {@code [a-z]([-a-z0-9]{0,1022}[a-z0-9])?}, but the service historically enforced 63 (and the
+   * Python SDK still tests against that), so merged job names are kept within it.
+   */
+  @VisibleForTesting static final int MAX_JOB_NAME_LENGTH = 63;
+
+  private static final DateTimeFormatter JOB_NAME_TIMESTAMP =
+      DateTimeFormat.forPattern("MMddHHmmss").withZone(DateTimeZone.UTC);
+
+  /** Builds the merged job's name; see {@link #batchJobName(int, String, long, int)}. */
+  private static String batchJobName(int batchNumber, @Nullable String leaderAppName) {
+    return batchJobName(
+        batchNumber,
+        leaderAppName,
+        System.currentTimeMillis(),
+        ThreadLocalRandom.current().nextInt());
+  }
+
+  /**
+   * Builds {@code batch-<n>-<app hint>-<MMddHHmmss>-<random hex>} within {@link
+   * #MAX_JOB_NAME_LENGTH}.
+   *
+   * <p>Uniqueness comes from the timestamp and random suffix, the same scheme as {@code
+   * PipelineOptions.JobNameFactory} uses for standalone jobs. It must not come from the batch
+   * number: that counter is per JVM, and the same test classes run concurrently in several JVMs and
+   * postcommits that all count from one. A colliding name makes Dataflow return the other job and
+   * the whole batch falls back to standalone runs. The leader's app name is only a hint for humans
+   * reading the console and is the only part that is ever truncated.
+   */
+  @VisibleForTesting
+  static String batchJobName(
+      int batchNumber, @Nullable String leaderAppName, long nowMillis, int random) {
+    String prefix = "batch-" + batchNumber;
+    String suffix = "-" + JOB_NAME_TIMESTAMP.print(nowMillis) + "-" + Integer.toHexString(random);
+    String hint =
+        leaderAppName == null ? "" : leaderAppName.toLowerCase().replaceAll("[^a-z0-9]", "0");
+    int room = MAX_JOB_NAME_LENGTH - prefix.length() - suffix.length() - 1;
+    if (hint.length() > room) {
+      hint = hint.substring(0, Math.max(0, room));
+    }
+    return hint.isEmpty() ? prefix + suffix : prefix + "-" + hint + suffix;
   }
 
   private void executeBatchInternal(List<PendingItem> items) {
@@ -598,13 +812,11 @@ class DataflowTestBatchCoordinator {
     StringBuilder membership = new StringBuilder();
     for (int i = 0; i < items.size(); i++) {
       PendingItem item = items.get(i);
-      item.scopePrefix = scopePrefix(i);
-      item.pipeline.setRootNamePrefix(item.scopePrefix);
       memberPipelines.add(item.pipeline);
-      scopes.add(item.scopePrefix);
+      scopes.add(item.scope);
       membership
           .append(i == 0 ? "" : ", ")
-          .append(item.scopePrefix)
+          .append(item.scope)
           .append('=')
           .append(item.options.getAppName());
     }
@@ -616,28 +828,37 @@ class DataflowTestBatchCoordinator {
 
     PendingItem leader = items.get(0);
     String originalLeaderJobName = leader.options.getJobName();
-    String batchJobName = "batch-" + batchNumber + "-" + originalLeaderJobName;
-    if (batchJobName.length() > 63) {
-      batchJobName = batchJobName.substring(0, 63);
-      while (batchJobName.endsWith("-")) {
-        batchJobName = batchJobName.substring(0, batchJobName.length() - 1);
-      }
-    }
+    String batchJobName = batchJobName(batchNumber, leader.options.getAppName());
     leader.options.setJobName(batchJobName);
-    CompositeBatchPipeline compositePipeline =
-        new CompositeBatchPipeline(leader.options, memberPipelines);
 
     DataflowPipelineJob batchJob = null;
     State terminalState = null;
     try {
+      // The constructor rejects members whose transform names collide. That cannot happen with
+      // TestPipeline's sequence-numbered root names, but if it did the catch below re-runs all
+      // members standalone rather than risk mis-crediting a test.
+      CompositePipeline compositePipeline = new CompositePipeline(leader.options, memberPipelines);
       batchJob = leader.delegateRunner.run(compositePipeline);
+      for (PendingItem item : items) {
+        item.mergedJobId = batchJob.getJobId();
+      }
       LOG.info(
           "Submitted merged Dataflow job {} for batch #{} ({} tests)",
           batchJob.getJobId(),
           batchNumber,
           items.size());
-      leader.runner.waitForBatchJobTermination(batchJob);
-      terminalState = batchJob.getState();
+      Duration timeout = mergedJobTimeout(items);
+      terminalState = leader.runner.waitForMergedJobTermination(batchJob, timeout);
+      if (terminalState == null) {
+        LOG.warn(
+            "Merged Dataflow job {} for batch #{} did not terminate within {}; cancelling it and"
+                + " re-running all {} tests standalone.",
+            batchJob.getJobId(),
+            batchNumber,
+            timeout,
+            items.size());
+        cancelQuietly(batchJob);
+      }
     } catch (Exception e) {
       LOG.warn(
           "Merged Dataflow batch #{} failed during submission or execution; all {} tests will"
@@ -672,7 +893,7 @@ class DataflowTestBatchCoordinator {
         }
       }
       for (PendingItem item : items) {
-        String scope = item.scopePrefix;
+        String scope = item.scope;
         boolean countersOk =
             checkScopedPAssertSuccess(batchJob, metrics, scope, item.expectedAssertions);
         String verdict;

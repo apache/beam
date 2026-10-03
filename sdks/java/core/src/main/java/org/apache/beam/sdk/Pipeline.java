@@ -525,7 +525,7 @@ public class Pipeline {
 
   private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
-  private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+  protected Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     CoderTranslation.verifyModelCodersRegistered();
     this.transforms = transforms;
     this.defaultOptions = options;
@@ -657,77 +657,7 @@ public class Pipeline {
 
   /** Builds a name from a "/"-delimited prefix and a name. */
   private String buildName(String namePrefix, String name) {
-    if (namePrefix.isEmpty()) {
-      String rootPrefix = transforms.getRootNamePrefix();
-      if (rootPrefix != null && !rootPrefix.isEmpty() && !name.startsWith(rootPrefix + "/")) {
-        return rootPrefix + "/" + name;
-      }
-      return name;
-    }
-    return namePrefix + "/" + name;
-  }
-
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   *
-   * <p>Sets an optional prefix prepended to all transform full names in this pipeline.
-   */
-  @Internal
-  public void setRootNamePrefix(@Nullable String rootNamePrefix) {
-    transforms.setRootNamePrefix(rootNamePrefix);
-    if (rootNamePrefix != null && !rootNamePrefix.isEmpty()) {
-      Set<String> prefixedNames = new HashSet<>();
-      for (String name : usedFullNames) {
-        if (name.startsWith(rootNamePrefix + "/") || name.equals(rootNamePrefix)) {
-          prefixedNames.add(name);
-        } else {
-          prefixedNames.add(name.isEmpty() ? rootNamePrefix : rootNamePrefix + "/" + name);
-        }
-      }
-      usedFullNames = prefixedNames;
-    }
-  }
-
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   *
-   * <p>Returns the prefix prepended to all transform full names in this pipeline, or {@code null}.
-   */
-  @Internal
-  public @Nullable String getRootNamePrefix() {
-    return transforms.getRootNamePrefix();
-  }
-
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   *
-   * <p>Returns {@code true} if this {@link Pipeline} must be executed standalone rather than merged
-   * into a shared test batch job.
-   */
-  @Internal
-  public boolean isStandaloneExecutionRequired() {
-    return false;
-  }
-
-  /**
-   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
-   *
-   * <p>Captures a snapshot of this {@link Pipeline}'s transform hierarchy and naming state so that
-   * in-place mutations (such as {@link #replaceAll} or {@link #setRootNamePrefix}) can be reverted
-   * by running the returned {@link Runnable}.
-   */
-  @Internal
-  public Runnable captureStateSnapshot() {
-    final Set<String> savedUsedFullNames = new HashSet<>(usedFullNames);
-    final Multimap<String, PTransform<?, ?>> savedInstancePerName =
-        ArrayListMultimap.create(instancePerName);
-    final Runnable restoreTransforms = transforms.captureStateSnapshot();
-    return () -> {
-      restoreTransforms.run();
-      usedFullNames = new HashSet<>(savedUsedFullNames);
-      instancePerName.clear();
-      instancePerName.putAll(savedInstancePerName);
-    };
+    return namePrefix.isEmpty() ? name : namePrefix + "/" + name;
   }
 
   private static class ValidateVisitor extends PipelineVisitor.Defaults {

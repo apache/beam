@@ -62,7 +62,7 @@ import org.slf4j.LoggerFactory;
 public class TransformHierarchy {
   private static final Logger LOG = LoggerFactory.getLogger(TransformHierarchy.class);
 
-  private final Node root;
+  private Node root;
   private final Map<Node, PInput> unexpandedInputs;
   private final Map<PCollection<?>, Node> producers;
 
@@ -72,80 +72,29 @@ public class TransformHierarchy {
   // Maintain a stack based on the enclosing nodes
   private Node current;
 
-  private @Nullable String rootNamePrefix = null;
-
   public TransformHierarchy(ResourceHints resourceHints) {
     producers = new HashMap<>();
     producerInput = new HashMap<>();
     unexpandedInputs = new HashMap<>();
-    root = new Node(resourceHints);
+    root = new Node(resourceHints, "");
     current = root;
   }
 
-  public void setRootNamePrefix(@Nullable String rootNamePrefix) {
-    this.rootNamePrefix = rootNamePrefix;
-  }
-
-  public @Nullable String getRootNamePrefix() {
-    return rootNamePrefix;
-  }
-
-  private static class NodeState {
-    private final Node node;
-    private final List<Node> parts;
-    private final @Nullable Map<TupleTag<?>, PCollection<?>> outputs;
-    private final boolean finishedSpecifying;
-
-    private NodeState(Node node) {
-      this.node = node;
-      this.parts = new ArrayList<>(node.parts);
-      this.outputs = node.outputs == null ? null : new HashMap<>(node.outputs);
-      this.finishedSpecifying = node.finishedSpecifying;
-    }
-
-    private void restore() {
-      node.parts.clear();
-      node.parts.addAll(parts);
-      node.outputs = outputs == null ? null : ImmutableMap.copyOf(outputs);
-      node.finishedSpecifying = finishedSpecifying;
-    }
-  }
-
-  private static void collectNodeStates(Node node, List<NodeState> states, Set<Node> seen) {
-    if (!seen.add(node)) {
-      return;
-    }
-    states.add(new NodeState(node));
-    for (Node child : node.parts) {
-      collectNodeStates(child, states, seen);
-    }
-  }
-
   /**
-   * Captures a snapshot of this {@link TransformHierarchy} that can be restored by running the
-   * returned {@link Runnable}.
+   * Names the root of this hierarchy. Callers that derive full transform names from {@code
+   * getCurrent().getFullName()}, as {@link org.apache.beam.sdk.Pipeline} does, thereby prefix the
+   * full name of every transform (and of every {@link PCollection} named after one) subsequently
+   * added with {@code rootName + "/"}, which lets the names of independently constructed
+   * hierarchies be kept disjoint.
+   *
+   * <p>May only be called while the hierarchy is still empty.
    */
-  public Runnable captureStateSnapshot() {
-    final String savedRootNamePrefix = rootNamePrefix;
-    final Map<PCollection<?>, Node> savedProducers = new HashMap<>(producers);
-    final Map<PCollection<?>, PInput> savedProducerInput = new HashMap<>(producerInput);
-    final Map<Node, PInput> savedUnexpandedInputs = new HashMap<>(unexpandedInputs);
-    final Node savedCurrent = current;
-    final List<NodeState> savedNodeStates = new ArrayList<>();
-    collectNodeStates(root, savedNodeStates, new HashSet<>());
-    return () -> {
-      rootNamePrefix = savedRootNamePrefix;
-      producers.clear();
-      producers.putAll(savedProducers);
-      producerInput.clear();
-      producerInput.putAll(savedProducerInput);
-      unexpandedInputs.clear();
-      unexpandedInputs.putAll(savedUnexpandedInputs);
-      current = savedCurrent;
-      for (NodeState state : savedNodeStates) {
-        state.restore();
-      }
-    };
+  public void setRootName(String rootName) {
+    checkState(
+        root.parts.isEmpty() && current == root && unexpandedInputs.isEmpty(),
+        "Cannot name the root of a TransformHierarchy that already contains transforms");
+    root = new Node(root.resourceHints, rootName);
+    current = root;
   }
 
   /**
@@ -332,12 +281,13 @@ public class TransformHierarchy {
 
     /**
      * Creates the root-level node. The root level node has a null enclosing node, a null transform,
-     * an empty map of inputs, an empty map of outputs, and a name equal to the empty string.
+     * an empty map of inputs, an empty map of outputs, and the given name (the empty string unless
+     * {@link TransformHierarchy#setRootName} was used).
      */
-    private Node(ResourceHints resourceHints) {
+    private Node(ResourceHints resourceHints, String fullName) {
       this.enclosingNode = null;
       this.transform = null;
-      this.fullName = "";
+      this.fullName = fullName;
       this.inputs = Collections.emptyMap();
       this.outputs = Collections.emptyMap();
       this.resourceHints = resourceHints;
@@ -465,13 +415,7 @@ public class TransformHierarchy {
     }
 
     public String getFullName() {
-      if (isRootNode() || rootNamePrefix == null || rootNamePrefix.isEmpty()) {
-        return fullName;
-      }
-      if (fullName.startsWith(rootNamePrefix + "/") || fullName.equals(rootNamePrefix)) {
-        return fullName;
-      }
-      return fullName.isEmpty() ? rootNamePrefix : rootNamePrefix + "/" + fullName;
+      return fullName;
     }
 
     /** Returns the transform input, in fully expanded form. */

@@ -130,6 +130,11 @@ dependencies {
   implementation library.java.joda_time
   implementation library.java.slf4j_api
   implementation library.java.vendored_grpc_1_69_0
+  // TestDataflowRunner inspects TestPipeline, a JUnit TestRule, which needs JUnit at compile
+  // time (as in sdks/java/core and runners/direct-java). Users of TestDataflowRunner already have
+  // JUnit on their classpath.
+  provided library.java.junit
+  permitUnusedDeclared library.java.junit
   testImplementation library.java.guava_testlib
   testImplementation library.java.junit
   testImplementation project(path: ":sdks:java:io:google-cloud-platform", configuration: "testRuntimeMigration")
@@ -285,6 +290,8 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     systemProperty "beam.dataflow.testBatchMaxSize", validatesRunnerTestBatchMaxSize
     systemProperty "beam.dataflow.testBatchWindowMs", validatesRunnerTestBatchWindowMs
     systemProperty "beam.dataflow.maxConcurrentStandaloneJobs", validatesRunnerMaxConcurrentStandaloneJobs
+    // Merged jobs tell member tests apart by their unique TestPipeline root names.
+    systemProperty "beamTestPipelineUniqueRootNames", validatesRunnerTestBatching
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
@@ -324,6 +331,8 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
     systemProperty "beam.dataflow.testBatching", validatesRunnerTestBatching
     systemProperty "beam.dataflow.testBatchMaxSize", validatesRunnerTestBatchMaxSize
     systemProperty "beam.dataflow.testBatchWindowMs", validatesRunnerTestBatchWindowMs
+    // Merged jobs tell member tests apart by their unique TestPipeline root names.
+    systemProperty "beamTestPipelineUniqueRootNames", validatesRunnerTestBatching
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.

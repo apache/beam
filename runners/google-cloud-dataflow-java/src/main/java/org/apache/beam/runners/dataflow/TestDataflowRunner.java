@@ -134,7 +134,8 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
     if (batchCoordinator.isEligibleForBatching(pipeline, options)) {
-      return batchCoordinator.runInBatch(pipeline, options, this, runner);
+      // Eligibility implies the pipeline is a TestPipeline with a unique root name.
+      return batchCoordinator.runInBatch((TestPipeline) pipeline, options, this, runner);
     }
     return runStandalone(pipeline, runner);
   }
@@ -291,9 +292,25 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     }
   }
 
-  boolean waitForBatchJobTermination(DataflowPipelineJob job) {
-    return waitForBatchJobTermination(
-        job, new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler()));
+  /**
+   * Waits up to {@code timeout} for a merged test job to terminate. Returns its terminal state, or
+   * {@code null} if the job did not terminate in time or the wait was interrupted.
+   *
+   * <p>Unlike a standalone batch job, which this runner waits on indefinitely, a merged job holds
+   * the verdict for several tests at once, so it is never allowed to block them forever.
+   */
+  @Nullable State waitForMergedJobTermination(DataflowPipelineJob job, Duration timeout) {
+    try {
+      State state =
+          job.waitUntilFinish(
+              timeout, new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler()));
+      return state != null && state.isTerminal() ? state : null;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return null;
+    }
   }
 
   /** Return {@code true} if job state is {@code State.DONE}. {@code false} otherwise. */

@@ -19,10 +19,13 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.instanceOf;
 import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.isEmptyString;
 import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
@@ -68,10 +71,12 @@ import org.apache.beam.runners.dataflow.DataflowTestBatchCoordinator.ScopedDataf
 import org.apache.beam.runners.dataflow.DataflowTestBatchCoordinator.StageAttribution;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineDebugOptions;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineWorkerPoolOptions;
+import org.apache.beam.sdk.CompositePipeline;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.extensions.gcp.auth.TestCredential;
 import org.apache.beam.sdk.extensions.gcp.storage.NoopPathValidator;
+import org.apache.beam.sdk.io.FileSystems;
 import org.apache.beam.sdk.io.GenerateSequence;
 import org.apache.beam.sdk.metrics.MetricKey;
 import org.apache.beam.sdk.metrics.MetricName;
@@ -82,6 +87,7 @@ import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.testing.PAssert;
+import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -92,6 +98,7 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.joda.time.Duration;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -101,7 +108,10 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 
-/** Tests for {@link CompositeBatchPipeline} and {@link DataflowTestBatchCoordinator}. */
+/**
+ * Tests for {@link DataflowTestBatchCoordinator}, including Dataflow translation of a {@link
+ * CompositePipeline} (its runner-independent behavior is covered in {@code CompositePipelineTest}).
+ */
 @RunWith(JUnit4.class)
 public class DataflowTestBatchCoordinatorTest {
 
@@ -169,18 +179,21 @@ public class DataflowTestBatchCoordinatorTest {
     opts.setGcpCredential(new TestCredential());
     opts.setRunner(TestDataflowRunner.class);
     opts.setPathValidatorClass(NoopPathValidator.class);
+    // Pipeline.create registers file systems as a side effect but TestPipeline.fromOptions does
+    // not, and DataflowRunner.fromOptions needs the gs:// scheme to derive the staging location.
+    FileSystems.setDefaultPipelineOptions(opts);
     return opts;
   }
 
   /** One test pipeline together with the options and runner it is submitted through. */
   private final class Member {
     final TestDataflowPipelineOptions opts;
-    final Pipeline pipeline;
+    final TestPipeline pipeline;
     final TestDataflowRunner runner;
 
     Member(String appName) {
       this.opts = createTestOptions(appName);
-      this.pipeline = Pipeline.create(opts);
+      this.pipeline = namedTestPipeline(opts, appName);
       this.runner = TestDataflowRunner.fromOptionsAndClient(opts, mockClient, coordinator);
     }
 
@@ -199,30 +212,41 @@ public class DataflowTestBatchCoordinatorTest {
     }
   }
 
+  /**
+   * A {@link TestPipeline} with a unique root name, as {@link TestPipeline}'s JUnit rule produces
+   * when {@code -DbeamTestPipelineUniqueRootNames=true}.
+   */
+  private static TestPipeline namedTestPipeline(TestDataflowPipelineOptions opts, String testName) {
+    TestPipeline pipeline = TestPipeline.fromOptions(opts);
+    pipeline.nameRoot(testName);
+    assertThat(pipeline.getRootName(), not(isEmptyString()));
+    return pipeline;
+  }
+
   // ---------------------------------------------------------------------------------------------
   // Composite pipeline construction
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  public void testCompositeBatchPipelineTranslatesAndRestoresSnapshot() {
-    Pipeline p0 = Pipeline.create(createTestOptions("App0"));
+  public void testCompositePipelineTranslatesToDataflowWithScopedNames() {
+    TestPipeline p0 = namedTestPipeline(createTestOptions("App0"), "App0");
     PCollection<Integer> out0 =
         p0.apply("CreateValues", Create.of(1, 2, 3)).apply("MyStep", ParDo.of(new IdentityFn()));
     PAssert.that(out0).containsInAnyOrder(1, 2, 3);
 
-    Pipeline p1 = Pipeline.create(createTestOptions("App1"));
+    TestPipeline p1 = namedTestPipeline(createTestOptions("App1"), "App1");
     PCollection<Integer> out1 =
         p1.apply("CreateValues", Create.of(4, 5)).apply("MyStep", ParDo.of(new IdentityFn()));
     PAssert.that(out1).containsInAnyOrder(4, 5);
 
-    Runnable restore0 = p0.captureStateSnapshot();
-    Runnable restore1 = p1.captureStateSnapshot();
+    String root0 = p0.getRootName();
+    String root1 = p1.getRootName();
+    assertThat(root0, not(equalTo(root1)));
+    // Root names also scope PCollection names, which Dataflow uses for output step names.
+    assertThat(out0.getName(), startsWith(root0 + "/"));
+    assertThat(out1.getName(), startsWith(root1 + "/"));
 
-    p0.setRootNamePrefix("t0");
-    p1.setRootNamePrefix("t1");
-
-    CompositeBatchPipeline composite =
-        new CompositeBatchPipeline(options, ImmutableList.of(p0, p1));
+    CompositePipeline composite = new CompositePipeline(options, ImmutableList.of(p0, p1));
     assertEquals(2, PAssert.countAsserts(composite));
 
     DataflowRunner runner = DataflowRunner.fromOptions(options);
@@ -236,8 +260,9 @@ public class DataflowTestBatchCoordinatorTest {
         portableProto.getComponents().getTransformsMap().values()) {
       uniqueNames.add(transform.getUniqueName());
     }
-    assertThat(uniqueNames, hasItem("t0/MyStep"));
-    assertThat(uniqueNames, hasItem("t1/MyStep"));
+    assertThat(uniqueNames, hasItem(root0 + "/MyStep"));
+    assertThat(uniqueNames, hasItem(root1 + "/MyStep"));
+    assertThat(uniqueNames, not(hasItem("MyStep")));
 
     runner.replaceV1Transforms(composite);
     SdkComponents v1Components =
@@ -248,22 +273,20 @@ public class DataflowTestBatchCoordinatorTest {
         translator.translate(composite, v1Proto, v1Components, runner, Collections.emptyList());
     assertTrue(jobSpec.getStepNames().size() >= 2);
 
-    // Restore snapshots and verify p0 returns to its original unprefixed state.
-    restore0.run();
-    restore1.run();
-    assertEquals(null, p0.getRootNamePrefix());
-    RunnerApi.Pipeline restoredProto = PipelineTranslation.toProto(p0);
-    Set<String> restoredUniqueNames = new HashSet<>();
-    for (RunnerApi.PTransform transform :
-        restoredProto.getComponents().getTransformsMap().values()) {
-      restoredUniqueNames.add(transform.getUniqueName());
+    // Nothing about a member changes by having been part of a composite: it translates on its own
+    // with exactly the same names, so a standalone fallback run is equivalent to a fresh run.
+    RunnerApi.Pipeline aloneProto = PipelineTranslation.toProto(p0);
+    Set<String> aloneUniqueNames = new HashSet<>();
+    for (RunnerApi.PTransform transform : aloneProto.getComponents().getTransformsMap().values()) {
+      aloneUniqueNames.add(transform.getUniqueName());
     }
-    assertThat(restoredUniqueNames, hasItem("MyStep"));
+    assertThat(aloneUniqueNames, hasItem(root0 + "/MyStep"));
+    assertEquals(root0, p0.getRootName());
   }
 
   @Test
   public void testEligibilityChecks() {
-    Pipeline boundedPipeline = Pipeline.create(options);
+    TestPipeline boundedPipeline = namedTestPipeline(options, "Bounded");
     boundedPipeline.apply(Create.of(1, 2, 3));
     assertTrue(coordinator.isEligibleForBatching(boundedPipeline, options));
 
@@ -273,9 +296,18 @@ public class DataflowTestBatchCoordinatorTest {
     assertFalse(coordinator.isEligibleForBatching(boundedPipeline, streamingOpts));
 
     // Unbounded pipelines bypass batching.
-    Pipeline unboundedPipeline = Pipeline.create(options);
+    TestPipeline unboundedPipeline = namedTestPipeline(options, "Unbounded");
     unboundedPipeline.apply(GenerateSequence.from(0));
     assertFalse(coordinator.isEligibleForBatching(unboundedPipeline, options));
+
+    // Only TestPipelines with a unique root name can be told apart inside a merged job.
+    Pipeline plainPipeline = Pipeline.create(options);
+    plainPipeline.apply(Create.of(1, 2, 3));
+    assertFalse(coordinator.isEligibleForBatching(plainPipeline, options));
+    TestPipeline unnamedPipeline = TestPipeline.fromOptions(options);
+    unnamedPipeline.apply(Create.of(1, 2, 3));
+    assertThat(unnamedPipeline.getRootName(), isEmptyString());
+    assertFalse(coordinator.isEligibleForBatching(unnamedPipeline, options));
 
     // Batching is a run-wide switch (coordinator config), not a per-pipeline option.
     DataflowTestBatchCoordinator disabled =
@@ -389,7 +421,7 @@ public class DataflowTestBatchCoordinatorTest {
               assertThat(
                   "pipelines with different worker options must not share a job",
                   submitted,
-                  not(instanceOf(CompositeBatchPipeline.class)));
+                  not(instanceOf(CompositePipeline.class)));
               String jobId = "standalone-" + callNum;
               metricsByJobId.put(
                   jobId,
@@ -452,9 +484,9 @@ public class DataflowTestBatchCoordinatorTest {
 
     assertSingleCounter(result0, "StepA", 10L);
     assertSingleCounter(result1, "StepB", 20L);
-    // Each member's pipeline is restored to its unprefixed state after the merged run.
-    assertNull(m0.pipeline.getRootNamePrefix());
-    assertNull(m1.pipeline.getRootNamePrefix());
+    // Members are not mutated by the merged run: their root names (and thus graphs) are unchanged.
+    assertThat(m0.pipeline.getRootName(), startsWith("t"));
+    assertThat(m0.pipeline.getRootName(), not(equalTo(m1.pipeline.getRootName())));
   }
 
   @Test
@@ -472,14 +504,15 @@ public class DataflowTestBatchCoordinatorTest {
             invocation -> {
               int callNum = submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              // Apply real Dataflow V1 transform overrides to verify snapshot restoration works
-              // even after composite pipeline graph surgery.
+              // Apply real Dataflow V1 transform overrides, as DataflowRunner.run would, so that
+              // the standalone fallback exercises a member that already went through the merged
+              // attempt's graph surgery.
               synchronized (realTransformReplacer) {
                 realTransformReplacer.replaceV1Transforms(submitted);
               }
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
 
-              if (submitted instanceof CompositeBatchPipeline) {
+              if (submitted instanceof CompositePipeline) {
                 metricsByJobId.put(
                     "batch-job",
                     new JobMetrics()
@@ -490,8 +523,8 @@ public class DataflowTestBatchCoordinatorTest {
                                 passertUpdate(proto, "GoodStep2", PAssert.SUCCESS_COUNTER))));
                 return newBatchJob("batch-job", State.DONE, proto);
               }
-              // Standalone fallback for FailingTest1: verify prefix was restored to null.
-              assertNull(submitted.getRootNamePrefix());
+              // Standalone fallback for FailingTest1: the member pipeline itself is submitted.
+              assertThat(submitted, instanceOf(TestPipeline.class));
               assertTrue(hasTransform(proto, "FailingStep1"));
               String jobId = "standalone-failing-" + callNum;
               metricsByJobId.put(
@@ -537,10 +570,10 @@ public class DataflowTestBatchCoordinatorTest {
               int callNum = submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositeBatchPipeline) {
+              if (submitted instanceof CompositePipeline) {
                 return newBatchJob("failed-batch-job", State.FAILED, proto);
               }
-              assertNull(submitted.getRootNamePrefix());
+              assertThat(submitted, instanceOf(TestPipeline.class));
               boolean isFailing = hasTransform(proto, "FailingStep1");
               String jobId = (isFailing ? "standalone-fail-" : "standalone-pass-") + callNum;
               metricsByJobId.put(
@@ -581,7 +614,7 @@ public class DataflowTestBatchCoordinatorTest {
               int callNum = submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositeBatchPipeline) {
+              if (submitted instanceof CompositePipeline) {
                 String s0 = scopeOf(proto, "GoodStep0");
                 String s1 = scopeOf(proto, "FailingStep1");
                 String s2 = scopeOf(proto, "PendingStep2");
@@ -604,7 +637,7 @@ public class DataflowTestBatchCoordinatorTest {
                                 passertUpdate(proto, "PendingStep2", PAssert.SUCCESS_COUNTER))));
                 return newBatchJob("failed-batch-job", State.FAILED, proto);
               }
-              assertNull(submitted.getRootNamePrefix());
+              assertThat(submitted, instanceOf(TestPipeline.class));
               assertFalse("GoodTest0 must not be re-run", hasTransform(proto, "GoodStep0"));
               boolean isFailing = hasTransform(proto, "FailingStep1");
               String jobId = "standalone-" + callNum;
@@ -652,7 +685,7 @@ public class DataflowTestBatchCoordinatorTest {
               int callNum = submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositeBatchPipeline) {
+              if (submitted instanceof CompositePipeline) {
                 // Both members' own stages are DONE and both have success counters, but a stage
                 // that names no user steps failed. It cannot be attributed, so it counts against
                 // everyone.
@@ -771,11 +804,11 @@ public class DataflowTestBatchCoordinatorTest {
             invocation -> {
               int callNum = submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              if (submitted instanceof CompositeBatchPipeline) {
+              if (submitted instanceof CompositePipeline) {
                 throw new RuntimeException("Simulated batch submission failure");
               }
-              // Verify snapshot was restored so standalone pipeline has null rootNamePrefix.
-              assertNull(submitted.getRootNamePrefix());
+              // The member pipeline itself is what gets re-run standalone.
+              assertThat(submitted, instanceOf(TestPipeline.class));
               standaloneThreads.add(Thread.currentThread());
               String jobId = "standalone-job-" + callNum;
               metricsByJobId.put(
@@ -823,7 +856,7 @@ public class DataflowTestBatchCoordinatorTest {
             invocation -> {
               submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              assertThat(submitted, instanceOf(CompositeBatchPipeline.class));
+              assertThat(submitted, instanceOf(CompositePipeline.class));
               compositeEntered.countDown();
               assertTrue(releaseComposite.await(WAIT_SECONDS, TimeUnit.SECONDS));
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
@@ -883,7 +916,7 @@ public class DataflowTestBatchCoordinatorTest {
             invocation -> {
               submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              assertThat(submitted, instanceOf(CompositeBatchPipeline.class));
+              assertThat(submitted, instanceOf(CompositePipeline.class));
               return newBatchJob("batch-job", State.DONE, PipelineTranslation.toProto(submitted));
             });
 
@@ -922,7 +955,7 @@ public class DataflowTestBatchCoordinatorTest {
               int callNum = submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositeBatchPipeline) {
+              if (submitted instanceof CompositePipeline) {
                 compositeEntered.countDown();
                 assertTrue(releaseComposite.await(WAIT_SECONDS, TimeUnit.SECONDS));
                 metricsByJobId.put(
@@ -983,7 +1016,7 @@ public class DataflowTestBatchCoordinatorTest {
               invocation -> {
                 int callNum = submittedJobs.incrementAndGet();
                 Pipeline submitted = invocation.getArgument(0);
-                if (submitted instanceof CompositeBatchPipeline) {
+                if (submitted instanceof CompositePipeline) {
                   throw new RuntimeException("Simulated batch submission failure");
                 }
                 bothRerunsRunning.countDown();
@@ -1012,6 +1045,219 @@ public class DataflowTestBatchCoordinatorTest {
         System.setProperty(TestDataflowRunner.MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, previous);
       }
     }
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Merged job naming
+  // ---------------------------------------------------------------------------------------------
+
+  private static final String DATAFLOW_JOB_NAME_REGEX = "[a-z]([-a-z0-9]*[a-z0-9])?";
+
+  @Test
+  public void testBatchJobNameIsValidAndKeepsUniqueSuffix() {
+    // 2026-10-02T16:00:00Z
+    long now = 1790956800000L;
+    String name =
+        DataflowTestBatchCoordinator.batchJobName(7, "ParDoTest$Basic-tests", now, 0xdeadbeef);
+    assertEquals("batch-7-pardotest0basic0tests-1002160000-deadbeef", name);
+    assertTrue(name, name.matches(DATAFLOW_JOB_NAME_REGEX));
+
+    // A long app name (typical for ValidatesRunner suites) is truncated, but only the hint is:
+    // the timestamp and random suffix that make the name unique always survive.
+    StringBuilder longAppName = new StringBuilder();
+    for (int i = 0; i < 20; i++) {
+      longAppName.append("SomeVeryLongTestClassName");
+    }
+    String truncated =
+        DataflowTestBatchCoordinator.batchJobName(7, longAppName.toString(), now, 0xdeadbeef);
+    assertEquals(DataflowTestBatchCoordinator.MAX_JOB_NAME_LENGTH, truncated.length());
+    assertTrue(truncated, truncated.startsWith("batch-7-someverylongtestclassname"));
+    assertTrue(truncated, truncated.endsWith("-1002160000-deadbeef"));
+    assertTrue(truncated, truncated.matches(DATAFLOW_JOB_NAME_REGEX));
+
+    // Same batch number (as in two JVMs running the same suite concurrently) and same app name
+    // still yield distinct names thanks to the random part.
+    assertNotEquals(
+        DataflowTestBatchCoordinator.batchJobName(1, longAppName.toString(), now, 1),
+        DataflowTestBatchCoordinator.batchJobName(1, longAppName.toString(), now, 2));
+
+    // Degenerate hints never produce an invalid name.
+    assertTrue(
+        DataflowTestBatchCoordinator.batchJobName(1, null, now, 1)
+            .matches(DATAFLOW_JOB_NAME_REGEX));
+    assertTrue(
+        DataflowTestBatchCoordinator.batchJobName(1, "", now, 1).matches(DATAFLOW_JOB_NAME_REGEX));
+    assertTrue(
+        DataflowTestBatchCoordinator.batchJobName(1, "---", now, 1)
+            .matches(DATAFLOW_JOB_NAME_REGEX));
+  }
+
+  @Test
+  public void testMergedJobIsSubmittedUnderBatchNameAndLeaderNameIsRestored() throws Exception {
+    Member m0 = new Member("App0").withStep("Step0", 1, 2);
+    Member m1 = new Member("App1").withStep("Step1", 1, 2);
+    String leaderJobName = m0.opts.getJobName();
+    String otherJobName = m1.opts.getJobName();
+
+    AtomicReference<String> submittedName = new AtomicReference<>();
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              Pipeline submitted = invocation.getArgument(0);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
+              submittedName.set(submitted.getOptions().getJobName());
+              RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
+              metricsByJobId.put(
+                  "batch-job",
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER))));
+              return newBatchJob("batch-job", State.DONE, proto);
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    f0.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    f1.get(WAIT_SECONDS, TimeUnit.SECONDS);
+
+    String name = submittedName.get();
+    assertNotNull(name);
+    assertTrue(name, name.startsWith("batch-"));
+    assertTrue(name, name.matches(DATAFLOW_JOB_NAME_REGEX));
+    assertTrue(name, name.length() <= DataflowTestBatchCoordinator.MAX_JOB_NAME_LENGTH);
+    assertNotEquals(leaderJobName, name);
+    // The leader's own job name is intact for any later standalone fallback.
+    assertEquals(leaderJobName, m0.opts.getJobName());
+    assertEquals(otherJobName, m1.opts.getJobName());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // No-hang guarantee
+  // ---------------------------------------------------------------------------------------------
+
+  @Test
+  public void testMergedJobExceedingShortestMemberTimeoutIsCancelledAndMembersRerun()
+      throws Exception {
+    Member m0 = new Member("App0").withStep("Step0", 1, 2);
+    Member m1 = new Member("App1").withStep("Step1", 1, 2);
+    // Different per-test timeouts do not prevent merging; the merged job gets the shortest one.
+    m0.opts.setTestTimeoutSeconds(7L);
+    m1.opts.setTestTimeoutSeconds(3L);
+
+    AtomicReference<DataflowPipelineJob> batchJob = new AtomicReference<>();
+    AtomicReference<Duration> waitedFor = new AtomicReference<>();
+    AtomicInteger submittedJobs = new AtomicInteger(0);
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              int callNum = submittedJobs.incrementAndGet();
+              Pipeline submitted = invocation.getArgument(0);
+              if (submitted instanceof CompositePipeline) {
+                DataflowPipelineJob job =
+                    newBatchJob("batch-job", State.RUNNING, PipelineTranslation.toProto(submitted));
+                // The merged job never terminates: waitUntilFinish gives up and returns null.
+                Mockito.doAnswer(
+                        inv -> {
+                          waitedFor.set(inv.getArgument(0));
+                          return null;
+                        })
+                    .when(job)
+                    .waitUntilFinish(any(), any());
+                Mockito.doReturn(State.CANCELLED).when(job).cancel();
+                batchJob.set(job);
+                return job;
+              }
+              String jobId = "standalone-" + callNum;
+              metricsByJobId.put(
+                  jobId,
+                  new JobMetrics()
+                      .setMetrics(
+                          ImmutableList.of(
+                              createTentativePAssertUpdate("s1", PAssert.SUCCESS_COUNTER, 1))));
+              return newStandaloneJob(jobId, State.DONE);
+            });
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+    DataflowPipelineJob result0 = f0.get(WAIT_SECONDS, TimeUnit.SECONDS);
+    DataflowPipelineJob result1 = f1.get(WAIT_SECONDS, TimeUnit.SECONDS);
+
+    // Nobody waited beyond the shortest member timeout; the runaway job was cancelled and every
+    // member passed through its own standalone re-run.
+    assertEquals(Duration.standardSeconds(3), waitedFor.get());
+    Mockito.verify(batchJob.get()).cancel();
+    assertThat(result0, not(instanceOf(ScopedDataflowPipelineJob.class)));
+    assertThat(result1, not(instanceOf(ScopedDataflowPipelineJob.class)));
+    assertEquals(State.DONE, result0.getState());
+    assertEquals(State.DONE, result1.getState());
+    assertEquals(3, submittedJobs.get());
+  }
+
+  @Test
+  public void testStalledHarnessFailsTestWithDiagnosticsInsteadOfHanging() throws Exception {
+    configureBatching(2, 100L);
+    Member m0 = new Member("App0").withStep("Step0", 1, 2);
+    Member m1 = new Member("App1").withStep("Step1", 1, 2);
+    // Verdict timeout = 2 windows + 2 x test timeout = 2.2 s.
+    m0.opts.setTestTimeoutSeconds(1L);
+    m1.opts.setTestTimeoutSeconds(1L);
+
+    // Simulate the batch runner wedging somewhere it never should (here: inside submission).
+    CountDownLatch release = new CountDownLatch(1);
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenAnswer(
+            invocation -> {
+              assertThat(invocation.getArgument(0), instanceOf(CompositePipeline.class));
+              assertTrue(release.await(WAIT_SECONDS, TimeUnit.SECONDS));
+              throw new RuntimeException("released");
+            });
+
+    try {
+      Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+      Future<DataflowPipelineJob> f1 = m1.submit(delegate);
+      for (Future<DataflowPipelineJob> f : Arrays.asList(f0, f1)) {
+        Throwable cause = causeOf(f);
+        assertThat(cause, instanceOf(IllegalStateException.class));
+        assertThat(cause.getMessage(), containsString("No verdict for test App"));
+        assertThat(cause.getMessage(), containsString("bug in the test batching machinery"));
+        // The diagnostics say how far the member got: assembled into a batch, job never submitted.
+        assertThat(cause.getMessage(), containsString("batch scope: t"));
+        assertThat(cause.getMessage(), containsString("merged job: never submitted"));
+      }
+    } finally {
+      release.countDown();
+    }
+  }
+
+  @Test
+  public void testShutdownFailsWaitingMembersPromptlyAndRejectsNewSubmissions() throws Exception {
+    // A window far longer than the test so the member is parked in the scheduler when we stop it.
+    configureBatching(2, 60_000L);
+    Member m0 = new Member("App0").withStep("Step0", 1, 2);
+    DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
+    when(delegate.run(any(Pipeline.class)))
+        .thenThrow(new AssertionError("nothing should be submitted"));
+
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    // Let the scheduler take the member into its (open) batch window; whether or not it has by
+    // the time we stop, the member must fail rather than be stranded.
+    Thread.sleep(200);
+    coordinator.shutdown();
+
+    Throwable cause = causeOf(f0);
+    assertThat(cause, instanceOf(IllegalStateException.class));
+    assertThat(cause.getMessage(), containsString("stopped before scheduling App0"));
+
+    // Later submissions are rejected outright instead of being enqueued onto a dead scheduler.
+    Member m1 = new Member("App1").withStep("Step1", 1, 2);
+    Throwable rejected = causeOf(m1.submit(delegate));
+    assertThat(rejected, instanceOf(IllegalStateException.class));
+    assertThat(rejected.getMessage(), containsString("has been shut down"));
   }
 
   // ---------------------------------------------------------------------------------------------
