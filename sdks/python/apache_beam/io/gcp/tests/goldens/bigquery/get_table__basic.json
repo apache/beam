@@ -1,0 +1,13 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "get_table__basic",
+  "description": "get_table('p','d','t')",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/d/tables/t",
+      "query": {}
+    }
+  ]
+}

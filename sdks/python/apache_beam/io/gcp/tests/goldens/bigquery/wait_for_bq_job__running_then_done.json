@@ -1,0 +1,31 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "wait_for_bq_job__running_then_done",
+  "description": "wait_for_bq_job polls jobs.get until DONE",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/jobs/job_1",
+      "query": {
+        "location": "US"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/jobs/job_1",
+      "query": {
+        "location": "US"
+      }
+    },
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/jobs/job_1",
+      "query": {
+        "location": "US"
+      }
+    }
+  ]
+}

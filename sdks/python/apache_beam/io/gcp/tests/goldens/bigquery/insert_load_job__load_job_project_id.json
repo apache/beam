@@ -1,0 +1,33 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_load_job__load_job_project_id",
+  "description": "perform_load_job with load_job_project_id='other' (job project != destination project)",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "labels": {},
+          "load": {
+            "autodetect": false,
+            "destinationTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "t"
+            },
+            "sourceUris": [
+              "gs://b/a.json"
+            ],
+            "useAvroLogicalTypes": true
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "other"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/other/jobs",
+      "query": {}
+    }
+  ]
+}

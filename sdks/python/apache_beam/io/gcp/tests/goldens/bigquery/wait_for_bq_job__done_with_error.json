@@ -1,0 +1,15 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "wait_for_bq_job__done_with_error",
+  "description": "wait_for_bq_job on a job DONE with errorResult raises RuntimeError",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/jobs/job_1",
+      "query": {
+        "location": "US"
+      }
+    }
+  ]
+}

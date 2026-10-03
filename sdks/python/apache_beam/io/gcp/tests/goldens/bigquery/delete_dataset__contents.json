@@ -1,0 +1,15 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "delete_dataset__contents",
+  "description": "_delete_dataset('p','d', delete_contents=True)",
+  "requests": [
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/d",
+      "query": {
+        "deleteContents": "True"
+      }
+    }
+  ]
+}

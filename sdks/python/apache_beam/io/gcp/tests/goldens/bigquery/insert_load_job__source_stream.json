@@ -1,0 +1,104 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "insert_load_job__source_stream",
+  "description": "perform_load_job with source_stream: multipart/related media upload (empty stream as used by UpdateDestinationSchema, then data)",
+  "requests": [
+    {
+      "body": {
+        "media": {
+          "content_type": "application/octet-stream",
+          "length": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "metadata": {
+          "configuration": {
+            "labels": {},
+            "load": {
+              "autodetect": false,
+              "createDisposition": "CREATE_NEVER",
+              "destinationTable": {
+                "datasetId": "d",
+                "projectId": "p",
+                "tableId": "t"
+              },
+              "schema": {
+                "fields": [
+                  {
+                    "mode": "REQUIRED",
+                    "name": "a",
+                    "type": "STRING"
+                  },
+                  {
+                    "fields": [
+                      {
+                        "mode": "NULLABLE",
+                        "name": "x",
+                        "type": "INTEGER"
+                      },
+                      {
+                        "description": "nested ts",
+                        "mode": "NULLABLE",
+                        "name": "y",
+                        "type": "TIMESTAMP"
+                      }
+                    ],
+                    "mode": "REPEATED",
+                    "name": "r",
+                    "type": "RECORD"
+                  }
+                ]
+              },
+              "schemaUpdateOptions": [
+                "ALLOW_FIELD_ADDITION"
+              ],
+              "useAvroLogicalTypes": true,
+              "writeDisposition": "WRITE_APPEND"
+            }
+          },
+          "jobReference": {
+            "jobId": "job_empty",
+            "projectId": "p"
+          }
+        }
+      },
+      "method": "POST",
+      "path": "/upload/bigquery/v2/projects/p/jobs",
+      "query": {
+        "uploadType": "multipart"
+      }
+    },
+    {
+      "body": {
+        "media": {
+          "content_type": "application/octet-stream",
+          "length": 9,
+          "sha256": "99928e1344fe9a668694d2e8abf1e1fad944c6e4e6e900697fae8b74e585c66e"
+        },
+        "metadata": {
+          "configuration": {
+            "labels": {},
+            "load": {
+              "autodetect": false,
+              "destinationTable": {
+                "datasetId": "d",
+                "projectId": "p",
+                "tableId": "t"
+              },
+              "sourceFormat": "CSV",
+              "useAvroLogicalTypes": true
+            }
+          },
+          "jobReference": {
+            "jobId": "job_data",
+            "projectId": "p"
+          }
+        }
+      },
+      "method": "POST",
+      "path": "/upload/bigquery/v2/projects/p/jobs",
+      "query": {
+        "uploadType": "multipart"
+      }
+    }
+  ]
+}

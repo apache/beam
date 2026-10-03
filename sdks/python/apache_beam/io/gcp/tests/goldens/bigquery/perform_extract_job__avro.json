@@ -1,0 +1,37 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "perform_extract_job__avro",
+  "description": "perform_extract_job(['gs://b/o-*'], 'job_1', ref, 'AVRO', use_avro_logical_types=True)",
+  "requests": [
+    {
+      "body": {
+        "configuration": {
+          "extract": {
+            "compression": "NONE",
+            "destinationFormat": "AVRO",
+            "destinationUris": [
+              "gs://b/o-*"
+            ],
+            "printHeader": true,
+            "sourceTable": {
+              "datasetId": "d",
+              "projectId": "p",
+              "tableId": "t"
+            },
+            "useAvroLogicalTypes": true
+          },
+          "labels": {
+            "step_name": "s"
+          }
+        },
+        "jobReference": {
+          "jobId": "job_1",
+          "projectId": "p"
+        }
+      },
+      "method": "POST",
+      "path": "/bigquery/v2/projects/p/jobs",
+      "query": {}
+    }
+  ]
+}

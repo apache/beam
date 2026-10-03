@@ -1,0 +1,21 @@
+{
+  "captured_from": "master@5d9ab78838a (apitools control plane, google-cloud-bigquery insertAll)",
+  "case": "clean_up_temporary_dataset__403",
+  "description": "clean_up_temporary_dataset: DELETE 403 is swallowed",
+  "requests": [
+    {
+      "body": null,
+      "method": "GET",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {}
+    },
+    {
+      "body": null,
+      "method": "DELETE",
+      "path": "/bigquery/v2/projects/p/datasets/beam_temp_dataset_<UUID>",
+      "query": {
+        "deleteContents": "True"
+      }
+    }
+  ]
+}
