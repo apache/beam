@@ -218,8 +218,7 @@ func (r *Registry) registerType(ut reflect.Type, seen map[reflect.Type]struct{})
 
 	// Lets do some recursion to register fundamental type parts.
 	t := ut
-	if lID, ok := r.logicalTypeIdentifiers[t]; ok {
-		lt := r.logicalTypes[lID]
+	if lt, ok := r.logicalTypeByGoType[t]; ok {
 		r.addToMaps(lt.StorageType(), t)
 		return nil
 	}
@@ -327,16 +326,17 @@ func (r *Registry) FromType(ot reflect.Type) (*pipepb.Schema, error) {
 	return r.fromType(ot)
 }
 
-func (r *Registry) logicalTypeToFieldType(t reflect.Type) (*pipepb.FieldType, string, error) {
+// logicalTypeToFieldType returns the storage field type and the logical type
+// of t, or a nil field type if t is not a logical type.
+func (r *Registry) logicalTypeToFieldType(t reflect.Type) (*pipepb.FieldType, LogicalType, error) {
 	// Check if a logical type was registered that matches this struct type directly
 	// and if so, extract the schema from it for use.
-	if lID, ok := r.logicalTypeIdentifiers[t]; ok {
-		lt := r.logicalTypes[lID]
+	if lt, ok := r.logicalTypeByGoType[t]; ok {
 		ftype, err := r.reflectTypeToFieldType(lt.StorageType())
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", lID, lt.StorageType(), lt.GoType())
+			return nil, LogicalType{}, errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", lt.ID(), lt.StorageType(), lt.GoType())
 		}
-		return ftype, lID, nil
+		return ftype, lt, nil
 	}
 	for _, lti := range r.logicalTypeInterfaces {
 		if !t.Implements(lti) {
@@ -345,18 +345,42 @@ func (r *Registry) logicalTypeToFieldType(t reflect.Type) (*pipepb.FieldType, st
 		p := r.logicalTypeProviders[lti]
 		st, err := p(t)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "unable to convert LogicalType[%v] using provider for %v schema field", t, lti)
+			return nil, LogicalType{}, errors.Wrapf(err, "unable to convert LogicalType[%v] using provider for %v schema field", t, lti)
 		}
 		if st == nil {
 			continue
 		}
 		ftype, err := r.reflectTypeToFieldType(st)
 		if err != nil {
-			return nil, "", errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", "interface", st, t)
+			return nil, LogicalType{}, errors.Wrapf(err, "unable to convert LogicalType[%v]'s storage type %v for Go type of %v to a schema", "interface", st, t)
 		}
-		return ftype, t.String(), nil
+		return ftype, ToLogicalType(t.String(), t, st), nil
 	}
-	return nil, "", nil
+	return nil, LogicalType{}, nil
+}
+
+// logicalStorageSchema returns a copy of the storage row schema of a logical
+// type used as a top level type.
+func logicalStorageSchema(ftype *pipepb.FieldType, lt LogicalType, ot reflect.Type) (*pipepb.Schema, error) {
+	schm := ftype.GetRowType().GetSchema()
+	if schm == nil {
+		return nil, errors.Errorf("LogicalType[%v] for %v has the non-row storage type %v and cannot be used as a top level schema", lt.ID(), ot, lt.StorageType())
+	}
+	return proto.Clone(schm).(*pipepb.Schema), nil
+}
+
+// appendLogicalOptions appends the options that let ToType recover the
+// logical type of a top level schema.
+func appendLogicalOptions(schm *pipepb.Schema, lt LogicalType) error {
+	schm.Options = append(schm.Options, logicalOption(lt.ID()))
+	if lt.ArgumentType() != nil {
+		opt, err := logicalArgumentOption(lt)
+		if err != nil {
+			return errors.Wrapf(err, "unable to convert the argument of LogicalType[%v]", lt.ID())
+		}
+		schm.Options = append(schm.Options, opt)
+	}
+	return nil
 }
 
 // fromType handles if the initial type is a pointer or not WRT lookups against
@@ -367,18 +391,20 @@ func (r *Registry) fromType(ot reflect.Type) (*pipepb.Schema, error) {
 	if schm, ok := r.typeToSchema[ot]; ok {
 		return schm, nil
 	}
-	ftype, lID, err := r.logicalTypeToFieldType(ot)
+	ftype, lt, err := r.logicalTypeToFieldType(ot)
 	if err != nil {
 		return nil, err
 	}
 	if ftype != nil {
-		schm := ftype.GetRowType().GetSchema()
-		schm = proto.Clone(schm).(*pipepb.Schema)
+		schm, err := logicalStorageSchema(ftype, lt, ot)
+		if err != nil {
+			return nil, err
+		}
 		if ot.Kind() == reflect.Ptr {
 			schm.Options = append(schm.Options, optGoNillable())
 		}
-		if lID != "" {
-			schm.Options = append(schm.Options, logicalOption(lID))
+		if err := appendLogicalOptions(schm, lt); err != nil {
+			return nil, err
 		}
 		schm.Id = getUUID(ot)
 		r.typeToSchema[ot] = schm
@@ -413,6 +439,9 @@ const (
 	// optGoLogical indicates that this top level schema has a logical type equivalent that need to be looked up.
 	// It has a value type of String representing the URN for the logical type to look up.
 	optGoLogicalUrn = "beam:schema:go:logical:v1"
+	// optGoLogicalArgument holds the argument of the logical type of this top level schema.
+	// Its value type is the argument type of the logical type.
+	optGoLogicalArgumentUrn = "beam:schema:go:logical_argument:v1"
 )
 
 func optGoNillable() *pipepb.Option {
@@ -498,6 +527,43 @@ func fromLogicalOption(opts []*pipepb.Option) (string, bool) {
 	return lID, true
 }
 
+// logicalArgumentOption returns the option holding the argument of a
+// parameterized logical type.
+func logicalArgumentOption(lt LogicalType) (*pipepb.Option, error) {
+	ft, fv, err := atomicValueToProto(lt.ArgumentValue())
+	if err != nil {
+		return nil, err
+	}
+	return &pipepb.Option{
+		Name:  optGoLogicalArgumentUrn,
+		Type:  ft,
+		Value: fv,
+	}, nil
+}
+
+// fromLogicalArgumentOption returns the logical type argument of this top
+// level type, or an invalid Value when the schema has no argument option.
+func fromLogicalArgumentOption(opts []*pipepb.Option) (reflect.Value, error) {
+	o := checkOptions(opts, optGoLogicalArgumentUrn)
+	if o == nil {
+		return reflect.Value{}, nil
+	}
+	return atomicValueFromProto(o.GetType(), o.GetValue())
+}
+
+// logicalTypeArgument returns the argument of a logical type proto as a Go
+// value. It returns an invalid Value when the logical type has no argument,
+// or when the argument is not of an atomic type.
+func logicalTypeArgument(lst *pipepb.LogicalType) (reflect.Value, error) {
+	if lst.GetArgumentType() == nil || lst.GetArgument().GetFieldValue() == nil {
+		return reflect.Value{}, nil
+	}
+	if _, ok := lst.GetArgumentType().GetTypeInfo().(*pipepb.FieldType_AtomicType); !ok {
+		return reflect.Value{}, nil
+	}
+	return atomicValueFromProto(lst.GetArgumentType(), lst.GetArgument())
+}
+
 func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 	if t.Kind() != reflect.Struct {
 		return nil, errors.Errorf("non struct type received in structToSchema: %v is kind %v", t, t.Kind())
@@ -506,14 +572,18 @@ func (r *Registry) structToSchema(t reflect.Type) (*pipepb.Schema, error) {
 		return schm, nil
 	}
 
-	ftype, lID, err := r.logicalTypeToFieldType(t)
+	ftype, lt, err := r.logicalTypeToFieldType(t)
 	if err != nil {
 		return nil, err
 	}
 	if ftype != nil {
-		schm := ftype.GetRowType().GetSchema()
-		schm = proto.Clone(schm).(*pipepb.Schema)
-		schm.Options = append(schm.Options, logicalOption(lID))
+		schm, err := logicalStorageSchema(ftype, lt, t)
+		if err != nil {
+			return nil, err
+		}
+		if err := appendLogicalOptions(schm, lt); err != nil {
+			return nil, err
+		}
 		schm.Id = getUUID(t)
 		r.typeToSchema[t] = schm
 		r.idToType[schm.GetId()] = t
@@ -566,18 +636,26 @@ func (r *Registry) structFieldToField(sf reflect.StructField) (*pipepb.Field, er
 }
 
 func (r *Registry) reflectTypeToFieldType(ot reflect.Type) (*pipepb.FieldType, error) {
-	ftype, lID, err := r.logicalTypeToFieldType(ot)
+	ftype, lt, err := r.logicalTypeToFieldType(ot)
 	if err != nil {
 		return nil, err
 	}
 	if ftype != nil {
+		lst := &pipepb.LogicalType{
+			Urn:            lt.ID(),
+			Representation: ftype,
+		}
+		if lt.ArgumentType() != nil {
+			at, av, err := atomicValueToProto(lt.ArgumentValue())
+			if err != nil {
+				return nil, errors.Wrapf(err, "unable to convert the argument of LogicalType[%v]", lt.ID())
+			}
+			lst.ArgumentType = at
+			lst.Argument = av
+		}
 		return &pipepb.FieldType{
 			TypeInfo: &pipepb.FieldType_LogicalType{
-				LogicalType: &pipepb.LogicalType{
-					Urn:            lID,
-					Representation: ftype,
-					// TODO(BEAM-9615): Handle type Arguments.
-				},
+				LogicalType: lst,
 			},
 		}, nil
 	}
@@ -702,7 +780,11 @@ func (r *Registry) toType(s *pipepb.Schema) (reflect.Type, error) {
 		return t, nil
 	}
 	if lID, ok := fromLogicalOption(s.GetOptions()); ok {
-		if lt, ok := r.logicalTypes[lID]; ok {
+		arg, err := fromLogicalArgumentOption(s.GetOptions())
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid argument option for logical type %v", lID)
+		}
+		if lt, ok := r.lookupLogicalType(lID, arg); ok {
 			return lt.GoType(), nil
 		}
 	}
@@ -794,8 +876,15 @@ func (r *Registry) fieldTypeToReflectType(sft *pipepb.FieldType, opts []*pipepb.
 	case *pipepb.FieldType_LogicalType:
 		lst := sft.GetLogicalType()
 		identifier := lst.GetUrn()
-		lt, ok := r.logicalTypes[identifier]
+		arg, err := logicalTypeArgument(lst)
+		if err != nil {
+			return nil, errors.Wrapf(err, "invalid argument for logical type %v", identifier)
+		}
+		lt, ok := r.lookupLogicalType(identifier, arg)
 		if !ok {
+			if arg.IsValid() {
+				return nil, errors.Errorf("unknown logical type: %v with argument %v", identifier, arg.Interface())
+			}
 			return nil, errors.Errorf("unknown logical type: %v", identifier)
 		}
 		t = lt.GoType()
