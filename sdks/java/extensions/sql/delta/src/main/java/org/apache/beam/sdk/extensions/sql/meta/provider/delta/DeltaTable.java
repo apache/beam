@@ -40,7 +40,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.checkerframework.checker.nullness.qual.Nullable;
 
-class DeltaTable extends SchemaBaseBeamTable {
+final class DeltaTable extends SchemaBaseBeamTable {
   @VisibleForTesting static final String VERSION_FIELD = "version";
   @VisibleForTesting static final String TIMESTAMP_FIELD = "timestamp";
   @VisibleForTesting static final String HADOOP_CONFIG_FIELD = "hadoop_config";

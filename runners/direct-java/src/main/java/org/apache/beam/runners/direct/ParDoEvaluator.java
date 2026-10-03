@@ -19,6 +19,7 @@ package org.apache.beam.runners.direct;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -53,6 +54,11 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressWarnings({
   "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Mocked with Mockito in tests, so it cannot be made final."
+            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
 class ParDoEvaluator<InputT> implements TransformEvaluator<InputT> {
 
   public interface DoFnRunnerFactory<InputT, OutputT> {
