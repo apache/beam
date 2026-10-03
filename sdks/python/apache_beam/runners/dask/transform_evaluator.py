@@ -92,8 +92,10 @@ class DaskBagWindowedIterator:
     # FIXME(cisaacstern): list() is likely inefficient, since it presumably
     # materializes the full result before iterating over it. doing this for
     # now as a proof-of-concept. can we can generate results incrementally?
-    for result in list(self.bag):
-      yield get_windowed_value(result, self.window_fn)
+    # Resolved: we fetch lazily, partition by partition.
+    for partition in self.bag.to_delayed():
+      for result in partition.compute():
+        yield get_windowed_value(result, self.window_fn)
 
 
 @dataclasses.dataclass
