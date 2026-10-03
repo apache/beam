@@ -99,6 +99,7 @@ import org.apache.flink.api.common.typeinfo.TypeInformation;
 import org.apache.flink.api.java.functions.KeySelector;
 import org.apache.flink.api.java.typeutils.ValueTypeInfo;
 import org.apache.flink.runtime.checkpoint.OperatorSubtaskState;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.runtime.streamrecord.StreamRecord;
 import org.apache.flink.streaming.util.KeyedOneInputStreamOperatorTestHarness;
 import org.apache.flink.streaming.util.KeyedTwoInputStreamOperatorTestHarness;
@@ -2231,6 +2232,87 @@ public class DoFnOperatorTest {
             WindowedValues.valueInGlobalWindow(KV.of("key2", "c")),
             WindowedValues.valueInGlobalWindow(KV.of("key2", "d")),
             WindowedValues.valueInGlobalWindow(KV.of("key3", "finishBundle"))));
+  }
+
+  /** Ensures that output watermark does not pass buffered elements */
+  @Test
+  public void testExactlyOnceBufferingOutputWatermarkCorrectness() throws Exception {
+    FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
+    options.setStreaming(true);
+    options.setMaxBundleSize(1L);
+    options.setCheckpointingInterval(1L);
+    options.setCheckpointingMode("EXACTLY_ONCE");
+    options.setNumConcurrentCheckpoints(1);
+
+    TupleTag<String> outputTag = new TupleTag<>("main-output");
+
+    WindowedValues.FullWindowedValueCoder<String> windowedValueCoder =
+        WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE);
+
+    DoFn<String, String> doFn =
+        new DoFn<String, String>() {
+          @ProcessElement
+          // Use RequiresStableInput to force buffering elements
+          @RequiresStableInput
+          public void processElement(ProcessContext context) {
+            context.output(context.element());
+          }
+        };
+
+    DoFnOperator.MultiOutputOutputManagerFactory<String> outputManagerFactory =
+        new DoFnOperator.MultiOutputOutputManagerFactory<>(
+            outputTag,
+            WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
+            new SerializablePipelineOptions(options));
+
+    Supplier<DoFnOperator<String, String, String>> doFnOperatorSupplier =
+        () ->
+            new DoFnOperator<>(
+                doFn,
+                "stepName",
+                windowedValueCoder,
+                Collections.emptyMap(),
+                outputTag,
+                Collections.emptyList(),
+                outputManagerFactory,
+                WindowingStrategy.globalDefault(),
+                new HashMap<>(), /* side-input mapping */
+                Collections.emptyList(), /* side inputs */
+                options,
+                null,
+                null,
+                DoFnSchemaInformation.create(),
+                Collections.emptyMap());
+
+    DoFnOperator<String, String, String> doFnOperator = doFnOperatorSupplier.get();
+    OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
+        new OneInputStreamOperatorTestHarness<>(doFnOperator);
+
+    testHarness.open();
+
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValues.timestampedValueInGlobalWindow("A", new Instant(10))));
+    testHarness.snapshot(1L, 0L);
+    testHarness.processElement(
+        new StreamRecord<>(WindowedValues.timestampedValueInGlobalWindow("B", new Instant(20))));
+    testHarness.processWatermark(new Watermark(100));
+    assertThat(
+        "A@10 has not yet completed the checkpoint; output watermark must be held at 10 until checkpoint completion",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(10L));
+
+    doFnOperator.notifyCheckpointComplete(1L);
+    assertThat(
+        "A@10 has been checked but B@20 is still buffered; output watermark must not pass it",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(20L));
+
+    testHarness.snapshot(2L, 0L);
+    doFnOperator.notifyCheckpointComplete(2L);
+    assertThat(
+        "B@20 has been checked and the buffer is empty; output watermark must advance to input watermark",
+        doFnOperator.getCurrentOutputWatermark(),
+        is(100L));
   }
 
   @Test(expected = IllegalStateException.class)
