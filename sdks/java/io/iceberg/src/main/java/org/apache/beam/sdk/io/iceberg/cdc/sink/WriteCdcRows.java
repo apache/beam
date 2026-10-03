@@ -305,8 +305,7 @@ public abstract class WriteCdcRows extends PTransform<PCollection<Row>, IcebergW
    * token-bearing snapshot stays recent and is less likely to be lost to {@code expire_snapshots}
    * before the sink resumes. Disabled by default, and ignored for bounded (batch) input.
    *
-   * <p>With heartbeat enabled prefer cancel-and-resubmit over drain: the self-re-arming
-   * processing-time timer can keep a drain from completing.
+   * <p>With heartbeat enabled, stop the pipeline with cancel, not drain.
    */
   public WriteCdcRows withTokenHeartbeat(Duration interval) {
     Preconditions.checkArgument(
