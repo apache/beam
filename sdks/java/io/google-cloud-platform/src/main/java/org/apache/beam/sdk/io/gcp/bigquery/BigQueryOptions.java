@@ -197,6 +197,16 @@ public interface BigQueryOptions
 
   void setBigQueryProject(String value);
 
+  @Description(
+      "GCP project ID used for quota and billing attribution of BigQuery API requests "
+          + "(sets the X-Goog-User-Project header), if different from the project the data "
+          + "resides in. If unspecified, the project associated with the credentials is used. "
+          + "The credentials used must have the serviceusage.services.use permission on this "
+          + "project.")
+  String getBigQueryQuotaProjectId();
+
+  void setBigQueryQuotaProjectId(String value);
+
   @Description("Maximum (best effort) size of a single append to the storage API.")
   @Default.Integer(2 * 1024 * 1024)
   Integer getStorageApiAppendThresholdBytes();
