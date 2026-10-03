@@ -281,6 +281,22 @@ class TestWriteBigTable(unittest.TestCase):
     instance = Instance(self._INSTANCE_ID, client)
     self.table = Table(self._TABLE_ID, instance)
 
+    # In google-cloud-bigtable >= 2.48.0, MutationsBatcher delegates to the
+    # underlying data client batcher instead of invoking Table.mutate_rows.
+    # Wire the mock data client batcher to surface Table.mutate_rows calls,
+    # exceptions, and callbacks so tests patching Table.mutate_rows work seamlessly.
+    def mock_data_client_batcher(*args, **kwargs):
+      batcher = MagicMock()
+      def mock_close():
+        res = self.table.mutate_rows([])
+        cb = kwargs.get('batch_completed_callback')
+        if cb and res:
+          cb(res)
+      batcher.close = MagicMock(side_effect=mock_close)
+      return batcher
+
+    client.data_client.mutations_batcher = mock_data_client_batcher
+
   def test_write(self):
     direct_rows = [self.generate_row(i) for i in range(5)]
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
@@ -307,6 +323,14 @@ class TestWriteBigTable(unittest.TestCase):
         max_row_bytes=5242880)
     write_fn.table = self.table
     write_fn.start_bundle()
+
+    # Verify MutationsBatcher registered write_mutate_metrics callback
+    callback = (
+        getattr(write_fn.batcher, '_user_batch_completed_callback', None) or
+        getattr(write_fn.batcher, 'batch_completed_callback', None) or
+        getattr(write_fn.batcher, '_batch_completed_callback', None))
+    self.assertEqual(callback, write_fn.write_mutate_metrics)
+
     number_of_rows = 2
     error = Status()
     error.message = 'Entity already exists.'
