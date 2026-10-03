@@ -33,12 +33,14 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 final class CommitterMetrics implements Serializable {
 
   final Counter snapshotsCreated = Metrics.counter(CommitDeltas.class, "snapshotsCreated");
-  final Counter committedDataFiles = Metrics.counter(CommitDeltas.class, "committedDataFiles");
-  final Counter committedDeleteFiles = Metrics.counter(CommitDeltas.class, "committedDeleteFiles");
-  final Counter committedRecords = Metrics.counter(CommitDeltas.class, "committedRecords");
-  final Counter committedEqualityDeleteRecords =
-      Metrics.counter(CommitDeltas.class, "committedEqualityDeleteRecords");
-  final Counter committedBytes = Metrics.counter(CommitDeltas.class, "committedBytes");
+  final Distribution committedDataFileRecordCount =
+      Metrics.distribution(CommitDeltas.class, "committedDataFileRecordCount");
+  final Distribution committedDataFileByteSize =
+      Metrics.distribution(CommitDeltas.class, "committedDataFileByteSize");
+  final Distribution committedEqualityDeleteRecordCount =
+      Metrics.distribution(CommitDeltas.class, "committedEqualityDeleteRecordCount");
+  final Distribution committedEqualityDeleteByteSize =
+      Metrics.distribution(CommitDeltas.class, "committedEqualityDeleteByteSize");
   final Distribution commitDurationMs =
       Metrics.distribution(CommitDeltas.class, "commitDurationMs");
   final Counter commitFailures = Metrics.counter(CommitDeltas.class, "commitFailures");
@@ -57,79 +59,58 @@ final class CommitterMetrics implements Serializable {
 
   /** Records a successful commit's volume metrics. */
   void recordCommit(CommitSummary summary) {
-    committedDataFiles.inc(summary.dataFileCount);
-    committedDeleteFiles.inc(summary.deleteFileCount);
-    committedRecords.inc(summary.dataRecords);
-    committedEqualityDeleteRecords.inc(summary.equalityDeleteRecords);
-    committedBytes.inc(summary.bytes);
+    for (DataFile f : summary.dataFiles) {
+      committedDataFileRecordCount.update(f.recordCount());
+      committedDataFileByteSize.update(f.fileSizeInBytes());
+    }
+    for (DeleteFile f : summary.deleteFiles) {
+      if (f.content() == FileContent.EQUALITY_DELETES) {
+        committedEqualityDeleteRecordCount.update(f.recordCount());
+        committedEqualityDeleteByteSize.update(f.fileSizeInBytes());
+      }
+    }
     snapshotsCreated.inc();
   }
 
-  /** One commit's volume and partition-spec summary, computed from its files. */
+  /** One commit's files and partition-spec summary. */
   static final class CommitSummary {
-    final long dataFileCount;
-    final long deleteFileCount;
-    final long dataRecords;
-    final long equalityDeleteRecords;
-    final long bytes;
+    final List<DataFile> dataFiles;
+    final List<DeleteFile> deleteFiles;
     final @Nullable Integer firstSpecId;
     final Set<Integer> specIds;
     final boolean hasEqualityDeletes;
 
     private CommitSummary(
-        long dataFileCount,
-        long deleteFileCount,
-        long dataRecords,
-        long equalityDeleteRecords,
-        long bytes,
+        List<DataFile> dataFiles,
+        List<DeleteFile> deleteFiles,
         @Nullable Integer firstSpecId,
         Set<Integer> specIds,
         boolean hasEqualityDeletes) {
-      this.dataFileCount = dataFileCount;
-      this.deleteFileCount = deleteFileCount;
-      this.dataRecords = dataRecords;
-      this.equalityDeleteRecords = equalityDeleteRecords;
-      this.bytes = bytes;
+      this.dataFiles = dataFiles;
+      this.deleteFiles = deleteFiles;
       this.firstSpecId = firstSpecId;
       this.specIds = specIds;
       this.hasEqualityDeletes = hasEqualityDeletes;
     }
 
     static CommitSummary of(List<DataFile> dataFiles, List<DeleteFile> deleteFiles) {
-      long dataRecords = 0;
-      long bytes = 0;
       @Nullable Integer firstSpecId = null;
       Set<Integer> specIds = new HashSet<>();
       for (DataFile f : dataFiles) {
-        dataRecords += f.recordCount();
-        bytes += f.fileSizeInBytes();
         if (firstSpecId == null) {
           firstSpecId = f.specId();
         }
         specIds.add(f.specId());
       }
-      long equalityDeleteRecords = 0;
       boolean hasEqualityDeletes = false;
       for (DeleteFile f : deleteFiles) {
-        bytes += f.fileSizeInBytes();
         if (firstSpecId == null) {
           firstSpecId = f.specId();
         }
         specIds.add(f.specId());
-        if (f.content() == FileContent.EQUALITY_DELETES) {
-          equalityDeleteRecords += f.recordCount();
-          hasEqualityDeletes = true;
-        }
+        hasEqualityDeletes |= f.content() == FileContent.EQUALITY_DELETES;
       }
-      return new CommitSummary(
-          dataFiles.size(),
-          deleteFiles.size(),
-          dataRecords,
-          equalityDeleteRecords,
-          bytes,
-          firstSpecId,
-          specIds,
-          hasEqualityDeletes);
+      return new CommitSummary(dataFiles, deleteFiles, firstSpecId, specIds, hasEqualityDeletes);
     }
   }
 }
