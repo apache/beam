@@ -28,3 +28,6 @@
 --access_percentage=99
 --window_count=1000
 --runner=DataflowRunner
+#40005
+--sdk_container_image=gcr.io/cloud-dataflow/v1beta3/beam_python3.10_sdk:beam-master-20260831
+--publish_to_big_query=false
