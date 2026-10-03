@@ -23,6 +23,7 @@ import com.google.api.services.dataflow.model.PartialGroupByKeyInstruction;
 import com.google.api.services.dataflow.model.SideInputInfo;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 import org.apache.beam.runners.core.GlobalCombineFnRunner;
 import org.apache.beam.runners.core.GlobalCombineFnRunners;
 import org.apache.beam.runners.core.NullSideInputReader;
@@ -48,6 +49,7 @@ import org.apache.beam.sdk.util.common.ElementByteSizeObserver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.beam.sdk.values.WindowingStrategy;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.CountingOutputStream;
@@ -68,7 +70,7 @@ public class PartialGroupByKeyParDoFns {
       DataflowExecutionContext<?> executionContext,
       DataflowOperationContext operationContext)
       throws Exception {
-    AppliedCombineFn<K, InputT, AccumT, ?> combineFn;
+    AppliedCombineFn<K, InputT, AccumT, BoundedWindow> combineFn;
     SideInputReader sideInputReader;
     StepContext stepContext;
     if (cloudUserFn == null) {
@@ -80,8 +82,8 @@ public class PartialGroupByKeyParDoFns {
           SerializableUtils.deserializeFromByteArray(
               getBytes(cloudUserFn, PropertyNames.SERIALIZED_FN), "serialized combine fn");
       @SuppressWarnings("unchecked")
-      AppliedCombineFn<K, InputT, AccumT, ?> combineFnUnchecked =
-          ((AppliedCombineFn<K, InputT, AccumT, ?>) deserializedFn);
+      AppliedCombineFn<K, InputT, AccumT, BoundedWindow> combineFnUnchecked =
+          ((AppliedCombineFn<K, InputT, AccumT, BoundedWindow>) deserializedFn);
       combineFn = combineFnUnchecked;
 
       sideInputReader =
@@ -136,13 +138,15 @@ public class PartialGroupByKeyParDoFns {
       if (sideInputReader.isEmpty()) {
         return new SimplePartialGroupByKeyParDoFn<>(groupingTable, receiver);
       } else if (options.as(StreamingOptions.class).isStreaming()) {
-        StreamingSideInputFetcher<KV<K, InputT>, ?> sideInputFetcher =
-            new StreamingSideInputFetcher<>(
-                combineFn.getSideInputViews(),
-                combineFn.getKvCoder(),
-                combineFn.getWindowingStrategy(),
-                (StreamingModeExecutionContext.StreamingModeStepContext) stepContext);
-        return new StreamingSideInputPGBKParDoFn<>(groupingTable, receiver, sideInputFetcher);
+        Supplier<StreamingSideInputFetcher<KV<K, InputT>, BoundedWindow>> sideInputFetcherSupplier =
+            () ->
+                new StreamingSideInputFetcher<>(
+                    combineFn.getSideInputViews(),
+                    combineFn.getKvCoder(),
+                    (WindowingStrategy<?, BoundedWindow>) combineFn.getWindowingStrategy(),
+                    (StreamingModeExecutionContext.StreamingModeStepContext) stepContext);
+        return new StreamingSideInputPGBKParDoFn<>(
+            groupingTable, receiver, sideInputFetcherSupplier);
       } else {
         return new BatchSideInputPGBKParDoFn<>(groupingTable, receiver);
       }
@@ -240,7 +244,7 @@ public class PartialGroupByKeyParDoFns {
     }
 
     @Override
-    public Object createGroupingKey(WindowedValue<K> key) throws Exception {
+    public Object createGroupingKey(WindowedValue<K> key) {
       // Ignore timestamp for grouping purposes.
       // The PGBK output will inherit the timestamp of one of its inputs.
       return WindowedValues.builder(key)
@@ -333,19 +337,21 @@ public class PartialGroupByKeyParDoFns {
       implements ParDoFn {
     private final GroupingTable<WindowedValue<K>, InputT, AccumT> groupingTable;
     private final Receiver receiver;
-    private final StreamingSideInputFetcher<KV<K, InputT>, W> sideInputFetcher;
+    private final Supplier<StreamingSideInputFetcher<KV<K, InputT>, W>> sideInputFetcherSupplier;
+    private StreamingSideInputFetcher<KV<K, InputT>, W> sideInputFetcher = null;
+    private boolean activeKey = false;
 
     StreamingSideInputPGBKParDoFn(
         GroupingTable<WindowedValue<K>, InputT, AccumT> groupingTable,
         Receiver receiver,
-        StreamingSideInputFetcher<KV<K, InputT>, W> sideInputFetcher) {
+        Supplier<StreamingSideInputFetcher<KV<K, InputT>, W>> sideInputFetcherSupplier) {
       this.groupingTable = groupingTable;
       this.receiver = receiver;
-      this.sideInputFetcher = sideInputFetcher;
+      this.sideInputFetcherSupplier = sideInputFetcherSupplier;
     }
 
-    @Override
-    public void startBundle(Receiver... receivers) throws Exception {
+    private void onStartKey() throws Exception {
+      this.sideInputFetcher = sideInputFetcherSupplier.get();
       // Find the set of ready windows.
       Set<W> readyWindows = sideInputFetcher.getReadyWindows();
 
@@ -361,12 +367,23 @@ public class PartialGroupByKeyParDoFns {
         elementsBag.clear();
       }
       sideInputFetcher.releaseBlockedWindows(readyWindows);
+      this.activeKey = true;
+    }
+
+    @Override
+    public void startBundle(Receiver... receivers) throws Exception {
+      this.activeKey = false;
     }
 
     @Override
     public void processElement(Object elem) throws Exception {
       @SuppressWarnings({"unchecked"})
       WindowedValue<KV<K, InputT>> input = (WindowedValue<KV<K, InputT>>) elem;
+
+      if (!activeKey) {
+        onStartKey();
+      }
+
       for (BoundedWindow w : input.getWindows()) {
         WindowedValue<KV<K, InputT>> windowsExpandedInput =
             WindowedValues.of(input.getValue(), input.getTimestamp(), w, input.getPaneInfo());
@@ -378,15 +395,29 @@ public class PartialGroupByKeyParDoFns {
     }
 
     @Override
-    public void processTimers() {}
+    public void processTimers() throws Exception {
+      if (!activeKey) {
+        onStartKey();
+      }
+    }
 
     @Override
-    public void finishKey(Object key) throws Exception {}
+    public void finishKey(Object key) throws Exception {
+      if (!activeKey) {
+        onStartKey();
+      }
+      sideInputFetcher.persist();
+      sideInputFetcher = null;
+      this.activeKey = false;
+      this.sideInputFetcher = null;
+    }
 
     @Override
     public void finishBundle() throws Exception {
       groupingTable.flush(receiver);
-      sideInputFetcher.persist();
+      if (sideInputFetcher != null) {
+        sideInputFetcher.persist();
+      }
     }
 
     @Override
