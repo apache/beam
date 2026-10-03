@@ -525,7 +525,7 @@ public class Pipeline {
 
   private final List<ErrorHandler<?, ?>> errorHandlers = new ArrayList<>();
 
-  private Pipeline(TransformHierarchy transforms, PipelineOptions options) {
+  protected Pipeline(TransformHierarchy transforms, PipelineOptions options) {
     CoderTranslation.verifyModelCodersRegistered();
     this.transforms = transforms;
     this.defaultOptions = options;

@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
 import org.apache.beam.sdk.annotations.Internal;
@@ -46,7 +47,10 @@ import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.transforms.SerializableFunction;
+import org.apache.beam.sdk.transforms.resourcehints.ResourceHints;
 import org.apache.beam.sdk.util.common.ReflectHelpers;
+import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Optional;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicate;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
@@ -56,10 +60,13 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterab
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.checkerframework.checker.nullness.qual.Nullable;
+import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TestRule;
 import org.junit.runner.Description;
 import org.junit.runners.model.Statement;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * A creator of test pipelines that can be used inside of tests that can be configured to run
@@ -130,6 +137,7 @@ import org.junit.runners.model.Statement;
  * documentation section.
  */
 public class TestPipeline extends Pipeline implements TestRule {
+  private static final Logger LOG = LoggerFactory.getLogger(TestPipeline.class);
 
   private final PipelineOptions options;
 
@@ -306,11 +314,12 @@ public class TestPipeline extends Pipeline implements TestRule {
   }
 
   public static TestPipeline fromOptions(PipelineOptions options) {
-    return new TestPipeline(options);
+    return new TestPipeline(new TransformHierarchy(ResourceHints.fromOptions(options)), options);
   }
 
-  private TestPipeline(final PipelineOptions options) {
-    super(options);
+  private TestPipeline(final TransformHierarchy hierarchy, final PipelineOptions options) {
+    super(hierarchy, options);
+    this.hierarchy = hierarchy;
     this.options = options;
   }
 
@@ -348,15 +357,38 @@ public class TestPipeline extends Pipeline implements TestRule {
     enforcement.get().afterUserCodeFinished();
   }
 
+  private boolean standaloneExecutionRequired = false;
+  private int initialOptionsRevision = -1;
+
+  private static boolean hasCategory(Collection<Annotation> annotations, Class<?> targetCategory) {
+    return FluentIterable.from(annotations)
+        .filter(Annotations.Predicates.isAnnotationOfType(Category.class))
+        .anyMatch(Annotations.Predicates.isCategoryOf(targetCategory, true));
+  }
+
   @Override
   public Statement apply(final Statement statement, final Description description) {
     return new Statement() {
 
       @Override
       public void evaluate() throws Throwable {
-        options.as(ApplicationNameOptions.class).setAppName(getAppName(description));
+        String appName = getAppName(description);
+        options.as(ApplicationNameOptions.class).setAppName(appName);
+        initialOptionsRevision = options.revision();
+        if (Boolean.getBoolean(PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES)) {
+          nameRoot(appName);
+        }
 
-        setDeducedEnforcementLevel(description.getAnnotations());
+        Collection<Annotation> annotations = description.getAnnotations();
+        setDeducedEnforcementLevel(annotations);
+
+        Test testAnnotation = description.getAnnotation(Test.class);
+        if ((testAnnotation != null && testAnnotation.expected() != Test.None.class)
+            || hasCategory(annotations, UsesFailureMessage.class)
+            || BeamParallelJunit4Runner.hasSerialAnnotation(annotations)
+            || BeamParallelJunit4Runner.isClassMarkedSerial(description.getTestClass())) {
+          standaloneExecutionRequired = true;
+        }
 
         // statement.evaluate() essentially runs the user code contained in the unit test at hand.
         // Exceptions thrown during the execution of the user's test code will propagate here,
@@ -370,6 +402,106 @@ public class TestPipeline extends Pipeline implements TestRule {
         afterUserCodeFinished();
       }
     };
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Unique root names
+  // ---------------------------------------------------------------------------------------------
+
+  /**
+   * System property which, when {@code true}, gives every {@link TestPipeline} a unique root
+   * transform name of the form {@code t<N>-<test name>} as soon as its JUnit rule is applied. Every
+   * transform and {@link PCollection} name in the test is then prefixed by it (for example {@code
+   * t12-ParDoTest$BasicTests-testParDo/ParDo(Anonymous)}), so the graphs of different tests never
+   * share a name. Runners that merge several test pipelines into one job rely on this; see {@link
+   * #getRootName()}.
+   */
+  public static final String PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES =
+      "beamTestPipelineUniqueRootNames";
+
+  /**
+   * Upper bound on a root name. Generous enough that real test names ({@code Class$Nested-method},
+   * typically 40-80 characters) survive intact, since the method name at the end is the most
+   * informative part, while still bounding pathological names.
+   */
+  @VisibleForTesting static final int MAX_ROOT_NAME_LENGTH = 100;
+
+  private static final AtomicInteger ROOT_NAME_COUNTER = new AtomicInteger(1);
+
+  private final TransformHierarchy hierarchy;
+  private String rootName = "";
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns the unique root transform name of this pipeline, or the empty string if it has none
+   * (see {@link #PROPERTY_BEAM_TEST_PIPELINE_UNIQUE_ROOT_NAMES}). When non-empty, every full
+   * transform name in this pipeline starts with {@code getRootName() + "/"}.
+   */
+  @Internal
+  public String getRootName() {
+    return rootName;
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Gives this pipeline a unique root name of the form {@code t<N>-<testName>} (sanitized and
+   * truncated). Normally invoked by the JUnit rule or extension; only has an effect if no transform
+   * has been applied yet, otherwise a warning is logged and the pipeline stays unnamed.
+   */
+  @Internal
+  public void nameRoot(String testName) {
+    String candidate = rootNameFor(ROOT_NAME_COUNTER.getAndIncrement(), testName);
+    try {
+      hierarchy.setRootName(candidate);
+      rootName = candidate;
+    } catch (IllegalStateException e) {
+      LOG.warn(
+          "Not giving the TestPipeline of {} a unique root name: transforms were applied to it"
+              + " before the test started. Its transform names stay unprefixed.",
+          testName);
+    }
+  }
+
+  /**
+   * Builds {@code t<sequence>-<testName>}. The sequence number alone makes the name unique, so the
+   * test name is only a readability aid: it is sanitized to a conservative character set (notably
+   * no {@code /}, which separates name segments) and truncated to keep the root within {@link
+   * #MAX_ROOT_NAME_LENGTH}.
+   */
+  @VisibleForTesting
+  static String rootNameFor(int sequence, String testName) {
+    String prefix = "t" + sequence + "-";
+    String hint = testName.replaceAll("[^A-Za-z0-9_.$-]", "_");
+    int room = MAX_ROOT_NAME_LENGTH - prefix.length();
+    if (hint.length() > room) {
+      hint = hint.substring(0, Math.max(0, room));
+    }
+    return prefix + hint;
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns {@code true} if this {@link TestPipeline} should not be merged into a shared batch
+   * pipeline (for example, when the test expects an exception or assertion failure, uses custom
+   * per-test option arguments, or is marked for serial execution).
+   */
+  @Internal
+  public boolean isStandaloneExecutionRequired() {
+    if (standaloneExecutionRequired
+        || (initialOptionsRevision >= 0 && options.revision() != initialOptionsRevision)
+        || !providerRuntimeValues.isEmpty()
+        || BeamParallelJunit4Runner.isExpectingException()) {
+      return true;
+    }
+    for (StackTraceElement frame : Thread.currentThread().getStackTrace()) {
+      if ("runExpectingAssertionFailure".equals(frame.getMethodName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -390,6 +522,7 @@ public class TestPipeline extends Pipeline implements TestRule {
    * <p>Most of logic is similar to {@link #testingPipelineOptions}.
    */
   public PipelineResult runWithAdditionalOptionArgs(List<String> additionalArgs) {
+    standaloneExecutionRequired = true;
     try {
       String beamTestPipelineOptions = System.getProperty(PROPERTY_BEAM_TEST_PIPELINE_OPTIONS, "");
       List<String> args = new ArrayList<>();
@@ -430,6 +563,10 @@ public class TestPipeline extends Pipeline implements TestRule {
         enforcement.isPresent(),
         "Is your TestPipeline declaration missing a @Rule annotation? Usage: "
             + "@Rule public final transient TestPipeline pipeline = TestPipeline.create();");
+    if (options != this.options
+        || (initialOptionsRevision >= 0 && options.revision() != initialOptionsRevision)) {
+      standaloneExecutionRequired = true;
+    }
 
     final PipelineResult pipelineResult;
     try {

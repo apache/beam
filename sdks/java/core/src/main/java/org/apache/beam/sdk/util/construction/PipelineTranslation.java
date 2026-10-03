@@ -78,10 +78,10 @@ public class PipelineTranslation {
               }
             } else {
               // TODO: Include DisplayData in the proto
-              children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
+              AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
+              children.put(node.getEnclosingNode(), appliedTransform);
               try {
-                components.registerPTransform(
-                    node.toAppliedPTransform(pipeline), children.get(node));
+                components.registerPTransform(appliedTransform, children.get(node));
               } catch (IOException e) {
                 throw new RuntimeException(e);
               }
@@ -91,10 +91,10 @@ public class PipelineTranslation {
           @Override
           public void visitPrimitiveTransform(Node node) {
             // TODO: Include DisplayData in the proto
-            children.put(node.getEnclosingNode(), node.toAppliedPTransform(pipeline));
+            AppliedPTransform<?, ?, ?> appliedTransform = node.toAppliedPTransform(getPipeline());
+            children.put(node.getEnclosingNode(), appliedTransform);
             try {
-              components.registerPTransform(
-                  node.toAppliedPTransform(pipeline), Collections.emptyList());
+              components.registerPTransform(appliedTransform, Collections.emptyList());
             } catch (IOException e) {
               throw new IllegalStateException(e);
             }

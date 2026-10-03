@@ -17,7 +17,6 @@
  */
 package org.apache.beam.sdk.testing;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -1869,21 +1868,13 @@ public class PAssert {
    */
   private static class AssertionCountingVisitor extends PipelineVisitor.Defaults {
     private int assertCount;
-    private boolean pipelineVisited;
 
     private AssertionCountingVisitor() {
       assertCount = 0;
-      pipelineVisited = false;
     }
 
     @Override
     public CompositeBehavior enterCompositeTransform(Node node) {
-      if (node.isRootNode()) {
-        checkState(
-            !pipelineVisited,
-            "Tried to visit a pipeline with an already used %s",
-            AssertionCountingVisitor.class.getSimpleName());
-      }
       if (!node.isRootNode()
           && (node.getTransform() instanceof PAssert.OneSideInputAssert
               || node.getTransform() instanceof PAssert.GroupThenAssert
@@ -1891,13 +1882,6 @@ public class PAssert {
         assertCount++;
       }
       return CompositeBehavior.ENTER_TRANSFORM;
-    }
-
-    @Override
-    public void leaveCompositeTransform(Node node) {
-      if (node.isRootNode()) {
-        pipelineVisited = true;
-      }
     }
 
     @Override
@@ -1911,7 +1895,6 @@ public class PAssert {
 
     /** Gets the number of {@link PAssert PAsserts} in the pipeline. */
     int getPAssertCount() {
-      checkState(pipelineVisited);
       return assertCount;
     }
   }

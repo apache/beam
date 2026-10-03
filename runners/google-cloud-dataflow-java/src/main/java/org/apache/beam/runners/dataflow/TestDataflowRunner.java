@@ -19,6 +19,7 @@ package org.apache.beam.runners.dataflow;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import com.google.api.services.dataflow.model.Job;
 import com.google.api.services.dataflow.model.JobMessage;
 import com.google.api.services.dataflow.model.JobMetrics;
 import com.google.api.services.dataflow.model.MetricUpdate;
@@ -28,6 +29,8 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 import org.apache.beam.runners.dataflow.options.DataflowPipelineOptions;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil;
 import org.apache.beam.runners.dataflow.util.MonitoringUtil.JobMessagesHandler;
@@ -58,17 +61,31 @@ import org.slf4j.LoggerFactory;
 })
 public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
   private static final String TENTATIVE_COUNTER = "tentative";
+  static final String MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY =
+      "beam.dataflow.maxConcurrentStandaloneJobs";
+  private static final int DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS = 12;
+  private static final ConcurrentHashMap<Integer, Semaphore> STANDALONE_SEMAPHORES =
+      new ConcurrentHashMap<>();
   private static final Logger LOG = LoggerFactory.getLogger(TestDataflowRunner.class);
 
   private final TestDataflowPipelineOptions options;
   private final DataflowClient dataflowClient;
   private final DataflowRunner runner;
+  private final DataflowTestBatchCoordinator batchCoordinator;
   private int expectedNumberOfAssertions = 0;
 
   TestDataflowRunner(TestDataflowPipelineOptions options, DataflowClient client) {
+    this(options, client, DataflowTestBatchCoordinator.shared());
+  }
+
+  TestDataflowRunner(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
     this.options = options;
     this.dataflowClient = client;
     this.runner = DataflowRunner.fromOptions(options);
+    this.batchCoordinator = batchCoordinator;
   }
 
   /** Constructs a runner from the provided options. */
@@ -102,12 +119,84 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return new TestDataflowRunner(options, client);
   }
 
+  @VisibleForTesting
+  static TestDataflowRunner fromOptionsAndClient(
+      TestDataflowPipelineOptions options,
+      DataflowClient client,
+      DataflowTestBatchCoordinator batchCoordinator) {
+    return new TestDataflowRunner(options, client, batchCoordinator);
+  }
+
   @Override
   public DataflowPipelineJob run(Pipeline pipeline) {
     return run(pipeline, runner);
   }
 
   DataflowPipelineJob run(Pipeline pipeline, DataflowRunner runner) {
+    if (batchCoordinator.isEligibleForBatching(pipeline, options)) {
+      // Eligibility implies the pipeline is a TestPipeline with a unique root name.
+      return batchCoordinator.runInBatch((TestPipeline) pipeline, options, this, runner);
+    }
+    return runStandalone(pipeline, runner);
+  }
+
+  private static Semaphore getStandaloneSemaphore() {
+    int maxJobs =
+        Math.max(
+            1,
+            Integer.getInteger(
+                MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, DEFAULT_MAX_CONCURRENT_STANDALONE_JOBS));
+    return STANDALONE_SEMAPHORES.computeIfAbsent(maxJobs, Semaphore::new);
+  }
+
+  DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
+    return runStandalone(pipeline, runner, true);
+  }
+
+  /**
+   * Runs {@code pipeline} as its own Dataflow job.
+   *
+   * @param limitConcurrency whether to take a permit from the per-JVM standalone-job limiter.
+   *     Re-runs of members of an already-attempted merged job pass {@code false}: their number is
+   *     bounded by the batch size, and queueing them behind the limiter would add the wait time to
+   *     tests that have already spent the merged job's duration.
+   */
+  DataflowPipelineJob runStandalone(
+      Pipeline pipeline, DataflowRunner runner, boolean limitConcurrency) {
+    if (!limitConcurrency) {
+      return runStandaloneInternal(pipeline, runner);
+    }
+    Semaphore semaphore = getStandaloneSemaphore();
+    boolean acquired = false;
+    try {
+      semaphore.acquire();
+      acquired = true;
+      return runStandaloneInternal(pipeline, runner);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } finally {
+      if (acquired) {
+        semaphore.release();
+      }
+    }
+  }
+
+  /**
+   * Fetches {@code job} with {@code JOB_VIEW_ALL}, which carries per-stage execution states and the
+   * stage-to-user-step description needed to attribute stages to batch members. Returns {@code
+   * null} if the service call fails.
+   */
+  @Nullable Job getJobWithExecutionDetails(DataflowPipelineJob job) {
+    try {
+      return dataflowClient.getJob(job.getJobId(), "JOB_VIEW_ALL");
+    } catch (IOException e) {
+      LOG.warn("Failed to get execution details for Dataflow job {}: ", job.getJobId(), e);
+      return null;
+    }
+  }
+
+  private DataflowPipelineJob runStandaloneInternal(Pipeline pipeline, DataflowRunner runner) {
     updatePAssertCount(pipeline);
 
     TestPipelineOptions testPipelineOptions = options.as(TestPipelineOptions.class);
@@ -200,6 +289,27 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
       return false;
     } else {
       return finalState == State.DONE && !messageHandler.hasSeenError();
+    }
+  }
+
+  /**
+   * Waits up to {@code timeout} for a merged test job to terminate. Returns its terminal state, or
+   * {@code null} if the job did not terminate in time or the wait was interrupted.
+   *
+   * <p>Unlike a standalone batch job, which this runner waits on indefinitely, a merged job holds
+   * the verdict for several tests at once, so it is never allowed to block them forever.
+   */
+  @Nullable State waitForMergedJobTermination(DataflowPipelineJob job, Duration timeout) {
+    try {
+      State state =
+          job.waitUntilFinish(
+              timeout, new ErrorMonitorMessagesHandler(job, new MonitoringUtil.LoggingHandler()));
+      return state != null && state.isTerminal() ? state : null;
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      return null;
     }
   }
 
