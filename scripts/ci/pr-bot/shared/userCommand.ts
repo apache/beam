@@ -41,7 +41,7 @@ export async function processCommand(
   commentText = commentText.toLowerCase();
 
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Notifications stopped, only "allow assign set of reviewers"
     if (commentText.indexOf("assign set of reviewers") > -1) {
       await assignReviewerSet(payload, pullNumber, stateClient, reviewerConfig);
@@ -109,6 +109,7 @@ async function assignToNextReviewer(
         labels: existingLabels,
       })
     );
+    await github.requestPrReviewers(pullNumber, [chosenReviewer]);
 
     // Set next action to reviewer
     await github.nextActionReviewers(pullNumber, existingLabels);
@@ -187,7 +188,7 @@ async function assignReviewerSet(
   reviewerConfig: typeof ReviewerConfig
 ) {
   let prState = await stateClient.getPrState(pullNumber);
-  if(prState.stopReviewerNotifications) {
+  if (prState.stopReviewerNotifications) {
     // Restore notifications, and clear any existing reviewer set to
     // allow new reviewers to be assigned.
     prState.stopReviewerNotifications = false;
@@ -232,6 +233,10 @@ async function assignReviewerSet(
     commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
       labels: existingLabels,
     })
+  );
+  await github.requestPrReviewers(
+    pullNumber,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
   github.nextActionReviewers(pullNumber, existingLabels);

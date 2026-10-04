@@ -115,8 +115,21 @@ public class SolaceIOWriteTest {
       WriterType writerType,
       Pipeline p,
       ErrorHandler<BadRecord, ?> errorHandler) {
+    return getWriteTransform(
+        mode, writerType, p, errorHandler, SessionServiceType.WITH_SUCCEEDING_PRODUCER);
+  }
+
+  private SolaceOutput getWriteTransform(
+      SubmissionMode mode,
+      WriterType writerType,
+      Pipeline p,
+      ErrorHandler<BadRecord, ?> errorHandler,
+      SessionServiceType sessionServiceType) {
     SessionServiceFactory fakeSessionServiceFactory =
-        MockSessionServiceFactory.builder().mode(mode).build();
+        MockSessionServiceFactory.builder()
+            .mode(mode)
+            .sessionServiceType(sessionServiceType)
+            .build();
 
     PCollection<Record> records = getRecords(p);
     return records.apply(
@@ -266,6 +279,78 @@ public class SolaceIOWriteTest {
         MockSessionServiceFactory.builder()
             .mode(mode)
             .sessionServiceType(SessionServiceType.WITH_FAILING_PRODUCER)
+            .build();
+
+    PCollection<Record> records = getRecords(pipeline);
+    SolaceOutput output =
+        records.apply(
+            "Write to Solace",
+            SolaceIO.write()
+                .to(Solace.Queue.fromName("queue"))
+                .withSubmissionMode(mode)
+                .withWriterType(writerType)
+                .withDeliveryMode(DeliveryMode.PERSISTENT)
+                .withSessionServiceFactory(fakeSessionServiceFactory)
+                .withErrorHandler(errorHandler));
+
+    PCollection<String> ids = getIdsPCollection(output);
+
+    PAssert.that(ids).empty();
+    errorHandler.close();
+    PAssert.thatSingleton(Objects.requireNonNull(errorHandler.getOutput()))
+        .isEqualTo((long) payloads.size());
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteLatencyStreamingWithDelayedAck() throws Exception {
+    SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
+    WriterType writerType = WriterType.STREAMING;
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output =
+        getWriteTransform(
+            mode, writerType, pipeline, errorHandler, SessionServiceType.WITH_DELAYED_PRODUCER);
+    PCollection<String> ids = getIdsPCollection(output);
+
+    PAssert.that(ids).containsInAnyOrder(keys);
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteLatencyBatchedWithDelayedAck() throws Exception {
+    SubmissionMode mode = SubmissionMode.LOWER_LATENCY;
+    WriterType writerType = WriterType.BATCHED;
+
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+    SolaceOutput output =
+        getWriteTransform(
+            mode, writerType, pipeline, errorHandler, SessionServiceType.WITH_DELAYED_PRODUCER);
+    PCollection<String> ids = getIdsPCollection(output);
+
+    PAssert.that(ids).containsInAnyOrder(keys);
+    errorHandler.close();
+    PAssert.that(errorHandler.getOutput()).empty();
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteWithExceptionRecords() throws Exception {
+    SubmissionMode mode = SubmissionMode.HIGHER_THROUGHPUT;
+    WriterType writerType = WriterType.BATCHED;
+    ErrorHandler<BadRecord, PCollection<Long>> errorHandler =
+        pipeline.registerBadRecordErrorHandler(new ErrorSinkTransform());
+
+    SessionServiceFactory fakeSessionServiceFactory =
+        MockSessionServiceFactory.builder()
+            .mode(mode)
+            .sessionServiceType(SessionServiceType.WITH_EXCEPTION_PRODUCER)
             .build();
 
     PCollection<Record> records = getRecords(pipeline);

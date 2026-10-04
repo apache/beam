@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.snippets.transforms.io.gcp.bigquery;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.services.bigquery.model.TableRow;
@@ -76,7 +77,11 @@ public class BigQuerySamplesIT {
   private static final BigQuery BIGQUERY =
       BigQueryOptions.newBuilder().setProjectId(PROJECT).build().getService();
   private static final String DATASET =
-      "beam_bigquery_samples_" + System.currentTimeMillis() + "_" + new SecureRandom().nextInt(32);
+      TEMP_DATASET_PREFIX
+          + "samples_"
+          + System.currentTimeMillis()
+          + "_"
+          + new SecureRandom().nextInt(32);
 
   @Rule public final transient TestPipeline writePipeline = TestPipeline.create();
   @Rule public final transient TestPipeline readTablePipeline = TestPipeline.create();

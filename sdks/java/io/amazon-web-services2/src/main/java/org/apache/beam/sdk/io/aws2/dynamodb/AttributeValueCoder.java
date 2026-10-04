@@ -89,10 +89,13 @@ public class AttributeValueCoder extends AtomicCoder<AttributeValue> {
     } else if (value.bs() != null && value.bs().size() > 0) {
       StringUtf8Coder.of().encode(AttributeValueType.bs.toString(), outStream);
       LIST_BYTE_CODER.encode(convertToListByteArray(value.bs()), outStream);
-    } else if (value.l() != null && value.l().size() > 0) {
+    } else if (value.hasL()) {
+      // hasL/hasM rather than a size check: DynamoDB allows an empty L or M, and the size guard
+      // sent those to the terminal else. The ss/ns/bs guards below keep their size check on
+      // purpose -- DynamoDB rejects empty sets, so an empty one there is not a value to preserve.
       StringUtf8Coder.of().encode(AttributeValueType.l.toString(), outStream);
       LIST_ATTRIBUTE_CODER.encode(value.l(), outStream);
-    } else if (value.m() != null && value.m().size() > 0) {
+    } else if (value.hasM()) {
       StringUtf8Coder.of().encode(AttributeValueType.m.toString(), outStream);
       MAP_ATTRIBUTE_CODER.encode(value.m(), outStream);
     } else if (value.nul() != null) {

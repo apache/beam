@@ -1,0 +1,91 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
+fixtures:
+  - name: BQ_TABLE
+    type: "apache_beam.yaml.integration_tests.temp_bigquery_table"
+    config:
+      project: "apache-beam-testing"
+  - name: TEMP_DIR
+    # Need distributed filesystem to be able to read and write from a container.
+    type: "apache_beam.yaml.integration_tests.gcs_temp_dir"
+    config:
+      bucket: "gs://temp-storage-for-end-to-end-tests/temp-it"
+
+pipelines:
+  # CDC UPSERT via Storage Write API.
+  # CREATE_IF_NEEDED (default): Storage Write creates the table with primary_key
+  # after the initial AppendRows TABLES_UPDATE_DATA on a missing table.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements:
+              - record: {name: "cdc_test", value: 5}
+                row_mutation_info:
+                  mutation_type: UPSERT
+                  change_sequence_number: "AAA/2"
+              - record: {name: "cdc_test", value: 3}
+                row_mutation_info:
+                  mutation_type: UPSERT
+                  change_sequence_number: "AAA/1"
+            output_schema:
+              type: object
+              properties:
+                row_mutation_info:
+                  type: object
+                  properties:
+                    mutation_type: {type: string}
+                    change_sequence_number: {type: string}
+                  required: [mutation_type, change_sequence_number]
+                record:
+                  type: object
+                  properties:
+                    name: {type: string}
+                    value: {type: integer}
+                  required: [name, value]
+              required: [row_mutation_info, record]
+        - type: WriteToBigQueryCDC
+          config:
+            table: "{BQ_TABLE}"
+            primary_key: [name]
+            use_at_least_once_semantics: true
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"
+
+  # Verify with a SQL query job (applies CDC), not ReadFromBigQuery table:/Storage
+  # Read. Matches xlang_bigqueryio_it_test.BigqueryFullResultMatcher. Beam's
+  # query Read path also hits projectId/quoting issues on this runner.
+  - pipeline:
+      type: chain
+      transforms:
+        - type: Create
+          config:
+            elements: [0]
+        - type: PyTransform
+          config:
+            constructor: apache_beam.yaml.integration_tests.AssertBigQueryQueryEqual
+            kwargs:
+              project: apache-beam-testing
+              query: "SELECT name, value FROM `{BQ_TABLE}`"
+              expected:
+                - {name: "cdc_test", value: 5}
+    options:
+      project: "apache-beam-testing"
+      temp_location: "{TEMP_DIR}"

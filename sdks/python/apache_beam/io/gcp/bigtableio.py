@@ -15,18 +15,18 @@
 # limitations under the License.
 #
 
-"""BigTable connector
+"""Bigtable connector
 
-This module implements writing to BigTable tables.
-The default mode is to set row data to write to BigTable tables.
+This module implements writing to Bigtable tables.
+The default mode is to set row data to write to Bigtable tables.
 The syntax supported is described here:
 https://cloud.google.com/bigtable/docs/quickstart-cbt
 
-BigTable connector can be used as main outputs. A main output
+Bigtable connector can be used as main outputs. A main output
 (common case) is expected to be massive and will be split into
 manageable chunks and processed in parallel. In the example below
 we created a list of rows then passed to the GeneratedDirectRows
-DoFn to set the Cells and then we call the BigTableWriteFn to insert
+DoFn to set the Cells and then we call the _BigTableWriteFn to insert
 those generated rows in the table.
 
   main_table = (p

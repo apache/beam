@@ -72,9 +72,6 @@ from apache_beam.transforms import window
 from apache_beam.transforms.core import FlatMapTuple
 from apache_beam.transforms.trigger import AfterCount
 from apache_beam.transforms.trigger import Repeatedly
-from apache_beam.utils.secret import GcpHsmGeneratedSecret
-from apache_beam.utils.secret import GcpSecret
-from apache_beam.utils.secret import Secret
 from apache_beam.transforms.util import _BatchSizeEstimator
 from apache_beam.transforms.util import _GlobalWindowsBatchingDoFn
 from apache_beam.transforms.window import FixedWindows
@@ -88,6 +85,9 @@ from apache_beam.typehints import typehints
 from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import proto_utils
 from apache_beam.utils import timestamp
+from apache_beam.utils.secret import GcpHsmGeneratedSecret
+from apache_beam.utils.secret import GcpSecret
+from apache_beam.utils.secret import Secret
 from apache_beam.utils.timestamp import MAX_TIMESTAMP
 from apache_beam.utils.timestamp import MIN_TIMESTAMP
 from apache_beam.utils.windowed_value import PANE_INFO_UNKNOWN

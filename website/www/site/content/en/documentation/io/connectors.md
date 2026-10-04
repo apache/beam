@@ -652,7 +652,7 @@ This table provides a consolidated, at-a-glance overview of the available built-
     <td class="present">✔</td>
   </tr>
   <tr>
-    <td>BigTableIO (<a href="/performance/bigtable">metrics</a>)</td>
+    <td>BigtableIO (<a href="/performance/bigtable">metrics</a>)</td>
     <td class="present">✔</td>
     <td class="present">✔</td>
     <td class="present">

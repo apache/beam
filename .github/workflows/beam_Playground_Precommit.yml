@@ -17,7 +17,7 @@ name: Playground PreCommit
 
 on:
   workflow_dispatch:
-  pull_request_target:
+  pull_request:
     paths:
       - .github/workflows/beam_Playground_Precommit.yml
       - playground/backend/**
@@ -33,16 +33,14 @@ jobs:
   beam_Playground_PreCommit:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Playground PreCommit'
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
+    name: ${{ matrix.job_name }}
     runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_Playground_PreCommit]
-        job_phrase: [Run Playground PreCommit]
     env:
       DATASTORE_EMULATOR_VERSION: '423.0.0'
       PYTHON_VERSION: '3.10'
@@ -53,10 +51,6 @@ jobs:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

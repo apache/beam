@@ -21,6 +21,7 @@ import static org.apache.iceberg.types.Types.NestedField.optional;
 import static org.apache.iceberg.types.Types.NestedField.required;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.io.File;
@@ -50,6 +51,7 @@ import org.apache.parquet.schema.LogicalTypeAnnotation;
 import org.apache.parquet.schema.MessageType;
 import org.apache.parquet.schema.PrimitiveType.PrimitiveTypeName;
 import org.apache.parquet.schema.Type.Repetition;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -344,6 +346,99 @@ public class FileSchemasTest {
     assertTrue(isRequired(schema, "address"));
     assertFalse(isRequired(schema, "address.city"));
     assertTrue(isRequired(schema, "address.zip"));
+  }
+
+  // ---- null counts (pin evidence), by the tighten rules
+
+  private static @Nullable Long nullCount(ParquetMetadata footer, String column) {
+    return FileSchemas.nullCount(
+        footer, ParquetSchemaUtil.convert(footer.getFileMetaData().getSchema()), column);
+  }
+
+  @Test
+  public void testNullCountOfLeafSumsRowGroups() throws IOException {
+    ParquetMetadata footer =
+        write(10, 2, true, new Nulls(r -> r == 1 || r == 7, r -> false, r -> false, r -> false));
+    assertEquals(Long.valueOf(2), nullCount(footer, "name"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "id"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "address.city"));
+  }
+
+  @Test
+  public void testNullCountUnknownWithoutStatisticsOrUnderAList() throws IOException {
+    assertNull(nullCount(write(10, 1, false, Nulls.NONE), "name"));
+    assertNull(nullCount(write(10, 1, true, Nulls.NONE), "tags.element"));
+    assertNull(nullCount(write(10, 1, true, Nulls.NONE), "missing"));
+  }
+
+  // root: required id, optional group home {required city}, required group office {required city}
+  private static final MessageType REQUIRED_LEAVES =
+      org.apache.parquet.schema.Types.buildMessage()
+          .required(PrimitiveTypeName.INT64)
+          .named("id")
+          .addField(
+              org.apache.parquet.schema.Types.buildGroup(Repetition.OPTIONAL)
+                  .required(PrimitiveTypeName.BINARY)
+                  .as(LogicalTypeAnnotation.stringType())
+                  .named("city")
+                  .named("home"))
+          .addField(
+              org.apache.parquet.schema.Types.buildGroup(Repetition.REQUIRED)
+                  .required(PrimitiveTypeName.BINARY)
+                  .as(LogicalTypeAnnotation.stringType())
+                  .named("city")
+                  .named("office"))
+          .named("root");
+
+  /** A declared-required path cannot encode a null, so it needs no statistics to be proven. */
+  @Test
+  public void testNullCountTrustsDeclaredRequiredPathsWithoutStatistics() throws IOException {
+    File file = new File(tmp.getRoot(), "required.parquet");
+    try (ParquetWriter<Group> writer =
+        ExampleParquetWriter.builder(new Path(file.getAbsolutePath()))
+            .withType(REQUIRED_LEAVES)
+            .withStatisticsEnabled(false)
+            .build()) {
+      Group group = new SimpleGroupFactory(REQUIRED_LEAVES).newGroup();
+      group.add("id", 1L);
+      group.addGroup("office").add("city", "c");
+      writer.write(group);
+    }
+    ParquetMetadata footer = ParquetFooters.read(file.getAbsolutePath());
+
+    assertEquals(Long.valueOf(0), nullCount(footer, "id"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "office"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "office.city"));
+    // required only relative to an optional parent: a null home nulls city, and no count says
+    assertNull(nullCount(footer, "home"));
+    assertNull(nullCount(footer, "home.city"));
+  }
+
+  /** A struct is proven exactly when tighten would mark it required. */
+  @Test
+  public void testNullCountOfStructFollowsTighten() throws IOException {
+    ParquetMetadata oneLeafProven =
+        write(10, 1, true, new Nulls(r -> false, r -> false, r -> r == 2, r -> false));
+    assertEquals(Long.valueOf(0), nullCount(oneLeafProven, "address"));
+    assertEquals(Long.valueOf(1), nullCount(oneLeafProven, "address.city"));
+
+    ParquetMetadata nullStruct =
+        write(10, 1, true, new Nulls(r -> false, r -> r == 5, r -> false, r -> false));
+    assertNull(nullCount(nullStruct, "address"));
+    assertEquals(Long.valueOf(1), nullCount(nullStruct, "address.city"));
+
+    // every leaf has a null of its own, in different rows: the struct itself was never null,
+    // but leaf counts cannot say so
+    ParquetMetadata leavesNulled =
+        write(10, 1, true, new Nulls(r -> false, r -> false, r -> r == 2, r -> r == 4));
+    assertNull(nullCount(leavesNulled, "address"));
+  }
+
+  @Test
+  public void testNullCountZeroRowsProvesEverything() throws IOException {
+    ParquetMetadata footer = write(0, 1, false, Nulls.NONE);
+    assertEquals(Long.valueOf(0), nullCount(footer, "name"));
+    assertEquals(Long.valueOf(0), nullCount(footer, "address"));
   }
 
   @Test

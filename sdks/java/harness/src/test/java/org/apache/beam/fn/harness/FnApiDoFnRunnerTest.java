@@ -87,6 +87,7 @@ import org.apache.beam.sdk.metrics.Metrics;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ExperimentalOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.state.BagState;
 import org.apache.beam.sdk.state.CombiningState;
 import org.apache.beam.sdk.state.StateSpec;
@@ -128,6 +129,7 @@ import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionTuple;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.Row;
 import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.sdk.values.WindowedValue;
@@ -1138,6 +1140,296 @@ public class FnApiDoFnRunnerTest implements Serializable {
         result.add(mi);
       }
       assertThat(result, containsInAnyOrder(expected.toArray()));
+    }
+
+    private static class TestTimerTaggedOutputDoFn extends DoFn<KV<String, String>, String> {
+      @TimerId("event")
+      private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      private final TupleTag<String> additionalOutput;
+
+      private TestTimerTaggedOutputDoFn(TupleTag<String> additionalOutput) {
+        this.additionalOutput = additionalOutput;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId("event") Timer eventTimeTimer) {
+        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp());
+      }
+
+      @OnTimer("event")
+      public void eventTimer(
+          OnTimerContext context, @Key String key, MultiOutputReceiver receiver) {
+        context.output("main:" + key);
+        context.output(additionalOutput, "output:" + key);
+        context.outputWindowedValue(
+            additionalOutput,
+            "outputWindowedValue:" + key,
+            context.timestamp(),
+            Collections.singletonList(GlobalWindow.INSTANCE),
+            PaneInfo.NO_FIRING);
+        receiver.get(additionalOutput).output("receiver:" + key);
+      }
+    }
+
+    @Test
+    public void testTimerTaggedOutputs() throws Exception {
+      Pipeline p = Pipeline.create();
+      PCollection<KV<String, String>> valuePCollection =
+          p.apply(Create.of(KV.of("unused", "unused")));
+      TupleTag<String> mainOutput = new TupleTag<String>("main") {};
+      TupleTag<String> additionalOutput = new TupleTag<String>("additional") {};
+      PCollectionTuple outputPCollection =
+          valuePCollection.apply(
+              TEST_TRANSFORM_ID,
+              ParDo.of(new TestTimerTaggedOutputDoFn(additionalOutput))
+                  .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String outputPCollectionId =
+          sdkComponents.registerPCollection(outputPCollection.get(mainOutput));
+      String additionalPCollectionId =
+          sdkComponents.registerPCollection(outputPCollection.get(additionalOutput));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .beamFnStateClient(new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of()))
+              .processBundleInstructionId("57L")
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
+              .outboundAggregators(
+                  ImmutableMap.of(
+                      ApiServiceDescriptor.getDefaultInstance(),
+                      new TestBeamFnDataOutboundAggregator(() -> "57L")))
+              .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
+              .build();
+      context.addPCollectionConsumer(
+          outputPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+      context.addPCollectionConsumer(
+          additionalPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      context
+          .getIncomingTimerEndpoint("ts-event")
+          .getReceiver()
+          .accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+
+      assertThat(mainOutputValues, contains(isValueInGlobalWindow("main:A", new Instant(1400L))));
+      assertThat(
+          additionalOutputValues,
+          contains(
+              isValueInGlobalWindow("output:A", new Instant(1400L)),
+              isValueInGlobalWindow("outputWindowedValue:A", new Instant(1400L)),
+              isValueInGlobalWindow("receiver:A", new Instant(1400L))));
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
+    }
+
+    private static final Schema ROW_SCHEMA =
+        Schema.of(Schema.Field.of("field", Schema.FieldType.STRING));
+
+    private static Row row(String value) {
+      return Row.withSchema(ROW_SCHEMA).addValue(value).build();
+    }
+
+    private static class TestTimerRowOutputDoFn extends DoFn<KV<String, String>, Row> {
+      @TimerId("event")
+      private final TimerSpec eventTimerSpec = TimerSpecs.timer(TimeDomain.EVENT_TIME);
+
+      private final TupleTag<Row> mainOutput;
+      private final TupleTag<Row> additionalOutput;
+
+      private TestTimerRowOutputDoFn(TupleTag<Row> mainOutput, TupleTag<Row> additionalOutput) {
+        this.mainOutput = mainOutput;
+        this.additionalOutput = additionalOutput;
+      }
+
+      @ProcessElement
+      public void processElement(ProcessContext context, @TimerId("event") Timer eventTimeTimer) {
+        eventTimeTimer.withOutputTimestamp(context.timestamp()).set(context.timestamp());
+      }
+
+      @OnTimer("event")
+      public void eventTimer(@Key String key, MultiOutputReceiver receiver) {
+        receiver.getRowReceiver(mainOutput).output(row("mainRow:" + key));
+        receiver.getRowReceiver(additionalOutput).output(row("taggedRow:" + key));
+      }
+    }
+
+    @Test
+    public void testTimerRowOutputReceivers() throws Exception {
+      Pipeline p = Pipeline.create();
+      PCollection<KV<String, String>> valuePCollection =
+          p.apply(Create.of(KV.of("unused", "unused")));
+      TupleTag<Row> mainOutput = new TupleTag<Row>("main") {};
+      TupleTag<Row> additionalOutput = new TupleTag<Row>("additional") {};
+      PCollectionTuple outputPCollection =
+          valuePCollection.apply(
+              TEST_TRANSFORM_ID,
+              ParDo.of(new TestTimerRowOutputDoFn(mainOutput, additionalOutput))
+                  .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
+      outputPCollection.get(mainOutput).setRowSchema(ROW_SCHEMA);
+      outputPCollection.get(additionalOutput).setRowSchema(ROW_SCHEMA);
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String outputPCollectionId =
+          sdkComponents.registerPCollection(outputPCollection.get(mainOutput));
+      String additionalPCollectionId =
+          sdkComponents.registerPCollection(outputPCollection.get(additionalOutput));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+
+      List<WindowedValue<Row>> mainOutputValues = new ArrayList<>();
+      List<WindowedValue<Row>> additionalOutputValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .beamFnStateClient(new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of()))
+              .processBundleInstructionId("57L")
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
+              .outboundAggregators(
+                  ImmutableMap.of(
+                      ApiServiceDescriptor.getDefaultInstance(),
+                      new TestBeamFnDataOutboundAggregator(() -> "57L")))
+              .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
+              .build();
+      context.addPCollectionConsumer(
+          outputPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<Row>>) mainOutputValues::add);
+      context.addPCollectionConsumer(
+          additionalPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<Row>>) additionalOutputValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      context
+          .getIncomingTimerEndpoint("ts-event")
+          .getReceiver()
+          .accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+
+      assertThat(
+          mainOutputValues, contains(isValueInGlobalWindow(row("mainRow:A"), new Instant(1400L))));
+      assertThat(
+          additionalOutputValues,
+          contains(isValueInGlobalWindow(row("taggedRow:A"), new Instant(1400L))));
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
+    }
+
+    private static class TestWindowExpirationDoFn extends DoFn<KV<String, String>, String> {
+      @StateId("bag")
+      private final StateSpec<BagState<String>> bagStateSpec = StateSpecs.bag(StringUtf8Coder.of());
+
+      private final TupleTag<String> additionalOutput;
+
+      private TestWindowExpirationDoFn(TupleTag<String> additionalOutput) {
+        this.additionalOutput = additionalOutput;
+      }
+
+      @ProcessElement
+      public void processElement(
+          ProcessContext context, @StateId("bag") BagState<String> bagState) {
+        bagState.add(context.element().getValue());
+      }
+
+      @OnWindowExpiration
+      public void onWindowExpiration(OnWindowExpirationContext context, @Key String key) {
+        context.output("main:" + key);
+        context.output(additionalOutput, "output:" + key);
+      }
+    }
+
+    @Test
+    public void testOnWindowExpirationTaggedOutputs() throws Exception {
+      Pipeline p = Pipeline.create();
+      PCollection<KV<String, String>> valuePCollection =
+          p.apply(Create.of(KV.of("unused", "unused")));
+      TupleTag<String> mainOutput = new TupleTag<String>("main") {};
+      TupleTag<String> additionalOutput = new TupleTag<String>("additional") {};
+      PCollectionTuple outputPCollection =
+          valuePCollection.apply(
+              TEST_TRANSFORM_ID,
+              ParDo.of(new TestWindowExpirationDoFn(additionalOutput))
+                  .withOutputTags(mainOutput, TupleTagList.of(additionalOutput)));
+
+      SdkComponents sdkComponents = SdkComponents.create();
+      sdkComponents.registerEnvironment(Environment.getDefaultInstance());
+      RunnerApi.Pipeline pProto = PipelineTranslation.toProto(p, sdkComponents);
+      String outputPCollectionId =
+          sdkComponents.registerPCollection(outputPCollection.get(mainOutput));
+      String additionalPCollectionId =
+          sdkComponents.registerPCollection(outputPCollection.get(additionalOutput));
+      RunnerApi.PTransform pTransform =
+          pProto.getComponents().getTransformsOrThrow(TEST_TRANSFORM_ID);
+      String onWindowExpirationFamilyId =
+          RunnerApi.ParDoPayload.parseFrom(pTransform.getSpec().getPayload())
+              .getOnWindowExpirationTimerFamilySpec();
+
+      List<WindowedValue<String>> mainOutputValues = new ArrayList<>();
+      List<WindowedValue<String>> additionalOutputValues = new ArrayList<>();
+      PTransformRunnerFactoryTestContext context =
+          PTransformRunnerFactoryTestContext.builder(TEST_TRANSFORM_ID, pTransform)
+              .beamFnStateClient(new FakeBeamFnStateClient(StringUtf8Coder.of(), ImmutableMap.of()))
+              .processBundleInstructionId("57L")
+              .components(
+                  RunnerApi.Components.newBuilder()
+                      .putAllCoders(pProto.getComponents().getCodersMap())
+                      .putAllEnvironments(Collections.emptyMap())
+                      .putAllWindowingStrategies(pProto.getComponents().getWindowingStrategiesMap())
+                      .putAllPcollections(pProto.getComponentsOrBuilder().getPcollectionsMap())
+                      .build())
+              .outboundAggregators(
+                  ImmutableMap.of(
+                      ApiServiceDescriptor.getDefaultInstance(),
+                      new TestBeamFnDataOutboundAggregator(() -> "57L")))
+              .timerApiServiceDescriptor(ApiServiceDescriptor.getDefaultInstance())
+              .build();
+      context.addPCollectionConsumer(
+          outputPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) mainOutputValues::add);
+      context.addPCollectionConsumer(
+          additionalPCollectionId,
+          (FnDataReceiver) (FnDataReceiver<WindowedValue<String>>) additionalOutputValues::add);
+
+      new FnApiDoFnRunner.Factory<>().addRunnerForPTransform(context);
+      Iterables.getOnlyElement(context.getStartBundleFunctions()).run();
+
+      context
+          .getIncomingTimerEndpoint(onWindowExpirationFamilyId)
+          .getReceiver()
+          .accept(timerInGlobalWindow("A", new Instant(1400L), new Instant(2400L)));
+
+      assertThat(mainOutputValues, contains(isValueInGlobalWindow("main:A", new Instant(1400L))));
+      assertThat(
+          additionalOutputValues, contains(isValueInGlobalWindow("output:A", new Instant(1400L))));
+
+      Iterables.getOnlyElement(context.getFinishBundleFunctions()).run();
+      Iterables.getOnlyElement(context.getTearDownFunctions()).run();
     }
 
     private <K> org.apache.beam.sdk.util.construction.Timer<K> timerInGlobalWindow(
