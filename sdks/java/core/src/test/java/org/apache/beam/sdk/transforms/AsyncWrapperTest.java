@@ -637,7 +637,7 @@ public class AsyncWrapperTest implements Serializable {
   // the scheduler must block and delay submissions appropriately.
   @Test
   public void testBufferStopsAcceptingItems() {
-    BasicDofn dofn = new BasicDofn(500);
+    BasicDofn dofn = new BasicDofn(1000);
     AsyncWrapper<String, String, String> asyncWrapper =
         new AsyncWrapper<>(
             dofn,
@@ -669,10 +669,14 @@ public class AsyncWrapperTest implements Serializable {
               }));
     }
 
-    try {
-      Thread.sleep(100);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
+    long limit = System.currentTimeMillis() + 10_000L;
+    while (asyncWrapper.getItemsInBufferCount() < 5 && System.currentTimeMillis() < limit) {
+      try {
+        Thread.sleep(5);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        break;
+      }
     }
 
     assertEquals(5, asyncWrapper.getItemsInBufferCount());
