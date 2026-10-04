@@ -2214,7 +2214,7 @@ class Regex(object):
 
   @staticmethod
   @typehints.with_input_types(str)
-  @typehints.with_output_types(Union[list[str], list[tuple[str, str]]])
+  @typehints.with_output_types(Union[list[str], list[tuple[str, ...]]])
   @ptransform_fn
   def find_all(pcoll, regex, group=0, outputEmpty=True):
     """
@@ -2234,8 +2234,8 @@ class Regex(object):
     def _process(element):
       matches = regex.finditer(element)
       if group == Regex.ALL:
-        yield [(m.group(), m.groups()[0]) for m in matches
-               if outputEmpty or m.groups()[0]]
+        yield [(m.group(), *m.groups()) for m in matches
+               if outputEmpty or any(m.groups() or (m.group(), ))]
       else:
         yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
 

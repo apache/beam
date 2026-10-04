@@ -2678,6 +2678,21 @@ class RegexTest(unittest.TestCase):
                     [('abb', 'bb'), ('abbb', 'bbb')]]),
           label='CheckAllNonEmptyGroups')
 
+  def test_find_all_groups_multiple_and_no_groups(self):
+    with TestPipeline() as p:
+      pcol = (p | beam.Create(['a=1 b=2 c=']))
+      assert_that(
+          pcol
+          | 'two groups' >> util.Regex.find_all(r'(\w)=(\d?)', util.Regex.ALL),
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2'), ('c=', 'c', '')]]),
+          label='CheckTwoGroups')
+
+      assert_that(
+          pcol | 'no groups' >> util.Regex.find_all(
+              r'\w=\d', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('a=1', ), ('b=2', )]]),
+          label='CheckNoGroups')
+
   def test_find_kv(self):
     with TestPipeline() as p:
       pcol = (p | beam.Create(['a b c d']))
