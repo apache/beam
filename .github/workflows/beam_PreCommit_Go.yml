@@ -20,16 +20,14 @@ on:
     tags: ['v*']
     branches: ['master', 'release-*']
     paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', '.github/workflows/beam_PreCommit_Go.yml']
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths: ['model/**', 'sdks/go.mod', 'sdks/go.sum', 'sdks/go/**', 'release/**', 'release/trigger_all_tests.json', '.github/trigger_files/beam_PreCommit_Go.json']
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '0 1/6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -47,7 +45,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -57,29 +55,23 @@ env:
 
 jobs:
   beam_PreCommit_Go:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       matrix:
         job_name: [beam_PreCommit_Go]
-        job_phrase: [Run Go PreCommit]
     timeout-minutes: 120
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Go PreCommit'
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:

@@ -20,7 +20,7 @@ on:
     - cron: '0 */4 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -54,7 +54,6 @@ jobs:
       fail-fast: false
       matrix:
         job_name: ["beam_Publish_Beam_SDK_Snapshots"]
-        job_phrase: ["N/A"]
         container_task:
           - "go:container:docker"
           - "java:container:pushAll"
@@ -81,10 +80,6 @@ jobs:
         uses: jlumbroso/free-disk-space@v2.0.0
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
       - name: Find Beam Version
         # We extract the Beam version here and tag the containers with it. Version will be in the form "2.xx.y.dev".
         # This is needed to run pipelines that use the default environment at HEAD, for example, when a

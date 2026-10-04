@@ -26,6 +26,7 @@ import uuid
 import pytest
 
 import apache_beam as beam
+from apache_beam.io.gcp import bigquery_tools
 from apache_beam.ml.inference.base import ModelHandler
 from apache_beam.ml.inference.base import PredictionResult
 from apache_beam.ml.inference.base import RunInference
@@ -70,7 +71,7 @@ class VertexAIModelMonitoringV2IntegrationTest(unittest.TestCase):
   def test_vertex_ai_model_monitoring_v2_batch_pipeline(self):
     test_pipeline = TestPipeline(is_integration_test=True)
     job_id = str(uuid.uuid4())[:8]
-    dataset_name = f"beam_mm_v2_{job_id}"
+    dataset_name = f"{bigquery_tools._TEMP_DATASET_PREFIX}mm_v2_{job_id}"
     predictions_table_name = "predictions"
     predictions_table_id = f"{_ENDPOINT_PROJECT}:{dataset_name}.{predictions_table_name}"
     display_name = f"beam-mm-v2-test-{job_id}"
@@ -278,7 +279,7 @@ class VertexAIModelMonitoringV2IntegrationTest(unittest.TestCase):
     test_pipeline = TestPipeline(
         is_integration_test=True, additional_pipeline_args=["--streaming"])
     job_id = str(uuid.uuid4())[:8]
-    dataset_name = f"beam_mm_v2_str_{job_id}"
+    dataset_name = f"{bigquery_tools._TEMP_DATASET_PREFIX}mm_v2_str_{job_id}"
     predictions_table_name = "predictions"
     predictions_table_id = f"{_ENDPOINT_PROJECT}:{dataset_name}.{predictions_table_name}"
     display_name = f"beam-mm-v2-str-{job_id}"

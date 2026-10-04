@@ -109,6 +109,9 @@ _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
 _DATASET_PATTERN = r'\w{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 
+# For CI: temp dataset of this name are automatically deleted
+_TEMP_DATASET_PREFIX = 'beam_temp_dataset_'
+
 # TODO(https://github.com/apache/beam/issues/25946): Add support for
 # more Beam portable schema types as Python types
 BIGQUERY_TYPE_TO_PYTHON_TYPE = {
@@ -777,7 +780,10 @@ class BigQueryWrapper(object):
         service_call_metric.call('ok')
       else:
         for insert_error in errors:
-          service_call_metric.call(insert_error['errors'][0])
+          # Record the BigQuery reason (e.g. 'invalid') of the first error for
+          # each failed row.
+          row_errors = insert_error.get('errors') or [{}]
+          service_call_metric.call(row_errors[0].get('reason') or 'unknown')
     except (ClientError, GoogleAPICallError) as e:
       # e.code contains the numeric http status code.
       service_call_metric.call(e.code)
