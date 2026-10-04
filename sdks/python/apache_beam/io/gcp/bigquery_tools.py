@@ -106,8 +106,8 @@ UNKNOWN_MIME_TYPE = 'application/octet-stream'
 BQ_STREAMING_INSERT_TIMEOUT_SEC = 120
 
 _PROJECT_PATTERN = r'([a-z0-9.-]+:)?[a-z][a-z0-9-]*[a-z0-9]'
-# Dots are allowed because Lakehouse runtime catalog (BigLake metastore) tables
-# are addressed with a composite 'catalog.namespace' dataset id.
+# Dots are allowed because Lakehouse runtime catalog tables are addressed with
+# a composite 'catalog.namespace' dataset id.
 _DATASET_PATTERN = r'[-\w.]{1,1024}'
 _TABLE_PATTERN = r'[\p{L}\p{M}\p{N}\p{Pc}\p{Pd}\p{Zs}$]{1,1024}'
 # A single segment of a project id (no dots or colons).
@@ -257,14 +257,14 @@ def parse_table_reference(table, dataset=None, project=None):
       (a-z, A-Z), numbers (0-9), connectors (-_). If dataset argument is None
       then the table argument must contain the entire table reference:
       'DATASET.TABLE', 'PROJECT:DATASET.TABLE' or 'PROJECT.DATASET.TABLE'.
-      Lakehouse runtime catalog (BigLake metastore) tables use four parts,
+      Lakehouse runtime catalog tables use four parts,
       'PROJECT.CATALOG.NAMESPACE.TABLE' (the canonical spelling) or
       'PROJECT:CATALOG.NAMESPACE.TABLE', which parse to a composite
-      'CATALOG.NAMESPACE' dataset id. The project id is not optional for
-      these: a three-part string binds as 'PROJECT.DATASET.TABLE' whenever its
-      first segment is a valid project id. This argument can be a
-      TableReference instance in which case dataset and project are ignored
-      and the reference is returned as a result.  Additionally, for date
+      'CATALOG.NAMESPACE' dataset id. The project id is required for these,
+      because a composite dataset id without one would be ambiguous with
+      'PROJECT.DATASET.TABLE'. This argument can be a TableReference instance
+      in which case dataset and project are ignored and the reference is
+      returned as a result.  Additionally, for date
       partitioned tables, appending '$YYYYmmdd' to the table name is supported,
       e.g. 'DATASET.TABLE$YYYYmmdd'.
     dataset: The ID of the dataset containing this table or null if the table
@@ -338,17 +338,18 @@ def _split_table_spec(table_spec):
 
   colon_count = prefix.count(':')
   if colon_count == 0:
-    # Purely dotted form: 'p.d.t', 'd.t', 'p.catalog.ns.t'. The leading
-    # segment is the project when it looks like one; dataset ids may contain
-    # characters such as '_' that project ids may not, in which case the
-    # whole prefix is the dataset. The first_dot < len - 1 guard keeps
-    # degenerate trailing-dot specs from producing an empty dataset id.
+    # Purely dotted form: 'd.t', 'p.d.t', 'p.catalog.ns.t'. A dataset id may
+    # itself contain dots (a composite 'catalog.namespace'), so omitting the
+    # project id would be ambiguous with 'PROJECT.DATASET.TABLE'. Only the
+    # plain two-segment 'DATASET.TABLE' may leave the project id out.
     first_dot = prefix.find('.')
-    leading = prefix[:first_dot] if first_dot >= 0 else None
-    if (leading is not None and first_dot < len(prefix) - 1 and
-        regex.fullmatch(_PROJECT_PATTERN, leading)):
-      return leading, prefix[first_dot + 1:], table
-    return None, prefix, table
+    if first_dot < 0:
+      return None, prefix, table
+    project = prefix[:first_dot]
+    dataset = prefix[first_dot + 1:]
+    if not regex.fullmatch(_PROJECT_PATTERN, project) or not dataset:
+      raise _invalid_table_spec(table_spec)
+    return project, dataset, table
 
   if colon_count == 1:
     # 'p:d.t', 'p:catalog.ns.t', 'example.com:proj.ds.t'. If the part before

@@ -199,13 +199,12 @@ class TestTableReferenceParser(unittest.TestCase):
     self.assertEqual(parsed_ref.datasetId, datasetId)
     self.assertEqual(parsed_ref.tableId, tableId)
 
-  def test_calling_with_partially_qualified_composite_dataset(self):
-    # A leading segment that cannot be a project id (underscore) binds the
-    # whole prefix as a composite dataset id.
-    parsed_ref = parse_table_reference('my_catalog.namespace.test_table')
-    self.assertIsNone(parsed_ref.projectId)
-    self.assertEqual(parsed_ref.datasetId, 'my_catalog.namespace')
-    self.assertEqual(parsed_ref.tableId, 'test_table')
+  def test_composite_dataset_requires_project(self):
+    # A composite 'catalog.namespace' dataset id is only recognised with an
+    # explicit project id. Without one it would be ambiguous with
+    # 'PROJECT.DATASET.TABLE', so it is rejected rather than guessed at.
+    self.assertRaises(
+        ValueError, parse_table_reference, 'my_catalog.namespace.test_table')
 
   def test_calling_with_insufficient_table_ref(self):
     table = 'test_table'
@@ -215,8 +214,16 @@ class TestTableReferenceParser(unittest.TestCase):
       ('a:b:c:d.table', ),
       ('project:.table', ),
       ('project:dataset', ),
+      ('MyProject.MyDataset.table', ),
+      ('1project.dataset.table', ),
+      ('c.namespace.table', ),
+      ('.dataset.table', ),
+      ('project..table', ),
+      ('a.b.c.d.e.f.g', ),
   ])
   def test_calling_with_invalid_table_ref(self, table):
+    # The dotted specs here have a leading segment that cannot be a project
+    # id; they are rejected rather than bound as a composite dataset id.
     self.assertRaises(ValueError, parse_table_reference, table)
 
   def test_calling_with_all_arguments(self):

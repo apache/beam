@@ -30,10 +30,10 @@ Also, for programming convenience, instances of TableReference and TableSchema
 have a string representation that can be used for the corresponding arguments:
 
   - TableReference can be a PROJECT:DATASET.TABLE, PROJECT.DATASET.TABLE,
-    DATASET.TABLE or, for Lakehouse runtime catalog (BigLake metastore)
-    tables, PROJECT.CATALOG.NAMESPACE.TABLE, which maps to a composite
+    DATASET.TABLE or, for Lakehouse runtime catalog tables,
+    PROJECT.CATALOG.NAMESPACE.TABLE, which maps to a composite
     CATALOG.NAMESPACE dataset id. A Lakehouse reference must include the
-    project id: a three-part string is read as PROJECT.DATASET.TABLE.
+    project id.
   - TableSchema can be a NAME:TYPE{,NAME:TYPE}* string
     (e.g. 'month:STRING,event_count:INTEGER').
 
@@ -795,7 +795,7 @@ class _CustomBigQuerySource(BoundedSource):
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
       if table.numBytes is None:
         # Some tables don't report storage statistics, e.g. Lakehouse runtime
-        # catalog (BigLake metastore) tables.
+        # catalog tables.
         return None
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
@@ -1120,17 +1120,15 @@ class _CustomBigQueryStorageSource(BoundedSource):
     table = bq.get_table(
         project, table_reference.datasetId, table_reference.tableId)
     # None for tables that don't report storage statistics, e.g. Lakehouse
-    # runtime catalog (BigLake metastore) tables.
+    # runtime catalog tables.
     return table.numBytes
 
   def _get_stream_count(self, bq, desired_bundle_size):
-    """Number of streams to request, or 0 to let the Storage Read API decide.
-
-    A table that reports no size, e.g. a Lakehouse runtime catalog (BigLake
-    metastore) table, cannot be split by size.
-    """
+    """Number of streams to request; 0 lets the Storage Read API decide."""
     table_size = self._get_table_size(bq, self.table_reference)
     if table_size is None:
+      # A table that reports no size, e.g. a Lakehouse runtime catalog table,
+      # cannot be split by size.
       return 0
     stream_count = 0
     if desired_bundle_size > 0:
@@ -2973,10 +2971,9 @@ class ReadFromBigQuery(PTransform):
       that returns it. If dataset argument is :data:`None` then the table
       argument must contain the entire table reference specified as:
       ``'DATASET.TABLE'``, ``'PROJECT:DATASET.TABLE'``,
-      ``'PROJECT.DATASET.TABLE'`` or, for Lakehouse runtime catalog (BigLake
-      metastore) tables, ``'PROJECT.CATALOG.NAMESPACE.TABLE'``. A Lakehouse
-      reference must include the project id, because a three-part string is
-      read as ``'PROJECT.DATASET.TABLE'``.
+      ``'PROJECT.DATASET.TABLE'`` or, for Lakehouse runtime catalog tables,
+      ``'PROJECT.CATALOG.NAMESPACE.TABLE'``. A Lakehouse reference must
+      include the project id.
       If it's a callable, it must receive one argument representing an element
       to be written to BigQuery, and return a TableReference, or a string table
       name as specified above.
