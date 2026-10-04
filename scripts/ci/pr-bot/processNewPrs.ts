@@ -75,6 +75,8 @@ export function needsProcessed(pull: any, prState: typeof Pr): boolean {
     console.log(`Skipping PR ${pull.number} because it is a WIP`);
     return false;
   }
+  // Wait 20 minutes before processing unlabeled PRs so the LabelPrs workflow
+  // has time to apply path-based labels before falling back to no-matching-label.
   let timeCutoff = new Date(new Date().getTime() - 20 * 60000);
   if (
     (!pull.labels || pull.labels.length === 0) &&
@@ -400,6 +402,8 @@ async function processNewPrs() {
   }
 }
 
+// Only run processNewPrs() when executed directly so other modules (e.g. processPrUpdate)
+// can import helper functions like processPull without scanning all open PRs.
 if (require.main === module) {
   processNewPrs();
 }

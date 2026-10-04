@@ -226,6 +226,9 @@ async function processPrUpdate() {
         await setNextActionAuthor(payload, pull, stateClient);
       } else if (payload.action === "ready_for_review") {
         console.log("Processing ready_for_review action");
+        // If reviewers are already assigned, shift attention back to them.
+        // Otherwise, try to assign initial reviewers immediately (e.g. when a draft
+        // PR with passing checks is marked ready for review) instead of waiting for cron.
         if (await areReviewersAssigned(pull, stateClient)) {
           await setNextActionReviewers(payload, pull, stateClient);
         } else {
