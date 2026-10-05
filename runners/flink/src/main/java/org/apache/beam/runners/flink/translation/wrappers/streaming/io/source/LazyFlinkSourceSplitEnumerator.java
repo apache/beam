@@ -102,7 +102,14 @@ public class LazyFlinkSourceSplitEnumerator<T>
         this::splitBeamSource,
         (sourceSplits, error) -> {
           if (error != null) {
-            throw new RuntimeException("Failed to start source enumerator.", error);
+            throw new RuntimeException(
+                "Failed to initialize splits for bounded source " + beamSource.getClass().getName(),
+                error);
+          }
+          if (sourceSplits == null) {
+            throw new IllegalStateException(
+                "Split initialization returned null without an error for bounded source "
+                    + beamSource.getClass().getName());
           }
           pendingSplits.addAll(sourceSplits);
           splitsInitialized = true;
