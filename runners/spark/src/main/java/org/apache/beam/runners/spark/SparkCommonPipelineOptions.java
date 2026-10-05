@@ -90,9 +90,14 @@ public interface SparkCommonPipelineOptions
    */
   @Internal
   static void prepareFilesToStage(SparkCommonPipelineOptions options) {
-    if (!options.getSparkMaster().matches("local\\[?\\d*]?")) {
+    if (!isLocalSparkMaster(options)) {
       PipelineResources.prepareFilesForStaging(options);
     }
+  }
+
+  @Internal
+  static boolean isLocalSparkMaster(SparkCommonPipelineOptions options) {
+    return options.getSparkMaster().matches("local\\[?[0-9\\*,]*\\]?");
   }
 
   /**

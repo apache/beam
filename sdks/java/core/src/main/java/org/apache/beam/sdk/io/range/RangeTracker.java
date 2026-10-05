@@ -76,7 +76,7 @@ package org.apache.beam.sdk.io.range;
  * after A, up to but not including the first record starting at or after B".
  *
  * <p>Some examples of such sources include reading lines or CSV from a text file, reading keys and
- * values from a BigTable, etc.
+ * values from a Bigtable, etc.
  *
  * <p>The concept of <i>split points</i> allows to extend the definitions for dealing with sources
  * where some records cannot be identified by a unique starting position.

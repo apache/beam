@@ -117,9 +117,12 @@ dependencies {
   implementation library.java.google_cloud_logging
   permitUnusedDeclared library.java.google_cloud_logging // BEAM-11761
   implementation library.java.opentelemetry_context
-  runtimeOnly library.java.opentelemetry_exporter_otlp
-  runtimeOnly library.java.opentelemetry_extension_autoconfigure
-  runtimeOnly project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+  implementation library.java.opentelemetry_exporter_otlp
+  permitUnusedDeclared library.java.opentelemetry_exporter_otlp
+  implementation library.java.opentelemetry_extension_autoconfigure
+  permitUnusedDeclared library.java.opentelemetry_extension_autoconfigure
+  implementation project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
+  permitUnusedDeclared project(":sdks:java:extensions:opentelemetry-gcp-auth-extension")
   implementation library.java.hamcrest
   implementation library.java.jackson_annotations
   implementation library.java.jackson_core
@@ -173,7 +176,11 @@ def legacyPipelineOptions = [
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
+  "--stagingLocation=${dataflowValidatesTempRoot}/staging",
   "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
+  "--numWorkers=1",
+  "--maxNumWorkers=1",
+  "--diskSizeGb=30",
   "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
@@ -190,8 +197,12 @@ def runnerV2CommonPipelineOptions = [
   "--project=${gcpProject}",
   "--region=${gcpRegion}",
   "--tempRoot=${dataflowValidatesTempRoot}",
+  "--stagingLocation=${dataflowValidatesTempRoot}/staging",
   "--experiments=use_unified_worker,use_runner_v2",
   "--firestoreDb=${firestoreDb}",
+  "--numWorkers=1",
+  "--maxNumWorkers=1",
+  "--diskSizeGb=30",
   "--usePublicIps=false",
   "--experiments=enable_lineage"
 ]
@@ -228,6 +239,33 @@ def commonRunnerV2ExcludeCategories = [
   'org.apache.beam.sdk.testing.UsesBoundedTrieMetrics', // Dataflow QM as of now does not support returning back BoundedTrie in metric result.
 ]
 
+
+def validatesRunnerParallelThreads = project.findProperty('parallelThreads') ?: '6'
+
+def isValidatesRunnerTestClass = { FileTreeElement element ->
+  if (element.isDirectory()) {
+    return true
+  }
+  if (!element.name.endsWith('.class') ||
+      element.name.startsWith('ValidateRunnerXlangTest') ||
+      element.name.startsWith('BeamParallelJunit4RunnerTest')) {
+    return false
+  }
+  def content = new String(element.file.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+  if (content.contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')) {
+    return true
+  }
+  if (content.contains('Lorg/junit/experimental/runners/Enclosed;')) {
+    def prefix = element.name.substring(0, element.name.length() - 6) + '$'
+    return element.file.parentFile.listFiles()?.any { File f ->
+      f.name.startsWith(prefix) && f.name.endsWith('.class') &&
+        new String(f.bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+          .contains('Lorg/apache/beam/sdk/testing/ValidatesRunner;')
+    } ?: false
+  }
+  return false
+}
+
 def createLegacyWorkerValidatesRunnerTest = { Map args ->
   def name = args.name
   def pipelineOptions = args.pipelineOptions ?: legacyPipelineOptions
@@ -238,13 +276,16 @@ def createLegacyWorkerValidatesRunnerTest = { Map args ->
     dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
 
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+    systemProperty "beam.validatesRunner.parallelThreads", validatesRunnerParallelThreads
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
+    maxHeapSize = '2g'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
+    include isValidatesRunnerTestClass
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonLegacyExcludeCategories.each {
@@ -271,13 +312,16 @@ def createRunnerV2ValidatesRunnerTest = { Map args ->
   return tasks.create(name: name, type: Test, group: "Verification") {
     dependsOn buildAndPushDockerJavaContainer
     systemProperty "beamTestPipelineOptions", JsonOutput.toJson(pipelineOptions)
+    systemProperty "beam.validatesRunner.parallelThreads", validatesRunnerParallelThreads
 
     // Increase test parallelism up to the number of Gradle workers. By default this is equal
     // to the number of CPU cores, but can be increased by setting --max-workers=N.
     maxParallelForks Integer.MAX_VALUE
+    maxHeapSize = '768m'
     classpath = configurations.validatesRunner
     testClassesDirs = files(project(":sdks:java:core").sourceSets.test.output.classesDirs) +
       files(project(project.path).sourceSets.test.output.classesDirs)
+    include isValidatesRunnerTestClass
     useJUnit {
       includeCategories 'org.apache.beam.sdk.testing.ValidatesRunner'
       commonRunnerV2ExcludeCategories.each {
@@ -466,8 +510,13 @@ task validatesRunner {
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundle',
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInStartBundleStateful',
     ],
-    // Batch legacy worker does not support bundle finalization.
-    excludedCategories: [ 'org.apache.beam.sdk.testing.UsesBundleFinalizer', ],
+    // Batch legacy worker does not support bundle finalization, triggered side inputs, or unbounded PCollections.
+    excludedCategories: [
+      'org.apache.beam.sdk.testing.UsesBundleFinalizer',
+      'org.apache.beam.sdk.testing.UsesTriggeredSideInputs',
+      'org.apache.beam.sdk.testing.UsesUnboundedPCollections',
+      'org.apache.beam.sdk.testing.UsesUnboundedSplittableParDo',
+    ],
   ))
 }
 

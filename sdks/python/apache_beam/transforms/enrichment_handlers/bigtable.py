@@ -40,26 +40,26 @@ _LOGGER = logging.getLogger(__name__)
 
 class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
   """A handler for :class:`apache_beam.transforms.enrichment.Enrichment`
-  transform to interact with GCP BigTable.
+  transform to interact with GCP Bigtable.
 
   Args:
-    project_id (str): GCP project-id of the BigTable cluster.
-    instance_id (str): GCP instance-id of the BigTable cluster.
-    table_id (str): GCP table-id of the BigTable.
+    project_id (str): GCP project-id of the Bigtable cluster.
+    instance_id (str): GCP instance-id of the Bigtable cluster.
+    table_id (str): GCP table-id of the Bigtable.
     row_key (str): unique row-key field name from the input `beam.Row` object
-      to use as `row_key` for BigTable querying.
+      to use as `row_key` for Bigtable querying.
     row_filter: a ``:class:`google.cloud.bigtable.row_filters.RowFilter``` to
       filter data read with ``read_row()``.
       Defaults to `CellsColumnLimitFilter(1)`.
-    app_profile_id (str): App profile ID to use for BigTable.
+    app_profile_id (str): App profile ID to use for Bigtable.
       See https://cloud.google.com/bigtable/docs/app-profiles for more details.
     encoding (str): encoding type to convert the string to bytes and vice-versa
-      from BigTable. Default is `utf-8`.
+      from Bigtable. Default is `utf-8`.
     row_key_fn: a lambda function that returns a string row key from the
       input row. It is used to build/extract the row key for Bigtable.
     exception_level: a `enum.Enum` value from
       ``apache_beam.transforms.enrichment_handlers.utils.ExceptionLevel``
-      to set the level when an empty row is returned from the BigTable query.
+      to set the level when an empty row is returned from the Bigtable query.
       Defaults to ``ExceptionLevel.WARN``.
     include_timestamp (bool): If enabled, the timestamp associated with the
       value is returned as `(value, timestamp)` for each `row_key`.
@@ -98,7 +98,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
           "from the input row.")
 
   def __enter__(self):
-    """connect to the Google BigTable cluster."""
+    """connect to the Google Bigtable cluster."""
     self.client = Client(project=self._project_id)
     self.instance = self.client.instance(self._instance_id)
     self._table = bigtable.table.Table(
@@ -108,7 +108,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
 
   def __call__(self, request: beam.Row, *args, **kwargs):
     """
-    Reads a row from the GCP BigTable and returns
+    Reads a row from the GCP Bigtable and returns
     a `Tuple` of request and response.
 
     Args:
@@ -147,7 +147,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
       raise KeyError('row_key %s not found in input PCollection.' % row_key_str)
     except NotFound:
       raise NotFound(
-          'GCP BigTable cluster `%s:%s:%s` not found.' %
+          'GCP Bigtable cluster `%s:%s:%s` not found.' %
           (self._project_id, self._instance_id, self._table_id))
     except Exception as e:
       raise e
@@ -155,7 +155,7 @@ class BigTableEnrichmentHandler(EnrichmentSourceHandler[beam.Row, beam.Row]):
     return request, beam.Row(**response_dict)
 
   def __exit__(self, exc_type, exc_val, exc_tb):
-    """Clean the instantiated BigTable client."""
+    """Clean the instantiated Bigtable client."""
     self.client = None
     self.instance = None
     self._table = None

@@ -128,12 +128,12 @@ public abstract class BigtableConfig implements Serializable {
   }
 
   public BigtableConfig withProjectId(ValueProvider<String> projectId) {
-    checkArgument(projectId != null, "Project Id of BigTable can not be null");
+    checkArgument(projectId != null, "Project Id of Bigtable can not be null");
     return toBuilder().setProjectId(projectId).build();
   }
 
   public BigtableConfig withInstanceId(ValueProvider<String> instanceId) {
-    checkArgument(instanceId != null, "Instance Id of BigTable can not be null");
+    checkArgument(instanceId != null, "Instance Id of Bigtable can not be null");
     return toBuilder().setInstanceId(instanceId).build();
   }
 

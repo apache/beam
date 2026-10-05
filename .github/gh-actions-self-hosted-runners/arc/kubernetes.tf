@@ -32,6 +32,12 @@ resource "kubectl_manifest" "arc_webhook_certificate" {
   override_namespace = "arc"
   depends_on         = [helm_release.arc]
 }
+resource "kubectl_manifest" "arc_webhook_frontend_config" {
+  count = var.deploy_webhook != "false" ? 1 : 0
+  yaml_body          = templatefile("config/arc_frontend_config.tpl", { ssl_policy = google_compute_ssl_policy.actions-runner-ssl-policy[0].name })
+  override_namespace = "arc"
+  depends_on         = [helm_release.arc]
+}
 
 
 resource "kubectl_manifest" "arc_deployment_additional" {

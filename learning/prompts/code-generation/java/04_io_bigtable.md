@@ -2,9 +2,9 @@ Prompt:
 Write a sample Java code snippet that writes data to a Google Bigtable table using Apache Beam.
 
 Response:
-Your Apache Beam pipeline can write data to a Bigtable table using the Apache Beam BigTableIO connector.
+Your Apache Beam pipeline can write data to a Bigtable table using the Apache Beam BigtableIO connector.
 
-Here is an example of how to use the BigTableIO connector to accomplish this:
+Here is an example of how to use the BigtableIO connector to accomplish this:
 
 ```java
  package bigtable;

@@ -42,6 +42,31 @@ export async function addPrComment(pullNumber: number, body: string) {
   });
 }
 
+export async function requestPrReviewers(
+  pullNumber: number,
+  reviewers: string[],
+  githubClient?: any
+) {
+  if (!reviewers || reviewers.length === 0) {
+    return;
+  }
+  const client = githubClient || getGitHubClient();
+  for (const reviewer of reviewers) {
+    try {
+      await client.rest.pulls.requestReviewers({
+        owner: REPO_OWNER,
+        repo: REPO,
+        pull_number: pullNumber,
+        reviewers: [reviewer],
+      });
+    } catch (err) {
+      console.log(
+        `Unable to request review from ${reviewer} on PR ${pullNumber} (best effort): ${err}`
+      );
+    }
+  }
+}
+
 export async function nextActionReviewers(
   pullNumber: number,
   existingLabels: Label[]

@@ -73,7 +73,12 @@ buildCache {
             password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
         }
         isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-        isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+        isPush =
+            (isJenkinsBuild ||
+                (isGithubActionsBuild &&
+                    (System.getenv("GITHUB_EVENT_NAME") == "schedule" ||
+                        System.getenv("GITHUB_EVENT_NAME") == "push" ))) &&
+                !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
     }
 }
 

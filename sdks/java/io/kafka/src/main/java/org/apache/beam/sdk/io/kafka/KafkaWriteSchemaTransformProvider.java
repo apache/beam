@@ -294,8 +294,7 @@ public class KafkaWriteSchemaTransformProvider
       }
 
       // TODO: include output from KafkaIO Write once updated from PDone
-      PCollection<Row> errorOutput =
-          outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
       return PCollectionRowTuple.of(
           handleErrors ? configuration.getErrorHandling().getOutput() : "errors", errorOutput);
     }

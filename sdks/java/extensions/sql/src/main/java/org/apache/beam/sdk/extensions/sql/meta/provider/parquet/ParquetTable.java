@@ -17,6 +17,8 @@
  */
 package org.apache.beam.sdk.extensions.sql.meta.provider.parquet;
 
+import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
@@ -43,7 +45,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Internal
-@SuppressWarnings({"nullness"})
 class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   private static final Logger LOG = LoggerFactory.getLogger(ParquetTable.class);
 
@@ -57,7 +58,7 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   @Override
   public PCollection<Row> buildIOReader(PBegin begin) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    String filePattern = resolveFilePattern(table.getLocation());
+    String filePattern = resolveFilePattern(checkArgumentNotNull(table.getLocation()));
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     return begin.apply("ParquetIORead", read).apply("ToRows", Convert.toRows());
   }
@@ -66,7 +67,7 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
   public PCollection<Row> buildIOReader(
       PBegin begin, BeamSqlTableFilter filters, List<String> fieldNames) {
     final Schema schema = AvroUtils.toAvroSchema(table.getSchema());
-    String filePattern = resolveFilePattern(table.getLocation());
+    String filePattern = resolveFilePattern(checkArgumentNotNull(table.getLocation()));
     Read read = ParquetIO.read(schema).withBeamSchemas(true).from(filePattern);
     if (!fieldNames.isEmpty()) {
       Schema projectionSchema = projectSchema(schema, fieldNames);
@@ -112,7 +113,9 @@ class ParquetTable extends SchemaBaseBeamTable implements Serializable {
         .apply("ToGenericRecords", Convert.to(GenericRecord.class))
         .apply(
             "ParquetIOWrite",
-            FileIO.<GenericRecord>write().via(ParquetIO.sink(schema)).to(table.getLocation()));
+            FileIO.<GenericRecord>write()
+                .via(ParquetIO.sink(schema))
+                .to(checkArgumentNotNull(table.getLocation())));
   }
 
   @Override

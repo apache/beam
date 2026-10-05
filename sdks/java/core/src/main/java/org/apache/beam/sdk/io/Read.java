@@ -43,6 +43,7 @@ import org.apache.beam.sdk.io.UnboundedSource.CheckpointMark.NoopCheckpointMark;
 import org.apache.beam.sdk.io.UnboundedSource.UnboundedReader;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.transforms.Deduplicate;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.UnboundedPerElement;
@@ -550,9 +551,18 @@ public class Read {
         receiver.output(restriction);
       }
 
+      int desiredNumSplits = DEFAULT_DESIRED_NUM_SPLITS;
+      if (pipelineOptions != null) {
+        int configuredSplits =
+            pipelineOptions.as(StreamingOptions.class).getDesiredNumUnboundedSourceSplits();
+        if (configuredSplits > 0) {
+          desiredNumSplits = configuredSplits;
+        }
+      }
+
       try {
         for (UnboundedSource<OutputT, CheckpointT> split :
-            restriction.getSource().split(DEFAULT_DESIRED_NUM_SPLITS, pipelineOptions)) {
+            restriction.getSource().split(desiredNumSplits, pipelineOptions)) {
           receiver.output(
               UnboundedSourceRestriction.create(split, null, restriction.getWatermark()));
         }

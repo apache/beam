@@ -576,6 +576,36 @@ class TestBigQueryWrapper(unittest.TestCase):
         "my_project", "my_dataset", "my_table", "ok", 1)
 
   @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
+  def test_insert_rows_sets_metric_on_row_errors(self):
+    MetricsEnvironment.process_wide_container().reset()
+    client = mock.Mock()
+
+    def row_error(index, *reasons):
+      return {
+          'index': index,
+          'errors': [{
+              'reason': r, 'message': 'msg'
+          } for r in reasons],
+      }
+
+    client.insert_rows_json.return_value = [
+        row_error(0, 'invalid', 'stopped'),
+        row_error(1, 'invalid'),
+        row_error(2, 'stopped'),
+    ]
+    wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)
+    success, errors = wrapper.insert_rows(
+        "my_project", "my_dataset", "my_table", [{'a': 1}] * 3)
+
+    self.assertFalse(success)
+    self.assertEqual(client.insert_rows_json.return_value, errors)
+    # One metric per failed row, labelled with the reason of its first error.
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "invalid", 2)
+    self.verify_write_call_metric(
+        "my_project", "my_dataset", "my_table", "stopped", 1)
+
+  @unittest.skipIf(ClientError is None, 'GCP dependencies are not installed')
   def test_start_query_job_priority_configuration(self):
     client = mock.Mock()
     wrapper = beam.io.gcp.bigquery_tools.BigQueryWrapper(client)

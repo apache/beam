@@ -44,6 +44,7 @@ import java.util.stream.Collectors;
 import org.apache.beam.sdk.state.StateSpec;
 import org.apache.beam.sdk.state.StateSpecs;
 import org.apache.beam.sdk.state.ValueState;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.UsesParDoLifecycle;
 import org.apache.beam.sdk.testing.UsesStatefulParDo;
@@ -58,10 +59,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests that {@link ParDo} exercises {@link DoFn} methods in the appropriate sequence. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   // TODO(https://github.com/apache/beam/issues/21230): Remove when new version of
@@ -176,6 +176,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInSetup() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.SETUP);
@@ -189,6 +190,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundle() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.START_BUNDLE);
@@ -202,6 +204,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInProcessElement() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.PROCESS_ELEMENT);
@@ -216,6 +219,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundle() {
     ExceptionThrowingFn fn = new ExceptionThrowingFn(MethodForException.FINISH_BUNDLE);
@@ -234,6 +238,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInSetupStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.SETUP);
@@ -247,6 +252,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInStartBundleStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.START_BUNDLE);
@@ -260,6 +266,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInProcessElementStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.PROCESS_ELEMENT);
@@ -274,6 +281,7 @@ public class ParDoLifecycleTest implements Serializable {
   }
 
   @Test
+  @BeamParallelJunit4Runner.SerialTest
   @Category({ValidatesRunner.class, UsesStatefulParDo.class, UsesParDoLifecycle.class})
   public void testTeardownCalledAfterExceptionInFinishBundleStateful() {
     ExceptionThrowingFn fn = new ExceptionThrowingStatefulFn(MethodForException.FINISH_BUNDLE);

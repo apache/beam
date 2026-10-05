@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.gcp.util;
 
 import static org.apache.beam.sdk.io.FileSystemUtils.wildcardToRegexp;
 import static org.apache.beam.sdk.options.ExperimentalOptions.hasExperiment;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -110,9 +111,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /** Provides operations on GCS. */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 class GcsUtilV1 {
 
   /** Describes which GCS counters this {@link GcsUtilV1} emits. */
@@ -290,8 +288,12 @@ class GcsUtilV1 {
     }
     googleCloudStorageOptions = optionsBuilder.build();
     try {
-      googleCloudStorage =
+      // createGoogleCloudStorage is an overridable instance method; the checker flags calling it on
+      // a still-initializing receiver, but every field it reads is already assigned above.
+      @SuppressWarnings("nullness")
+      GoogleCloudStorage gcs =
           createGoogleCloudStorage(googleCloudStorageOptions, storageClient, credentials);
+      googleCloudStorage = gcs;
     } catch (IOException e) {
       throw new RuntimeException(e);
     }
@@ -301,6 +303,10 @@ class GcsUtilV1 {
           // are used.
           GcsUtilV1 util = this;
           return new BatchInterface() {
+            // The supplier reads storageClient/httpRequestInitializer through the captured
+            // instance when invoked, well after construction completes; the checker conservatively
+            // treats the captured receiver as still-initializing.
+            @SuppressWarnings("nullness")
             final BatchRequest batch = util.storageClient.batch(util.httpRequestInitializer);
 
             @Override
@@ -477,7 +483,9 @@ class GcsUtilV1 {
     Storage.Objects.List listObject = storageClient.objects().list(bucket);
     listObject.setMaxResults(MAX_LIST_ITEMS_PER_CALL);
     listObject.setPrefix(prefix);
-    listObject.setDelimiter(delimiter);
+    if (delimiter != null) {
+      listObject.setDelimiter(delimiter);
+    }
 
     if (pageToken != null) {
       listObject.setPageToken(pageToken);
@@ -509,10 +517,13 @@ class GcsUtilV1 {
 
   private Long toFileSize(StorageObjectOrIOException storageObjectOrIOException)
       throws IOException {
-    if (storageObjectOrIOException.ioException() != null) {
-      throw storageObjectOrIOException.ioException();
+    IOException ioException = storageObjectOrIOException.ioException();
+    if (ioException != null) {
+      throw ioException;
     } else {
-      return storageObjectOrIOException.storageObject().getSize().longValue();
+      // Exactly one of storageObject/ioException is set; ioException was null above.
+      StorageObject storageObject = checkStateNotNull(storageObjectOrIOException.storageObject());
+      return checkStateNotNull(storageObject.getSize()).longValue();
     }
   }
 
@@ -788,8 +799,9 @@ class GcsUtilV1 {
             options.getExpectFileToNotExist() ? 0L : StorageResourceId.UNKNOWN_GENERATION_ID);
     CreateObjectOptions.Builder createBuilder =
         CreateObjectOptions.builder().setOverwriteExisting(true);
-    if (options.getContentType() != null) {
-      createBuilder = createBuilder.setContentType(options.getContentType());
+    @Nullable String contentType = options.getContentType();
+    if (contentType != null) {
+      createBuilder = createBuilder.setContentType(contentType);
     }
 
     HashMap<String, String> baseLabels = new HashMap<>();
@@ -868,7 +880,9 @@ class GcsUtilV1 {
    * exist, an exception will be thrown.
    */
   public long bucketOwner(GcsPath path) throws IOException {
-    return getBucket(path, createBackOff(), Sleeper.DEFAULT).getProjectNumber().longValue();
+    // getBucket throws (rather than returning null) when the bucket is missing or inaccessible.
+    Bucket bucket = checkStateNotNull(getBucket(path, createBackOff(), Sleeper.DEFAULT));
+    return checkStateNotNull(bucket.getProjectNumber()).longValue();
   }
 
   /**
@@ -880,8 +894,7 @@ class GcsUtilV1 {
   }
 
   /** Get the {@link Bucket} from Cloud Storage path or propagates an exception. */
-  @Nullable
-  public Bucket getBucket(GcsPath path) throws IOException {
+  public @Nullable Bucket getBucket(GcsPath path) throws IOException {
     return getBucket(path, createBackOff(), Sleeper.DEFAULT);
   }
 
@@ -913,6 +926,27 @@ class GcsUtilV1 {
     getBucket(path, backoff, sleeper);
   }
 
+  // The JDK constructor stubs for these exceptions aren't annotated for nullness, but a null
+  // "other" file argument is permitted. Concentrating the suppression in these helpers.
+  @SuppressWarnings("nullness")
+  private static AccessDeniedException createAccessDeniedException(
+      String file, @Nullable String reason) {
+    return new AccessDeniedException(file, null, reason);
+  }
+
+  @SuppressWarnings("nullness")
+  private static FileAlreadyExistsException createFileAlreadyExistsException(
+      String file, @Nullable String reason) {
+    return new FileAlreadyExistsException(file, null, reason);
+  }
+
+  // FileNotFoundException's message argument accepts null, but the JDK constructor stub isn't
+  // annotated for nullness.
+  @SuppressWarnings("nullness")
+  private static FileNotFoundException createFileNotFoundException(@Nullable String message) {
+    return new FileNotFoundException(message);
+  }
+
   @VisibleForTesting
   @Nullable Bucket getBucket(GcsPath path, BackOff backoff, Sleeper sleeper) throws IOException {
     Storage.Buckets.Get getBucket = storageClient.buckets().get(path.getBucket());
@@ -934,10 +968,10 @@ class GcsUtilV1 {
           sleeper);
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(path.toString(), null, e.getMessage());
+        throw createAccessDeniedException(path.toString(), e.getMessage());
       }
       if (errorExtractor.itemNotFound(e)) {
-        throw new FileNotFoundException(e.getMessage());
+        throw createFileNotFoundException(e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {
@@ -974,10 +1008,10 @@ class GcsUtilV1 {
       return;
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+        throw createAccessDeniedException(bucket.getName(), e.getMessage());
       }
       if (errorExtractor.itemAlreadyExists(e)) {
-        throw new FileAlreadyExistsException(bucket.getName(), null, e.getMessage());
+        throw createFileAlreadyExistsException(bucket.getName(), e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {
@@ -1011,10 +1045,10 @@ class GcsUtilV1 {
           sleeper);
     } catch (GoogleJsonResponseException e) {
       if (errorExtractor.accessDenied(e)) {
-        throw new AccessDeniedException(bucket.getName(), null, e.getMessage());
+        throw createAccessDeniedException(bucket.getName(), e.getMessage());
       }
       if (errorExtractor.itemNotFound(e)) {
-        throw new FileNotFoundException(e.getMessage());
+        throw createFileNotFoundException(e.getMessage());
       }
       throw e;
     } catch (InterruptedException e) {
@@ -1177,6 +1211,9 @@ class GcsUtilV1 {
           });
     }
 
+    // Storage.Objects.rewrite permits a null content body (no object-metadata change); the
+    // generated client stub is not annotated for nullness.
+    @SuppressWarnings("nullness")
     public RewriteOp(GcsPath from, GcsPath to, boolean deleteSource, boolean ignoreMissingSource)
         throws IOException {
       this.from = from;
@@ -1237,8 +1274,10 @@ class GcsUtilV1 {
           && e.getErrors().size() == 1
           && e.getErrors().get(0).getReason().equals("retentionPolicyNotMet")) {
         List<StorageObjectOrIOException> srcAndDestObjects = getObjects(Arrays.asList(from, to));
-        String srcHash = srcAndDestObjects.get(0).storageObject().getMd5Hash();
-        String destHash = srcAndDestObjects.get(1).storageObject().getMd5Hash();
+        @Nullable String srcHash =
+            checkStateNotNull(srcAndDestObjects.get(0).storageObject()).getMd5Hash();
+        @Nullable String destHash =
+            checkStateNotNull(srcAndDestObjects.get(1).storageObject()).getMd5Hash();
         if (srcHash != null && srcHash.equals(destHash)) {
           // Source and destination are identical. Treat this as a successful rewrite
           LOG.warn(

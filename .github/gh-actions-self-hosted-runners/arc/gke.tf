@@ -114,6 +114,13 @@ data "google_compute_global_address" "actions-runner-ip" {
   name  = var.existing_ip_name == "" ? google_compute_global_address.actions-runner-ip[0].name : var.existing_ip_name
 }
 
+resource "google_compute_ssl_policy" "actions-runner-ssl-policy" {
+  count           = var.deploy_webhook != "false" ? 1 : 0
+  name            = "${var.environment}-actions-runner-ssl-policy"
+  profile         = "MODERN"
+  min_tls_version = "TLS_1_2"
+}
+
 data google_service_account "service_account" {
   account_id = var.service_account_id
 }

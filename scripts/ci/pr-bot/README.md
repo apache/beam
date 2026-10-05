@@ -35,13 +35,13 @@ The bot consists of three core workflows and a persistent state tracking system:
 * Sets `Next Action: Reviewers` label.
 
 ### 2. PR Updates & Commands (`processPrUpdate.ts`)
-* Triggered on PR pushes (`synchronize`) and comments (`issue_comment: created`).
-* Shifts attention back to reviewers (`Next Action: Reviewers`) when author pushes new commits or posts comments.
+* Triggered on PR pushes (`synchronize`), draft transitions (`converted_to_draft`, `ready_for_review`), and comments (`issue_comment: created`).
+* Shifts attention to author (`Next Action: Author`) when a PR is marked as draft (`converted_to_draft`) and back to reviewers (`Next Action: Reviewers`) when taken out of draft (`ready_for_review`) or when the author pushes new commits or posts comments on a non-draft PR.
 * Removes `slow-review` label upon receiving a comment from a non-author reviewer.
 * Processes commands like `assign to next reviewer`, `waiting on author`, `stop reviewer notifications`, `assign set of reviewers`, and `remind me after tests pass`.
 
 ### 3. Reviewer Reminders & Stale PRs (`findPrsNeedingAttention.ts`)
-* Runs daily to identify PRs needing action.
+* Runs daily to identify PRs needing action (skipping draft PRs, PRs with notifications silenced, or PRs labeled `awaiting triage`).
 * Flags PRs awaiting reviewer response as `slow-review` if inactive for ≥ 7 days (or ≥ 2 weekdays without comments).
 * If still no response after 2 more weekdays, reassigns to new reviewers, removes `slow-review`, and adds `reassigned-reviewers`.
 * **Stale PR Cutoff**: If a PR has both `reassigned-reviewers` and `Next Action: Reviewers` labels and review started > 60 days ago, it stops reviewer assignment loops and adds `awaiting triage`. PRs labeled `awaiting triage` are skipped.
