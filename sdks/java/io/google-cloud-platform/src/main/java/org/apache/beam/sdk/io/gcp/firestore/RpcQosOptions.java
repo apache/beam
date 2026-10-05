@@ -76,6 +76,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
   private final long batchMaxBytes;
   private final Duration batchTargetLatency;
   private final int hintMaxNumWorkers;
+  private final boolean shouldThrottleRampup;
   private final boolean shouldReportDiagnosticMetrics;
 
   private RpcQosOptions(
@@ -90,6 +91,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
       long batchMaxBytes,
       Duration batchTargetLatency,
       int hintMaxNumWorkers,
+      boolean shouldThrottleRampup,
       boolean shouldReportDiagnosticMetrics) {
     this.maxAttempts = maxAttempts;
     this.initialBackoff = initialBackoff;
@@ -102,6 +104,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
     this.batchMaxBytes = batchMaxBytes;
     this.batchTargetLatency = batchTargetLatency;
     this.hintMaxNumWorkers = hintMaxNumWorkers;
+    this.shouldThrottleRampup = shouldThrottleRampup;
     this.shouldReportDiagnosticMetrics = shouldReportDiagnosticMetrics;
   }
 
@@ -125,6 +128,9 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
                 .withLabel("batchTargetLatency"))
         .add(
             DisplayData.item("hintMaxNumWorkers", hintMaxNumWorkers).withLabel("hintMaxNumWorkers"))
+        .add(
+            DisplayData.item("shouldThrottleRampup", shouldThrottleRampup)
+                .withLabel("shouldThrottleRampup"))
         .add(
             DisplayData.item("shouldReportDiagnosticMetrics", shouldReportDiagnosticMetrics)
                 .withLabel("shouldReportDiagnosticMetrics"));
@@ -275,6 +281,23 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
   }
 
   /**
+   * Whether writes are throttled to follow the <a target="_blank" rel="noopener noreferrer"
+   * href="https://cloud.google.com/firestore/docs/best-practices#ramping_up_traffic">500/50/5
+   * ramp-up</a> strategy.
+   *
+   * <p>When {@code false}, the ramp-up budget no longer delays writes nor limits the size of a
+   * batch. Writes are still subject to adaptive throttling in response to failed requests.
+   *
+   * <p><i>Default Value:</i> {@code true}
+   *
+   * @see RpcQosOptions.Builder#withRampupThrottlingDisabled()
+   * @see #getHintMaxNumWorkers()
+   */
+  public boolean isShouldThrottleRampup() {
+    return shouldThrottleRampup;
+  }
+
+  /**
    * Whether additional diagnostic metrics should be reported for a Transform.
    *
    * <p>If true, additional detailed diagnostic metrics will be reported for the RPC QoS subsystem.
@@ -314,11 +337,13 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
             .withBatchMaxBytes(batchMaxBytes)
             .withBatchTargetLatency(batchTargetLatency)
             .withHintMaxNumWorkers(hintMaxNumWorkers);
-    if (shouldReportDiagnosticMetrics) {
-      return builder.withReportDiagnosticMetrics();
-    } else {
-      return builder;
+    if (!shouldThrottleRampup) {
+      builder = builder.withRampupThrottlingDisabled();
     }
+    if (shouldReportDiagnosticMetrics) {
+      builder = builder.withReportDiagnosticMetrics();
+    }
+    return builder;
   }
 
   @Override
@@ -336,6 +361,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
         && batchMaxCount == that.batchMaxCount
         && batchMaxBytes == that.batchMaxBytes
         && hintMaxNumWorkers == that.hintMaxNumWorkers
+        && shouldThrottleRampup == that.shouldThrottleRampup
         && shouldReportDiagnosticMetrics == that.shouldReportDiagnosticMetrics
         && initialBackoff.equals(that.initialBackoff)
         && samplePeriod.equals(that.samplePeriod)
@@ -358,6 +384,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
         batchMaxBytes,
         batchTargetLatency,
         hintMaxNumWorkers,
+        shouldThrottleRampup,
         shouldReportDiagnosticMetrics);
   }
 
@@ -386,6 +413,8 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
         + batchTargetLatency
         + ", hintMaxNumWorkers="
         + hintMaxNumWorkers
+        + ", shouldThrottleRampup="
+        + shouldThrottleRampup
         + ", shouldReportDiagnosticMetrics="
         + shouldReportDiagnosticMetrics
         + '}';
@@ -444,6 +473,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
     private long batchMaxBytes;
     private Duration batchTargetLatency;
     private int hintMaxNumWorkers;
+    private boolean shouldThrottleRampup;
     private boolean shouldReportDiagnosticMetrics;
 
     private Builder() {
@@ -458,6 +488,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
       batchMaxBytes = FIRESTORE_RPC_BYTES_MAX;
       batchTargetLatency = Duration.standardSeconds(5);
       hintMaxNumWorkers = 500;
+      shouldThrottleRampup = true;
       shouldReportDiagnosticMetrics = false;
     }
 
@@ -647,6 +678,29 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
     }
 
     /**
+     * Disable the <a target="_blank" rel="noopener noreferrer"
+     * href="https://cloud.google.com/firestore/docs/best-practices#ramping_up_traffic">500/50/5
+     * ramp-up</a> throttling of writes.
+     *
+     * <p>By default, each worker starts with a budget of {@code 500 / hintMaxNumWorkers} writes per
+     * second, which grows by 50% every 5 minutes. With the default {@code hintMaxNumWorkers} this
+     * is 1 write per second, which can severely limit the throughput of pipelines running on fewer
+     * workers. Disabling ramp-up throttling is appropriate when the target collection is already
+     * serving traffic, or its documents are written with well distributed IDs.
+     *
+     * <p>Writes remain subject to adaptive throttling in response to failed requests.
+     *
+     * <p>This mirrors {@code DatastoreIO.v1().write().withRampupThrottlingDisabled()}.
+     *
+     * @return this builder
+     * @see RpcQosOptions#isShouldThrottleRampup()
+     */
+    public Builder withRampupThrottlingDisabled() {
+      this.shouldThrottleRampup = false;
+      return this;
+    }
+
+    /**
      * Whether additional diagnostic metrics should be reported for a Transform.
      *
      * <p>If invoked on this builder, additional detailed diagnostic metrics will be reported for
@@ -698,6 +752,7 @@ public final class RpcQosOptions implements Serializable, HasDisplayData {
           batchMaxBytes,
           batchTargetLatency,
           hintMaxNumWorkers,
+          shouldThrottleRampup,
           shouldReportDiagnosticMetrics);
     }
 
