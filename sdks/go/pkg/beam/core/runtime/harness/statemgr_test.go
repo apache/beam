@@ -612,6 +612,7 @@ func TestStateChannel_recreate(t *testing.T) {
 		m.mu.Lock()
 		close(holdingM)
 		c.mu.Lock()
+		_ = c.id
 		c.mu.Unlock()
 		m.mu.Unlock()
 	}()
