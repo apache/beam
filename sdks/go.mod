@@ -38,7 +38,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.23.11
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.114.0
 	github.com/aws/smithy-go v1.28.2
-	github.com/docker/go-connections v0.7.0 // indirect
+	github.com/docker/go-connections v0.8.1 // indirect
 	github.com/dustin/go-humanize v1.1.0
 	github.com/go-sql-driver/mysql v1.10.1
 	github.com/google/go-cmp v0.7.0
@@ -74,7 +74,7 @@ require (
 	github.com/fsouza/fake-gcs-server v1.56.1
 	github.com/golang-cz/devslog v0.0.17
 	github.com/moby/moby/api v1.56.1
-	github.com/moby/moby/client v0.6.0
+	github.com/moby/moby/client v0.6.1
 	golang.org/x/exp v0.0.0-20260508232706-74f9aab9d74a
 )
 
