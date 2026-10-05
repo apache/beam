@@ -195,8 +195,17 @@ public class FileSystems {
     if (matchResult.status() == Status.NOT_FOUND) {
       throw new FileNotFoundException(String.format("File spec %s not found", spec));
     } else if (matchResult.status() != Status.OK) {
+      // PROPOSED FIX: Extract the root cause by catching it from metadata()
+      IOException rootCause = null;
+      try {
+        matchResult.metadata();
+      } catch (IOException e) {
+        rootCause = e;
+      }
+      // Chain the root cause into the new IOException
       throw new IOException(
-          String.format("Error matching file spec %s: status %s", spec, matchResult.status()));
+          String.format("Error matching file spec %s: status %s", spec, matchResult.status()),
+          rootCause);
     } else {
       List<Metadata> metadata = matchResult.metadata();
       if (metadata.size() != 1) {
