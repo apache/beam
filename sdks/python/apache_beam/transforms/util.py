@@ -2221,7 +2221,9 @@ class Regex(object):
     Returns the matches if a portion of the line matches the Regex. By default,
     list of group 0 will return with empty items. To get all groups, pass the
     `Regex.ALL` flag in the `group` parameter which returns all the groups in
-    the tuple format.
+    the tuple format. With `Regex.ALL` each item is
+    `(match, group1, group2, ...)`, and `outputEmpty=False` drops an item only
+    when the whole match is empty, the same as for group 0.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
@@ -2235,7 +2237,7 @@ class Regex(object):
       matches = regex.finditer(element)
       if group == Regex.ALL:
         yield [(m.group(), *m.groups()) for m in matches
-               if outputEmpty or all(m.groups() or (m.group(), ))]
+               if outputEmpty or m.group()]
       else:
         yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
 

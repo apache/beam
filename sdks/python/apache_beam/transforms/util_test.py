@@ -2675,7 +2675,7 @@ class RegexTest(unittest.TestCase):
           pcol | 'all non empty groups' >> util.Regex.find_all(
               'a(b*)', util.Regex.ALL, outputEmpty=False),
           equal_to([[('ab', 'b'), ('ab', 'b'), ('ab', 'b')],
-                    [('abb', 'bb'), ('abbb', 'bbb')]]),
+                    [('abb', 'bb'), ('a', ''), ('abbb', 'bbb')]]),
           label='CheckAllNonEmptyGroups')
 
   def test_find_all_groups_multiple_and_no_groups(self):
@@ -2688,10 +2688,10 @@ class RegexTest(unittest.TestCase):
           label='CheckTwoGroups')
 
       assert_that(
-          pcol | 'two non empty groups' >> util.Regex.find_all(
+          pcol | 'two groups non empty match' >> util.Regex.find_all(
               r'(\w)=(\d?)', util.Regex.ALL, outputEmpty=False),
-          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2')]]),
-          label='CheckTwoNonEmptyGroups')
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2'), ('c=', 'c', '')]]),
+          label='CheckTwoGroupsNonEmptyMatch')
 
       digits = (p | 'create digits' >> beam.Create(['1 2']))
       assert_that(

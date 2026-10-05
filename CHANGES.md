@@ -74,7 +74,7 @@
 
 ## Breaking Changes
 
-* X behavior was changed ([#X](https://github.com/apache/beam/issues/X)).
+* (Python) `Regex.find_all` with `group=Regex.ALL` now returns every group, as `(match, group1, group2, ...)`, instead of only group 1, and with `outputEmpty=False` it drops a match only when the whole match is empty, the same as `group=0` ([#40399](https://github.com/apache/beam/pull/40399)).
 
 ## Deprecations
 
