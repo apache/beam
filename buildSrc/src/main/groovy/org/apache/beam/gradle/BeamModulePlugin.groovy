@@ -3171,10 +3171,10 @@ class BeamModulePlugin implements Plugin<Project> {
       // set from commandline with -PpythonVersion, or in build script of certain project.
       // If none of them applied, version set here will be used as default value.
       project.ext.pythonVersion = project.hasProperty('pythonVersion') ?
-          project.pythonVersion : '3.10'
+          project.pythonVersion : '3.11'
 
       // Set min/max python versions used for containers and supported versions.
-      project.ext.minPythonVersion = 10
+      project.ext.minPythonVersion = 11
       project.ext.maxPythonVersion = 14
 
       def setupVirtualenv = project.tasks.register('setupVirtualenv')  {
@@ -3249,7 +3249,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def uvCacheDir = "${project.ext.envdir}/.uv_cache"
           project.exec {
             executable 'sh'
-            // Default uv cache is global; py310/py314 installGcpTest fight over the same lock.
+            // Default uv cache is global; py311/py314 installGcpTest fight over the same lock.
             args '-c', ". \"${project.ext.envdir}/bin/activate\" && pip install uv && uv pip install --cache-dir \"${uvCacheDir}\" --pre \"${installTargets}\""
           }
         }
@@ -3301,7 +3301,7 @@ class BeamModulePlugin implements Plugin<Project> {
           def actualToxEnv = tox_env
           def osName = System.getProperty("os.name").toLowerCase()
           if (osName.contains("mac")) {
-            // Only append -macos for standard python environments (py39, py310, etc.)
+            // Only append -macos for standard python environments (py311, py312, etc.)
             if (tox_env.matches("py\\d+")) {
               actualToxEnv = "${tox_env}-macos"
             }
@@ -3391,7 +3391,6 @@ class BeamModulePlugin implements Plugin<Project> {
           mustRunAfter = [
             ":runners:flink:${project.ext.latestFlinkVersion}:job-server:shadowJar",
             ':runners:spark:3:job-server:shadowJar',
-            ':sdks:python:container:py310:docker',
             ':sdks:python:container:py311:docker',
             ':sdks:python:container:py312:docker',
             ':sdks:python:container:py313:docker',

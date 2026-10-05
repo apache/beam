@@ -71,10 +71,10 @@ jobs:
           java-version: |
             21
             11
-      - name: Install Python 3.10
+      - name: Install Python 3.11
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Authenticate on GCP
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:
@@ -96,7 +96,7 @@ jobs:
         run: |
           ./gradlew ${{ matrix.images_to_publish.gradle_task }} \
           -PisRelease \
-          -PpythonVersion=3.10 \
+          -PpythonVersion=3.11 \
           -Pdocker-pull-licenses \
           -Pprune-images ${{ matrix.images_to_publish.include_skip_flags }} \
           -Pdocker-repository-root=gcr.io/apache-beam-testing/updated_released_container_images \
