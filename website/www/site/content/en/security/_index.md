@@ -57,6 +57,8 @@ Beam also provides local runners:
 
 The table below is intended for security researchers and enterprise security teams evaluating Beam:
 
+<div style="font-size: 16px;">
+{{< table class="table-wrapper--equal-p" >}}
 | Scenario | Security boundary | Notes |
 | --- | --- | --- |
 | Unauthenticated access to the runner worker | Runner’s security model | Depends on the runner; report to the runner provider |
@@ -66,6 +68,8 @@ The table below is intended for security researchers and enterprise security tea
 | Existing nomenclature, documentation, and logic expose risk of supply-chain attack | **Depends** | See notes below |
 | Denial of service (DoS) via certain data patterns where no Beam-level control exists to prevent it | In scope | Vulnerability – report it, with exceptions (see notes below) |
 | Remote Code Execution (RCE) via a submitted JAR, Expansion service, or UDF | Out of scope | By design – these submitters run arbitrary code |
+{{< /table >}}
+</div>
 
 **Notes**:
 
