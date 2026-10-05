@@ -99,6 +99,8 @@ import io.grpc.Status;
 import io.grpc.Status.Code;
 import io.grpc.protobuf.ProtoUtils;
 import java.io.IOException;
+import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -1081,6 +1083,27 @@ public class BigQueryServicesImpl implements BigQueryServices {
           } catch (IOException e) {
             GoogleJsonError.ErrorInfo errorInfo = getErrorInfo(e);
             if (errorInfo == null) {
+              String networkErrorReason = transientNetworkErrorReason(e);
+              if (networkErrorReason != null) {
+                // Route all rows in this batch through InsertRetryPolicy so the outer insertAll
+                // loop handles retries consistently via the pipeline's configured policy.
+                serviceCallMetric.call(networkErrorReason);
+                result.updateFailedRpcMetrics(start, start, BigQuerySinkMetrics.UNKNOWN);
+                LOG.warn(
+                    "BigQuery insertAll transient network error, routing rows to retry policy", e);
+                List<TableDataInsertAllResponse.InsertErrors> syntheticErrors = new ArrayList<>();
+                for (int i = 0; i < rows.size(); i++) {
+                  syntheticErrors.add(
+                      new TableDataInsertAllResponse.InsertErrors()
+                          .setIndex((long) i)
+                          .setErrors(
+                              Collections.singletonList(
+                                  new ErrorProto()
+                                      .setReason(networkErrorReason)
+                                      .setMessage(Strings.nullToEmpty(e.getMessage())))));
+                }
+                return syntheticErrors;
+              }
               serviceCallMetric.call(ServiceCallMetric.CANONICAL_STATUS_UNKNOWN);
               result.updateFailedRpcMetrics(start, start, BigQuerySinkMetrics.UNKNOWN);
               throw e;
@@ -1479,6 +1502,29 @@ public class BigQueryServicesImpl implements BigQueryServices {
           ignoreUnknownValues,
           ignoreInsertIds,
           successfulRows);
+    }
+
+    /**
+     * Returns a BigQuery-style error reason string for transient network errors that occur outside
+     * the scope of {@link com.google.api.client.http.HttpRequest#execute} (e.g. during chunked
+     * response body reading), or {@code null} if the exception is not a transient network error.
+     */
+    static @Nullable String transientNetworkErrorReason(IOException e) {
+      Throwable cause = e;
+      while (cause != null) {
+        if (cause instanceof SocketTimeoutException) {
+          return "socketTimeout";
+        }
+        if (cause instanceof SocketException) {
+          String msg = cause.getMessage();
+          if (msg != null) {
+            if (msg.contains("Connection reset")) return "connectionReset";
+            if (msg.contains("Broken pipe")) return "brokenPipe";
+          }
+        }
+        cause = cause.getCause();
+      }
+      return null;
     }
 
     protected static GoogleJsonError.@Nullable ErrorInfo getErrorInfo(IOException e) {
