@@ -987,14 +987,11 @@ project.tasks.register("generateManagedIOPage") {
 // Configure the release plugin to do only local work; the release manager determines what, if
 // anything, to push. On failure, the release manager can reset the branch without pushing.
 release {
-  revertOnFail = false
-  tagTemplate = "v${version}"
-  // workaround from https://github.com/researchgate/gradle-release/issues/281#issuecomment-466876492
-  release {
-    with (propertyMissing("git") as net.researchgate.release.GitAdapter.GitConfig) {
-      requireBranch = "release-.*|master"
-      pushToRemote = ""
-    }
+  revertOnFail.set(false)
+  tagTemplate.set("v${version}")
+  git {
+    requireBranch.set("release-.*|master")
+    pushToRemote.set("")
   }
 }
 
