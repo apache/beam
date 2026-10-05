@@ -1,4 +1,173 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Thu, 10 Sep 2026 00:00:00 +1000</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: UnboundedSource and the Watch Transform in the Apache Beam Python SDK</title><link>/blog/python-unboundedsource-watch/</link><pubDate>Thu, 10 Sep 2026 00:00:00 +1000</pubDate><guid>/blog/python-unboundedsource-watch/</guid><description>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Blogs</title><link>/blog/</link><description>Recent content in Blogs on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><lastBuildDate>Wed, 30 Sep 2026 20:00:01 -0800</lastBuildDate><atom:link href="/blog/index.xml" rel="self" type="application/rss+xml"/><item><title>Blog: Beam modernization at project 10-year mark</title><link>/blog/beam-modernization-10y/</link><pubDate>Wed, 30 Sep 2026 20:00:01 -0800</pubDate><guid>/blog/beam-modernization-10y/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;h2 id="summary">Summary&lt;/h2>
+&lt;p>This blog summarizes recent modernization efforts across the Apache Beam codebase mainly between Beam 2.68.0 and 2.75.0, such as major package upgrades, aligning APIs with new programming language standards, deprecations, etc. Note that &lt;strong>new features&lt;/strong> are intentionally not included in the scope of this post, as it focuses on the modernization effort of existing components. Thank you to all contributors!&lt;/p>
+&lt;p>Originally part of the &amp;ldquo;Beam 3.0&amp;rdquo; proposal, systematic modernization efforts were planned towards Beam 2.75.0. As the community agreed on delivering improvements incrementally while maximally preserving compatibility, we instead named 2.75.0 the &amp;ldquo;10-year anniversary release&amp;rdquo;&amp;mdash;marking 10 years since the first release (&lt;a href="/blog/first-release">v0.1.0-incubating&lt;/a>).&lt;/p>
+&lt;h2 id="package-upgrades">Package Upgrades&lt;/h2>
+&lt;h3 id="core-languages">Core languages&lt;/h3>
+&lt;h4 id="java-java-25-support-2690httpsgithubcomapachebeamissues35627-and-dropped-java-8-support-2740httpsgithubcomapachebeamissues31678">[Java] Java 25 Support (&lt;a href="https://github.com/apache/beam/issues/35627">&lt;strong>2.69.0&lt;/strong>&lt;/a>) and dropped Java 8 support (&lt;a href="https://github.com/apache/beam/issues/31678">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Java 8 has been supported since &lt;a href="/blog/beam-2.3.0">Beam 2.3.0&lt;/a>. Since 2025, the ecosystem has shifted to Java 11 and Java 17 for certain core dependencies. Because Java 8 remained the baseline language version for Beam for a long time, a phased transition was conducted in subsequent Beam versions:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Introduced a framework to allow different Beam components with different Java version compatibility (&lt;a href="https://github.com/apache/beam/pull/34858">&lt;strong>2.66.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/pull/35232">&lt;strong>2.67.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Stopped publishing Java 8 SDK container image. Java 8 pipeline execution uses Java 11 container (&lt;a href="https://github.com/apache/beam/pull/35064">&lt;strong>2.66.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>IO expansion service (&lt;a href="https://github.com/apache/beam/pull/35981">&lt;strong>2.68.0&lt;/strong>&lt;/a>) and certain components (IcebergIO, HCatalogIO) started moving to Java 11.&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>And finally, the Beam baseline moved to Java 11. As of Beam 2.75.0, certain Beam components require Java 17:&lt;/p>
+&lt;ul>
+&lt;li>IcebergIO&lt;/li>
+&lt;li>DebeziumIO&lt;/li>
+&lt;li>DeltaIO&lt;/li>
+&lt;li>IO expansion service&lt;/li>
+&lt;li>Spark 4 runner&lt;/li>
+&lt;/ul>
+&lt;h4 id="python-python-313-and-314-support-2690httpsgithubcomapachebeamissues34869-2730httpsgithubcomapachebeamissues37247-and-removed-python-39-support-2700httpsgithubcomapachebeamissues36665">[Python] Python 3.13 and 3.14 Support (&lt;a href="https://github.com/apache/beam/issues/34869">&lt;strong>2.69.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/37247">&lt;strong>2.73.0&lt;/strong>&lt;/a>) and removed Python 3.9 support (&lt;a href="https://github.com/apache/beam/issues/36665">&lt;strong>2.70.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="go-minimum-go-version-updated-to-126-2690httpsgithubcomapachebeamissues36461-2730httpsgithubcomapachebeamissues37897">[Go] Minimum Go version updated to 1.26 (&lt;a href="https://github.com/apache/beam/issues/36461">&lt;strong>2.69.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/37897">&lt;strong>2.73.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="sql-upgraded-beam-vendored-calcite-from-1280-to-1400-for-beam-sql-2680httpsgithubcomapachebeamissues35483-and-removed-zetasql-support-2680httpsgithubcomapachebeamissues34423">[SQL] Upgraded Beam vendored Calcite from 1.28.0 to 1.40.0 for Beam SQL (&lt;a href="https://github.com/apache/beam/issues/35483">&lt;strong>2.68.0&lt;/strong>&lt;/a>) and removed ZetaSQL support (&lt;a href="https://github.com/apache/beam/issues/34423">&lt;strong>2.68.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Beam SQL was on Calcite 1.28.0 since Beam 2.35.0 (2021). As part of the Lakehouse initiative, Beam SQL has received renewed attention and moved to Calcite 1.40.0. A notable new feature is support for dialects such as BigQuery, SparkSQL, etc.&lt;/p>
+&lt;p>Here is an example of using a PostgreSQL dialect-provided scalar function in Beam YAML:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-yaml" data-lang="yaml">&lt;span class="line">&lt;span class="cl">&lt;span class="nt">pipeline&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">transforms&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Create&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CreateSampleData&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">elements&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="nt">id: 1, tags&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;java python go&amp;#34;&lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="nt">id: 2, tags&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;rust cpp&amp;#34;&lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- {&lt;span class="nt">id: 3, tags&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;javascript typescript&amp;#34;&lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">Sql&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">name&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">TransformWithPostgresFunction&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">CreateSampleData&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">config&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">query&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="s2">&amp;#34;SELECT id, STRING_TO_ARRAY(tags, &amp;#39; &amp;#39;) as tag_list FROM PCOLLECTION&amp;#34;&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>- &lt;span class="nt">type&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">LogForTesting&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">input&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>&lt;span class="l">TransformWithPostgresFunction&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w">&lt;/span>&lt;span class="nt">options&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="w"> &lt;/span>&lt;span class="nt">calcite_connection_properties&lt;/span>&lt;span class="p">:&lt;/span>&lt;span class="w"> &lt;/span>{&lt;span class="nt">&amp;#34;fun&amp;#34;: &lt;/span>&lt;span class="s2">&amp;#34;postgresql&amp;#34;&lt;/span>}&lt;span class="w">
+&lt;/span>&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;p>ZetaSQL support was removed; Calcite SQL with the BigQuery dialect is the preferred alternative within Beam, or migrating to use BigQuery directly is also recommended.&lt;/p>
+&lt;h3 id="core-dependencies">Core dependencies&lt;/h3>
+&lt;h4 id="java-upgraded-avro-to-112-2740httpsgithubcomapachebeampull38373">[Java] Upgraded Avro to 1.12 (&lt;a href="https://github.com/apache/beam/pull/38373">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Avro 1.12 was released back in August 2024 and dropped Java 8 support. As part of Java 8 support removal, Beam upgraded its Avro dependency to 1.12 in Beam 2.74.0.&lt;/p>
+&lt;h4 id="java-upgraded-gcs-connector-gcsio-to-3x-2740httpsgithubcomapachebeampull38419">[Java] Upgraded GCS connector (gcsio) to 3.x (&lt;a href="https://github.com/apache/beam/pull/38419">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>GCS connector 3.0 was released back in December 2023 and dropped Java 8 support. As part of Java 8 support removal, Beam upgraded its GCS connector dependency to 3.1 in Beam 2.74.0. Note that there is a &lt;a href="https://github.com/apache/beam/issues/39548">performance regression&lt;/a> related to this upgrade in Beam 2.74.0 and 2.75.0 affecting pipelines with a moderate to heavy Cloud Storage read workload. To resolve this, upgrading to Beam 2.76.0 is recommended.&lt;/p>
+&lt;h4 id="python-protobuf-6x-support-2690httpsgithubcomapachebeampull35477">[Python] Protobuf 6.x Support (&lt;a href="https://github.com/apache/beam/pull/35477">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="python-migrated-default-pickler-to-cloudpickle-and-made-dill-optional-2680httpsgithubcomapachebeampull35725-2690httpsgithubcomapachebeamissues21298">[Python] Migrated default pickler to cloudpickle and made dill optional (&lt;a href="https://github.com/apache/beam/pull/35725">&lt;strong>2.68.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/21298">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Previously, the Python SDK relied on a pinned &lt;code>dill==0.3.1.1&lt;/code> dependency for serialization, which frequently caused dependency conflicts and blocked new Python version upgrades. After switching the default pickler to &lt;code>cloudpickle&lt;/code>, Beam migrated the deterministic fallback coder for complex types (&lt;code>NamedTuple&lt;/code>, &lt;code>Enum&lt;/code>, &lt;code>dataclass&lt;/code>) to &lt;code>cloudpickle&lt;/code> in Beam 2.68.0 and moved &lt;code>dill&lt;/code> out of the core requirements into an optional extra (&lt;code>apache-beam[dill]&lt;/code>) in Beam 2.69.0.&lt;/p>
+&lt;h4 id="python-migrating-gcp-clients-off-google-apitools-2720httpsgithubcomapachebeampull37309-2750httpsgithubcomapachebeampull37639">[Python] Migrating GCP clients off &lt;code>google-apitools&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/37309">&lt;strong>2.72.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/pull/37639">&lt;strong>2.75.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>The Python SDK has been migrating its internal GCP service integrations off the legacy &lt;code>google-apitools&lt;/code> library and generated V1 clients to official &lt;code>google-cloud-*&lt;/code> client libraries:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Migrated Cloud Build client in container builder to &lt;code>google-cloud-build&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/37309">&lt;strong>2.72.0&lt;/strong>&lt;/a>) and removed standalone &lt;code>apitools&lt;/code> &lt;code>HttpError&lt;/code> usages (&lt;a href="https://github.com/apache/beam/pull/37296">&lt;strong>2.72.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Migrated Dataflow runner job submission and metrics client from generated &lt;code>dataflow_v1b3&lt;/code> &lt;code>apitools&lt;/code> bindings to &lt;code>google-cloud-dataflow-client&lt;/code> (&lt;a href="https://github.com/apache/beam/pull/37639">&lt;strong>2.75.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>BigQuery is now the last remaining &lt;code>google-apitools&lt;/code> client in the Python SDK, and its migration is in progress.&lt;/p>
+&lt;h4 id="yaml-switched-javascript-engine-from-js2py-to-quickjs-2750httpsgithubcomapachebeamissues38473">[YAML] Switched JavaScript engine from js2py to QuickJS (&lt;a href="https://github.com/apache/beam/issues/38473">&lt;strong>2.75.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Because &lt;code>js2py&lt;/code> is no longer actively maintained, lacked Python 3.12+ support, and was affected by &lt;a href="https://www.cve.org/CVERecord?id=CVE-2024-28397">CVE-2024-28397&lt;/a>, Beam YAML switched its JavaScript UDF execution engine to &lt;code>quickjs&lt;/code>.&lt;/p>
+&lt;h3 id="io-dependencies">IO dependencies&lt;/h3>
+&lt;h4 id="java-upgraded-apache-iceberg-to-192-2680httpsgithubcomapachebeampull35981-and-1100-2690httpsgithubcomapachebeamissues36123">[Java] Upgraded Apache Iceberg to 1.9.2 (&lt;a href="https://github.com/apache/beam/pull/35981">&lt;strong>2.68.0&lt;/strong>&lt;/a>) and 1.10.0 (&lt;a href="https://github.com/apache/beam/issues/36123">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Iceberg 1.7.0 dropped Java 8 support. After enabling individual Beam components to be compiled with different Java versions, IcebergIO was updated to build on top of Iceberg 1.9.2 in Beam 2.68.0. Later in Beam 2.69.0, it was upgraded to 1.10.0.&lt;/p>
+&lt;h4 id="java-upgraded-hcatalogio-to-hive-401-2710httpsgithubcomapachebeamissues32189">[Java] Upgraded HCatalogIO to Hive 4.0.1 (&lt;a href="https://github.com/apache/beam/issues/32189">&lt;strong>2.71.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>HCatalog 4.0 dropped Java 8 support. Beam moved from HCatalog 3.1.3 to 4.0.1 in Beam 2.71.0, requiring Java 11.&lt;/p>
+&lt;h4 id="java-elasticsearch-9-support-2710httpsgithubcomapachebeamissues36491">[Java] Elasticsearch 9 Support (&lt;a href="https://github.com/apache/beam/issues/36491">&lt;strong>2.71.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="java-upgraded-mongodb-java-driver-from-3x-to-550-2680httpsgithubcomapachebeampull35946">[Java] Upgraded MongoDB Java driver from 3.x to 5.5.0 (&lt;a href="https://github.com/apache/beam/pull/35946">&lt;strong>2.68.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="java-migrated-clickhouseio-to-clickhouse-java-client-v2-2720httpsgithubcomapachebeamissues37610">[Java] Migrated ClickHouseIO to ClickHouse Java Client v2 (&lt;a href="https://github.com/apache/beam/issues/37610">&lt;strong>2.72.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h3 id="runners">Runners&lt;/h3>
+&lt;h4 id="apache-flink-2x-runner-support-20-since-2720httpsgithubcomapachebeamissues36947-21-and-22-since-2750httpsgithubcomapachebeamissues38947-and-dropped-flink-117-and-118-runner-support-2750httpsgithubcomapachebeampull39006">Apache Flink 2.x Runner Support (2.0 since &lt;a href="https://github.com/apache/beam/issues/36947">&lt;strong>2.72.0&lt;/strong>&lt;/a>, 2.1 and 2.2 since &lt;a href="https://github.com/apache/beam/issues/38947">&lt;strong>2.75.0&lt;/strong>&lt;/a>) and dropped Flink 1.17 and 1.18 runner support (&lt;a href="https://github.com/apache/beam/pull/39006">&lt;strong>2.75.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Flink 2.0 dropped the legacy DataSet API. Batch pipelines now run on the Flink DataStream API.&lt;/p>
+&lt;h4 id="apache-spark-4-runner-support-2740httpsgithubcomapachebeamissues38255">Apache Spark 4 Runner Support (&lt;a href="https://github.com/apache/beam/issues/38255">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Spark 3.5 (and 4.0) deprecated the DStream API and improved the Dataset (Structured Streaming) API. Spark 4 streaming support is in progress.&lt;/p>
+&lt;h2 id="programming-language-interface-modernization">Programming language interface modernization&lt;/h2>
+&lt;h3 id="java">Java&lt;/h3>
+&lt;h4 id="junit-5-support-2690httpsgithubcomapachebeamissues18733">JUnit 5 support (&lt;a href="https://github.com/apache/beam/issues/18733">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Previously, &lt;code>TestPipeline&lt;/code> relied on JUnit 4&amp;rsquo;s &lt;code>TestRule&lt;/code> (&lt;code>@Rule&lt;/code>). Beam now provides a dedicated &lt;code>org.apache.beam:beam-sdks-java-testing-junit&lt;/code> module featuring &lt;code>TestPipelineExtension&lt;/code>, enabling JUnit 5 tests to inject &lt;code>TestPipeline&lt;/code> via &lt;code>@ExtendWith&lt;/code> (or configure custom options with &lt;code>@RegisterExtension&lt;/code>) while maintaining backward compatibility with JUnit 4:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-java" data-lang="java">&lt;span class="line">&lt;span class="cl">&lt;span class="kn">import&lt;/span> &lt;span class="nn">org.apache.beam.sdk.testing.TestPipelineExtension&lt;/span>&lt;span class="o">;&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">...&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="nd">@ExtendWith&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TestPipelineExtension&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">class&lt;/span>&lt;span class="o">)&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="kd">class&lt;/span> &lt;span class="nc">MyPipelineTest&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="nd">@Test&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="kt">void&lt;/span> &lt;span class="nf">testPipeline&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">TestPipeline&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">)&lt;/span> &lt;span class="o">{&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PCollection&lt;/span>&lt;span class="o">&amp;lt;&lt;/span>&lt;span class="n">String&lt;/span>&lt;span class="o">&amp;gt;&lt;/span> &lt;span class="n">output&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">apply&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;Create&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="n">Create&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">of&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;hello&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;world&amp;#34;&lt;/span>&lt;span class="o">));&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">PAssert&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">that&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="n">output&lt;/span>&lt;span class="o">).&lt;/span>&lt;span class="na">containsInAnyOrder&lt;/span>&lt;span class="o">(&lt;/span>&lt;span class="s">&amp;#34;hello&amp;#34;&lt;/span>&lt;span class="o">,&lt;/span> &lt;span class="s">&amp;#34;world&amp;#34;&lt;/span>&lt;span class="o">);&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">pipeline&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="na">run&lt;/span>&lt;span class="o">();&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="o">}&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="dofn-outputreceiver-fluent-outputbuilder-api-for-extended-metadata-2690httpsgithubcomapachebeamissues34902">DoFn OutputReceiver fluent OutputBuilder API for extended metadata (&lt;a href="https://github.com/apache/beam/issues/34902">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>To support extensible per-element metadata (such as Change Data Capture operations, OpenTelemetry trace propagation, and pipeline drain indicators) without introducing combinatorial &lt;code>outputWith*&lt;/code> method overloads on &lt;code>OutputReceiver&lt;/code> and &lt;code>ProcessContext&lt;/code>, &lt;code>DoFn.OutputReceiver&lt;/code> now provides a fluent &lt;code>OutputBuilder&lt;/code> API (&lt;code>receiver.builder(element)...output()&lt;/code>). See the &lt;a href="https://s.apache.org/beam-element-extended-metadata">Beam Element Extended Metadata design doc&lt;/a> for details.&lt;/p>
+&lt;h3 id="python">Python&lt;/h3>
+&lt;h4 id="dataclass-backed-beam-portable-row-2730httpsgithubcomapachebeamissues22085">Dataclass-backed Beam portable Row (&lt;a href="https://github.com/apache/beam/issues/22085">&lt;strong>2.73.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Python 3.7 (PEP 557) introduced &lt;code>dataclass&lt;/code> and recommended it over &lt;code>NamedTuple&lt;/code>, while the Beam Python SDK previously only used &lt;code>NamedTuple&lt;/code> for Beam Rows under the Beam portable schema framework.&lt;/p>
+&lt;p>Beam Row also had limited support for custom types: an arbitrary object type could be assigned to a Beam Row and work within the Python SDK, yet break across language boundaries.&lt;/p>
+&lt;p>Incremental improvements have been made to address these limitations:&lt;/p>
+&lt;ul>
+&lt;li>
+&lt;p>Support &lt;code>dataclass&lt;/code> for Beam Row (&lt;a href="https://github.com/apache/beam/issues/22085">&lt;strong>2.73.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Preserving registered &lt;code>NamedTuple&lt;/code> and &lt;code>dataclass&lt;/code> types with &lt;code>register_row&lt;/code> and field type inference (&lt;a href="https://github.com/apache/beam/issues/38108">&lt;strong>2.74.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/38797">&lt;strong>2.75.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;li>
+&lt;p>Support for Python user types in Beam SQL (&lt;a href="https://github.com/apache/beam/issues/20738">&lt;strong>2.74.0&lt;/strong>&lt;/a>).&lt;/p>
+&lt;/li>
+&lt;/ul>
+&lt;p>Using Beam SQL with the Python SDK now supports rows containing arbitrary Python user types, as well as Python built-in types:&lt;/p>
+&lt;div class="highlight">&lt;pre tabindex="0" class="chroma">&lt;code class="language-python" data-lang="python">&lt;span class="line">&lt;span class="cl">&lt;span class="k">class&lt;/span> &lt;span class="nc">Arbitrary&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__init__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">obj&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">obj&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="n">obj&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">def&lt;/span> &lt;span class="fm">__eq__&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="bp">self&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">other&lt;/span>&lt;span class="p">):&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="k">return&lt;/span> &lt;span class="bp">self&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">obj&lt;/span> &lt;span class="o">==&lt;/span> &lt;span class="n">other&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">obj&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="k">with&lt;/span> &lt;span class="n">Pipeline&lt;/span>&lt;span class="p">()&lt;/span> &lt;span class="k">as&lt;/span> &lt;span class="n">p&lt;/span>&lt;span class="p">:&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">out&lt;/span> &lt;span class="o">=&lt;/span> &lt;span class="p">(&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">p&lt;/span> &lt;span class="o">|&lt;/span> &lt;span class="n">beam&lt;/span>&lt;span class="o">.&lt;/span>&lt;span class="n">Create&lt;/span>&lt;span class="p">([&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">UserRow&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">Arbitrary&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mf">1.0&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="mi">1&lt;/span> &lt;span class="o">+&lt;/span> &lt;span class="mf">2.5&lt;/span>&lt;span class="n">j&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="n">UserRow&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="p">,&lt;/span> &lt;span class="n">Arbitrary&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;abc&amp;#34;&lt;/span>&lt;span class="p">),&lt;/span> &lt;span class="o">-&lt;/span>&lt;span class="mi">1&lt;/span>&lt;span class="n">j&lt;/span>&lt;span class="p">),&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="p">])&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl"> &lt;span class="o">|&lt;/span> &lt;span class="n">SqlTransform&lt;/span>&lt;span class="p">(&lt;/span>&lt;span class="s2">&amp;#34;SELECT arb, complex FROM PCOLLECTION&amp;#34;&lt;/span>&lt;span class="p">))&lt;/span>
+&lt;/span>&lt;/span>&lt;span class="line">&lt;span class="cl">&lt;span class="c1"># result: [(Arbitrary(1.0), 1 + 2.5j), (Arbitrary(&amp;#34;abc&amp;#34;), -1j)]&lt;/span>
+&lt;/span>&lt;/span>&lt;/code>&lt;/pre>&lt;/div>&lt;h4 id="made-beartype-the-default-fallback-runtime-type-checker-2740httpsgithubcomapachebeamissues38275">Made Beartype the default fallback runtime type checker (&lt;a href="https://github.com/apache/beam/issues/38275">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Beam&amp;rsquo;s custom typehint system previously fell back to &lt;code>Any&lt;/code> for newer standard Python &lt;code>typing&lt;/code> constructs. Integrating &lt;code>beartype&lt;/code> as the default fallback enables fast runtime type checking for modern Python type annotations (which can be disabled if needed via &lt;code>--disable_beartype&lt;/code>).&lt;/p>
+&lt;h4 id="enhanced-typehint-support">Enhanced typehint support&lt;/h4>
+&lt;ul>
+&lt;li>for tagged output type hints (&lt;a href="https://github.com/apache/beam/issues/37434">&lt;strong>2.72.0&lt;/strong>&lt;/a>)&lt;/li>
+&lt;li>for exception handling (&lt;a href="https://github.com/apache/beam/issues/37590">&lt;strong>2.73.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/38173">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/li>
+&lt;/ul>
+&lt;h4 id="python-split-optional-dependencies-2690httpsgithubcomapachebeamissues21298-2700httpsgithubcomapachebeamissues34554">[Python] Split optional dependencies (&lt;a href="https://github.com/apache/beam/issues/21298">&lt;strong>2.69.0&lt;/strong>&lt;/a>, &lt;a href="https://github.com/apache/beam/issues/34554">&lt;strong>2.70.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Feature- and connector-specific dependencies (&lt;code>dill&lt;/code>, &lt;code>hadoop&lt;/code>, &lt;code>redis&lt;/code>, &lt;code>interactive&lt;/code>, &lt;code>tfrecord&lt;/code>, &lt;code>yaml&lt;/code>) have been split out of the core &lt;code>apache-beam&lt;/code> package into optional extras (e.g., &lt;code>pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]&lt;/code>), reducing the default installation footprint and minimizing transitive dependency conflicts.&lt;/p>
+&lt;h2 id="deprecations">Deprecations&lt;/h2>
+&lt;h3 id="sunsets">Sunsets&lt;/h3>
+&lt;h4 id="runner-removed-apache-samza-runner-support-2740httpsgithubcomapachebeamissues35448">[Runner] Removed Apache Samza runner support (&lt;a href="https://github.com/apache/beam/issues/35448">&lt;strong>2.74.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>Apache Samza has been in a &amp;ldquo;dormant&amp;rdquo; state. As part of the Java 8 sunset, Samza runner support has been removed from Beam.&lt;/p>
+&lt;h4 id="io-removed-pubsub-lite-io-support-2720httpsgithubcomapachebeamissues37375">[IO] Removed Pub/Sub Lite IO support (&lt;a href="https://github.com/apache/beam/issues/37375">&lt;strong>2.72.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;p>GCP Pub/Sub Lite is no longer available for new customers after September 24, 2024. In line with this, Pub/Sub Lite IO has been sunset from Beam.&lt;/p>
+&lt;h3 id="deprecations-1">Deprecations&lt;/h3>
+&lt;p>Since the community has decided to keep the major version number for now and avoid deliberate breaking changes, the following components are marked as &lt;strong>deprecated&lt;/strong> while remaining available.&lt;/p>
+&lt;h4 id="java-deprecated-beam-euphoria-api-2690httpsgithubcomapachebeamissues29451">[Java] Deprecated Beam Euphoria API (&lt;a href="https://github.com/apache/beam/issues/29451">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="java-removed-deprecated-hadoop-2x-and-32x-versions-from-icebergio-2690httpsgithubcomapachebeamissues36282">[Java] Removed deprecated Hadoop 2.x and 3.2.x versions from IcebergIO (&lt;a href="https://github.com/apache/beam/issues/36282">&lt;strong>2.69.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="python-deprecated-native-python-spannerio-in-favor-of-cross-language-wrapper-2680httpsgithubcomapachebeamissues35860">[Python] Deprecated native Python SpannerIO in favor of cross-language wrapper (&lt;a href="https://github.com/apache/beam/issues/35860">&lt;strong>2.68.0&lt;/strong>&lt;/a>)&lt;/h4>
+&lt;h4 id="runner-deprecated-twister2-runner-support-2680httpsgithubcomapachebeamissues35905">[Runner] Deprecated Twister2 runner support (&lt;a href="https://github.com/apache/beam/issues/35905">&lt;strong>2.68.0&lt;/strong>&lt;/a>)&lt;/h4></description></item><item><title>Blog: UnboundedSource and the Watch Transform in the Apache Beam Python SDK</title><link>/blog/python-unboundedsource-watch/</link><pubDate>Thu, 10 Sep 2026 00:00:00 +1000</pubDate><guid>/blog/python-unboundedsource-watch/</guid><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -5885,27 +6054,4 @@ can also be used to display such version information.&lt;/p>
 &lt;p>We hope you find this
 useful. &lt;a href="https://beam.apache.org/community/contact-us/">Feedback&lt;/a> and
 contributions are always welcome! So feel free to create a GitHub issue, or open
-a Pull Request if you encounter any problem when using those artifacts.&lt;/p></description></item><item><title>Blog: Getting started with Apache Beam: An open source proficiency credential sponsored by Google Cloud</title><link>/blog/beamquest/</link><pubDate>Tue, 06 Jun 2023 00:00:01 -0800</pubDate><guid>/blog/beamquest/</guid><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>&lt;img class="center-block"
-src="/images/blog/beam-badge-image-scaled.png"
-alt="Quest image">&lt;/p>
-&lt;p>We’re excited to announce the release of the &lt;a href="https://www.cloudskillsboost.google/course_templates/724">“Getting Started with Apache Beam” quest&lt;/a>, a series of four online labs that venture into different Apache Beam concepts. When you complete all four labs, you’ll earn a Google Cloud badge that you can share on platforms like LinkedIn. Earning this badge should take less than seven hours total, and signing up for the quest costs $20 (there are often free specials for people who attend Beam events, such as &lt;a href="https://www.meetup.com/topics/apache-beam/">Meetups&lt;/a>, &lt;a href="https://beamsummit.org/">Beam Summit&lt;/a>, and &lt;a href="https://beamcollege.dev/">Beam College&lt;/a>).&lt;/p>
-&lt;blockquote>
-&lt;p>&lt;em>&amp;ldquo;I really like the workshop to be honest. I learnt a lot from doing those labs. I would suggest we offer that for any new members to Beam&amp;rdquo;&lt;/em> &amp;ndash; Shunping Huang, Software Engineer&lt;/p>
-&lt;/blockquote>
-&lt;p>Beam is one of the largest big data open source projects actively in development. Over the past six years, the Apache Beam community has seen tremendous growth in the number of contributors, committers, and users. If you’re a long time Beam user, you can now earn a badge to show your skills to potential employers. If you’re new to Beam, you can begin your learning journey with this quest. To attempt this quest, you don’t need any prior knowledge of data processing or distributed systems. All you need is elementary knowledge about programming.&lt;/p>
-&lt;p>Individuals aren’t the only ones who can benefit from completing this quest - organizations can too! Because earning this badge represents deep knowledge of an industry leading big data library, having the badge validates your organization’s understanding of Beam. In addition, you can run the Beam library on a wide variety of runners, including Google Cloud Dataflow, Flink, Spark, and more, making knowledge about this library highly transferable. Finally, your organization can use this quest as onboarding material for new hires on big data teams, allowing teams and organizations to get their newest employees up-to-date on the latest and greatest that Apache Beam has to offer.&lt;/p>
-&lt;p>Data Processing is a key part of AI/ML workflows. Given the recent advancements in artificial intelligence, now’s the time to jump into the world of data processing! Get started on your journey &lt;a href="https://www.cloudskillsboost.google/quests/310">here&lt;/a>.&lt;/p>
-&lt;p>We are currently offering this quest &lt;strong>FREE OF CHARGE&lt;/strong>. To obtain your badge for &lt;strong>FREE&lt;/strong>, use the &lt;a href="https://www.cloudskillsboost.google/catalog?qlcampaign=1h-swiss-19">Access Code&lt;/a>, create an account, and search &lt;a href="https://www.cloudskillsboost.google/course_templates/724">&amp;ldquo;Getting Started with Apache Beam&amp;rdquo;&lt;/a>. If the code does not work, please email &lt;a href="dev@beam.apache.org">dev@beam.apache.org&lt;/a> to obtain a free code.&lt;/p>
-&lt;p>PS: Once you earn your badge, please &lt;a href="https://support.google.com/qwiklabs/answer/9222527?hl=en&amp;amp;sjid=14905615709060962899-NA">share it on social media&lt;/a>!&lt;/p></description></item></channel></rss>
+a Pull Request if you encounter any problem when using those artifacts.&lt;/p></description></item></channel></rss>
