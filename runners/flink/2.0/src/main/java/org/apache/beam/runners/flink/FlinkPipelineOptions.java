@@ -360,7 +360,10 @@ public interface FlinkPipelineOptions
   void setFlinkConfDir(String confDir);
 
   @Description(
-      "Set the maximum size of input split when data is read from a filesystem. 0 implies no max size.")
+      "Set the maximum size in MiB of input splits when data is read from a filesystem. 0 implies "
+          + "no max size. Rarely needed: bounded sources are re-split by default so that uneven "
+          + "file sizes are evenly distributed over the readers. Only use it to force splits "
+          + "smaller than the runner would pick.")
   @Default.Long(0)
   Long getFileInputSplitMaxSizeMB();
 

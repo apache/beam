@@ -18,9 +18,11 @@
 package org.apache.beam.runners.flink.translation.wrappers;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.LongSummaryStatistics;
 import java.util.PriorityQueue;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -190,7 +192,7 @@ public final class BoundedSourceSplitter {
         estimatedSizeBytes,
         desiredSizeBytes,
         readers,
-        allSizesKnown(splits) ? coefficientOfVariation(splits) : "unknown");
+        allSizesKnown(splits) ? format(coefficientOfVariation(splits)) : "unknown");
 
     List<BoundedSource<T>> result = new ArrayList<>(splits.size());
     for (SizedSource<T> split : splits) {
@@ -218,14 +220,42 @@ public final class BoundedSourceSplitter {
       long minTargetBytes,
       long maxSplitSizeBytes,
       int roundsLeft) {
-    if (roundsLeft == 0 || coefficientOfVariation(splits) <= MAX_SIZE_COEFFICIENT_OF_VARIATION) {
+    int round = MAX_RESPLIT_ROUNDS - roundsLeft + 1;
+    double cv = coefficientOfVariation(splits);
+    if (cv <= MAX_SIZE_COEFFICIENT_OF_VARIATION) {
+      LOG.info(
+          "Size balancing round {}: split size coefficient of variation {} is at most {}, done: {}",
+          round,
+          format(cv),
+          MAX_SIZE_COEFFICIENT_OF_VARIATION,
+          describe(splits));
+      return splits;
+    }
+    if (roundsLeft == 0) {
+      LOG.info(
+          "Size balancing: stopping after {} rounds with split size coefficient of variation {}: "
+              + "{}",
+          MAX_RESPLIT_ROUNDS,
+          format(cv),
+          describe(splits));
       return splits;
     }
     long targetBytes = Math.min(Math.max((long) mean(splits), minTargetBytes), maxSplitSizeBytes);
+    LOG.info(
+        "Size balancing round {}: split size coefficient of variation {} is above {}, re-splitting "
+            + "towards {} bytes",
+        round,
+        format(cv),
+        MAX_SIZE_COEFFICIENT_OF_VARIATION,
+        targetBytes);
     List<SizedSource<T>> next = resplitLargerThan(splits, options, targetBytes);
     if (next.size() > splits.size() && allSizesKnown(next)) {
       return balanceSizes(next, options, minTargetBytes, maxSplitSizeBytes, roundsLeft - 1);
     } else {
+      LOG.info(
+          "Size balancing round {}: no progress (or unknown sizes), keeping: {}",
+          round,
+          describe(splits));
       return splits;
     }
   }
@@ -233,16 +263,28 @@ public final class BoundedSourceSplitter {
   /** Re-splits, once, each split larger than {@link #OVERSIZED_SPLIT_FACTOR} x the target. */
   private static <T> List<SizedSource<T>> resplitLargerThan(
       List<SizedSource<T>> splits, PipelineOptions options, long targetBytes) {
-    return splits.stream()
-        .flatMap(
-            split -> {
-              if (split.sizeBytes > OVERSIZED_SPLIT_FACTOR * targetBytes) {
-                return resplit(split, options, targetBytes).stream();
-              } else {
-                return Stream.of(split);
-              }
-            })
-        .collect(Collectors.toList());
+    long thresholdBytes = (long) (OVERSIZED_SPLIT_FACTOR * targetBytes);
+    long oversized = splits.stream().filter(split -> split.sizeBytes > thresholdBytes).count();
+    List<SizedSource<T>> result =
+        splits.stream()
+            .flatMap(
+                split -> {
+                  if (split.sizeBytes > OVERSIZED_SPLIT_FACTOR * targetBytes) {
+                    return resplit(split, options, targetBytes).stream();
+                  } else {
+                    return Stream.of(split);
+                  }
+                })
+            .collect(Collectors.toList());
+    LOG.info(
+        "Re-split {} of {} splits larger than {} bytes towards {} bytes: {} -> {}",
+        oversized,
+        splits.size(),
+        thresholdBytes,
+        targetBytes,
+        describe(splits),
+        describe(result));
+    return result;
   }
 
   /**
@@ -270,6 +312,15 @@ public final class BoundedSourceSplitter {
     }
     List<SizedSource<T>> result = new ArrayList<>(candidates);
     result.addAll(unsplittable);
+    LOG.info(
+        "Split count balancing for {} readers: {} -> {} splits ({} could not be halved), busiest "
+            + "reader gets {} splits for an average of {}",
+        readers,
+        splits.size(),
+        result.size(),
+        unsplittable.size(),
+        ((long) result.size() + readers - 1) / readers,
+        format((double) result.size() / readers));
     return result;
   }
 
@@ -321,7 +372,51 @@ public final class BoundedSourceSplitter {
       }
       ordered.addAll(row);
     }
+    LOG.info(
+        "Ordered {} splits for round-robin over {} readers: busiest reader load / average went "
+            + "from {} to {}",
+        ordered.size(),
+        readers,
+        format(busiestReaderLoad(splits, readers)),
+        format(busiestReaderLoad(ordered, readers)));
     return ordered;
+  }
+
+  /** Bytes of the busiest reader relative to the average, with split i on reader i % readers. */
+  private static double busiestReaderLoad(List<? extends SizedSource<?>> splits, int readers) {
+    long[] loads = new long[readers];
+    long total = 0;
+    int index = 0;
+    for (SizedSource<?> split : splits) {
+      loads[index++ % readers] += split.sizeBytes;
+      total += split.sizeBytes;
+    }
+    if (total <= 0) {
+      return 1.0;
+    }
+    return Arrays.stream(loads).max().getAsLong() / ((double) total / readers);
+  }
+
+  private static String format(double value) {
+    return String.format("%.3f", value);
+  }
+
+  /** Short description of the splits for logging. */
+  private static String describe(List<? extends SizedSource<?>> splits) {
+    if (!allSizesKnown(splits)) {
+      return splits.size() + " splits (sizes unknown)";
+    }
+    LongSummaryStatistics sizes = new LongSummaryStatistics();
+    for (SizedSource<?> split : splits) {
+      sizes.accept(split.sizeBytes);
+    }
+    return String.format(
+        "%d splits, size min/mean/max %d/%.0f/%d bytes, coefficient of variation %.3f",
+        sizes.getCount(),
+        sizes.getMin(),
+        sizes.getAverage(),
+        sizes.getMax(),
+        coefficientOfVariation(splits));
   }
 
   private static <T> List<SizedSource<T>> resplit(
