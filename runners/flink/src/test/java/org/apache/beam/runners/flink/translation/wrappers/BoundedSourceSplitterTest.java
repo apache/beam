@@ -82,7 +82,6 @@ public class BoundedSourceSplitterTest {
     List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 4, 11_200);
 
     assertEquals(11_200, totalSize(splits));
-    assertEquals(0, splits.size() % 4);
     long[] perReader = perReaderSizes(splits, 4);
     long max = Arrays.stream(perReader).max().getAsLong();
     long min = Arrays.stream(perReader).min().getAsLong();
@@ -104,17 +103,31 @@ public class BoundedSourceSplitterTest {
   }
 
   @Test
-  public void testToleratesSplitCountCloseToMultipleOfParallelism() throws Exception {
+  public void testAcceptsSplitCountWithManySplitsPerReader() throws Exception {
+    // 39 splits for 4 readers: the busiest reader gets 10 splits for an average of 9.75.
+    List<BoundedSource<Long>> splits =
+        BoundedSourceSplitter.split(equalFiles(39, 1000), options, 4, 39_000);
+
+    assertEquals(39, splits.size());
+  }
+
+  @Test
+  public void testHalvesSplitsWithFewSplitsPerReader() throws Exception {
+    // 11 splits for 10 readers: the busiest reader would get 2 splits for an average of 1.1.
+    // Halving stops at 19 splits: 2 splits for an average of 1.9.
+    List<BoundedSource<Long>> splits =
+        BoundedSourceSplitter.split(equalFiles(11, 1000), options, 10, 11_000);
+
+    assertEquals(19, splits.size());
+    assertEquals(11_000, totalSize(splits));
+  }
+
+  private static BoundedSource<Long> equalFiles(int count, long sizeBytes) {
     List<RangeSource> files = new ArrayList<>();
-    for (int i = 0; i < 21; i++) {
-      files.add(range(i * 1000, (i + 1) * 1000));
+    for (int i = 0; i < count; i++) {
+      files.add(range(i * sizeBytes, (i + 1) * sizeBytes));
     }
-    BoundedSource<Long> source = new CoarseSource(files);
-
-    // 21 splits for 20 readers is within 10% of a multiple: nothing is halved.
-    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 20, 21_000);
-
-    assertEquals(21, splits.size());
+    return new CoarseSource(files);
   }
 
   @Test

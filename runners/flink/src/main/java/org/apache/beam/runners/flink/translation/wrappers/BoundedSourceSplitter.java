@@ -47,8 +47,8 @@ import org.slf4j.LoggerFactory;
  *       return splits way larger than requested.
  *   <li>While the split sizes vary a lot (high coefficient of variation), re-split the larger
  *       splits.
- *   <li>Halve the largest splits until the number of splits is close to a multiple of the
- *       parallelism.
+ *   <li>Halve the largest splits until round-robin assignment gives each reader about the same
+ *       number of splits.
  *   <li>Order the splits so that round-robin assignment gives each reader a similar amount of data.
  * </ol>
  *
@@ -69,10 +69,11 @@ public final class BoundedSourceSplitter {
   static final double OVERSIZED_SPLIT_FACTOR = 1.5;
 
   /**
-   * How far, as a fraction of the parallelism, the split count may be from a multiple of the
-   * parallelism. Re-splitting introduces some skew anyway, so an exact multiple is not required.
+   * How many more splits than the average the busiest reader may get with round-robin assignment,
+   * as a fraction of the average. Re-splitting introduces some skew anyway, so the split count does
+   * not need to be an exact multiple of the parallelism.
    */
-  static final double MULTIPLE_OF_PARALLELISM_TOLERANCE = 0.1;
+  static final double SPLIT_COUNT_IMBALANCE_TOLERANCE = 0.1;
 
   /** Lower bound of the balancing target size, relative to {@code estimatedSize/parallelism}. */
   static final int MAX_SPLITS_PER_READER_FOR_BALANCING = 4;
@@ -152,7 +153,7 @@ public final class BoundedSourceSplitter {
       long minTargetBytes =
           Math.max(1L, estimatedSizeBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
       splits = balanceSizes(splits, options, minTargetBytes, maxSplitSizeBytes, MAX_RESPLIT_ROUNDS);
-      splits = roundToMultipleOfParallelism(splits, options, readers);
+      splits = balanceSplitCount(splits, options, readers);
       splits = orderForRoundRobin(splits, readers);
     }
 
@@ -221,10 +222,11 @@ public final class BoundedSourceSplitter {
   }
 
   /**
-   * Halves the largest splits until the number of splits is close to a multiple of the parallelism.
-   * Splits that cannot be halved are set aside so they are not retried. The result is not ordered.
+   * Halves the largest splits until round-robin assignment gives each reader about the same number
+   * of splits. Splits that cannot be halved are set aside so they are not retried. The result is
+   * not ordered.
    */
-  private static <T> List<SizedSource<T>> roundToMultipleOfParallelism(
+  private static <T> List<SizedSource<T>> balanceSplitCount(
       List<SizedSource<T>> splits, PipelineOptions options, int readers) {
     PriorityQueue<SizedSource<T>> candidates = new PriorityQueue<>(bySizeDescending());
     candidates.addAll(splits);
@@ -232,7 +234,7 @@ public final class BoundedSourceSplitter {
     for (int attempt = 0;
         attempt < 2 * readers
             && !candidates.isEmpty()
-            && !isCloseToMultipleOf(candidates.size() + unsplittable.size(), readers);
+            && !isBalancedEnough(candidates.size() + unsplittable.size(), readers);
         attempt++) {
       SizedSource<T> largest = candidates.remove();
       List<SizedSource<T>> halves = halve(largest, options);
@@ -248,12 +250,13 @@ public final class BoundedSourceSplitter {
   }
 
   /**
-   * Whether {@code count} is within {@link #MULTIPLE_OF_PARALLELISM_TOLERANCE} x {@code readers} of
-   * a multiple of {@code readers}, e.g. 1.1x or 1.9x the parallelism with a 10% tolerance.
+   * Whether round-robin assignment of {@code count} splits gives the busiest reader at most {@link
+   * #SPLIT_COUNT_IMBALANCE_TOLERANCE} more splits than the average. For example 1.9x the
+   * parallelism is fine (2 / 1.9 = 1.05), but 1.1x is not (2 / 1.1 = 1.82).
    */
-  private static boolean isCloseToMultipleOf(int count, int readers) {
-    int remainder = count % readers;
-    return Math.min(remainder, readers - remainder) <= MULTIPLE_OF_PARALLELISM_TOLERANCE * readers;
+  private static boolean isBalancedEnough(int count, int readers) {
+    long busiest = ((long) count + readers - 1) / readers;
+    return busiest * readers <= (1 + SPLIT_COUNT_IMBALANCE_TOLERANCE) * count;
   }
 
   /** Splits {@code split} in two, or returns it alone if that is not possible. */
