@@ -131,7 +131,11 @@ final class SizeBasedFlinkSourceSplitEnumerator<T>
     AssignmentMode selectedMode = selectAssignmentMode(estimatedSizeBytes);
     ArrayList<FlinkSourceSplit<T>> splits =
         FlinkSourceSplitUtils.splitBoundedSource(
-            boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
+            boundedSource,
+            pipelineOptions,
+            numSplits,
+            context.currentParallelism(),
+            estimatedSizeBytes);
     return new FlinkSourceEnumeratorState<>(selectedMode, splits);
   }
 

@@ -42,10 +42,12 @@ final class FlinkSourceSplitUtils {
       BoundedSource<T> boundedSource,
       PipelineOptions pipelineOptions,
       int numSplits,
+      int parallelism,
       long estimatedSizeBytes)
       throws Exception {
     return toFlinkSplits(
-        BoundedSourceSplitter.split(boundedSource, pipelineOptions, numSplits, estimatedSizeBytes));
+        BoundedSourceSplitter.split(
+            boundedSource, pipelineOptions, numSplits, parallelism, estimatedSizeBytes));
   }
 
   static <T> ArrayList<FlinkSourceSplit<T>> splitUnboundedSource(

@@ -121,9 +121,26 @@ public final class BoundedSourceSplitter {
   public static <T> List<BoundedSource<T>> split(
       BoundedSource<T> source, PipelineOptions options, int parallelism, long estimatedSizeBytes)
       throws Exception {
+    return split(source, options, parallelism, parallelism, estimatedSizeBytes);
+  }
+
+  /**
+   * Splits {@code source} into about {@code numSplits} splits for {@code parallelism} readers.
+   * {@code numSplits} sets the desired split size, while {@code parallelism} must be the number of
+   * readers splits are assigned to, as split {@code i} is assumed to go to reader {@code i %
+   * parallelism}.
+   */
+  public static <T> List<BoundedSource<T>> split(
+      BoundedSource<T> source,
+      PipelineOptions options,
+      int numSplits,
+      int parallelism,
+      long estimatedSizeBytes)
+      throws Exception {
     int readers = Math.max(1, parallelism);
     long maxSplitSizeBytes = maxSplitSizeBytes(source, options);
-    long desiredSizeBytes = Math.min(Math.max(1L, estimatedSizeBytes / readers), maxSplitSizeBytes);
+    long desiredSizeBytes =
+        Math.min(Math.max(1L, estimatedSizeBytes / Math.max(1, numSplits)), maxSplitSizeBytes);
 
     List<SizedSource<T>> splits = sized(source.split(desiredSizeBytes, options), options);
     int initialSplits = splits.size();

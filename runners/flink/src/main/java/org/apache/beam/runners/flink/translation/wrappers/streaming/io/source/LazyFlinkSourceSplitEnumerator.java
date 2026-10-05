@@ -156,7 +156,11 @@ public class LazyFlinkSourceSplitEnumerator<T>
     long estimatedSizeBytes =
         FlinkSourceSplitUtils.estimateBoundedSourceSize(boundedSource, pipelineOptions);
     return FlinkSourceSplitUtils.splitBoundedSource(
-        boundedSource, pipelineOptions, numSplits, estimatedSizeBytes);
+        boundedSource,
+        pipelineOptions,
+        numSplits,
+        context.currentParallelism(),
+        estimatedSizeBytes);
   }
 
   private void sendPendingSplitRequests() {

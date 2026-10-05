@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers;
 
+import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -117,9 +118,25 @@ public class BoundedSourceSplitterTest {
   }
 
   @Test
+  public void testOrdersSplitsForParallelismRatherThanNumSplits() throws Exception {
+    BoundedSource<Long> source =
+        new CoarseSource(
+            Arrays.asList(
+                new UnsplittableSource(4),
+                new UnsplittableSource(3),
+                new UnsplittableSource(2),
+                new UnsplittableSource(1)));
+
+    // 4 splits requested, but assigned round-robin to 2 readers.
+    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 4, 2, 10);
+
+    assertArrayEquals(new long[] {5, 5}, perReaderSizes(splits, 2));
+  }
+
+  @Test
   public void testKeepsUnsplittableSources() throws Exception {
     BoundedSource<Long> source =
-        new CoarseSource(Arrays.asList(new UnsplittableSource(), new UnsplittableSource()));
+        new CoarseSource(Arrays.asList(new UnsplittableSource(1), new UnsplittableSource(1)));
 
     List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 4, 2);
 
@@ -214,6 +231,12 @@ public class BoundedSourceSplitterTest {
   }
 
   private static class UnsplittableSource extends TestSource {
+    private final long sizeBytes;
+
+    UnsplittableSource(long sizeBytes) {
+      this.sizeBytes = sizeBytes;
+    }
+
     @Override
     public List<UnsplittableSource> split(long desiredSize, PipelineOptions options) {
       return Collections.singletonList(this);
@@ -221,7 +244,7 @@ public class BoundedSourceSplitterTest {
 
     @Override
     public long getEstimatedSizeBytes(PipelineOptions options) {
-      return 1;
+      return sizeBytes;
     }
   }
 }
