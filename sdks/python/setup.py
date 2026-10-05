@@ -335,7 +335,7 @@ def get_portability_package_data():
   return files
 
 
-python_requires = '>=3.10'
+python_requires = '>=3.11'
 
 if sys.version_info.major == 3 and sys.version_info.minor >= 15:
   warnings.warn(
@@ -690,7 +690,6 @@ if __name__ == '__main__':
           'Intended Audience :: End Users/Desktop',
           'License :: OSI Approved :: Apache Software License',
           'Operating System :: POSIX :: Linux',
-          'Programming Language :: Python :: 3.10',
           'Programming Language :: Python :: 3.11',
           'Programming Language :: Python :: 3.12',
           'Programming Language :: Python :: 3.13',
