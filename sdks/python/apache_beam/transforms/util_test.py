@@ -2688,10 +2688,22 @@ class RegexTest(unittest.TestCase):
           label='CheckTwoGroups')
 
       assert_that(
-          pcol | 'no groups' >> util.Regex.find_all(
-              r'\w=\d', util.Regex.ALL, outputEmpty=False),
-          equal_to([[('a=1', ), ('b=2', )]]),
+          pcol | 'two non empty groups' >> util.Regex.find_all(
+              r'(\w)=(\d?)', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('a=1', 'a', '1'), ('b=2', 'b', '2')]]),
+          label='CheckTwoNonEmptyGroups')
+
+      digits = (p | 'create digits' >> beam.Create(['1 2']))
+      assert_that(
+          digits | 'no groups' >> util.Regex.find_all(r'\d*', util.Regex.ALL),
+          equal_to([[('1', ), ('', ), ('2', ), ('', )]]),
           label='CheckNoGroups')
+
+      assert_that(
+          digits | 'no groups non empty' >> util.Regex.find_all(
+              r'\d*', util.Regex.ALL, outputEmpty=False),
+          equal_to([[('1', ), ('2', )]]),
+          label='CheckNoGroupsNonEmpty')
 
   def test_find_kv(self):
     with TestPipeline() as p:
