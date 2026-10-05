@@ -78,6 +78,14 @@ public final class BoundedSourceSplitter {
   /** Lower bound of the balancing target size, relative to {@code estimatedSize/parallelism}. */
   static final int MAX_SPLITS_PER_READER_FOR_BALANCING = 4;
 
+  /**
+   * Splits are not re-split below this size by the refinement steps (the initial split is not
+   * affected), as the fixed cost of opening and reading a split would dominate. Small inputs still
+   * get one split per reader, as they may feed transforms that generate a lot more data: the floor
+   * is {@code min(MIN_SPLIT_SIZE_BYTES, estimatedSize/parallelism)}.
+   */
+  static final long MIN_SPLIT_SIZE_BYTES = 64 * MEBIBYTE;
+
   /** How bounded source splits are handed out to readers. */
   public enum Assignment {
     /** Splits are assigned to readers up front, round-robin. */
@@ -140,6 +148,8 @@ public final class BoundedSourceSplitter {
       throws Exception {
     int readers = Math.max(1, parallelism);
     long maxSplitSizeBytes = maxSplitSizeBytes(source, options);
+    long minSplitSizeBytes =
+        Math.max(1L, Math.min(MIN_SPLIT_SIZE_BYTES, estimatedSizeBytes / readers));
     long desiredSizeBytes =
         Math.min(Math.max(1L, estimatedSizeBytes / Math.max(1, numSplits)), maxSplitSizeBytes);
 
@@ -148,12 +158,14 @@ public final class BoundedSourceSplitter {
 
     // Some sources (e.g. BigQuery) return splits way larger than requested that can still be
     // split further.
-    splits = resplitLargerThan(splits, options, desiredSizeBytes);
+    splits = resplitLargerThan(splits, options, Math.max(desiredSizeBytes, minSplitSizeBytes));
     if (allSizesKnown(splits)) {
       long minTargetBytes =
-          Math.max(1L, estimatedSizeBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
+          Math.max(
+              minSplitSizeBytes,
+              estimatedSizeBytes / ((long) readers * MAX_SPLITS_PER_READER_FOR_BALANCING));
       splits = balanceSizes(splits, options, minTargetBytes, maxSplitSizeBytes, MAX_RESPLIT_ROUNDS);
-      splits = balanceSplitCount(splits, options, readers);
+      splits = balanceSplitCount(splits, options, readers, minSplitSizeBytes);
       splits = orderForRoundRobin(splits, readers);
     }
 
@@ -227,7 +239,7 @@ public final class BoundedSourceSplitter {
    * not ordered.
    */
   private static <T> List<SizedSource<T>> balanceSplitCount(
-      List<SizedSource<T>> splits, PipelineOptions options, int readers) {
+      List<SizedSource<T>> splits, PipelineOptions options, int readers, long minSplitSizeBytes) {
     PriorityQueue<SizedSource<T>> candidates = new PriorityQueue<>(bySizeDescending());
     candidates.addAll(splits);
     List<SizedSource<T>> unsplittable = new ArrayList<>();
@@ -237,7 +249,7 @@ public final class BoundedSourceSplitter {
             && !isBalancedEnough(candidates.size() + unsplittable.size(), readers);
         attempt++) {
       SizedSource<T> largest = candidates.remove();
-      List<SizedSource<T>> halves = halve(largest, options);
+      List<SizedSource<T>> halves = halve(largest, options, minSplitSizeBytes);
       if (halves.size() > 1) {
         candidates.addAll(halves);
       } else {
@@ -259,9 +271,13 @@ public final class BoundedSourceSplitter {
     return busiest * readers <= (1 + SPLIT_COUNT_IMBALANCE_TOLERANCE) * count;
   }
 
-  /** Splits {@code split} in two, or returns it alone if that is not possible. */
-  private static <T> List<SizedSource<T>> halve(SizedSource<T> split, PipelineOptions options) {
-    if (split.sizeBytes <= 1) {
+  /**
+   * Splits {@code split} in two, or returns it alone if that is not possible or would create splits
+   * smaller than {@code minSplitSizeBytes}.
+   */
+  private static <T> List<SizedSource<T>> halve(
+      SizedSource<T> split, PipelineOptions options, long minSplitSizeBytes) {
+    if (split.sizeBytes <= 1 || split.sizeBytes / 2 < minSplitSizeBytes) {
       return Collections.singletonList(split);
     }
     List<SizedSource<T>> parts = resplit(split, options, split.sizeBytes / 2);

@@ -36,6 +36,9 @@ import org.junit.Test;
 /** Tests for {@link BoundedSourceSplitter}. */
 public class BoundedSourceSplitterTest {
 
+  private static final long MIB = BoundedSourceSplitter.MEBIBYTE;
+  private static final long GIB = 1024 * MIB;
+
   private final FlinkPipelineOptions options = FlinkPipelineOptions.defaults();
 
   @Test
@@ -90,16 +93,12 @@ public class BoundedSourceSplitterTest {
 
   @Test
   public void testRoundsSplitCountToMultipleOfParallelism() throws Exception {
-    List<RangeSource> files = new ArrayList<>();
-    for (int i = 0; i < 5; i++) {
-      files.add(range(i * 1000, (i + 1) * 1000));
-    }
-    BoundedSource<Long> source = new CoarseSource(files);
+    // 5 splits for 4 readers: halving the largest splits ends at 8 splits.
+    List<BoundedSource<Long>> splits =
+        BoundedSourceSplitter.split(equalFiles(5, GIB), options, 4, 5 * GIB);
 
-    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 4, 5000);
-
-    assertEquals(0, splits.size() % 4);
-    assertEquals(5000, totalSize(splits));
+    assertEquals(8, splits.size());
+    assertEquals(5 * GIB, totalSize(splits));
   }
 
   @Test
@@ -116,10 +115,30 @@ public class BoundedSourceSplitterTest {
     // 11 splits for 10 readers: the busiest reader would get 2 splits for an average of 1.1.
     // Halving stops at 19 splits: 2 splits for an average of 1.9.
     List<BoundedSource<Long>> splits =
-        BoundedSourceSplitter.split(equalFiles(11, 1000), options, 10, 11_000);
+        BoundedSourceSplitter.split(equalFiles(11, GIB), options, 10, 11 * GIB);
 
     assertEquals(19, splits.size());
-    assertEquals(11_000, totalSize(splits));
+    assertEquals(11 * GIB, totalSize(splits));
+  }
+
+  @Test
+  public void testDoesNotHalveBelowMinSplitSize() throws Exception {
+    // Halving 100 MiB splits would create splits below the 64 MiB minimum.
+    List<BoundedSource<Long>> splits =
+        BoundedSourceSplitter.split(equalFiles(11, 100 * MIB), options, 10, 1100 * MIB);
+
+    assertEquals(11, splits.size());
+  }
+
+  @Test
+  public void testSmallInputStillGetsOneSplitPerReader() throws Exception {
+    // A 10 MiB input is below the minimum split size, but may feed transforms generating a lot
+    // more data, so it is still spread over all readers.
+    BoundedSource<Long> source = new CoarseSource(Collections.singletonList(range(0, 10 * MIB)));
+
+    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 10, 10 * MIB);
+
+    assertEquals(10, splits.size());
   }
 
   private static BoundedSource<Long> equalFiles(int count, long sizeBytes) {
