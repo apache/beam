@@ -41,9 +41,10 @@ import org.slf4j.LoggerFactory;
  * refined in several bounded passes:
  *
  * <ol>
- *   <li>Split the source using {@code estimatedSize / parallelism} as the desired split size,
- *       capped by {@link FlinkPipelineOptions#getFileInputSplitMaxSizeMB()} for file sources.
- *   <li>Re-split the splits that are much larger than the desired split size, as some sources
+ *   <li>Split the source using {@code estimatedSize / numSplits} as the desired split size, capped
+ *       by {@link FlinkPipelineOptions#getFileInputSplitMaxSizeMB()} for file sources.
+ *   <li>Re-split the splits that are much larger than {@code estimatedSize / (2 x parallelism)}, so
+ *       that each reader gets at least {@link #MIN_SPLITS_PER_READER} splits, and as some sources
  *       return splits way larger than requested.
  *   <li>While the split sizes vary a lot (high coefficient of variation), re-split the larger
  *       splits.
@@ -81,10 +82,18 @@ public final class BoundedSourceSplitter {
   /**
    * Splits are not re-split below this size by the refinement steps (the initial split is not
    * affected), as the fixed cost of opening and reading a split would dominate. Small inputs still
-   * get one split per reader, as they may feed transforms that generate a lot more data: the floor
-   * is {@code min(MIN_SPLIT_SIZE_BYTES, estimatedSize/parallelism)}.
+   * get {@link #MIN_SPLITS_PER_READER} splits per reader, as they may feed transforms that generate
+   * a lot more data: the floor is {@code min(MIN_SPLIT_SIZE_BYTES, estimatedSize /
+   * (MIN_SPLITS_PER_READER x parallelism))}.
    */
   static final long MIN_SPLIT_SIZE_BYTES = 64 * MEBIBYTE;
+
+  /**
+   * Number of splits each reader should get. With static round-robin assignment, two splits per
+   * reader let the ordering pair large splits with small ones, while a single split per reader
+   * passes any size difference straight to the slowest reader.
+   */
+  static final int MIN_SPLITS_PER_READER = 2;
 
   /** How bounded source splits are handed out to readers. */
   public enum Assignment {
@@ -148,17 +157,20 @@ public final class BoundedSourceSplitter {
       throws Exception {
     int readers = Math.max(1, parallelism);
     long maxSplitSizeBytes = maxSplitSizeBytes(source, options);
-    long minSplitSizeBytes =
-        Math.max(1L, Math.min(MIN_SPLIT_SIZE_BYTES, estimatedSizeBytes / readers));
+    long perReaderTargetBytes =
+        Math.max(1L, estimatedSizeBytes / ((long) readers * MIN_SPLITS_PER_READER));
+    long minSplitSizeBytes = Math.min(MIN_SPLIT_SIZE_BYTES, perReaderTargetBytes);
     long desiredSizeBytes =
         Math.min(Math.max(1L, estimatedSizeBytes / Math.max(1, numSplits)), maxSplitSizeBytes);
 
     List<SizedSource<T>> splits = sized(source.split(desiredSizeBytes, options), options);
     int initialSplits = splits.size();
 
-    // Some sources (e.g. BigQuery) return splits way larger than requested that can still be
-    // split further.
-    splits = resplitLargerThan(splits, options, Math.max(desiredSizeBytes, minSplitSizeBytes));
+    // Aim for MIN_SPLITS_PER_READER splits per reader. This also handles sources (e.g. BigQuery)
+    // that return splits way larger than requested that can still be split further.
+    long targetSizeBytes =
+        Math.max(Math.min(desiredSizeBytes, perReaderTargetBytes), minSplitSizeBytes);
+    splits = resplitLargerThan(splits, options, targetSizeBytes);
     if (allSizesKnown(splits)) {
       long minTargetBytes =
           Math.max(

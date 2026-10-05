@@ -65,10 +65,11 @@ public class BoundedSourceSplitterTest {
 
     List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 8, 8000);
 
-    assertEquals(8, splits.size());
+    // Two splits per reader.
+    assertEquals(16, splits.size());
     assertEquals(8000, totalSize(splits));
     for (BoundedSource<Long> split : splits) {
-      assertEquals(1000, split.getEstimatedSizeBytes(options));
+      assertEquals(500, split.getEstimatedSizeBytes(options));
     }
   }
 
@@ -92,12 +93,14 @@ public class BoundedSourceSplitterTest {
   }
 
   @Test
-  public void testRoundsSplitCountToMultipleOfParallelism() throws Exception {
-    // 5 splits for 4 readers: halving the largest splits ends at 8 splits.
+  public void testHalvesSplitsUntilSplitCountIsBalanced() throws Exception {
+    // Each 1 GiB file is re-split to the 640 MiB target (2 splits per reader): 10 splits, so the
+    // busiest of the 4 readers gets 3 splits for an average of 2.5. Halving one 640 MiB split gives
+    // 11 splits: 3 for an average of 2.75.
     List<BoundedSource<Long>> splits =
         BoundedSourceSplitter.split(equalFiles(5, GIB), options, 4, 5 * GIB);
 
-    assertEquals(8, splits.size());
+    assertEquals(11, splits.size());
     assertEquals(5 * GIB, totalSize(splits));
   }
 
@@ -112,33 +115,35 @@ public class BoundedSourceSplitterTest {
 
   @Test
   public void testHalvesSplitsWithFewSplitsPerReader() throws Exception {
-    // 11 splits for 10 readers: the busiest reader would get 2 splits for an average of 1.1.
-    // Halving stops at 19 splits: 2 splits for an average of 1.9.
+    // Each 1 GiB file is re-split to the ~563 MiB target (2 splits per reader): 22 splits, so the
+    // busiest of the 10 readers gets 3 splits for an average of 2.2. Halving stops at 28 splits: 3
+    // splits for an average of 2.8.
     List<BoundedSource<Long>> splits =
         BoundedSourceSplitter.split(equalFiles(11, GIB), options, 10, 11 * GIB);
 
-    assertEquals(19, splits.size());
+    assertEquals(28, splits.size());
     assertEquals(11 * GIB, totalSize(splits));
   }
 
   @Test
   public void testDoesNotHalveBelowMinSplitSize() throws Exception {
-    // Halving 100 MiB splits would create splits below the 64 MiB minimum.
+    // The 11 x 100 MiB splits are below the 110 MiB target for 5 readers, but the busiest reader
+    // gets 3 splits for an average of 2.2. Halving would create splits below the 64 MiB minimum.
     List<BoundedSource<Long>> splits =
-        BoundedSourceSplitter.split(equalFiles(11, 100 * MIB), options, 10, 1100 * MIB);
+        BoundedSourceSplitter.split(equalFiles(11, 100 * MIB), options, 5, 1100 * MIB);
 
     assertEquals(11, splits.size());
   }
 
   @Test
-  public void testSmallInputStillGetsOneSplitPerReader() throws Exception {
+  public void testSmallInputStillGetsTwoSplitsPerReader() throws Exception {
     // A 10 MiB input is below the minimum split size, but may feed transforms generating a lot
     // more data, so it is still spread over all readers.
     BoundedSource<Long> source = new CoarseSource(Collections.singletonList(range(0, 10 * MIB)));
 
     List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 10, 10 * MIB);
 
-    assertEquals(10, splits.size());
+    assertEquals(20, splits.size());
   }
 
   private static BoundedSource<Long> equalFiles(int count, long sizeBytes) {
