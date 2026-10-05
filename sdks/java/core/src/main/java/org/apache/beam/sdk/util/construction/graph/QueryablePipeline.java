@@ -60,8 +60,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.graph.NetworkB
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public API for runner authors, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class QueryablePipeline {
   // TODO: Is it better to have the signatures here require nodes in almost all contexts, or should
   // they all take strings? Nodes gives some degree of type signalling that names might not, but

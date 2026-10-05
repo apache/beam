@@ -60,9 +60,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
     value = {"IS2_INCONSISTENT_SYNC", "CT_CONSTRUCTOR_THROW"},
     justification =
         "Some access on purpose are left unsynchronized."
-            + " Public, so it cannot be made final despite @Internal."
-            + " Out-of-tree code such as a forked runner may already subclass it."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+            + " Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BoundedTrieData implements Serializable {
 
   private static final int DEFAULT_BOUND = 100; // Default maximum size of the trie

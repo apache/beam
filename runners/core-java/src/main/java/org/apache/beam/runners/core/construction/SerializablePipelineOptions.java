@@ -36,8 +36,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public API, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SerializablePipelineOptions implements Serializable {
   private static final ObjectMapper MAPPER =
       new ObjectMapper()

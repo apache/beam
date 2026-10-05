@@ -44,8 +44,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Table.
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public API, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class FnApiTimerBundleTracker<K> {
   private final Supplier<ByteString> encodedCurrentKeySupplier;
   private final Supplier<ByteString> encodedCurrentWindowSupplier;

@@ -51,8 +51,9 @@ import org.slf4j.LoggerFactory;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public API, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class JetRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(JetRunner.class);

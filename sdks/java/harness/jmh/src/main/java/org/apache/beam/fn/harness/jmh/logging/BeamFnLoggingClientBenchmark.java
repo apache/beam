@@ -85,8 +85,9 @@ public class BeamFnLoggingClientBenchmark {
   @SuppressFBWarnings(
       value = "CT_CONSTRUCTOR_THROW",
       justification =
-          "Subclassed inside Beam, so it cannot be made final."
-              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class ManageLoggingClientAndService {
     public final LoggingClient loggingClient;
     public final CallCountLoggingService loggingService;

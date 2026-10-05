@@ -101,8 +101,9 @@ import org.checkerframework.checker.nullness.qual.Nullable;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Mocked with Mockito in tests, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 class GcsUtilV2 {
   private static final org.slf4j.Logger LOG = org.slf4j.LoggerFactory.getLogger(GcsUtilV2.class);
 

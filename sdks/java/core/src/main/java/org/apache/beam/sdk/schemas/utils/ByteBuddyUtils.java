@@ -1571,8 +1571,9 @@ public class ByteBuddyUtils {
   @SuppressFBWarnings(
       value = "CT_CONSTRUCTOR_THROW",
       justification =
-          "Extended by StaticFactoryMethodInstruction, so it cannot be made final."
-              + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   static class InvokeUserCreateInstruction implements Implementation {
     protected final List<FieldValueTypeInformation> fields;
     protected final Class<?> targetClass;

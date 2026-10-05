@@ -27,8 +27,9 @@ import org.apache.beam.sdk.io.snowflake.data.SnowflakeDataType;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Subclassed inside Beam, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SnowflakeBinary implements SnowflakeDataType, Serializable {
 
   public static final Long MAX_SIZE = 8388608L;

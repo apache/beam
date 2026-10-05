@@ -42,9 +42,9 @@ import org.slf4j.LoggerFactory;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public, so it cannot be made final despite @Internal."
-            + " Out-of-tree code such as a forked runner may already subclass it."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class ExplicitShardedFile implements ShardedFile {
 
   private static final Logger LOG = LoggerFactory.getLogger(ExplicitShardedFile.class);

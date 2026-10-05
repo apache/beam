@@ -35,8 +35,9 @@ import org.slf4j.LoggerFactory;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public API, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class ReactiveThrottler extends AdaptiveThrottler {
   private static final Logger LOG = LoggerFactory.getLogger(ReactiveThrottler.class);
   private static final long SECONDS_TO_MILLISECONDS = 1000L;

@@ -142,9 +142,9 @@ import org.joda.time.format.PeriodFormat;
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public, so it cannot be made final despite @Internal."
-            + " Out-of-tree code such as a forked runner may already subclass it."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class FnApiDoFnRunner<InputT, RestrictionT, PositionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Object, BoundedWindow> {
   /** A registrar which provides a factory to handle Java {@link DoFn}s. */

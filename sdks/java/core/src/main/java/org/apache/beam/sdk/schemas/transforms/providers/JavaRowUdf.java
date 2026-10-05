@@ -61,8 +61,9 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams
 @SuppressFBWarnings(
     value = "CT_CONSTRUCTOR_THROW",
     justification =
-        "Public API, so it cannot be made final."
-            + " A finalizer attack needs an attacker-supplied subclass on the classpath.")
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class JavaRowUdf implements Serializable {
   private final Configuration config;
   private final Schema inputSchema;
