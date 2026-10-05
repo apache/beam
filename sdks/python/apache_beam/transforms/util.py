@@ -2235,7 +2235,7 @@ class Regex(object):
       matches = regex.finditer(element)
       if group == Regex.ALL:
         yield [(m.group(), *m.groups()) for m in matches
-               if outputEmpty or any(m.groups() or (m.group(), ))]
+               if outputEmpty or all(m.groups() or (m.group(), ))]
       else:
         yield [m.group(group) for m in matches if outputEmpty or m.group(group)]
 
