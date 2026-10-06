@@ -407,7 +407,7 @@ def parse_known_args(argv):
   parser.add_argument(
       '--feeder_start_delay_sec',
       type=int,
-      default=900,
+      default=100,
       help=(
           'Delay before starting the feeder pipeline that reads URIs from GCS '
           'and publishes them to Pub/Sub. This delay allows the main streaming '
@@ -631,21 +631,15 @@ def run(
             method=method))
 
   result = pipeline.run()
-  try:
-    result.wait_until_finish(duration=9000000)  # 150 min
-  finally:
-    try:
-      result.cancel()
-      result.wait_until_finish(duration=600000)  # up to 10 min to settle cancel
-    except Exception:
-      logging.debug("Failed to cancel pipeline result.", exc_info=True)
+  result.wait_until_finish(duration=1800000)  # 30 min
+  result.cancel()
+  result.wait_until_finish(duration=600000)  # up to 10 min to settle cancel
 
-    if known_args.mode == 'streaming':
-      cleanup_pubsub_resources(
-          project=known_args.project,
-          topic_path=known_args.pubsub_topic,
-          subscription_path=known_args.pubsub_subscription)
-
+  if known_args.mode == 'streaming':
+    cleanup_pubsub_resources(
+        project=known_args.project,
+        topic_path=known_args.pubsub_topic,
+        subscription_path=known_args.pubsub_subscription)
   return result
 
 
