@@ -66,18 +66,18 @@ Example usage::
     )
 """
 
-import asyncio
-import inspect
 import logging
 from collections.abc import Callable
 from collections.abc import Iterable
 from collections.abc import Sequence
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 from typing import Optional
+from typing import TypeVar
 
 from openai import APIConnectionError
 from openai import APIStatusError
-from openai import AsyncOpenAI
+from openai import OpenAI
 
 from apache_beam.ml.inference import utils
 from apache_beam.ml.inference.base import PredictionResult
@@ -91,6 +91,15 @@ __all__ = [
 ]
 
 LOGGER = logging.getLogger("OpenAIModelHandler")
+
+# Upper bound on the number of in-flight HTTP requests issued concurrently for
+# a single batch by request functions that call per-item endpoints (e.g. chat
+# completions). Bounds thread usage when adaptive batching produces large
+# batches; use max_batch_size to further limit per-batch concurrency.
+_MAX_CONCURRENT_REQUESTS_PER_BATCH = 32
+
+_InputT = TypeVar('_InputT')
+_OutputT = TypeVar('_OutputT')
 
 
 def _retry_on_appropriate_error(exception: Exception) -> bool:
@@ -113,112 +122,111 @@ def _retry_on_appropriate_error(exception: Exception) -> bool:
   return False
 
 
-def _run_async_with_client(client: AsyncOpenAI, coro: Any) -> Any:
-  """Runs a coroutine via asyncio.run and cleans up idle pool connections."""
-  async def _runner():
-    try:
-      return await coro
-    finally:
-      pool = getattr(
-          getattr(getattr(client, '_client', None), '_transport', None),
-          '_pool',
-          None)
-      aclose = getattr(pool, 'aclose', None)
-      if aclose is not None and inspect.iscoroutinefunction(aclose):
-        await aclose()
+def _fan_out(fn: Callable[[_InputT], _OutputT],
+             items: Sequence[_InputT]) -> list[_OutputT]:
+  """Applies fn to each item concurrently and returns results in input order.
 
-  return asyncio.run(_runner())
+  The synchronous OpenAI client is safe to share across threads (its
+  underlying connection pool is guarded by thread locks), so per-item requests
+  are dispatched on a bounded thread pool while reusing the client's pooled
+  connections. If any request raises, pending requests are cancelled and the
+  first exception (in input order) is propagated so Beam's retry logic can
+  handle the batch.
+  """
+  if len(items) <= 1:
+    return [fn(item) for item in items]
+  executor = ThreadPoolExecutor(
+      max_workers=min(len(items), _MAX_CONCURRENT_REQUESTS_PER_BATCH),
+      thread_name_prefix='OpenAIModelHandler')
+  try:
+    return list(executor.map(fn, items))
+  finally:
+    executor.shutdown(wait=True, cancel_futures=True)
 
 
 def chat_completion_from_string(
     model_name: str,
     batch: Sequence[str],
-    client: AsyncOpenAI,
+    client: OpenAI,
     inference_args: dict[str, Any]) -> list[Any]:
   """Request function that sends string prompts to OpenAI's Chat Completions API.
 
-  Each string in the batch is sent as a user message concurrently using
-  ``asyncio.gather``. If a 'system' parameter is provided in inference_args, a
-  system message is prepended. The results are returned as a list of
-  ChatCompletion response objects matching the batch order.
+  The Chat Completions endpoint accepts a single conversation per HTTP
+  request, so each string in the batch is sent as a separate user message
+  request, dispatched concurrently. If a 'system' parameter is provided in
+  inference_args, a system message is prepended. The results are returned as a
+  list of ChatCompletion response objects matching the batch order.
 
   Args:
     model_name: the OpenAI model to use (e.g. 'gpt-4o', 'gpt-4o-mini').
     batch: the string prompts to send to OpenAI.
-    client: the AsyncOpenAI client instance.
+    client: the OpenAI client instance.
     inference_args: additional arguments passed to the chat.completions.create
       call (e.g. 'temperature', 'max_tokens', 'response_format', 'system').
   """
   inf_args = dict(inference_args)
   system = inf_args.pop('system', None)
 
-  async def _async_request() -> list[Any]:
-    async_predictions = []
-    for prompt in batch:
-      messages: list[dict[str, Any]] = []
-      if system is not None:
-        messages.append({"role": "system", "content": system})
-      messages.append({"role": "user", "content": prompt})
-      async_predictions.append(
-          client.chat.completions.create(
-              model=model_name, messages=messages, **inf_args))
-    return list(await asyncio.gather(*async_predictions))
+  def _request(prompt: str) -> Any:
+    messages: list[dict[str, Any]] = []
+    if system is not None:
+      messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
+    return client.chat.completions.create(
+        model=model_name, messages=messages, **inf_args)
 
-  return _run_async_with_client(client, _async_request())
+  return _fan_out(_request, batch)
 
 
 def chat_completion_from_conversation(
     model_name: str,
     batch: Sequence[list[dict[str, Any]]],
-    client: AsyncOpenAI,
+    client: OpenAI,
     inference_args: dict[str, Any]) -> list[Any]:
   """Request function that sends multi-turn conversations to OpenAI.
 
   Each element in the batch is a list of message dicts (e.g. with 'role' and
-  'content' keys), representing a multi-turn conversation, dispatched
-  concurrently using ``asyncio.gather``. If a 'system' parameter is provided in
-  inference_args, a system message is prepended.
+  'content' keys), representing a multi-turn conversation. Conversations are
+  sent as separate requests, dispatched concurrently. If a 'system' parameter
+  is provided in inference_args, a system message is prepended.
 
   Args:
     model_name: the OpenAI model to use.
     batch: a sequence of conversations (each a list of message dicts).
-    client: the AsyncOpenAI client instance.
+    client: the OpenAI client instance.
     inference_args: additional arguments passed to the chat.completions.create
       call.
   """
   inf_args = dict(inference_args)
   system = inf_args.pop('system', None)
 
-  async def _async_request() -> list[Any]:
-    async_predictions = []
-    for conversation in batch:
-      messages: list[dict[str, Any]] = []
-      if system is not None:
-        messages.append({"role": "system", "content": system})
-      messages.extend(conversation)
-      async_predictions.append(
-          client.chat.completions.create(
-              model=model_name, messages=messages, **inf_args))
-    return list(await asyncio.gather(*async_predictions))
+  def _request(conversation: list[dict[str, Any]]) -> Any:
+    messages: list[dict[str, Any]] = []
+    if system is not None:
+      messages.append({"role": "system", "content": system})
+    messages.extend(conversation)
+    return client.chat.completions.create(
+        model=model_name, messages=messages, **inf_args)
 
-  return _run_async_with_client(client, _async_request())
+  return _fan_out(_request, batch)
 
 
 def embedding_from_string(
     model_name: str,
     batch: Sequence[str],
-    client: AsyncOpenAI,
+    client: OpenAI,
     inference_args: dict[str, Any]) -> list[Any]:
   """Request function that sends string inputs to OpenAI's Embeddings API.
 
-  The batch of string inputs is sent in a single batched request to
-  ``client.embeddings.create``. The returned embeddings are sorted by their
-  index to guarantee ordering matches the batch.
+  The Embeddings endpoint natively accepts a list of inputs, so the entire
+  batch is sent in a single request to ``client.embeddings.create``. The
+  returned embeddings are sorted by their index to guarantee ordering matches
+  the batch.
 
   Args:
     model_name: the OpenAI embedding model to use (e.g. 'text-embedding-3-small').
     batch: the string inputs to embed.
-    client: the AsyncOpenAI client instance.
+    client: the OpenAI client instance.
     inference_args: additional arguments passed to the embeddings.create call
       (e.g. 'dimensions', 'encoding_format').
 
@@ -226,22 +234,16 @@ def embedding_from_string(
     A list of Embedding objects matching the batch order.
   """
   inf_args = dict(inference_args)
-
-  async def _async_request() -> list[Any]:
-    response = await client.embeddings.create(
-        model=model_name, input=list(batch), **inf_args)
-    return sorted(response.data, key=lambda x: x.index)
-
-  return _run_async_with_client(client, _async_request())
+  response = client.embeddings.create(
+      model=model_name, input=list(batch), **inf_args)
+  return sorted(response.data, key=lambda x: x.index)
 
 
-class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
-                                            AsyncOpenAI]):
+class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult, OpenAI]):
   def __init__(
       self,
       model_name: str,
-      request_fn: Callable[[str, Sequence[Any], AsyncOpenAI, dict[str, Any]],
-                           Any],
+      request_fn: Callable[[str, Sequence[Any], OpenAI, dict[str, Any]], Any],
       api_key: Optional[str] = None,
       *,
       organization: Optional[str] = None,
@@ -262,11 +264,15 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
     do not provide backward compatibility guarantees.
 
     This handler connects to the OpenAI API using the OpenAI Python SDK
-    (``AsyncOpenAI``) to run inference using models such as GPT-4o,
-    GPT-4o-mini, or embedding models. It supports concurrent batch chat
-    completions from string prompts or multi-turn conversations, batched
-    embeddings, system prompts, structured outputs, and custom
-    OpenAI-compatible endpoints via `base_url`.
+    to run inference using models such as GPT-4o, GPT-4o-mini, or embedding
+    models. It supports chat completions from string prompts or multi-turn
+    conversations (with each batch's per-item requests dispatched
+    concurrently), natively batched embeddings, system prompts, structured
+    outputs, and custom OpenAI-compatible endpoints via `base_url`.
+
+    A single thread-safe ``OpenAI`` client is created per worker process and
+    shared across bundle-processing threads, so pooled HTTP connections are
+    reused across batches.
 
     Args:
       model_name: the OpenAI model to send requests to (e.g.
@@ -285,7 +291,7 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
         to target OpenAI-compatible servers (such as vLLM, Ollama, or
         Azure OpenAI endpoints).
       client_args: optional dictionary of additional keyword arguments
-        passed when instantiating the AsyncOpenAI client (e.g. timeout,
+        passed when instantiating the OpenAI client (e.g. timeout,
         default_headers).
       min_batch_size: optional. the minimum batch size to use when
         batching inputs.
@@ -336,14 +342,14 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
   def batch_elements_kwargs(self):
     return self._batching_kwargs
 
-  def create_client(self) -> AsyncOpenAI:
-    """Creates the AsyncOpenAI client used to send requests.
+  def create_client(self) -> OpenAI:
+    """Creates the OpenAI client used to send requests.
 
     Sets ``max_retries=0`` by default so that Apache Beam's
     ``RemoteModelHandler`` retry and client-side throttling mechanics are the
     sole retry layer. If api_key, organization, project, base_url, or
     client_args were provided at construction time, they are passed to the
-    AsyncOpenAI constructor. Otherwise, the client falls back to standard
+    OpenAI constructor. Otherwise, the client falls back to standard
     environment variables (OPENAI_API_KEY, OPENAI_ORG_ID, etc.).
     """
     params: dict[str, Any] = {'max_retries': 0}
@@ -357,19 +363,19 @@ class OpenAIModelHandler(RemoteModelHandler[Any, PredictionResult,
       params['base_url'] = self.base_url
     if self.client_args is not None:
       params.update(self.client_args)
-    return AsyncOpenAI(**params)
+    return OpenAI(**params)
 
   def request(
       self,
       batch: Sequence[Any],
-      model: AsyncOpenAI,
+      model: OpenAI,
       inference_args: Optional[dict[str, Any]] = None
   ) -> Iterable[PredictionResult]:
     """Sends a prediction request to the OpenAI API.
 
     Args:
       batch: a sequence of inputs to be passed to the request function.
-      model: an AsyncOpenAI client instance.
+      model: an OpenAI client instance.
       inference_args: additional arguments to send as part of the
         prediction request (e.g. temperature, max_tokens, system,
         response_format).

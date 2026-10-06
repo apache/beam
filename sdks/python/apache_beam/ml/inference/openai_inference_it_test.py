@@ -24,7 +24,7 @@ import unittest
 import pytest
 
 try:
-  from openai import AsyncOpenAI  # pylint: disable=unused-import
+  from openai import OpenAI  # pylint: disable=unused-import
 
   from apache_beam.ml.inference.openai_inference import OpenAIModelHandler
   from apache_beam.ml.inference.openai_inference import chat_completion_from_conversation
