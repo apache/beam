@@ -754,8 +754,21 @@ public class TestPipeline extends Pipeline implements TestRule {
     final PipelineResult pipelineResult;
     try {
       enforcement.get().beforePipelineExecution();
-      PipelineOptions updatedOptions =
-          MAPPER.convertValue(MAPPER.valueToTree(options), PipelineOptions.class);
+      // Round-trip through JSON so that the pipeline runs on a private copy of the options. The
+      // defaults marker keeps PipelineOptionsFactory.explicitlySetProperties meaningful on that
+      // copy; it is only ever set here and does not reach the serialized form of a submitted job.
+      PipelineOptions updatedOptions;
+      try {
+        updatedOptions =
+            MAPPER.readValue(
+                MAPPER
+                    .writer()
+                    .withAttribute(PipelineOptionsFactory.SERIALIZE_DEFAULTS_ATTRIBUTE, true)
+                    .writeValueAsBytes(options),
+                PipelineOptions.class);
+      } catch (IOException e) {
+        throw new IllegalArgumentException(e.getMessage(), e);
+      }
       updatedOptions
           .as(TestValueProviderOptions.class)
           .setProviderRuntimeValues(StaticValueProvider.of(providerRuntimeValues));

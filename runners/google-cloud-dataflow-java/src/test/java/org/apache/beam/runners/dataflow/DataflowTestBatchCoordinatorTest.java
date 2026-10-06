@@ -87,6 +87,7 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SerializableMatcher;
 import org.apache.beam.sdk.testing.SerializableMatchers;
@@ -442,6 +443,25 @@ public class DataflowTestBatchCoordinatorTest {
     TestDataflowPipelineOptions opts = createTestOptions("App");
     opts.as(CustomTestOptions.class).setOpaque(new Object());
     assertNull(DataflowTestBatchCoordinator.compatibilityKey(opts));
+  }
+
+  @Test
+  public void testCompatibilityKeyIgnoresDefaultsBoundByGetters() {
+    TestDataflowPipelineOptions untouched = createTestOptions("App");
+    String base = DataflowTestBatchCoordinator.compatibilityKey(untouched);
+
+    // What View.asList() and Reshuffle do during expansion: read an option nobody has set. The
+    // getter binds the default, which the serialized form then includes; the key must not change.
+    TestDataflowPipelineOptions read = createTestOptions("App");
+    assertNull(read.as(StreamingOptions.class).getUpdateCompatibilityVersion());
+    assertEquals(0, read.as(DataflowPipelineWorkerPoolOptions.class).getNumWorkers());
+    assertEquals(base, DataflowTestBatchCoordinator.compatibilityKey(read));
+
+    // Explicitly setting a value, even one equal to the default, still counts: it is what the test
+    // asked for and the merged job must honour it.
+    TestDataflowPipelineOptions set = createTestOptions("App");
+    set.as(DataflowPipelineWorkerPoolOptions.class).setNumWorkers(0);
+    assertNotEquals(base, DataflowTestBatchCoordinator.compatibilityKey(set));
   }
 
   @Test

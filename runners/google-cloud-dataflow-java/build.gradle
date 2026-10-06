@@ -676,8 +676,8 @@ task validatesRunnerV2 {
       'org.apache.beam.sdk.transforms.ReshuffleTest.testReshuffleWithTimestampsStreaming',
 
       // TODO(https://github.com/apache/beam/issues/37371): Identify the cause of assertion failure for these tests
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
-      'org.apache.beam.runners.dataflow.DataflowRunnerTest.testBatchGroupIntoBatchesOverrideCount',
+      'org.apache.beam.runners.dataflow.DataflowRunnerValidatesRunnerTest.testBatchGroupIntoBatchesOverrideBytes',
+      'org.apache.beam.runners.dataflow.DataflowRunnerValidatesRunnerTest.testBatchGroupIntoBatchesOverrideCount',
 
       // These tests use static state and don't work with remote execution.
       'org.apache.beam.sdk.transforms.ParDoLifecycleTest.testTeardownCalledAfterExceptionInFinishBundle',

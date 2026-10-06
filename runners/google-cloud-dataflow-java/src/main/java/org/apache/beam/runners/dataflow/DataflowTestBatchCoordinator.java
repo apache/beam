@@ -71,6 +71,7 @@ import org.apache.beam.sdk.metrics.MetricResults;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
@@ -251,12 +252,21 @@ class DataflowTestBatchCoordinator {
    * from {@code options}, or {@code null} if the options cannot be serialized, in which case the
    * pipeline must run standalone.
    *
-   * <p>The key is a digest of every option that has been set on (or lazily bound to) the options
-   * object through <em>any</em> {@link PipelineOptions} interface it has been viewed as, minus
-   * {@link #PER_TEST_OPTIONS}. Deriving it from the serialized form rather than from a hand-picked
-   * list of getters means that an option added to any interface (worker pool, debug, GCP, SDK
-   * harness, user-defined, ...) automatically splits batches when it differs instead of being
-   * silently dropped for all but the first member.
+   * <p>The key is a digest of every option that has been explicitly set on the options object
+   * through <em>any</em> {@link PipelineOptions} interface it has been viewed as, minus {@link
+   * #PER_TEST_OPTIONS}. Deriving it from the serialized form rather than from a hand-picked list of
+   * getters means that an option added to any interface (worker pool, debug, GCP, SDK harness,
+   * user-defined, ...) automatically splits batches when it differs instead of being silently
+   * dropped for all but the first member.
+   *
+   * <p>Defaults that were merely bound by a getter are left out. The serialized form contains them
+   * too, but which defaults are bound depends on which getters the test's transforms happened to
+   * call during construction (for example {@code View.asList()} and {@code Reshuffle} read {@code
+   * updateCompatibilityVersion}), and two tests must not end up in different batches because one of
+   * them read an option both would have received the same default for. {@link
+   * org.apache.beam.sdk.testing.TestPipeline} hands the runner a JSON copy of the test's options;
+   * it serializes that copy with {@link PipelineOptionsFactory#SERIALIZE_DEFAULTS_ATTRIBUTE} so
+   * that the distinction survives the round trip.
    */
   @VisibleForTesting
   static @Nullable String compatibilityKey(PipelineOptions options) {
@@ -271,8 +281,10 @@ class DataflowTestBatchCoordinator {
   @VisibleForTesting
   static @Nullable String canonicalOptionsJson(PipelineOptions options) {
     JsonNode serialized;
+    Set<String> explicitlySet;
     try {
       serialized = MAPPER.valueToTree(options).get("options");
+      explicitlySet = PipelineOptionsFactory.explicitlySetProperties(options);
     } catch (RuntimeException e) {
       LOG.warn(
           "Pipeline options for {} cannot be serialized; the pipeline will run standalone instead"
@@ -286,7 +298,7 @@ class DataflowTestBatchCoordinator {
     }
     ObjectNode filtered = MAPPER.createObjectNode();
     for (Map.Entry<String, JsonNode> entry : sortedFields(serialized).entrySet()) {
-      if (!PER_TEST_OPTIONS.contains(entry.getKey())) {
+      if (explicitlySet.contains(entry.getKey()) && !PER_TEST_OPTIONS.contains(entry.getKey())) {
         filtered.set(entry.getKey(), canonicalize(entry.getValue()));
       }
     }

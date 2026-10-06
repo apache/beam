@@ -85,6 +85,7 @@ import javax.annotation.Nonnull;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionDescriptor;
 import org.apache.beam.model.jobmanagement.v1.JobApi.PipelineOptionType;
 import org.apache.beam.sdk.PipelineRunner;
+import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.options.Validation.Required;
 import org.apache.beam.sdk.runners.PipelineRunnerRegistrar;
 import org.apache.beam.sdk.transforms.display.DisplayData;
@@ -573,6 +574,49 @@ public class PipelineOptionsFactory {
 
   public static Set<Class<? extends PipelineOptions>> getRegisteredOptions() {
     return Collections.unmodifiableSet(CACHE.get().registeredOptions);
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Jackson serialization attribute (see {@link
+   * com.fasterxml.jackson.databind.ObjectWriter#withAttribute}) which, when set to {@code true},
+   * makes the serialized form of a {@link PipelineOptions} additionally record which of the
+   * serialized values were lazily bound defaults, so that {@link #explicitlySetProperties} on the
+   * deserialized copy gives the same answer as on the original.
+   *
+   * <p>It is off by default: the serialized form handed to runners and workers is unchanged, and a
+   * {@link PipelineOptions} deserialized from JSON without this marker reports every serialized
+   * property as explicitly set.
+   */
+  @Internal
+  public static final String SERIALIZE_DEFAULTS_ATTRIBUTE =
+      ProxyInvocationHandler.SERIALIZE_DEFAULTS_ATTRIBUTE;
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Returns the names of the properties of {@code options} that have been explicitly set
+   * (through a setter, from command-line arguments, or from the JSON the object was deserialized
+   * from), as opposed to defaults that were lazily bound the first time a getter was called.
+   *
+   * <p>Unlike the serialized form of {@code options}, which contains every bound value, this allows
+   * callers to compare two options objects by what was actually configured on them without being
+   * confused by which getters happen to have been invoked on each. Note that a serialization round
+   * trip loses this distinction unless the producer set {@link #SERIALIZE_DEFAULTS_ATTRIBUTE}.
+   *
+   * @throws IllegalArgumentException if {@code options} was not created by this factory
+   */
+  @Internal
+  public static Set<String> explicitlySetProperties(PipelineOptions options) {
+    checkArgumentNotNull(options);
+    checkArgument(
+        Proxy.isProxyClass(options.getClass())
+            && Proxy.getInvocationHandler(options) instanceof ProxyInvocationHandler,
+        "PipelineOptions %s was not created by PipelineOptionsFactory",
+        options.getClass().getName());
+    return Collections.unmodifiableSet(
+        ((ProxyInvocationHandler) Proxy.getInvocationHandler(options)).explicitlySetProperties());
   }
 
   /**
