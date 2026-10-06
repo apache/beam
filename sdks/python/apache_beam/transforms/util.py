@@ -2221,9 +2221,8 @@ class Regex(object):
     Returns the matches if a portion of the line matches the Regex. By default,
     list of group 0 will return with empty items. To get all groups, pass the
     `Regex.ALL` flag in the `group` parameter which returns all the groups in
-    the tuple format. With `Regex.ALL` each item is
-    `(match, group1, group2, ...)`, and `outputEmpty=False` drops an item only
-    when the whole match is empty, the same as for group 0.
+    the tuple format. When using `Regex.ALL`, each item is formatted as a
+    tuple: `(match, group1, group2, ...)`.
 
     Args:
       regex: the regular expression string or (re.compile) pattern.
