@@ -432,7 +432,11 @@ public class SparkStateInternals<K> implements StateInternals {
     public void remove(MapKeyT key) {
       Map<MapKeyT, MapValueT> sparkMapState = readAsMap();
       sparkMapState.remove(key);
-      writeValue(sparkMapState);
+      if (sparkMapState.isEmpty()) {
+        clear();
+      } else {
+        writeValue(sparkMapState);
+      }
     }
 
     @Override
@@ -537,7 +541,11 @@ public class SparkStateInternals<K> implements StateInternals {
     public void remove(InputT input) {
       Set<InputT> sparkSetState = readAsSet();
       sparkSetState.remove(input);
-      writeValue(sparkSetState);
+      if (sparkSetState.isEmpty()) {
+        clear();
+      } else {
+        writeValue(sparkSetState);
+      }
     }
 
     @Override
