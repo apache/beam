@@ -294,6 +294,18 @@ public final class BoundedSourceSplitter {
    */
   private static <T> List<SizedSource<T>> balanceSplitCount(
       List<SizedSource<T>> splits, PipelineOptions options, int readers, long minSplitSizeBytes) {
+    // What matters is the bytes per reader. When splits differ in size, an uneven split count can
+    // still be balanced: the round-robin ordering gives the readers with more splits smaller ones.
+    double load = busiestReaderLoad(snakeOrder(splits, readers), readers);
+    if (load <= 1 + SPLIT_COUNT_IMBALANCE_TOLERANCE) {
+      LOG.info(
+          "Split count balancing for {} readers: skipped, {} splits already give the busiest "
+              + "reader {} times the average bytes",
+          readers,
+          splits.size(),
+          format(load));
+      return splits;
+    }
     PriorityQueue<SizedSource<T>> candidates = new PriorityQueue<>(bySizeDescending());
     candidates.addAll(splits);
     List<SizedSource<T>> unsplittable = new ArrayList<>();
@@ -313,9 +325,11 @@ public final class BoundedSourceSplitter {
     List<SizedSource<T>> result = new ArrayList<>(candidates);
     result.addAll(unsplittable);
     LOG.info(
-        "Split count balancing for {} readers: {} -> {} splits ({} could not be halved), busiest "
-            + "reader gets {} splits for an average of {}",
+        "Split count balancing for {} readers: busiest reader had {} times the average bytes, "
+            + "{} -> {} splits ({} could not be halved), busiest reader gets {} splits for an "
+            + "average of {}",
         readers,
+        format(load),
         splits.size(),
         result.size(),
         unsplittable.size(),
@@ -361,6 +375,19 @@ public final class BoundedSourceSplitter {
    */
   private static <T> List<SizedSource<T>> orderForRoundRobin(
       List<SizedSource<T>> splits, int readers) {
+    List<SizedSource<T>> ordered = snakeOrder(splits, readers);
+    LOG.info(
+        "Ordered {} splits for round-robin over {} readers: busiest reader load / average went "
+            + "from {} to {}",
+        ordered.size(),
+        readers,
+        format(busiestReaderLoad(splits, readers)),
+        format(busiestReaderLoad(ordered, readers)));
+    return ordered;
+  }
+
+  /** Sorts splits by decreasing size in snake order, see {@link #orderForRoundRobin}. */
+  private static <T> List<SizedSource<T>> snakeOrder(List<SizedSource<T>> splits, int readers) {
     List<SizedSource<T>> sorted = new ArrayList<>(splits);
     sorted.sort(bySizeDescending());
     List<SizedSource<T>> ordered = new ArrayList<>(sorted.size());
@@ -372,13 +399,6 @@ public final class BoundedSourceSplitter {
       }
       ordered.addAll(row);
     }
-    LOG.info(
-        "Ordered {} splits for round-robin over {} readers: busiest reader load / average went "
-            + "from {} to {}",
-        ordered.size(),
-        readers,
-        format(busiestReaderLoad(splits, readers)),
-        format(busiestReaderLoad(ordered, readers)));
     return ordered;
   }
 

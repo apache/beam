@@ -93,15 +93,16 @@ public class BoundedSourceSplitterTest {
   }
 
   @Test
-  public void testHalvesSplitsUntilSplitCountIsBalanced() throws Exception {
-    // Each 1 GiB file is re-split to the 640 MiB target (2 splits per reader): 10 splits, so the
-    // busiest of the 4 readers gets 3 splits for an average of 2.5. Halving one 640 MiB split gives
-    // 11 splits: 3 for an average of 2.75.
+  public void testResplitsFilesToTwoSplitsPerReader() throws Exception {
+    // Each 1 GiB file is re-split to the 640 MiB target (2 splits per reader): 10 splits of 640 and
+    // 384 MiB. The busiest of the 4 readers gets 1408 MiB for an average of 1280 MiB, within 10%,
+    // so no split is halved.
     List<BoundedSource<Long>> splits =
         BoundedSourceSplitter.split(equalFiles(5, GIB), options, 4, 5 * GIB);
 
-    assertEquals(11, splits.size());
+    assertEquals(10, splits.size());
     assertEquals(5 * GIB, totalSize(splits));
+    assertEquals(1408 * MIB, Arrays.stream(perReaderSizes(splits, 4)).max().getAsLong());
   }
 
   @Test
@@ -123,6 +124,28 @@ public class BoundedSourceSplitterTest {
 
     assertEquals(28, splits.size());
     assertEquals(11 * GIB, totalSize(splits));
+  }
+
+  @Test
+  public void testSkipsSplitCountBalancingWhenBytesAreBalanced() throws Exception {
+    // Like 4 files re-split into 10 full pieces and a smaller remainder each. 44 splits for 21
+    // readers is uneven by count (3 splits for an average of 2.1), but the round-robin ordering
+    // gives the readers with 3 splits the small remainders, so bytes are balanced.
+    List<RangeSource> pieces = new ArrayList<>();
+    long offset = 0;
+    for (int i = 0; i < 44; i++) {
+      long size = (i % 11 == 10 ? 845 : 1790) * MIB;
+      pieces.add(range(offset, offset + size));
+      offset += size;
+    }
+    BoundedSource<Long> source = new CoarseSource(pieces);
+
+    List<BoundedSource<Long>> splits = BoundedSourceSplitter.split(source, options, 21, offset);
+
+    assertEquals(44, splits.size());
+    long[] perReader = perReaderSizes(splits, 21);
+    long max = Arrays.stream(perReader).max().getAsLong();
+    assertTrue("Unbalanced readers: " + Arrays.toString(perReader), max <= 1.1 * offset / 21);
   }
 
   @Test
