@@ -118,7 +118,7 @@ memray==1.19.3
 mmh3==5.2.1
 mock==5.2.0
 more-itertools==11.1.0
-multidict==6.7.1
+multidict==6.9.1
 nltk==3.10.3
 numpy==2.4.6
 oauth2client==4.1.3
