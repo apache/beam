@@ -43,14 +43,16 @@ import org.slf4j.LoggerFactory;
 /**
  * ValidatesRunner tests that deliberately exercise {@link DataflowTestBatchCoordinator}'s fallback
  * path against the real service: one test fails only while it is part of a merged job, so the
- * merged job fails, the coordinator attributes the failure, and this test is re-run standalone
- * (where it passes). The other tests are healthy companions that give the merged job stages to
- * attribute; they pass whether they are credited from the merged job or re-run.
+ * merged job fails, the coordinator attributes the failure, that test's {@code run()} ends in
+ * {@link TestPipeline.StandaloneRerunRequested}, and {@link BeamParallelJunit4Runner} executes the
+ * test again from scratch as a job of its own (where it passes). The other tests are healthy
+ * companions that give the merged job stages to attribute; they pass whether they are credited from
+ * the merged job or executed again.
  *
- * <p>Keep this class small. Everything merged with the failing test may have to be re-run
- * standalone, and since a test JVM runs one test class at a time a merged job only ever contains
- * tests of a single class, so the size of this class bounds that cost. All tests run concurrently
- * under {@link BeamParallelJunit4Runner} so that they do end up in the same batch.
+ * <p>Keep this class small. Everything merged with the failing test may have to be executed again,
+ * and since a test JVM runs one test class at a time a merged job only ever contains tests of a
+ * single class, so the size of this class bounds that cost. All tests run concurrently under {@link
+ * BeamParallelJunit4Runner} so that they do end up in the same batch.
  *
  * <p>When batching is disabled (streaming tasks, {@code -PtestBatching=false}) every test here runs
  * standalone and simply passes.
@@ -92,8 +94,8 @@ public class DataflowTestBatchFallbackTest {
     PipelineResult result = p.run();
 
     // This test can never be credited from a merged job: its DoFn throws before any PAssert runs
-    // there, so the merged attempt has no success counters for it. Either batching was off, or the
-    // coordinator fell back to a standalone run.
+    // there, so the merged attempt has no success counters for it. Either batching was off, or this
+    // is the standalone re-execution of the test.
     assertThat(result, not(instanceOf(ScopedDataflowPipelineJob.class)));
     assertEquals(State.DONE, result.getState());
   }

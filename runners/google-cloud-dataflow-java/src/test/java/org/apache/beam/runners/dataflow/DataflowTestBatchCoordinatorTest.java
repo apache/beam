@@ -531,50 +531,31 @@ public class DataflowTestBatchCoordinatorTest {
   }
 
   @Test
-  public void testPartialFailureInBatchOnlyRerunsAndFailsTheFailingTest() throws Exception {
+  public void testPartialFailureInBatchOnlyRequiresTheFailingTestToBeExecutedAgain()
+      throws Exception {
     configureBatching(3, NEVER_EXPIRING_WINDOW_MS);
     Member good0 = new Member("GoodTest0").withStep("GoodStep0", 1, 2);
     Member failing1 = new Member("FailingTest1").withStep("FailingStep1", 99);
     Member good2 = new Member("GoodTest2").withStep("GoodStep2", 1, 2);
 
-    DataflowRunner realTransformReplacer = DataflowRunner.fromOptions(options);
     AtomicInteger submittedJobs = new AtomicInteger(0);
     DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
     when(delegate.run(any(Pipeline.class)))
         .thenAnswer(
             invocation -> {
-              int callNum = submittedJobs.incrementAndGet();
+              submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              // Apply real Dataflow V1 transform overrides, as DataflowRunner.run would, so that
-              // the standalone fallback exercises a member that already went through the merged
-              // attempt's graph surgery.
-              synchronized (realTransformReplacer) {
-                realTransformReplacer.replaceV1Transforms(submitted);
-              }
+              assertThat(submitted, instanceOf(CompositePipeline.class));
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-
-              if (submitted instanceof CompositePipeline) {
-                metricsByJobId.put(
-                    "batch-job",
-                    new JobMetrics()
-                        .setMetrics(
-                            ImmutableList.of(
-                                passertUpdate(proto, "GoodStep0", PAssert.SUCCESS_COUNTER),
-                                passertUpdate(proto, "FailingStep1", PAssert.FAILURE_COUNTER),
-                                passertUpdate(proto, "GoodStep2", PAssert.SUCCESS_COUNTER))));
-                return newBatchJob("batch-job", State.DONE, proto);
-              }
-              // Standalone fallback for FailingTest1: the member pipeline itself is submitted.
-              assertThat(submitted, instanceOf(TestPipeline.class));
-              assertTrue(hasTransform(proto, "FailingStep1"));
-              String jobId = "standalone-failing-" + callNum;
               metricsByJobId.put(
-                  jobId,
+                  "batch-job",
                   new JobMetrics()
                       .setMetrics(
                           ImmutableList.of(
-                              createTentativePAssertUpdate("s1", PAssert.FAILURE_COUNTER, 1))));
-              return newStandaloneJob(jobId, State.DONE);
+                              passertUpdate(proto, "GoodStep0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "FailingStep1", PAssert.FAILURE_COUNTER),
+                              passertUpdate(proto, "GoodStep2", PAssert.SUCCESS_COUNTER))));
+              return newBatchJob("batch-job", State.DONE, proto);
             });
 
     Future<DataflowPipelineJob> f0 = good0.submit(delegate);
@@ -585,11 +566,14 @@ public class DataflowTestBatchCoordinatorTest {
     assertThat(f0.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
     assertThat(f2.get(WAIT_SECONDS, TimeUnit.SECONDS), instanceOf(ScopedDataflowPipelineJob.class));
 
-    // FailingTest1 falls back to standalone and throws AssertionError.
-    assertThat(causeOf(f1), instanceOf(AssertionError.class));
+    // FailingTest1 is not run again here: its test gets a request to be executed from scratch.
+    String reason = rerunReasonOf(f1);
+    assertThat(reason, containsString("FailingTest1"));
+    assertThat(reason, containsString("batch-job"));
+    assertThat(reason, containsString("job DONE, PAsserts unverified"));
 
-    // 1 merged batch job + 1 standalone fallback job (only for FailingTest1) = 2 total jobs.
-    assertEquals(2, submittedJobs.get());
+    // The merged job is the only one submitted through the coordinator.
+    assertEquals(1, submittedJobs.get());
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -597,7 +581,7 @@ public class DataflowTestBatchCoordinatorTest {
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  public void testFailedBatchJobWithoutStageStatesRerunsAllAndOnlyFailingTestFails()
+  public void testFailedBatchJobWithoutStageStatesRequiresEveryMemberToBeExecutedAgain()
       throws Exception {
     Member good0 = new Member("GoodTest0").withStep("GoodStep0", 1, 2);
     Member failing1 = new Member("FailingTest1").withStep("FailingStep1", 99);
@@ -608,36 +592,23 @@ public class DataflowTestBatchCoordinatorTest {
     when(delegate.run(any(Pipeline.class)))
         .thenAnswer(
             invocation -> {
-              int callNum = submittedJobs.incrementAndGet();
+              submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositePipeline) {
-                return newBatchJob("failed-batch-job", State.FAILED, proto);
-              }
-              assertThat(submitted, instanceOf(TestPipeline.class));
-              boolean isFailing = hasTransform(proto, "FailingStep1");
-              String jobId = (isFailing ? "standalone-fail-" : "standalone-pass-") + callNum;
-              metricsByJobId.put(
-                  jobId,
-                  new JobMetrics()
-                      .setMetrics(
-                          ImmutableList.of(
-                              createTentativePAssertUpdate(
-                                  "s1",
-                                  isFailing ? PAssert.FAILURE_COUNTER : PAssert.SUCCESS_COUNTER,
-                                  1))));
-              return newStandaloneJob(jobId, isFailing ? State.FAILED : State.DONE);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
+              return newBatchJob(
+                  "failed-batch-job", State.FAILED, PipelineTranslation.toProto(submitted));
             });
 
     Future<DataflowPipelineJob> f0 = good0.submit(delegate);
     Future<DataflowPipelineJob> f1 = failing1.submit(delegate);
 
-    DataflowPipelineJob result0 = f0.get(WAIT_SECONDS, TimeUnit.SECONDS);
-    assertThat(result0, not(instanceOf(ScopedDataflowPipelineJob.class)));
-    assertEquals(State.DONE, result0.getState());
-    assertThat(causeOf(f1), instanceOf(AssertionError.class));
-    // 1 failed batch job + 2 standalone fallback jobs = 3 total jobs.
-    assertEquals(3, submittedJobs.get());
+    // Without stage states nobody can be credited, not even the healthy test.
+    for (Future<DataflowPipelineJob> f : Arrays.asList(f0, f1)) {
+      String reason = rerunReasonOf(f);
+      assertThat(reason, containsString("failed-batch-job"));
+      assertThat(reason, containsString("stage states unavailable"));
+    }
+    assertEquals(1, submittedJobs.get());
   }
 
   @Test
@@ -652,46 +623,30 @@ public class DataflowTestBatchCoordinatorTest {
     when(delegate.run(any(Pipeline.class)))
         .thenAnswer(
             invocation -> {
-              int callNum = submittedJobs.incrementAndGet();
+              submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositePipeline) {
-                String s0 = scopeOf(proto, "GoodStep0");
-                String s1 = scopeOf(proto, "FailingStep1");
-                String s2 = scopeOf(proto, "PendingStep2");
-                // The service reports per-stage states; only the failing member's stage failed.
-                // PendingTest2 has a success counter but one of its stages never reached DONE, so
-                // it
-                // must not be credited either.
-                executionDetails.set(
-                    executionDetails(
-                        stage("F1", STAGE_DONE, s0 + "/Create-GoodStep0/Read", s0 + "/GoodStep0"),
-                        stage("F2", STAGE_FAILED, s1 + "/FailingStep1"),
-                        stage("F3", STAGE_DONE, s2 + "/PendingStep2"),
-                        stage("F4", STAGE_PENDING, s2 + "/Create-PendingStep2/Read")));
-                metricsByJobId.put(
-                    "failed-batch-job",
-                    new JobMetrics()
-                        .setMetrics(
-                            ImmutableList.of(
-                                passertUpdate(proto, "GoodStep0", PAssert.SUCCESS_COUNTER),
-                                passertUpdate(proto, "PendingStep2", PAssert.SUCCESS_COUNTER))));
-                return newBatchJob("failed-batch-job", State.FAILED, proto);
-              }
-              assertThat(submitted, instanceOf(TestPipeline.class));
-              assertFalse("GoodTest0 must not be re-run", hasTransform(proto, "GoodStep0"));
-              boolean isFailing = hasTransform(proto, "FailingStep1");
-              String jobId = "standalone-" + callNum;
+              String s0 = scopeOf(proto, "GoodStep0");
+              String s1 = scopeOf(proto, "FailingStep1");
+              String s2 = scopeOf(proto, "PendingStep2");
+              // The service reports per-stage states; only the failing member's stage failed.
+              // PendingTest2 has a success counter but one of its stages never reached DONE, so it
+              // must not be credited either.
+              executionDetails.set(
+                  executionDetails(
+                      stage("F1", STAGE_DONE, s0 + "/Create-GoodStep0/Read", s0 + "/GoodStep0"),
+                      stage("F2", STAGE_FAILED, s1 + "/FailingStep1"),
+                      stage("F3", STAGE_DONE, s2 + "/PendingStep2"),
+                      stage("F4", STAGE_PENDING, s2 + "/Create-PendingStep2/Read")));
               metricsByJobId.put(
-                  jobId,
+                  "failed-batch-job",
                   new JobMetrics()
                       .setMetrics(
                           ImmutableList.of(
-                              createTentativePAssertUpdate(
-                                  "s1",
-                                  isFailing ? PAssert.FAILURE_COUNTER : PAssert.SUCCESS_COUNTER,
-                                  1))));
-              return newStandaloneJob(jobId, isFailing ? State.FAILED : State.DONE);
+                              passertUpdate(proto, "GoodStep0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "PendingStep2", PAssert.SUCCESS_COUNTER))));
+              return newBatchJob("failed-batch-job", State.FAILED, proto);
             });
 
     Future<DataflowPipelineJob> f0 = good0.submit(delegate);
@@ -703,14 +658,17 @@ public class DataflowTestBatchCoordinatorTest {
     assertEquals(State.DONE, result0.getState());
     assertEquals(State.DONE, result0.waitUntilFinish());
 
-    assertThat(causeOf(f1), instanceOf(AssertionError.class));
+    // The others must be executed again from scratch; the reason says why each was not credited.
+    String reason1 = rerunReasonOf(f1);
+    assertThat(reason1, containsString("FailingTest1"));
+    assertThat(reason1, containsString("failed-batch-job"));
+    assertThat(reason1, containsString("PAsserts unverified"));
+    String reason2 = rerunReasonOf(f2);
+    assertThat(reason2, containsString("PendingTest2"));
+    assertThat(reason2, containsString("PAsserts verified"));
 
-    DataflowPipelineJob result2 = f2.get(WAIT_SECONDS, TimeUnit.SECONDS);
-    assertThat(result2, not(instanceOf(ScopedDataflowPipelineJob.class)));
-    assertEquals(State.DONE, result2.getState());
-
-    // 1 failed batch job + standalone re-runs for FailingTest1 and PendingTest2 = 3 jobs.
-    assertEquals(3, submittedJobs.get());
+    // Only the merged job was ever submitted through the coordinator.
+    assertEquals(1, submittedJobs.get());
   }
 
   @Test
@@ -723,44 +681,33 @@ public class DataflowTestBatchCoordinatorTest {
     when(delegate.run(any(Pipeline.class)))
         .thenAnswer(
             invocation -> {
-              int callNum = submittedJobs.incrementAndGet();
+              submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
               RunnerApi.Pipeline proto = PipelineTranslation.toProto(submitted);
-              if (submitted instanceof CompositePipeline) {
-                // Both members' own stages are DONE and both have success counters, but a stage
-                // that names no user steps failed. It cannot be attributed, so it counts against
-                // everyone.
-                executionDetails.set(
-                    executionDetails(
-                        stage("F1", STAGE_DONE, scopeOf(proto, "Step0") + "/Step0"),
-                        stage("F2", STAGE_DONE, scopeOf(proto, "Step1") + "/Step1"),
-                        stage("F99", STAGE_FAILED)));
-                metricsByJobId.put(
-                    "failed-batch-job",
-                    new JobMetrics()
-                        .setMetrics(
-                            ImmutableList.of(
-                                passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
-                                passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER))));
-                return newBatchJob("failed-batch-job", State.FAILED, proto);
-              }
-              String jobId = "standalone-" + callNum;
+              // Both members' own stages are DONE and both have success counters, but a stage
+              // that names no user steps failed. It cannot be attributed, so it counts against
+              // everyone.
+              executionDetails.set(
+                  executionDetails(
+                      stage("F1", STAGE_DONE, scopeOf(proto, "Step0") + "/Step0"),
+                      stage("F2", STAGE_DONE, scopeOf(proto, "Step1") + "/Step1"),
+                      stage("F99", STAGE_FAILED)));
               metricsByJobId.put(
-                  jobId,
+                  "failed-batch-job",
                   new JobMetrics()
                       .setMetrics(
                           ImmutableList.of(
-                              createTentativePAssertUpdate("s1", PAssert.SUCCESS_COUNTER, 1))));
-              return newStandaloneJob(jobId, State.DONE);
+                              passertUpdate(proto, "Step0", PAssert.SUCCESS_COUNTER),
+                              passertUpdate(proto, "Step1", PAssert.SUCCESS_COUNTER))));
+              return newBatchJob("failed-batch-job", State.FAILED, proto);
             });
 
     Future<DataflowPipelineJob> f0 = m0.submit(delegate);
     Future<DataflowPipelineJob> f1 = m1.submit(delegate);
-    assertThat(
-        f0.get(WAIT_SECONDS, TimeUnit.SECONDS), not(instanceOf(ScopedDataflowPipelineJob.class)));
-    assertThat(
-        f1.get(WAIT_SECONDS, TimeUnit.SECONDS), not(instanceOf(ScopedDataflowPipelineJob.class)));
-    assertEquals(3, submittedJobs.get());
+    assertThat(rerunReasonOf(f0), containsString("job FAILED"));
+    assertThat(rerunReasonOf(f1), containsString("job FAILED"));
+    assertEquals(1, submittedJobs.get());
   }
 
   @Test
@@ -833,54 +780,31 @@ public class DataflowTestBatchCoordinatorTest {
   // ---------------------------------------------------------------------------------------------
 
   @Test
-  public void testFailedSubmissionRerunsEachMemberOnItsOwnThread() throws Exception {
+  public void testFailedSubmissionRequiresEveryMemberToBeExecutedAgain() throws Exception {
     Member m0 = new Member("App0").withStep("Step0", 1, 2);
     Member m1 = new Member("App1").withStep("Step1", 1, 2);
 
     AtomicInteger submittedJobs = new AtomicInteger(0);
-    Set<Thread> standaloneThreads = ConcurrentHashMap.newKeySet();
     DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
     when(delegate.run(any(Pipeline.class)))
         .thenAnswer(
             invocation -> {
-              int callNum = submittedJobs.incrementAndGet();
+              submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              if (submitted instanceof CompositePipeline) {
-                throw new RuntimeException("Simulated batch submission failure");
-              }
-              // The member pipeline itself is what gets re-run standalone.
-              assertThat(submitted, instanceOf(TestPipeline.class));
-              standaloneThreads.add(Thread.currentThread());
-              String jobId = "standalone-job-" + callNum;
-              metricsByJobId.put(
-                  jobId,
-                  new JobMetrics()
-                      .setMetrics(
-                          ImmutableList.of(
-                              createTentativePAssertUpdate("s1", PAssert.SUCCESS_COUNTER, 1))));
-              return newStandaloneJob(jobId, State.DONE);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
+              throw new RuntimeException("Simulated batch submission failure");
             });
 
-    Set<Thread> testThreads = ConcurrentHashMap.newKeySet();
-    Future<DataflowPipelineJob> f0 =
-        pool.submit(
-            () -> {
-              testThreads.add(Thread.currentThread());
-              return m0.runner.run(m0.pipeline, delegate);
-            });
-    Future<DataflowPipelineJob> f1 =
-        pool.submit(
-            () -> {
-              testThreads.add(Thread.currentThread());
-              return m1.runner.run(m1.pipeline, delegate);
-            });
+    Future<DataflowPipelineJob> f0 = m0.submit(delegate);
+    Future<DataflowPipelineJob> f1 = m1.submit(delegate);
 
-    assertEquals(State.DONE, f0.get(WAIT_SECONDS, TimeUnit.SECONDS).getState());
-    assertEquals(State.DONE, f1.get(WAIT_SECONDS, TimeUnit.SECONDS).getState());
-    // 1 batch attempt + 2 standalone fallback executions = 3 total calls.
-    assertEquals(3, submittedJobs.get());
-    // The fallbacks ran on the members' own test threads, not on a coordinator thread.
-    assertEquals(testThreads, standaloneThreads);
+    for (Future<DataflowPipelineJob> f : Arrays.asList(f0, f1)) {
+      String reason = rerunReasonOf(f);
+      assertThat(reason, containsString("(never submitted)"));
+      assertThat(reason, containsString("Simulated batch submission failure"));
+    }
+    // The member pipelines themselves are never submitted by the coordinator.
+    assertEquals(1, submittedJobs.get());
   }
 
   @Test
@@ -1081,57 +1005,6 @@ public class DataflowTestBatchCoordinatorTest {
     assertEquals(1, submittedJobs.get());
   }
 
-  @Test
-  public void testFallbackRerunsBypassStandaloneConcurrencyLimit() throws Exception {
-    String previous =
-        System.getProperty(TestDataflowRunner.MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY);
-    System.setProperty(TestDataflowRunner.MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, "1");
-    try {
-      Member m0 = new Member("App0").withStep("Step0", 1, 2);
-      Member m1 = new Member("App1").withStep("Step1", 1, 2);
-
-      // Both fallback runs must be inside the delegate at the same time for this latch to open.
-      // If re-runs were subject to the (size 1) standalone limiter, the first would hold the only
-      // permit while waiting here and the second could never enter.
-      CountDownLatch bothRerunsRunning = new CountDownLatch(2);
-      AtomicInteger submittedJobs = new AtomicInteger(0);
-      DataflowRunner delegate = Mockito.mock(DataflowRunner.class);
-      when(delegate.run(any(Pipeline.class)))
-          .thenAnswer(
-              invocation -> {
-                int callNum = submittedJobs.incrementAndGet();
-                Pipeline submitted = invocation.getArgument(0);
-                if (submitted instanceof CompositePipeline) {
-                  throw new RuntimeException("Simulated batch submission failure");
-                }
-                bothRerunsRunning.countDown();
-                if (!bothRerunsRunning.await(10, TimeUnit.SECONDS)) {
-                  throw new AssertionError("Fallback re-runs were serialized by the limiter");
-                }
-                String jobId = "standalone-" + callNum;
-                metricsByJobId.put(
-                    jobId,
-                    new JobMetrics()
-                        .setMetrics(
-                            ImmutableList.of(
-                                createTentativePAssertUpdate("s1", PAssert.SUCCESS_COUNTER, 1))));
-                return newStandaloneJob(jobId, State.DONE);
-              });
-
-      Future<DataflowPipelineJob> f0 = m0.submit(delegate);
-      Future<DataflowPipelineJob> f1 = m1.submit(delegate);
-      assertEquals(State.DONE, f0.get(WAIT_SECONDS, TimeUnit.SECONDS).getState());
-      assertEquals(State.DONE, f1.get(WAIT_SECONDS, TimeUnit.SECONDS).getState());
-      assertEquals(3, submittedJobs.get());
-    } finally {
-      if (previous == null) {
-        System.clearProperty(TestDataflowRunner.MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY);
-      } else {
-        System.setProperty(TestDataflowRunner.MAX_CONCURRENT_STANDALONE_JOBS_PROPERTY, previous);
-      }
-    }
-  }
-
   // ---------------------------------------------------------------------------------------------
   // Merged job naming
   // ---------------------------------------------------------------------------------------------
@@ -1214,7 +1087,7 @@ public class DataflowTestBatchCoordinatorTest {
     assertTrue(name, name.matches(DATAFLOW_JOB_NAME_REGEX));
     assertTrue(name, name.length() <= DataflowTestBatchCoordinator.MAX_JOB_NAME_LENGTH);
     assertNotEquals(leaderJobName, name);
-    // The leader's own job name is intact for any later standalone fallback.
+    // The leader's own job name is intact afterwards; the batch name was only ever borrowed.
     assertEquals(leaderJobName, m0.opts.getJobName());
     assertEquals(otherJobName, m1.opts.getJobName());
   }
@@ -1239,47 +1112,34 @@ public class DataflowTestBatchCoordinatorTest {
     when(delegate.run(any(Pipeline.class)))
         .thenAnswer(
             invocation -> {
-              int callNum = submittedJobs.incrementAndGet();
+              submittedJobs.incrementAndGet();
               Pipeline submitted = invocation.getArgument(0);
-              if (submitted instanceof CompositePipeline) {
-                DataflowPipelineJob job =
-                    newBatchJob("batch-job", State.RUNNING, PipelineTranslation.toProto(submitted));
-                // The merged job never terminates: waitUntilFinish gives up and returns null.
-                Mockito.doAnswer(
-                        inv -> {
-                          waitedFor.set(inv.getArgument(0));
-                          return null;
-                        })
-                    .when(job)
-                    .waitUntilFinish(any(), any());
-                Mockito.doReturn(State.CANCELLED).when(job).cancel();
-                batchJob.set(job);
-                return job;
-              }
-              String jobId = "standalone-" + callNum;
-              metricsByJobId.put(
-                  jobId,
-                  new JobMetrics()
-                      .setMetrics(
-                          ImmutableList.of(
-                              createTentativePAssertUpdate("s1", PAssert.SUCCESS_COUNTER, 1))));
-              return newStandaloneJob(jobId, State.DONE);
+              assertThat(submitted, instanceOf(CompositePipeline.class));
+              DataflowPipelineJob job =
+                  newBatchJob("batch-job", State.RUNNING, PipelineTranslation.toProto(submitted));
+              // The merged job never terminates: waitUntilFinish gives up and returns null.
+              Mockito.doAnswer(
+                      inv -> {
+                        waitedFor.set(inv.getArgument(0));
+                        return null;
+                      })
+                  .when(job)
+                  .waitUntilFinish(any(), any());
+              Mockito.doReturn(State.CANCELLED).when(job).cancel();
+              batchJob.set(job);
+              return job;
             });
 
     Future<DataflowPipelineJob> f0 = m0.submit(delegate);
     Future<DataflowPipelineJob> f1 = m1.submit(delegate);
-    DataflowPipelineJob result0 = f0.get(WAIT_SECONDS, TimeUnit.SECONDS);
-    DataflowPipelineJob result1 = f1.get(WAIT_SECONDS, TimeUnit.SECONDS);
 
     // Nobody waited beyond the shortest member timeout; the runaway job was cancelled and every
-    // member passed through its own standalone re-run.
+    // member is sent back to be executed again from scratch.
+    assertThat(rerunReasonOf(f0), containsString("did not terminate within PT3S"));
+    assertThat(rerunReasonOf(f1), containsString("did not terminate within PT3S"));
     assertEquals(Duration.standardSeconds(3), waitedFor.get());
     Mockito.verify(batchJob.get()).cancel();
-    assertThat(result0, not(instanceOf(ScopedDataflowPipelineJob.class)));
-    assertThat(result1, not(instanceOf(ScopedDataflowPipelineJob.class)));
-    assertEquals(State.DONE, result0.getState());
-    assertEquals(State.DONE, result1.getState());
-    assertEquals(3, submittedJobs.get());
+    assertEquals(1, submittedJobs.get());
   }
 
   @Test
@@ -1361,6 +1221,18 @@ public class DataflowTestBatchCoordinatorTest {
     }
     fail("Expected the future to fail");
     return null;
+  }
+
+  /**
+   * Asserts that the member behind {@code future} was told to have its test executed again as a job
+   * of its own (see {@link TestPipeline.StandaloneRerunRequested}) and returns the request's
+   * message, which names the test, the merged job and the reason.
+   */
+  private static String rerunReasonOf(Future<?> future) {
+    Throwable cause = causeOf(future);
+    assertThat(cause, instanceOf(TestPipeline.StandaloneRerunRequested.class));
+    assertThat(cause.getMessage(), containsString("BeamParallelJunit4Runner"));
+    return cause.getMessage();
   }
 
   private DataflowPipelineJob newBatchJob(String jobId, State state, RunnerApi.Pipeline proto)

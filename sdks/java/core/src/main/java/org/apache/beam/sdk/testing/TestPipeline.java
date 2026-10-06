@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -405,7 +406,8 @@ public class TestPipeline extends Pipeline implements TestRule {
             || hasCategory(annotations, UsesFailureMessage.class)
             || hasClassCategory(description.getTestClass(), UsesFailureMessage.class)
             || BeamParallelJunit4Runner.hasSerialAnnotation(annotations)
-            || BeamParallelJunit4Runner.isClassMarkedSerial(description.getTestClass())) {
+            || BeamParallelJunit4Runner.isClassMarkedSerial(description.getTestClass())
+            || BeamParallelJunit4Runner.isStandaloneRerun(description)) {
           standaloneExecutionRequired = true;
         }
 
@@ -505,14 +507,37 @@ public class TestPipeline extends Pipeline implements TestRule {
    *
    * <p>Returns {@code true} if this {@link TestPipeline} should not be merged into a shared batch
    * pipeline (for example, when the test expects an exception or assertion failure, uses custom
-   * per-test option arguments, or is marked for serial execution).
+   * per-test option arguments, is marked for serial execution, or is being re-executed after a
+   * merged attempt; see {@link StandaloneRerunRequested}).
    */
   @Internal
   public boolean isStandaloneExecutionRequired() {
     return standaloneExecutionRequired
         || (initialOptionsRevision >= 0 && options.revision() != initialOptionsRevision)
         || !providerRuntimeValues.isEmpty()
-        || currentTestExpectsException();
+        || testExpectsException();
+  }
+
+  /**
+   * <b><i>For internal use only; no backwards-compatibility guarantees.</i></b>
+   *
+   * <p>Thrown out of {@link #run()} by a runner that merged this pipeline into a job shared with
+   * other tests and could not reach a verdict for this test from that job. The pipeline is not run
+   * again by the runner: once the shared job was built from it, this pipeline's graph is no longer
+   * guaranteed to be the one the test constructed. Instead the whole test has to be executed again
+   * from scratch, with {@linkplain #isStandaloneExecutionRequired() standalone execution} forced so
+   * that the fresh pipeline runs as a job of its own. {@link BeamParallelJunit4Runner} does that
+   * automatically (once); under any other runner this surfaces as the test's failure.
+   *
+   * <p>An {@link Error} rather than an exception so that test code wrapping {@code run()} in {@code
+   * catch (Exception e)} or {@code assertThrows(Exception.class, ...)} cannot mistake it for the
+   * failure it was looking for.
+   */
+  @Internal
+  public static final class StandaloneRerunRequested extends Error {
+    public StandaloneRerunRequested(String message) {
+      super(message);
+    }
   }
 
   // ---------------------------------------------------------------------------------------------
@@ -523,17 +548,15 @@ public class TestPipeline extends Pipeline implements TestRule {
   // shared job. Static signals (@Test(expected), categories, serial markers) are read from the
   // JUnit Description in apply(). The dynamic one, an ExpectedException rule on which the test
   // has called expect(...), lives on the test instance, which a TestRule never sees; the runner
-  // publishes it through setCurrentTestInstance so that it can be inspected here at run() time.
+  // hands the instance to its TestPipeline rule(s) through attachTestInstance so that it can be
+  // inspected here at run() time. The instance is attached to the rule rather than published in a
+  // thread-local because the test body does not necessarily run on the thread that created the
+  // instance: JUnit's Timeout rule, for one, evaluates the test on a thread of its own.
   // A missed detection is a performance problem (that test and its co-members re-run standalone),
   // never a correctness one.
 
-  /**
-   * The test-class instance currently executing on this thread, published by {@link
-   * BeamParallelJunit4Runner}. Deliberately not inheritable: it is only read on the thread running
-   * the test method, and an inheritable value would pin a test instance in every long-lived pool
-   * thread created during that test.
-   */
-  private static final ThreadLocal<@Nullable Object> CURRENT_TEST_INSTANCE = new ThreadLocal<>();
+  /** The test-class instance this rule belongs to, if the runner has told us; see above. */
+  private transient @Nullable Object testInstance;
 
   /**
    * {@code ExpectedException#isAnyExceptionExpected()}, the rule's own (private) notion of whether
@@ -548,28 +571,51 @@ public class TestPipeline extends Pipeline implements TestRule {
   private static final ConcurrentHashMap<Class<?>, List<Field>> EXPECTED_EXCEPTION_FIELDS =
       new ConcurrentHashMap<>();
 
-  /** Records the test instance running on the current thread, or clears it with {@code null}. */
-  static void setCurrentTestInstance(@Nullable Object testInstance) {
-    if (testInstance == null) {
-      CURRENT_TEST_INSTANCE.remove();
-    } else {
-      CURRENT_TEST_INSTANCE.set(testInstance);
+  /** {@link TestPipeline}-typed fields per test class, resolved once. */
+  private static final ConcurrentHashMap<Class<?>, List<Field>> TEST_PIPELINE_FIELDS =
+      new ConcurrentHashMap<>();
+
+  /**
+   * Attaches {@code testInstance} to every {@link TestPipeline} held in one of its fields (declared
+   * in its class or a superclass), so that those pipelines can inspect the instance's other rules.
+   * Called by {@link BeamParallelJunit4Runner} for each freshly created test instance.
+   */
+  static void attachTestInstance(Object testInstance) {
+    for (Field field :
+        fieldsOfType(TEST_PIPELINE_FIELDS, testInstance.getClass(), TestPipeline.class)) {
+      try {
+        Object value = field.get(testInstance);
+        if (value instanceof TestPipeline) {
+          ((TestPipeline) value).testInstance = testInstance;
+        }
+      } catch (ReflectiveOperationException | RuntimeException e) {
+        if (PROBE_FAILURE_LOGGED.compareAndSet(false, true)) {
+          LOG.warn(
+              "Failed to read TestPipeline field {} of {}; tests that expect an exception via an"
+                  + " ExpectedException rule may be merged into shared test jobs.",
+              field.getName(),
+              testInstance.getClass().getName(),
+              e);
+        }
+      }
     }
   }
 
   /**
-   * Returns {@code true} if the test running on this thread has armed an {@link ExpectedException}
-   * rule, i.e. it expects to fail. Only {@link ExpectedException} fields of the test instance are
-   * consulted; tests that expect failure some other way (for example {@code assertThrows} around
-   * {@code run()}) are not recognized.
+   * Returns {@code true} if the test this pipeline belongs to has armed an {@link
+   * ExpectedException} rule, i.e. it expects to fail. Only {@link ExpectedException} fields of the
+   * test instance are consulted; tests that expect failure some other way (for example {@code
+   * assertThrows} around {@code run()}) are not recognized, and neither is anything when the test
+   * runner has not attached the instance (see {@link #attachTestInstance}).
    */
   @VisibleForTesting
-  static boolean currentTestExpectsException() {
-    Object instance = CURRENT_TEST_INSTANCE.get();
+  boolean testExpectsException() {
+    Object instance = testInstance;
     if (instance == null || IS_ANY_EXCEPTION_EXPECTED == null) {
       return false;
     }
-    for (Field field : expectedExceptionFields(instance.getClass())) {
+    for (Field field :
+        fieldsOfType(EXPECTED_EXCEPTION_FIELDS, instance.getClass(), ExpectedException.class)) {
       try {
         Object rule = field.get(instance);
         if (rule instanceof ExpectedException
@@ -604,8 +650,13 @@ public class TestPipeline extends Pipeline implements TestRule {
     }
   }
 
-  private static List<Field> expectedExceptionFields(Class<?> testClass) {
-    return EXPECTED_EXCEPTION_FIELDS.computeIfAbsent(
+  /**
+   * The instance fields of {@code testClass} (or a superclass) whose declared type is assignable to
+   * {@code type}, made accessible, cached in {@code cache}.
+   */
+  private static List<Field> fieldsOfType(
+      ConcurrentHashMap<Class<?>, List<Field>> cache, Class<?> testClass, Class<?> type) {
+    return cache.computeIfAbsent(
         testClass,
         k -> {
           List<Field> fields = new ArrayList<>();
@@ -613,19 +664,21 @@ public class TestPipeline extends Pipeline implements TestRule {
               clazz != null && clazz != Object.class;
               clazz = clazz.getSuperclass()) {
             for (Field field : clazz.getDeclaredFields()) {
-              if (ExpectedException.class.isAssignableFrom(field.getType())) {
-                try {
-                  field.setAccessible(true);
-                  fields.add(field);
-                } catch (RuntimeException e) {
-                  if (PROBE_FAILURE_LOGGED.compareAndSet(false, true)) {
-                    LOG.warn(
-                        "Cannot access ExpectedException rule {} of {}; tests that expect an"
-                            + " exception via that rule may be merged into shared test jobs.",
-                        field.getName(),
-                        k.getName(),
-                        e);
-                  }
+              if (Modifier.isStatic(field.getModifiers())
+                  || !type.isAssignableFrom(field.getType())) {
+                continue;
+              }
+              try {
+                field.setAccessible(true);
+                fields.add(field);
+              } catch (RuntimeException e) {
+                if (PROBE_FAILURE_LOGGED.compareAndSet(false, true)) {
+                  LOG.warn(
+                      "Cannot access field {} of {}; tests that expect an exception via an"
+                          + " ExpectedException rule may be merged into shared test jobs.",
+                      field.getName(),
+                      k.getName(),
+                      e);
                 }
               }
             }

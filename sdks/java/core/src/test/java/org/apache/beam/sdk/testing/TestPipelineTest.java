@@ -61,6 +61,7 @@ import org.junit.experimental.categories.Category;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.RuleChain;
 import org.junit.rules.TestRule;
+import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 import org.junit.runners.model.Statement;
@@ -272,13 +273,16 @@ public class TestPipelineTest implements Serializable {
   /**
    * Tests for each condition under which {@link TestPipeline#isStandaloneExecutionRequired()}
    * reports that the pipeline must not be merged with others. Runs under {@link
-   * BeamParallelJunit4Runner} because that is what publishes the test instance which the {@link
-   * ExpectedException} detection relies on.
+   * BeamParallelJunit4Runner} because that is what hands the test instance to the rule, which the
+   * {@link ExpectedException} detection relies on. The {@link Timeout} rule is deliberate: like
+   * many ValidatesRunner suites this class then executes its test bodies on a thread of JUnit's
+   * choosing rather than the runner's, and detection must not depend on which thread that is.
    */
   @RunWith(BeamParallelJunit4Runner.class)
   public static class StandaloneExecutionTest {
     @Rule public transient ExpectedException thrown = ExpectedException.none();
     @Rule public transient TestPipeline pipeline = TestPipeline.create();
+    @Rule public transient Timeout globalTimeout = Timeout.seconds(60);
 
     @Test
     public void testPlainTestDoesNotRequireStandalone() {

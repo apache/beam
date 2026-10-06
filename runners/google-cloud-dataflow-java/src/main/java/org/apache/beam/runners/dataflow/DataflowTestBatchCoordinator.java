@@ -117,8 +117,12 @@ import org.slf4j.LoggerFactory;
  * executor that submits the merged job, waits for it and reaches a verdict for every member. A
  * member is credited from the merged job when its scoped PAsserts are verified and &mdash; if the
  * job did not end {@code DONE} &mdash; every stage that may belong to it is {@code DONE} (see
- * {@link StageAttribution}). Any other member is told to run standalone, which it does on its own
- * test thread. No test thread ever performs work on behalf of another test, so a test timeout or
+ * {@link StageAttribution}). Any other member gets {@link TestPipeline.StandaloneRerunRequested}
+ * out of its {@code run()}, and its test is executed again from scratch as a job of its own by
+ * {@link BeamParallelJunit4Runner}: the member's pipeline object is never run a second time, since
+ * building the merged job rewrote it with the leader's runner. (A pipeline for which no merged job
+ * was built at all, because no partner arrived in time, simply runs standalone on its own test
+ * thread.) No test thread ever performs work on behalf of another test, so a test timeout or
  * interrupt affects only that test.
  *
  * <p>No-hang guarantee: a member's future is always completed, whatever happens on the scheduler or
@@ -467,31 +471,52 @@ class DataflowTestBatchCoordinator {
   }
 
   /**
-   * The verdict the batch machinery reaches for one member pipeline. Either the member is credited
-   * with a {@link #job} from the merged run, or it must be run standalone by its own test thread.
+   * The verdict the batch machinery reaches for one member pipeline: credited with a {@link #job}
+   * from the merged run, declined before any merged job was built from it, or in need of a fresh
+   * standalone execution after a merged attempt that yielded no verdict for it.
    */
   @VisibleForTesting
   static final class BatchOutcome {
-    final @Nullable DataflowPipelineJob job;
-    final boolean limitConcurrency;
+    enum Kind {
+      /** Credited from the merged job; {@link #job} is the member's scoped view of it. */
+      PASSED,
+      /**
+       * Batching was declined before any merged job was built from the pipeline (for example, no
+       * partner arrived within the window). The pipeline is untouched, so the member's own test
+       * thread runs it standalone exactly as if it had been ineligible.
+       */
+      DECLINED,
+      /**
+       * A merged job was built from the pipeline but did not yield a verdict for this member. The
+       * pipeline object is not run again (building the merged job rewrote it with another runner);
+       * the member's test is re-executed from scratch instead, see {@link
+       * TestPipeline.StandaloneRerunRequested}.
+       */
+      RERUN_REQUIRED
+    }
 
-    private BatchOutcome(@Nullable DataflowPipelineJob job, boolean limitConcurrency) {
+    final Kind kind;
+    final @Nullable DataflowPipelineJob job;
+
+    /** Why no verdict could be reached; {@link Kind#RERUN_REQUIRED} only. */
+    final @Nullable String reason;
+
+    private BatchOutcome(Kind kind, @Nullable DataflowPipelineJob job, @Nullable String reason) {
+      this.kind = kind;
       this.job = job;
-      this.limitConcurrency = limitConcurrency;
+      this.reason = reason;
     }
 
     static BatchOutcome passed(DataflowPipelineJob job) {
-      return new BatchOutcome(job, true);
+      return new BatchOutcome(Kind.PASSED, job, null);
     }
 
-    /**
-     * The member must run standalone. {@code limitConcurrency} is {@code false} for re-runs after a
-     * merged job was attempted: those are bounded by the batch size and must not queue behind the
-     * per-JVM standalone limiter, otherwise members that have already waited for the merged job
-     * could exceed their test timeout waiting for a permit.
-     */
-    static BatchOutcome runStandalone(boolean limitConcurrency) {
-      return new BatchOutcome(null, limitConcurrency);
+    static BatchOutcome declined() {
+      return new BatchOutcome(Kind.DECLINED, null, null);
+    }
+
+    static BatchOutcome rerunRequired(String reason) {
+      return new BatchOutcome(Kind.RERUN_REQUIRED, null, reason);
     }
   }
 
@@ -532,13 +557,15 @@ class DataflowTestBatchCoordinator {
     }
 
     /**
-     * Blocks the calling (test) thread until the batch machinery has reached a verdict, then either
-     * returns the merged job or runs this pipeline standalone on the calling thread.
+     * Blocks the calling (test) thread until the batch machinery has reached a verdict, then
+     * returns the merged job, runs this pipeline standalone on the calling thread (if batching was
+     * declined before a merged job was built from it), or throws {@link
+     * TestPipeline.StandaloneRerunRequested} so that the test runner executes the test again from
+     * scratch as a job of its own.
      *
      * <p>The wait is bounded by {@link #verdictTimeoutMillis}. Exceeding it means the machinery
      * failed to deliver a verdict at all, which is a harness bug; the test fails with a description
-     * of where the member got stuck rather than silently hanging its fork. The pipeline is
-     * deliberately not re-run in that case: the batch runner may still be using it.
+     * of where the member got stuck rather than silently hanging its fork.
      */
     DataflowPipelineJob awaitResult() {
       BatchOutcome outcome;
@@ -574,12 +601,24 @@ class DataflowTestBatchCoordinator {
         }
         throw new RuntimeException(cause != null ? cause : e);
       }
-      if (outcome.job != null) {
-        return outcome.job;
+      switch (outcome.kind) {
+        case PASSED:
+          return outcome.job;
+        case DECLINED:
+          return runner.runStandalone(pipeline, delegateRunner);
+        case RERUN_REQUIRED:
+        default:
+          String jobId = mergedJobId;
+          throw new TestPipeline.StandaloneRerunRequested(
+              String.format(
+                  "Test %s (scope %s) was merged into Dataflow job %s, which yielded no verdict"
+                      + " for it: %s. The test has to be executed again as a job of its own;"
+                      + " BeamParallelJunit4Runner does so automatically.",
+                  options.getAppName(),
+                  scope,
+                  jobId == null ? "(never submitted)" : jobId,
+                  outcome.reason));
       }
-      // The batch runner is done with this pipeline once the future is complete. Running it
-      // standalone re-applies the same (idempotent) runner overrides the merged attempt applied.
-      return runner.runStandalone(pipeline, delegateRunner, outcome.limitConcurrency);
     }
   }
 
@@ -723,17 +762,16 @@ class DataflowTestBatchCoordinator {
      *
      * <p>A batch of one is not executed through {@link #executeBatch}: that would wrap the lone
      * pipeline in a renamed composite, apply scoped PAssert/stage verification, and &mdash; on
-     * failure &mdash; re-run it standalone, i.e. a second Dataflow job. Instead the member is told
-     * that batching was declined, which makes it behave exactly like an ineligible pipeline: its
-     * own test thread runs it standalone (see {@link PendingItem#awaitResult()}) with the full
-     * {@link TestDataflowRunner} semantics, unmodified names, and the first-attempt concurrency
-     * limiter.
+     * failure &mdash; require the test to be executed again. Instead the member is told that
+     * batching was declined, which makes it behave exactly like an ineligible pipeline: its own
+     * test thread runs it standalone (see {@link PendingItem#awaitResult()}) with the full {@link
+     * TestDataflowRunner} semantics and unmodified names.
      */
     private void dispatch(List<PendingItem> batch) {
       try {
         if (batch.size() == 1) {
           // Verdict only; the job is submitted by the test thread.
-          batch.get(0).resultFuture.complete(BatchOutcome.runStandalone(true));
+          batch.get(0).resultFuture.complete(BatchOutcome.declined());
           return;
         }
         batchRunners.execute(() -> executeBatch(batch));
@@ -853,10 +891,11 @@ class DataflowTestBatchCoordinator {
     DataflowPipelineJob batchJob = null;
     State terminalState = null;
     ErrorMonitorMessagesHandler messages = null;
+    String noVerdictReason = null;
     try {
       // The constructor rejects members whose transform names collide. That cannot happen with
-      // TestPipeline's sequence-numbered root names, but if it did the catch below re-runs all
-      // members standalone rather than risk mis-crediting a test.
+      // TestPipeline's sequence-numbered root names, but if it did the catch below sends every
+      // member back for a fresh standalone execution rather than risk mis-crediting a test.
       CompositePipeline compositePipeline = new CompositePipeline(leader.options, memberPipelines);
       batchJob = leader.runner.submit(leader.delegateRunner, compositePipeline);
       for (PendingItem item : items) {
@@ -871,9 +910,11 @@ class DataflowTestBatchCoordinator {
       Duration timeout = mergedJobTimeout(items);
       terminalState = leader.runner.waitForMergedJobTermination(batchJob, timeout, messages);
       if (terminalState == null) {
+        noVerdictReason =
+            "the merged job did not terminate within " + timeout + " and was cancelled";
         LOG.warn(
-            "Merged Dataflow job {} for batch #{} did not terminate within {}; cancelling it and"
-                + " re-running all {} tests standalone.{}",
+            "Merged Dataflow job {} for batch #{} did not terminate within {}; cancelling it; all"
+                + " {} tests will be executed again standalone.{}",
             batchJob.getJobId(),
             batchNumber,
             timeout,
@@ -882,9 +923,10 @@ class DataflowTestBatchCoordinator {
         cancelQuietly(batchJob);
       }
     } catch (Exception e) {
+      noVerdictReason = "the merged job failed during submission or execution (" + e + ")";
       LOG.warn(
-          "Merged Dataflow batch #{} failed during submission or execution; all {} tests will"
-              + " re-run standalone.{}",
+          "Merged Dataflow batch #{} failed during submission or execution; all {} tests will be"
+              + " executed again standalone.{}",
           batchNumber,
           items.size(),
           errorSuffix(messages),
@@ -898,7 +940,7 @@ class DataflowTestBatchCoordinator {
     if (batchJob == null || terminalState == null) {
       outcomes = new ArrayList<>(items.size());
       for (int i = 0; i < items.size(); i++) {
-        outcomes.add(BatchOutcome.runStandalone(false));
+        outcomes.add(BatchOutcome.rerunRequired(noVerdictReason + errorSuffix(messages)));
       }
     } else {
       // How members are credited depends on the execution mode, and all members of a batch share
@@ -919,7 +961,8 @@ class DataflowTestBatchCoordinator {
   /**
    * Credits members of a terminated <i>batch-mode</i> merged job. A member is credited when its
    * scoped PAssert counters verify and, unless the job ended {@code DONE}, every stage that may
-   * belong to it ended {@code DONE} (see {@link StageAttribution}); anyone else re-runs standalone.
+   * belong to it ended {@code DONE} (see {@link StageAttribution}); anyone else must be executed
+   * again standalone.
    */
   private List<BatchOutcome> batchModeVerdicts(
       DataflowPipelineJob batchJob,
@@ -938,7 +981,7 @@ class DataflowTestBatchCoordinator {
       if (attribution == null) {
         LOG.warn(
             "Merged Dataflow job {} terminated in state {} and per-stage execution state is"
-                + " unavailable; all {} tests will re-run standalone.{}",
+                + " unavailable; all {} tests will be executed again standalone.{}",
             batchJob.getJobId(),
             terminalState,
             items.size(),
@@ -978,14 +1021,14 @@ class DataflowTestBatchCoordinator {
         outcomes.add(BatchOutcome.passed(new ScopedDataflowPipelineJob(batchJob, scope)));
       } else {
         LOG.warn(
-            "Test {} (scope {}) could not be credited from merged Dataflow job {} ({});"
-                + " re-running standalone.{}",
+            "Test {} (scope {}) could not be credited from merged Dataflow job {} ({}); it will be"
+                + " executed again standalone.{}",
             item.options.getAppName(),
             scope,
             batchJob.getJobId(),
             verdict,
             errorSuffix(messages));
-        outcomes.add(BatchOutcome.runStandalone(false));
+        outcomes.add(BatchOutcome.rerunRequired(verdict + errorSuffix(messages)));
       }
     }
     return outcomes;

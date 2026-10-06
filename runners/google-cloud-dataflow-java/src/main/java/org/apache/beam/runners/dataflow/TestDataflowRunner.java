@@ -232,23 +232,11 @@ public class TestDataflowRunner extends PipelineRunner<DataflowPipelineJob> {
     return null;
   }
 
-  DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
-    return runStandalone(pipeline, runner, true);
-  }
-
   /**
-   * Runs {@code pipeline} as its own Dataflow job.
-   *
-   * @param limitConcurrency whether to take a permit from the per-JVM standalone-job limiter.
-   *     Re-runs of members of an already-attempted merged job pass {@code false}: their number is
-   *     bounded by the batch size, and queueing them behind the limiter would add the wait time to
-   *     tests that have already spent the merged job's duration.
+   * Runs {@code pipeline} as its own Dataflow job, holding a permit from the per-JVM standalone-job
+   * limiter for its duration.
    */
-  DataflowPipelineJob runStandalone(
-      Pipeline pipeline, DataflowRunner runner, boolean limitConcurrency) {
-    if (!limitConcurrency) {
-      return runStandaloneInternal(pipeline, runner);
-    }
+  DataflowPipelineJob runStandalone(Pipeline pipeline, DataflowRunner runner) {
     Semaphore semaphore = getStandaloneSemaphore();
     boolean acquired = false;
     try {
