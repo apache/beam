@@ -203,6 +203,16 @@ public class BoundedSourceSplitterTest {
     assertEquals(2, splits.size());
   }
 
+  @Test
+  public void testFormatsSizesWithBinaryUnits() {
+    assertEquals("0 B", BoundedSourceSplitter.formatSize(0));
+    assertEquals("1023 B", BoundedSourceSplitter.formatSize(1023));
+    assertEquals("1.00 KiB", BoundedSourceSplitter.formatSize(1024));
+    assertEquals("1.71 MiB", BoundedSourceSplitter.formatSize(1_790_807));
+    assertEquals("12.51 GiB", BoundedSourceSplitter.formatSize(13_431_054_034L));
+    assertEquals("8.00 EiB", BoundedSourceSplitter.formatSize(Long.MAX_VALUE));
+  }
+
   private static RangeSource range(long start, long end) {
     return new RangeSource(start, end);
   }

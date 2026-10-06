@@ -184,13 +184,13 @@ public final class BoundedSourceSplitter {
     }
 
     LOG.info(
-        "Split bounded source {} in {} splits (initially {}; estimated size {} bytes, desired "
-            + "split size {} bytes, parallelism {}, split size coefficient of variation {})",
+        "Split bounded source {} in {} splits (initially {}; estimated size {}, desired split size "
+            + "{}, parallelism {}, split size coefficient of variation {})",
         source,
         splits.size(),
         initialSplits,
-        estimatedSizeBytes,
-        desiredSizeBytes,
+        formatSize(estimatedSizeBytes),
+        formatSize(desiredSizeBytes),
         readers,
         allSizesKnown(splits) ? format(coefficientOfVariation(splits)) : "unknown");
 
@@ -243,11 +243,11 @@ public final class BoundedSourceSplitter {
     long targetBytes = Math.min(Math.max((long) mean(splits), minTargetBytes), maxSplitSizeBytes);
     LOG.info(
         "Size balancing round {}: split size coefficient of variation {} is above {}, re-splitting "
-            + "towards {} bytes",
+            + "towards {}",
         round,
         format(cv),
         MAX_SIZE_COEFFICIENT_OF_VARIATION,
-        targetBytes);
+        formatSize(targetBytes));
     List<SizedSource<T>> next = resplitLargerThan(splits, options, targetBytes);
     if (next.size() > splits.size() && allSizesKnown(next)) {
       return balanceSizes(next, options, minTargetBytes, maxSplitSizeBytes, roundsLeft - 1);
@@ -277,11 +277,11 @@ public final class BoundedSourceSplitter {
                 })
             .collect(Collectors.toList());
     LOG.info(
-        "Re-split {} of {} splits larger than {} bytes towards {} bytes: {} -> {}",
+        "Re-split {} of {} splits larger than {} towards {}: {} -> {}",
         oversized,
         splits.size(),
-        thresholdBytes,
-        targetBytes,
+        formatSize(thresholdBytes),
+        formatSize(targetBytes),
         describe(splits),
         describe(result));
     return result;
@@ -421,6 +421,22 @@ public final class BoundedSourceSplitter {
     return String.format("%.3f", value);
   }
 
+  private static final String[] SIZE_UNITS = {"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB"};
+
+  /** Formats a size in bytes with a binary unit, e.g. {@code 1.71 MiB}. */
+  static String formatSize(long bytes) {
+    if (bytes < 1024) {
+      return bytes + " B";
+    }
+    double value = bytes;
+    int unit = 0;
+    while (value >= 1024 && unit < SIZE_UNITS.length - 1) {
+      value /= 1024;
+      unit++;
+    }
+    return String.format("%.2f %s", value, SIZE_UNITS[unit]);
+  }
+
   /** Short description of the splits for logging. */
   private static String describe(List<? extends SizedSource<?>> splits) {
     if (!allSizesKnown(splits)) {
@@ -431,11 +447,11 @@ public final class BoundedSourceSplitter {
       sizes.accept(split.sizeBytes);
     }
     return String.format(
-        "%d splits, size min/mean/max %d/%.0f/%d bytes, coefficient of variation %.3f",
+        "%d splits, size min/mean/max %s/%s/%s, coefficient of variation %.3f",
         sizes.getCount(),
-        sizes.getMin(),
-        sizes.getAverage(),
-        sizes.getMax(),
+        formatSize(sizes.getMin()),
+        formatSize((long) sizes.getAverage()),
+        formatSize(sizes.getMax()),
         coefficientOfVariation(splits));
   }
 
