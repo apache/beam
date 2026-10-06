@@ -1149,7 +1149,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
-    _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
         self._get_parent_project(),
         location,
