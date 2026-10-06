@@ -1,0 +1,58 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+// Lifecycle tasks: build, check (rustfmt + clippy), test, fmt and clean.
+//
+// The tasks always run cargo. Cargo has its own incremental build, so a run with nothing to
+// do is fast, and its result is always the real result of the command.
+
+ext.rustDir = file("${rootDir}/sdks/rust")
+
+// -Ppkg=<crate> narrows `test` to one crate; the default is the whole workspace.
+def selectedPkg = (project.findProperty('pkg') ?: project.findProperty('package'))?.toString()
+ext.cargoScope = selectedPkg ? ['-p', selectedPkg] : ['--workspace']
+// -PtestArgs="<args>" passes test-binary arguments after `--`, e.g. -PtestArgs=--ignored.
+def testArgs = project.findProperty('testArgs')?.toString()?.tokenize(' ') ?: []
+
+// Registers an Exec task that runs `cargo <args>` in the workspace root.
+ext.cargoTask = { String name, String taskGroup, String text, List<String> args ->
+  tasks.register(name, Exec) {
+    group = taskGroup
+    description = text
+    workingDir rustDir
+    commandLine(['cargo'] + args)
+  }
+}
+
+cargoTask('buildWorkspace', 'Build', 'Compile all crates in the Rust workspace',
+    ['build', '--workspace'])
+cargoTask('fmtCheck', 'Verification', 'Verify formatting (cargo fmt --check)',
+    ['fmt', '--check'])
+cargoTask('fmt', 'Verification', 'Format all Rust code (cargo fmt)',
+    ['fmt'])
+cargoTask('clippy', 'Verification', 'Run clippy on all targets (-D warnings)',
+    ['clippy', '--workspace', '--all-targets', '--', '-D', 'warnings'])
+cargoTask('test', 'Verification',
+    'Run tests (the workspace, or one crate with -Ppkg=<crate>; -PtestArgs=<args> after --)',
+    ['test'] + cargoScope + (testArgs ? ['--'] + testArgs : []))
+cargoTask('cleanSdk', 'Build', 'Remove the cargo target directory',
+    ['clean'])
+
+build.dependsOn 'buildWorkspace'
+check.dependsOn 'fmtCheck', 'clippy'
+clean.dependsOn 'cleanSdk'
