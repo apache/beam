@@ -63,7 +63,7 @@ The table below is intended for security researchers and enterprise security tea
 | --- | --- | --- |
 | Unauthenticated access to the runner worker | Runner’s security model | Depends on the runner; report to the runner provider |
 | Unauthenticated access to the host machine using Prism Runner | In scope | Prism runner has a basic security model |
-| Code execution via unsafe deserialization of input data or other mechanism where no Beam-level control exists to prevent it | In scope | Vulnerability – report it |
+| Code execution via unsafe deserialization (or other mechanism) of input data where no Beam-level control exists to prevent it | In scope | Vulnerability – report it |
 | SQL injection via unsafe parsing of input data where no Beam-level control exists to prevent it | In scope | Vulnerability – report it |
 | Existing nomenclature, documentation, and logic expose risk of supply-chain attack | **Depends** | See notes below |
 | Denial of service (DoS) via certain data patterns where no Beam-level control exists to prevent it | In scope | Vulnerability – report it, with exceptions (see notes below) |
