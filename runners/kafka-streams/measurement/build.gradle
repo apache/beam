@@ -1,0 +1,78 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * License); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an AS IS BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/**
+ * An application for measuring the Kafka Streams runner's behaviour when instances come and go.
+ *
+ * Not part of the build's verification: it is something a person runs against a Kafka, several
+ * copies at once, and watches.
+ */
+
+apply plugin: 'org.apache.beam.module'
+apply plugin: 'application'
+mainClassName = "org.apache.beam.runners.kafka.streams.measurement.RescalingMeasurement"
+
+applyJavaNature(
+  automaticModuleName: 'org.apache.beam.runners.kafka.streams.measurement',
+  publish: false,
+  exportJavadoc: false,
+  // This module runs the pipeline in its own process, so the SDK harness and its dependencies are
+  // on the classpath, and SpotBugs reports on those rather than on the four classes here — some
+  // eleven thousand warnings, none of them in this source tree. The same is done in the it/
+  // modules, which are on the classpath of what they exercise for the same reason. Checkstyle,
+  // ErrorProne, spotless and the nullness checker all still run.
+  enableSpotbugs: false,
+)
+
+description = "Apache Beam :: Runners :: Kafka Streams :: Measurement"
+
+def kafkaStreamsRunnerProject = ":runners:kafka-streams"
+
+evaluationDependsOn(kafkaStreamsRunnerProject)
+
+// Same pin as the runner and the job server: applyJavaNature forces the versions in library.java,
+// which includes an older kafka-clients than the runner is compiled against.
+def kafka_version = project(kafkaStreamsRunnerProject).kafka_version
+
+configurations.configureEach {
+  resolutionStrategy.eachDependency { details ->
+    if (details.requested.group == "org.apache.kafka") {
+      details.useVersion(kafka_version)
+      details.because("Kafka Streams runner is developed against Kafka ${kafka_version}.")
+    }
+  }
+}
+
+dependencies {
+  implementation project(kafkaStreamsRunnerProject)
+  implementation project(path: ":sdks:java:core", configuration: "shadow")
+  implementation project(path: ":model:pipeline", configuration: "shadow")
+  implementation project(":runners:java-fn-execution")
+  // On the compile classpath to resolve PortablePipelineRunner, which KafkaStreamsPipelineRunner
+  // implements; no class of it is named here, so the dependency analysis does not see it used.
+  implementation project(":runners:java-job-service")
+  permitUnusedDeclared project(":runners:java-job-service")
+  implementation project(":runners:core-java")
+  permitUnusedDeclared project(":runners:core-java")
+  // The pipeline's own code runs in this process, so the Java SDK harness has to be present.
+  runtimeOnly project(":sdks:java:harness")
+  implementation library.java.joda_time
+  // Without a binding the application starts and says nothing, which is unhelpful for something
+  // whose whole purpose is to be watched while it runs.
+  runtimeOnly library.java.slf4j_simple
+}

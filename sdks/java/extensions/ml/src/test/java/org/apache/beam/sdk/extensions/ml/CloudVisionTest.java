@@ -33,7 +33,8 @@ import org.junit.runners.JUnit4;
 public class CloudVisionTest {
 
   private static final String TEST_URI = "test_uri";
-  private static final ByteString TEST_BYTES = ByteString.copyFromUtf8("12345");;
+  private static final ByteString TEST_BYTES = ByteString.copyFromUtf8("12345");
+  ;
   private List<Feature> features =
       Collections.singletonList(Feature.newBuilder().setType(Feature.Type.LABEL_DETECTION).build());
 

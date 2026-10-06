@@ -80,8 +80,7 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
 
   @Description("Base name of BigQuery table name if using BigQuery output.")
   @Default.String("nexmark")
-  @Nullable
-  String getBigQueryTable();
+  @Nullable String getBigQueryTable();
 
   void setBigQueryTable(String bigQueryTable);
 
@@ -92,14 +91,12 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
   void setBigQueryDataset(String bigQueryDataset);
 
   @Description("InfluxDB host.")
-  @Nullable
-  String getInfluxHost();
+  @Nullable String getInfluxHost();
 
   void setInfluxHost(@Nullable String host);
 
   @Description("InfluxDB database.")
-  @Nullable
-  String getInfluxDatabase();
+  @Nullable String getInfluxDatabase();
 
   void setInfluxDatabase(@Nullable String database);
 
@@ -111,20 +108,17 @@ public interface TpcdsOptions extends ApplicationNameOptions, GcpOptions, BeamSq
 
   @Description("Base name of measurement name if using InfluxDB output.")
   @Default.String("tpcds")
-  @Nullable
-  String getBaseInfluxMeasurement();
+  @Nullable String getBaseInfluxMeasurement();
 
   void setBaseInfluxMeasurement(String influxDBMeasurement);
 
   @Description("Name of retention policy for Influx data.")
-  @Nullable
-  String getInfluxRetentionPolicy();
+  @Nullable String getInfluxRetentionPolicy();
 
   void setInfluxRetentionPolicy(String influxRetentionPolicy);
 
   @Description("Additional tags for Influx data")
-  @Nullable
-  Map<String, String> getInfluxTags();
+  @Nullable Map<String, String> getInfluxTags();
 
   void setInfluxTags(Map<String, String> influxTags);
 }

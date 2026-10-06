@@ -40,10 +40,10 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings("Slf4jDoNotLogMessageOfExceptionExplicitly")
 @Internal
-public final class EvaluationContext {
+public class EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
 
-  interface NamedDataset<T> {
+  public interface NamedDataset<T> {
     String name();
 
     @Nullable
@@ -52,15 +52,25 @@ public final class EvaluationContext {
 
   private final Collection<? extends NamedDataset<?>> leaves;
   private final SparkSession session;
+  private volatile boolean stopped = false;
 
-  EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
+  protected EvaluationContext(Collection<? extends NamedDataset<?>> leaves, SparkSession session) {
     this.leaves = leaves;
     this.session = session;
   }
 
-  /** Trigger evaluation of all leaf datasets. */
+  /** The leaf datasets of the translated pipeline that require evaluation. */
+  protected Collection<? extends NamedDataset<?>> leaves() {
+    return leaves;
+  }
+
+  /** Trigger evaluation of all leaf datasets. Returns early once {@link #stop()} was called. */
   public void evaluate() {
     for (NamedDataset<?> ds : leaves) {
+      if (stopped) {
+        LOG.info("Evaluation stopped, skipping remaining datasets");
+        return;
+      }
       final Dataset<?> dataset = ds.dataset();
       if (dataset == null) {
         continue;
@@ -111,6 +121,18 @@ public final class EvaluationContext {
           String.valueOf(Throwables.getRootCause(e).getMessage()));
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Stops the evaluation after the current leaf dataset. Streaming contexts override this to stop
+   * their queries.
+   */
+  public void stop() {
+    stopped = true;
+  }
+
+  protected boolean isStopped() {
+    return stopped;
   }
 
   public SparkSession getSparkSession() {

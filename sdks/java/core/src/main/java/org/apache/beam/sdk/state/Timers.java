@@ -49,8 +49,7 @@ public interface Timers {
   Instant currentProcessingTime();
 
   /** Returns the current synchronized processing time or {@code null} if unknown. */
-  @Nullable
-  Instant currentSynchronizedProcessingTime();
+  @Nullable Instant currentSynchronizedProcessingTime();
 
   /** Returns the current event time. */
   Instant currentEventTime();

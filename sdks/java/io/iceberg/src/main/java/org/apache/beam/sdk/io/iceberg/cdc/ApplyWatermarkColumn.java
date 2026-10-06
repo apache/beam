@@ -54,8 +54,7 @@ class ApplyWatermarkColumn extends DoFn<Row, Row> {
 
   @ProcessElement
   public void process(@Element Row row, OutputReceiver<Row> out) {
-    @Nullable
-    Instant instant =
+    @Nullable Instant instant =
         getInstant(row.getValue(watermarkColumn), row.getSchema().getField(watermarkColumn));
     if (instant != null) {
       out.outputWithTimestamp(row, instant);

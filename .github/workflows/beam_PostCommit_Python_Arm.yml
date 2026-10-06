@@ -20,7 +20,7 @@ name: PostCommit Python Arm
 on:
   schedule:
     - cron: '0 5/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Python_Arm.json']
   workflow_dispatch:
 
@@ -29,7 +29,7 @@ concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -54,31 +54,28 @@ jobs:
   beam_PostCommit_Python_Arm:
     name: ${{ matrix.job_name }} ${{ matrix.python_version }}
     runs-on: [self-hosted, ubuntu-24.04, main]
-    # Python ARM PostCommit uses prebuilt Snapshots SDK images, so it no longer
-    # spends hours on multiarch container builds. Keep headroom for the IT suite.
+    # Skip local multiarch SDK container builds. ARM workers use the
+    # apache-beam-testing Snapshots image tagged with sdk_version, plus an
+    # aarch64 wheel from this checkout. Keep headroom for the IT suite and
+    # qemu wheel build.
     timeout-minutes: 180
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PostCommit_Python_Arm]
-        job_phrase: [Run Python PostCommit Arm]
         python_version: ['3.10', '3.14']
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} ${{ matrix.python_version }}
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -87,13 +84,11 @@ jobs:
         run: |
           sudo curl -L https://github.com/docker/compose/releases/download/1.22.0/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
           sudo chmod +x /usr/local/bin/docker-compose
-      - name: Authenticate on GCP
-        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
-        with:
-          service_account: ${{ secrets.GCP_SA_EMAIL }}
-          credentials_json: ${{ secrets.GCP_SA_KEY }}
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
+      # aarch64 wheels are built with cibuildwheel on this x86 runner.
+      - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1
+        name: Set up QEMU
       - name: Set PY_VER_CLEAN
         id: set_py_ver_clean
         run: |
@@ -106,11 +101,10 @@ jobs:
           gradle-command: :sdks:python:test-suites:dataflow:py${{steps.set_py_ver_clean.outputs.py_ver_clean}}:postCommitArmIT
           arguments: |
             -PuseWheelDistribution \
+            -PcibwArchs=aarch64 \
             -PpythonVersion=${{ matrix.python_version }} \
             -PusePrebuiltSdkContainer \
         env:
-          # Use multiarch images published by Publish Beam SDK Snapshots.
-          SDK_CONTAINER_IMAGE: gcr.io/apache-beam-testing/beam-sdk/beam_python${{ matrix.python_version }}_sdk:latest
           USER: github-actions
       - name: Archive Python Test Results
         uses: actions/upload-artifact@v7
@@ -122,7 +116,8 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          commit: '${{ env.prsha || env.GITHUB_SHA }}'
-          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          commit: '${{ env.GITHUB_SHA }}'
+          comment_mode: 'off'
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/pytest*.xml'
           large_files: true

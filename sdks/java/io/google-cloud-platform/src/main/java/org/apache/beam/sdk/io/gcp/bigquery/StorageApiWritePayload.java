@@ -62,7 +62,6 @@ public abstract class StorageApiWritePayload {
 
   public abstract Builder toBuilder();
 
-  @SuppressWarnings("nullness")
   static StorageApiWritePayload of(
       byte[] payload, @Nullable TableRow unknownFields, @Nullable TableRow failsafeTableRow)
       throws IOException {
@@ -80,6 +79,21 @@ public abstract class StorageApiWritePayload {
         .setUnknownFieldsPayload(unknownFieldsPayload)
         .setFailsafeTableRowPayload(failsafeTableRowPayload)
         .setTimestamp(null)
+        .build();
+  }
+
+  static StorageApiWritePayload of(
+      byte[] payload,
+      @Nullable Instant timestamp,
+      @Nullable byte[] unknownFieldsPayload,
+      @Nullable byte[] failsafeTableRowPayload,
+      @Nullable byte[] schemaHash) {
+    return new AutoValue_StorageApiWritePayload.Builder()
+        .setPayload(payload)
+        .setTimestamp(timestamp)
+        .setUnknownFieldsPayload(unknownFieldsPayload)
+        .setFailsafeTableRowPayload(failsafeTableRowPayload)
+        .setSchemaHash(schemaHash)
         .build();
   }
 

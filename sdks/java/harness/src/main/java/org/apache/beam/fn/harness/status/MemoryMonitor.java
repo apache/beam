@@ -200,6 +200,19 @@ public class MemoryMonitor implements Runnable {
 
   @VisibleForTesting final boolean gzipCompress;
 
+  /** Interface for dumping the heap to a file (for testing). */
+  @VisibleForTesting
+  interface HeapDumper {
+    void dump(File destination)
+        throws MalformedObjectNameException,
+            InstanceNotFoundException,
+            ReflectionException,
+            MBeanException,
+            IOException;
+  }
+
+  @VisibleForTesting HeapDumper heapDumper = MemoryMonitor::dumpJvmHeap;
+
   public static MemoryMonitor fromOptions(PipelineOptions options) {
     SdkHarnessOptions sdkHarnessOptions = options.as(SdkHarnessOptions.class);
     @Nullable String uploadFilePath = sdkHarnessOptions.getRemoteHeapDumpLocation();
@@ -620,11 +633,27 @@ public class MemoryMonitor implements Runnable {
    * repeated dumps. These files can be of comparable size to the local disk.
    */
   public File dumpHeap()
-      throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
-          MBeanException, IOException {
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException,
+          IOException {
     Preconditions.checkState(
         canDumpHeap, "Bug! Attempt to dump heap even though it should be disabled.");
-    return dumpHeap(localDumpFolder);
+    return dumpHeap(localDumpFolder, heapDumper);
+  }
+
+  private static void dumpJvmHeap(File fileName)
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException {
+    boolean liveObjectsOnly = false;
+    MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
+    ObjectName oname = new ObjectName("com.sun.management:type=HotSpotDiagnostic");
+    Object[] parameters = {fileName.getPath(), liveObjectsOnly};
+    String[] signatures = {String.class.getName(), boolean.class.getName()};
+    mbs.invoke(oname, "dumpHeap", parameters, signatures);
   }
 
   /**
@@ -633,21 +662,18 @@ public class MemoryMonitor implements Runnable {
    * <p>NOTE: We deliberately don't salt the heap dump filename so as to minimize disk impact of
    * repeated dumps. These files can be of comparable size to the local disk.
    */
-  private static synchronized File dumpHeap(File directory)
-      throws MalformedObjectNameException, InstanceNotFoundException, ReflectionException,
-          MBeanException, IOException {
-
-    boolean liveObjectsOnly = false;
+  private static synchronized File dumpHeap(File directory, HeapDumper heapDumper)
+      throws MalformedObjectNameException,
+          InstanceNotFoundException,
+          ReflectionException,
+          MBeanException,
+          IOException {
     File fileName = new File(directory, "heap_dump.hprof");
     if (fileName.exists() && !fileName.delete()) {
       throw new IOException("heap_dump.hprof already existed and couldn't be deleted!");
     }
 
-    MBeanServer mbs = ManagementFactory.getPlatformMBeanServer();
-    ObjectName oname = new ObjectName("com.sun.management:type=HotSpotDiagnostic");
-    Object[] parameters = {fileName.getPath(), liveObjectsOnly};
-    String[] signatures = {String.class.getName(), boolean.class.getName()};
-    mbs.invoke(oname, "dumpHeap", parameters, signatures);
+    heapDumper.dump(fileName);
 
     if (java.nio.file.FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
       Files.setPosixFilePermissions(

@@ -18,7 +18,9 @@
 package org.apache.beam.sdk.io.kafka;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertThrows;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -26,10 +28,12 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.runners.TransformHierarchy;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.SchemaRegistry;
@@ -41,6 +45,7 @@ import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.apache.kafka.common.TopicPartition;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -138,7 +143,9 @@ public class KafkaReadSchemaTransformProviderTest {
             "allow_duplicates",
             "offset_deduplication",
             "redistribute_num_keys",
-            "redistribute_by_record_key"),
+            "redistribute_by_record_key",
+            "with_gcp_adc",
+            "num_partitions"),
         kafkaProvider.configurationSchema().getFields().stream()
             .map(field -> field.getName())
             .collect(Collectors.toSet()));
@@ -361,7 +368,12 @@ public class KafkaReadSchemaTransformProviderTest {
                 + "schema: '"
                 + PROTO_SCHEMA
                 + "'\n"
-                + "message_name: MyMessage");
+                + "message_name: MyMessage",
+            "topic: topic_6\n"
+                + "bootstrap_servers: some bootstrap\n"
+                + "format: RAW\n"
+                + "with_gcp_adc: true\n"
+                + "num_partitions: 3");
 
     for (String config : configs) {
       // Kafka Read SchemaTransform gets built in ManagedSchemaTransformProvider's expand
@@ -369,6 +381,42 @@ public class KafkaReadSchemaTransformProviderTest {
           .withConfig(YamlUtils.yamlStringToMap(config))
           .expand(PBegin.in(Pipeline.create()));
     }
+  }
+
+  @Test
+  public void testBuildTransformWithNumPartitions() {
+    KafkaReadSchemaTransformProvider kafkaProvider = new KafkaReadSchemaTransformProvider();
+    SchemaTransform transformWithPartitions =
+        kafkaProvider.from(
+            KafkaReadSchemaTransformConfiguration.builder()
+                .setTopic("anytopic")
+                .setBootstrapServers("anybootstrap")
+                .setFormat("RAW")
+                .setNumPartitions(3)
+                .build());
+    Pipeline pipelineWithPartitions = Pipeline.create();
+    transformWithPartitions.expand(PCollectionRowTuple.empty(pipelineWithPartitions));
+    AtomicReference<KafkaIO.Read<?, ?>> readWithPartitions = new AtomicReference<>();
+    pipelineWithPartitions.traverseTopologically(
+        new Pipeline.PipelineVisitor.Defaults() {
+          @Override
+          public CompositeBehavior enterCompositeTransform(TransformHierarchy.Node node) {
+            if (node.getTransform() instanceof KafkaIO.Read) {
+              readWithPartitions.set((KafkaIO.Read<?, ?>) node.getTransform());
+            }
+            return CompositeBehavior.ENTER_TRANSFORM;
+          }
+        });
+    assertNotNull(readWithPartitions.get());
+    assertEquals(
+        Arrays.asList(
+            new TopicPartition("anytopic", 0),
+            new TopicPartition("anytopic", 1),
+            new TopicPartition("anytopic", 2)),
+        readWithPartitions.get().getTopicPartitions());
+    assertTrue(
+        readWithPartitions.get().getTopics() == null
+            || readWithPartitions.get().getTopics().isEmpty());
   }
 
   // This test verifies that the schema for KafkaReadSchemaTransformConfiguration is correctly
@@ -380,7 +428,7 @@ public class KafkaReadSchemaTransformProviderTest {
     Schema schema =
         SchemaRegistry.createDefault().getSchema(KafkaReadSchemaTransformConfiguration.class);
 
-    assertEquals(17, schema.getFieldCount());
+    assertEquals(19, schema.getFieldCount());
 
     // Check field name, type, and nullability. Descriptions are not checked as they are not
     // critical for serialization.
@@ -478,5 +526,15 @@ public class KafkaReadSchemaTransformProviderTest {
         Schema.Field.nullable("redistributeByRecordKey", Schema.FieldType.BOOLEAN)
             .withDescription(schema.getField(16).getDescription()),
         schema.getField(16));
+
+    assertEquals(
+        Schema.Field.nullable("withGcpAdc", Schema.FieldType.BOOLEAN)
+            .withDescription(schema.getField(17).getDescription()),
+        schema.getField(17));
+
+    assertEquals(
+        Schema.Field.nullable("numPartitions", Schema.FieldType.INT32)
+            .withDescription(schema.getField(18).getDescription()),
+        schema.getField(18));
   }
 }

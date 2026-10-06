@@ -733,6 +733,7 @@ class StandardOptions(PipelineOptions):
       'apache_beam.runners.interactive.interactive_runner.InteractiveRunner',
       'apache_beam.runners.portability.flink_runner.FlinkRunner',
       'apache_beam.runners.portability.fn_api_runner.FnApiRunner',
+      'apache_beam.runners.portability.kafka_streams_runner.KafkaStreamsRunner',
       'apache_beam.runners.portability.portable_runner.PortableRunner',
       'apache_beam.runners.portability.prism_runner.PrismRunner',
       'apache_beam.runners.portability.spark_runner.SparkRunner',
@@ -811,6 +812,11 @@ class StreamingOptions(PipelineOptions):
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
+    parser.add_argument(
+        '--desired_num_unbounded_source_splits',
+        type=int,
+        default=0,
+        help='The desired number of initial splits for UnboundedSources.')
 
 
 class CrossLanguageOptions(PipelineOptions):
@@ -1204,12 +1210,34 @@ class GoogleCloudOptions(PipelineOptions):
         'Entries are key value pairs separated by = '
         '(e.g. --gcs_custom_audit_entry key=value) or a JSON string '
         '(e.g. --gcs_custom_audit_entries=\'{ "user": "test", "id": "12" }\').')
+    parser.add_argument(
+        '--gcs_read_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when reading from GCS. A '
+        'larger buffer reduces the number of requests sent to GCS at the '
+        'cost of more memory per reader. When unset, the GCS client in Beam '
+        'uses its default buffer size (16 MiB).')
+    parser.add_argument(
+        '--gcs_write_buffer_size_bytes',
+        type=int,
+        default=None,
+        help='Size in bytes of the buffer used when writing to GCS. Must be '
+        'a multiple of 256 KiB, since writes are performed as resumable '
+        'uploads. A larger buffer reduces the number of requests sent to GCS '
+        'at the cost of more memory per writer. When unset, the GCS client '
+        'in Beam uses its default buffer size (16 MiB).')
 
   def _create_default_gcs_bucket(self):
     try:
       from apache_beam.io.gcp import gcsio
     except ImportError:
       _LOGGER.warning('Unable to create default GCS bucket.')
+      return None
+    if not gcsio.GCS_INSTALLED:
+      _LOGGER.warning(
+          'Unable to create default GCS bucket because GCP dependencies are '
+          'not installed.')
       return None
     bucket = gcsio.get_or_create_default_gcs_bucket(self)
     if bucket:
@@ -1228,6 +1256,11 @@ class GoogleCloudOptions(PipelineOptions):
     gcs_path = getattr(self, arg_name, None)
     try:
       from apache_beam.io.gcp import gcsio
+      if not gcsio.GCS_INSTALLED:
+        _LOGGER.warning(
+            'Unable to check soft delete policy because GCP dependencies are '
+            'not installed.')
+        return
       if gcsio.GcsIO().is_soft_delete_enabled(gcs_path):
         logger.log_first_n(
             logging.WARN,
@@ -1302,6 +1335,24 @@ class GoogleCloudOptions(PipelineOptions):
       errors.extend(
           validator.validate_repeatable_argument_passed_as_list(
               self, 'dataflow_service_options'))
+
+    if (self.gcs_read_buffer_size_bytes is not None and
+        self.gcs_read_buffer_size_bytes <= 0):
+      errors.append(
+          '--gcs_read_buffer_size_bytes must be a positive number of bytes, '
+          'got %s.' % self.gcs_read_buffer_size_bytes)
+
+    if self.gcs_write_buffer_size_bytes is not None:
+      # GCS resumable uploads require the chunk size to be a multiple of
+      # 256 KiB. Checking here avoids a failure deep inside the GCS client
+      # on the first flush.
+      write_buffer_size_multiple = 256 * 1024
+      if (self.gcs_write_buffer_size_bytes <= 0 or
+          self.gcs_write_buffer_size_bytes % write_buffer_size_multiple != 0):
+        errors.append(
+            '--gcs_write_buffer_size_bytes must be a positive multiple of '
+            '%d bytes, got %s.' %
+            (write_buffer_size_multiple, self.gcs_write_buffer_size_bytes))
 
     return errors
 
@@ -1580,10 +1631,15 @@ class WorkerOptions(PipelineOptions):
         type=int,
         default=None,
         help=(
-            'The time limit (in minutes) for any PTransform to finish '
-            'processing a single element. If exceeded, the SDK worker '
-            'process self-terminates and processing may be restarted '
-            'by a runner.'))
+            'The time limit (in minutes) for any fused stage to finish '
+            'processing a single bundle. A fused stage may include '
+            'multiple consecutive PTransforms. It will also include the '
+            'IO steps used to populate data in the stage (this may be '
+            'a pipeline-level IO or an internal read like reading from a '
+            'Reshuffle or GroupByKey). Exact stage boundaries are determined '
+            'by the pipeline runner. If the timeout is exceeded, the SDK '
+            'worker process self-terminates and processing may be restarted '
+            'by a runner. All in-progress work in this bundle will be lost'))
 
   def validate(self, validator):
     errors = []
@@ -2163,6 +2219,32 @@ class FlinkRunnerOptions(PipelineOptions):
         help='The pipeline wide maximum degree of parallelism to be used. The'
         ' maximum parallelism specifies the upper limit for dynamic scaling'
         ' and the number of key groups used for partitioned state.')
+
+
+class KafkaStreamsRunnerOptions(PipelineOptions):
+  """Options for the Kafka Streams runner.
+
+  The runner is experimental and is not production ready. It is not part of
+  any Apache Beam release: its job server is built only when the Beam build is
+  run with -Pwith-kafka-streams-runner, so using it means building that job
+  server from a Beam source tree.
+  """
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(
+        '--bootstrap_servers',
+        default='localhost:9092',
+        help='Comma-separated list of host:port Kafka brokers the pipeline '
+        'connects to.')
+    parser.add_argument(
+        '--application_id',
+        help='Kafka Streams application.id for the pipeline. Must be unique '
+        'per pipeline, since it identifies the consumer group and the '
+        'runner\'s internal topics.')
+    parser.add_argument(
+        '--kafka_streams_job_server_jar',
+        help='Path or URL to a Beam Kafka Streams job server jar. If unset, '
+        'the jar is built from the Beam source tree.')
 
 
 class SparkRunnerOptions(PipelineOptions):

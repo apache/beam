@@ -31,8 +31,7 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  */
 @Internal
 public interface FieldValueGetter<ObjectT extends @NonNull Object, ValueT> extends Serializable {
-  @Nullable
-  ValueT get(ObjectT object);
+  @Nullable ValueT get(ObjectT object);
 
   /** Returns the raw value of the getter before any further transformations. */
   default @Nullable Object getRaw(ObjectT object) {

@@ -36,12 +36,15 @@ import io.delta.kernel.types.MapType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.PTransform;
 import org.apache.beam.sdk.transforms.ParDo;
@@ -132,14 +135,8 @@ public class DeltaIO {
       if (path == null) {
         throw new IllegalArgumentException("Table path must be set.");
       }
-      if (getTimestamp() != null) {
-        throw new UnsupportedOperationException(
-            "Reading from a specific timestamp is not supported yet");
-      }
-
-      if (getVersion() != null) {
-        throw new UnsupportedOperationException(
-            "Reading from a specific version is not supported yet");
+      if (getVersion() != null && getTimestamp() != null) {
+        throw new IllegalArgumentException("Cannot set both version and timestamp.");
       }
 
       Configuration conf = new Configuration();
@@ -151,7 +148,17 @@ public class DeltaIO {
       }
       Engine engine = DefaultEngine.create(conf);
       Table table = Table.forPath(engine, path);
-      io.delta.kernel.Snapshot snapshot = table.getLatestSnapshot(engine);
+      Snapshot snapshot;
+      Long versionVal = getVersion();
+      String timestampVal = getTimestamp();
+      if (versionVal != null) {
+        snapshot = table.getSnapshotAsOfVersion(engine, versionVal);
+      } else if (timestampVal != null) {
+        long timestampMillis = java.time.Instant.parse(timestampVal).toEpochMilli();
+        snapshot = table.getSnapshotAsOfTimestamp(engine, timestampMillis);
+      } else {
+        snapshot = table.getLatestSnapshot(engine);
+      }
       StructType deltaSchema = snapshot.getSchema();
       if (deltaSchema == null) {
         throw new IllegalStateException("Table schema is null.");
@@ -160,7 +167,9 @@ public class DeltaIO {
 
       return input
           .apply("Create Path", Create.of(path))
-          .apply("Plan Files", ParDo.of(new CreateReadTasksDoFn(hadoopConfig)))
+          .apply(
+              "Plan Files",
+              ParDo.of(new CreateReadTasksDoFn(hadoopConfig, getVersion(), getTimestamp())))
           .apply("Read Logical Data", ParDo.of(new DeltaSourceDoFn(hadoopConfig)))
           .setRowSchema(beamSchema);
     }
@@ -191,9 +200,11 @@ public class DeltaIO {
       } else if (deltaType instanceof BinaryType) {
         return Schema.FieldType.BYTES;
       } else if (deltaType instanceof TimestampType) {
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(Timestamp.MICROS);
+      } else if (deltaType instanceof TimestampNTZType) {
+        return Schema.FieldType.logicalType(SqlTypes.DATETIME);
       } else if (deltaType instanceof DateType) {
-        return Schema.FieldType.DATETIME;
+        return Schema.FieldType.logicalType(SqlTypes.DATE);
       } else if (deltaType instanceof ArrayType) {
         DataType elementType = ((ArrayType) deltaType).getElementType();
         return Schema.FieldType.iterable(convertToBeamFieldType(elementType));
@@ -224,7 +235,7 @@ public class DeltaIO {
       } else if (col.equals(COMMIT_VERSION_COLUMN)) {
         builder.addField(COMMIT_VERSION_COLUMN, Schema.FieldType.INT64);
       } else if (col.equals(COMMIT_TIMESTAMP_COLUMN)) {
-        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.DATETIME);
+        builder.addField(COMMIT_TIMESTAMP_COLUMN, Schema.FieldType.logicalType(Timestamp.MICROS));
       }
     }
     return builder.build();

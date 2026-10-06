@@ -73,6 +73,7 @@ public class RenameFields {
     // The FieldAccessDescriptor describing the field to renameSchema. Must reference a singleton
     // field.
     abstract FieldAccessDescriptor getFieldAccessDescriptor();
+
     // The new name for the field.
     abstract String getNewName();
 

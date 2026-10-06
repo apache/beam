@@ -87,7 +87,7 @@ func MakePlaygroundClient(ctx context.Context) pb.PlaygroundServiceClient {
 		return service.GetMockClient()
 	} else {
 		host := os.Getenv("PLAYGROUND_ROUTER_HOST")
-		cc, err := grpc.Dial(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		cc, err := grpc.NewClient(host, grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			log.Fatalf("fail to dial playground: %v", err)
 		}
