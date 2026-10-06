@@ -45,7 +45,7 @@ If you are on **Linux or macOS**, please run the following command to install th
 curl --proto '=https' --tlsv1.2 -LsSf https://github.com/flare-db/flare-db/releases/download/flare-cli-v0.3.2/flare-cli-installer.sh | sh
 ```
 
-If you are on **Windows** use WSL 
+If you are on **Windows** use WSL.
 
 ## 2. Initialize FlareDB
 
