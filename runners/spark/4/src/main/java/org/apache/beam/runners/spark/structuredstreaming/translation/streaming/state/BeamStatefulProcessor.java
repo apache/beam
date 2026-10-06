@@ -46,6 +46,7 @@ import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.state.TimeDomain;
 import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.transforms.windowing.GlobalWindow;
 import org.apache.beam.sdk.util.WindowedValueMultiReceiver;
 import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.TupleTag;
@@ -78,6 +79,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
   private final WindowingStrategy<?, ?> windowingStrategy;
   private final Supplier<PipelineOptions> optionsSupplier;
   private final MetricsAccumulator metrics;
+  private final Coder<BoundedWindow> windowCoder;
   private final TimerDataCoderV2 timerDataCoder;
   private final StatefulTaskRunner<KV<K, V>, OutputT> taskRunner = new StatefulTaskRunner<>();
 
@@ -102,6 +104,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
     @SuppressWarnings("unchecked")
     Coder<BoundedWindow> windowCoder =
         (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
+    this.windowCoder = windowCoder;
     this.timerDataCoder = TimerDataCoderV2.of(windowCoder);
   }
 
@@ -124,6 +127,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
     while (rows.hasNext()) {
       runner.processElement(rows.next());
     }
+    // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
 
@@ -142,6 +146,7 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
     DoFnRunner<KV<K, V>, OutputT> runner = keyRunner(key, timerInternals, outputs);
     fireDueTimers(key, watermark, timerInternals, runner);
+    // The next bundle opens in keyRunner.
     runner.finishBundle();
     needsBundleStart = true;
 
@@ -150,42 +155,58 @@ public class BeamStatefulProcessor<K, V, OutputT>
     return ScalaInterop.scalaIterator(outputs);
   }
 
-  private DoFnRunnerWithTeardown<KV<K, V>, OutputT> baseRunner() {
+  @Override
+  public void close() {
+    taskRunner.teardownOnce();
+  }
+
+  /** Creates the task runner on first use, {@code create} opens the first bundle. */
+  private DoFnRunnerWithTeardown<KV<K, V>, OutputT> baseRunner(
+      SparkStateInternals<K> stateInternals, SparkTimerInternals timerInternals) {
     return taskRunner.getOrCreate(
-        ctx ->
-            runnerFactory.create(
-                optionsSupplier.get(),
-                metrics,
-                new WindowedValueMultiReceiver() {
-                  @Override
-                  public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
-                    @SuppressWarnings("unchecked")
-                    WindowedValue<OutputT> out = (WindowedValue<OutputT>) output;
-                    checkStateNotNull(currentOutputs, "currentOutputs not initialized").add(out);
-                  }
-                },
-                ctx));
+        ctx -> {
+          ctx.set(stateInternals, timerInternals);
+          return runnerFactory.create(
+              optionsSupplier.get(),
+              metrics,
+              new WindowedValueMultiReceiver() {
+                @Override
+                public <T> void output(TupleTag<T> tag, WindowedValue<T> output) {
+                  @SuppressWarnings("unchecked")
+                  WindowedValue<OutputT> out = (WindowedValue<OutputT>) output;
+                  checkStateNotNull(currentOutputs, "currentOutputs not initialized").add(out);
+                }
+              },
+              ctx);
+        });
   }
 
   private DoFnRunner<KV<K, V>, OutputT> keyRunner(
       K key, SparkTimerInternals timerInternals, List<WindowedValue<OutputT>> outputs) {
-    DoFnRunnerWithTeardown<KV<K, V>, OutputT> base = baseRunner();
+    this.currentOutputs = outputs;
     MapState<String, byte[]> state = checkStateNotNull(beamState);
     SparkStateInternals<K> stateInternals =
         SparkStateInternals.forKey(key, new MapStateAdapter(state));
+    DoFnRunnerWithTeardown<KV<K, V>, OutputT> base = baseRunner(stateInternals, timerInternals);
     taskRunner.stepContext().set(stateInternals, timerInternals);
-    this.currentOutputs = outputs;
 
+    // Closed in handleInputRows and handleExpiredTimer.
     if (needsBundleStart) {
       needsBundleStart = false;
       base.startBundle();
     }
 
-    @SuppressWarnings("unchecked")
-    Coder<BoundedWindow> windowCoder =
-        (Coder<BoundedWindow>) windowingStrategy.getWindowFn().windowCoder();
     StatefulDoFnRunner.CleanupTimer<KV<K, V>> cleanupTimer =
-        new StatefulDoFnRunner.TimeInternalsCleanupTimer<>(timerInternals, windowingStrategy);
+        new StatefulDoFnRunner.TimeInternalsCleanupTimer<KV<K, V>>(
+            timerInternals, windowingStrategy) {
+          @Override
+          public void setForWindow(KV<K, V> input, BoundedWindow window) {
+            // GlobalWindow state is never garbage collected, as in the Flink runner.
+            if (!window.equals(GlobalWindow.INSTANCE)) {
+              super.setForWindow(input, window);
+            }
+          }
+        };
     StatefulDoFnRunner.StateCleaner<BoundedWindow> stateCleaner =
         new StatefulDoFnRunner.StateInternalsStateCleaner<>(doFn, stateInternals, windowCoder);
 
@@ -215,7 +236,9 @@ public class BeamStatefulProcessor<K, V, OutputT>
     ValueState<byte[]> timersState = checkStateNotNull(beamTimers);
     Collection<TimerData> timers = timerInternals.getTimers();
     if (timers.isEmpty()) {
-      timersState.clear();
+      if (timersState.exists()) {
+        timersState.clear();
+      }
     } else {
       timersState.update(
           CoderHelpers.toByteArray(new ArrayList<>(timers), ListCoder.of(timerDataCoder)));
@@ -287,17 +310,21 @@ public class BeamStatefulProcessor<K, V, OutputT>
 
     @Override
     public byte @Nullable [] get(String namespace, String stateId) {
-      return mapState.getValue(namespace + "+" + stateId);
+      return mapState.getValue(key(namespace, stateId));
     }
 
     @Override
     public void put(String namespace, String stateId, byte[] value) {
-      mapState.updateValue(namespace + "+" + stateId, value);
+      mapState.updateValue(key(namespace, stateId), value);
     }
 
     @Override
     public void remove(String namespace, String stateId) {
-      mapState.removeKey(namespace + "+" + stateId);
+      mapState.removeKey(key(namespace, stateId));
+    }
+
+    private static String key(String namespace, String stateId) {
+      return namespace.length() + ":" + namespace + stateId;
     }
   }
 }
