@@ -2228,7 +2228,8 @@ class Regex(object):
       regex: the regular expression string or (re.compile) pattern.
       group: (optional) name of the group, it can be integer or a string value.
       outputEmpty: (optional) Should empty be output. True to output empties
-        and false if not.
+     outputEmpty: (optional) Whether to allow matches with empty groups.
+       If false, these outputs will be silently dropped.
     """
     regex = Regex._regex_compile(regex)
 
