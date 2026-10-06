@@ -848,6 +848,13 @@ public class TableRowToStorageApiProto {
     return Iterables.getOnlyElement(fileDescriptor.getMessageTypes());
   }
 
+  /**
+   * Given a BigQuery row map, returns a protocol-buffer message for the BigQuery Storage API.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
+   */
   public static @Nullable DynamicMessage messageFromMap(
       SchemaInformation schemaInformation,
       @Nullable Descriptor descriptor,
@@ -1042,7 +1049,8 @@ public class TableRowToStorageApiProto {
       return null;
     }
     try {
-      return Preconditions.checkArgumentNotNull(builder).build();
+      DynamicMessage.Builder nonNullBuilder = Preconditions.checkArgumentNotNull(builder);
+      return allowMissingRequiredFields ? nonNullBuilder.buildPartial() : nonNullBuilder.build();
     } catch (Exception e) {
       throw new SchemaDoesntMatchException(
           "Couldn't convert schema for " + schemaInformation.getFullName(), e);
@@ -1053,6 +1061,10 @@ public class TableRowToStorageApiProto {
    * Forwards {@code changeSequenceNum} to {@link #messageFromTableRow(SchemaInformation,
    * Descriptor, TableRow, boolean, boolean, TableRow, String, String, ErrorCollector)} via {@link
    * Long#toHexString}.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
    */
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
@@ -1080,6 +1092,10 @@ public class TableRowToStorageApiProto {
   /**
    * Given a BigQuery TableRow, returns a protocol-buffer message that can be used to write data
    * using the BigQuery Storage API.
+   *
+   * <p>When {@code allowMissingRequiredFields} is true, this method returns a partial
+   * protocol-buffer message if required fields are absent. When it is false, required-field
+   * validation and its conversion errors remain unchanged.
    */
   public static @Nullable DynamicMessage messageFromTableRow(
       SchemaInformation schemaInformation,
@@ -1202,7 +1218,7 @@ public class TableRowToStorageApiProto {
       }
 
       try {
-        return builder.build();
+        return allowMissingRequiredFields ? builder.buildPartial() : builder.build();
       } catch (Exception e) {
         throw new SchemaDoesntMatchException(
             "Could convert schema for " + schemaInformation.getFullName(), e);
