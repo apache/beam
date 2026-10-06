@@ -25,7 +25,7 @@ on:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -33,7 +33,7 @@ env:
   GRADLE_ENTERPRISE_CACHE_USERNAME: ${{ secrets.GE_CACHE_USERNAME }}
   GRADLE_ENTERPRISE_CACHE_PASSWORD: ${{ secrets.GE_CACHE_PASSWORD }}
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read

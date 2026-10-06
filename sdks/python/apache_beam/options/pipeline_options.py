@@ -812,6 +812,11 @@ class StreamingOptions(PipelineOptions):
         'version of the Beam SDK. '
         'See for example, https://cloud.google.com/dataflow/docs/guides/'
         'updating-a-pipeline')
+    parser.add_argument(
+        '--desired_num_unbounded_source_splits',
+        type=int,
+        default=0,
+        help='The desired number of initial splits for UnboundedSources.')
 
 
 class CrossLanguageOptions(PipelineOptions):

@@ -2481,6 +2481,14 @@ class LogElementsTest(unittest.TestCase):
           | util.LogElements(prefix='prefix_'))
       assert_that(result, equal_to(['a', 'b', 'c']))
 
+  def test_global_window_with_timestamp_and_window(self):
+    with TestPipeline() as p:
+      result = (
+          p
+          | beam.Create(['a'])
+          | util.LogElements(with_timestamp=True, with_window=True))
+      assert_that(result, equal_to(['a']))
+
   @pytest.fixture(scope="function")
   def _capture_logs(request, caplog):
     with caplog.at_level(logging.INFO):

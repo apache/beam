@@ -68,9 +68,11 @@
 
 ## New Features / Improvements
 
+* (Go) Added `wait.On`, which delays each input window until the corresponding windows in its signal PCollections have closed ([#39909](https://github.com/apache/beam/issues/39909)).
 * (Python) Expanded the SDK worker heap dump (`--experiments=enable_heap_dump`) with process RSS, CPython allocator/GC stats, and glibc `mallinfo2` native-heap/fragmentation stats to help distinguish native-heap from Python-object memory growth ([#39244](https://github.com/apache/beam/issues/39244)).
 * The `disableCounterMetrics`, `disableStringSetMetrics` and `disableBoundedTrieMetrics` experiments are now honored by the Python SDK, as they already were in Java (Python) ([#38746](https://github.com/apache/beam/issues/38746)).
 * (Go) Pipeline-level `--resource_hints` are now forwarded to expansion services, so they apply to cross-language transforms as they do in the Java and Python SDKs. The `max_active_bundles_per_worker` hint name is now also accepted by `--resource_hints` ([#23893](https://github.com/apache/beam/issues/23893)).
+* ReadFromBigQuery now supports Lakehouse runtime catalog (BigLake metastore) tables with `method=DIRECT_READ`, using 4-part `project.catalog.namespace.table` identifiers. Previously `project:catalog.namespace.table` was silently mis-parsed and tables that report no `numBytes` failed to split (Python) ([#39597](https://github.com/apache/beam/issues/39597)).
 
 ## Breaking Changes
 
@@ -88,6 +90,8 @@
 * (Go) Fixed pubsubio importing a `google.golang.org/genproto` package removed in recent releases, which broke builds of Go modules depending on a current `genproto` version ([#40018](https://github.com/apache/beam/issues/40018)).
 * (Java) BigQueryIO now treats a 404 when deleting a temporary table or dataset as success, so a replayed work item whose earlier attempt already deleted it no longer retries forever ([#24997](https://github.com/apache/beam/issues/24997)).
 * (Java) IcebergIO now writes rows containing `EnumerationType` (proto enum) fields as strings, instead of throwing `Unsupported Beam logical type Enum` ([#40299](https://github.com/apache/beam/issues/40299)).
+* (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
+* (Python) `Duration` built from float seconds now rounds to the nearest microsecond instead of truncating, which could lose a microsecond ([#40263](https://github.com/apache/beam/issues/40263)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes

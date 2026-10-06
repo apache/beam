@@ -159,6 +159,7 @@ class SequencePerKeyProcessorDoFn<
     if (numberOfResultsBeforeBundleStart == null) {
       // Per key processing is synchronized by Beam. There is no need to have it here.
       numberOfResultsBeforeBundleStart = processingState.getResultCount();
+      numberOfDuplicatesBeforeBundleStart = processingState.getDuplicates();
     }
 
     processingState.eventReceived();
@@ -259,6 +260,7 @@ class SequencePerKeyProcessorDoFn<
     LOG.debug("Starting to process batch for key '{}'", processingState.getKey());
 
     this.numberOfResultsBeforeBundleStart = processingState.getResultCount();
+    this.numberOfDuplicatesBeforeBundleStart = processingState.getDuplicates();
 
     processBufferedEvents(
         processingState, state, bufferedEventsState, outputReceiver, largeBatchEmissionTimer);
