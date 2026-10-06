@@ -473,19 +473,6 @@ def cleanup_pubsub_resources(
   except NotFound:
     logging.info(f"Topic already deleted: {topic_path}")
 
-  try:
-    subscriber.delete_subscription(
-        request={"subscription": full_subscription_path})
-    logging.info(f"Deleted subscription: {subscription_name}")
-  except NotFound:
-    logging.info(f"Subscription already deleted: {subscription_name}")
-
-  try:
-    publisher.delete_topic(request={"topic": full_topic_path})
-    logging.info(f"Deleted topic: {topic_name}")
-  except NotFound:
-    logging.info(f"Topic already deleted: {topic_name}")
-
 
 def override_or_add(args, flag, value):
   if flag in args:
