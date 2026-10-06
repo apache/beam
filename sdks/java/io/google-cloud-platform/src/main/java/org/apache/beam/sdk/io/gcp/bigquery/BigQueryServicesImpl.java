@@ -1518,8 +1518,12 @@ public class BigQueryServicesImpl implements BigQueryServices {
         if (cause instanceof SocketException) {
           String msg = cause.getMessage();
           if (msg != null) {
-            if (msg.contains("Connection reset")) return "connectionReset";
-            if (msg.contains("Broken pipe")) return "brokenPipe";
+            if (msg.contains("Connection reset")) {
+              return "connectionReset";
+            }
+            if (msg.contains("Broken pipe")) {
+              return "brokenPipe";
+            }
           }
         }
         cause = cause.getCause();
