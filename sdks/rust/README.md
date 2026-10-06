@@ -31,6 +31,7 @@ The SDK is a Cargo workspace with its root at `sdks/rust`:
 | Crate | Path | Contents |
 | :--- | :--- | :--- |
 | `apache-beam-model` | `beam/model/` | Protobuf and gRPC bindings generated from the standard Beam model protos. |
+| `apache-beam-derive` | `beam/derive/` | `#[derive(BeamRow)]` and `#[derive(BeamEnum)]` proc-macros. `apache-beam-core` re-exports them. Do not depend on this crate directly. |
 
 ## Building and Testing
 
