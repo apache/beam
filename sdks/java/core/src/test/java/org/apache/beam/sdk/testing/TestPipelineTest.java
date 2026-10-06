@@ -18,10 +18,14 @@
 package org.apache.beam.sdk.testing;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
+import static org.hamcrest.Matchers.sameInstance;
 import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Serializable;
@@ -33,9 +37,12 @@ import java.util.List;
 import java.util.UUID;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.coders.StringUtf8Coder;
 import org.apache.beam.sdk.options.ApplicationNameOptions;
 import org.apache.beam.sdk.options.PipelineOptions;
+import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.options.ValueProvider;
 import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.sdk.transforms.MapElements;
@@ -119,6 +126,48 @@ public class TestPipelineTest implements Serializable {
       thrown.expect(IllegalArgumentException.class);
       thrown.expectMessage("Cannot call #run");
       pipeline.run();
+    }
+
+    @Test
+    public void testRunPreservesWhichOptionsWereExplicitlySet() {
+      pipeline.getOptions().setRunner(OptionsCapturingRunner.class);
+      // Reading a default binds it on the options object without making it explicitly set.
+      assertFalse(pipeline.getOptions().as(StreamingOptions.class).isStreaming());
+      pipeline.apply(Create.of(1, 2, 3));
+
+      OptionsCapturingRunner.captured = null;
+      try {
+        pipeline.run();
+        fail("expected the runner to throw");
+      } catch (UnsupportedOperationException expected) {
+        // The runner always throws; what matters is the options it was created with.
+      }
+
+      PipelineOptions seenByRunner = OptionsCapturingRunner.captured;
+      assertNotNull(seenByRunner);
+      assertThat(seenByRunner, not(sameInstance(pipeline.getOptions())));
+      // The copy still serves the bound default ...
+      assertFalse(seenByRunner.as(StreamingOptions.class).isStreaming());
+      // ... but does not report it as explicitly set, while explicitly set options are reported.
+      assertThat(
+          PipelineOptionsFactory.explicitlySetProperties(seenByRunner), not(hasItem("streaming")));
+      assertThat(PipelineOptionsFactory.explicitlySetProperties(seenByRunner), hasItem("runner"));
+    }
+
+    /** A runner that records the options it was constructed from and refuses to run. */
+    public static class OptionsCapturingRunner extends PipelineRunner<PipelineResult> {
+      static volatile @Nullable PipelineOptions captured;
+
+      @SuppressWarnings("unused") // used by reflection
+      public static OptionsCapturingRunner fromOptions(PipelineOptions options) {
+        captured = options;
+        return new OptionsCapturingRunner();
+      }
+
+      @Override
+      public PipelineResult run(Pipeline pipeline) {
+        throw new UnsupportedOperationException("OptionsCapturingRunner does not run pipelines");
+      }
     }
 
     /** TestMatcher is a matcher designed for testing matcher serialization/deserialization. */
