@@ -715,34 +715,7 @@ class _PubSubReadEvaluator(_TransformEvaluator):
 
   def _read_from_pubsub(
       self, timestamp_attribute) -> list[tuple[Timestamp, 'PubsubMessage']]:
-    from apache_beam.io.gcp.pubsub import PubsubMessage
-
-    def _get_element(message):
-      parsed_message = PubsubMessage._from_message(message)
-      if (timestamp_attribute and
-          timestamp_attribute in parsed_message.attributes):
-        rfc3339_or_milli = parsed_message.attributes[timestamp_attribute]
-        try:
-          timestamp = Timestamp(micros=int(rfc3339_or_milli) * 1000)
-        except ValueError:
-          try:
-            timestamp = Timestamp.from_rfc3339(rfc3339_or_milli)
-          except ValueError as e:
-            raise ValueError('Bad timestamp value: %s' % e)
-        if timestamp.precision() > Timestamp.MICROS_PRECISION:
-          # Element timestamps are limited to microsecond resolution, so
-          # ignore sub-microsecond digits, as the Dataflow service does.
-          timestamp = timestamp.to_precision(
-              Timestamp.MICROS_PRECISION, allow_lossy_conversion=True)
-      else:
-        if message.publish_time is None:
-          raise ValueError('No publish time present in message: %s' % message)
-        try:
-          timestamp = Timestamp.from_utc_datetime(message.publish_time)
-        except ValueError as e:
-          raise ValueError('Bad timestamp value for message %s: %s', message, e)
-
-      return timestamp, parsed_message
+    from apache_beam.io.gcp.pubsub import _parse_pubsub_message
 
     # Check if timeout has elapsed.
     timeout = 30
@@ -764,7 +737,10 @@ class _PubSubReadEvaluator(_TransformEvaluator):
     try:
       response = sub_client.pull(
           subscription=self._sub_name, max_messages=10, timeout=timeout)
-      results = [_get_element(rm.message) for rm in response.received_messages]
+      results = [
+          _parse_pubsub_message(rm.message, timestamp_attribute)
+          for rm in response.received_messages
+      ]
       ack_ids = [rm.ack_id for rm in response.received_messages]
       if ack_ids:
         sub_client.acknowledge(subscription=self._sub_name, ack_ids=ack_ids)

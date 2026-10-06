@@ -146,6 +146,10 @@ class SwitchingDirectRunner(PipelineRunner):
           self.supported_by_prism_runner = False
         return self.supported_by_prism_runner
 
+      def enter_composite_transform(self, applied_ptransform):
+        if isinstance(applied_ptransform.transform, ReadFromPubSub):
+          self.supported_by_prism_runner = False
+
       def visit_transform(self, applied_ptransform):
         transform = applied_ptransform.transform
         # Python SDK assumes the direct runner TestStream implementation is
@@ -527,8 +531,13 @@ def _get_pubsub_transform_overrides(pipeline_options):
 
   class ReadFromPubSubOverride(PTransformOverride):
     def matches(self, applied_ptransform):
-      return isinstance(
-          applied_ptransform.transform, beam_pubsub.ReadFromPubSub)
+      if not isinstance(applied_ptransform.transform,
+                        beam_pubsub.ReadFromPubSub):
+        return False
+      if (not pipeline_options.view_as(StandardOptions).streaming and
+          applied_ptransform.transform.max_read_time_seconds is not None):
+        return False
+      return True
 
     def get_replacement_transform_for_applied_ptransform(
         self, applied_ptransform):
