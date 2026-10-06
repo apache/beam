@@ -1,1 +1,33 @@
-<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Beam Security</title><link>/security/</link><description>Recent content in Beam Security on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/security/index.xml" rel="self" type="application/rss+xml"/></channel></rss>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"><channel><title>Apache Beam – Beam Security</title><link>/security/</link><description>Recent content in Beam Security on Apache Beam</description><generator>Hugo -- gohugo.io</generator><language>en</language><atom:link href="/security/index.xml" rel="self" type="application/rss+xml"/><item><title>Security: Beam Security Archive</title><link>/security/archive/</link><pubDate>Mon, 01 Jan 0001 00:00:00 +0000</pubDate><guid>/security/archive/</guid><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>This page lists known security issues for Beam components in past Beam versions and resolved in newer versions.&lt;/p>
+&lt;h1 id="known-security-issues">Known Security Issues&lt;/h1>
+&lt;h2 id="cve-2020-1929">CVE-2020-1929&lt;/h2>
+&lt;p>[CVE-2020-1929] Apache Beam MongoDB IO connector disables certificate trust verification&lt;/p>
+&lt;p>Severity: Major
+Vendor: The Apache Software Foundation&lt;/p>
+&lt;p>Versions Affected:
+Apache Beam 2.10.0 to 2.16.0&lt;/p>
+&lt;p>Description:
+The Apache Beam MongoDB connector in versions 2.10.0 to 2.16.0 has an option to
+disable SSL trust verification. However this configuration is not respected and
+the certificate verification disables trust verification in every case. This
+exclusion also gets registered globally which disables trust checking for any
+code running in the same JVM.&lt;/p>
+&lt;p>Mitigation:
+Users of the affected versions should apply one of the following mitigations:&lt;/p>
+&lt;ul>
+&lt;li>Upgrade to Apache Beam 2.17.0 or later&lt;/li>
+&lt;/ul>
+&lt;p>Acknowledgements:
+This issue was reported (and fixed) by Colm Ó hÉigeartaigh.&lt;/p></description></item></channel></rss>
