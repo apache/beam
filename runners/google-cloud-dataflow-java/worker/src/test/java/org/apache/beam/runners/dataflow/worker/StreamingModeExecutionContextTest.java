@@ -54,6 +54,7 @@ import org.apache.beam.runners.core.metrics.ExecutionStateTracker.ExecutionState
 import org.apache.beam.runners.dataflow.options.DataflowWorkerHarnessOptions;
 import org.apache.beam.runners.dataflow.worker.DataflowExecutionContext.DataflowExecutionStateTracker;
 import org.apache.beam.runners.dataflow.worker.MetricsToCounterUpdateConverter.Kind;
+import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.KeyTransitionListener;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionState;
 import org.apache.beam.runners.dataflow.worker.StreamingModeExecutionContext.StreamingModeExecutionStateRegistry;
 import org.apache.beam.runners.dataflow.worker.counters.CounterSet;
@@ -62,6 +63,7 @@ import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.NoopProfi
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.FakeGlobalConfigHandle;
@@ -76,7 +78,8 @@ import org.apache.beam.runners.dataflow.worker.windmill.client.getdata.FakeGetDa
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillStateCache;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
-import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.StreamingEngineFailureTracker;
 import org.apache.beam.runners.dataflow.worker.windmill.work.refresh.HeartbeatSender;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.coders.Coder;
@@ -96,6 +99,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.hamcrest.Matchers;
 import org.joda.time.Duration;
 import org.joda.time.Instant;
+import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -109,6 +113,15 @@ import org.mockito.MockitoAnnotations;
 @RunWith(JUnit4.class)
 public class StreamingModeExecutionContextTest {
 
+  private static final FailedWorkHandler FAILING_FAILED_WORK_HANDLER =
+      ignored -> {
+        Assert.fail();
+      };
+
+  private static final KeyTransitionListener FAILING_KEY_TRANSISITON =
+      (oldWork, newWork) -> {
+        Assert.fail();
+      };
   @Rule public transient Timeout globalTimeout = Timeout.seconds(600);
 
   @Mock private WorkExecutor workExecutor;
@@ -146,13 +159,13 @@ public class StreamingModeExecutionContextTest {
         executionStateRegistry,
         configHandle,
         Long.MAX_VALUE,
-        /*throwExceptionOnLargeOutput=*/ false,
+        /* throwExceptionOnLargeOutput= */ false,
         new HotKeyLogger(),
-        /*hotKeyLoggingEnabled=*/ false,
-        /*stepName=*/ "stepName",
-        /*systemName=*/ "systemName",
+        /* hotKeyLoggingEnabled= */ false,
+        /* stepName= */ "stepName",
+        /* systemName= */ "systemName",
         StreamingCounters.create(),
-        mock(FailureTracker.class),
+        StreamingEngineFailureTracker.create(10, 10),
         "sourceBytesProcessCounterName",
         MultiKeyBundleOptions.fromOptions(options),
         SideInputStateFetcherFactory.fromOptions(options));
@@ -198,10 +211,11 @@ public class StreamingModeExecutionContextTest {
       context.start(
           work,
           workExecutor,
-          /* workQueueExecutor= */ null,
-          /* budgetHandle= */ null,
+          /* workQueueExecutor= */ mock(BoundedQueueExecutor.class),
+          /* budgetHandle= */ mock(BoundedQueueExecutorWorkHandle.class),
           keyCoder,
-          /* keyTransitionListener= */ (k, c) -> {});
+          FAILING_KEY_TRANSISITON,
+          /* onFailedWorkHandler= */ FAILING_FAILED_WORK_HANDLER);
     } catch (CoderException e) {
       throw new RuntimeException(e);
     }
@@ -230,10 +244,11 @@ public class StreamingModeExecutionContextTest {
             TimeDomain.EVENT_TIME,
             CausedByDrain.NORMAL));
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    Windmill.WorkItemCommitRequest.Builder outputBuilder = executionContext.getOutputBuilder();
-    Windmill.Timer timer = outputBuilder.buildPartial().getOutputTimers(0);
+    assertEquals(1, result.workItemCommits().size());
+    Windmill.WorkItemCommitRequest commitRequest = result.workItemCommits().get(0);
+    Windmill.Timer timer = commitRequest.getOutputTimers(0);
     assertThat(timer.getTag().toStringUtf8(), equalTo("/skey+0:5000"));
     assertThat(timer.getTimestamp(), equalTo(TimeUnit.MILLISECONDS.toMicros(5000)));
     assertThat(timer.getType(), equalTo(Windmill.Timer.Type.WATERMARK));
@@ -484,9 +499,10 @@ public class StreamingModeExecutionContextTest {
 
     stepContext.setBacklogBytes(1234.0);
     executionContext.finishKey();
-    executionContext.flushState();
+    ExecuteWorkResult result = executionContext.flushStateAndReset();
 
-    assertEquals(1234, executionContext.getOutputBuilder().getSourceBacklogBytes());
+    assertEquals(1, result.workItemCommits().size());
+    assertEquals(1234, result.workItemCommits().get(0).getSourceBacklogBytes());
   }
 
   @Test
@@ -546,15 +562,24 @@ public class StreamingModeExecutionContextTest {
             workItem2, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
     ExecutableWork executableWork2 = ExecutableWork.create(work2, (w, h) -> {});
 
-    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle)))
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any()))
         .thenReturn(executableWork2)
         .thenReturn(null);
 
+    StreamingModeExecutionContext.KeyTransitionListener mockListener =
+        mock(StreamingModeExecutionContext.KeyTransitionListener.class);
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        mockListener,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertTrue(executionContext.advance());
     assertEquals("key2", executionContext.getSerializedKey().toStringUtf8());
+    verify(mockListener, times(1)).onKeyTransition(work1, work2);
     assertFalse(executionContext.advance());
   }
 
@@ -575,11 +600,17 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle)))
+    when(mockExecutor.pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any()))
         .thenReturn(null);
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(executionContext.advance());
   }
@@ -609,7 +640,14 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -640,7 +678,14 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -664,7 +709,13 @@ public class StreamingModeExecutionContextTest {
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     work1.setFailed();
 
@@ -687,7 +738,13 @@ public class StreamingModeExecutionContextTest {
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
     executionContext.start(
-        work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(executionContext.advance());
     verifyNoInteractions(mockExecutor);
@@ -715,7 +772,14 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     assertFalse(context.advance());
     verifyNoInteractions(mockExecutor);
@@ -748,11 +812,19 @@ public class StreamingModeExecutionContextTest {
         createMockWork(
             workItem1, Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
 
-    context.start(work1, workExecutor, mockExecutor, mockHandle, null, (oldWork, newWork) -> {});
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        FAILING_KEY_TRANSISITON,
+        FAILING_FAILED_WORK_HANDLER);
 
     context.reportBytesSinked(50);
     assertFalse(context.advance());
-    verify(mockExecutor).pollWork(COMPUTATION_ID, work1.getKeyGroup(), mockHandle);
+    verify(mockExecutor)
+        .pollWork(eq(COMPUTATION_ID), eq(work1.getKeyGroup()), eq(mockHandle), any());
 
     reset(mockExecutor);
 
@@ -797,7 +869,7 @@ public class StreamingModeExecutionContextTest {
     StateInternals stateInternals = stepContext.stateInternals();
 
     executionContext.finishKey();
-    executionContext.flushState();
+    executionContext.flushStateAndReset();
 
     // Verify timerInternals is poisoned
     try {
@@ -830,5 +902,45 @@ public class StreamingModeExecutionContextTest {
     } catch (IllegalStateException e) {
       assertThat(e.getMessage(), Matchers.containsString("poisoned"));
     }
+  }
+
+  @Test
+  public void testAdvance_stopsWhenCurrentWorkBatchingDisabled() throws Exception {
+    DataflowWorkerHarnessOptions optionsMultiKey =
+        PipelineOptionsFactory.as(DataflowWorkerHarnessOptions.class);
+    optionsMultiKey
+        .as(ExperimentalOptions.class)
+        .setExperiments(Arrays.asList("unstable_enable_multi_key_bundle"));
+    StreamingModeExecutionContext context =
+        createExecutionContext(optionsMultiKey, globalConfigHandle);
+
+    BoundedQueueExecutor mockExecutor = mock(BoundedQueueExecutor.class);
+    BoundedQueueExecutorWorkHandle mockHandle = mock(BoundedQueueExecutorWorkHandle.class);
+    Windmill.Uint128Proto keyGroup =
+        Windmill.Uint128Proto.newBuilder().setHigh(1).setLow(2).build();
+
+    Work work1 =
+        createMockWork(
+            Windmill.WorkItem.newBuilder()
+                .setKey(ByteString.copyFromUtf8("key1"))
+                .setWorkToken(1L)
+                .setKeyGroup(keyGroup)
+                .build(),
+            Watermarks.builder().setInputDataWatermark(Instant.EPOCH).build());
+    work1.setMultiKeyBatchingDisabled(true);
+
+    AtomicBoolean transitionListenerCalled = new AtomicBoolean(false);
+    context.start(
+        work1,
+        workExecutor,
+        mockExecutor,
+        mockHandle,
+        null,
+        (oldWork, newWork) -> transitionListenerCalled.set(true),
+        FAILING_FAILED_WORK_HANDLER);
+
+    assertFalse(context.advance());
+    assertFalse(transitionListenerCalled.get());
+    verifyNoInteractions(mockExecutor);
   }
 }

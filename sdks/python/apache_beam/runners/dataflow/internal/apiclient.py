@@ -280,8 +280,10 @@ class Environment(object):
       for k, v in sdk_pipeline_options.items():
         if v is None:
           continue
-        options_dict[k] = str(v) if isinstance(
-            v, value_provider.ValueProvider) else v
+        if isinstance(v, value_provider.ValueProvider):
+          options_dict[k] = v.get() if v.is_accessible() else None
+        else:
+          options_dict[k] = v
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
       if pipeline_proto_hash:
         options_dict["pipelineProtoHash"] = pipeline_proto_hash

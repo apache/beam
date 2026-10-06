@@ -59,6 +59,7 @@ from apache_beam.transforms.userstate import get_dofn_specs
 from apache_beam.transforms.userstate import is_stateful_dofn
 from apache_beam.transforms.userstate import on_timer
 from apache_beam.transforms.userstate import validate_stateful_dofn
+from apache_beam.utils import proto_utils
 
 
 class TestStatefulDoFn(DoFn):
@@ -194,6 +195,47 @@ class InterfaceTest(unittest.TestCase):
     self.assertEqual(
         beam_runner_api_pb2.FunctionSpec(urn=common_urns.user_state.BAG.urn),
         state_proto.protocol)
+
+  def test_timer_key_coder_ignores_side_inputs(self):
+    class StatefulDoFnWithSideInputs(DoFn):
+      EXPIRY_TIMER = TimerSpec('expiry', TimeDomain.WATERMARK)
+
+      def process(
+          self,
+          element,
+          side_1,
+          side_2,
+          side_3,
+          timer=DoFn.TimerParam(EXPIRY_TIMER)):
+        yield element
+
+      @on_timer(EXPIRY_TIMER)
+      def expiry_callback(self):
+        yield 'expired'
+
+    p = beam.Pipeline()
+    main_input = p | 'Main' >> beam.Create([('key', 1)])
+    # The side inputs have a different key type than the main input, so the
+    # timer key coder shows which input it was taken from.
+    side_inputs = [
+        beam.pvalue.AsDict(p | 'Side%d' % i >> beam.Create([(i, 'side')]))
+        for i in range(3)
+    ]
+    _ = main_input | 'Stateful' >> beam.ParDo(
+        StatefulDoFnWithSideInputs(), *side_inputs)
+
+    proto = p.to_runner_api()
+    pardo_proto, = [
+        t for t in proto.components.transforms.values()
+        if t.unique_name == 'Stateful'
+    ]
+    pardo_payload = proto_utils.parse_Bytes(
+        pardo_proto.spec.payload, beam_runner_api_pb2.ParDoPayload)
+    timer_spec = pardo_payload.timer_family_specs[
+        StatefulDoFnWithSideInputs.EXPIRY_TIMER.name]
+    timer_coder = proto.components.coders[timer_spec.timer_family_coder_id]
+    key_coder = proto.components.coders[timer_coder.component_coder_ids[0]]
+    self.assertEqual(common_urns.coders.STRING_UTF8.urn, key_coder.spec.urn)
 
   def test_param_construction(self):
     with self.assertRaises(ValueError):

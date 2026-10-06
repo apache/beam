@@ -237,7 +237,7 @@ in the same format as those inlined in this providers block.
 See, for example, the provider listing [here](
 https://github.com/apache/beam-starter-python-provider/blob/main/examples/provider_listing.yaml).
 
-In fact, this is how many of the the built in transforms are declared,
+In fact, this is how many of the built in transforms are declared,
 see for example the [builtin io listing file](
 https://github.com/apache/beam/blob/master/sdks/python/apache_beam/yaml/standard_io.yaml).
 

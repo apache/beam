@@ -88,6 +88,18 @@ public class BeamFnControlClientTest {
           .setInstructionId("3L")
           .setError(getStackTraceAsString(FAILURE))
           .build();
+  private static final org.apache.beam.fn.harness.state.WorkCancelledException CANCELLED =
+      new org.apache.beam.fn.harness.state.WorkCancelledException("Work item cancelled");
+  private static final BeamFnApi.InstructionRequest CANCELLED_REQUEST =
+      BeamFnApi.InstructionRequest.newBuilder()
+          .setInstructionId("4L")
+          .setSampleData(BeamFnApi.SampleDataRequest.getDefaultInstance())
+          .build();
+  private static final BeamFnApi.InstructionResponse CANCELLED_RESPONSE =
+      BeamFnApi.InstructionResponse.newBuilder()
+          .setInstructionId("4L")
+          .setError(getStackTraceAsString(CANCELLED))
+          .build();
 
   @Rule public TestRule restoreMDCAfterTest = new RestoreBeamFnLoggingMDC();
 
@@ -137,6 +149,12 @@ public class BeamFnControlClientTest {
             assertEquals(value.getInstructionId(), BeamFnLoggingMDC.getInstructionId());
             throw FAILURE;
           });
+      handlers.put(
+          BeamFnApi.InstructionRequest.RequestCase.SAMPLE_DATA,
+          value -> {
+            assertEquals(value.getInstructionId(), BeamFnLoggingMDC.getInstructionId());
+            throw CANCELLED;
+          });
 
       ExecutorService executor = Executors.newCachedThreadPool();
       BeamFnControlClient client =
@@ -162,6 +180,10 @@ public class BeamFnControlClientTest {
       // Ensure that all exceptions are caught and translated to failures
       outboundServerObserver.onNext(FAILURE_REQUEST);
       assertEquals(FAILURE_RESPONSE, values.take());
+
+      // Ensure that WorkCancelledException is caught and translated to a failure response
+      outboundServerObserver.onNext(CANCELLED_REQUEST);
+      assertEquals(CANCELLED_RESPONSE, values.take());
 
       // Ensure that the server completing the stream translates to the completable future
       // being completed allowing for a successful shutdown of the client.

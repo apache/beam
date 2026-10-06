@@ -89,6 +89,21 @@ func (c Coder) String() string {
 	return c.coder.String()
 }
 
+// IsDeterministic reports whether this coder produces a byte-deterministic
+// encoding: encoding two equal values always yields identical byte
+// sequences.
+//
+// Determinism is required for any coder used as a state key in a stateful
+// DoFn or as the key component of a KV consumed by GroupByKey /
+// GroupIntoBatches. A non-deterministic key coder would silently corrupt
+// state keying, splintering state across apparently-distinct keys.
+func (c Coder) IsDeterministic() bool {
+	if c.coder == nil {
+		return false
+	}
+	return c.coder.IsDeterministic()
+}
+
 // NewElementEncoder returns a new encoding function for the given type.
 func NewElementEncoder(t reflect.Type) ElementEncoder {
 	c, err := inferCoder(typex.New(t))
@@ -249,6 +264,8 @@ func inferCoder(t FullType) (*coder.Coder, error) {
 			// are non-windowed? We either need to know the windowing strategy or
 			// we should remove this case.
 			return &coder.Coder{Kind: coder.WindowedValue, T: t, Components: c, Window: coder.NewGlobalWindow()}, nil
+		case typex.ShardedKeyType:
+			return &coder.Coder{Kind: coder.ShardedKey, T: t, Components: c}, nil
 
 		default:
 			panic(fmt.Sprintf("Unexpected composite type: %v", t))

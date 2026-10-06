@@ -21,6 +21,7 @@ import io.opentelemetry.context.Context;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -202,10 +203,12 @@ public class TimerUtils {
       SparkTimerInternals sparkTimerInternals,
       WindowingStrategy<?, W> windowingStrategy,
       AbstractInOutIterator<?, ?, ?> abstractInOutIterator) {
-    final Collection<TimerInternals.TimerData> expiredTimers =
+    final List<TimerInternals.TimerData> expiredTimers =
         getExpiredTimers(sparkTimerInternals, windowingStrategy);
 
     if (!expiredTimers.isEmpty()) {
+      // Timers fire in timestamp order.
+      expiredTimers.sort(Comparator.comparing(TimerInternals.TimerData::getTimestamp));
       expiredTimers.forEach(abstractInOutIterator::fireTimer);
     }
   }
@@ -221,7 +224,7 @@ public class TimerUtils {
     }
   }
 
-  private static <W extends BoundedWindow> Collection<TimerInternals.TimerData> getExpiredTimers(
+  private static <W extends BoundedWindow> List<TimerInternals.TimerData> getExpiredTimers(
       SparkTimerInternals sparkTimerInternals, WindowingStrategy<?, W> windowingStrategy) {
     return sparkTimerInternals.getTimers().stream()
         .filter(

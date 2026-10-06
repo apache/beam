@@ -568,6 +568,13 @@ public class RowJsonTest {
     public void testSupportedFloatConversions() throws Exception {
       testSupportedConversion(FieldType.FLOAT, FLOAT_STRING, FLOAT_VALUE);
       testSupportedConversion(FieldType.FLOAT, SHORT_STRING, (float) SHORT_VALUE);
+
+      // Integral literals a float still represents exactly: 2^24 is the largest contiguous one,
+      // and Integer.MIN_VALUE is exact because it is a power of two. Both are accepted today and
+      // must stay accepted -- they are what keeps the fix from being an across-the-board reject.
+      testSupportedConversion(FieldType.FLOAT, "16777216", 16777216.0f);
+      testSupportedConversion(
+          FieldType.FLOAT, String.valueOf(Integer.MIN_VALUE), (float) Integer.MIN_VALUE);
     }
 
     @Test
@@ -575,6 +582,14 @@ public class RowJsonTest {
       testSupportedConversion(FieldType.DOUBLE, DOUBLE_STRING, DOUBLE_VALUE);
       testSupportedConversion(FieldType.DOUBLE, FLOAT_STRING, (double) FLOAT_VALUE);
       testSupportedConversion(FieldType.DOUBLE, INT_STRING, (double) INT_VALUE);
+
+      // Integral literals beyond int range that a double still represents exactly. Epoch millis
+      // is the everyday case; 2^31 is the exact boundary where the old asInt() truncation kicked
+      // in, and 2^53 is the largest contiguous integral double.
+      testSupportedConversion(FieldType.DOUBLE, "1609459200000", 1609459200000.0d);
+      testSupportedConversion(FieldType.DOUBLE, "-1609459200000", -1609459200000.0d);
+      testSupportedConversion(FieldType.DOUBLE, "2147483648", 2147483648.0d);
+      testSupportedConversion(FieldType.DOUBLE, "9007199254740992", 9007199254740992.0d);
     }
 
     @Test
@@ -676,6 +691,35 @@ public class RowJsonTest {
       testUnsupportedConversion(FieldType.DOUBLE, quoted(DOUBLE_STRING));
       testUnsupportedConversion(FieldType.DOUBLE, BOOLEAN_TRUE_STRING);
       testUnsupportedConversion(FieldType.DOUBLE, LONG_STRING); // too large to fit
+    }
+
+    // The three cases below get a method each on purpose. testUnsupportedConversion relies on the
+    // ExpectedException rule, which is satisfied by the first exception to leave the test method,
+    // so a second call in the same body never runs and the assertion would be silently dead.
+
+    @Test
+    public void testUnsupportedFloatConversionAtIntegerMaxValue() throws Exception {
+      // Integer.MAX_VALUE, and the guard against "fixing" this extractor with an int round-trip.
+      // (float) 2147483647 rounds up to 2147483648, and narrowing 2147483648 back to int
+      // saturates at Integer.MAX_VALUE, so the round-trip wrongly accepts it and stores
+      // 2147483648.0. INT_STRING in testUnsupportedFloatConversions is far smaller and does not
+      // exercise this -- and, being the fourth call in that method, never runs anyway.
+      testUnsupportedConversion(FieldType.FLOAT, "2147483647");
+    }
+
+    @Test
+    public void testUnsupportedDoubleConversionJustPastContiguousRange() throws Exception {
+      // 2^53 + 1, the first integer a double cannot represent.
+      testUnsupportedConversion(FieldType.DOUBLE, "9007199254740993");
+    }
+
+    @Test
+    public void testUnsupportedDoubleConversionAtLongMaxValue() throws Exception {
+      // Long.MAX_VALUE, and the guard against "fixing" this extractor by swapping asInt() for
+      // asLong(). (double) Long.MAX_VALUE rounds up to 2^63, and narrowing 2^63 back to long
+      // saturates at Long.MAX_VALUE, so a long round-trip wrongly accepts it and stores
+      // 9223372036854775808. LONG_STRING above is 2^63 - 2 and does not exercise this.
+      testUnsupportedConversion(FieldType.DOUBLE, "9223372036854775807");
     }
 
     private void testUnsupportedConversion(FieldType fieldType, String jsonFieldValue)

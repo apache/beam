@@ -485,14 +485,11 @@ class PubSubSubscriptionCleanerTest(unittest.TestCase):
 
     def test_delete_resource(self):
         """Test _delete_resource method."""
-        sub_name = "test-sub-to-delete"
-        subscription_path = f"projects/{self.project_id}/subscriptions/{sub_name}"
-        self.mock_subscriber_client.subscription_path.return_value = subscription_path
+        subscription_path = f"projects/{self.project_id}/subscriptions/test-subscription"
 
         with SilencePrint():
-            self.cleaner._delete_resource(sub_name)
+            self.cleaner._delete_resource(subscription_path)
 
-        self.mock_subscriber_client.subscription_path.assert_called_once_with(self.project_id, sub_name)
         self.mock_subscriber_client.delete_subscription.assert_called_once_with(
             request={'subscription': subscription_path}
         )

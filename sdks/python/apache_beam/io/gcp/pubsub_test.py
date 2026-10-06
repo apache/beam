@@ -25,6 +25,7 @@ import unittest
 
 import hamcrest as hc
 import mock
+import pytest
 
 import apache_beam as beam
 from apache_beam import Pipeline
@@ -691,6 +692,47 @@ class TestReadFromPubSub(unittest.TestCase):
         TestWindowedValue(
             PubsubMessage(data, attributes),
             timestamp.Timestamp.from_rfc3339(attributes['time']),
+            [window.GlobalWindow()]),
+    ]
+    mock_pubsub.return_value.pull.return_value = pull_response
+
+    options = PipelineOptions([])
+    options.view_as(StandardOptions).streaming = True
+    with TestPipeline(options=options) as p:
+      pcoll = (
+          p
+          | ReadFromPubSub(
+              'projects/fakeprj/topics/a_topic',
+              None,
+              None,
+              with_attributes=True,
+              timestamp_attribute='time'))
+      assert_that(pcoll, equal_to(expected_elements), reify_windows=True)
+    mock_pubsub.return_value.acknowledge.assert_has_calls(
+        [mock.call(subscription=mock.ANY, ack_ids=[ack_id])])
+
+    mock_pubsub.return_value.close.assert_not_called()
+
+  @pytest.mark.timeout(60)
+  def test_read_messages_timestamp_attribute_sub_micro_rfc3339(
+      self, mock_pubsub):
+    # Publishers may emit 7-9 fractional digits. Sub-microsecond digits
+    # must be truncated when the attribute is parsed; element timestamps
+    # are limited to microsecond resolution and messages are acked before
+    # the bundle is output.
+    data = b'data'
+    attributes = {'time': '2018-03-12T13:37:01.2345678Z'}
+    publish_time_secs = 1337000000
+    publish_time_nanos = 133700000
+    ack_id = 'ack_id'
+    pull_response = test_utils.create_pull_response([
+        test_utils.PullResponseMessage(
+            data, attributes, publish_time_secs, publish_time_nanos, ack_id)
+    ])
+    expected_elements = [
+        TestWindowedValue(
+            PubsubMessage(data, attributes),
+            timestamp.Timestamp(1520861821, micros=234567),
             [window.GlobalWindow()]),
     ]
     mock_pubsub.return_value.pull.return_value = pull_response

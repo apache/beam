@@ -211,8 +211,7 @@ class BigtableConfigTranslator {
       InstantiatingGrpcChannelProvider grpcChannelProvider =
           (InstantiatingGrpcChannelProvider) stubSettings.getTransportChannelProvider();
       stubSettings.setTransportChannelProvider(
-          grpcChannelProvider
-              .toBuilder()
+          grpcChannelProvider.toBuilder()
               .setChannelPoolSettings(ChannelPoolSettings.staticallySized(config.getChannelCount()))
               .build());
     }

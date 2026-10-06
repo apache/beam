@@ -17,76 +17,8 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming.translation.batch;
 
-import java.util.HashMap;
-import java.util.Map;
-import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
-import org.apache.beam.runners.spark.structuredstreaming.translation.TransformTranslator;
-import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.annotations.Internal;
-import org.apache.beam.sdk.transforms.Combine;
-import org.apache.beam.sdk.transforms.Flatten;
-import org.apache.beam.sdk.transforms.GroupByKey;
-import org.apache.beam.sdk.transforms.Impulse;
-import org.apache.beam.sdk.transforms.PTransform;
-import org.apache.beam.sdk.transforms.ParDo;
-import org.apache.beam.sdk.transforms.Reshuffle;
-import org.apache.beam.sdk.transforms.windowing.Window;
-import org.apache.beam.sdk.util.construction.SplittableParDo;
-import org.apache.beam.sdk.values.PInput;
-import org.apache.beam.sdk.values.POutput;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
-/**
- * {@link PipelineTranslator} for executing a {@link Pipeline} in Spark in batch mode. This contains
- * only the components specific to batch: registry of batch {@link TransformTranslator} and registry
- * lookup code.
- */
+/** Translator for batch pipelines, the registry and the lookup live in the common base. */
 @Internal
-public class PipelineTranslatorBatch extends PipelineTranslator {
-
-  // --------------------------------------------------------------------------------------------
-  //  Transform Translator Registry
-  // --------------------------------------------------------------------------------------------
-
-  @SuppressWarnings("rawtypes")
-  private static final Map<Class<? extends PTransform>, TransformTranslator> TRANSFORM_TRANSLATORS =
-      new HashMap<>();
-
-  // TODO the ability to have more than one TransformTranslator per URN
-  // that could be dynamically chosen by a predicated that evaluates based on PCollection
-  // obtainable though node.getInputs.getValue()
-  // See
-  // https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L83
-  // And
-  // https://github.com/seznam/euphoria/blob/master/euphoria-spark/src/main/java/cz/seznam/euphoria/spark/SparkFlowTranslator.java#L106
-
-  static {
-    TRANSFORM_TRANSLATORS.put(Impulse.class, new ImpulseTranslatorBatch());
-    TRANSFORM_TRANSLATORS.put(Combine.PerKey.class, new CombinePerKeyTranslatorBatch<>());
-    TRANSFORM_TRANSLATORS.put(Combine.Globally.class, new CombineGloballyTranslatorBatch<>());
-    TRANSFORM_TRANSLATORS.put(
-        Combine.GroupedValues.class, new CombineGroupedValuesTranslatorBatch<>());
-    TRANSFORM_TRANSLATORS.put(GroupByKey.class, new GroupByKeyTranslatorBatch<>());
-
-    TRANSFORM_TRANSLATORS.put(Reshuffle.class, new ReshuffleTranslatorBatch<>());
-    TRANSFORM_TRANSLATORS.put(
-        Reshuffle.ViaRandomKey.class, new ReshuffleTranslatorBatch.ViaRandomKey<>());
-
-    TRANSFORM_TRANSLATORS.put(Flatten.PCollections.class, new FlattenTranslatorBatch<>());
-
-    TRANSFORM_TRANSLATORS.put(Window.Assign.class, new WindowAssignTranslatorBatch<>());
-
-    TRANSFORM_TRANSLATORS.put(ParDo.MultiOutput.class, new ParDoTranslatorBatch<>());
-
-    TRANSFORM_TRANSLATORS.put(
-        SplittableParDo.PrimitiveBoundedRead.class, new ReadSourceTranslatorBatch<>());
-  }
-
-  /** Returns a {@link TransformTranslator} for the given {@link PTransform} if known. */
-  @Override
-  @Nullable
-  protected <InT extends PInput, OutT extends POutput, TransformT extends PTransform<InT, OutT>>
-      TransformTranslator<InT, OutT, TransformT> getTransformTranslator(TransformT transform) {
-    return TRANSFORM_TRANSLATORS.get(transform.getClass());
-  }
-}
+public class PipelineTranslatorBatch extends PipelineTranslatorCommon {}

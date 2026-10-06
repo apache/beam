@@ -243,6 +243,10 @@ class ExternalProvider(Provider):
             underlying_transform_identifier=urn,
             update_compatibility_version=self._managed_replacement[type])
 
+      known_fields = set(
+          self.schema_transforms()[urn].configuration_schema._fields)
+      args = {k: v for k, v in args.items() if k in known_fields}
+
       return external.SchemaAwareExternalTransform(
           urn,
           self._service,
@@ -339,12 +343,14 @@ def beam_jar(
     managed_replacement=None,
     appendix=None,
     version=beam_version,
-    artifact_id=None):
+    artifact_id=None,
+    classpath=None):
   return ExternalJavaProvider(
       urns, lambda: subprocess_server.JavaJarServer.path_to_beam_jar(
           gradle_target=gradle_target, version=version, artifact_id=artifact_id
       ),
-      managed_replacement=managed_replacement)
+      managed_replacement=managed_replacement,
+      classpath=classpath)
 
 
 @ExternalProvider.register_provider_type('docker')

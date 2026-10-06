@@ -82,10 +82,14 @@ class LocalResolveDoFn extends DoFn<KV<ChangelogDescriptor, List<SerializableCha
     this.scanConfig = scanConfig;
     this.projectedBeamSchema =
         CdcOutputUtils.readBeamSchemaWithRowMetadata(
-            scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema());
+            scanConfig.getMetadataColumns(),
+            scanConfig.getProjectedSchema(),
+            scanConfig.getUpdateCompatibilityVersion());
     this.outputBeamSchema =
         CdcOutputUtils.outputSchema(
-            scanConfig, icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
+            scanConfig,
+            icebergSchemaToBeamSchema(
+                scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion()));
   }
 
   @Setup

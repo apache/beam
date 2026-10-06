@@ -27,6 +27,7 @@ const {
   REPO,
   PATH_TO_CONFIG_FILE,
   REVIEWERS_ACTION,
+  AWAITING_TRIAGE_LABEL,
 } = require("./shared/constants");
 import { CheckStatus } from "./shared/checks";
 
@@ -43,7 +44,13 @@ import { CheckStatus } from "./shared/checks";
  * unless we're supposed to remind the user after tests pass
  * (in which case that's all we need to do).
  */
-function needsProcessed(pull: any, prState: typeof Pr): boolean {
+export function needsProcessed(pull: any, prState: typeof Pr): boolean {
+  if (github.hasLabel(pull, AWAITING_TRIAGE_LABEL)) {
+    console.log(
+      `Skipping PR ${pull.number} because it has awaiting triage label`
+    );
+    return false;
+  }
   const firstPythonPrToProcess = new Date(2022, 5, 16, 14); // June 16 2022, 14:00 UTC (note that JavaScript months are 0 indexed)
   const firstPrToProcess = new Date(2022, 6, 15, 23); // July 15 2022, 23:00 UTC (note that JavaScript months are 0 indexed)
   const createdAt = new Date(pull.created_at);
@@ -68,8 +75,13 @@ function needsProcessed(pull: any, prState: typeof Pr): boolean {
     console.log(`Skipping PR ${pull.number} because it is a WIP`);
     return false;
   }
+  // Wait 20 minutes before processing unlabeled PRs so the LabelPrs workflow
+  // has time to apply path-based labels before falling back to no-matching-label.
   let timeCutoff = new Date(new Date().getTime() - 20 * 60000);
-  if (new Date(pull.created_at) > timeCutoff) {
+  if (
+    (!pull.labels || pull.labels.length === 0) &&
+    new Date(pull.created_at) > timeCutoff
+  ) {
     console.log(
       `Skipping PR ${pull.number} because it was created less than 20 minutes ago`
     );
@@ -167,7 +179,9 @@ async function approvedBy(pull: any): Promise<string[]> {
 async function isAnyGithubReviewerCommitter(pull: any): Promise<boolean> {
   let reviewers: string[] = [];
   if (pull.requested_reviewers && pull.requested_reviewers.length > 0) {
-    reviewers = reviewers.concat(pull.requested_reviewers.map((r: any) => r.login));
+    reviewers = reviewers.concat(
+      pull.requested_reviewers.map((r: any) => r.login)
+    );
   }
   for (const reviewer of reviewers) {
     if (await github.checkIfCommitter(reviewer)) {
@@ -177,11 +191,31 @@ async function isAnyGithubReviewerCommitter(pull: any): Promise<boolean> {
   return false;
 }
 
-async function processPull(
+export async function processPull(
   pull: any,
   reviewerConfig: typeof ReviewerConfig,
   stateClient: typeof PersistentState
 ) {
+  if (pull.user.login === "dependabot[bot]") {
+    const files = await github.getPrFiles(pull.number);
+    const touchesContainer = files.some((file: string) =>
+      file.startsWith("sdks/python/container/")
+    );
+    if (touchesContainer) {
+      console.log(
+        `Closing PR ${pull.number} because it is a dependabot PR touching container/`
+      );
+      await github.addPrComment(
+        pull.number,
+        "Closing this PR because dependabot updates for container/** are not allowed due to generated files " +
+          "and excluded_paths is disabled due to dependabot/dependabot-core#14408. " +
+          "Once issue is resolved, please remove this step."
+      );
+      await github.closePr(pull.number);
+      return;
+    }
+  }
+
   let prState = await stateClient.getPrState(pull.number);
   if (!needsProcessed(pull, prState)) {
     return;
@@ -190,8 +224,10 @@ async function processPull(
   console.log(`Processing PR ${pull.number}`);
 
   // If reviewers are already assigned, we just need to check if we should assign a committer.
-  const hasReviewersAssignedForLabels = Object.keys(prState.reviewersAssignedForLabels).length > 0;
-  const hasGithubReviewers = pull.requested_reviewers && pull.requested_reviewers.length > 0;
+  const hasReviewersAssignedForLabels =
+    Object.keys(prState.reviewersAssignedForLabels).length > 0;
+  const hasGithubReviewers =
+    pull.requested_reviewers && pull.requested_reviewers.length > 0;
 
   if (hasReviewersAssignedForLabels || hasGithubReviewers) {
     if (prState.committerAssigned) {
@@ -217,7 +253,11 @@ async function processPull(
       // we can try to guess a label from the PR to assign a committer to.
       if (!labelOfReviewer) {
         let isGithubReviewer = false;
-        if (pull.requested_reviewers && pull.requested_reviewers.some((r: any) => r.login === approver)) isGithubReviewer = true;
+        if (
+          pull.requested_reviewers &&
+          pull.requested_reviewers.some((r: any) => r.login === approver)
+        )
+          isGithubReviewer = true;
 
         if (isGithubReviewer && pull.labels && pull.labels.length > 0) {
           const validLabels = reviewerConfig.getReviewersForAllLabels();
@@ -252,8 +292,7 @@ async function processPull(
         );
         const availableReviewers =
           reviewerConfig.getReviewersForLabel(labelOfReviewer);
-        const fallbackReviewers =
-          reviewerConfig.getFallbackReviewers();
+        const fallbackReviewers = reviewerConfig.getFallbackReviewers();
         const chosenCommitter = await reviewersState.assignNextCommitter(
           availableReviewers,
           fallbackReviewers
@@ -266,6 +305,7 @@ async function processPull(
           pull.number,
           commentStrings.assignCommitter(chosenCommitter)
         );
+        await github.requestPrReviewers(pull.number, [chosenCommitter]);
         await github.nextActionReviewers(pull.number, pull.labels);
         prState.nextAction = REVIEWERS_ACTION;
 
@@ -321,11 +361,18 @@ async function processPull(
   console.log(`Assigning reviewers for PR ${pull.number}`);
   await github.addPrComment(
     pull.number,
-    commentStrings.assignReviewer(prState.reviewersAssignedForLabels)
+    commentStrings.assignReviewer(prState.reviewersAssignedForLabels, {
+      labels: pull.labels,
+    })
+  );
+  await github.requestPrReviewers(
+    pull.number,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
-  github.nextActionReviewers(pull.number, pull.labels);
+  await github.nextActionReviewers(pull.number, pull.labels);
   prState.nextAction = "Reviewers";
+  prState.reviewersAssignedAt = Date.now();
 
   await stateClient.writePrState(pull.number, prState);
   let labelsToUpdate = Object.keys(reviewerStateToUpdate);
@@ -355,6 +402,10 @@ async function processNewPrs() {
   }
 }
 
-processNewPrs();
+// Only run processNewPrs() when executed directly so other modules (e.g. processPrUpdate)
+// can import helper functions like processPull without scanning all open PRs.
+if (require.main === module) {
+  processNewPrs();
+}
 
 export {};

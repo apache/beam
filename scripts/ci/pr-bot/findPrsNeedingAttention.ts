@@ -26,14 +26,13 @@ const {
   REPO,
   PATH_TO_CONFIG_FILE,
   SLOW_REVIEW_LABEL,
+  REASSIGNED_REVIEWERS_LABEL,
+  AWAITING_TRIAGE_LABEL,
+  NEXT_ACTION_REVIEWERS_LABEL,
+  AUTHOR_ACTION,
 } = require("./shared/constants");
+const { hasLabel } = github;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-function hasLabel(pull: any, labelName: string): boolean {
-  return pull.labels.some(
-    (label) => label.name.toLowerCase() === labelName.toLowerCase()
-  );
-}
 
 function getTwoWeekdaysAgo(): Date {
   const twoWeekDaysAgo = new Date(Date.now() - 2 * ONE_DAY_MS);
@@ -49,7 +48,7 @@ function getTwoWeekdaysAgo(): Date {
 }
 
 async function isSlowReview(pull: any): Promise<boolean> {
-  if (!hasLabel(pull, "Next Action: Reviewers")) {
+  if (!hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)) {
     return false;
   }
   const lastModified = new Date(pull.updated_at);
@@ -102,15 +101,18 @@ async function assignToNewReviewers(
   let prState = await stateClient.getPrState(pull.number);
   let reviewerStateToUpdate = {};
   const labelObjects = pull.labels;
-  let reviewersToExclude: string[] = Object.values(prState.reviewersAssignedForLabels) as string[];
+  let reviewersToExclude: string[] = Object.values(
+    prState.reviewersAssignedForLabels
+  ) as string[];
   if (pull.requested_reviewers) {
-    reviewersToExclude = reviewersToExclude.concat(pull.requested_reviewers.map((r: any) => r.login));
+    reviewersToExclude = reviewersToExclude.concat(
+      pull.requested_reviewers.map((r: any) => r.login)
+    );
   }
   reviewersToExclude.push(pull.user.login);
   const reviewersForLabels: { [key: string]: string[] } =
     reviewerConfig.getReviewersForLabels(labelObjects, reviewersToExclude);
-  const fallbackReviewers =
-    reviewerConfig.getFallbackReviewers();
+  const fallbackReviewers = reviewerConfig.getFallbackReviewers();
   for (const labelObject of labelObjects) {
     const label = labelObject.name;
     let availableReviewers = reviewersForLabels[label];
@@ -128,7 +130,13 @@ async function assignToNewReviewers(
   console.log(`Assigning new reviewers for pr ${pull.number}`);
   await github.addPrComment(
     pull.number,
-    commentStrings.assignNewReviewer(prState.reviewersAssignedForLabels)
+    commentStrings.assignNewReviewer(prState.reviewersAssignedForLabels, {
+      labels: pull.labels,
+    })
+  );
+  await github.requestPrReviewers(
+    pull.number,
+    Object.values(prState.reviewersAssignedForLabels)
   );
 
   await stateClient.writePrState(pull.number, prState);
@@ -154,7 +162,45 @@ async function processPull(
     console.log(`Skipping PR ${pull.number} - notifications silenced`);
     return;
   }
-  if (hasLabel(pull, SLOW_REVIEW_LABEL)) {
+  if (hasLabel(pull, AWAITING_TRIAGE_LABEL)) {
+    console.log(`Skipping PR ${pull.number} - awaiting triage`);
+    return;
+  }
+  if (pull.draft) {
+    if (hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)) {
+      await github.nextActionAuthor(pull.number, pull.labels);
+      prState.nextAction = AUTHOR_ACTION;
+      await stateClient.writePrState(pull.number, prState);
+    }
+    console.log(`Skipping PR ${pull.number} - draft`);
+    return;
+  }
+
+  const sixtyDaysAgo = new Date(Date.now() - 60 * ONE_DAY_MS);
+  const initialReviewDate = prState.reviewersAssignedAt
+    ? new Date(prState.reviewersAssignedAt)
+    : new Date(pull.created_at);
+  if (
+    hasLabel(pull, REASSIGNED_REVIEWERS_LABEL) &&
+    hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL) &&
+    initialReviewDate.getTime() < sixtyDaysAgo.getTime()
+  ) {
+    console.log(
+      `PR ${pull.number} has reassigned-reviewers and Next Action: Reviewers labels and review started >60 days ago - adding awaiting triage label`
+    );
+    await github.getGitHubClient().rest.issues.addLabels({
+      owner: REPO_OWNER,
+      repo: REPO,
+      issue_number: pull.number,
+      labels: [AWAITING_TRIAGE_LABEL],
+    });
+    return;
+  }
+
+  if (
+    hasLabel(pull, SLOW_REVIEW_LABEL) &&
+    hasLabel(pull, NEXT_ACTION_REVIEWERS_LABEL)
+  ) {
     const lastModified = new Date(pull.updated_at);
     const twoWeekDaysAgo = getTwoWeekdaysAgo();
     console.log(
@@ -175,7 +221,7 @@ async function processPull(
         owner: REPO_OWNER,
         repo: REPO,
         issue_number: pull.number,
-        labels: ["reassigned-reviewers"],
+        labels: [REASSIGNED_REVIEWERS_LABEL],
       });
     }
 
@@ -184,9 +230,13 @@ async function processPull(
 
   if (await isSlowReview(pull)) {
     const client = github.getGitHubClient();
-    let reviewersToPing = Object.values(prState.reviewersAssignedForLabels || {});
+    let reviewersToPing = Object.values(
+      prState.reviewersAssignedForLabels || {}
+    );
     if (pull.requested_reviewers) {
-      reviewersToPing = reviewersToPing.concat(pull.requested_reviewers.map((r: any) => r.login));
+      reviewersToPing = reviewersToPing.concat(
+        pull.requested_reviewers.map((r: any) => r.login)
+      );
     }
     reviewersToPing = [...new Set(reviewersToPing as string[])];
 
@@ -224,6 +274,8 @@ async function processOldPrs() {
   for (const pull of openPulls) {
     await processPull(pull, reviewerConfig, stateClient);
   }
+
+  await stateClient.deleteStalePrStates(openPulls, 100);
 }
 
 processOldPrs();

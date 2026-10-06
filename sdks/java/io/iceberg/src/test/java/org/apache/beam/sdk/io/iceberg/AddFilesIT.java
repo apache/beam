@@ -22,10 +22,15 @@ import static org.apache.beam.sdk.io.FileIO.Write.defaultNaming;
 import static org.apache.beam.sdk.io.iceberg.IcebergUtils.beamSchemaToIcebergSchema;
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.sdk.values.TypeDescriptors.strings;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.startsWith;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
+import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import com.google.api.client.http.HttpResponseException;
 import com.google.api.services.storage.model.StorageObject;
 import com.google.cloud.storage.Blob;
 import com.google.cloud.storage.Notification;
@@ -34,7 +39,9 @@ import com.google.cloud.storage.Storage;
 import com.google.cloud.storage.StorageException;
 import com.google.cloud.storage.StorageOptions;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -76,6 +83,7 @@ import org.apache.beam.sdk.values.TypeDescriptor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.hadoop.util.Lists;
+import org.apache.iceberg.BaseTable;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
@@ -102,7 +110,11 @@ import org.slf4j.LoggerFactory;
 public class AddFilesIT {
   private static final Logger LOG = LoggerFactory.getLogger(AddFilesIT.class);
 
-  private static final String WAREHOUSE = "gs://managed-iceberg-biglake-its";
+  // Multiple-bucket Lakehouse catalog (see LakehouseTestCatalog). Source parquet files, and the
+  // GCS notifications announcing them, live under the catalog's default location.
+  private static final String DATA_LOCATION = LakehouseTestCatalog.defaultLocation();
+  private static final String DATA_BUCKET = LakehouseTestCatalog.bucketOf(DATA_LOCATION);
+  private static final String DATA_PREFIX = LakehouseTestCatalog.prefixOf(DATA_LOCATION);
   private static final String PROJECT =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class).getProject();
   @Rule public TestName testName = new TestName();
@@ -119,19 +131,14 @@ public class AddFilesIT {
           .addStringField("name")
           .addStringField("kind")
           .build();
-  private static final Map<String, String> BIGLAKE_PROPS =
-      Map.of(
-          "type", "rest",
-          "uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog",
-          "warehouse", WAREHOUSE,
-          "header.x-goog-user-project", PROJECT,
-          "rest.auth.type", "google",
-          "io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO",
-          "rest-metrics-reporting-enabled", "false");
+  private static final Map<String, String> LAKEHOUSE_PROPS =
+      LakehouseTestCatalog.catalogProperties();
   private Storage storage;
   private PubsubClient pubsub;
   private Notification notification;
-  private final String namespace = getClass().getSimpleName();
+  private final String namespace = getClass().getSimpleName() + "_" + System.currentTimeMillis();
+  // Namespace placed in the catalog's additional location (second bucket).
+  private final String altNamespace = namespace + "_alt";
   private String srcTableName;
   private String destTableName;
   private TableIdentifier srcTableId;
@@ -167,45 +174,77 @@ public class AddFilesIT {
             .setPayloadFormat(NotificationInfo.PayloadFormat.JSON_API_V1)
             .build();
     try {
-      notification = storage.createNotification(WAREHOUSE.replace("gs://", ""), notificationInfo);
+      notification = storage.createNotification(DATA_BUCKET, notificationInfo);
     } catch (StorageException e) {
       if (e.getMessage().contains("Too many overlapping notifications")) {
-        List<Notification> existing = storage.listNotifications(WAREHOUSE.replace("gs://", ""));
+        List<Notification> existing = storage.listNotifications(DATA_BUCKET);
         LOG.warn(
             "Too many notifications on bucket {}: {}. Deleting existing notifications to make room: {}",
-            WAREHOUSE,
+            DATA_BUCKET,
             e,
             existing.stream()
                 .map(NotificationInfo::getNotificationId)
                 .collect(Collectors.toList()));
-        existing.forEach(
-            n -> storage.deleteNotification(WAREHOUSE.replace("gs://", ""), n.getNotificationId()));
+        existing.forEach(n -> storage.deleteNotification(DATA_BUCKET, n.getNotificationId()));
 
         // try creating it again
-        notification = storage.createNotification(WAREHOUSE.replace("gs://", ""), notificationInfo);
+        notification = storage.createNotification(DATA_BUCKET, notificationInfo);
       } else {
+        logNotificationFailure(e);
         throw e;
       }
     }
 
     salt = System.currentTimeMillis();
-    dirName = format("%s-%s/%s", getClass().getSimpleName(), salt, testName.getMethodName());
+    // Object-name prefix of this test's parquet files; DATA_PREFIX is empty for a bare bucket.
+    dirName =
+        format(
+            "%s%s-%s/%s",
+            DATA_PREFIX.isEmpty() ? "" : DATA_PREFIX + "/",
+            getClass().getSimpleName(),
+            salt,
+            testName.getMethodName());
     srcTableName = "src_" + testName.getMethodName() + "_" + salt;
     destTableName = "dest_" + testName.getMethodName() + "_" + salt;
     srcTableId = TableIdentifier.of(namespace, srcTableName);
     destTableId = TableIdentifier.of(namespace, destTableName);
 
-    catalog.initialize("test_catalog", BIGLAKE_PROPS);
+    catalog.initialize("test_catalog", LAKEHOUSE_PROPS);
     cleanupCatalog();
     catalog.createNamespace(Namespace.of(namespace));
   }
 
-  private void cleanupCatalog() {
-    Namespace ns = Namespace.of(namespace);
-    if (catalog.namespaceExists(ns)) {
-      catalog.listTables(ns).forEach(catalog::dropTable);
-      catalog.dropNamespace(ns);
+  /**
+   * GCS reports server-side errors (5xx) without a cause, so log what identifies the request to GCS
+   * support and the bucket's notification count at the time.
+   */
+  private void logNotificationFailure(StorageException e) {
+    @Nullable String requestId = null;
+    Throwable cause = e.getCause();
+    if (cause instanceof HttpResponseException) {
+      HttpResponseException response = (HttpResponseException) cause;
+      requestId = response.getHeaders().getFirstHeaderStringValue("x-guploader-uploadid");
     }
+    String existingNotifications;
+    try {
+      existingNotifications = String.valueOf(storage.listNotifications(DATA_BUCKET).size());
+    } catch (StorageException listError) {
+      existingNotifications = "unknown (" + listError.getMessage() + ")";
+    }
+    LOG.error(
+        "Failed to create a GCS notification on bucket {} for topic {}: HTTP {}, reason={},"
+            + " retryable={}, x-guploader-uploadid={}, notifications on bucket={}",
+        DATA_BUCKET,
+        notificationsTopic,
+        e.getCode(),
+        e.getReason(),
+        e.isRetryable(),
+        requestId,
+        existingNotifications);
+  }
+
+  private void cleanupCatalog() throws IOException {
+    LakehouseTestCatalog.dropNamespacesAndFiles(catalog, Arrays.asList(namespace, altNamespace));
   }
 
   @After
@@ -218,7 +257,7 @@ public class AddFilesIT {
     }
 
     try {
-      storage.deleteNotification(WAREHOUSE.replace("gs://", ""), notification.getNotificationId());
+      storage.deleteNotification(DATA_BUCKET, notification.getNotificationId());
       storage.close();
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS notifications", e);
@@ -232,9 +271,7 @@ public class AddFilesIT {
 
     try {
       Iterable<Blob> blobs =
-          storage
-              .list(WAREHOUSE.replace("gs://", ""), Storage.BlobListOption.prefix(dirName))
-              .getValues();
+          storage.list(DATA_BUCKET, Storage.BlobListOption.prefix(dirName)).getValues();
       blobs.forEach(b -> storage.delete(b.getBlobId()));
     } catch (Exception e) {
       LOG.warn("Failed to clean up GCS bucket", e);
@@ -247,7 +284,7 @@ public class AddFilesIT {
     // first create a source iceberg table
     catalog.createTable(srcTableId, beamSchemaToIcebergSchema(ROW_SCHEMA), SPEC);
 
-    // BigLake may write under {namespace}/{table}/{id}/data/... rather than the Hive-style
+    // Lakehouse may write under {namespace}/{table}/{id}/data/... rather than the Hive-style
     // {namespace}/{table}/data/... layout, so match the table prefix and a /data/ segment.
     String tablePrefix = format("%s/%s/", namespace, srcTableName);
 
@@ -267,7 +304,7 @@ public class AddFilesIT {
             Managed.write(Managed.ICEBERG)
                 .withConfig(
                     ImmutableMap.of(
-                        "table", srcTableId.toString(), "catalog_properties", BIGLAKE_PROPS)));
+                        "table", srcTableId.toString(), "catalog_properties", LAKEHOUSE_PROPS)));
     q.run().waitUntilFinish();
 
     // check that the destination table has been created
@@ -303,7 +340,7 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ false);
   }
 
   /**
@@ -343,8 +380,8 @@ public class AddFilesIT {
       throws InterruptedException, TimeoutException, IOException {
     // start with a table that does not exist
 
-    String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
-    String tempDir = format("%s/%s-tmp/", WAREHOUSE, dirName);
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
 
     // let the add files pipeline run in the background
     PipelineResult addFilesPipeline = startAddFilesListener(dirName);
@@ -376,8 +413,7 @@ public class AddFilesIT {
 
     GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
 
-    Iterable<StorageObject> objects =
-        gcsUtil.listObjects(WAREHOUSE.replace("gs://", ""), dirName, null).getItems();
+    Iterable<StorageObject> objects = gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems();
     List<String> writtenFilePaths =
         Lists.newArrayList(objects).stream()
             .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
@@ -404,15 +440,105 @@ public class AddFilesIT {
     addFilesPipeline.cancel();
 
     // check all records are there
-    checkRecordsInDestinationTable();
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ false);
   }
 
   @Test
   public void testBatchParquetImport() throws IOException {
+    testBatchParquetImport(false);
+  }
+
+  @Test
+  public void testBatchParquetImportToUIT() throws IOException {
+    testBatchParquetImport(true);
+  }
+
+  /**
+   * The destination table lives in the catalog's additional location (a second bucket) while the
+   * source parquet files stay in the default one. Lakehouse pins tables under their namespace's
+   * location, so the table is created in a namespace placed in the second bucket; AddFiles must
+   * commit metadata there and reference the files in place across buckets.
+   */
+  @Test
+  public void testBatchParquetImportToTableInAdditionalLocation() throws IOException {
+    String namespaceLocation = LakehouseTestCatalog.additionalLocation() + "/" + altNamespace;
+    assertNotEquals(
+        "Test needs two distinct buckets",
+        DATA_BUCKET,
+        LakehouseTestCatalog.bucketOf(namespaceLocation));
+    catalog.createNamespace(
+        Namespace.of(altNamespace), ImmutableMap.of("location", namespaceLocation));
+    destTableId = TableIdentifier.of(altNamespace, destTableName);
+    catalog.createTable(destTableId, beamSchemaToIcebergSchema(ROW_SCHEMA), SPEC);
+    assertThat(catalog.loadTable(destTableId).location(), startsWith(namespaceLocation));
+
+    List<String> writtenFilePaths = writeParquetFiles();
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(writtenFilePaths))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
+                    destTableId.toString(),
+                    null,
+                    PARTITION_FIELDS,
+                    null,
+                    TABLE_PROPS,
+                    null,
+                    null));
+    PAssert.that(tuple.get("errors")).empty();
+    p.run().waitUntilFinish();
+
+    assertTrue(checkTableHasRegisteredParquetFiles(writtenFilePaths));
+    Table destTable = catalog.loadTable(destTableId);
+    String metadataLocation = ((BaseTable) destTable).operations().current().metadataFileLocation();
+    assertThat(metadataLocation, startsWith(LakehouseTestCatalog.additionalLocation()));
+    for (String path : writtenFilePaths) {
+      assertThat(path, startsWith("gs://" + DATA_BUCKET + "/"));
+    }
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
+  }
+
+  /** Writes TEST_ROWS as parquet under the test's data dir and returns the written file paths. */
+  private List<String> writeParquetFiles() throws IOException {
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
+    LOG.info("Writing records to the parquet dir");
+    Pipeline q = Pipeline.create();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(ROW_SCHEMA);
+    q.apply(Create.of(TEST_ROWS))
+        .setRowSchema(ROW_SCHEMA)
+        .apply(
+            MapElements.into(TypeDescriptor.of(GenericRecord.class))
+                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
+        .setCoder(AvroCoder.of(avroSchema))
+        .apply(
+            FileIO.<String, GenericRecord>writeDynamic()
+                .by(
+                    record ->
+                        format("%s-%s-%s", record.get("id"), record.get("name"), record.get("age")))
+                .via(ParquetIO.sink(avroSchema))
+                .withNaming(name -> defaultNaming(name, ".parquet"))
+                .withTempDirectory(tempDir)
+                .to(parquetDir)
+                .withDestinationCoder(StringUtf8Coder.of()));
+    q.run().waitUntilFinish();
+
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    Iterable<StorageObject> objects = gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems();
+    List<String> writtenFilePaths =
+        Lists.newArrayList(objects).stream()
+            .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
+            .collect(Collectors.toList());
+    LOG.info("Written file paths: {}", writtenFilePaths);
+    return writtenFilePaths;
+  }
+
+  private void testBatchParquetImport(boolean isUIT) throws IOException {
     // start with a table that does not exist
 
-    String parquetDir = format("%s/%s/", WAREHOUSE, dirName);
-    String tempDir = format("%s/%s-tmp/", WAREHOUSE, dirName);
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
 
     // write some parquet files
     LOG.info("Writing records to the parquet dir");
@@ -438,8 +564,7 @@ public class AddFilesIT {
 
     GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
 
-    Iterable<StorageObject> objects =
-        gcsUtil.listObjects(WAREHOUSE.replace("gs://", ""), dirName, null).getItems();
+    Iterable<StorageObject> objects = gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems();
     List<String> writtenFilePaths =
         Lists.newArrayList(objects).stream()
             .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
@@ -449,18 +574,23 @@ public class AddFilesIT {
     // before adding, confirm the destination table still does not exist
     assertFalse(catalog.tableExists(destTableId));
 
+    Map<String, String> tableProps = new HashMap<>(TABLE_PROPS);
+    if (isUIT) {
+      tableProps.put("gcp.biglake.bigquery-dml.enabled", "true");
+    }
+
     // run batch AddFiles
     Pipeline p = Pipeline.create();
     PCollectionRowTuple tuple =
         p.apply(Create.of(writtenFilePaths))
             .apply(
                 new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
-                    PARTITION_FIELDS,
+                    isUIT ? null : PARTITION_FIELDS,
                     null,
-                    TABLE_PROPS,
+                    tableProps,
                     null,
                     null));
     PAssert.that(tuple.get("errors")).empty();
@@ -475,21 +605,166 @@ public class AddFilesIT {
     LOG.info(
         "Destination table has registered all source files ({} files).", writtenFilePaths.size());
 
-    // check all records are there
-    checkRecordsInDestinationTable();
+    // check all records are there.
+    checkRecordsInDestinationTable(/* alsoCheckWithBigQueryIO= */ true);
   }
 
-  private void checkRecordsInDestinationTable() {
+  /**
+   * Schema evolution against the live catalog: a narrow pre-existing table and files that add a
+   * column. Everything must register with stats for the added column and read back.
+   */
+  @Test
+  public void testBatchParquetImportWithSchemaEvolution() throws IOException {
+    Schema narrow = Schema.builder().addInt64Field("id").addStringField("name").build();
+    catalog.createTable(destTableId, beamSchemaToIcebergSchema(narrow));
+
+    String parquetDir = format("gs://%s/%s/", DATA_BUCKET, dirName);
+    String tempDir = format("gs://%s/%s-tmp/", DATA_BUCKET, dirName);
+    writeParquet(TEST_ROWS, ROW_SCHEMA, parquetDir + "plain/", tempDir + "plain/");
+
+    GcsUtil gcsUtil = TestPipeline.testingPipelineOptions().as(GcsOptions.class).getGcsUtil();
+    List<String> writtenFilePaths =
+        Lists.newArrayList(gcsUtil.listObjects(DATA_BUCKET, dirName, null).getItems()).stream()
+            .map(o -> format("gs://%s/%s", o.getBucket(), o.getName()))
+            .collect(Collectors.toList());
+    assertEquals(20, writtenFilePaths.size());
+
+    SchemaEvolutionConfig evolution =
+        SchemaEvolutionConfig.builder()
+            .setOptions(EnumSet.of(SchemaEvolutionOption.ALLOW_FIELD_ADDITION))
+            .build();
+    Pipeline p = Pipeline.create();
+    PCollectionRowTuple tuple =
+        p.apply(Create.of(writtenFilePaths))
+            .apply(
+                new AddFiles(
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
+                    namespace + "." + destTableName,
+                    null,
+                    null,
+                    null,
+                    TABLE_PROPS,
+                    null,
+                    null,
+                    evolution));
+    PAssert.that(tuple.get("errors")).empty();
+    p.run().waitUntilFinish();
+
+    Table destTable = catalog.loadTable(destTableId);
+    org.apache.iceberg.types.Types.NestedField age = destTable.schema().findField("age");
+    assertNotNull("column added by the pre-pass", age);
+    assertTrue(checkTableHasRegisteredParquetFiles(writtenFilePaths));
+    int nameId = destTable.schema().findField("name").fieldId();
+    for (org.apache.iceberg.FileScanTask task :
+        destTable.newScan().includeColumnStats().planFiles()) {
+      assertEquals(
+          "stats for name on " + task.file().path(),
+          Long.valueOf(0),
+          task.file().nullValueCounts().get(nameId));
+      assertEquals(
+          "stats for age on " + task.file().path(),
+          Long.valueOf(0),
+          task.file().nullValueCounts().get(age.fieldId()));
+    }
+    // every row reads back
+    List<Row> expected = new ArrayList<>();
+    Schema wide =
+        Schema.builder()
+            .addInt64Field("id")
+            .addStringField("name")
+            .addNullableInt32Field("age")
+            .build();
+    for (Row row : TEST_ROWS) {
+      expected.add(
+          Row.withSchema(wide)
+              .addValues(row.getInt64("id"), row.getString("name"), row.getInt32("age"))
+              .build());
+    }
+    Pipeline s = Pipeline.create();
+    PCollection<String> destRows =
+        s.apply(
+                Managed.read(Managed.ICEBERG)
+                    .withConfig(
+                        ImmutableMap.of(
+                            "table",
+                            destTableId.toString(),
+                            "catalog_properties",
+                            LAKEHOUSE_PROPS)))
+            .getSinglePCollection()
+            .apply(MapElements.into(strings()).via(AddFilesIT::canonicalRecord));
+    PAssert.that(destRows)
+        .containsInAnyOrder(
+            expected.stream().map(AddFilesIT::canonicalRecord).collect(Collectors.toList()));
+    s.run().waitUntilFinish();
+  }
+
+  private static void writeParquet(List<Row> rows, Schema schema, String dir, String tempDir) {
+    Pipeline q = Pipeline.create();
+    org.apache.avro.Schema avroSchema = AvroUtils.toAvroSchema(schema);
+    q.apply(Create.of(rows).withRowSchema(schema))
+        .apply(
+            MapElements.into(TypeDescriptor.of(GenericRecord.class))
+                .via(AvroUtils.getRowToGenericRecordFunction(avroSchema)))
+        .setCoder(AvroCoder.of(avroSchema))
+        .apply(
+            FileIO.<String, GenericRecord>writeDynamic()
+                .by(record -> String.valueOf(record.get("id")))
+                .via(ParquetIO.sink(avroSchema))
+                .withNaming(name -> defaultNaming(name, ".parquet"))
+                .withTempDirectory(tempDir)
+                .to(dir)
+                .withDestinationCoder(StringUtf8Coder.of()));
+    q.run().waitUntilFinish();
+  }
+
+  private void checkRecordsInDestinationTable(boolean alsoCheckWithBigQueryIO) {
     Pipeline s = Pipeline.create();
     PCollection<Row> destRows =
         s.apply(
                 Managed.read(Managed.ICEBERG)
                     .withConfig(
                         ImmutableMap.of(
-                            "table", destTableId.toString(), "catalog_properties", BIGLAKE_PROPS)))
+                            "table",
+                            destTableId.toString(),
+                            "catalog_properties",
+                            LAKEHOUSE_PROPS)))
             .getSinglePCollection();
     PAssert.that(destRows).containsInAnyOrder(TEST_ROWS);
+
+    if (alsoCheckWithBigQueryIO) {
+      // Cross-engine check: the same rows must be readable with BigQueryIO via the 4-part
+      // project.catalog.namespace.table reference. Rows are compared on a canonical string
+      // because BigQuery widens int32 (age) to INT64, so whole-row equality does not hold.
+      PCollection<String> bqRows =
+          s.apply(
+                  "read with BigQueryIO",
+                  Managed.read(Managed.BIGQUERY)
+                      .withConfig(
+                          ImmutableMap.of(
+                              "table",
+                              format(
+                                  "%s.%s.%s.%s",
+                                  PROJECT,
+                                  LakehouseTestCatalog.CATALOG_ID,
+                                  destTableId.namespace(),
+                                  destTableId.name()))))
+              .getSinglePCollection()
+              .apply(
+                  "canonicalize bq rows",
+                  MapElements.into(strings()).via(AddFilesIT::canonicalRecord));
+      PAssert.that(bqRows)
+          .containsInAnyOrder(
+              TEST_ROWS.stream().map(AddFilesIT::canonicalRecord).collect(Collectors.toList()));
+    }
     s.run().waitUntilFinish();
+  }
+
+  private static String canonicalRecord(Row row) {
+    return String.valueOf((Object) row.getValue("id"))
+        + "|"
+        + row.getValue("name")
+        + "|"
+        + String.valueOf((Object) row.getValue("age"));
   }
 
   private boolean checkTableHasRegisteredParquetFiles(List<String> parquetFiles) {
@@ -528,7 +803,7 @@ public class AddFilesIT {
             .apply(Deduplicate.values())
             .apply(
                 new AddFiles(
-                    IcebergCatalogConfig.builder().setCatalogProperties(BIGLAKE_PROPS).build(),
+                    IcebergCatalogConfig.builder().setCatalogProperties(LAKEHOUSE_PROPS).build(),
                     namespace + "." + destTableName,
                     null,
                     PARTITION_FIELDS,

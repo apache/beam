@@ -341,7 +341,7 @@ public class CdcReadUtilsTest {
       Table table) {
     return SerializableChangelogTask.builder()
         .setType(type)
-        .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
+        .setDataFile(dataFile, table.spec(), true)
         .setAddedDeletes(serializableDeletes(addedDeletes, table))
         .setExistingDeletes(serializableDeletes(existingDeletes, table))
         .setSpecId(table.spec().specId())
@@ -360,10 +360,7 @@ public class CdcReadUtilsTest {
   private static List<SerializableDeleteFile> serializableDeletes(
       List<DeleteFile> deletes, Table table) {
     return deletes.stream()
-        .map(
-            delete ->
-                SerializableDeleteFile.from(
-                    delete, table.spec().partitionToPath(delete.partition()), true))
+        .map(delete -> SerializableDeleteFile.from(delete, table.specs(), true))
         .collect(Collectors.toList());
   }
 

@@ -39,7 +39,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.experimental.runners.Enclosed;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Test the various NEXMark queries yield results coherent with their models. */
 @RunWith(Enclosed.class)
@@ -144,7 +143,7 @@ public class SqlQueryTest {
     }
   }
 
-  @RunWith(JUnit4.class)
+  @RunWith(org.apache.beam.sdk.testing.BeamParallelJunit4Runner.class)
   public static class SqlQueryTestCalcite extends SqlQueryTestCases {
     @Override
     protected SqlQuery1 getQuery1() {

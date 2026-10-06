@@ -166,6 +166,11 @@ func MakeElementEncoder(c *coder.Coder) ElementEncoder {
 			be:    boolEncoder{},
 		}
 
+	case coder.ShardedKey:
+		return &shardedKeyEncoder{
+			key: MakeElementEncoder(c.Components[0]),
+		}
+
 	default:
 		panic(fmt.Sprintf("Unexpected coder: %v", c))
 	}
@@ -286,6 +291,11 @@ func MakeElementDecoder(c *coder.Coder) ElementDecoder {
 		return &nullableDecoder{
 			inner: MakeElementDecoder(c.Components[0]),
 			bd:    boolDecoder{},
+		}
+
+	case coder.ShardedKey:
+		return &shardedKeyDecoder{
+			key: MakeElementDecoder(c.Components[0]),
 		}
 
 	default:
@@ -1355,4 +1365,57 @@ func decodeTimer(dec ElementDecoder, win WindowDecoder, r io.Reader) (TimerRecv,
 	tm.Pane = pn
 
 	return tm, nil
+}
+
+// shardedKeyEncoder encodes ShardedKey-typed values in the standard
+// beam:coder:sharded_key:v1 wire format:
+//
+//	ByteArrayCoder.encode(ShardID) ++ keyCoder.encode(Key)
+//
+// Runtime values are carried by a FullValue whose Elm holds the user key
+// and whose Elm2 holds the []byte shard identifier — the same two-part
+// convention used by the KV coder. This matches the Java
+// util.ShardedKey.Coder and Python sharded_key encodings exactly; any
+// divergence of a single byte would silently corrupt cross-SDK pipelines.
+type shardedKeyEncoder struct {
+	key ElementEncoder
+}
+
+func (e *shardedKeyEncoder) Encode(val *FullValue, w io.Writer) error {
+	shardID, ok := val.Elm2.([]byte)
+	if !ok {
+		return errors.Errorf(
+			"shardedKeyEncoder: Elm2 must be []byte shardID (got %T)", val.Elm2)
+	}
+	if err := coder.EncodeBytes(shardID, w); err != nil {
+		return errors.WithContext(err, "shardedKeyEncoder: shardID")
+	}
+	return e.key.Encode(&FullValue{Elm: val.Elm}, w)
+}
+
+// shardedKeyDecoder is the inverse of shardedKeyEncoder. Decoded values
+// are placed in FullValue{Elm: key, Elm2: shardID}.
+type shardedKeyDecoder struct {
+	key ElementDecoder
+}
+
+func (d *shardedKeyDecoder) DecodeTo(r io.Reader, fv *FullValue) error {
+	shardID, err := coder.DecodeBytes(r)
+	if err != nil {
+		return errors.WithContext(err, "shardedKeyDecoder: shardID")
+	}
+	keyFV, err := d.key.Decode(r)
+	if err != nil {
+		return errors.WithContext(err, "shardedKeyDecoder: key")
+	}
+	*fv = FullValue{Elm: keyFV.Elm, Elm2: shardID}
+	return nil
+}
+
+func (d *shardedKeyDecoder) Decode(r io.Reader) (*FullValue, error) {
+	fv := &FullValue{}
+	if err := d.DecodeTo(r, fv); err != nil {
+		return nil, err
+	}
+	return fv, nil
 }

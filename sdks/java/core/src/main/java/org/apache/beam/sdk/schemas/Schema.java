@@ -650,8 +650,7 @@ public class Schema implements Serializable {
      * A schema type representing how to interpret the argument. {@code null} indicates this logical
      * type is not parameterized by an argument.
      */
-    @Nullable
-    FieldType getArgumentType();
+    @Nullable FieldType getArgumentType();
 
     /** An optional argument to configure the type. */
     @SuppressWarnings("TypeParameterUnusedInFormals")
@@ -663,12 +662,10 @@ public class Schema implements Serializable {
     FieldType getBaseType();
 
     /** Convert the input type to the type Java type used by the base {@link FieldType}. */
-    @NonNull
-    BaseT toBaseType(@NonNull InputT input);
+    @NonNull BaseT toBaseType(@NonNull InputT input);
 
     /** Convert the Java type used by the base {@link FieldType} to the input type. */
-    @NonNull
-    InputT toInputType(@NonNull BaseT base);
+    @NonNull InputT toInputType(@NonNull BaseT base);
   }
 
   /**
@@ -752,7 +749,9 @@ public class Schema implements Serializable {
 
       abstract Builder setRowSchema(@Nullable Schema rowSchema);
 
-      /** @deprecated use schema options instead. */
+      /**
+       * @deprecated use schema options instead.
+       */
       @Deprecated
       abstract Builder setMetadata(Map<String, ByteArrayWrapper> metadata);
 
@@ -802,7 +801,9 @@ public class Schema implements Serializable {
       return FieldType.forTypeName(TypeName.ARRAY).setCollectionElementType(elementType).build();
     }
 
-    /** @deprecated Set the nullability on the elementType instead */
+    /**
+     * @deprecated Set the nullability on the elementType instead
+     */
     @Deprecated
     public static FieldType array(FieldType elementType, boolean nullable) {
       return FieldType.forTypeName(TypeName.ARRAY)
@@ -830,7 +831,9 @@ public class Schema implements Serializable {
           .build();
     }
 
-    /** @deprecated Set the nullability on the valueType instead */
+    /**
+     * @deprecated Set the nullability on the valueType instead
+     */
     @Deprecated
     public static FieldType map(FieldType keyType, FieldType valueType, boolean valueTypeNullable) {
       return FieldType.forTypeName(TypeName.MAP)
@@ -888,21 +891,27 @@ public class Schema implements Serializable {
       return withMetadata(key, metadata.getBytes(StandardCharsets.UTF_8));
     }
 
-    /** @deprecated use schema options instead. */
+    /**
+     * @deprecated use schema options instead.
+     */
     @Deprecated
     public Map<String, byte[]> getAllMetadata() {
       return getMetadata().entrySet().stream()
           .collect(Collectors.toMap(e -> e.getKey(), e -> e.getValue().array));
     }
 
-    /** @deprecated use schema options instead. */
+    /**
+     * @deprecated use schema options instead.
+     */
     @Deprecated
     public byte @Nullable [] getMetadata(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
       return (metadata != null) ? metadata.array : null;
     }
 
-    /** @deprecated use schema options instead. */
+    /**
+     * @deprecated use schema options instead.
+     */
     @Deprecated
     public String getMetadataString(String key) {
       ByteArrayWrapper metadata = getMetadata().get(key);
@@ -1486,8 +1495,7 @@ public class Schema implements Serializable {
                 innerType = innerType.toBuilder().setRowSchema(innerSnakeCaseSchema).build();
                 field = field.toBuilder().setType(innerType).build();
               }
-              return field
-                  .toBuilder()
+              return field.toBuilder()
                   .setName(CaseFormat.LOWER_CAMEL.to(CaseFormat.LOWER_UNDERSCORE, field.getName()))
                   .build();
             })
@@ -1505,8 +1513,7 @@ public class Schema implements Serializable {
                 innerType = innerType.toBuilder().setRowSchema(innerCamelCaseSchema).build();
                 field = field.toBuilder().setType(innerType).build();
               }
-              return field
-                  .toBuilder()
+              return field.toBuilder()
                   .setName(CaseFormat.LOWER_UNDERSCORE.to(CaseFormat.LOWER_CAMEL, field.getName()))
                   .build();
             })

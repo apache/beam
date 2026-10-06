@@ -72,7 +72,8 @@ public class Commit {
 
   public @Nullable WorkItemCommitRequest singleKeyRequest() {
     return singleKeyRequest;
-  };
+  }
+  ;
 
   public ComputationState computationState() {
     return computationState;

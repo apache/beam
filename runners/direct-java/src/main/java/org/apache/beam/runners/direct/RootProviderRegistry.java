@@ -36,8 +36,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
  * based on the type of {@link PTransform} of the application.
  */
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 class RootProviderRegistry {
   /** Returns a {@link RootProviderRegistry} that supports the Java SDK root transforms. */

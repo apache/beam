@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 /**
  * An optional component to use with the {@code RetryHttpRequestInitializer} in order to provide
@@ -63,9 +64,6 @@ import java.util.List;
  *
  * <p>
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 public class CustomHttpErrors {
 
   /**
@@ -133,7 +131,7 @@ public class CustomHttpErrors {
   }
 
   /** Returns the first custom error for the failing request and response to match, or null. */
-  public String getCustomError(HttpRequestWrapper req, HttpResponseWrapper res) {
+  public @Nullable String getCustomError(HttpRequestWrapper req, HttpResponseWrapper res) {
     for (MatcherAndError m : matchersAndLogs) {
       if (m.getMatcher().matchResponse(req, res)) {
         return m.getCustomError().customError(req, res);

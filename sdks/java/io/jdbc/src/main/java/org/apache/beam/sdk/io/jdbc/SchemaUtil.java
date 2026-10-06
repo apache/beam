@@ -70,9 +70,9 @@ public class SchemaUtil {
    */
   @FunctionalInterface
   interface ResultSetFieldExtractor extends Serializable {
-    @Nullable
-    Object extract(ResultSet rs, Integer index) throws SQLException;
+    @Nullable Object extract(ResultSet rs, Integer index) throws SQLException;
   }
+
   // ResultSetExtractors for primitive schema types (excluding arrays, structs and logical types).
   private static final EnumMap<Schema.TypeName, ResultSetFieldExtractor>
       RESULTSET_FIELD_EXTRACTORS =

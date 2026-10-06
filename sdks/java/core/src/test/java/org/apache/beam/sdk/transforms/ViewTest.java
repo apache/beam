@@ -35,6 +35,7 @@ import org.apache.beam.sdk.coders.VarIntCoder;
 import org.apache.beam.sdk.coders.VarLongCoder;
 import org.apache.beam.sdk.coders.VoidCoder;
 import org.apache.beam.sdk.io.GenerateSequence;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -65,13 +66,12 @@ import org.junit.internal.matchers.ThrowableMessageMatcher;
 import org.junit.rules.ExpectedException;
 import org.junit.rules.Timeout;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /**
  * Tests for {@link View}. See also {@link ParDoTest}, which provides additional coverage since
  * views can only be observed via {@link ParDo}.
  */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @Category(UsesSideInputs.class)
 public class ViewTest implements Serializable {
   // This test is Serializable, just so that it's easy to have

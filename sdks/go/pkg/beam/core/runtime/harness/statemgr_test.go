@@ -23,11 +23,14 @@ import (
 	"log"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/internal/errors"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // fakeStateClient replicates the call and response protocol
@@ -138,6 +141,21 @@ func TestStateChannel(t *testing.T) {
 			expectedErr:       io.EOF,
 			validateCancelled: true,
 		}, {
+			name: "readCanceled",
+			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
+				go func() {
+					req := <-client.send
+					client.setRecvErr(status.Error(codes.Canceled, "context canceled"))
+					client.recv <- &fnpb.StateResponse{
+						Id: req.Id,
+					}
+				}()
+				_, err := c.Send(&fnpb.StateRequest{})
+				return err
+			},
+			expectedErr:       status.Error(codes.Canceled, "context canceled"),
+			validateCancelled: true,
+		}, {
 			name: "readOtherErr",
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
@@ -179,18 +197,12 @@ func TestStateChannel(t *testing.T) {
 			caseFn: func(t *testing.T, c *StateChannel, client *fakeStateClient) error {
 				go func() {
 					client.setSendErr(io.EOF)
-					req := <-client.send
-					// This can be plumbed through on either side, write or read,
-					// the important part is that we get it.
-					client.setRecvErr(expectedError)
-					client.recv <- &fnpb.StateResponse{
-						Id: req.Id,
-					}
+					<-client.send
 				}()
 				_, err := c.Send(&fnpb.StateRequest{})
 				return err
 			},
-			expectedErr:       expectedError,
+			expectedErr:       io.EOF,
 			validateCancelled: true,
 		}, {
 			name: "writeOtherError",
@@ -497,6 +509,79 @@ func TestStateKeyWriter(t *testing.T) {
 
 			r.Write(test.data)
 		})
+	}
+}
+
+type teardownStateClient struct{ block chan struct{} }
+
+func (f *teardownStateClient) Recv() (*fnpb.StateResponse, error) {
+	<-f.block
+	return nil, status.Error(codes.Canceled, "context canceled")
+}
+func (f *teardownStateClient) Send(*fnpb.StateRequest) error { return nil }
+
+func TestStateChannelManagerClose(t *testing.T) {
+	m := &StateChannelManager{}
+	block := make(chan struct{})
+	var cancelled atomic.Bool
+	var unblock sync.Once
+	ch := makeStateChannel(context.Background(), "port", &teardownStateClient{block: block}, func() {
+		cancelled.Store(true)
+		unblock.Do(func() { close(block) })
+	})
+	ch.forceRecreate = func(string, error) {
+		m.mu.Lock()
+		_ = m.ports
+		m.mu.Unlock()
+	}
+	m.ports = map[string]*StateChannel{"p": ch}
+
+	m.Close()
+
+	if !cancelled.Load() {
+		t.Error("channel not cancelled")
+	}
+	m.mu.Lock()
+	left := m.ports
+	m.mu.Unlock()
+	if left != nil {
+		t.Error("ports not cleared")
+	}
+	m.Close()
+}
+
+type eofOnSendStateClient struct {
+	recvForever chan struct{}
+}
+
+func (c *eofOnSendStateClient) Send(*fnpb.StateRequest) error { return io.EOF }
+func (c *eofOnSendStateClient) Recv() (*fnpb.StateResponse, error) {
+	<-c.recvForever
+	return nil, io.EOF
+}
+
+func TestStateChannelWriteEOF(t *testing.T) {
+	c := &StateChannel{
+		id:        "id",
+		client:    &eofOnSendStateClient{recvForever: make(chan struct{})},
+		requests:  make(chan *fnpb.StateRequest, 1),
+		responses: make(map[string]chan<- *fnpb.StateResponse),
+		cancelFn:  func() {},
+		DoneCh:    make(chan struct{}),
+	}
+	c.responses["r1"] = make(chan *fnpb.StateResponse, 1)
+	c.requests <- &fnpb.StateRequest{Id: "r1"}
+
+	done := make(chan struct{})
+	go func() {
+		c.write(context.Background())
+		close(done)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("write blocked")
 	}
 }
 

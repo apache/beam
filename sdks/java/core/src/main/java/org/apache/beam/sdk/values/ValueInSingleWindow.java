@@ -46,7 +46,8 @@ public abstract class ValueInSingleWindow<T> {
   @SuppressWarnings("nullness")
   public T getValue() {
     return getNullableValue();
-  };
+  }
+  ;
 
   /**
    * Workaround for autovalue code generation, which does not allow type variables to be

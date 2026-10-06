@@ -129,7 +129,8 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
         CdcOutputUtils.readBeamSchemaWithRowMetadata(
             scanConfig.getMetadataColumns(), scanConfig.getSchema());
     Schema projectedRowSchema =
-        IcebergUtils.icebergSchemaToBeamSchema(scanConfig.getProjectedSchema());
+        IcebergUtils.icebergSchemaToBeamSchema(
+            scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion());
     Schema outputRowSchema = CdcOutputUtils.outputSchema(scanConfig, projectedRowSchema);
 
     // === UNIDIRECTIONAL tasks ===
@@ -268,10 +269,14 @@ public class ReadFromChangelogs extends PTransform<PCollectionTuple, ReadFromCha
 
       this.projectedBeamRowSchema =
           CdcOutputUtils.readBeamSchemaWithRowMetadata(
-              scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema());
+              scanConfig.getMetadataColumns(),
+              scanConfig.getProjectedSchema(),
+              scanConfig.getUpdateCompatibilityVersion());
       this.outputBeamRowSchema =
           CdcOutputUtils.outputSchema(
-              scanConfig, icebergSchemaToBeamSchema(scanConfig.getProjectedSchema()));
+              scanConfig,
+              icebergSchemaToBeamSchema(
+                  scanConfig.getProjectedSchema(), scanConfig.getUpdateCompatibilityVersion()));
       this.fullBeamRowSchema =
           CdcOutputUtils.readBeamSchemaWithRowMetadata(
               scanConfig.getMetadataColumns(), scanConfig.getSchema());

@@ -131,7 +131,7 @@ applyJavaNature(
             dependencies {
                 // We have to include jetty-server/jetty-servlet and all of its transitive dependencies
                 // which includes several org.eclipse.jetty artifacts + servlet-api
-                include(dependency("org.eclipse.jetty:.*:9.4.57.v20241219"))
+                include(dependency("org.eclipse.jetty:.*:9.4.58.v20250814"))
                 include(dependency("javax.servlet:javax.servlet-api:3.1.0"))
             }
             relocate("org.eclipse.jetty", getWorkerRelocatedPath("org.eclipse.jetty"))
@@ -149,6 +149,7 @@ applyJavaNature(
             from "$buildDir/original_sources_to_package"
 
             exclude "META-INF/LICENSE.txt"
+            exclude "META-INF/maven/org.eclipse.jetty/**"
             exclude "about.html"
         })
 /******************************************************************************/
@@ -221,14 +222,15 @@ dependencies {
     compileOnly "org.conscrypt:conscrypt-openjdk-uber:2.5.1"
 
     implementation "javax.servlet:javax.servlet-api:3.1.0"
-    implementation "org.eclipse.jetty:jetty-server:9.4.57.v20241219"
-    implementation "org.eclipse.jetty:jetty-servlet:9.4.57.v20241219"
+    implementation "org.eclipse.jetty:jetty-server:9.4.58.v20250814"
+    implementation "org.eclipse.jetty:jetty-servlet:9.4.58.v20250814"
     implementation library.java.avro
     implementation library.java.jackson_annotations
     implementation library.java.jackson_core
     implementation library.java.jackson_databind
     implementation library.java.joda_time
     implementation library.java.opentelemetry_context
+    testImplementation library.java.opentelemetry_sdk_testing
     implementation library.java.opentelemetry_api
     implementation library.java.slf4j_api
     implementation library.java.vendored_grpc_1_69_0

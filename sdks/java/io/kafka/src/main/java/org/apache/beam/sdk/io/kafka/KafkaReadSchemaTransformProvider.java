@@ -31,6 +31,7 @@ import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -69,6 +70,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Maps;
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.joda.time.Duration;
 import org.slf4j.Logger;
@@ -166,6 +168,20 @@ public class KafkaReadSchemaTransformProvider
       return SchemaRegistryProvider.UNSPECIFIED;
     }
 
+    private static <K, V> KafkaIO.Read<K, V> applyTopicOrPartitions(
+        KafkaIO.Read<K, V> kafkaRead, KafkaReadSchemaTransformConfiguration configuration) {
+      Integer numPartitions = configuration.getNumPartitions();
+      String topic = configuration.getTopic();
+      if (numPartitions != null && numPartitions > 0) {
+        List<TopicPartition> topicPartitions = new ArrayList<>(numPartitions);
+        for (int i = 0; i < numPartitions; i++) {
+          topicPartitions.add(new TopicPartition(topic, i));
+        }
+        return kafkaRead.withTopicPartitions(topicPartitions);
+      }
+      return kafkaRead.withTopic(topic);
+    }
+
     private static <K, V> KafkaIO.Read<K, V> applyRedistributeSettings(
         KafkaIO.Read<K, V> kafkaRead, KafkaReadSchemaTransformConfiguration configuration) {
       Boolean redistribute = configuration.getRedistributed();
@@ -221,12 +237,14 @@ public class KafkaReadSchemaTransformProvider
         KafkaIO.Read<byte[], GenericRecord> kafkaRead;
 
         kafkaRead =
-            KafkaIO.<byte[], GenericRecord>read()
-                .withTopic(configuration.getTopic())
+            applyTopicOrPartitions(KafkaIO.<byte[], GenericRecord>read(), configuration)
                 .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
                 .withBootstrapServers(configuration.getBootstrapServers())
                 .withConsumerConfigUpdates(consumerConfigs)
                 .withKeyDeserializer(ByteArrayDeserializer.class);
+        if (Boolean.TRUE.equals(configuration.getWithGcpAdc())) {
+          kafkaRead = kafkaRead.withGCPApplicationDefaultCredentials();
+        }
 
         SchemaRegistryProvider provider = getSchemaRegistryProvider(confluentSchemaRegUrl);
         switch (provider) {
@@ -300,11 +318,13 @@ public class KafkaReadSchemaTransformProvider
       }
 
       KafkaIO.Read<byte[], byte[]> kafkaRead =
-          KafkaIO.readBytes()
+          applyTopicOrPartitions(KafkaIO.readBytes(), configuration)
               .withConsumerConfigUpdates(consumerConfigs)
               .withConsumerFactoryFn(new ConsumerFactoryWithGcsTrustStores())
-              .withTopic(configuration.getTopic())
               .withBootstrapServers(configuration.getBootstrapServers());
+      if (Boolean.TRUE.equals(configuration.getWithGcpAdc())) {
+        kafkaRead = kafkaRead.withGCPApplicationDefaultCredentials();
+      }
       Integer maxReadTimeSeconds = configuration.getMaxReadTimeSeconds();
       if (maxReadTimeSeconds != null) {
         kafkaRead = kafkaRead.withMaxReadTime(Duration.standardSeconds(maxReadTimeSeconds));

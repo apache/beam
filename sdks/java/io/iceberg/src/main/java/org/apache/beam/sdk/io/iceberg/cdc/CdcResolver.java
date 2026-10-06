@@ -80,12 +80,23 @@ abstract class CdcResolver<T> {
    * Resolves a Primary Key group of deletes and inserts. Caller provides {@code emit} which decides
    * how to materialize each output.
    *
-   * <p>In the rare case of duplicate PKs within a snapshot, one side may hold more than one record.
-   * When this happens, we re-order the lists by {@link #nonPkHash} so the result is deterministic.
+   * <p>The dominant case (unique identifier values) is exactly one delete and one insert, decided
+   * directly by a single {@link #nonPkEquals} with no hashing. In the rare case of duplicate PKs
+   * within a snapshot, one side may hold more than one record. When this happens, we re-order the
+   * lists by {@link #nonPkHash} so the result is deterministic.
    */
   final void resolve(List<T> deletes, List<T> inserts, BiConsumer<ValueKind, T> emit) {
-    // Fast path: with unique identifier values each side holds at most one record, so there is
-    // only one possible pairing and nothing to order.
+    if (deletes.size() == 1 && inserts.size() == 1) {
+      // No-op if non-PK fields are equal, otherwise we emit an update pair
+      T delete = deletes.get(0);
+      T insert = inserts.get(0);
+      if (!nonPkEquals(delete, insert)) {
+        emit.accept(ValueKind.UPDATE_BEFORE, delete);
+        emit.accept(ValueKind.UPDATE_AFTER, insert);
+      }
+      return;
+    }
+
     if (deletes.size() > 1 || inserts.size() > 1) {
       resolveOrdered(sortedByNonPkHash(deletes), sortedByNonPkHash(inserts), emit);
     } else {

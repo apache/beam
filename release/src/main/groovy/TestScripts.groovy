@@ -25,6 +25,10 @@ import groovy.util.CliBuilder
  */
 class TestScripts {
 
+    class BackgroundProcessInfo {
+      String cmd
+    }
+
    // Global state to maintain when running the steps
    class var {
      static File startDir
@@ -37,6 +41,8 @@ class TestScripts {
      static String bqDataset
      static String pubsubTopic
      static String mavenLocalPath
+     static List<Process> backgroundProcesses = Collections.synchronizedList(new ArrayList<Process>())
+     static Map<Process, BackgroundProcessInfo> backgroundProcessInfo = Collections.synchronizedMap(new HashMap<Process, BackgroundProcessInfo>())
    }
 
    def TestScripts(String[] args) {
@@ -79,6 +85,10 @@ class TestScripts {
          var.mavenLocalPath = options.mavenLocalPath
          println "Maven local path: ${var.mavenLocalPath}"
      }
+
+     Runtime.getRuntime().addShutdownHook(new Thread({
+       stopAllBackgroundProcesses()
+     }))
    }
 
    def ver() {
@@ -135,6 +145,75 @@ class TestScripts {
      }
    }
 
+   // Run a command in the background, returning the Process object.
+   public Process runBackground(String cmd) {
+     println cmd
+     if (cmd.startsWith("mvn ")) {
+       return _mvnBackground(cmd.substring(4))
+     } else {
+       return _executeBackground(cmd)
+     }
+   }
+
+   // Check whether any background processes exited unexpectedly with a non-zero exit code
+   public void checkBackgroundProcesses() {
+     def procs = new ArrayList<>(var.backgroundProcesses)
+     for (Process proc : procs) {
+       if (proc != null && !proc.isAlive()) {
+         int exitVal = proc.exitValue()
+         if (exitVal != 0) {
+           def info = var.backgroundProcessInfo.get(proc)
+           String cmd = info ? info.cmd : "unknown command"
+           error("Background command failed with exit code ${exitVal}: ${cmd}")
+         }
+       }
+     }
+   }
+
+   // Stop/kill a background process and all its descendants.
+   public void stopProcess(Process proc) {
+     if (proc != null) {
+       if (!proc.isAlive()) {
+         int exitVal = proc.exitValue()
+         var.backgroundProcesses.remove(proc)
+         def info = var.backgroundProcessInfo.remove(proc)
+         if (exitVal != 0) {
+           String cmd = info ? info.cmd : "unknown command"
+           error("Background command failed with exit code ${exitVal}: ${cmd}")
+         }
+       } else {
+         try {
+           proc.descendants().forEach { it.destroyForcibly() }
+         } catch (Throwable ignored) {
+         }
+         proc.destroyForcibly()
+         proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+         var.backgroundProcesses.remove(proc)
+         var.backgroundProcessInfo.remove(proc)
+       }
+     }
+   }
+
+   // Stop all active background processes.
+   public void stopAllBackgroundProcesses() {
+     def procs = new ArrayList<>(var.backgroundProcesses)
+     procs.each { proc ->
+       if (proc != null && proc.isAlive()) {
+         try {
+           proc.descendants().forEach { it.destroyForcibly() }
+         } catch (Throwable ignored) {
+         }
+         proc.destroyForcibly()
+         try {
+           proc.waitFor(10, java.util.concurrent.TimeUnit.SECONDS)
+         } catch (Throwable ignored) {
+         }
+       }
+       var.backgroundProcesses.remove(proc)
+       var.backgroundProcessInfo.remove(proc)
+     }
+   }
+
    // Check for expected results in actual stdout from previous command, if fails, log errors then exit.
    public void see(String expected, String actual) {
      if (!actual.contains(expected)) {
@@ -159,6 +238,8 @@ class TestScripts {
 
    // Cleanup and print success
    public void done() {
+     checkBackgroundProcesses()
+     stopAllBackgroundProcesses()
      var.startDir.deleteDir()
      println "[SUCCESS]"
      System.exit(0)
@@ -166,6 +247,7 @@ class TestScripts {
 
    // Run a single command, capture output, verify return code is 0
    private String _execute(String cmd) {
+     checkBackgroundProcesses()
      def shell = "sh -c cmd".split(' ')
      shell[2] = cmd
      def pb = new ProcessBuilder(shell)
@@ -187,6 +269,27 @@ class TestScripts {
      return output_text
    }
 
+   // Run a single command asynchronously in the background
+   private Process _executeBackground(String cmd) {
+     def shell = "sh -c cmd".split(' ')
+     shell[2] = cmd
+     def pb = new ProcessBuilder(shell)
+     pb.directory(var.curDir)
+     pb.redirectErrorStream(true)
+     def proc = pb.start()
+     var.backgroundProcesses.add(proc)
+     var.backgroundProcessInfo.put(proc, new BackgroundProcessInfo(cmd: cmd))
+     Thread.startDaemon {
+       try {
+         proc.inputStream.eachLine {
+           println it
+         }
+       } catch (Throwable ignored) {
+       }
+     }
+     return proc
+   }
+
    // Change directory
    private void _chdir(String subdir) {
      var.curDir = new File(var.curDir.absolutePath, subdir)
@@ -195,8 +298,8 @@ class TestScripts {
      }
    }
 
-   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository if needed
-   private String _mvn(String args) {
+   // Build the maven command string with custom repository and settings.xml
+   private String _buildMvnCmd(String args) {
      String mvnlocalPath = var.mavenLocalPath
      if (!(var.mavenLocalPath)) {
        mvnlocalPath = var.startDir
@@ -204,37 +307,48 @@ class TestScripts {
      def m2 = new File(mvnlocalPath, ".m2/repository")
      m2.mkdirs()
      def settings = new File(mvnlocalPath, "settings.xml")
-     if(!settings.exists()) {
-     settings.write """
-       <settings>
-         <localRepository>${m2.absolutePath}</localRepository>
-           <profiles>
-             <profile>
-               <id>testrel</id>
-                 <repositories>
-                   <repository>
-                     <id>test.release</id>
-                     <url>${var.repoUrl}</url>
-                   </repository>
-                 </repositories>
-               </profile>
-             </profiles>
-        </settings>
-         """
+     if (!settings.exists()) {
+       settings.write """
+        <settings>
+          <localRepository>${m2.absolutePath}</localRepository>
+            <profiles>
+              <profile>
+                <id>testrel</id>
+                  <repositories>
+                    <repository>
+                      <id>test.release</id>
+                      <url>${var.repoUrl}</url>
+                    </repository>
+                  </repositories>
+                </profile>
+              </profiles>
+         </settings>
+          """
      }
      def cmd = "mvn ${args} -s ${settings.absolutePath} -Ptestrel -B"
-     String path = System.getenv("PATH");
+     String path = System.getenv("PATH")
      // Set the path on jenkins executors to use a recent maven
      // MAVEN_HOME is not set on some executors, so default to 3.5.2
      String maven_home = System.getenv("MAVEN_HOME") ?: '/usr/local/maven'
      println "Using maven ${maven_home}"
      def mvnPath = "${maven_home}/bin"
      def setPath = "export PATH=\"${mvnPath}:${path}\" && "
-     return _execute(setPath + cmd)
+     return setPath + cmd
+   }
+
+   // Run a maven command, setting up a new local repository and a settings.xml with a custom repository if needed
+   private String _mvn(String args) {
+     return _execute(_buildMvnCmd(args))
+   }
+
+   // Run a maven command in the background
+   private Process _mvnBackground(String args) {
+     return _executeBackground(_buildMvnCmd(args))
    }
 
    // Clean up and report error
    public void error(String text) {
+     stopAllBackgroundProcesses()
      var.startDir.deleteDir()
      println "[ERROR] $text"
      System.exit(1)

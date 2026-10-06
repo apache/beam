@@ -306,7 +306,7 @@ public class LocalResolveDoFnTest {
       SerializableChangelogTask.Type type, DataFile dataFile, Table table, long snapshotId) {
     return SerializableChangelogTask.builder()
         .setType(type)
-        .setDataFile(dataFile, table.spec().partitionToPath(dataFile.partition()), true)
+        .setDataFile(dataFile, table.spec(), true)
         .setAddedDeletes(ImmutableList.of())
         .setExistingDeletes(ImmutableList.of())
         .setSpecId(table.spec().specId())

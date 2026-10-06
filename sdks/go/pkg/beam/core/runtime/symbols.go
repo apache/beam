@@ -83,6 +83,26 @@ func RegisterFunction(fn any) {
 	cache[key] = fn
 }
 
+// RegisterFunctionWithName registers fn under the given name,
+// overriding the automatically derived symbol name. This is necessary
+// for closures produced by Go generic functions where multiple type
+// instantiations generate closures with the same compiler-assigned
+// name (e.g. "pkg.Func[...].func1") — without distinct names the
+// last registration wins and cross-worker deserialization resolves
+// the wrong function.
+//
+// Callers must ensure that name is stable across process invocations
+// (pipeline driver and workers must agree). A typical choice is
+// "<package>.<GenericFunc>[<TypeParam>].enc".
+//
+// Must be called in init() only.
+func RegisterFunctionWithName(name string, fn any) {
+	if initialized {
+		panic("Init hooks have already run. Register function during init() instead.")
+	}
+	cache[name] = fn
+}
+
 // ResolveFunction resolves the runtime value of a given function by symbol name
 // and type.
 func ResolveFunction(name string, t reflect.Type) (any, error) {

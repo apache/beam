@@ -32,6 +32,7 @@ from typing import Mapping
 from typing import NamedTuple
 from typing import Optional
 from typing import Sequence
+from typing import Tuple
 
 import numpy as np
 import pytest
@@ -79,6 +80,11 @@ basic_map_types = [
         all_primitives, all_primitives)
 ]
 
+basic_tuple_types = [
+    Tuple[str, np.int64],
+    Tuple[np.int64, ...],
+]
+
 
 class AllPrimitives(NamedTuple):
   field_int8: np.int8
@@ -109,6 +115,8 @@ class ComplexSchema(NamedTuple):
   array_optional: Sequence[Optional[bool]]
   timestamp: Timestamp
   date: datetime.date
+  fixed_tuple: Tuple[str, np.int64]
+  var_tuple: Tuple[np.int64, ...]
 
 
 def get_test_beam_fieldtype_protos():
@@ -390,7 +398,8 @@ class SchemaTest(unittest.TestCase):
   @parameterized.expand([(user_type,) for user_type in
       all_primitives + \
       basic_array_types + \
-      basic_map_types]
+      basic_map_types + \
+      basic_tuple_types]
                         )
   def test_typing_survives_proto_roundtrip(self, user_type):
     self.assertEqual(
@@ -878,6 +887,16 @@ class ParameterizedTimestampTest(unittest.TestCase):
     millis_value = Timestamp(seconds=1, subseconds=500, precision=3)
     representation = logical_type.to_representation_type(millis_value)
     self.assertEqual(representation.subseconds, 500000)
+
+  def test_from_runner_api_rejects_missing_argument(self):
+    # A proto without the precision argument must be rejected; guessing a
+    # default precision would silently misscale subseconds.
+    proto = schema_pb2.LogicalType(
+        urn=common_urns.timestamp.urn,
+        representation=typing_to_runner_api(
+            schemas.ParameterizedTimestampShortRepresentation))
+    with self.assertRaises(ValueError):
+      schemas.LogicalType.from_runner_api(proto)
 
 
 class HypothesisTest(unittest.TestCase):

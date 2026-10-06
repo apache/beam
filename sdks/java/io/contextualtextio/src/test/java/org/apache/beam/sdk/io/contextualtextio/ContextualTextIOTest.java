@@ -69,6 +69,7 @@ import org.apache.beam.sdk.io.fs.ResourceId;
 import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.options.ValueProvider;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.SourceTestUtils;
@@ -99,7 +100,6 @@ import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.rules.TemporaryFolder;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 import org.junit.runners.Parameterized;
 
 /** Tests for {@link ContextualTextIO.Read}. */
@@ -335,6 +335,7 @@ public class ContextualTextIOTest {
         return "";
     }
   }
+
   /** Tests for reading from different size of files with various Compression. */
   @RunWith(Parameterized.class)
   public static class CompressedReadTest {
@@ -506,7 +507,7 @@ public class ContextualTextIOTest {
   }
 
   /** Tests Specific for checking functionality of ContextualTextIO. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class ContextualTextIOSpecificTests {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
@@ -786,7 +787,7 @@ public class ContextualTextIOTest {
   }
 
   /** Tests for some basic operations in {@link ContextualTextIO.Read}. */
-  @RunWith(JUnit4.class)
+  @RunWith(BeamParallelJunit4Runner.class)
   public static class BasicIOTest {
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
     @Rule public TestPipeline p = TestPipeline.create();
@@ -1275,6 +1276,9 @@ public class ContextualTextIOTest {
 
     @Test
     @Category({NeedsRunner.class, UsesUnboundedSplittableParDo.class})
+    // The watch terminates after 3s without new output; running concurrently with other pipelines
+    // in this JVM can stall the in-pipeline writer long enough to truncate the results.
+    @BeamParallelJunit4Runner.SerialTest
     public void testReadWatchForNewFiles() throws IOException, InterruptedException {
       final Path basePath = tempFolder.getRoot().toPath().resolve("readWatch");
       basePath.toFile().mkdir();

@@ -105,8 +105,10 @@ func main() {
 		logger.Fatalf(ctx, "Failed to convert pipeline options: %v", err)
 	}
 
+	po := tools.ParseOptionsFromProto(info.GetPipelineOptions(), "")
+
 	// Inject artifact validation enabled state into context
-	ctx = artifact.WithArtifactValidation(ctx, !artifact.HasExperiment(info.GetPipelineOptions(), "disable_staged_file_integrity_checks"))
+	ctx = artifact.WithArtifactValidation(ctx, !po.HasExperiment("disable_staged_file_integrity_checks"))
 
 	// (2) Retrieve the staged user jars. We ignore any disk limit,
 	// because the staged jars are mandatory.

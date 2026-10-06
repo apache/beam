@@ -107,6 +107,8 @@ message ManagedTransforms {
       "beam:schematransform:org.apache.beam:sql_server_write:v1"];
     DELTA_LAKE_READ = 13 [(org.apache.beam.model.pipeline.v1.beam_urn) =
       "beam:schematransform:org.apache.beam:delta_lake_read:v1"];
+    DELTA_LAKE_CDC_READ = 14 [(org.apache.beam.model.pipeline.v1.beam_urn) =
+      "beam:schematransform:org.apache.beam:delta_lake_cdc_read:v1"];
   }
 }
 
