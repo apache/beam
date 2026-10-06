@@ -39,3 +39,4 @@
 --inference_batch_size=16
 --window_sec=60
 --trigger_proc_time_sec=30
+--timeout_ms=9000000

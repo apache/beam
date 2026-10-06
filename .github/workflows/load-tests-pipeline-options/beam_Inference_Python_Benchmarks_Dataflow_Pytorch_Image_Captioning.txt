@@ -35,3 +35,4 @@
 --clip_score_normalize=false
 --runner=DataflowRunner
 --experiments=use_runner_v2
+--timeout_ms=9000000

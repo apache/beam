@@ -618,7 +618,7 @@ def run(
             method=method))
 
   result = pipeline.run()
-  result.wait_until_finish(duration=1800000)  # 30 min
+  result.wait_until_finish(duration=9000000)  # 150 min
   result.cancel()
   result.wait_until_finish(duration=600000)  # up to 10 min to settle cancel
 

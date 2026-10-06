@@ -35,3 +35,4 @@
 --model_state_dict_path=gs://apache-beam-ml/models/torchvision.detection.fasterrcnn_resnet50_fpn.pth
 --runner=DataflowRunner
 --experiments=use_runner_v2
+--timeout_ms=9000000
