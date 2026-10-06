@@ -1277,7 +1277,12 @@ class TriggerDriver(metaclass=ABCMeta):
                                         MIN_TIMESTAMP):
       yield wvalue.with_value((key, wvalue.value))
     while state.timers:
-      fired = state.get_and_clear_timers()
+      # Real time timers that are still in the future must stay queued.
+      # Firing them here would ignore AfterProcessingTime's delay.
+      processing_time = None if self.clock is None else self.clock.time()
+      fired = state.get_and_clear_timers(processing_time=processing_time)
+      if not fired:
+        break
       for timer_window, (name, time_domain, fire_time, _) in fired:
         for wvalue in self.process_timer(timer_window,
                                          name,
@@ -1660,6 +1665,9 @@ class InMemoryUnmergedState(UnmergedState):
       for (name, time_domain, dynamic_timer_tag), timestamp in list(
           timers.items()):
         if time_domain == TimeDomain.REAL_TIME:
+          if processing_time is None:
+            has_realtime_timer = True
+            continue
           time_marker = processing_time
           has_realtime_timer = True
         elif time_domain == TimeDomain.WATERMARK:
@@ -1677,8 +1685,9 @@ class InMemoryUnmergedState(UnmergedState):
         del self.timers[window]
     return expired, has_realtime_timer
 
-  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP):
-    return self.get_timers(clear=True, watermark=watermark)[0]
+  def get_and_clear_timers(self, watermark=MAX_TIMESTAMP, processing_time=None):
+    return self.get_timers(
+        clear=True, watermark=watermark, processing_time=processing_time)[0]
 
   def get_earliest_hold(self):
     earliest_hold = MAX_TIMESTAMP
