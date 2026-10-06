@@ -151,7 +151,7 @@ pydantic_core==2.46.4
 pydot==1.4.2
 Pygments==2.20.0
 PyHamcrest==2.1.0
-pymongo==4.17.0
+pymongo==4.18.2
 PyMySQL==1.2.0
 pyparsing==3.3.2
 pyproject_hooks==1.2.0
