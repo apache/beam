@@ -79,7 +79,11 @@ enum BoundAdjustment {
   /** Unsigned 32-bit int stored under a long. */
   UINT32_TO_LONG,
   /** Unsigned 32-bit int stored under an int: the bounds already are ints. */
-  UINT32_TO_INT;
+  UINT32_TO_INT,
+  /** A signed 32-bit int under a long column: widened from 4 bytes to 8. */
+  INT32_TO_LONG,
+  /** A 32-bit float under a double column: widened from 4 bytes to 8. */
+  FLOAT_TO_DOUBLE;
 
   static final String UNSIGNED_RANGE_ERROR =
       "Iceberg readers return unsigned 32-bit values of 2^31 or more as negative numbers, and"
@@ -209,6 +213,26 @@ enum BoundAdjustment {
       if (tableType == TypeID.INTEGER) {
         return UINT32_TO_INT;
       }
+    }
+    if (annotation == null) {
+      return byWidth(primitive.getPrimitiveTypeName(), tableType);
+    }
+    return null;
+  }
+
+  /**
+   * A plain numeric column carries no annotation to key off, so a width mismatch with the table
+   * column is only visible by comparing the two. The pre-pass commits a promotion before it
+   * registers anything, so a file narrower than the promoted column arrives with a bound of its own
+   * width. The reverse never reaches here: a file wider than the table column needs a promotion the
+   * pre-pass either commits first or refuses.
+   */
+  private static @Nullable BoundAdjustment byWidth(PrimitiveTypeName fileType, TypeID tableType) {
+    if (fileType == PrimitiveTypeName.INT32 && tableType == TypeID.LONG) {
+      return INT32_TO_LONG;
+    }
+    if (fileType == PrimitiveTypeName.FLOAT && tableType == TypeID.DOUBLE) {
+      return FLOAT_TO_DOUBLE;
     }
     return null;
   }
@@ -354,6 +378,12 @@ enum BoundAdjustment {
       if (bytes == null || entry.getValue() == UINT32_TO_INT) {
         continue;
       }
+      if (entry.getValue() == FLOAT_TO_DOUBLE) {
+        ByteBuffer little = bytes.duplicate().order(ByteOrder.LITTLE_ENDIAN);
+        double widened = little.getFloat(little.position());
+        adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.DoubleType.get(), widened));
+        continue;
+      }
       try {
         long value = entry.getValue().convert(bytes, roundUp);
         adjusted.put(entry.getKey(), Conversions.toByteBuffer(Types.LongType.get(), value));
@@ -371,6 +401,8 @@ enum BoundAdjustment {
     switch (this) {
       case UINT32_TO_LONG:
         return Integer.toUnsignedLong(little.getInt(little.position()));
+      case INT32_TO_LONG:
+        return little.getInt(little.position());
       case MILLIS_TO_MICROS:
         return Math.multiplyExact(readLong(little), 1000L);
       case MILLIS_TO_NANOS:
