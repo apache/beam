@@ -148,8 +148,14 @@ class GcsUtilV2 {
    */
   private static final long MEGABYTES_COPIED_PER_CHUNK = 2048L;
 
+  /**
+   * Default maximum number of files rewritten concurrently by {@link #copy} and {@link #move}, used
+   * when {@link GcsOptions#getGcsMaxConcurrentRewrites} is unset.
+   */
+  private static final int DEFAULT_MAX_CONCURRENT_REWRITES = 32;
+
   /** Maximum number of files rewritten concurrently by {@link #copy} and {@link #move}. */
-  @VisibleForTesting static final int MAX_CONCURRENT_REWRITES = 32;
+  private final int maxConcurrentRewrites;
 
   GcsUtilV2(PipelineOptions options) {
     GcsOptions gcsOptions = options.as(GcsOptions.class);
@@ -183,6 +189,16 @@ class GcsUtilV2 {
                 ? gcsOptions.getGcsWriteCounterPrefix()
                 : null);
     this.gcsPerformanceMetrics = Boolean.TRUE.equals(gcsOptions.getGcsPerformanceMetrics());
+
+    Integer configuredMaxConcurrentRewrites = gcsOptions.getGcsMaxConcurrentRewrites();
+    checkArgument(
+        configuredMaxConcurrentRewrites == null || configuredMaxConcurrentRewrites > 0,
+        "gcsMaxConcurrentRewrites must be positive, but was %s",
+        configuredMaxConcurrentRewrites);
+    this.maxConcurrentRewrites =
+        configuredMaxConcurrentRewrites != null
+            ? configuredMaxConcurrentRewrites
+            : DEFAULT_MAX_CONCURRENT_REWRITES;
   }
 
   /**
@@ -615,7 +631,7 @@ class GcsUtilV2 {
 
     // Each file costs up to three dependent round trips (target lookup, rewrite, source delete),
     // and java-storage cannot batch rewrites, so issue the files concurrently instead.
-    int numThreads = Math.min(srcList.size(), MAX_CONCURRENT_REWRITES);
+    int numThreads = Math.min(srcList.size(), maxConcurrentRewrites);
     ExecutorService executor =
         Executors.newFixedThreadPool(
             numThreads,
