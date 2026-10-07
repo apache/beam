@@ -1265,15 +1265,10 @@ class BeamModulePlugin implements Plugin<Project> {
         if (System.getProperty("os.name").toLowerCase().contains("windows")) {
           systemProperty 'org.xerial.snappy.tempdir', System.getProperty('org.xerial.snappy.tempdir') ?: "${project.rootDir.absolutePath}/build/snappy_bin"
         }
-        // Report each test as it runs, plus a per-task summary. Gradle logs only
-        // failures by default, so a passing run prints nothing but "BUILD SUCCESSFUL"
-        // and gives no indication of which tests --tests actually selected.
-        // Test stdout/stderr stays off unless asked for, since it is noisy:
-        //   -PshowTestOutput   also forward test stdout/stderr
-        // A cached or up-to-date test task forks no JVM and prints nothing;
-        // add --no-build-cache --rerun to force real execution.
+        // Log skipped and failed tests, plus a per-task summary.
+        // Pass -PshowTestOutput to also forward test stdout/stderr.
         testLogging {
-          events 'passed', 'skipped', 'failed'
+          events 'skipped', 'failed'
           exceptionFormat = 'full'
           showExceptions = true
           showCauses = true
