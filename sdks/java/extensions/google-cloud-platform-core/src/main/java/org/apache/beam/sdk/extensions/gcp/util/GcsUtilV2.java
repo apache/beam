@@ -73,6 +73,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
 import org.apache.beam.runners.core.metrics.GcpResourceIdentifiers;
@@ -153,6 +154,12 @@ class GcsUtilV2 {
    * when {@link GcsOptions#getGcsMaxConcurrentRewrites} is unset.
    */
   private static final int DEFAULT_MAX_CONCURRENT_REWRITES = 32;
+
+  /**
+   * How long {@link #copy} and {@link #move} wait for in-flight rewrites to finish after a failure
+   * before interrupting them.
+   */
+  private static final long REWRITE_TERMINATION_TIMEOUT_MINUTES = 5;
 
   /** Maximum number of files rewritten concurrently by {@link #copy} and {@link #move}. */
   private final int maxConcurrentRewrites;
@@ -661,7 +668,7 @@ class GcsUtilV2 {
       }
 
       // Like the sequential loop this replaces, stop at the first failure: files not yet started
-      // are cancelled, while the ones already in flight are allowed to finish.
+      // are cancelled, while the ones already in flight are allowed to finish (awaited below).
       @Nullable Throwable failure = null;
       for (Future<Void> future : futures) {
         try {
@@ -698,7 +705,22 @@ class GcsUtilV2 {
       Thread.currentThread().interrupt();
       throw new IOException("Interrupted while rewriting objects", e);
     } finally {
-      executor.shutdownNow();
+      // A cancelled future reports done even if its task is still running, so wait for the pool
+      // itself: no file is left mid-rewrite when this method returns. If the wait times out or the
+      // caller is interrupted (including above), stop waiting and interrupt the in-flight rewrites.
+      executor.shutdown();
+      try {
+        if (!executor.awaitTermination(REWRITE_TERMINATION_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+          LOG.warn(
+              "Timed out after {} minutes waiting for in-flight GCS rewrites to finish; "
+                  + "interrupting them. Some objects may be left partially copied or moved.",
+              REWRITE_TERMINATION_TIMEOUT_MINUTES);
+          executor.shutdownNow();
+        }
+      } catch (InterruptedException e) {
+        executor.shutdownNow();
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
