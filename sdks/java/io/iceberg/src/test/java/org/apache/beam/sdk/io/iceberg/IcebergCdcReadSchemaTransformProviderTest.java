@@ -216,7 +216,8 @@ public class IcebergCdcReadSchemaTransformProviderTest {
     configMap.put("catalog_properties", properties);
     configMap.put("from_snapshot", table.currentSnapshot().snapshotId());
     configMap.put("to_snapshot", table.currentSnapshot().snapshotId());
-    configMap.put("keep", ImmutableList.of("id", "data", "event_micros"));
+    // leaves out the primary key and the watermark column
+    configMap.put("keep", ImmutableList.of("data"));
     configMap.put("filter", "\"category\" = 'include'");
     configMap.put("watermark_column", "event_micros");
     configMap.put(
@@ -227,7 +228,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
             IcebergCdcMetadataColumns.ROW_ID,
             IcebergCdcMetadataColumns.LAST_UPDATED_SEQUENCE_NUMBER));
 
-    org.apache.iceberg.Schema projectedSchema = table.schema().select("id", "data", "event_micros");
+    org.apache.iceberg.Schema projectedSchema = table.schema().select("data");
     Schema recordSchema = IcebergUtils.icebergSchemaToBeamSchema(projectedSchema);
     Schema outputSchema =
         Schema.builder()
@@ -249,9 +250,7 @@ public class IcebergCdcReadSchemaTransformProviderTest {
                   Row record = IcebergUtils.icebergRecordToBeamRow(recordSchema, records.get(i));
                   return Row.withSchema(outputSchema)
                       .addValues(
-                          record.getInt64("id"),
                           record.getString("data"),
-                          record.getInt64("event_micros"),
                           snapshotId,
                           sequenceNumber,
                           firstRowId + i,

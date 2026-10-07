@@ -239,19 +239,6 @@ public class IcebergIOReadTest {
   }
 
   @Test
-  public void testCdcFailsWhenProjectionDropsIdentifierFields() {
-    assumeTrue(useIncrementalScan);
-    TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
-    warehouse.createTable(tableId, schemaForMode(TestFixtures.SCHEMA, 1));
-    IcebergIO.ReadRows read =
-        IcebergIO.readRows(catalogConfig()).from(tableId).withCdc().dropping(singletonList("id"));
-
-    thrown.expect(IllegalArgumentException.class);
-    thrown.expectMessage("projected schema must not drop primary key fields");
-    read.expand(PBegin.in(testPipeline));
-  }
-
-  @Test
   public void testFailWhenDropAndKeepAreSet() {
     TableIdentifier tableId = TableIdentifier.of("default", testName.getMethodName());
     warehouse.createTable(tableId, TestFixtures.SCHEMA);
@@ -409,11 +396,6 @@ public class IcebergIOReadTest {
               assertThat(rows, containsInAnyOrder(keepFilter.filter(originalRows).toArray()));
               return null;
             });
-
-    if (useIncrementalScan) {
-      testPipeline.run();
-      return;
-    }
 
     // test drop fields
     read = read.keeping(null).dropping(singletonList("id"));
