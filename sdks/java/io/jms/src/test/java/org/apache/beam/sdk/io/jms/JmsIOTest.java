@@ -568,8 +568,8 @@ public class JmsIOTest {
     assertEquals(1, jmsMark.getMessages().size());
 
     // consume two more messages after checkpoint made
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     // the messages are still pending in the queue (no ACK yet)
     assertEquals(10, count(QUEUE));
@@ -596,8 +596,8 @@ public class JmsIOTest {
     assertNotNull(jmsMark.getMessages());
     assertEquals(3, jmsMark.getMessages().size());
 
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     assertEquals(10, count(QUEUE));
     mark.finalizeCheckpoint();
@@ -621,8 +621,8 @@ public class JmsIOTest {
     assertNotNull(jmsMark.getMessages());
     assertEquals(1, jmsMark.getMessages().size());
 
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     assertEquals(10, count(QUEUE));
     mark.finalizeCheckpoint();
