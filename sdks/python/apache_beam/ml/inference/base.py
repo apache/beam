@@ -1812,7 +1812,7 @@ class _ModelStatus():
           self._pending_hard_delete.append((
               tag,
               datetime.now() + 2 * timedelta(seconds=min_model_life_seconds)))
-        self._active_tags.remove(tag)
+        self._active_tags.discard(tag)
 
   def get_valid_tag(self, tag: str) -> str:
     """Takes in a proposed valid tag and returns a valid one.
@@ -1874,13 +1874,16 @@ class _ModelStatus():
         return
 
 
+_model_statuses: dict[str, _ModelStatus] = {}
+
+
 def load_model_status(
     model_tag: str, share_across_processes: bool) -> _ModelStatus:
   tag = f'{model_tag}_model_status'
   if share_across_processes:
     return multi_process_shared.MultiProcessShared(
         lambda: _ModelStatus(True), tag=tag, always_proxy=True).acquire()
-  return shared.Shared().acquire(lambda: _ModelStatus(False), tag=tag)
+  return _model_statuses.setdefault(tag, _ModelStatus(False))
 
 
 class _ProxyLoader:
