@@ -111,7 +111,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=streaming --sdk_location=container --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
       - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming CPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180

@@ -497,7 +497,8 @@ def run_load_pipeline(known_args, pipeline_args):
       pipeline_args, '--job_name', f"images-load-pubsub-{int(time.time())}")
   override_or_add(pipeline_args, '--project', known_args.project)
   pipeline_args = [
-      arg for arg in pipeline_args if not arg.startswith("--experiments")
+      arg for arg in pipeline_args
+      if not arg.startswith(("--experiments", "--sdk_container_image", "--worker_harness", "--sdk_location"))
   ]
 
   pipeline_options = PipelineOptions(pipeline_args)
