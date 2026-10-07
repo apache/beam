@@ -15,6 +15,8 @@
 # limitations under the License.
 #
 import unittest
+import mock
+from google.api_core.exceptions import NotFound
 
 try:
   from apache_beam.transforms.enrichment_handlers.vertex_ai_feature_store import VertexAIFeatureStoreEnrichmentHandler
@@ -38,6 +40,50 @@ class TestVertexAIFeatureStoreHandlerInit(unittest.TestCase):
           row_key='row_key',
           client_options={'api_endpoint': 'region@google.com'},
       )
+
+  @mock.patch(
+      'google.cloud.aiplatform.gapic.FeatureOnlineStoreAdminServiceClient')
+  def test_feature_store_not_found(self, mock_client):
+    mock_client.return_value.get_feature_online_store.side_effect = NotFound(
+        'not found')
+    with self.assertRaises(NotFound):
+      _ = VertexAIFeatureStoreEnrichmentHandler(
+          project='project',
+          location='location',
+          api_endpoint='location@google.com',
+          feature_store_name='feature_store',
+          feature_view_name='feature_view',
+          row_key='row_key',
+      )
+
+  @mock.patch(
+      'google.cloud.aiplatform.gapic.FeatureOnlineStoreAdminServiceClient')
+  def test_feature_store_falsy(self, mock_client):
+    mock_client.return_value.get_feature_online_store.return_value = None
+    with self.assertRaises(NotFound):
+      _ = VertexAIFeatureStoreEnrichmentHandler(
+          project='project',
+          location='location',
+          api_endpoint='location@google.com',
+          feature_store_name='feature_store',
+          feature_view_name='feature_view',
+          row_key='row_key',
+      )
+
+  @mock.patch(
+      'google.cloud.aiplatform.gapic.FeatureOnlineStoreAdminServiceClient')
+  def test_feature_store_exception(self, mock_client):
+    mock_client.return_value.get_feature_online_store.side_effect = Exception(
+        'test exception')
+    handler = VertexAIFeatureStoreEnrichmentHandler(
+        project='project',
+        location='location',
+        api_endpoint='location@google.com',
+        feature_store_name='feature_store',
+        feature_view_name='feature_view',
+        row_key='row_key',
+    )
+    self.assertIsNotNone(handler)
 
   def test_raise_error_duplicate_api_endpoint_legacy_store(self):
     with self.assertRaises(ValueError):
