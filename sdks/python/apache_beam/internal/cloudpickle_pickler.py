@@ -189,9 +189,9 @@ def _dumps(
     with io.BytesIO() as file:
       if enable_stable_code_identifier_pickling:
         config = dataclasses.replace(
-          config,
-          get_code_object_params=STABLE_CODE_IDENTIFIER_CONFIG
-          .get_code_object_params)
+            config,
+            get_code_object_params=STABLE_CODE_IDENTIFIER_CONFIG.
+            get_code_object_params)
       pickler = cloudpickle.CloudPickler(file, config=config)
       try:
         pickler.dispatch_table[type(flags.FLAGS)] = _pickle_absl_flags
