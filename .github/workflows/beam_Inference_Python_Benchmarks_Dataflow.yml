@@ -111,7 +111,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_13 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-captioning-streaming-${{env.NOW_UTC}} --sdk_location=container --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest --metrics_table=torch_inference_image_captioning_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_captioning_streaming_cpu'
       - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming CPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -122,7 +122,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_image_object_detection_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_12 }} --device=CPU --mode=streaming --job_name=benchmark-tests-pytorch-image-object-detection-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_streaming_cpu' \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_12 }} --device=CPU --mode=streaming --sdk_location=container --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest --job_name=benchmark-tests-pytorch-image-object-detection-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_image_object_detection_streaming_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_image_object_detection_streaming_cpu' \
       - name: run PyTorch Image Object Detection Faster R-CNN ResNet-50 Streaming GPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -155,7 +155,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=CPU --experiments=enable_streaming_rightfitting --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_cpu' \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=CPU --sdk_location=container --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest --experiments=enable_streaming_rightfitting --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_cpu' \
       - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting Exactly-once) CPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180
@@ -166,7 +166,7 @@ jobs:
             -Prunner=DataflowRunner \
             -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
-            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=CPU --experiments=enable_streaming_rightfitting --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_cpu' \
+            '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=CPU --sdk_location=container --sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest --experiments=enable_streaming_rightfitting --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_cpu' \
       - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) GPU
         uses: ./.github/actions/gradle-command-self-hosted-action
         timeout-minutes: 180

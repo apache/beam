@@ -36,5 +36,3 @@
 --runner=DataflowRunner
 --experiments=use_runner_v2
 --timeout_ms=9000000
---sdk_location=container
---sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest

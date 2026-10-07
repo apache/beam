@@ -21,8 +21,6 @@
 --autoscaling_algorithm=NONE
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
---sdk_location=container
---sdk_container_image=us.gcr.io/apache-beam-testing/python-postcommit-it/tensor_rt:latest
 --requirements_file=apache_beam/ml/inference/pytorch_rightfit_requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference
