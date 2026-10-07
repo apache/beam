@@ -71,7 +71,7 @@ jobs:
           java-version: default
           python-version: '3.12'
       - name: Package Python SDK using Gradle
-        run: ./gradlew :sdks:python:sdist -PpythonVersion=3.10
+        run: ./gradlew :sdks:python:sdist -PpythonVersion=3.12
       - name: Configure Docker for Artifact Registry
         run: gcloud auth configure-docker us-docker.pkg.dev
       - name: Prepare test arguments
@@ -164,7 +164,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.pytorch_imagenet_rightfit_benchmarks \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.12 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/pytorch_rightfit_requirements.txt \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_11 }} --device=CPU --experiments=enable_streaming_rightfitting --mode=streaming --job_name=benchmark-tests-pytorch-imagenet-rightfit-streaming-${{env.NOW_UTC}} --metrics_table=torch_inference_imagenet_stream_rightfit_once_cpu --output_table=apache-beam-testing.beam_run_inference.result_torch_inference_imagenet_stream_rightfit_once_cpu' \
       - name: run PyTorch Image Classification EfficientNet-B0 Streaming (Right-fitting) GPU
