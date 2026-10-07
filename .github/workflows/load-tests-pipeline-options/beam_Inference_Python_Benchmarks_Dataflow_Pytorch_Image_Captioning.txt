@@ -19,6 +19,7 @@
 --autoscaling_algorithm=NONE
 --staging_location=gs://temp-storage-for-perf-tests/loadtests
 --temp_location=gs://temp-storage-for-perf-tests/loadtests
+--requirements_cache=skip
 --requirements_file=apache_beam/ml/inference/pytorch_image_captioning_requirements.txt
 --publish_to_big_query=true
 --metrics_dataset=beam_run_inference

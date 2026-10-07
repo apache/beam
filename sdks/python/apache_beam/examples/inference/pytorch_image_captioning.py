@@ -498,7 +498,7 @@ def run_load_pipeline(known_args, pipeline_args):
   override_or_add(pipeline_args, '--project', known_args.project)
   pipeline_args = [
       arg for arg in pipeline_args
-      if not arg.startswith(("--experiments", "--sdk_container_image", "--worker_harness", "--sdk_location"))
+      if not arg.startswith(("--experiments", "--sdk_container_image", "--worker_harness"))
   ]
 
   pipeline_options = PipelineOptions(pipeline_args)
