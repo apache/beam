@@ -192,7 +192,7 @@ public class Partition<T> extends PTransform<PCollection<T>, PCollectionList<T>>
     this.partitionDoFn = partitionDoFn;
   }
 
-  private static class PartitionDoFn<X> extends DoFn<X, Void> {
+  private static final class PartitionDoFn<X> extends DoFn<X, Void> {
     private final int numPartitions;
     private final TupleTagList outputTags;
     private final Contextful<Contextful.Fn<X, Integer>> ctxFn;

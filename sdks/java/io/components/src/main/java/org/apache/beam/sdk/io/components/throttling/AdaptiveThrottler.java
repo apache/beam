@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.io.components.throttling;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Random;
 import org.apache.beam.sdk.transforms.Sum;
 import org.apache.beam.sdk.util.MovingFunction;
@@ -28,6 +29,12 @@ import org.apache.beam.sdk.util.MovingFunction;
  * https://landing.google.com/sre/book/chapters/handling-overload.html#client-side-throttling-a7sYUg
  * for a full discussion of the use case and algorithm applied.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class AdaptiveThrottler {
 
   // The target minimum number of requests per samplePeriodMs, even if no

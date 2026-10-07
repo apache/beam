@@ -19,6 +19,7 @@ package org.apache.beam.sdk.io.iceberg;
 
 import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.lang.reflect.Array;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
@@ -53,6 +54,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * <p><b>Note:</b> This implementation is <b>read-only</b>. Calls to {@link #set(int, Object)} will
  * throw an {@link UnsupportedOperationException}.
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BeamRowWrapper implements StructLike {
 
   private final FieldType[] types;

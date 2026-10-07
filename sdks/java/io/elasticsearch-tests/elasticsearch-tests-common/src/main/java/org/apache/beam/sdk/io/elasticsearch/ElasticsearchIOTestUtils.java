@@ -567,7 +567,7 @@ class ElasticsearchIOTestUtils {
    * Small server that always returns a specified HTTP error code. This is useful to simulate server
    * errors in tests.
    */
-  static class AlwaysFailServer implements AutoCloseable {
+  static final class AlwaysFailServer implements AutoCloseable {
     private final HttpServer server;
     private final int port;
 

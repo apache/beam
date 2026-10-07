@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.values.WindowedValues.valueInGlobalWindow;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 import static org.junit.Assert.assertEquals;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -108,6 +109,12 @@ public class ProcessBundleBenchmark {
 
   /** Sets up the {@link ExecutionStateTracker} and an execution state. */
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class SdkHarness {
     @Param({"true", "false"})
     public String elementsEmbedding = "false";
@@ -220,6 +227,12 @@ public class ProcessBundleBenchmark {
   }
 
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class TrivialTransform extends SdkHarness {
     final BundleProcessor processor;
     final ExecutableProcessBundleDescriptor descriptor;
@@ -325,6 +338,12 @@ public class ProcessBundleBenchmark {
   }
 
   @State(Scope.Benchmark)
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class StatefulTransform extends SdkHarness {
     final BundleProcessor processor;
     final ExecutableProcessBundleDescriptor descriptor;

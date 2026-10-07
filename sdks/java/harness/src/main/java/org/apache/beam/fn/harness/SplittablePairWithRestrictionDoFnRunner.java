@@ -21,6 +21,7 @@ import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import com.google.auto.service.AutoService;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.util.Map;
 import java.util.function.Function;
@@ -60,6 +61,12 @@ import org.joda.time.Instant;
  * WindowedValue<InputT>} to {@code WindowedValue<KV<InputT, KV<RestrictionT,
  * WatermarkEstimatorStateT>>>}
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SplittablePairWithRestrictionDoFnRunner<
         InputT, RestrictionT, WatermarkEstimatorStateT, OutputT>
     implements FnApiStateAccessor.MutatingStateContext<Void, BoundedWindow> {

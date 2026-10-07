@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.transforms.windowing;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -39,6 +40,12 @@ import org.joda.time.Instant;
  *   Window.<Integer>into(SlidingWindows.of(Duration.standardMinutes(10))));
  * }</pre>
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SlidingWindows extends NonMergingWindowFn<Object, IntervalWindow> {
 
   /** Amount of time between generated windows. */
