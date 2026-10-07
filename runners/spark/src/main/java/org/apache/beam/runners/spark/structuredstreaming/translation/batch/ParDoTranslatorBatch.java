@@ -135,15 +135,18 @@ class ParDoTranslatorBatch<InputT, OutputT>
               simple(cxt.getCurrentTransform(), input, sideInputReader, false),
               tagColIdx);
 
-      // FIXME What's the strategy to unpersist Datasets / RDDs?
-
       SparkCommonPipelineOptions opts = cxt.getOptions().as(SparkCommonPipelineOptions.class);
       StorageLevel storageLevel = StorageLevel.fromString(opts.getStorageLevel());
 
-      // Persist as wide rows with one column per TupleTag to support different schemas
+      // Persist as wide rows with one column per TupleTag to support different schemas. Caching
+      // avoids re-evaluating the mapPartitions above once per tag below. Persisting through
+      // cxt.cacheDataset (rather than calling persist directly) registers the dataset to be
+      // unpersisted once the pipeline has been fully evaluated, so it doesn't leak for the
+      // lifetime of the Spark session.
       Dataset<Tuple2<Integer, WindowedValue<Object>>> allTagsDS =
-          cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders));
-      allTagsDS.persist(storageLevel);
+          cxt.cacheDataset(
+              cxt.getDataset(input).mapPartitions(doFnMapper, oneOfEncoder(encoders)),
+              storageLevel);
 
       // divide into separate output datasets per tag
       for (TupleTag<?> tag : outputs.keySet()) {
