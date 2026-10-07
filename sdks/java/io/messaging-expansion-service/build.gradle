@@ -22,6 +22,7 @@ mainClassName = "org.apache.beam.sdk.expansion.service.ExpansionService"
 
 applyJavaNature(
   automaticModuleName: 'org.apache.beam.sdk.io.messaging.expansion.service',
+  requireJavaVersion: JavaVersion.VERSION_17,
   exportJavadoc: false,
   validateShadowJar: false,
   shadowClosure: {},
@@ -44,7 +45,7 @@ dependencies {
   permitUnusedDeclared project(":sdks:java:io:mqtt") // BEAM-11761
   implementation project(":sdks:java:io:jms")
   permitUnusedDeclared project(":sdks:java:io:jms") // BEAM-11761
-  runtimeOnly library.java.activemq_client
+  runtimeOnly library.java.activemq6_client
   runtimeOnly library.java.slf4j_jdk14
 }
 

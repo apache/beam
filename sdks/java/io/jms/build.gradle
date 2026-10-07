@@ -35,10 +35,7 @@ dependencies {
   implementation library.java.joda_time
   // Don't put proprietary licensed ibm mq client into runtimeClasspath
   // (affects expansion service shadow jar)
-  compileOnly("com.ibm.mq:com.ibm.mq.allclient:9.3.0.25") {
-    // duplicating geronimo-jms_2.0_spec
-    exclude group: "javax.jms", module: "javax.jms-api"
-  }
+  compileOnly "com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25"
   implementation "jakarta.jms:jakarta.jms-api:3.1.0"
   testImplementation library.java.activemq6_amqp
   testImplementation library.java.activemq6_broker

@@ -122,10 +122,10 @@ import org.slf4j.LoggerFactory;
  * <h4>Acknowledgment Modes and Client Prefetch Configuration</h4>
  *
  * <p>By default, {@link JmsIO} consumes messages using {@link AcknowledgeMode#CLIENT_ACKNOWLEDGE}
- * where a new {@link javax.jms.Session} is created for each checkpoint to prevent premature
+ * where a new {@link jakarta.jms.Session} is created for each checkpoint to prevent premature
  * acknowledgments across bundles. When using {@link AcknowledgeMode#CLIENT_ACKNOWLEDGE}, if your
  * JMS broker or client library utilizes client-side message prefetch buffers (such as Apache
- * ActiveMQ), you should configure {@code prefetch=0} on your {@link javax.jms.ConnectionFactory}
+ * ActiveMQ), you should configure {@code prefetch=0} on your {@link jakarta.jms.ConnectionFactory}
  * (e.g., via {@code ?jms.prefetchPolicy.all=0} in the broker URL or {@code
  * ActiveMQPrefetchPolicy.setAll(0)}). Otherwise, unconsumed messages could be held inside old
  * consumers in low throughput scenario and could lead to message backlog.
