@@ -21,6 +21,8 @@ import static org.apache.beam.sdk.io.gcp.spanner.SpannerTestHelper.isOmni;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.is;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 import static org.junit.Assume.assumeFalse;
 
 import com.google.api.gax.longrunning.OperationFuture;
@@ -44,6 +46,7 @@ import org.apache.beam.sdk.options.Default;
 import org.apache.beam.sdk.options.Description;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
 import org.apache.beam.sdk.schemas.Schema;
+import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestPipelineOptions;
 import org.apache.beam.sdk.transforms.Create;
@@ -52,6 +55,7 @@ import org.apache.beam.sdk.transforms.MapElements;
 import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.Wait;
+import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionRowTuple;
 import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
@@ -215,6 +219,40 @@ public class SpannerWriteIT {
     assertThat(result.getState(), is(PipelineResult.State.DONE));
     assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
     assertThat(countNumberOfRecords(pgDatabaseName), equalTo((long) numRecords));
+  }
+
+  @Test
+  public void testWriteWithResults() throws Exception {
+    int numRecords = 100;
+    PCollection<WriteResults> writeResults =
+        p.apply("Init", GenerateSequence.from(0).to(numRecords))
+            .apply("Generate mu", ParDo.of(new GenerateMutations(options.getTable())))
+            .apply(
+                "Write db with results",
+                SpannerTestHelper.setUpSpannerIO(
+                        SpannerIO.write()
+                            .withProjectId(project)
+                            .withInstanceId(options.getInstanceId())
+                            .withDatabaseId(databaseName))
+                    .withWriteResults());
+
+    PAssert.that(writeResults)
+        .satisfies(
+            results -> {
+              long totalMutations = 0;
+              for (WriteResults r : results) {
+                assertNotNull(r.getCommitTimestamp());
+                assertTrue(r.getMutationCount() > 0);
+                totalMutations += r.getMutationCount();
+              }
+              assertThat(totalMutations, equalTo(2L * numRecords));
+              return null;
+            });
+
+    PipelineResult result = p.run();
+    result.waitUntilFinish();
+    assertThat(result.getState(), is(PipelineResult.State.DONE));
+    assertThat(countNumberOfRecords(databaseName), equalTo((long) numRecords));
   }
 
   @Test

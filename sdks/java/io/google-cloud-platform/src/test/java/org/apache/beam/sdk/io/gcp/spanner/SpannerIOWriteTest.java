@@ -67,6 +67,7 @@ import org.apache.beam.runners.core.metrics.MonitoringInfoConstants;
 import org.apache.beam.runners.core.metrics.MonitoringInfoMetricName;
 import org.apache.beam.sdk.Pipeline.PipelineExecutionException;
 import org.apache.beam.sdk.PipelineResult;
+import org.apache.beam.sdk.coders.Coder;
 import org.apache.beam.sdk.coders.SerializableCoder;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.BatchableMutationFilterFn;
 import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.FailureMode;
@@ -76,6 +77,7 @@ import org.apache.beam.sdk.io.gcp.spanner.SpannerIO.WriteToSpannerFn;
 import org.apache.beam.sdk.metrics.Lineage;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
 import org.apache.beam.sdk.options.ValueProvider.StaticValueProvider;
+import org.apache.beam.sdk.testing.CoderProperties;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
 import org.apache.beam.sdk.testing.TestStream;
@@ -84,15 +86,19 @@ import org.apache.beam.sdk.transforms.DoFn;
 import org.apache.beam.sdk.transforms.DoFn.FinishBundleContext;
 import org.apache.beam.sdk.transforms.DoFn.OutputReceiver;
 import org.apache.beam.sdk.transforms.DoFn.ProcessContext;
+import org.apache.beam.sdk.transforms.ParDo;
 import org.apache.beam.sdk.transforms.View;
 import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.util.Sleeper;
+import org.apache.beam.sdk.values.KV;
 import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.PCollectionView;
+import org.apache.beam.sdk.values.TimestampedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableSet;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.joda.time.Duration;
+import org.joda.time.Instant;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
@@ -1624,6 +1630,199 @@ public class SpannerIOWriteTest implements Serializable {
     verify(serviceFactory.mockSpanner(), times(1))
         .getDatabaseClient(eq(DatabaseId.of("project", "test2", "test2")));
     verify(serviceFactory.mockSpanner(), times(2)).close();
+  }
+
+  @Test
+  public void testWriteResultsCoder() throws Exception {
+    Coder<WriteResults> coder = pipeline.getCoderRegistry().getCoder(WriteResults.class);
+    Timestamp commitTs = Timestamp.ofTimeSecondsAndNanos(1700000000L, 123456789);
+    Timestamp snapshotTs = Timestamp.ofTimeSecondsAndNanos(1699999999L, 987654321);
+
+    WriteResults full = WriteResults.create(5L, commitTs, snapshotTs);
+    WriteResults withoutSnapshot = WriteResults.create(3L, commitTs, null);
+    WriteResults allNullTimestamps = WriteResults.create(0L, null, null);
+
+    CoderProperties.coderDecodeEncodeEqual(coder, full);
+    CoderProperties.coderDecodeEncodeEqual(coder, withoutSnapshot);
+    CoderProperties.coderDecodeEncodeEqual(coder, allNullTimestamps);
+  }
+
+  @Test
+  public void testGatherSortAndBatchFn_usesMinBundleTimestamp() throws Exception {
+    GatherSortCreateBatchesFn testFn =
+        new GatherSortCreateBatchesFn(
+            10000000, // batch bytes
+            100, // batch cells
+            5, // batch rows
+            100, // groupingFactor
+            null);
+
+    DoFn<MutationGroup, Iterable<MutationGroup>>.ProcessContext mockProcessContext =
+        Mockito.mock(ProcessContext.class);
+    DoFn<MutationGroup, Iterable<MutationGroup>>.FinishBundleContext mockFinishBundleContext =
+        Mockito.mock(FinishBundleContext.class);
+    when(mockProcessContext.sideInput(any())).thenReturn(getSchema());
+
+    Instant t1 = Instant.ofEpochMilli(3000L);
+    Instant t2 = Instant.ofEpochMilli(1000L);
+    Instant t3 = Instant.ofEpochMilli(2000L);
+
+    when(mockProcessContext.element()).thenReturn(buildMutationGroup(buildUpsertMutation(1L)));
+    when(mockProcessContext.timestamp()).thenReturn(t1);
+    testFn.processElement(mockProcessContext, null);
+
+    when(mockProcessContext.element()).thenReturn(buildMutationGroup(buildUpsertMutation(2L)));
+    when(mockProcessContext.timestamp()).thenReturn(t2);
+    testFn.processElement(mockProcessContext, null);
+
+    when(mockProcessContext.element()).thenReturn(buildMutationGroup(buildUpsertMutation(3L)));
+    when(mockProcessContext.timestamp()).thenReturn(t3);
+    testFn.processElement(mockProcessContext, null);
+
+    testFn.finishBundle(mockFinishBundleContext);
+
+    verify(mockFinishBundleContext, times(1)).output(any(), eq(t2), any());
+  }
+
+  @Test
+  public void testWriteWithResultsEmitsCommitMetadataAndEnablesCommitStats() throws Exception {
+    Timestamp expectedCommitTs = Timestamp.ofTimeSecondsAndNanos(1700000000L, 500);
+    Timestamp expectedSnapshotTs = Timestamp.ofTimeSecondsAndNanos(1699999995L, 250);
+    CommitResponse commitResponse =
+        OptionsImposter.createCommitResponse(
+            com.google.spanner.v1.CommitResponse.newBuilder()
+                .setCommitTimestamp(expectedCommitTs.toProto())
+                .setSnapshotTimestamp(expectedSnapshotTs.toProto())
+                .setCommitStats(
+                    com.google.spanner.v1.CommitResponse.CommitStats.newBuilder()
+                        .setMutationCount(2L)
+                        .build())
+                .build());
+
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(
+                mutationBatchesCaptor.capture(),
+                any(ReadQueryUpdateTransactionOption.class),
+                eq(Options.commitStats())))
+        .thenReturn(commitResponse);
+
+    Mutation m1 = buildUpsertMutation(1L);
+
+    PCollection<WriteResults> results =
+        pipeline
+            .apply(Create.of(m1))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId(PROJECT_NAME)
+                    .withInstanceId(INSTANCE_NAME)
+                    .withDatabaseId(DATABASE_NAME)
+                    .withServiceFactory(serviceFactory)
+                    .withWriteResults());
+
+    PAssert.that(results)
+        .containsInAnyOrder(WriteResults.create(2L, expectedCommitTs, expectedSnapshotTs));
+
+    pipeline.run();
+
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(m1)),
+            any(ReadQueryUpdateTransactionOption.class),
+            eq(Options.commitStats()));
+  }
+
+  @Test
+  public void testWriteGroupedWithResultsEmitsCommitMetadata() throws Exception {
+    Timestamp expectedCommitTs = Timestamp.ofTimeSecondsAndNanos(1700000100L, 0);
+    CommitResponse commitResponse =
+        OptionsImposter.createCommitResponse(
+            com.google.spanner.v1.CommitResponse.newBuilder()
+                .setCommitTimestamp(expectedCommitTs.toProto())
+                .setCommitStats(
+                    com.google.spanner.v1.CommitResponse.CommitStats.newBuilder()
+                        .setMutationCount(2L)
+                        .build())
+                .build());
+
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(
+                mutationBatchesCaptor.capture(),
+                any(ReadQueryUpdateTransactionOption.class),
+                eq(Options.commitStats())))
+        .thenReturn(commitResponse);
+
+    Mutation m1 = buildUpsertMutation(1L);
+    Mutation m2 = buildUpsertMutation(2L);
+    MutationGroup g = buildMutationGroup(m1, m2);
+
+    PCollection<WriteResults> results =
+        pipeline
+            .apply(Create.of(Arrays.asList(g)))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId(PROJECT_NAME)
+                    .withInstanceId(INSTANCE_NAME)
+                    .withDatabaseId(DATABASE_NAME)
+                    .withServiceFactory(serviceFactory)
+                    .grouped()
+                    .withWriteResults());
+
+    PAssert.that(results).containsInAnyOrder(WriteResults.create(2L, expectedCommitTs, null));
+
+    pipeline.run();
+  }
+
+  @Test
+  public void testWriteWithResultsPreservesElementTimestampWhenBatchingDisabled() throws Exception {
+    Timestamp expectedCommitTs = Timestamp.ofTimeSecondsAndNanos(1700000200L, 0);
+    CommitResponse commitResponse =
+        OptionsImposter.createCommitResponse(
+            com.google.spanner.v1.CommitResponse.newBuilder()
+                .setCommitTimestamp(expectedCommitTs.toProto())
+                .setCommitStats(
+                    com.google.spanner.v1.CommitResponse.CommitStats.newBuilder()
+                        .setMutationCount(1L)
+                        .build())
+                .build());
+
+    when(serviceFactory
+            .mockDatabaseClient()
+            .writeAtLeastOnceWithOptions(
+                mutationBatchesCaptor.capture(),
+                any(ReadQueryUpdateTransactionOption.class),
+                eq(Options.commitStats())))
+        .thenReturn(commitResponse);
+
+    Mutation m1 = buildUpsertMutation(1L);
+    Instant recordTimestamp = Instant.ofEpochMilli(123456789L);
+
+    PCollection<KV<Instant, WriteResults>> timestampedResults =
+        pipeline
+            .apply(Create.timestamped(TimestampedValue.of(m1, recordTimestamp)))
+            .apply(
+                SpannerIO.write()
+                    .withProjectId(PROJECT_NAME)
+                    .withInstanceId(INSTANCE_NAME)
+                    .withDatabaseId(DATABASE_NAME)
+                    .withBatchSizeBytes(0)
+                    .withServiceFactory(serviceFactory)
+                    .withWriteResults())
+            .apply(
+                ParDo.of(
+                    new DoFn<WriteResults, KV<Instant, WriteResults>>() {
+                      @ProcessElement
+                      public void processElement(ProcessContext c) {
+                        c.output(KV.of(c.timestamp(), c.element()));
+                      }
+                    }));
+
+    PAssert.that(timestampedResults)
+        .containsInAnyOrder(
+            KV.of(recordTimestamp, WriteResults.create(1L, expectedCommitTs, null)));
+
+    pipeline.run();
   }
 
   static MutationGroup buildMutationGroup(Mutation m, Mutation... other) {

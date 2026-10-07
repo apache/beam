@@ -30,6 +30,7 @@ import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsCons
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.LOW_LATENCY_REAL_TIME_CHECKPOINT_INTERVAL;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.MAX_INCLUSIVE_END_AT;
 import static org.apache.beam.sdk.io.gcp.spanner.changestreams.ChangeStreamsConstants.THROUGHPUT_WINDOW_SECONDS;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
@@ -41,6 +42,7 @@ import com.google.cloud.NoCredentials;
 import com.google.cloud.ServiceFactory;
 import com.google.cloud.Timestamp;
 import com.google.cloud.spanner.AbortedException;
+import com.google.cloud.spanner.CommitResponse;
 import com.google.cloud.spanner.DatabaseClient;
 import com.google.cloud.spanner.DatabaseId;
 import com.google.cloud.spanner.Dialect;
@@ -529,6 +531,7 @@ public class SpannerIO {
         .setMaxNumMutations(DEFAULT_MAX_NUM_MUTATIONS)
         .setMaxNumRows(DEFAULT_MAX_NUM_ROWS)
         .setFailureMode(FailureMode.FAIL_FAST)
+        .setCommitStats(false)
         .build();
   }
 
@@ -1427,6 +1430,8 @@ public class SpannerIO {
 
     abstract @Nullable PCollectionView<Dialect> getDialectView();
 
+    abstract boolean getCommitStats();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -1447,6 +1452,8 @@ public class SpannerIO {
       abstract Builder setGroupingFactor(int groupingFactor);
 
       abstract Builder setDialectView(PCollectionView<Dialect> dialect);
+
+      abstract Builder setCommitStats(boolean commitStats);
 
       abstract Write build();
     }
@@ -1693,6 +1700,14 @@ public class SpannerIO {
       return withSpannerConfig(config.withRpcPriority(RpcPriority.HIGH));
     }
 
+    /**
+     * Returns a {@link WriteWithResults} transform that enables {@link Options#commitStats()} and
+     * emits a {@link WriteResults} for each batch of mutations written to Cloud Spanner.
+     */
+    public WriteWithResults withWriteResults() {
+      return new WriteWithResults(toBuilder().setCommitStats(true).build());
+    }
+
     @Override
     public SpannerWriteResult expand(PCollection<Mutation> input) {
       getSpannerConfig().validate();
@@ -1728,6 +1743,65 @@ public class SpannerIO {
                       ? Integer.toString(getGroupingFactor().getAsInt())
                       : "DEFAULT"))
               .withLabel("Number of batches to sort over"));
+    }
+  }
+
+  /**
+   * A {@link PTransform} that writes {@link Mutation} objects to Google Cloud Spanner with {@link
+   * Options#commitStats()} enabled and emits a {@link WriteResults} for each committed batch.
+   */
+  public static class WriteWithResults
+      extends PTransform<PCollection<Mutation>, PCollection<WriteResults>> {
+
+    private final Write spec;
+
+    WriteWithResults(Write spec) {
+      this.spec = spec;
+    }
+
+    /** Same transform but can be applied to {@link PCollection} of {@link MutationGroup}. */
+    public WriteGroupedWithResults grouped() {
+      return new WriteGroupedWithResults(spec);
+    }
+
+    @Override
+    public PCollection<WriteResults> expand(PCollection<Mutation> input) {
+      spec.getSpannerConfig().validate();
+
+      return input
+          .apply("To mutation group", ParDo.of(new ToMutationGroupFn()))
+          .apply("Write mutations to Cloud Spanner", new WriteGroupedWithResults(spec));
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      spec.populateDisplayDataWithParamaters(builder);
+    }
+  }
+
+  /** Same as {@link WriteWithResults} but supports grouped mutations. */
+  public static class WriteGroupedWithResults
+      extends PTransform<PCollection<MutationGroup>, PCollection<WriteResults>> {
+
+    private final Write spec;
+
+    public WriteGroupedWithResults(Write spec) {
+      this.spec = spec;
+    }
+
+    @Override
+    public PCollection<WriteResults> expand(PCollection<MutationGroup> input) {
+      SpannerWriteResult result = input.apply(new WriteGrouped(spec));
+      return checkStateNotNull(
+          result.getWriteResults(),
+          "WriteResults PCollection must be present when commitStats is enabled.");
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      spec.populateDisplayDataWithParamaters(builder);
     }
   }
 
@@ -1769,6 +1843,8 @@ public class SpannerIO {
         new TupleTag<Iterable<MutationGroup>>("unbatchableMutations") {};
 
     private static final TupleTag<Void> MAIN_OUT_TAG = new TupleTag<Void>("mainOut") {};
+    private static final TupleTag<WriteResults> WRITE_RESULTS_TAG =
+        new TupleTag<WriteResults>("writeResults") {};
     private static final TupleTag<MutationGroup> FAILED_MUTATIONS_TAG =
         new TupleTag<MutationGroup>("failedMutations") {};
     private static final SerializableCoder<MutationGroup> CODER =
@@ -1776,6 +1852,15 @@ public class SpannerIO {
 
     public WriteGrouped(Write spec) {
       this.spec = spec;
+    }
+
+    /**
+     * Returns a {@link WriteGroupedWithResults} transform that enables {@link
+     * Options#commitStats()} and emits a {@link WriteResults} for each batch of mutations written
+     * to Cloud Spanner.
+     */
+    public WriteGroupedWithResults withWriteResults() {
+      return new WriteGroupedWithResults(spec.toBuilder().setCommitStats(true).build());
     }
 
     @Override
@@ -1876,12 +1961,19 @@ public class SpannerIO {
               "Write batches to Spanner",
               ParDo.of(
                       new WriteToSpannerFn(
-                          spec.getSpannerConfig(), spec.getFailureMode(), FAILED_MUTATIONS_TAG))
-                  .withOutputTags(MAIN_OUT_TAG, TupleTagList.of(FAILED_MUTATIONS_TAG)));
+                          spec.getSpannerConfig(),
+                          spec.getFailureMode(),
+                          FAILED_MUTATIONS_TAG,
+                          spec.getCommitStats(),
+                          WRITE_RESULTS_TAG))
+                  .withOutputTags(
+                      MAIN_OUT_TAG, TupleTagList.of(FAILED_MUTATIONS_TAG).and(WRITE_RESULTS_TAG)));
 
       return new SpannerWriteResult(
           input.getPipeline(),
           result.get(MAIN_OUT_TAG),
+          spec.getCommitStats() ? result.get(WRITE_RESULTS_TAG) : null,
+          spec.getCommitStats() ? WRITE_RESULTS_TAG : null,
           result.get(FAILED_MUTATIONS_TAG),
           FAILED_MUTATIONS_TAG);
     }
@@ -2501,6 +2593,8 @@ public class SpannerIO {
     private long sortableNumCells = 0;
     // total number of rows mutated in mutationsToSort
     private long sortableNumRows = 0;
+    // minimum timestamp of elements currently in mutationsToSort
+    private @Nullable Instant minBundleTimestamp = null;
 
     GatherSortCreateBatchesFn(
         long maxBatchSizeBytes,
@@ -2529,11 +2623,13 @@ public class SpannerIO {
       sortableSizeBytes = 0;
       sortableNumCells = 0;
       sortableNumRows = 0;
+      minBundleTimestamp = null;
     }
 
     @FinishBundle
     public synchronized void finishBundle(FinishBundleContext c) throws Exception {
-      sortAndOutputBatches(new OutputReceiverForFinishBundle(c));
+      Instant outputTimestamp = minBundleTimestamp != null ? minBundleTimestamp : Instant.now();
+      sortAndOutputBatches(new OutputReceiverForFinishBundle(c, outputTimestamp));
     }
 
     private synchronized void sortAndOutputBatches(OutputReceiver<Iterable<MutationGroup>> out)
@@ -2617,6 +2713,12 @@ public class SpannerIO {
           sortAndOutputBatches(out);
         }
 
+        Instant elementTimestamp = c.timestamp();
+        if (elementTimestamp != null
+            && (minBundleTimestamp == null || elementTimestamp.isBefore(minBundleTimestamp))) {
+          minBundleTimestamp = elementTimestamp;
+        }
+
         mutationsToSort.add(
             new MutationGroupContainer(
                 mg, groupSize, groupCells, groupRows, encoder.encodeTableNameAndKey(mg.primary())));
@@ -2663,7 +2765,7 @@ public class SpannerIO {
       private final OutputBuilderSupplier outputBuilderSupplier;
       private final DoFn<MutationGroup, Iterable<MutationGroup>>.FinishBundleContext context;
 
-      OutputReceiverForFinishBundle(FinishBundleContext context) {
+      OutputReceiverForFinishBundle(FinishBundleContext context, Instant timestamp) {
         this.context = context;
         this.outputBuilderSupplier =
             new OutputBuilderSupplier() {
@@ -2671,7 +2773,7 @@ public class SpannerIO {
               public <OutputT> WindowedValues.Builder<OutputT> builder(OutputT value) {
                 return WindowedValues.<OutputT>builder()
                     .setValue(value)
-                    .setTimestamp(Instant.now())
+                    .setTimestamp(timestamp)
                     .setPaneInfo(PaneInfo.NO_FIRING)
                     .setWindow(GlobalWindow.INSTANCE);
               }
@@ -2799,6 +2901,8 @@ public class SpannerIO {
         Metrics.counter(WriteGrouped.class, "spanner_write_retries");
 
     private final TupleTag<MutationGroup> failedTag;
+    private final boolean commitStats;
+    private final @Nullable TupleTag<WriteResults> writeResultsTag;
 
     // Fluent Backoff is not serializable so create at runtime in setup().
     private transient FluentBackoff bundleWriteBackoff;
@@ -2806,9 +2910,20 @@ public class SpannerIO {
 
     WriteToSpannerFn(
         SpannerConfig spannerConfig, FailureMode failureMode, TupleTag<MutationGroup> failedTag) {
+      this(spannerConfig, failureMode, failedTag, false, null);
+    }
+
+    WriteToSpannerFn(
+        SpannerConfig spannerConfig,
+        FailureMode failureMode,
+        TupleTag<MutationGroup> failedTag,
+        boolean commitStats,
+        @Nullable TupleTag<WriteResults> writeResultsTag) {
       this.spannerConfig = spannerConfig;
       this.failureMode = failureMode;
       this.failedTag = failedTag;
+      this.commitStats = commitStats;
+      this.writeResultsTag = writeResultsTag;
     }
 
     @Setup
@@ -2851,9 +2966,12 @@ public class SpannerIO {
         mutationGroupBatchesReceived.inc();
         mutationGroupsReceived.inc(mutations.size());
         Iterable<Mutation> batch = Iterables.concat(mutations);
-        writeMutations(batch);
+        CommitResponse response = writeMutations(batch);
         mutationGroupBatchesWriteSuccess.inc();
         mutationGroupsWriteSuccess.inc(mutations.size());
+        if (commitStats && writeResultsTag != null) {
+          c.output(writeResultsTag, WriteResults.fromCommitResponse(response));
+        }
         return;
       } catch (SpannerException e) {
         mutationGroupBatchesWriteFail.inc();
@@ -2872,8 +2990,11 @@ public class SpannerIO {
       for (MutationGroup mg : mutations) {
         try {
           spannerWriteRetries.inc();
-          writeMutations(mg);
+          CommitResponse response = writeMutations(mg);
           mutationGroupsWriteSuccess.inc();
+          if (commitStats && writeResultsTag != null) {
+            c.output(writeResultsTag, WriteResults.fromCommitResponse(response));
+          }
         } catch (SpannerException e) {
           mutationGroupsWriteFail.inc();
           LOG.warn("Failed to write the mutation group: {}", mg, e);
@@ -2886,13 +3007,15 @@ public class SpannerIO {
      Spanner aborts all inflight transactions during a schema change. Client is expected
      to retry silently. These must not be counted against retry backoff.
     */
-    private void spannerWriteWithRetryIfSchemaChange(List<Mutation> batch) throws SpannerException {
+    private CommitResponse spannerWriteWithRetryIfSchemaChange(List<Mutation> batch)
+        throws SpannerException {
       Set<String> tableNames = batch.stream().map(Mutation::getTable).collect(Collectors.toSet());
       for (int retry = 1; ; retry++) {
         try {
-          spannerAccessor
-              .getDatabaseClient()
-              .writeAtLeastOnceWithOptions(batch, getTransactionOptions());
+          CommitResponse response =
+              spannerAccessor
+                  .getDatabaseClient()
+                  .writeAtLeastOnceWithOptions(batch, getTransactionOptions());
           // Get names of all tables in batch of mutations.
           reportServiceCallMetricsForBatch(tableNames, "ok");
           for (String tableName : tableNames) {
@@ -2906,7 +3029,7 @@ public class SpannerIO {
                         spannerConfig.getDatabaseId().get(),
                         tableName));
           }
-          return;
+          return response;
         } catch (AbortedException e) {
           reportServiceCallMetricsForBatch(
               tableNames, e.getErrorCode().getGrpcStatusCode().toString());
@@ -2937,7 +3060,8 @@ public class SpannerIO {
                   ? Options.maxCommitDelay(
                       java.time.Duration.ofMillis(
                           spannerConfig.getMaxCommitDelay().get().getMillis()))
-                  : null)
+                  : null,
+              commitStats ? Options.commitStats() : null)
           .filter(Objects::nonNull)
           .toArray(Options.TransactionOption[]::new);
     }
@@ -2964,7 +3088,7 @@ public class SpannerIO {
     }
 
     /** Write the Mutations to Spanner, handling DEADLINE_EXCEEDED with backoff/retries. */
-    private void writeMutations(Iterable<Mutation> mutationIterable)
+    private CommitResponse writeMutations(Iterable<Mutation> mutationIterable)
         throws SpannerException, IOException {
       BackOff backoff = bundleWriteBackoff.backoff();
       List<Mutation> mutations = ImmutableList.copyOf(mutationIterable);
@@ -2973,9 +3097,9 @@ public class SpannerIO {
         Stopwatch timer = Stopwatch.createStarted();
         // loop is broken on success, timeout backoff/retry attempts exceeded, or other failure.
         try {
-          spannerWriteWithRetryIfSchemaChange(mutations);
+          CommitResponse response = spannerWriteWithRetryIfSchemaChange(mutations);
           spannerWriteSuccess.inc();
-          return;
+          return response;
         } catch (SpannerException exception) {
           if (exception.getErrorCode() == ErrorCode.DEADLINE_EXCEEDED) {
             spannerWriteTimeouts.inc();
