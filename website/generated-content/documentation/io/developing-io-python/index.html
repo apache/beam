@@ -42,7 +42,7 @@ source and a sink. All Beam sources and sinks are composite transforms; however,
 the implementation of your custom I/O depends on your use case. Before you
 start, read the <a href=/documentation/io/developing-io-overview/>new I/O connector overview</a>
 for an overview of developing a new I/O connector, the available implementation
-options, and how to choose the right option for your use case.</p><p>This guide covers using the <a href=https://beam.apache.org/releases/pydoc/2.76.0/apache_beam.io.iobase.html>Source and FileBasedSink interfaces</a>
+options, and how to choose the right option for your use case.</p><p>This guide covers using the <a href=https://beam.apache.org/releases/pydoc/2.77.0/apache_beam.io.iobase.html>Source and FileBasedSink interfaces</a>
 for Python. The Java SDK offers the same functionality, but uses a slightly
 different API. See <a href=/documentation/io/developing-io-java/>Developing I/O connectors for Java</a>
 for information specific to the Java SDK.</p><h2 id=basic-code-reqs>Basic code requirements</h2><p>Beam runners use the classes you provide to read and/or write data using
@@ -73,9 +73,9 @@ which records the position that a reader resumes from.</li><li>One or more user-
 wrap read operations. <a href=#ptransform-wrappers>PTransform wrappers</a> discusses
 why you should avoid exposing your sources, and walks through how to create
 a wrapper.</li></ul><p>You can find <code>BoundedSource</code> and <code>RangeTracker</code> in the
-<a href=https://beam.apache.org/releases/pydoc/2.76.0/apache_beam.io.iobase.html>apache_beam.io.iobase module</a>,
+<a href=https://beam.apache.org/releases/pydoc/2.77.0/apache_beam.io.iobase.html>apache_beam.io.iobase module</a>,
 and the unbounded classes in the
-<a href=https://beam.apache.org/releases/pydoc/2.76.0/apache_beam.io.unbounded_source.html>apache_beam.io.unbounded_source module</a>.</p><h3 id=implementing-the-source-subclass>Implementing the Source subclass</h3><p>Create a subclass of either <code>BoundedSource</code> or <code>UnboundedSource</code>, depending on
+<a href=https://beam.apache.org/releases/pydoc/2.77.0/apache_beam.io.unbounded_source.html>apache_beam.io.unbounded_source module</a>.</p><h3 id=implementing-the-source-subclass>Implementing the Source subclass</h3><p>Create a subclass of either <code>BoundedSource</code> or <code>UnboundedSource</code>, depending on
 whether your data is a finite batch or an infinite stream. In either case, the
 subclass overrides the methods that a runner uses to split the data and to
 create a reader for it.</p><h4 id=boundedsource>BoundedSource</h4><p><code>BoundedSource</code> represents a finite data set from which the service reads, possibly in parallel. <code>BoundedSource</code> contains a set of methods that the service uses to split the data set for reading by multiple remote workers.</p><p>To implement a <code>BoundedSource</code>, your subclass must override the following methods:</p><ul><li><p><code>estimate_size</code>: Services use this method to estimate the <em>total size</em> of your data, in bytes. This estimate is in terms of external storage size, before performing decompression or other processing.</p></li><li><p><code>split</code>: Service use this method to split your finite data into bundles of a given size.</p></li><li><p><code>get_range_tracker</code>: Services use this method to get the <code>RangeTracker</code> for a given position range, and use the information to report progress and perform dynamic splitting of sources.</p></li><li><p><code>read</code>: This method returns an iterator that reads data from the source, with respect to the boundaries defined by the given <code>RangeTracker</code> object.</p></li></ul><h4 id=unboundedsource>UnboundedSource</h4><p><code>UnboundedSource</code> represents an infinite data stream from which the runner may
@@ -98,7 +98,7 @@ reader&rsquo;s position, so it should be side-effect free and should not perform
 default is a pickle coder, and a tighter coder also gives the output
 <code>PCollection</code> an element type.</p><p><code>UnboundedSource</code> has no per-record deduplication hook. If your data source can
 deliver the same record more than once, drop the duplicates with the
-<a href=https://beam.apache.org/releases/pydoc/2.76.0/apache_beam.transforms.deduplicate.html>Deduplicate or DeduplicatePerKey</a>
+<a href=https://beam.apache.org/releases/pydoc/2.77.0/apache_beam.transforms.deduplicate.html>Deduplicate or DeduplicatePerKey</a>
 transform after the read.</p><h3 id=implementing-the-rangetracker-and-unboundedreader-subclasses>Implementing the RangeTracker and UnboundedReader subclasses</h3><p>A runner uses these classes to do the actual reading of your data set and to
 track a reader&rsquo;s progress. A <code>BoundedSource</code> reads through its <code>read</code> method,
 which claims positions from a <code>RangeTracker</code>. An <code>UnboundedSource</code> reads through
@@ -255,7 +255,7 @@ orders = p | ReadFromUnboundedSource(
     max_read_time_seconds=30)</code></pre></div></div><p><strong>Note:</strong> As with a bounded source, we recommend that you do not expose the code
 for the source itself to end-users. Use a wrapping <code>PTransform</code> instead.
 <a href=#ptransform-wrappers>PTransform wrappers</a> discusses why you should avoid
-exposing your sources, and walks through how to create a wrapper.</p><h2 id=using-the-filebasedsink-abstraction>Using the FileBasedSink abstraction</h2><p>If your data source uses files, you can implement the <a href=https://beam.apache.org/releases/pydoc/2.76.0/apache_beam.io.filebasedsink.html>FileBasedSink</a>
+exposing your sources, and walks through how to create a wrapper.</p><h2 id=using-the-filebasedsink-abstraction>Using the FileBasedSink abstraction</h2><p>If your data source uses files, you can implement the <a href=https://beam.apache.org/releases/pydoc/2.77.0/apache_beam.io.filebasedsink.html>FileBasedSink</a>
 abstraction to create a file-based sink. For other sinks, use <code>ParDo</code>,
 <code>GroupByKey</code>, and other transforms offered by the Beam SDK for Python. See the
 <a href=/documentation/io/developing-io-overview/>developing I/O connectors overview</a>
