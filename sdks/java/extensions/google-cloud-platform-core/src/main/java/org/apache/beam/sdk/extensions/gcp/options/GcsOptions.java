@@ -171,10 +171,39 @@ public interface GcsOptions extends ApplicationNameOptions, GcpOptions, Pipeline
 
   void setGcsHttpRequestWriteTimeout(@Nullable Integer timeoutMs);
 
-  @Description("Batching limit for rewrite ops which will copy data.")
+  /**
+   * Batching limit for rewrite ops which will copy data.
+   *
+   * @deprecated Only applicable to GcsUtil V1. Not applicable to GcsUtil V2 (enabled with the
+   *     {@code use_gcsutil_v2} experiment), which does not batch rewrites; use {@link
+   *     #getGcsMaxConcurrentRewrites} to tune copy/move concurrency there instead.
+   */
+  @Deprecated
+  @Description(
+      "Batching limit for rewrite ops which will copy data. Deprecated: NOT applicable to GcsUtil"
+          + " V2 (enabled with the use_gcsutil_v2 experiment); use gcsMaxConcurrentRewrites"
+          + " instead.")
   @Nullable Integer getGcsRewriteDataOpBatchLimit();
 
+  /**
+   * @deprecated Only applicable to GcsUtil V1. See {@link #getGcsRewriteDataOpBatchLimit}.
+   */
+  @Deprecated
   void setGcsRewriteDataOpBatchLimit(@Nullable Integer timeoutMs);
+
+  /**
+   * Maximum number of files rewritten concurrently when copying or moving files. If unset, a
+   * default of 32 is used.
+   *
+   * <p>Only applicable to GcsUtil V2, which is enabled with the {@code use_gcsutil_v2} experiment.
+   */
+  @Description(
+      "Maximum number of files rewritten concurrently when copying or moving files in GCS."
+          + " If unset, defaults to 32. Only applicable to GcsUtil V2 (enabled with the"
+          + " use_gcsutil_v2 experiment).")
+  @Nullable Integer getGcsMaxConcurrentRewrites();
+
+  void setGcsMaxConcurrentRewrites(@Nullable Integer maxConcurrentRewrites);
 
   /** If true, reports number of bytes written to each gcs bucket. */
   @Description("Whether to report number of bytes written per GCS bucket.")
