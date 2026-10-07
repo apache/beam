@@ -243,10 +243,10 @@ class CalculateUserScores(beam.PTransform):
   def expand(self, pcoll):
     return (
         pcoll
-        # Get periodic results every ten minutes.
+        # Get periodic results every ten seconds.
         | 'LeaderboardUserGlobalWindows' >> beam.WindowInto(
             beam.window.GlobalWindows(),
-            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(10 * 60)),
+            trigger=trigger.Repeatedly(trigger.AfterProcessingTime(10)),
             accumulation_mode=trigger.AccumulationMode.ACCUMULATING,
             allowed_lateness=self.allowed_lateness_seconds)
         # Extract and sum username/score pairs from the event data.
