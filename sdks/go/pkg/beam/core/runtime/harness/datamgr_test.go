@@ -18,10 +18,10 @@ package harness
 import (
 	"bytes"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log"
+	"net"
 	"runtime"
 	"strings"
 	"sync"
@@ -31,6 +31,7 @@ import (
 
 	"github.com/apache/beam/sdks/v2/go/pkg/beam/core/runtime/exec"
 	fnpb "github.com/apache/beam/sdks/v2/go/pkg/beam/model/fnexecution_v1"
+	"google.golang.org/grpc"
 )
 
 const extraData = 2
@@ -645,72 +646,153 @@ func TestTimerWriterSendEOF(t *testing.T) {
 	}
 }
 
+// Production Open vs closeInstruction. A writer Flush holds ch.mu inside
+// client.Send; Close takes m.mu and waits on ch.mu; the stream then fails.
 func TestDataChannelTerminate_recreate(t *testing.T) {
+	hs := newHoldDataServer()
+	lis := newStallListener(t)
+	gs := grpc.NewServer()
+	fnpb.RegisterBeamFnDataServer(gs, hs)
+	go gs.Serve(lis)
+	defer func() {
+		lis.fail()
+		gs.Stop()
+	}()
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	m := &DataChannelManager{ports: map[string]*DataChannel{}}
-	port := exec.Port{URL: "localhost:1"}
-	c := makeDataChannel(ctx, "id", &fakeChanClient{ch: make(chan *fnpb.Elements)}, cancel)
-	c.forceRecreate = func(id string, err error) {
-		go func() {
-			m.mu.Lock()
-			if m.ports[port.URL] == c {
-				delete(m.ports, port.URL)
-			}
-			m.mu.Unlock()
-		}()
+	m := &DataChannelManager{}
+	s := NewScopedDataManager(m, "inst1")
+	w, err := s.OpenWrite(ctx, exec.StreamID{Port: exec.Port{URL: lis.Addr().String()}, PtransformID: "pt"})
+	if err != nil {
+		t.Fatal(err)
 	}
-	m.ports[port.URL] = c
+	<-hs.entered
+	lis.stall()
 
-	closed := make(chan struct{})
-	failed := make(chan struct{})
-	c.mu.Lock()
+	flushDone := make(chan error, 1)
 	go func() {
-		defer close(closed)
-		_ = m.closeInstruction("inst1", []exec.Port{port})
+		buf := make([]byte, 4e6)
+		for {
+			if _, err := w.Write(buf); err != nil {
+				flushDone <- err
+				return
+			}
+			if _, err := w.Write([]byte{1}); err != nil {
+				flushDone <- err
+				return
+			}
+		}
 	}()
-	time.Sleep(50 * time.Millisecond)
-	go func() {
-		defer close(failed)
-		c.terminateStreamOnError(errors.New("stream broke"))
-		c.mu.Unlock()
-	}()
+	select {
+	case err := <-flushDone:
+		t.Fatalf("flush returned before Close: %v", err)
+	case <-time.After(500 * time.Millisecond):
+	}
 
-	deadline := time.After(2 * time.Second)
-	for _, ch := range []chan struct{}{failed, closed} {
+	closeDone := make(chan error, 1)
+	go func() { closeDone <- s.Close() }()
+	time.Sleep(200 * time.Millisecond)
+	lis.fail()
+
+	timeout := time.After(3 * time.Second)
+	gotFlush, gotClose := false, false
+	for !gotFlush || !gotClose {
 		select {
-		case <-ch:
-		case <-deadline:
+		case <-flushDone:
+			gotFlush = true
+		case <-closeDone:
+			gotClose = true
+		case <-timeout:
 			t.Fatal("recreate and closeInstruction deadlocked")
 		}
 	}
 }
 
-func TestDataChannelTerminate_recreateReplacement(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	m := &DataChannelManager{ports: map[string]*DataChannel{}}
-	port := exec.Port{URL: "localhost:1"}
-	dead := makeDataChannel(ctx, "dead", &fakeChanClient{ch: make(chan *fnpb.Elements)}, cancel)
-	live := makeDataChannel(ctx, "live", &fakeChanClient{ch: make(chan *fnpb.Elements)}, cancel)
-	m.ports[port.URL] = live
-	dead.forceRecreate = func(id string, err error) {
-		go func() {
-			m.mu.Lock()
-			if m.ports[port.URL] == dead {
-				delete(m.ports, port.URL)
-			}
-			m.mu.Unlock()
-		}()
+type holdDataServer struct {
+	fnpb.UnimplementedBeamFnDataServer
+	entered chan struct{}
+	once    sync.Once
+}
+
+func newHoldDataServer() *holdDataServer {
+	return &holdDataServer{entered: make(chan struct{})}
+}
+
+func (s *holdDataServer) Data(stream fnpb.BeamFnData_DataServer) error {
+	s.once.Do(func() { close(s.entered) })
+	<-stream.Context().Done()
+	return stream.Context().Err()
+}
+
+type stallListener struct {
+	net.Listener
+	mu    sync.Mutex
+	conns []*stallConn
+}
+
+func newStallListener(t *testing.T) *stallListener {
+	t.Helper()
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
 	}
-	dead.forceRecreate("dead", errors.New("stream broke"))
-	time.Sleep(50 * time.Millisecond)
-	m.mu.Lock()
-	got := m.ports[port.URL]
-	m.mu.Unlock()
-	if got != live {
-		t.Fatal("recreate removed the replacement channel")
+	return &stallListener{Listener: l}
+}
+
+func (l *stallListener) Accept() (net.Conn, error) {
+	c, err := l.Listener.Accept()
+	if err != nil {
+		return nil, err
 	}
+	if tc, ok := c.(*net.TCPConn); ok {
+		_ = tc.SetReadBuffer(2048)
+		_ = tc.SetWriteBuffer(2048)
+	}
+	sc := &stallConn{Conn: c, closed: make(chan struct{})}
+	l.mu.Lock()
+	l.conns = append(l.conns, sc)
+	l.mu.Unlock()
+	return sc, nil
+}
+
+func (l *stallListener) stall() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, c := range l.conns {
+		c.stalled.Store(true)
+	}
+}
+
+func (l *stallListener) fail() {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for _, c := range l.conns {
+		c.fail()
+	}
+}
+
+type stallConn struct {
+	net.Conn
+	stalled atomic.Bool
+	once    sync.Once
+	closed  chan struct{}
+}
+
+func (c *stallConn) Read(p []byte) (int, error) {
+	if c.stalled.Load() {
+		<-c.closed
+		return 0, io.EOF
+	}
+	return c.Conn.Read(p)
+}
+
+func (c *stallConn) fail() {
+	c.stalled.Store(true)
+	c.once.Do(func() {
+		_ = c.Conn.Close()
+		close(c.closed)
+	})
 }
 
 type noopDataClient struct {
