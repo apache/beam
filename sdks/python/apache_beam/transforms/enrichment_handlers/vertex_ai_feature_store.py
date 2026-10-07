@@ -113,14 +113,6 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
     try:
       admin_client = aiplatform.gapic.FeatureOnlineStoreAdminServiceClient(
           **self.kwargs)
-    except Exception:
-      _LOGGER.warning(
-          'Due to insufficient admin permission, could not verify '
-          'the existence of feature store. If the `exception_level` '
-          'is set to WARN then make sure the feature store exists '
-          'otherwise the data enrichment will not happen without '
-          'throwing an error.')
-    else:
       location_path = admin_client.common_location_path(
           project=self.project, location=self.location)
       feature_store_path = admin_client.feature_online_store_path(
@@ -129,11 +121,21 @@ class VertexAIFeatureStoreEnrichmentHandler(EnrichmentSourceHandler[beam.Row,
           feature_online_store=self.feature_store_name)
       feature_store = admin_client.get_feature_online_store(
           name=feature_store_path)
+    except NotFound:
+      raise
+    except Exception:
+      _LOGGER.warning(
+          'Due to insufficient admin permission, could not verify '
+          'the existence of feature store. If the `exception_level` '
+          'is set to WARN then make sure the feature store exists '
+          'otherwise the data enrichment will not happen without '
+          'throwing an error.')
+      return
 
-      if not feature_store:
-        raise NotFound(
-            'Vertex AI Feature Store %s does not exists in %s' %
-            (self.feature_store_name, location_path))
+    if not feature_store:
+      raise NotFound(
+          'Vertex AI Feature Store %s does not exists in %s' %
+          (self.feature_store_name, location_path))
 
   def __enter__(self):
     """Connect with the Vertex AI Feature Store."""
