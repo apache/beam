@@ -29,7 +29,7 @@ dump_session and load_session are no-ops.
 
 import base64
 import bz2
-import dataclass
+import dataclasses
 import io
 import logging
 import sys
