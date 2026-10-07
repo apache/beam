@@ -1267,8 +1267,12 @@ class BeamModulePlugin implements Plugin<Project> {
         }
         // Log skipped and failed tests, plus a per-task summary.
         // Pass -PshowTestOutput to also forward test stdout/stderr.
+        // Pass -PshowTestPassed to also log passed tests.
         testLogging {
           events 'skipped', 'failed'
+          if (project.hasProperty('showTestPassed')) {
+            events 'passed'
+          }
           exceptionFormat = 'full'
           showExceptions = true
           showCauses = true
