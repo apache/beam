@@ -136,15 +136,9 @@ func (m *DataChannelManager) Open(ctx context.Context, port exec.Port) (*DataCha
 		default:
 			log.Warnf(ctx, "forcing DataChannel[%v] reconnection on port %v due to %v", id, port, err)
 		}
-		// Remove this channel from the port map after releasing ch.mu.
-		// Keep the mapping if Open has already stored a replacement.
-		go func() {
-			m.mu.Lock()
-			if m.ports[port.URL] == ch {
-				delete(m.ports, port.URL)
-			}
-			m.mu.Unlock()
-		}()
+		m.mu.Lock()
+		delete(m.ports, port.URL)
+		m.mu.Unlock()
 	}
 	m.ports[port.URL] = ch
 	return ch, nil
@@ -165,14 +159,17 @@ func (m *DataChannelManager) Close() {
 }
 
 func (m *DataChannelManager) closeInstruction(instID instructionID, ports []exec.Port) error {
+	// copy channels so removeInstruction can take ch.mu without holding m.mu.
+	var chans []*DataChannel
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	var firstNonNilError error
 	for _, port := range ports {
-		ch, ok := m.ports[port.URL]
-		if !ok {
-			continue
+		if ch, ok := m.ports[port.URL]; ok {
+			chans = append(chans, ch)
 		}
+	}
+	m.mu.Unlock()
+	var firstNonNilError error
+	for _, ch := range chans {
 		err := ch.removeInstruction(instID)
 		if err != nil && firstNonNilError == nil {
 			firstNonNilError = err

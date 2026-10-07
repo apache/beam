@@ -646,8 +646,10 @@ func TestTimerWriterSendEOF(t *testing.T) {
 	}
 }
 
-// Production Open vs closeInstruction. A writer Flush holds ch.mu inside
-// client.Send; Close takes m.mu and waits on ch.mu; the stream then fails.
+// Production Open against closeInstruction.
+// Flush holds ch.mu inside client.Send.
+// Close takes m.mu and waits on ch.mu.
+// Then the stream fails.
 func TestDataChannelTerminate_recreate(t *testing.T) {
 	hs := newHoldDataServer()
 	lis := newStallListener(t)
@@ -706,6 +708,41 @@ func TestDataChannelTerminate_recreate(t *testing.T) {
 		case <-timeout:
 			t.Fatal("recreate and closeInstruction deadlocked")
 		}
+	}
+}
+
+// After a stream fails, the next Open must dial a new channel.
+// It must not return the channel whose stream is already dead.
+func TestDataChannelOpen_skipsFailedChannel(t *testing.T) {
+	hs := newHoldDataServer()
+	lis, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gs := grpc.NewServer()
+	fnpb.RegisterBeamFnDataServer(gs, hs)
+	go gs.Serve(lis)
+	defer gs.Stop()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	m := &DataChannelManager{}
+	port := exec.Port{URL: lis.Addr().String()}
+	ch1, err := m.Open(ctx, port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	<-hs.entered
+	ch1.mu.Lock()
+	ch1.terminateStreamOnError(io.EOF)
+	ch1.mu.Unlock()
+
+	ch2, err := m.Open(ctx, port)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ch2 == ch1 {
+		t.Fatal("Open returned a failed channel")
 	}
 }
 
