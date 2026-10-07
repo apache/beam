@@ -281,6 +281,31 @@ class TestWriteBigTable(unittest.TestCase):
     instance = Instance(self._INSTANCE_ID, client)
     self.table = Table(self._TABLE_ID, instance)
 
+    # In google-cloud-bigtable >= 2.48.0, MutationsBatcher delegates to the
+    # underlying data client batcher instead of invoking Table.mutate_rows.
+    # Wire the mock data client batcher to surface Table.mutate_rows calls,
+    # exceptions, and callbacks so tests patching Table.mutate_rows work
+    # seamlessly.
+    def mock_data_client_batcher(*args, **kwargs):
+      batcher = MagicMock()
+
+      def mock_close():
+        res = self.table.mutate_rows([])
+        cb = getattr(batcher, '_user_batch_completed_callback', None)
+        if cb and res and isinstance(res, (list, tuple)):
+          cb(res)
+
+      batcher.close = MagicMock(side_effect=mock_close)
+      return batcher
+
+    if hasattr(self.table, '_table_impl'):
+      self.table._table_impl.mutations_batcher = MagicMock(
+          side_effect=mock_data_client_batcher)
+    client._veneer_data_client.get_table.return_value.mutations_batcher = (
+        MagicMock(side_effect=mock_data_client_batcher))
+    client.data_client.mutations_batcher = MagicMock(
+        side_effect=mock_data_client_batcher)
+
   def test_write(self):
     direct_rows = [self.generate_row(i) for i in range(5)]
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
