@@ -1081,6 +1081,8 @@ class Pipeline(HasDisplayData):
     # because other runners do not have this option.
     context.enable_best_effort_deterministic_pickling = getattr(
         self.runner, 'enable_best_effort_deterministic_pickling', False)
+    context.enable_stable_identifier_pickling = getattr(
+        self.runner, 'enable_stable_code_identifier_pickling', False)
 
     # The RunnerAPI spec requires certain transforms and side-inputs to have KV
     # inputs (and corresponding outputs).
