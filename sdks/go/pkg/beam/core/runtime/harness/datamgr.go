@@ -159,14 +159,17 @@ func (m *DataChannelManager) Close() {
 }
 
 func (m *DataChannelManager) closeInstruction(instID instructionID, ports []exec.Port) error {
+	// copy channels so removeInstruction can take ch.mu without holding m.mu.
+	var chans []*DataChannel
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	var firstNonNilError error
 	for _, port := range ports {
-		ch, ok := m.ports[port.URL]
-		if !ok {
-			continue
+		if ch, ok := m.ports[port.URL]; ok {
+			chans = append(chans, ch)
 		}
+	}
+	m.mu.Unlock()
+	var firstNonNilError error
+	for _, ch := range chans {
 		err := ch.removeInstruction(instID)
 		if err != nil && firstNonNilError == nil {
 			firstNonNilError = err
