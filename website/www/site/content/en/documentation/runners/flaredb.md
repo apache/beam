@@ -29,9 +29,9 @@ The idea is that streams are data in motion, produced by computations (transform
 
 As a result, FlareDB is lightweight, takes fewer resources to run, and makes the computational results queryable without the need for an external database.
 
-See the [Beam Capability Matrix](https://docs.flare-db.com/compatibility) for supported Beam features.
+The [Beam Capability Matrix](/documentation/runners/capability-matrix/) documents the supported capabilities of the FlareDB Runner.
 
-> **Note:** FlareDB is an independent and open-source runner for Apache Beam. It is not part of, or maintained by, the Apache Beam project. The source code is available on [GitHub](https://github.com/flare-db/flare-db).
+> **Note:** FlareDB is an independent and open-source runner for Apache Beam. It is not part of, or maintained by the Apache Beam project. The source code is available on [GitHub](https://github.com/flare-db/flare-db).
 
 # How to use FlareDB Runner
 
@@ -202,7 +202,7 @@ The FlareDB Runner is configured through the following pipeline options:
 ## Next steps
 
 - Browse the [FlareDB documentation](https://docs.flare-db.com/).
-- See the [Capability Matrix](https://docs.flare-db.com/compatibility) for supported Beam features.
+- See the [Beam Capability Matrix](/documentation/runners/capability-matrix/) to learn about features supported by FlareDB.
 - Try more [examples](https://github.com/flare-db/flare-db/tree/main/example) in the FlareDB repository.
 - Report bugs or request features in the [FlareDB issue tracker](https://github.com/flare-db/flare-db/issues).
 - Contributions are welcome. See the [Contributing Guide](https://github.com/flare-db/flare-db/blob/main/CONTRIBUTING.md) to get started.
