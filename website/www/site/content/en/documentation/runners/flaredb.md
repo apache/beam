@@ -204,7 +204,7 @@ The FlareDB Runner is configured through the following pipeline options:
 - Browse the [FlareDB documentation](https://docs.flare-db.com/).
 - See the [Capability Matrix](https://docs.flare-db.com/compatibility) for supported Beam features.
 - Try more [examples](https://github.com/flare-db/flare-db/tree/main/example) in the FlareDB repository.
-- Report bugs or request features in the [FlareDB issue tracker](https://github.com/flare-db/flare-db/issues). 
+- Report bugs or request features in the [FlareDB issue tracker](https://github.com/flare-db/flare-db/issues).
 - Contributions are welcome. See the [Contributing Guide](https://github.com/flare-db/flare-db/blob/main/CONTRIBUTING.md) to get started.
 
 FlareDB is released under the Apache License 2.0.
