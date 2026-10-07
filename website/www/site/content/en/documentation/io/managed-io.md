@@ -1265,7 +1265,7 @@ For more information on table properties, please visit https://iceberg.apache.or
         <code>list[<span style="color: green;">str</span>]</code>
       </td>
       <td>
-        List of top-level metadata columns to include with CDC output rows. Supported columns: 
+        List of top-level metadata columns to include with CDC output rows. Supported columns:
 - `_change_type`
 - `_row_id`
 - `_last_updated_sequence_number`
