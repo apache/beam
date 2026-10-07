@@ -1,10 +1,10 @@
 {
   "commentedAboutFailingChecks": false,
   "reviewersAssignedForLabels": {
-    "python": "shunping",
-    "java": "chamikaramj",
+    "python": "jrmccluskey",
+    "java": "Abacn",
     "yaml": "chamikaramj",
-    "bigtable": "mutianf"
+    "bigtable": "Abacn"
   },
   "nextAction": "Reviewers",
   "stopReviewerNotifications": false,
