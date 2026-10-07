@@ -1,4 +1,68 @@
-<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Beam modernization at project 10-year mark</title><description>
+<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0"><channel><title>Apache Beam</title><description>Apache Beam is an open source, unified model and set of language-specific SDKs for defining and executing data processing workflows, and also data ingestion and integration flows, supporting Enterprise Integration Patterns (EIPs) and Domain Specific Languages (DSLs). Dataflow pipelines simplify the mechanics of large-scale batch and streaming data processing and can run on a number of runtimes like Apache Flink, Apache Spark, and Google Cloud Dataflow (a cloud service). Beam also brings DSL in different languages, allowing users to easily implement their data integration processes.</description><link>/</link><generator>Hugo -- gohugo.io</generator><item><title>Apache Beam 2.77.0</title><description>
+&lt;!--
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-->
+&lt;p>We are happy to present the new 2.77.0 release of Beam.
+This release includes both improvements and new functionality.
+See the &lt;a href="/get-started/downloads/#2770-2026-10-07">download page&lt;/a> for this release.&lt;/p>
+&lt;p>For more information on changes in 2.77.0, check out the &lt;a href="https://github.com/apache/beam/milestone/44">detailed release notes&lt;/a>.&lt;/p>
+&lt;h2 id="highlights">Highlights&lt;/h2>
+&lt;h3 id="ios">I/Os&lt;/h3>
+&lt;ul>
+&lt;li>Added &lt;code>schema_update_options&lt;/code> to &lt;code>WriteToBigQuery&lt;/code> file loads, allowing BigQuery load jobs to add nullable fields or relax required fields when appending data (Python) (&lt;a href="https://github.com/apache/beam/issues/21141">#21141&lt;/a>).&lt;/li>
+&lt;li>BigQueryIO now supports reading BigQuery Lakehouse runtime catalog (BigLake metastore) Iceberg tables with the Storage Read API, using 4-part &lt;code>project.catalog.namespace.table&lt;/code> identifiers (or a &lt;code>TableReference&lt;/code> with a composite &lt;code>catalog.namespace&lt;/code> dataset id). Previously such references were silently mis-parsed (Java) (&lt;a href="https://github.com/apache/beam/issues/39597">#39597&lt;/a>) .&lt;/li>
+&lt;li>SolaceIO now supports reading and writing binary and text content data payload (Java) (&lt;a href="https://github.com/apache/beam/issues/39875">#39875&lt;/a>).&lt;/li>
+&lt;li>ClickHouseIO: support writing &lt;code>Decimal(P, S)&lt;/code> / &lt;code>Decimal32/64/128/256&lt;/code> columns (Java) (&lt;a href="https://github.com/apache/beam/issues/39840">#39840&lt;/a>).&lt;/li>
+&lt;li>SolaceIO now supports reading and writing user properties (message metadata) (Java) (&lt;a href="https://github.com/apache/beam/issues/40099">#40099&lt;/a>).&lt;/li>
+&lt;li>[IcebergIO] AddFiles (&lt;code>IcebergAddFiles&lt;/code> in YAML) can evolve the table schema before registering files, with &lt;code>schema_evolution_options&lt;/code>, &lt;code>required_columns&lt;/code>, &lt;code>incompatible_schema_handling&lt;/code> and &lt;code>unverifiable_file_handling&lt;/code> (Java/YAML, batch only) (&lt;a href="https://github.com/apache/beam/issues/40144">#40144&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
+&lt;ul>
+&lt;li>(Java/Python) &lt;code>Watch&lt;/code> can bound its deduplication state by event time, retiring an output key once the greatest emitted timestamp has moved more than the allowed lateness past it. Java adds &lt;code>Watch.growthOf(...).withTimestampCursor()&lt;/code>. Python adds &lt;code>allowed_lateness&lt;/code> for the existing &lt;code>timestamp_cursor&lt;/code> option (&lt;a href="https://github.com/apache/beam/issues/18459">#18459&lt;/a>).&lt;/li>
+&lt;li>(Java) Spark Structured Streaming runner: stateful ParDo with state, timers, &lt;code>@RequiresTimeSortedInput&lt;/code> and tagged outputs is now supported in batch mode (&lt;a href="https://github.com/apache/beam/issues/39779">#39779&lt;/a>).&lt;/li>
+&lt;li>(Python) Added support for Vertex AI Model Monitoring V2 in RunInference (&lt;a href="https://github.com/apache/beam/issues/39738">#39738&lt;/a>).&lt;/li>
+&lt;li>[Flink Runner] Added opt-in static round-robin split assignment for small bounded sources via the new &lt;code>sourceStaticSplitThresholdMb&lt;/code> pipeline option. The default of 0 keeps the existing lazy pull-based assignment (&lt;a href="https://github.com/apache/beam/issues/39873">#39873&lt;/a>).&lt;/li>
+&lt;li>Added automatic caching of bounded, single-pane side-input views for classic Java Flink DataStream execution (&lt;a href="https://github.com/apache/beam/issues/39866">#39866&lt;/a>).&lt;/li>
+&lt;li>(Python) Added &lt;code>Sample.Any&lt;/code>, the Python equivalent of Java&amp;rsquo;s &lt;code>Sample.any&lt;/code>, which returns up to n arbitrary elements from a PCollection (&lt;a href="https://github.com/apache/beam/issues/18552">#18552&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
+&lt;ul>
+&lt;li>Portable Java SDK now encodes SchemaCoders in a portable way (&lt;a href="https://github.com/apache/beam/issues/34672">#34672&lt;/a>).
+&lt;ul>
+&lt;li>Original custom Java coder encoding can still be obtained using &lt;a href="https://github.com/apache/beam/blob/2cf0930e7ae1aa389c26ce6639b584877a3e31d9/sdks/java/core/src/main/java/org/apache/beam/sdk/options/StreamingOptions.java#L47">StreamingOptions.setUpdateCompatibilityVersion(&amp;ldquo;2.76&amp;rdquo;)&lt;/a> (&lt;a href="https://github.com/apache/beam/issues/34672">#34672&lt;/a>).&lt;/li>
+&lt;li>Fixes (&lt;a href="https://github.com/apache/beam/issues/36496">#36496&lt;/a>), (&lt;a href="https://github.com/apache/beam/issues/30276">#30276&lt;/a>), (&lt;a href="https://github.com/apache/beam/issues/29245">#29245&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;li>(Python) &lt;code>TensorRTEngineHandlerNumPy&lt;/code> now requires TensorRT 10 or later. TensorRT 8.x is no longer supported, since TensorRT 10 removed the engine binding API the handler was written against (&lt;a href="https://github.com/apache/beam/issues/36306">#36306&lt;/a>).
+&lt;ul>
+&lt;li>Engines serialized by TensorRT 8.x must be rebuilt, as an engine can only be deserialized by the major version that built it.&lt;/li>
+&lt;li>TensorRT 10 and later require a GPU with compute capability 7.5 or higher, which excludes NVIDIA Pascal and Volta GPUs.&lt;/li>
+&lt;li>If dropping TensorRT 8.x support is a hard blocker for you, please comment on (&lt;a href="https://github.com/apache/beam/issues/36306">#36306&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;/li>
+&lt;/ul>
+&lt;h3 id="bugfixes">Bugfixes&lt;/h3>
+&lt;ul>
+&lt;li>(Java) Fixed the Spark runner firing processing-time timers in reverse timestamp order (&lt;a href="https://github.com/apache/beam/issues/39824">#39824&lt;/a>).&lt;/li>
+&lt;li>(Java) Fixed the Spark runner dropping the stored watermark of a streaming source with no update in a batch (&lt;a href="https://github.com/apache/beam/issues/39822">#39822&lt;/a>).&lt;/li>
+&lt;li>(Python) Fixed incorrect profiler options handling on portable runners (&lt;a href="https://github.com/apache/beam/issues/39613">#39613&lt;/a>).&lt;/li>
+&lt;li>(Java) KafkaIO dynamic reads no longer require the obsolete &lt;code>beam_fn_api&lt;/code> experiment (&lt;a href="https://github.com/apache/beam/issues/29998">#29998&lt;/a>).&lt;/li>
+&lt;li>(Prism) Self-checkpointing splittable DoFns now resume after their requested delay instead of immediately, so polling SDFs no longer busy-spin (&lt;a href="https://github.com/apache/beam/issues/39848">#39848&lt;/a>).&lt;/li>
+&lt;li>(Java) MongoDbIO read splitting now preserves non-ObjectId &lt;code>_id&lt;/code> types (e.g. string ids) instead of failing to parse the generated range filters (&lt;a href="https://github.com/apache/beam/issues/39900">#39900&lt;/a>).&lt;/li>
+&lt;li>(Go) Fixed GCS glob matching silently dropping objects when the glob pattern contains multi-byte characters (&lt;a href="https://github.com/apache/beam/issues/39969">#39969&lt;/a>).&lt;/li>
+&lt;li>(Python) Fixed &lt;code>TensorRTEngineHandlerNumPy&lt;/code> failing with &lt;code>CUDA_ERROR_INVALID_VALUE&lt;/code> on models with a single-element input or output tensor (&lt;a href="https://github.com/apache/beam/issues/36306">#36306&lt;/a>).&lt;/li>
+&lt;li>(Python) Fixed &lt;code>PickleCoder&lt;/code>/&lt;code>_MemoizingPickleCoder.as_deterministic_coder()&lt;/code> raising &lt;code>TypeError&lt;/code> instead of returning a working deterministic coder (&lt;a href="https://github.com/apache/beam/issues/28558">#28558&lt;/a>).&lt;/li>
+&lt;/ul>
+&lt;p>According to git shortlog, the following people contributed to the 2.77.0 release. Thank you to all contributors!&lt;/p>
+&lt;p>Abdelrahman Ibrahim, Aditya Narayan, Ahmed Abualsaud, Alex Bevilacqua, Alexander Pochill, Ali Ebrahim, Andrew Crites, Arun Pandian, Ashwin S, Bruno Volpato, Chamikara Jayalath, Chris Gavin, Claire McGinty, Danny McCormick, Derrick Williams, Eiji Ogiwara, Elia Liu, Fabian Loris, Goutam Adwant, HansMarcus01, Israel Herraiz, Jack McCluskey, Jan Lukavský, Jeremy Schoemaker, Kenneth Knowles, Lalit Yadav, Lawrence Qiu, M Junaid Shaukat, Makoto Nagai, Maksym Tymoshyk, Manvith Panyam, Mattie Fu, Michael Gruschke, Mukesh Bhandarkar, Nicolas Gibanel, Paulius Kuzmickas, Radosław Stankiewicz, Ryan Wigglesworth, Sam Whittle, Sharan Teja M, Shizuma5, Shunping Huang, SreeramaYeshwanthGowd, Tobias Kaymak, Tom Newton, Udit Jain, Vitaly Terentyev, Yi Hu, ZIHAN DAI, akshayjadiyanv, claudevdm, darshan-sj, feefs, junaiddshaukat, kellen, nitinware, parveensania, tvalentyn&lt;/p></description><link>/blog/beam-2.77.0/</link><pubDate>Wed, 07 Oct 2026 14:00:00 -0500</pubDate><guid>/blog/beam-2.77.0/</guid><category>blog</category><category>release</category></item><item><title>Beam modernization at project 10-year mark</title><description>
 &lt;!--
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
@@ -694,41 +758,4 @@ See the &lt;a href="/get-started/downloads/#2710-2026-01-22">download page&lt;/a
 &lt;p>For the most up to date list of known issues, see &lt;a href="https://github.com/apache/beam/blob/master/CHANGES.md">https://github.com/apache/beam/blob/master/CHANGES.md&lt;/a>&lt;/p>
 &lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
 &lt;p>According to git shortlog, the following people contributed to the 2.71.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Ahmed Abualsaud, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236&lt;/p></description><link>/blog/beam-2.71.0/</link><pubDate>Tue, 13 Jan 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.71.0/</guid><category>blog</category><category>release</category></item><item><title>Apache Beam 2.70.0</title><description>
-&lt;!--
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-http://www.apache.org/licenses/LICENSE-2.0
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-&lt;p>We are happy to present the new 2.70.0 release of Beam.
-This release includes both improvements and new functionality.
-See the &lt;a href="/get-started/downloads/#2700-2025-12-16">download page&lt;/a> for this release.&lt;/p>
-&lt;p>For more information on changes in 2.70.0, check out the &lt;a href="https://github.com/apache/beam/milestone/38?closed=1">detailed release notes&lt;/a>.&lt;/p>
-&lt;h2 id="highlights">Highlights&lt;/h2>
-&lt;ul>
-&lt;li>Flink 1.20 support added (&lt;a href="https://github.com/apache/beam/issues/32647">#32647&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="new-features--improvements">New Features / Improvements&lt;/h3>
-&lt;ul>
-&lt;li>Python examples added for Milvus search enrichment handler on &lt;a href="https://beam.apache.org/documentation/transforms/python/elementwise/enrichment-milvus/">Beam Website&lt;/a>
-including jupyter notebook example (Python) (&lt;a href="https://github.com/apache/beam/issues/36176">#36176&lt;/a>).&lt;/li>
-&lt;li>Milvus sink I/O connector added (Python) (&lt;a href="https://github.com/apache/beam/issues/36702">#36702&lt;/a>).
-Now Beam has full support for Milvus integration including Milvus enrichment and sink operations.&lt;/li>
-&lt;/ul>
-&lt;h3 id="breaking-changes">Breaking Changes&lt;/h3>
-&lt;ul>
-&lt;li>(Python) Some Python dependencies have been split out into extras. To ensure all previously installed dependencies are installed, when installing Beam you can &lt;code>pip install apache-beam[gcp,interactive,yaml,redis,hadoop,tfrecord]&lt;/code>, though most users will not need all of these extras (&lt;a href="https://github.com/apache/beam/issues/34554">#34554&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h3 id="deprecations">Deprecations&lt;/h3>
-&lt;ul>
-&lt;li>(Python) Python 3.9 reached EOL in October 2025 and support for the language version has been removed. (&lt;a href="https://github.com/apache/beam/issues/36665">#36665&lt;/a>).&lt;/li>
-&lt;/ul>
-&lt;h2 id="list-of-contributors">List of Contributors&lt;/h2>
-&lt;p>According to git shortlog, the following people contributed to the 2.70.0 release. Thank you to all contributors!&lt;/p>
-&lt;p>Abdelrahman Ibrahim, Ahmed Abualsaud, Alex Chermenin, Andrew Crites, Arun Pandian, Celeste Zeng, Chamikara Jayalath, Chenzo, Claire McGinty, Danny McCormick, Derrick Williams, Dustin Rhodes, Enrique Calderon, Ian Liao, Jack McCluskey, Jessica Hsiao, Joey Tran, Karthik Talluri, Kenneth Knowles, Maciej Szwaja, Mehdi.D, Mohamed Awnallah, Praneet Nadella, Radek Stankiewicz, Radosław Stankiewicz, Reuven Lax, RuiLong J., S. Veyrié, Sam Whittle, Shunping Huang, Stephan Hoyer, Steven van Rossum, Tanu Sharma, Tarun Annapareddy, Tom Stepp, Valentyn Tymofieiev, Vitaly Terentyev, XQ Hu, Yi Hu, changliiu, claudevdm, fozzie15, kristynsmith, wolfchris-google&lt;/p></description><link>/blog/beam-2.70.0/</link><pubDate>Tue, 16 Dec 2025 15:00:00 -0500</pubDate><guid>/blog/beam-2.70.0/</guid><category>blog</category><category>release</category></item></channel></rss>
+&lt;p>Ahmed Abualsaud, Andrew Crites, apanich, Arun, Arun Pandian, assaf127, Chamikara Jayalath, CherisPatelInfocusp, Cheskel Twersky, Claire McGinty, Claude, Danny Mccormick, Derrick Williams, Egbert van der Wal, Evan Galpin, Ganesh, hekk-kaori-maeda, Jack Dingilian, Jack McCluskey, JayajP, Jiang Zhu, Kenneth Knowles, liferoad, M Junaid Shaukat, Nayan Mathur, Noah Stapp, Paco Avila, Radek Stankiewicz, Radosław Stankiewicz, Robert Stupp, Sam Whittle, Shunping Huang, Steven van Rossum, Suvrat Acharya, Tarun Annapareddy, tvalentyn, Utkarsh Parekh, Vitaly Terentyev, Xiaochu Liu, Yala Huang Feng, Yi Hu, Yu Watanabe, zhan7236&lt;/p></description><link>/blog/beam-2.71.0/</link><pubDate>Tue, 13 Jan 2026 09:00:00 -0700</pubDate><guid>/blog/beam-2.71.0/</guid><category>blog</category><category>release</category></item></channel></rss>
