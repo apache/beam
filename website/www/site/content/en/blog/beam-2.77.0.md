@@ -1,6 +1,6 @@
 ---
 title:  "Apache Beam 2.77.0"
-date:   2026-09-?? 14:00:00 -0500
+date:   2026-10-07 14:00:00 -0500
 categories:
   - blog
   - release
@@ -21,7 +21,7 @@ limitations under the License.
 
 We are happy to present the new 2.77.0 release of Beam.
 This release includes both improvements and new functionality.
-See the [download page](/get-started/downloads/#2770-2026-09-??) for this release.
+See the [download page](/get-started/downloads/#2770-2026-10-07) for this release.
 
 <!--more-->
 
@@ -69,6 +69,6 @@ For more information on changes in 2.77.0, check out the [detailed release notes
 * (Python) Fixed `TensorRTEngineHandlerNumPy` failing with `CUDA_ERROR_INVALID_VALUE` on models with a single-element input or output tensor ([#36306](https://github.com/apache/beam/issues/36306)).
 * (Python) Fixed `PickleCoder`/`_MemoizingPickleCoder.as_deterministic_coder()` raising `TypeError` instead of returning a working deterministic coder ([#28558](https://github.com/apache/beam/issues/28558)).
 
-According to git shortlog, the following people contributed to the 2.76.0 release. Thank you to all contributors!
+According to git shortlog, the following people contributed to the 2.77.0 release. Thank you to all contributors!
 
 Abdelrahman Ibrahim, Aditya Narayan, Ahmed Abualsaud, Alex Bevilacqua, Alexander Pochill, Ali Ebrahim, Andrew Crites, Arun Pandian, Ashwin S, Bruno Volpato, Chamikara Jayalath, Chris Gavin, Claire McGinty, Danny McCormick, Derrick Williams, Eiji Ogiwara, Elia Liu, Fabian Loris, Goutam Adwant, HansMarcus01, Israel Herraiz, Jack McCluskey, Jan Lukavský, Jeremy Schoemaker, Kenneth Knowles, Lalit Yadav, Lawrence Qiu, M Junaid Shaukat, Makoto Nagai, Maksym Tymoshyk, Manvith Panyam, Mattie Fu, Michael Gruschke, Mukesh Bhandarkar, Nicolas Gibanel, Paulius Kuzmickas, Radosław Stankiewicz, Ryan Wigglesworth, Sam Whittle, Sharan Teja M, Shizuma5, Shunping Huang, SreeramaYeshwanthGowd, Tobias Kaymak, Tom Newton, Udit Jain, Vitaly Terentyev, Yi Hu, ZIHAN DAI, akshayjadiyanv, claudevdm, darshan-sj, feefs, junaiddshaukat, kellen, nitinware, parveensania, tvalentyn
