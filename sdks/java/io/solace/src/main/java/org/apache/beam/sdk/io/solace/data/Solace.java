@@ -435,6 +435,8 @@ public class Solace {
           .setUserProperties(Collections.emptyMap());
     }
 
+    public abstract Builder toBuilder();
+
     @AutoValue.Builder
     public abstract static class Builder {
       public abstract Builder setMessageId(String messageId);
