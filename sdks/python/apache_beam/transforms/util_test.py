@@ -1416,6 +1416,22 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
     for batch in batches:
       self.assertEqual(len(batch), 2)
 
+  def test_global_dofn_batch_can_reach_max_batch_weight(self):
+    """Test that a batch can weigh exactly max_batch_weight."""
+    from apache_beam.transforms.util import _SortAndBatchElementsDoFn
+
+    # Each element has size 5, max_batch_weight=10 -> 2 per batch
+    dofn = _SortAndBatchElementsDoFn(
+        min_batch_size=1,
+        max_batch_size=100,
+        max_batch_weight=10,
+        element_size_fn=len)
+    dofn.start_bundle()
+    for elem in ['aaaaa', 'bbbbb', 'ccccc', 'ddddd']:
+      dofn.process(elem)
+    batches = [wv.value for wv in dofn.finish_bundle()]
+    self.assertEqual([len(batch) for batch in batches], [2, 2])
+
   def test_windowed_dofn_flush_and_finish(self):
     """Test _WindowAwareSortAndBatchElementsDoFn directly."""
     from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
@@ -1492,6 +1508,21 @@ class SortAndBatchElementsDoFnDirectTest(unittest.TestCase):
     for wv in batches:
       self.assertEqual(len(wv.value), 2)
       self.assertEqual(wv.windows[0], win)
+
+  def test_windowed_dofn_batch_can_reach_max_batch_weight(self):
+    """Test that a windowed batch can weigh exactly max_batch_weight."""
+    from apache_beam.transforms.util import _WindowAwareSortAndBatchElementsDoFn
+
+    dofn = _WindowAwareSortAndBatchElementsDoFn(
+        min_batch_size=1,
+        max_batch_size=100,
+        max_batch_weight=10,
+        element_size_fn=len)
+    dofn.start_bundle()
+    win = IntervalWindow(0, 10)
+    dofn._buffers[win].extend(['aaaaa', 'bbbbb', 'ccccc', 'ddddd'])
+    batches = list(dofn._flush_window(win))
+    self.assertEqual([len(wv.value) for wv in batches], [2, 2])
 
 
 class IdentityWindowTest(unittest.TestCase):
