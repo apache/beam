@@ -26,7 +26,28 @@ pipeline:
       name: ReadFromBigQuery
       config:
         table: "apache-beam-testing.shipment.shipments"
-    # Step 2: Write records out to Cloud Bigtable
+    # Step 2: Convert BigQuery rows to Bigtable SetCell mutations
+    - type: MapToFields
+      name: ConvertToBigTableMutations
+      config:
+        language: python
+        fields:
+          key:
+            callable: |
+              def to_key_bytes(row):
+                return bytes(row.shipment_id, 'utf-8')
+          type: "'SetCell'"
+          family_name: "'shipment'"
+          column_qualifier:
+            callable: |
+              def to_qualifier_bytes(row):
+                return b'customer_id'
+          value:
+            callable: |
+              def to_value_bytes(row):
+                return bytes(row.customer_id, 'utf-8')
+          timestamp_micros: -1
+    # Step 3: Write records out to Cloud Bigtable
     - type: WriteToBigTable
       name: WriteToBigTable
       config:
@@ -35,9 +56,9 @@ pipeline:
         table: "shipments"
 
 # Expected:
-#  Row(shipment_id='S1', customer_id='C1', shipment_date='2023-05-01', shipment_cost=150.0, customer_name='Alice', customer_email='alice@example.com')
-#  Row(shipment_id='S2', customer_id='C2', shipment_date='2023-06-12', shipment_cost=300.0, customer_name='Bob', customer_email='bob@example.com')
-#  Row(shipment_id='S3', customer_id='C1', shipment_date='2023-05-10', shipment_cost=20.0, customer_name='Alice', customer_email='alice@example.com')
-#  Row(shipment_id='S4', customer_id='C4', shipment_date='2024-07-01', shipment_cost=150.0, customer_name='Derek', customer_email='derek@example.com')
-#  Row(shipment_id='S5', customer_id='C5', shipment_date='2023-05-09', shipment_cost=300.0, customer_name='Erin', customer_email='erin@example.com')
-#  Row(shipment_id='S6', customer_id='C4', shipment_date='2024-07-02', shipment_cost=150.0, customer_name='Derek', customer_email='derek@example.com')
+#  Row(key=b'S1', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C1', timestamp_micros=-1)
+#  Row(key=b'S2', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C2', timestamp_micros=-1)
+#  Row(key=b'S3', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C1', timestamp_micros=-1)
+#  Row(key=b'S4', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C4', timestamp_micros=-1)
+#  Row(key=b'S5', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C5', timestamp_micros=-1)
+#  Row(key=b'S6', type='SetCell', family_name='shipment', column_qualifier=b'customer_id', value=b'C4', timestamp_micros=-1)
