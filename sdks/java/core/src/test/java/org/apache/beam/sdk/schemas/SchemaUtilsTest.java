@@ -18,8 +18,13 @@
 package org.apache.beam.sdk.schemas;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
+import org.apache.beam.sdk.values.Row;
 import org.junit.Test;
 
 /** Tests for {@link org.apache.beam.sdk.schemas.SchemaUtils}. */
@@ -103,5 +108,43 @@ public class SchemaUtilsTest {
                 "field1", FieldType.INT32.withNullable(true), FieldType.INT32.withNullable(true))
             .build();
     assertEquals(expected, SchemaUtils.mergeWideningNullable(schema1, schema2));
+  }
+
+  @Test
+  public void testToPrettyStringRendersNullInsideArray() {
+    Schema schema =
+        Schema.builder().addArrayField("a", FieldType.STRING.withNullable(true)).build();
+    Row row = Row.withSchema(schema).addValue(Arrays.asList("x", null)).build();
+    assertTrue(row.toString(), row.toString().contains("null"));
+  }
+
+  @Test
+  public void testToPrettyStringRendersNullMapValue() {
+    Schema schema =
+        Schema.builder()
+            .addMapField("m", FieldType.STRING, FieldType.STRING.withNullable(true))
+            .build();
+    Map<String, String> map = new HashMap<>();
+    map.put("k", null);
+    Row row = Row.withSchema(schema).addValue(map).build();
+    assertTrue(row.toString(), row.toString().contains("null"));
+  }
+
+  @Test
+  public void testToPrettyStringRendersNullRowInsideArray() {
+    Schema inner = Schema.builder().addStringField("s").build();
+    Schema schema =
+        Schema.builder().addArrayField("a", FieldType.row(inner).withNullable(true)).build();
+    Row row = Row.withSchema(schema).addValue(Arrays.asList((Row) null)).build();
+    assertTrue(row.toString(), row.toString().contains("null"));
+  }
+
+  @Test
+  public void testToPrettyStringRendersNullInsideArrayOfInts() {
+    Schema schema = Schema.builder().addArrayField("a", FieldType.INT32.withNullable(true)).build();
+    Row row = Row.withSchema(schema).addValue(Arrays.asList(1, null)).build();
+    String rendered = row.toString();
+    assertTrue(rendered, rendered.contains("1"));
+    assertTrue(rendered, rendered.contains("null"));
   }
 }

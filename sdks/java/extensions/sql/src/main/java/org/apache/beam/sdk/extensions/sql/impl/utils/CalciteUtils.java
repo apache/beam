@@ -29,6 +29,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.Schema.TypeName;
 import org.apache.beam.sdk.schemas.logicaltypes.PassThroughLogicalType;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.util.Preconditions;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.avatica.util.ByteString;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.rel.type.RelDataType;
@@ -75,7 +76,8 @@ public class CalciteUtils {
       return logicalId.equals(SqlTypes.DATE.getIdentifier())
           || logicalId.equals(SqlTypes.TIME.getIdentifier())
           || logicalId.equals(TimeWithLocalTzType.IDENTIFIER)
-          || logicalId.equals(SqlTypes.DATETIME.getIdentifier());
+          || logicalId.equals(SqlTypes.DATETIME.getIdentifier())
+          || logicalId.equals(Timestamp.IDENTIFIER);
     }
     return false;
   }
@@ -114,6 +116,8 @@ public class CalciteUtils {
       FieldType.logicalType(SqlTypes.TIME).withNullable(true);
   public static final FieldType TIME_WITH_LOCAL_TZ =
       FieldType.logicalType(new TimeWithLocalTzType());
+  // TODO: Default SQL TIMESTAMP to Timestamp.MICROS (or equivalent) instead of FieldType.DATETIME
+  // once Beam SQL / Calcite can preserve microsecond precision end-to-end.
   public static final FieldType TIMESTAMP = FieldType.DATETIME;
   public static final FieldType NULLABLE_TIMESTAMP = FieldType.DATETIME.withNullable(true);
   public static final FieldType TIMESTAMP_WITH_LOCAL_TZ = FieldType.logicalType(SqlTypes.DATETIME);
@@ -222,6 +226,8 @@ public class CalciteUtils {
             if (logicalType instanceof PassThroughLogicalType) {
               // for pass through logical type, just return its base type
               return toSqlTypeName(logicalType.getBaseType());
+            } else if (Timestamp.IDENTIFIER.equals(logicalType.getIdentifier())) {
+              return SqlTypeName.TIMESTAMP;
             } else if ("SqlCharType".equals(logicalType.getIdentifier())) {
               LOG.warn(
                   "SqlCharType is used in Schema. It was removed in Beam 2.44.0 and should be"

@@ -69,3 +69,34 @@ func DecodeInt32(r io.Reader) (int32, error) {
 	}
 	return int32(ret), nil
 }
+
+// EncodeUint16 encodes an uint16 in big endian format.
+func EncodeUint16(value uint16, w io.Writer) error {
+	var data [2]byte
+	binary.BigEndian.PutUint16(data[:], value)
+	_, err := ioutilx.WriteUnsafe(w, data[:])
+	return err
+}
+
+// DecodeUint16 decodes an uint16 in big endian format.
+func DecodeUint16(r io.Reader) (uint16, error) {
+	var data [2]byte
+	if err := ioutilx.ReadNBufUnsafe(r, data[:]); err != nil {
+		return 0, err
+	}
+	return binary.BigEndian.Uint16(data[:]), nil
+}
+
+// EncodeInt16 encodes an int16 in big endian format.
+func EncodeInt16(value int16, w io.Writer) error {
+	return EncodeUint16(uint16(value), w)
+}
+
+// DecodeInt16 decodes an int16 in big endian format.
+func DecodeInt16(r io.Reader) (int16, error) {
+	ret, err := DecodeUint16(r)
+	if err != nil {
+		return 0, err
+	}
+	return int16(ret), nil
+}

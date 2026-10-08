@@ -113,6 +113,25 @@ class UtilTest(unittest.TestCase):
 
     self.assertEqual(pipeline_url, FAKE_PIPELINE_URL)
 
+  def test_value_provider_options_serialization(self):
+    class UserOptions(PipelineOptions):
+      @classmethod
+      def _add_argparse_args(cls, parser):
+        parser.add_value_provider_argument('--at_vp_arg1')
+        parser.add_value_provider_argument('--at_vp_arg2')
+
+    pipeline_options = UserOptions([
+        '--at_vp_arg2', 'provided', '--temp_location', 'gs://any-location/temp'
+    ])
+    env = apiclient.Environment([],
+                                pipeline_options,
+                                '2.0.0',
+                                FAKE_PIPELINE_URL)
+
+    recovered_options = env.proto.sdk_pipeline_options['options']
+    self.assertIsNone(recovered_options['at_vp_arg1'])
+    self.assertEqual(recovered_options['at_vp_arg2'], 'provided')
+
   def test_pipeline_proto_hash(self):
     pipeline_options = PipelineOptions(
         ['--temp_location', 'gs://any-location/temp'])
@@ -1100,7 +1119,7 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_interpreter_version_check_fails_py38(self):
+  def test_interpreter_version_check_fails_py310(self):
     pipeline_options = PipelineOptions([])
     self.assertRaises(
         Exception,
@@ -1109,12 +1128,12 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 10, 10))
+      (3, 11, 4))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_interpreter_version_check_passes_py310(self):
+  def test_interpreter_version_check_passes_py311(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 

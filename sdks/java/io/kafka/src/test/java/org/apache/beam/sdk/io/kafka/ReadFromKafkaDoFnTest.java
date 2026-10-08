@@ -585,8 +585,7 @@ public class ReadFromKafkaDoFnTest {
     MockMultiOutputReceiver receiver = new MockMultiOutputReceiver();
     ReadFromKafkaDoFn<String, String> instance =
         ReadFromKafkaDoFn.create(
-            makeReadSourceDescriptor(consumer)
-                .toBuilder()
+            makeReadSourceDescriptor(consumer).toBuilder()
                 .setCheckStopReadingFn(
                     new SerializableFunction<TopicPartition, Boolean>() {
                       @Override

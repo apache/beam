@@ -38,6 +38,7 @@ import org.apache.beam.model.fnexecution.v1.BeamFnApi.StateRequest;
 import org.apache.beam.sdk.coders.IterableLikeCoder;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterable;
 import org.apache.beam.sdk.fn.stream.PrefetchableIterators;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.util.BufferedElementCountingOutputStream;
 import org.apache.beam.sdk.util.VarInt;
 import org.apache.beam.sdk.util.common.ElementByteSizeObservableIterable;
@@ -52,6 +53,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Immuta
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.io.ByteStreams;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -299,6 +301,26 @@ public class StateBackedIterable<T>
             CoderTranslator<? extends org.apache.beam.sdk.coders.Coder>>
         getCoderTranslators() {
       return ImmutableMap.of(StateBackedIterable.Coder.class, new Translator());
+    }
+
+    @Override
+    public boolean isKnownCoder(
+        org.apache.beam.sdk.coders.Coder<?> coder, PipelineOptions options) {
+      return coder.getClass() == StateBackedIterable.Coder.class;
+    }
+
+    @Override
+    public @Nullable CoderTranslator<? extends org.apache.beam.sdk.coders.Coder> getCoderTranslator(
+        Class<? extends org.apache.beam.sdk.coders.Coder> coderClass) {
+      return coderClass == StateBackedIterable.Coder.class ? new Translator() : null;
+    }
+
+    @Override
+    public @Nullable Class<? extends org.apache.beam.sdk.coders.Coder> getCoderForUrn(
+        String coderUrn) {
+      return STATE_BACKED_ITERABLE_CODER_URN.equals(coderUrn)
+          ? StateBackedIterable.Coder.class
+          : null;
     }
   }
 

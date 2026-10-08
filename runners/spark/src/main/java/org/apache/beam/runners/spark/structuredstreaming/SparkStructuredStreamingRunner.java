@@ -17,21 +17,21 @@
  */
 package org.apache.beam.runners.spark.structuredstreaming;
 
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-
+import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
-import javax.annotation.Nullable;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.beam.runners.core.metrics.MetricsPusher;
 import org.apache.beam.runners.core.metrics.NoOpMetricsSink;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.MetricsAccumulator;
 import org.apache.beam.runners.spark.structuredstreaming.metrics.SparkBeamMetricSource;
 import org.apache.beam.runners.spark.structuredstreaming.translation.EvaluationContext;
 import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslator;
+import org.apache.beam.runners.spark.structuredstreaming.translation.PipelineTranslatorFactory;
 import org.apache.beam.runners.spark.structuredstreaming.translation.SparkSessionFactory;
-import org.apache.beam.runners.spark.structuredstreaming.translation.batch.PipelineTranslatorBatch;
 import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineRunner;
 import org.apache.beam.sdk.metrics.MetricsEnvironment;
@@ -43,6 +43,7 @@ import org.apache.beam.sdk.options.PipelineOptionsValidator;
 import org.apache.beam.sdk.util.construction.SplittableParDo;
 import org.apache.beam.sdk.util.construction.graph.ProjectionPushdownOptimizer;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.ThreadFactoryBuilder;
+import org.apache.spark.SparkContext;
 import org.apache.spark.SparkEnv$;
 import org.apache.spark.metrics.MetricsSystem;
 import org.apache.spark.sql.SparkSession;
@@ -54,9 +55,9 @@ import org.slf4j.LoggerFactory;
  * href="https://spark.apache.org/docs/latest/structured-streaming-programming-guide.html">Structured
  * Streaming framework</a>).
  *
- * <p><b>This runner is experimental, its coverage of the Beam model is still partial. Due to
- * limitations of the Structured Streaming framework (e.g. lack of support for multiple stateful
- * operators), streaming mode is not yet supported by this runner. </b>
+ * <p><b>This runner is experimental, its coverage of the Beam model is still partial. Streaming
+ * mode requires the Spark 4 module (beam-runners-spark-4); the shared Spark 3 module supports batch
+ * pipelines only. </b>
  *
  * <p>The runner translates transforms defined on a Beam pipeline to Spark `Dataset` transformations
  * (leveraging the high level Dataset API) and then submits these to Spark to be executed.
@@ -145,19 +146,48 @@ public final class SparkStructuredStreamingRunner
             + " It is still experimental, its coverage of the Beam model is partial. ***");
 
     PipelineTranslator.detectStreamingMode(pipeline, options);
-    checkArgument(!options.isStreaming(), "Streaming is not supported.");
 
-    final SparkSession sparkSession = SparkSessionFactory.getOrCreateSession(options);
+    final boolean releaseSession = !options.getUseActiveSparkSession();
+    final SparkSession sparkSession = SparkSessionFactory.acquire(options);
+    final SparkContext sc = sparkSession.sparkContext();
     final MetricsAccumulator metrics = MetricsAccumulator.getInstance(sparkSession);
 
+    // Null until translation completes.
+    final AtomicReference<EvaluationContext> ctxRef = new AtomicReference<>();
+    final AtomicBoolean cancelRequested = new AtomicBoolean(false);
+
+    final String jobName = options.getJobName();
+    final String jobGroupId = "beam-" + jobName + "-" + UUID.randomUUID();
+    final Runnable cancelSparkJobs =
+        () -> {
+          try {
+            sc.cancelJobGroup(jobGroupId);
+          } catch (IllegalStateException e) {
+            // Context stopped concurrently.
+          }
+        };
+
     final Future<?> submissionFuture =
-        runAsync(() -> translatePipeline(sparkSession, pipeline).evaluate());
+        runAsync(
+            () -> {
+              try {
+                // Interrupts running tasks on cancel, as Spark's StreamExecution does.
+                sc.setJobGroup(jobGroupId, "Beam " + jobName, true);
+                EvaluationContext ctx = translatePipeline(sparkSession, pipeline);
+                ctxRef.set(ctx);
+                if (!cancelRequested.get()) {
+                  ctx.evaluate();
+                }
+              } finally {
+                if (releaseSession) {
+                  SparkSessionFactory.release(sparkSession);
+                }
+              }
+            });
 
     final SparkStructuredStreamingPipelineResult result =
         new SparkStructuredStreamingPipelineResult(
-            submissionFuture,
-            metrics,
-            sparkStopFn(sparkSession, options.getUseActiveSparkSession()));
+            submissionFuture, ctxRef::get, metrics, cancelRequested, cancelSparkJobs);
 
     if (options.getEnableSparkMetricSinks()) {
       registerMetricsSource(options.getAppName(), metrics);
@@ -186,7 +216,7 @@ public final class SparkStructuredStreamingRunner
 
     PipelineTranslator.replaceTransforms(pipeline, options);
 
-    PipelineTranslator pipelineTranslator = new PipelineTranslatorBatch();
+    PipelineTranslator pipelineTranslator = PipelineTranslatorFactory.create(options.isStreaming());
     return pipelineTranslator.translate(pipeline, sparkSession, options);
   }
 
@@ -219,9 +249,5 @@ public final class SparkStructuredStreamingRunner
     Future<?> future = execService.submit(task);
     execService.shutdown();
     return future;
-  }
-
-  private static @Nullable Runnable sparkStopFn(SparkSession session, boolean isProvided) {
-    return !isProvided ? () -> session.stop() : null;
   }
 }

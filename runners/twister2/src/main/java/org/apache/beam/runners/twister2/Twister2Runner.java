@@ -75,6 +75,7 @@ public class Twister2Runner extends PipelineRunner<PipelineResult> {
   private static final String SIDEINPUTS = "sideInputs";
   private static final String LEAVES = "leaves";
   private static final String GRAPH = "graph";
+
   /** Provided options. */
   private final Twister2PipelineOptions options;
 

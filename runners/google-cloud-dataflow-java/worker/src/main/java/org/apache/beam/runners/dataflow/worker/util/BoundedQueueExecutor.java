@@ -18,9 +18,11 @@
 package org.apache.beam.runners.dataflow.worker.util;
 
 import static org.apache.beam.sdk.util.Preconditions.checkArgumentNotNull;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -31,10 +33,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.concurrent.GuardedBy;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.VisibleForTesting;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
-import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.Monitor.Guard;
 import org.checkerframework.checker.nullness.qual.Nullable;
@@ -304,8 +306,13 @@ public class BoundedQueueExecutor {
     }
 
     @Override
-    public synchronized ImmutableList<Work> getWorkBatch() {
-      return ImmutableList.copyOf(workBatch);
+    /*
+     * Returns an unmodifiable view over the underlying list.
+     * It is unsafe to use the returned list with concurrent calls to mutating methods
+     * like merge/close
+     */
+    public synchronized List<Work> getWorkBatch() {
+      return Collections.unmodifiableList(workBatch);
     }
 
     @VisibleForTesting
@@ -387,20 +394,32 @@ public class BoundedQueueExecutor {
   }
 
   public @Nullable ExecutableWork pollWork(
-      String computationId, Work.KeyGroup keyGroup, BoundedQueueExecutorWorkHandle handle) {
+      String computationId,
+      Work.KeyGroup keyGroup,
+      BoundedQueueExecutorWorkHandle handle,
+      FailedWorkHandler onFailedWorkHandler) {
     checkArgument(
         computationId != null && keyGroup != null && !keyGroup.equals(Work.KeyGroup.DEFAULT));
     checkArgument(handle instanceof BoundedQueueExecutorWorkHandleImpl);
+    checkStateNotNull(onFailedWorkHandler);
     BoundedQueueExecutorWorkHandleImpl internalHandle = (BoundedQueueExecutorWorkHandleImpl) handle;
     if (keyGroupWorkQueue == null) {
       return null;
     }
-    @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
-    if (queuedWork == null) {
-      return null;
+    while (true) {
+      @Nullable QueuedWork queuedWork = keyGroupWorkQueue.pollWork(computationId, keyGroup);
+      if (queuedWork == null) {
+        return null;
+      }
+      Work work = queuedWork.getWork().work();
+      if (work.isFailed()) {
+        queuedWork.getHandle().close();
+        onFailedWorkHandler.onFailedWork(work);
+        continue;
+      }
+      internalHandle.merge(queuedWork.getHandle());
+      return queuedWork.getWork();
     }
-    internalHandle.merge(queuedWork.getHandle());
-    return queuedWork.getWork();
   }
 
   private void decrementCounters(int elements, long bytes) {

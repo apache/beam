@@ -214,6 +214,22 @@ class TimestampPrecisionTest(unittest.TestCase):
     self.assertEqual(ts.subseconds(), 500000)
     self.assertEqual(ts, Timestamp(-1.5))
 
+  def test_constructor_float_rounds_to_nearest(self):
+    # Float seconds that are not exactly representable must round to the
+    # nearest subsecond unit rather than truncating one unit low.
+    self.assertEqual(Timestamp(2.000002).micros, 2000002)
+    self.assertEqual(Timestamp(1.000001).micros, 1000001)
+    self.assertEqual(Timestamp.of(2.000002).micros, 2000002)
+    # Rounding is symmetric about zero (truncation was not).
+    self.assertEqual(Timestamp(-2.000002).micros, -2000002)
+    self.assertEqual(Timestamp(-2.000002).micros, -Timestamp(2.000002).micros)
+    # Exact values are unaffected.
+    self.assertEqual(Timestamp(1.5).micros, 1500000)
+    self.assertEqual(Timestamp(2).micros, 2000000)
+    # Rounding at finer precisions.
+    ts = Timestamp(1.234567895, precision=9)
+    self.assertEqual(ts.nanos, 1234567895)
+
   def test_constructor_validation(self):
     with self.assertRaises(ValueError):
       Timestamp(0, 0, precision=10)
@@ -369,6 +385,23 @@ class TimestampPrecisionTest(unittest.TestCase):
     with self.assertRaises(ValueError):
       _ = ts % Duration(seconds=1)
 
+  def test_from_rfc3339_fraction_is_exact(self):
+    # Expected values are integers taken from the string, never
+    # Timestamp(float): both sides would share the same lossy float path.
+    # Seconds just above a power of two maximize float error.
+    for rfc, want_sec, want_sub, want_p in [
+        ('2038-01-19T03:14:08.510215590Z', 2147483648, 510215590, 9),
+        ('2004-01-10T13:37:04.611178002Z', 1073741824, 611178002, 9),
+        ('1970-01-01T00:00:00.1252641Z', 0, 1252641, 7),
+        ('1970-01-01T00:00:00.254229935Z', 0, 254229935, 9),
+        ('1969-12-31T23:59:59.746939251Z', -1, 746939251, 9),
+        ('9999-12-31T23:59:59.389694109Z', 253402300799, 389694109, 9),
+    ]:
+      ts = Timestamp.from_rfc3339(rfc)
+      self.assertEqual((ts.seconds(), ts.subseconds(), ts.precision()),
+                       (want_sec, want_sub, want_p),
+                       rfc)
+
 
 class DurationTest(unittest.TestCase):
   def test_of(self):
@@ -377,6 +410,16 @@ class DurationTest(unittest.TestCase):
     self.assertEqual(interval, Duration.of(123.0))
     with self.assertRaises(TypeError):
       Duration.of(Timestamp(10))
+
+  def test_constructor_float_rounds_to_nearest(self):
+    # Same float-to-micros conversion as Timestamp: truncating dropped a
+    # microsecond whenever seconds * 1e6 landed just below the integer.
+    self.assertEqual(Duration(2.000002).micros, 2000002)
+    self.assertEqual(Duration(-2.000002).micros, -2000002)
+    self.assertEqual(Duration.of(1.000001).micros, 1000001)
+    self.assertEqual(Duration(1.5).micros, 1500000)
+    for micros in (1056803002554, 544368929943, 33956373746):
+      self.assertEqual(Duration(micros / 1000000).micros, micros)
 
   def test_precision(self):
     self.assertEqual(Duration(10000000) % 0.1, 0)

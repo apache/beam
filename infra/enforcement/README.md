@@ -134,16 +134,18 @@ The enforcement tools are integrated with GitHub Actions to provide automated co
 
 ### Workflow Configuration
 
-The repository includes workflows for different security domains:
-- **IAM Policy Enforcer** (`.github/workflows/beam_Infrastructure_PolicyEnforcer.yml`): Runs weekly on Mondays at 9:00 AM UTC.
-- **Unmanaged Keys Audit** (`.github/workflows/beam_Infrastructure_AuditUnmanagedKeys.yml`): Runs daily at 00:00 UTC. It manages the continuous execution of the `account_keys.py` script to swiftly detect rogue service account keys generated outside the official rotation system.
-- **Manual trigger**: Can be triggered manually via `workflow_dispatch`
-- **Actions**: Runs both IAM and Account Keys enforcement with the `announce` action
+The enforcement tools are consolidated into a single daily workflow (`.github/workflows/beam_Infrastructure_PolicyEnforcer.yml`) that runs automatically at 00:00 UTC.
+
+This unified workflow executes both security domains sequentially:
+- **IAM Policy Enforcement:** Validates user bindings against the defined policies.
+- **Unmanaged Keys Audit:** Detects rogue service account keys generated outside the official rotation system and reports them to the `[IAC_DRIFT_SA_KEY]` issue.
 
 **Note**:
-- The email service is configured to use gmail
-- The recipient email is set to `dev@beam.apache.org` for Apache Beam project notifications
-- The `GITHUB_TOKEN` is automatically provided by GitHub Actions and doesn't need to be configured manually
+- **Manual trigger**: The workflow can also be triggered manually via `workflow_dispatch`.
+- **Actions**: It executes the respective Python scripts using the `announce` action.
+- The email service is configured to use gmail.
+- The recipient email is set to `dev@beam.apache.org` for Apache Beam project notifications.
+- The `GITHUB_TOKEN` is automatically provided by GitHub Actions and doesn't need to be configured manually.
 
 ## Account Keys
 
@@ -173,7 +175,7 @@ python account_keys.py --action generate
 - **check**: Validates service account keys and their permissions against defined policies and reports any differences (default behavior)
 - **announce**: Creates or updates a GitHub issue and sends an email notification when service account keys policies differ from the defined ones.
   - For general configuration errors, it updates the main compliance issue.
-  - **For unmanaged/rogue keys (Security Alerts)**, it consolidates alerts into a dedicated `[SECURITY]` issue acting as a live dashboard. It updates the issue by placing the newest audit report at the top and moving the previous reports into a collapsed `<details>` history section. If the keys are revoked and the infrastructure becomes healthy, the system automatically resolves and closes the issue.
+  - **For unmanaged/rogue keys**, it consolidates alerts into a dedicated `[IAC_DRIFT_SA_KEY]` issue acting as a live dashboard. It updates the issue by placing the newest audit report at the top and moving the previous reports into a collapsed `<details>` history section. If the keys are revoked and the infrastructure becomes healthy, the system automatically resolves and closes the issue.
 - **print**: Prints announcement details for testing purposes without creating actual GitHub issues or sending emails
 - **generate**: Updates the compliance file to match the current GCP service account keys and Secret Manager permissions
 

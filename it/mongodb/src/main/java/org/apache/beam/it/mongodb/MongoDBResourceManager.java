@@ -20,6 +20,8 @@ package org.apache.beam.it.mongodb;
 import static org.apache.beam.it.mongodb.MongoDBResourceManagerUtils.checkValidCollectionName;
 import static org.apache.beam.it.mongodb.MongoDBResourceManagerUtils.generateDatabaseName;
 
+import com.mongodb.ConnectionString;
+import com.mongodb.MongoDriverInformation;
 import com.mongodb.client.FindIterable;
 import com.mongodb.client.MongoClient;
 import com.mongodb.client.MongoClients;
@@ -57,6 +59,10 @@ public class MongoDBResourceManager extends TestContainerResourceManager<MongoDB
 
   private static final String DEFAULT_MONGODB_CONTAINER_NAME = "mongo";
 
+  @VisibleForTesting
+  static final MongoDriverInformation DRIVER_INFO =
+      MongoDriverInformation.builder().driverName("Apache Beam").build();
+
   // A list of available MongoDB Docker image tags can be found at
   // https://hub.docker.com/_/mongo/tags
   private static final String DEFAULT_MONGODB_CONTAINER_TAG = "4.0.18";
@@ -88,7 +94,10 @@ public class MongoDBResourceManager extends TestContainerResourceManager<MongoDB
         usingStaticDatabase ? builder.databaseName : generateDatabaseName(builder.testId);
     this.connectionString =
         String.format("mongodb://%s:%d", this.getHost(), this.getPort(MONGODB_INTERNAL_PORT));
-    this.mongoClient = mongoClient == null ? MongoClients.create(connectionString) : mongoClient;
+    this.mongoClient =
+        mongoClient == null
+            ? MongoClients.create(new ConnectionString(connectionString), DRIVER_INFO)
+            : mongoClient;
   }
 
   public static Builder builder(String testId) {

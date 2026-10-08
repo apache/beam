@@ -166,9 +166,16 @@ class ImpulseSeqGenDoFn(beam.DoFn):
       current_output_timestamp = start + interval * current_output_index
 
       if current_output_timestamp > time.time():
-        # we are too ahead of time, let's wait.
-        restriction_tracker.defer_remainder(
-            timestamp.Timestamp(current_output_timestamp))
+        # We are ahead of time, let's wait. No element will be produced before
+        # the next fire time, so advance the watermark up to that timestamp.
+        next_output_timestamp = timestamp.Timestamp(current_output_timestamp)
+        if not self._is_pre_timestamped:
+          current_watermark = watermark_estimator.current_watermark()
+          if current_watermark is None or \
+              next_output_timestamp > current_watermark:
+            # ensure watermark is monotonic
+            watermark_estimator.set_watermark(next_output_timestamp)
+        restriction_tracker.defer_remainder(next_output_timestamp)
         break
 
       if not restriction_tracker.try_claim(current_output_index):

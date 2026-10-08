@@ -59,8 +59,10 @@ public abstract class UserStateReference {
 
   /** The id of the PTransform that uses this user state. */
   public abstract PTransformNode transform();
+
   /** The local name the referencing PTransform uses to refer to this user state. */
   public abstract String localName();
+
   /** The PCollection that represents the input to the PTransform. */
   public abstract PCollectionNode collection();
 }

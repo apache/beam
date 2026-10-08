@@ -87,9 +87,7 @@ _FNAPI_ENVIRONMENT_MAJOR_VERSION = '8'
 
 _LOGGER = logging.getLogger(__name__)
 
-_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = [
-    '3.10', '3.11', '3.12', '3.13', '3.14'
-]
+_PYTHON_VERSIONS_SUPPORTED_BY_DATAFLOW = ['3.11', '3.12', '3.13', '3.14']
 
 
 class Environment(object):
@@ -280,8 +278,10 @@ class Environment(object):
       for k, v in sdk_pipeline_options.items():
         if v is None:
           continue
-        options_dict[k] = str(v) if isinstance(
-            v, value_provider.ValueProvider) else v
+        if isinstance(v, value_provider.ValueProvider):
+          options_dict[k] = v.get() if v.is_accessible() else None
+        else:
+          options_dict[k] = v
       options_dict["pipelineUrl"] = proto_pipeline_staged_url
       if pipeline_proto_hash:
         options_dict["pipelineProtoHash"] = pipeline_proto_hash

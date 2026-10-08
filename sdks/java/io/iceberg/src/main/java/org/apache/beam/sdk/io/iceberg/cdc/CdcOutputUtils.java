@@ -96,6 +96,21 @@ final class CdcOutputUtils {
     return builder.build();
   }
 
+  static Row outputRow(
+      List<String> metadataColumns,
+      Schema outputSchema,
+      ChangelogDescriptor descriptor,
+      ValueKind valueKind,
+      Row dataAndRowMetadata) {
+    return outputRow(
+        metadataColumns,
+        outputSchema,
+        descriptor.getCommitSnapshotId(),
+        descriptor.getSnapshotSequenceNumber(),
+        valueKind,
+        dataAndRowMetadata);
+  }
+
   /**
    * Builds the final public Beam row.
    *
@@ -106,16 +121,14 @@ final class CdcOutputUtils {
   static Row outputRow(
       List<String> metadataColumns,
       Schema outputSchema,
-      ChangelogDescriptor descriptor,
+      long commitSnapshotId,
+      long snapshotSequenceNumber,
       ValueKind valueKind,
       Row dataAndRowMetadata) {
     if (metadataColumns.isEmpty()
         || metadataColumns.stream().allMatch(IcebergCdcMetadataColumns::isRowMetadataColumn)) {
       return dataAndRowMetadata;
     }
-
-    long commitSnapshotId = descriptor.getCommitSnapshotId();
-    long snapshotSequentNumber = descriptor.getSnapshotSequenceNumber();
 
     List<@Nullable Object> values = new ArrayList<>(outputSchema.getFieldCount());
     for (Schema.Field field : dataAndRowMetadata.getSchema().getFields()) {
@@ -129,7 +142,7 @@ final class CdcOutputUtils {
           metadataValue(
               metadataColumn,
               commitSnapshotId,
-              snapshotSequentNumber,
+              snapshotSequenceNumber,
               valueKind,
               dataAndRowMetadata));
     }
@@ -137,9 +150,11 @@ final class CdcOutputUtils {
   }
 
   static Schema readBeamSchemaWithRowMetadata(
-      List<String> metadataColumns, org.apache.iceberg.Schema dataSchema) {
+      List<String> metadataColumns,
+      org.apache.iceberg.Schema dataSchema,
+      @Nullable String updateCompatibilityVersion) {
     return IcebergUtils.icebergSchemaToBeamSchema(
-        readSchemaWithRowMetadata(metadataColumns, dataSchema));
+        readSchemaWithRowMetadata(metadataColumns, dataSchema), updateCompatibilityVersion);
   }
 
   private static @Nullable Object metadataValue(

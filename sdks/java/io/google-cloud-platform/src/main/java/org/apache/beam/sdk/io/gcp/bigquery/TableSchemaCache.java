@@ -178,8 +178,7 @@ public class TableSchemaCache {
       try {
         // requesting the BASIC view will prevent BQ backend to run calculations
         // related with storage stats that are not needed here.
-        @Nullable
-        Table table =
+        @Nullable Table table =
             datasetService.getTable(
                 tableReference, Collections.emptyList(), DatasetService.TableMetadataView.BASIC);
         schemaHolder =
@@ -224,8 +223,7 @@ public class TableSchemaCache {
               String key = tableKey(tableReference);
               @Nullable SchemaHolder schemaHolder = cachedSchemas.get(key);
               int nextVersion = schemaHolder != null ? schemaHolder.getVersion() + 1 : 0;
-              @Nullable
-              Refresh existing =
+              @Nullable Refresh existing =
                   tablesToRefresh.putIfAbsent(
                       key, Refresh.of(datasetService, writeStreamService, options, nextVersion));
               // Wait at least until the next version.
@@ -358,8 +356,7 @@ public class TableSchemaCache {
     Map<String, @Nullable TableSchema> schemas = Maps.newHashMapWithExpectedSize(tables.size());
     for (Map.Entry<String, Refresh> entry : tables.entrySet()) {
       Refresh refresh = entry.getValue();
-      @Nullable
-      TableSchema tableSchema =
+      @Nullable TableSchema tableSchema =
           optimizedGetSchema(
               entry.getKey(),
               refresh.getDatasetService(),

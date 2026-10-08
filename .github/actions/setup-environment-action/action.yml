@@ -50,7 +50,7 @@ runs:
       if: ${{ inputs.python-version != '' }}
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ inputs.python-version == 'default' && '3.10' || inputs.python-version }}
+        python-version: ${{ inputs.python-version == 'default' && '3.11' || inputs.python-version }}
         cache: ${{ inputs.python-cache && 'pip' || 'none' }}
         cache-dependency-path: |
           sdks/python/setup.py
@@ -68,7 +68,7 @@ runs:
         PYTHON_VERSION_INPUT: ${{ inputs.python-version }}
       run: |
         if [[ "$PYTHON_VERSION_INPUT" == "default" ]]; then
-          sanitized="310"
+          sanitized="311"
         else
           sanitized=$(printf '%s' "$PYTHON_VERSION_INPUT" | tr -s '[:space:]' '-' | sed 's/^-//;s/-$//')
         fi
@@ -94,10 +94,11 @@ runs:
         distribution: 'temurin'
         java-version: ${{ inputs.java-version == 'default' && '21' || inputs.java-version }}
     - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@50e97c2cd7a37755bbfafc9c5b7cafaece252f6e # v6.1.0
+      uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
       with:
         cache-disabled: ${{ inputs.disable-cache }}
         validate-wrappers: false
+        cache-read-only: ${{ !(github.event_name == 'schedule' || github.event_name == 'push' || github.run_attempt > 1) }}
     - name: Install Go
       if: ${{ inputs.go-version != '' }}
       uses: actions/setup-go@v6

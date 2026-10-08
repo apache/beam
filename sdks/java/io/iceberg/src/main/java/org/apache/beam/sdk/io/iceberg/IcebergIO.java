@@ -25,14 +25,19 @@ import java.util.List;
 import java.util.Map;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.io.Read;
+import org.apache.beam.sdk.io.iceberg.cdc.IncrementalChangelogSource;
+import org.apache.beam.sdk.io.iceberg.cdc.sink.WriteCdcRows;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.apache.beam.sdk.transforms.display.DisplayData;
 import org.apache.beam.sdk.values.PBegin;
 import org.apache.beam.sdk.values.PCollection;
+import org.apache.beam.sdk.values.PCollectionView;
 import org.apache.beam.sdk.values.Row;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Predicates;
+import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.iceberg.DistributionMode;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
@@ -388,7 +393,25 @@ public class IcebergIO {
         .setCatalogConfig(catalog)
         .setDistributionMode(DistributionMode.NONE)
         .setAutoSharding(false)
+        .setUseSideInputTableCache(false)
         .build();
+  }
+
+  /**
+   * Returns a {@link WriteCdcRows} transform: the CDC sink, applying inserts/updates/deletes from a
+   * {@code PCollection<Row>} of change records (each carrying a {@link
+   * org.apache.beam.sdk.values.ValueKind}) to one or more Iceberg V2+ tables via equality deletes;
+   * superseded rows are never written.
+   *
+   * <pre>{@code
+   * input.apply(IcebergIO.writeCdcRows(catalogConfig)
+   *     .to(tableId)
+   *     .withSequenceNumberColumn("seq")
+   *     .withTriggeringFrequency(Duration.standardMinutes(1)));
+   * }</pre>
+   */
+  public static WriteCdcRows writeCdcRows(IcebergCatalogConfig catalog) {
+    return WriteCdcRows.of(catalog);
   }
 
   @AutoValue
@@ -414,6 +437,14 @@ public class IcebergIO {
 
     abstract @Nullable List<String> getSortFields();
 
+    abstract boolean getUseSideInputTableCache();
+
+    abstract @Nullable Integer getMaximumTableCacheSize();
+
+    abstract @Nullable Duration getTableCacheRefreshInterval();
+
+    abstract @Nullable Integer getTableCachePollingBuckets();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -437,6 +468,14 @@ public class IcebergIO {
       abstract Builder setPartitionFields(List<String> partitionFields);
 
       abstract Builder setSortFields(List<String> sortFields);
+
+      abstract Builder setUseSideInputTableCache(boolean useSideInputTableCache);
+
+      abstract Builder setMaximumTableCacheSize(@Nullable Integer maximumTableCacheSize);
+
+      abstract Builder setTableCacheRefreshInterval(@Nullable Duration refreshInterval);
+
+      abstract Builder setTableCachePollingBuckets(@Nullable Integer pollingBuckets);
 
       abstract WriteRows build();
     }
@@ -474,11 +513,11 @@ public class IcebergIO {
      * Defines distribution of write data. Supported distributions:
      *
      * <ol>
-     *   <li>{@link DistributionMode.NONE}: don't shuffle rows (default)
-     *   <li>{@link DistributionMode.HASH}: shuffle rows by partition key before writing data
+     *   <li>{@link DistributionMode#NONE}: don't shuffle rows (default)
+     *   <li>{@link DistributionMode#HASH}: shuffle rows by partition key before writing data
      * </ol>
      *
-     * {@link DistributionMode.RANGE} is not supported yet
+     * {@link DistributionMode#RANGE} is not supported yet
      */
     public WriteRows withDistributionMode(DistributionMode mode) {
       return toBuilder().setDistributionMode(mode).build();
@@ -488,6 +527,16 @@ public class IcebergIO {
       return toBuilder().setAutoSharding(true).build();
     }
 
+    /**
+     * Defines properties to be passed to the Iceberg writer itself. Note that these properties are
+     * execution-scoped, meaning that they are applied to a preexisting table and will not mutate
+     * any table-level properties.
+     *
+     * <p>To set table-level properties that will be applied to dynamically created tables, use the
+     * managed Iceberg transform instead, setting the `table_properties` config property.
+     *
+     * <p>See: https://iceberg.apache.org/docs/latest/configuration/#write-properties
+     */
     public WriteRows withWriteProperties(Map<String, String> writeProperties) {
       return toBuilder().setWriteProperties(writeProperties).build();
     }
@@ -510,6 +559,70 @@ public class IcebergIO {
      */
     public WriteRows withSortOrder(List<String> sortFields) {
       return toBuilder().setSortFields(sortFields).build();
+    }
+
+    /**
+     * Enables expirable side-input caching of Iceberg table metadata across workers.
+     *
+     * <p>When enabled, a driver transform periodically polls the Iceberg catalog and broadcasts
+     * lightweight table specifications as a side input. Workers construct in-memory {@link Table}
+     * representations without issuing remote catalog RPCs, drastically reducing catalog load.
+     */
+    public WriteRows withSideInputTableCache() {
+      return toBuilder().setUseSideInputTableCache(true).build();
+    }
+
+    /**
+     * Sets the maximum number of distinct table metadata specifications to broadcast in the
+     * side-input cache. Any tables exceeding this limit fall back to worker-local catalog loading.
+     *
+     * <p><b>Note:</b> This option is only supported for bounded (batch) pipelines. Calling this on
+     * an unbounded streaming pipeline will throw an exception at pipeline construction.
+     */
+    public WriteRows withMaximumTableCacheSize(int maximumTableCacheSize) {
+      Preconditions.checkArgument(
+          maximumTableCacheSize > 0, "maximumTableCacheSize must be greater than 0");
+      return toBuilder().setMaximumTableCacheSize(maximumTableCacheSize).build();
+    }
+
+    /**
+     * Sets the interval at which table metadata is refreshed from the Iceberg catalog.
+     *
+     * <p>Applicable for unbounded streaming pipelines. Defaults to 5 minutes.
+     */
+    public WriteRows withTableCacheRefreshInterval(Duration refreshInterval) {
+      Preconditions.checkNotNull(refreshInterval, "refreshInterval must not be null");
+      Preconditions.checkArgument(
+          refreshInterval.isLongerThan(Duration.ZERO), "refreshInterval must be greater than 0");
+      return toBuilder().setTableCacheRefreshInterval(refreshInterval).build();
+    }
+
+    /**
+     * Sets the number of parallel buckets/workers used to query the Iceberg catalog during
+     * refreshes. Defaults to 1 to serialize catalog queries and protect catalogs from connection
+     * spikes.
+     */
+    public WriteRows withTableCachePollingBuckets(int pollingBuckets) {
+      Preconditions.checkArgument(
+          pollingBuckets > 0, "tableCachePollingBuckets must be greater than 0");
+      return toBuilder().setTableCachePollingBuckets(pollingBuckets).build();
+    }
+
+    @Override
+    public void populateDisplayData(DisplayData.Builder builder) {
+      super.populateDisplayData(builder);
+      builder.add(
+          DisplayData.item("useSideInputTableCache", getUseSideInputTableCache())
+              .withLabel("Using Side-Input Table Cache"));
+      builder.addIfNotNull(
+          DisplayData.item("maximumTableCacheSize", getMaximumTableCacheSize())
+              .withLabel("Maximum Cache Size"));
+      builder.addIfNotNull(
+          DisplayData.item("tableCacheRefreshInterval", getTableCacheRefreshInterval())
+              .withLabel("Table Refresh Interval"));
+      builder.addIfNotNull(
+          DisplayData.item("tableCachePollingBuckets", getTableCachePollingBuckets())
+              .withLabel("Catalog Polling Buckets"));
     }
 
     @Override
@@ -537,6 +650,35 @@ public class IcebergIO {
             "Must only provide direct write limit for unbounded pipelines.");
       }
 
+      boolean hasSideInputOptions =
+          getMaximumTableCacheSize() != null
+              || getTableCacheRefreshInterval() != null
+              || getTableCachePollingBuckets() != null;
+      Preconditions.checkArgument(
+          getUseSideInputTableCache() || !hasSideInputOptions,
+          "Cannot specify side-input cache sub-options (maximumTableCacheSize, "
+              + "tableCacheRefreshInterval, tableCachePollingBuckets) without enabling side-input table cache via withSideInputTableCache().");
+
+      PCollectionView<Map<String, SerializableTableSpec>> metadataView = null;
+      if (getUseSideInputTableCache()) {
+        TableMetadataDriver.Builder driverBuilder =
+            TableMetadataDriver.builder()
+                .setCatalogConfig(getCatalogConfig())
+                .setDynamicDestinations(destinations);
+
+        if (getMaximumTableCacheSize() != null) {
+          driverBuilder.setMaximumCacheSize(getMaximumTableCacheSize());
+        }
+        if (getTableCacheRefreshInterval() != null) {
+          driverBuilder.setRefreshInterval(getTableCacheRefreshInterval());
+        }
+        if (getTableCachePollingBuckets() != null) {
+          driverBuilder.setPollingBuckets(getTableCachePollingBuckets());
+        }
+
+        metadataView = input.apply("GenerateTableMetadataView", driverBuilder.build().asView());
+      }
+
       switch (getDistributionMode()) {
         case NONE:
           Preconditions.checkArgument(
@@ -551,12 +693,14 @@ public class IcebergIO {
                       destinations,
                       getTriggeringFrequency(),
                       getDirectWriteByteLimit(),
-                      getWriteProperties()));
+                      getWriteProperties(),
+                      metadataView));
         case HASH:
           return input
               .apply(
                   "AssignDestinationAndPartition",
-                  new AssignDestinationsAndPartitions(destinations, getCatalogConfig()))
+                  new AssignDestinationsAndPartitions(
+                      destinations, getCatalogConfig(), metadataView))
               .apply(
                   "Write Rows to Partitions",
                   new WriteToPartitions(
@@ -564,7 +708,8 @@ public class IcebergIO {
                       destinations,
                       getTriggeringFrequency(),
                       getAutoSharding(),
-                      getWriteProperties()));
+                      getWriteProperties(),
+                      metadataView));
         default:
           throw new UnsupportedOperationException(
               "Unsupported distribution mode: " + getDistributionMode());
@@ -576,6 +721,7 @@ public class IcebergIO {
     return new AutoValue_IcebergIO_ReadRows.Builder()
         .setCatalogConfig(catalogConfig)
         .setUseCdc(false)
+        .setMetadataColumns(ImmutableList.of())
         .build();
   }
 
@@ -612,6 +758,12 @@ public class IcebergIO {
 
     abstract @Nullable String getFilter();
 
+    abstract @Nullable String getWatermarkColumn();
+
+    abstract @Nullable String getWatermarkColumnTimeUnit();
+
+    abstract List<String> getMetadataColumns();
+
     abstract Builder toBuilder();
 
     @AutoValue.Builder
@@ -641,6 +793,12 @@ public class IcebergIO {
       abstract Builder setDrop(@Nullable List<String> fields);
 
       abstract Builder setFilter(@Nullable String filter);
+
+      abstract Builder setWatermarkColumn(@Nullable String watermarkColumn);
+
+      abstract Builder setWatermarkColumnTimeUnit(@Nullable String timeUnit);
+
+      abstract Builder setMetadataColumns(List<String> metadataColumns);
 
       abstract ReadRows build();
     }
@@ -693,6 +851,31 @@ public class IcebergIO {
       return toBuilder().setFilter(filter).build();
     }
 
+    public ReadRows withWatermarkColumn(@Nullable String watermarkColumn) {
+      return toBuilder().setWatermarkColumn(watermarkColumn).build();
+    }
+
+    public ReadRows withWatermarkColumnTimeUnit(@Nullable String timeUnit) {
+      return toBuilder().setWatermarkColumnTimeUnit(timeUnit).build();
+    }
+
+    /**
+     * Appends top-level metadata columns to CDC output rows.
+     *
+     * <p>Supported values are {@code _change_type}, {@code _commit_snapshot_id}, {@code
+     * _commit_snapshot_sequence_number}, {@code _row_id}, and {@code
+     * _last_updated_sequence_number}. The row metadata columns are read from Iceberg data files and
+     * require a row-lineage table. The changelog metadata columns come from the emitted change kind
+     * and snapshot context and are appended when final Beam rows are emitted.
+     *
+     * <p>This option is only valid {@link #withCdc()}.
+     */
+    public ReadRows withMetadataColumns(@Nullable List<String> metadataColumns) {
+      return toBuilder()
+          .setMetadataColumns(metadataColumns == null ? ImmutableList.of() : metadataColumns)
+          .build();
+    }
+
     @Override
     public PCollection<Row> expand(PBegin input) {
       TableIdentifier tableId =
@@ -700,8 +883,7 @@ public class IcebergIO {
 
       Table table = TableCache.get(getCatalogConfig(), tableId);
 
-      @Nullable
-      String updateCompatibilityVersion =
+      @Nullable String updateCompatibilityVersion =
           input
               .getPipeline()
               .getOptions()
@@ -728,12 +910,15 @@ public class IcebergIO {
               .setKeepFields(getKeep())
               .setDropFields(getDrop())
               .setFilterString(getFilter())
+              .setWatermarkColumn(getWatermarkColumn())
+              .setWatermarkColumnTimeUnit(getWatermarkColumnTimeUnit())
+              .setMetadataColumns(getMetadataColumns())
               .build();
       scanConfig.validate(table);
 
       PTransform<PBegin, PCollection<Row>> source =
           getUseCdc()
-              ? new IncrementalScanSource(scanConfig)
+              ? new IncrementalChangelogSource(scanConfig)
               : Read.from(new ScanSource(scanConfig));
 
       return input.apply(source);

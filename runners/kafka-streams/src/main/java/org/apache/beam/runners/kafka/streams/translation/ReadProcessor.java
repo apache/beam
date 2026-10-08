@@ -1,0 +1,206 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package org.apache.beam.runners.kafka.streams.translation;
+
+import java.io.IOException;
+import java.time.Duration;
+import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
+import org.apache.beam.sdk.coders.Coder;
+import org.apache.beam.sdk.coders.CoderException;
+import org.apache.beam.sdk.io.BoundedSource;
+import org.apache.beam.sdk.io.BoundedSource.BoundedReader;
+import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
+import org.apache.beam.sdk.util.CoderUtils;
+import org.apache.beam.sdk.values.WindowedValue;
+import org.apache.beam.sdk.values.WindowedValues;
+import org.apache.kafka.streams.processor.Cancellable;
+import org.apache.kafka.streams.processor.PunctuationType;
+import org.apache.kafka.streams.processor.api.Processor;
+import org.apache.kafka.streams.processor.api.ProcessorContext;
+import org.apache.kafka.streams.processor.api.Record;
+import org.apache.kafka.streams.state.KeyValueStore;
+import org.checkerframework.checker.nullness.qual.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * Kafka Streams {@link Processor} implementing Beam's deprecated primitive {@code Read}
+ * (beam:transform:read:v1) over a {@link BoundedSource}.
+ *
+ * <p>Each task reads the whole source once, emitting one {@link KStreamsPayload#data data} payload
+ * per element in the {@link org.apache.beam.sdk.transforms.windowing.GlobalWindow} at its own event
+ * time, then a {@link KStreamsPayload#watermark watermark} at {@link
+ * BoundedWindow#TIMESTAMP_MAX_VALUE} to say the source is done.
+ *
+ * <p><b>Wire form.</b> A Read produces decoded Java objects, but the harness's main-input receiver
+ * expects the runner-side wire form: a raw object for a model coder, a length-prefixed {@code
+ * byte[]} for a coder the runner does not know. Stage-to-stage edges already carry that form, so
+ * each element is transcoded here, encoded with the SDK-side wire coder and decoded with the
+ * runner-side one. The two are byte-compatible by construction, so this yields exactly what the
+ * receiver expects, nesting and all.
+ *
+ * <p>As in {@link ImpulseProcessor}, a state store records whether the elements were already
+ * emitted so a restart does not duplicate them, while the terminal watermark is re-emitted on every
+ * restart so downstream holds still release. A wall-clock punctuator scheduled in {@link #init}
+ * drives it, since the bootstrap topic is empty.
+ *
+ * <p>The source is read single-instance without splitting; parallel reads arrive with #18479. Kafka
+ * Streams rejects negative record timestamps, so each {@link Record} carries the Unix epoch and the
+ * Beam event time travels inside the {@link WindowedValue}.
+ */
+class ReadProcessor<T> implements Processor<byte[], byte[], byte[], KStreamsPayload<?>> {
+
+  private static final Logger LOG = LoggerFactory.getLogger(ReadProcessor.class);
+
+  /** Sole entry in the state store; the value tracks whether this processor has already emitted. */
+  static final String FIRED_KEY = "fired";
+
+  /** How soon after {@link #init} the punctuator first fires. */
+  private static final Duration PUNCTUATION_DELAY = Duration.ofMillis(50);
+
+  private final BoundedSource<T> source;
+  // Held as SerializablePipelineOptions (Beam's idiom for a reader holding options) so the
+  // processor's captured state is uniformly serializable alongside the BoundedSource and coders.
+  private final SerializablePipelineOptions options;
+  // Encodes a raw WindowedValue<T> as the SDK harness would on the wire (length-prefixing the
+  // element coder if the runner does not know it); the runner-side coder then decodes it into the
+  // wire form the downstream stage's input receiver expects. See the class javadoc.
+  private final Coder<WindowedValue<T>> sdkWireCoder;
+  private final Coder<WindowedValue<?>> runnerWireCoder;
+  private final String stateStoreName;
+  private final String transformId;
+  // Reports this source as finished once it emits the terminal watermark.
+  private final TerminationReporter terminationReporter;
+
+  private @Nullable ProcessorContext<byte[], KStreamsPayload<?>> context;
+  private @Nullable KeyValueStore<String, Boolean> firedStore;
+  private @Nullable Cancellable scheduledPunctuator;
+
+  ReadProcessor(
+      BoundedSource<T> source,
+      SerializablePipelineOptions options,
+      Coder<WindowedValue<T>> sdkWireCoder,
+      Coder<WindowedValue<?>> runnerWireCoder,
+      String stateStoreName,
+      String transformId,
+      TerminationTracker terminationTracker) {
+    this.source = source;
+    this.options = options;
+    this.sdkWireCoder = sdkWireCoder;
+    this.runnerWireCoder = runnerWireCoder;
+    this.stateStoreName = stateStoreName;
+    this.transformId = transformId;
+    this.terminationReporter = new TerminationReporter(terminationTracker, transformId);
+  }
+
+  @Override
+  public void close() {
+    terminationReporter.close();
+  }
+
+  @Override
+  public void init(ProcessorContext<byte[], KStreamsPayload<?>> context) {
+    this.context = context;
+    this.firedStore = context.getStateStore(stateStoreName);
+    terminationReporter.init(context);
+    this.scheduledPunctuator =
+        context.schedule(PUNCTUATION_DELAY, PunctuationType.WALL_CLOCK_TIME, ts -> maybeFire());
+  }
+
+  @Override
+  public void process(Record<byte[], byte[]> record) {
+    // Records that happen to land on the bootstrap topic are not actual data; they just provide an
+    // extra opportunity to fire the read on restart. The state store still gates the emit.
+    maybeFire();
+  }
+
+  private void maybeFire() {
+    ProcessorContext<byte[], KStreamsPayload<?>> ctx = context;
+    KeyValueStore<String, Boolean> store = firedStore;
+    if (ctx == null || store == null) {
+      return;
+    }
+    if (Boolean.TRUE.equals(store.get(FIRED_KEY))) {
+      // Elements were already emitted in a previous task lifetime, but downstream watermark holds
+      // may still need to release after the restart — re-emit the terminal watermark and stop.
+      forwardWatermarkMax(ctx);
+      cancelPunctuator();
+      return;
+    }
+    int count = readAndForward(ctx);
+    forwardWatermarkMax(ctx);
+    store.put(FIRED_KEY, Boolean.TRUE);
+    cancelPunctuator();
+    LOG.debug("Read {} emitted {} elements and terminal watermark", transformId, count);
+  }
+
+  /** Reads the whole bounded source and forwards each element, in wire form, as a data payload. */
+  private int readAndForward(ProcessorContext<byte[], KStreamsPayload<?>> ctx) {
+    int count = 0;
+    try (BoundedReader<T> reader = source.createReader(options.get())) {
+      for (boolean hasElement = reader.start(); hasElement; hasElement = reader.advance()) {
+        WindowedValue<T> element =
+            WindowedValues.timestampedValueInGlobalWindow(
+                reader.getCurrent(), reader.getCurrentTimestamp());
+        // The Read output PCollection is not keyed; use an empty byte[] as a placeholder key so
+        // downstream processors that adopt the byte[]-key convention see a consistent shape.
+        ctx.forward(
+            new Record<byte[], KStreamsPayload<?>>(
+                new byte[0], KStreamsPayload.data(toRunnerWire(element)), 0L));
+        count++;
+      }
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to read bounded source for transform " + transformId, e);
+    }
+    return count;
+  }
+
+  /** Transcodes a raw element into the runner-side wire form the SDK harness input expects. */
+  private WindowedValue<?> toRunnerWire(WindowedValue<T> element) {
+    try {
+      byte[] wireBytes = CoderUtils.encodeToByteArray(sdkWireCoder, element);
+      return CoderUtils.decodeFromByteArray(runnerWireCoder, wireBytes);
+    } catch (CoderException e) {
+      throw new RuntimeException(
+          "Failed to transcode a read element to wire form for transform " + transformId, e);
+    }
+  }
+
+  /**
+   * Forwards a terminal {@code TIMESTAMP_MAX_VALUE} watermark payload to downstream processors,
+   * stamped with this transform's id. Read is a single-instance source, so the report is for its
+   * only partition: {@code sourcePartition=0} of {@code totalSourcePartitions=1}. Real
+   * per-partition identities arrive once the topology gains topic-based shuffle.
+   */
+  private void forwardWatermarkMax(ProcessorContext<byte[], KStreamsPayload<?>> ctx) {
+    long maxMillis = BoundedWindow.TIMESTAMP_MAX_VALUE.getMillis();
+    ctx.forward(
+        new Record<byte[], KStreamsPayload<?>>(
+            new byte[0], KStreamsPayload.<Object>watermark(maxMillis, transformId, 0, 1), 0L));
+    terminationReporter.watermarkEmitted(ctx, maxMillis);
+  }
+
+  /** Cancels the wall-clock punctuator after the read has fired to stop periodic wakeups. */
+  private void cancelPunctuator() {
+    Cancellable handle = scheduledPunctuator;
+    if (handle != null) {
+      handle.cancel();
+      scheduledPunctuator = null;
+    }
+  }
+}

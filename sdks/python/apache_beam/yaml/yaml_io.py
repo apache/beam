@@ -48,6 +48,7 @@ from apache_beam.io.filesystem import CompressionTypes
 from apache_beam.io.gcp.bigquery import BigQueryDisposition
 from apache_beam.portability.api import schema_pb2
 from apache_beam.typehints import schemas
+from apache_beam.typehints.row_type import RowTypeConstraint
 from apache_beam.utils.timestamp import Timestamp
 from apache_beam.yaml import json_utils
 from apache_beam.yaml import yaml_errors
@@ -600,6 +601,43 @@ def read_from_delta(
           hadoop_config=hadoop_config))
 
 
+def read_from_delta_cdc(
+    table: str,
+    start_version: Optional[int] = None,
+    start_timestamp: Optional[str] = None,
+    end_version: Optional[int] = None,
+    end_timestamp: Optional[str] = None,
+    include_metadata_columns: Optional[Iterable[str]] = None,
+    hadoop_config: Optional[Mapping[str, str]] = None,
+):
+  """Reads change records from a Delta Lake table.
+
+  Args:
+    table: Identifier of the Delta Lake table.
+    start_version: Start version of the Delta Lake table to read changes from.
+      Either this or start_timestamp has to be provided.
+    start_timestamp: Start timestamp of the Delta Lake table to read changes
+      from. Should be specified in the ISO 8601 standard. Either this or
+      start_version has to be provided.
+    end_version: End version of the Delta Lake table to read changes up to.
+    end_timestamp: End timestamp of the Delta Lake table to read changes up to.
+      Should be specified in the ISO 8601 standard.
+    include_metadata_columns: Metadata columns to include in the output rows.
+      Supported columns are: _change_type, _commit_version, and _commit_timestamp.
+    hadoop_config: Properties passed to the Hadoop Configuration.
+  """
+  return beam.managed.Read(
+      "delta_cdc",
+      config=dict(
+          table=table,
+          start_version=start_version,
+          start_timestamp=start_timestamp,
+          end_version=end_version,
+          end_timestamp=end_timestamp,
+          include_metadata_columns=include_metadata_columns,
+          hadoop_config=hadoop_config))
+
+
 def write_to_iceberg(
     table: str,
     catalog_name: Optional[str] = None,
@@ -613,6 +651,20 @@ def write_to_iceberg(
     only: Optional[str] = None,
     distribution_mode: Optional[str] = None,
     autosharding: Optional[bool] = None,
+    mode: Optional[str] = None,
+    sequence_number_column: Optional[str] = None,
+    change_type_column: Optional[str] = None,
+    change_type_map: Optional[Mapping[str, str]] = None,
+    upsert: Optional[bool] = None,
+    equality_columns: Optional[Iterable[str]] = None,
+    num_shards: Optional[int] = None,
+    shards_per_partition: Optional[int] = None,
+    allowed_lateness_seconds: Optional[int] = None,
+    sink_id: Optional[str] = None,
+    token_heartbeat_seconds: Optional[int] = None,
+    snapshot_properties: Optional[Mapping[str, str]] = None,
+    error_handling: Optional[Mapping[str, Any]] = None,
+    sorter_memory_mb: Optional[int] = None,
 ):
   # TODO(robertwb): It'd be nice to derive this list of parameters, along with
   # their types and docs, programmatically from the iceberg (or managed)
@@ -671,6 +723,51 @@ def write_to_iceberg(
       further sub-dividing partitions into multiple shards to prevent
       bottlenecks during high-throughput writes. Only available with 'hash'
       distribution mode.
+    mode: Controls how rows are written. 'append' (default) appends every row
+      as new data. 'merge-on-read' treats each row as a change (INSERT,
+      UPDATE_BEFORE, UPDATE_AFTER, or DELETE) applied to the table by primary
+      key.
+    sequence_number_column: Merge-on-read only. the required column name
+      representing the monotonic sequence number used to order a single key's
+      changes. Default column name is '_commit_snapshot_sequence_number'. This
+      column will be stripped from the data row before writing to Iceberg.
+    change_type_column: Merge-on-read only. The optional column name
+      representing the row's change type (INSERT, UPDATE_BEFORE, UPDATE_AFTER,
+      or DELETE). This column will be stripped from the data row before writing
+      to Iceberg.
+    change_type_map: Merge-on-read only. Optional map from the
+      `change_type_column` value to the canonical change type name (see above).
+    upsert: Merge-on-read only. If true, only the after-image of each change
+      (INSERT/UPDATE_AFTER) is applied as an upsert. UPDATE_BEFORE records
+      are dropped. Default: false.
+    equality_columns: Columns defining row identity (equality-delete fields).
+      Defaults to the destination table's identifier (primary-key) fields.
+      Required if the table doesn't exist yet. Currently only supported in
+      'merge-on-read' mode.
+    num_shards: The number of deterministic primary-key-hash shards per
+      destination, i.e. the max write parallelism per destination. Defaults to
+      16. Currently only supported in 'merge-on-read' mode.
+    shards_per_partition: Maximum number of shards a single partition's rows
+      may occupy. Defaults to `num_shards`. Currently only supported in
+      'merge-on-read' mode.
+    allowed_lateness_seconds: How long a late record may lag behind the
+      watermark before it is dropped entirely. Defaults to 21600 (6 hours).
+      Currently only supported in 'merge-on-read' mode.
+    sink_id: A stable identifier namespacing the idempotency tokens written to
+      each commit. Defaults to a unique per-write UUID. Override with a stable
+      ID for exactly-once commits across relaunches of a particular streaming
+      write. Currently only relevant in 'merge-on-read' mode.
+    token_heartbeat_seconds: Streaming only. Refresh each idle
+      destination's commit token every this many seconds. Disabled by default.
+      Currently only relevant in 'merge-on-read' mode.
+    snapshot_properties: Extra properties added to every commit's snapshot
+      summary. Currently only supported in 'merge-on-read' mode.
+    error_handling: Where to send records the sink cannot apply (e.g. an
+      unknown change type) instead of failing the pipeline. Currently only
+      supported in 'merge-on-read' mode.
+    sorter_memory_mb: The in-memory buffer size (MB) for the pre-write sort.
+      Groups larger than this spill to disk. Default: 100MB. Currently only
+      relevant in 'merge-on-read' mode.
   """
   return beam.managed.Write(
       "iceberg",
@@ -686,7 +783,21 @@ def write_to_iceberg(
           drop=drop,
           only=only,
           distribution_mode=distribution_mode,
-          autosharding=autosharding))
+          autosharding=autosharding,
+          mode=mode,
+          sequence_number_column=sequence_number_column,
+          change_type_column=change_type_column,
+          change_type_map=change_type_map,
+          upsert=upsert,
+          equality_columns=equality_columns,
+          num_shards=num_shards,
+          shards_per_partition=shards_per_partition,
+          allowed_lateness_seconds=allowed_lateness_seconds,
+          sink_id=sink_id,
+          token_heartbeat_seconds=token_heartbeat_seconds,
+          snapshot_properties=snapshot_properties,
+          error_handling=error_handling,
+          sorter_memory_mb=sorter_memory_mb))
 
 
 def io_providers():
@@ -909,3 +1020,131 @@ def match_all(
           path=str(x.path), size_in_bytes=int(x.size_in_bytes),
           last_updated_in_seconds=float(x.last_updated_in_seconds)
           if x.last_updated_in_seconds is not None else None))
+
+
+_DICOM_SEARCH_OUTPUT_SCHEMA = RowTypeConstraint.from_fields([
+    ('result', str),
+    ('status', str),
+    ('input', str),
+])
+
+
+def _dicom_search_result_to_row(result):
+  if not result.get('success'):
+    raise RuntimeError(
+        'DicomSearch failed with status: %s' % (result.get('status'), ))
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_output_row(result):
+  return beam.Row(
+      result=json.dumps(result.get('result', [])),
+      status=str(result.get('status')),
+      input=json.dumps(result.get('input', {})))
+
+
+def _dicom_search_to_error_row(result):
+  inp = result.get('input') or {}
+  if isinstance(inp, Mapping):
+    element = beam.Row(**dict(inp))
+  else:
+    element = inp
+  return beam.Row(
+      element=element,
+      msg='DicomSearch failed with status: %s' % (result.get('status'), ),
+      stack='')
+
+
+@beam.ptransform_fn
+def dicom_search(
+    pcoll, *, buffer_size: int = 8, max_workers: int = 5, error_handling=None):
+  """Searches a Google Cloud Healthcare DICOM store using QIDO-RS.
+
+  This transform takes an input PCollection of Rows describing QIDO search
+  requests and returns Rows with the search results encoded as JSON.
+
+  Each input Row must include:
+
+    - project_id (str): GCP project containing the DICOM store.
+    - region (str): Region where the DICOM store resides.
+    - dataset_id (str): Dataset containing the DICOM store.
+    - dicom_store_id (str): DICOM store id.
+    - search_type (str): One of ``studies``, ``series``, or ``instances``.
+    - params (map of str to str, optional): QIDO search filters.
+
+  Successful outputs are Rows with:
+
+    - result (str): JSON-encoded list of matching DICOM resources.
+    - status (str): HTTP status from the DICOM API.
+    - input (str): JSON-encoded copy of the search request.
+
+  Failed searches raise unless ``error_handling`` is set, in which case they
+  are routed to the configured error output.
+
+  Args:
+    buffer_size: Number of requests to buffer before flushing.
+    max_workers: Maximum number of threads used to issue requests.
+    error_handling: If specified, should be a mapping giving an output into
+      which to emit failed searches, as described at
+      https://beam.apache.org/documentation/sdks/yaml-errors/
+  """
+  try:
+    from apache_beam.io.gcp.healthcare.dicomio import DicomSearch
+  except ImportError as exn:
+    raise ValueError(
+        "GCP dependencies are not installed. Cannot use DicomSearch. "
+        "Please install using 'pip install apache-beam[gcp]'.") from exn
+
+  def row_to_dict(value):
+    if value is None:
+      return None
+    if hasattr(value, '_asdict'):
+      return {k: row_to_dict(v) for k, v in value._asdict().items()}
+    elif hasattr(value, 'as_dict'):
+      return {k: row_to_dict(v) for k, v in value.as_dict().items()}
+    elif isinstance(value, (list, tuple)):
+      return [row_to_dict(v) for v in value]
+    elif isinstance(value, Mapping):
+      return {k: row_to_dict(v) for k, v in value.items()}
+    else:
+      return value
+
+  def normalize_request(value):
+    # YAML Create types params as map[str, str]; qido_search needs int
+    # limit/offset for pagination comparisons.
+    request = row_to_dict(value)
+    params = request.get('params')
+    params = dict(params) if isinstance(params, Mapping) else {}
+    limit = params.get('limit', 500)
+    offset = params.get('offset', 0)
+    params['limit'] = int(limit)
+    params['offset'] = int(offset)
+    request['params'] = params
+    return request
+
+  if error_handling:
+    error_handling = yaml_utils.SafeLineLoader.strip_metadata(error_handling)
+
+  results = (
+      pcoll
+      | beam.Map(normalize_request)
+      | DicomSearch(buffer_size=buffer_size, max_workers=max_workers))
+
+  if error_handling and error_handling.get('output'):
+    return {
+        'good': (
+            results
+            | beam.Filter(lambda r: r.get('success'))
+            | beam.Map(_dicom_search_to_output_row).with_output_types(
+                _DICOM_SEARCH_OUTPUT_SCHEMA)),
+        error_handling['output']: (
+            results
+            | beam.Filter(lambda r: not r.get('success'))
+            | beam.Map(_dicom_search_to_error_row)),
+    }
+
+  return results | beam.Map(_dicom_search_result_to_row).with_output_types(
+      _DICOM_SEARCH_OUTPUT_SCHEMA)

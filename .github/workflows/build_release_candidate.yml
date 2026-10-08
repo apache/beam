@@ -65,9 +65,9 @@ jobs:
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
-          persist-credentials: false
+          persist-credentials: true
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: |
@@ -126,7 +126,7 @@ jobs:
           GITHUB_EVENT_INPUTS_APACHE_ID: ${{ github.event.inputs.APACHE_ID }}
           GITHUB_EVENT_INPUTS_APACHE_PASSWORD: ${{ github.event.inputs.APACHE_PASSWORD }}
       - name: Install Java 11
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '11'
@@ -184,7 +184,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          persist-credentials: false
+          persist-credentials: true
       - name: Mask Apache Password
         run: |
           # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -294,22 +294,22 @@ jobs:
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
-          persist-credentials: false
+          persist-credentials: true
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
       - name: Install Java
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: |
             21
             11
-      - name: Install Python 3.10
+      - name: Install Python 3.11
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: Remove default github maven configuration
         # This step is a workaround to avoid a decryption issue of Beam's
         # net.linguica.gradle.maven.settings plugin and github's provided maven
@@ -337,7 +337,7 @@ jobs:
       SITE_ROOT_DIR: ${{ github.workspace }}/beam-site
     steps:
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
         with:
           docker-images: false
       - name: Checkout Beam Repo
@@ -346,7 +346,7 @@ jobs:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
           path: beam
-          persist-credentials: false
+          persist-credentials: true
       - name: Checkout Beam Site Repo
         uses: actions/checkout@v7
         with:
@@ -354,17 +354,17 @@ jobs:
           path: beam-site
           token: ${{ github.event.inputs.REPO_TOKEN }}
           ref: release-docs
-          persist-credentials: false
-      - name: Install Python 3.10
+          persist-credentials: true
+      - name: Install Python 3.11
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install node
         uses: actions/setup-node@v7
         with:
           node-version: '16'
       - name: Install Java 21
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '21'
@@ -467,7 +467,7 @@ jobs:
         with:
           ref: "v${{ github.event.inputs.RELEASE }}-RC${{ github.event.inputs.RC }}"
           repository: apache/beam
-          persist-credentials: false
+          persist-credentials: true
       - name: Mask Apache Password
         run: |
           # Workaround for Actions bug - https://github.com/actions/runner/issues/643
@@ -602,12 +602,12 @@ jobs:
           path: beam
           token: ${{ github.event.inputs.REPO_TOKEN }}
           persist-credentials: true
-      - name: Install Python 3.10
+      - name: Install Python 3.11
         uses: actions/setup-python@v7
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Install Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
           java-version: '17'

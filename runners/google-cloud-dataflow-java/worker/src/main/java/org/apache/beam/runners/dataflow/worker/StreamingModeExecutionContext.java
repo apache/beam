@@ -53,7 +53,9 @@ import org.apache.beam.runners.dataflow.worker.counters.NameContext;
 import org.apache.beam.runners.dataflow.worker.profiler.ScopedProfiler.ProfileScope;
 import org.apache.beam.runners.dataflow.worker.streaming.BoundedQueueExecutorWorkHandle;
 import org.apache.beam.runners.dataflow.worker.streaming.ExecutableWork;
+import org.apache.beam.runners.dataflow.worker.streaming.FailedWorkHandler;
 import org.apache.beam.runners.dataflow.worker.streaming.KeyCommitTooLargeException;
+import org.apache.beam.runners.dataflow.worker.streaming.MultiKeyCommitValidationException;
 import org.apache.beam.runners.dataflow.worker.streaming.Watermarks;
 import org.apache.beam.runners.dataflow.worker.streaming.Work;
 import org.apache.beam.runners.dataflow.worker.streaming.config.StreamingGlobalConfig;
@@ -80,6 +82,7 @@ import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodin
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV1;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTagEncodingV2;
 import org.apache.beam.runners.dataflow.worker.windmill.state.WindmillTimerData;
+import org.apache.beam.runners.dataflow.worker.windmill.work.processing.ExecuteWorkResult;
 import org.apache.beam.runners.dataflow.worker.windmill.work.processing.failures.FailureTracker;
 import org.apache.beam.sdk.annotations.Internal;
 import org.apache.beam.sdk.coders.Coder;
@@ -141,6 +144,7 @@ public class StreamingModeExecutionContext
   private final Map<TupleTag<?>, Map<BoundedWindow, SideInput<?>>> sideInputCache;
 
   private final WindmillTagEncoding windmillTagEncoding;
+
   /**
    * The current user-facing key for this execution context.
    *
@@ -160,7 +164,7 @@ public class StreamingModeExecutionContext
   // be used for processing many work items and these values can change during the context's
   // lifetime. start() is called for each work item.
   private OperationalLimits operationalLimits;
-  private Windmill.WorkItemCommitRequest.@Nullable Builder outputBuilder;
+  private Windmill.WorkItemCommitRequest.@Nullable Builder keyOutputBuilder;
 
   /**
    * Current reader used for processing {@link Work}. Set by calling {@link
@@ -172,10 +176,7 @@ public class StreamingModeExecutionContext
   private @Nullable WorkExecutor workExecutor;
   private boolean finishKeyCalled = false;
 
-  @SuppressWarnings("UnusedVariable")
   private @Nullable BoundedQueueExecutor workQueueExecutor;
-
-  @SuppressWarnings("UnusedVariable")
   private @Nullable BoundedQueueExecutorWorkHandle budgetHandle;
 
   private final HotKeyLogger hotKeyLogger;
@@ -192,14 +193,15 @@ public class StreamingModeExecutionContext
     void onKeyTransition(@Nullable Work oldWork, Work newWork);
   }
 
-  @SuppressWarnings("UnusedVariable")
   private @Nullable KeyTransitionListener keyTransitionListener;
+  private @Nullable FailedWorkHandler onFailedWorkHandler;
 
-  private List<Work> executedWorks = Collections.emptyList();
-  private List<Windmill.WorkItemCommitRequest.Builder> outputBuilders = Collections.emptyList();
+  private @Nullable List<Windmill.WorkItemCommitRequest> workItemCommits = null;
+  private @Nullable List<Windmill.OutputMessageBundle> bundleOutputMessages = null;
+  private @Nullable List<Windmill.PubSubMessageBundle> bundlePubsubMessages = null;
 
   // Map<finalizerId, Pair<callbackExpiration, callback>>
-  private Map<Long, Pair<Instant, Runnable>> finalizationCallbacks = Collections.emptyMap();
+  private @Nullable Map<Long, Pair<Instant, Runnable>> finalizationCallbacks = null;
   private AtomicBoolean workBatchFailed = new AtomicBoolean(false);
   private @Nullable WindmillStateReader activeStateReader;
   private long stateBytesRead = 0;
@@ -321,9 +323,10 @@ public class StreamingModeExecutionContext
   public void reset() {
     // these lists and maps are returned to callers after processing
     // don't clear and reuse, instead reset the reference.
-    this.executedWorks = Collections.emptyList();
-    this.outputBuilders = Collections.emptyList();
-    this.finalizationCallbacks = Collections.emptyMap();
+    this.workItemCommits = null;
+    this.bundleOutputMessages = null;
+    this.bundlePubsubMessages = null;
+    this.finalizationCallbacks = null;
     // Work from prior bundles might have a reference to the old workBatchFailed.
     // If the work gets retried it'll get the new workBatchFailed to notify failure.
     this.workBatchFailed = new AtomicBoolean(false);
@@ -335,9 +338,10 @@ public class StreamingModeExecutionContext
     this.workQueueExecutor = null;
     this.budgetHandle = null;
     this.keyTransitionListener = null;
+    this.onFailedWorkHandler = null;
     this.work = null;
     this.key = null;
-    this.outputBuilder = null;
+    this.keyOutputBuilder = null;
     this.sideInputStateFetcher = null;
     this.backlogBytes = UnboundedReader.BACKLOG_UNKNOWN;
     clearSinkFullHint();
@@ -350,17 +354,16 @@ public class StreamingModeExecutionContext
       BoundedQueueExecutor workQueueExecutor,
       BoundedQueueExecutorWorkHandle budgetHandle,
       @Nullable Coder<?> keyCoder,
-      KeyTransitionListener keyTransitionListener)
+      KeyTransitionListener keyTransitionListener,
+      FailedWorkHandler onFailedWorkHandler)
       throws CoderException {
     reset();
-    this.executedWorks = new ArrayList<>();
-    this.outputBuilders = new ArrayList<>();
-    this.finalizationCallbacks = new HashMap<>();
     this.keyCoder = keyCoder;
     this.workExecutor = workExecutor;
     this.workQueueExecutor = workQueueExecutor;
     this.budgetHandle = budgetHandle;
     this.keyTransitionListener = keyTransitionListener;
+    this.onFailedWorkHandler = checkStateNotNull(onFailedWorkHandler);
 
     this.workItemsPolled = 1;
     this.bundleStartTimeNanos = System.nanoTime();
@@ -441,9 +444,28 @@ public class StreamingModeExecutionContext
     }
   }
 
-  public void flushState() {
-    checkState(finishKeyCalled, "finishKey must be called before flushState");
+  public ExecuteWorkResult flushStateAndReset() {
+    checkState(finishKeyCalled, "finishKey must be called before flushStateAndReset");
     flushStateInternal();
+
+    List<Windmill.WorkItemCommitRequest> workItemCommits =
+        this.workItemCommits != null ? this.workItemCommits : Collections.emptyList();
+    List<Windmill.OutputMessageBundle> bundleOutputMessages =
+        this.bundleOutputMessages != null ? this.bundleOutputMessages : Collections.emptyList();
+    List<Windmill.PubSubMessageBundle> bundlePubsubMessages =
+        this.bundlePubsubMessages != null ? this.bundlePubsubMessages : Collections.emptyList();
+    Map<Long, Pair<Instant, Runnable>> finalizationCallbacks =
+        this.finalizationCallbacks != null ? this.finalizationCallbacks : Collections.emptyMap();
+    long stateBytesRead = this.stateBytesRead;
+
+    reset();
+
+    return ExecuteWorkResult.create(
+        workItemCommits,
+        bundleOutputMessages,
+        bundlePubsubMessages,
+        finalizationCallbacks,
+        stateBytesRead);
   }
 
   /**
@@ -557,8 +579,8 @@ public class StreamingModeExecutionContext
     return getWorkItem().getTimers().getTimersList();
   }
 
-  public Windmill.WorkItemCommitRequest.Builder getOutputBuilder() {
-    return checkStateNotNull(outputBuilder);
+  public Windmill.WorkItemCommitRequest.Builder getKeyOutputBuilder() {
+    return checkStateNotNull(keyOutputBuilder);
   }
 
   /**
@@ -577,11 +599,13 @@ public class StreamingModeExecutionContext
 
   /** Invalidate the state and reader caches for this computation and key. */
   public void invalidateCache() {
-    for (Work w : executedWorks) {
-      WindmillComputationKey compKey =
-          WindmillComputationKey.create(computationId, w.getShardedKey());
-      readerCache.invalidateReader(compKey);
-      stateCache.invalidate(w.getShardedKey());
+    if (budgetHandle != null) {
+      for (Work w : budgetHandle.getWorkBatch()) {
+        WindmillComputationKey compKey =
+            WindmillComputationKey.create(computationId, w.getShardedKey());
+        readerCache.invalidateReader(compKey);
+        stateCache.invalidate(w.getShardedKey());
+      }
     }
     if (activeReader != null) {
       try {
@@ -610,47 +634,50 @@ public class StreamingModeExecutionContext
   }
 
   private void flushStateInternal() {
-    Map<Long, Pair<Instant, Runnable>> callbacks = new HashMap<>();
-
     for (StepContext stepContext : getAllStepContexts()) {
       stepContext.flushState();
-      for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer :
-          stepContext.flushBundleFinalizerCallbacks()) {
-        long id = ThreadLocalRandom.current().nextLong();
-        callbacks.put(
-            id,
-            Pair.of(
-                bundleFinalizer.getLeft(),
-                () -> {
-                  try {
-                    bundleFinalizer.getRight().onBundleSuccess();
-                  } catch (Exception e) {
-                    throw new RuntimeException("Exception while running bundle finalizer", e);
-                  }
-                }));
-        getOutputBuilder().addFinalizeIds(id);
+      List<Pair<Instant, BundleFinalizer.Callback>> stepCallbacks =
+          stepContext.flushBundleFinalizerCallbacks();
+      if (!stepCallbacks.isEmpty()) {
+        Map<Long, Pair<Instant, Runnable>> targetMap = getOrCreateFinalizationCallbacks();
+        for (Pair<Instant, BundleFinalizer.Callback> bundleFinalizer : stepCallbacks) {
+          long id = ThreadLocalRandom.current().nextLong();
+          targetMap.put(
+              id,
+              Pair.of(
+                  bundleFinalizer.getLeft(),
+                  () -> {
+                    try {
+                      bundleFinalizer.getRight().onBundleSuccess();
+                    } catch (Exception e) {
+                      throw new RuntimeException("Exception while running bundle finalizer", e);
+                    }
+                  }));
+          getKeyOutputBuilder().addFinalizeIds(id);
+        }
       }
     }
 
     UnboundedReader<?> reader = activeReader;
     if (reader != null) {
-      Windmill.WorkItemCommitRequest.Builder builder = getOutputBuilder();
+      Windmill.WorkItemCommitRequest.Builder builder = getKeyOutputBuilder();
       Windmill.SourceState.Builder sourceStateBuilder = builder.getSourceStateUpdatesBuilder();
       final UnboundedSource.CheckpointMark checkpointMark = reader.getCheckpointMark();
       final Instant watermark = reader.getWatermark();
       long id = ThreadLocalRandom.current().nextLong();
       sourceStateBuilder.addFinalizeIds(id);
-      callbacks.put(
-          id,
-          Pair.of(
-              Instant.now().plus(Duration.standardMinutes(5)),
-              () -> {
-                try {
-                  checkpointMark.finalizeCheckpoint();
-                } catch (IOException e) {
-                  throw new RuntimeException("Exception while finalizing checkpoint", e);
-                }
-              }));
+      getOrCreateFinalizationCallbacks()
+          .put(
+              id,
+              Pair.of(
+                  Instant.now().plus(Duration.standardMinutes(5)),
+                  () -> {
+                    try {
+                      checkpointMark.finalizeCheckpoint();
+                    } catch (IOException e) {
+                      throw new RuntimeException("Exception while finalizing checkpoint", e);
+                    }
+                  }));
 
       @SuppressWarnings("unchecked")
       Coder<UnboundedSource.CheckpointMark> checkpointCoder =
@@ -690,19 +717,31 @@ public class StreamingModeExecutionContext
       // If activeReader is null, we might still have backlogBytes from an SDF. We ignore a reported
       // backlogBytes of 1 since older versions of the Java SDK use this value as a default when
       // RestrictionTracker.getProgress() or GetSize() are not defined.
-      getOutputBuilder().setSourceBacklogBytes(backlogBytes);
+      getKeyOutputBuilder().setSourceBacklogBytes(backlogBytes);
     }
 
-    this.finalizationCallbacks.putAll(callbacks);
-
-    getOutputBuilder()
+    getKeyOutputBuilder()
         .setSourceBytesProcessed(computeSourceBytesProcessed(sourceBytesProcessCounterName));
 
     validateCommitRequestSize();
+
+    WorkItemCommitRequest workItemCommitRequest = getKeyOutputBuilder().build();
+    this.keyOutputBuilder = null;
+
+    if (multiKeyBundleOptions.multiKeyBundleEnabled()) {
+      if (this.workItemCommits == null) {
+        this.workItemCommits = new ArrayList<>();
+      }
+      this.workItemCommits.add(workItemCommitRequest);
+    } else {
+      checkState(this.workItemCommits == null);
+      this.workItemCommits = Collections.singletonList(workItemCommitRequest);
+    }
   }
 
   private void validateCommitRequestSize() {
-    Windmill.WorkItemCommitRequest.Builder currentBuilder = getOutputBuilder();
+    // TODO: Validate size of outputs at MultiKeyWorkItemCommitRequest level.
+    Windmill.WorkItemCommitRequest.Builder currentBuilder = getKeyOutputBuilder();
     Work currentWork = getWork();
     long byteLimit = operationalLimits.getMaxWorkItemCommitBytes();
     Windmill.WorkItemCommitRequest commitRequest = currentBuilder.build();
@@ -715,6 +754,23 @@ public class StreamingModeExecutionContext
     streamingCounters.windmillMaxObservedWorkItemCommitBytes().addValue(estimatedCommitSize);
     if (commitSize >= 0 && commitSize < byteLimit) {
       return;
+    }
+
+    // If this is a multi-key work item, then we need to retry all of the individual work items
+    // without merging so that we can identify large commits to truncate.
+    // TODO: Can we request truncation without retrying if the first commit exceed the limits?
+    BoundedQueueExecutorWorkHandle handle = checkNotNull(budgetHandle);
+    List<Work> currentBatch = handle.getWorkBatch();
+    checkState(!currentBatch.isEmpty());
+    if (currentBatch.size() > 1) {
+      LOG.warn(
+          "Windmill Commit limit exceeded on a multi key bundle. Retrying without batching. Batch size: {}",
+          currentBatch.size());
+      for (Work w : currentBatch) {
+        w.setMultiKeyBatchingDisabled(true);
+      }
+      throw new MultiKeyCommitValidationException(
+          "Commit size validation failed for batch. Retrying individually.");
     }
 
     KeyCommitTooLargeException e =
@@ -730,11 +786,6 @@ public class StreamingModeExecutionContext
         buildWorkItemTruncationRequestBuilder(currentWork, estimatedCommitSize);
     currentBuilder.clear();
     currentBuilder.mergeFrom(truncationBuilder.build());
-
-    // TODO: throw and retry when truncation is not on a single key bundle.
-    checkState(
-        !multiKeyBundleOptions.multiKeyBundleEnabled(),
-        "Commit truncation not implemented for multikey bundles");
   }
 
   private Windmill.WorkItemCommitRequest.Builder buildWorkItemTruncationRequestBuilder(
@@ -773,18 +824,22 @@ public class StreamingModeExecutionContext
       throw new WorkItemCancelledException(activeWork.getWorkItem().getShardingKey());
     }
 
-    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT) || shouldStopBatching()) {
+    if (activeWork.getKeyGroup().equals(Work.KeyGroup.DEFAULT)
+        || activeWork.isMultiKeyBatchingDisabled()
+        || shouldStopBatching()) {
       return false;
     }
 
-    @Nullable
-    ExecutableWork additionalWork =
-        executor.pollWork(computationId, activeWork.getKeyGroup(), handle);
+    @Nullable ExecutableWork additionalWork =
+        executor.pollWork(
+            computationId,
+            activeWork.getKeyGroup(),
+            handle,
+            checkStateNotNull(onFailedWorkHandler));
     if (additionalWork != null) {
       flushStateInternal();
       Work newWork = additionalWork.work();
       ++workItemsPolled;
-      checkStateNotNull(keyTransitionListener).onKeyTransition(activeWork, newWork);
       startForNewKey(newWork);
       return true;
     }
@@ -793,7 +848,6 @@ public class StreamingModeExecutionContext
   }
 
   private boolean shouldStopBatching() {
-    // TODO: stop batching if the previous work item requested truncation
     if (workItemsPolled >= multiKeyBundleOptions.maxKeyGroupBatchSize()) {
       return true;
     }
@@ -814,10 +868,8 @@ public class StreamingModeExecutionContext
     this.finishKeyCalled = false;
     this.computationKey = WindmillComputationKey.create(computationId, newWork.getShardedKey());
 
-    this.outputBuilder = createOutputBuilder(newWork);
-    this.outputBuilders.add(this.outputBuilder);
+    this.keyOutputBuilder = createOutputBuilder(newWork);
     newWork.setOnFailureListener(this.workBatchFailed);
-    this.executedWorks.add(newWork);
 
     logHotKeyIfDetected(newWork, this.key);
 
@@ -844,28 +896,29 @@ public class StreamingModeExecutionContext
     }
   }
 
-  // Returns state bytes read during the bundle execution
-  public long getStateBytesRead() {
-    return stateBytesRead;
-  }
-
-  // Returns list of commit requests from the bundle
-  public List<Windmill.WorkItemCommitRequest> getWorkItemCommits() {
-    List<Windmill.WorkItemCommitRequest> commits = new ArrayList<>(outputBuilders.size());
-    for (Windmill.WorkItemCommitRequest.Builder builder : outputBuilders) {
-      commits.add(builder.build());
+  public void addBundleOutputMessages(Windmill.OutputMessageBundle outputBundle) {
+    if (this.bundleOutputMessages == null) {
+      this.bundleOutputMessages = new ArrayList<>();
     }
-    return commits;
+    this.bundleOutputMessages.add(outputBundle);
   }
 
-  // Returns list of Work that was executed in the bundle
-  public List<Work> getExecutedWorks() {
-    return executedWorks;
+  public void addBundlePubsubMessages(Windmill.PubSubMessageBundle pubsubBundle) {
+    if (this.bundlePubsubMessages == null) {
+      this.bundlePubsubMessages = new ArrayList<>();
+    }
+    this.bundlePubsubMessages.add(pubsubBundle);
   }
 
-  // Returns finalization callbacks recorded during the bundle execution
-  public Map<Long, Pair<Instant, Runnable>> getFinalizationCallbacks() {
-    return finalizationCallbacks;
+  private Map<Long, Pair<Instant, Runnable>> getOrCreateFinalizationCallbacks() {
+    if (this.finalizationCallbacks == null) {
+      this.finalizationCallbacks = new HashMap<>();
+    }
+    return this.finalizationCallbacks;
+  }
+
+  public boolean multiKeyBundleEnabled() {
+    return multiKeyBundleOptions.multiKeyBundleEnabled();
   }
 
   // Returns the current key being processed or null if an unkeyed stage.
@@ -901,8 +954,7 @@ public class StreamingModeExecutionContext
     return getWork().getWorkItem();
   }
 
-  @Nullable
-  String getStateFamily(NameContext nameContext) {
+  @Nullable String getStateFamily(NameContext nameContext) {
     return nameContext.userName() == null ? null : stateNameMap.get(nameContext.userName());
   }
 
@@ -1231,7 +1283,7 @@ public class StreamingModeExecutionContext
 
     public void flushState() {
       if (stateFamily != null) {
-        WorkItemCommitRequest.Builder builder = getOutputBuilder();
+        WorkItemCommitRequest.Builder builder = getKeyOutputBuilder();
         checkStateNotNull(stateInternals).persist(builder);
         checkStateNotNull(systemTimerInternals).persistTo(builder);
         checkStateNotNull(userTimerInternals).persistTo(builder);
@@ -1320,8 +1372,7 @@ public class StreamingModeExecutionContext
     }
 
     private boolean isTimerUnmodified(TimerData timerData) {
-      @Nullable
-      TimerData updatedTimer =
+      @Nullable TimerData updatedTimer =
           modifiedUserTimerKeys.get(
               WindmillTimerInternals.getTimerDataKey(timerData), timerData.getNamespace());
       return updatedTimer == null || updatedTimer.equals(timerData);
@@ -1447,7 +1498,7 @@ public class StreamingModeExecutionContext
               .setData(dataStream.toByteString())
               .setStateFamily(stateFamily);
 
-      getOutputBuilder().addGlobalDataUpdates(builder.build());
+      getKeyOutputBuilder().addGlobalDataUpdates(builder.build());
     }
 
     /** Fetch the given side input asynchronously and return true if it is present. */
@@ -1465,7 +1516,7 @@ public class StreamingModeExecutionContext
       String stateFamily = checkStateNotNull(this.stateFamily, "Tried to set global data request");
       sideInput =
           Windmill.GlobalDataRequest.newBuilder(sideInput).setStateFamily(stateFamily).build();
-      WorkItemCommitRequest.Builder builder = getOutputBuilder();
+      WorkItemCommitRequest.Builder builder = getKeyOutputBuilder();
       builder.addGlobalDataRequests(sideInput);
       builder.addGlobalDataIdRequests(sideInput.getDataId());
     }

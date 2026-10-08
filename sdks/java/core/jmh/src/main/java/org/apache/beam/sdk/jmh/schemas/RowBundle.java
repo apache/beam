@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.jmh.schemas;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.nio.charset.StandardCharsets;
 import org.apache.beam.sdk.schemas.Factory;
 import org.apache.beam.sdk.schemas.GetterBasedSchemaProvider;
@@ -54,6 +55,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * adequately timestamped without risking generating wrong results.
  */
 @State(Scope.Benchmark)
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class RowBundle<T> {
   public enum Action {
     /**

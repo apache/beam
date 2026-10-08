@@ -28,11 +28,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import javax.annotation.Nullable;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.beam.model.pipeline.v1.ExternalTransforms;
 import org.apache.beam.sdk.coders.ByteArrayCoder;
 import org.apache.beam.sdk.coders.KvCoder;
+import org.apache.beam.sdk.coders.NullableCoder;
 import org.apache.beam.sdk.extensions.avro.coders.AvroCoder;
 import org.apache.beam.sdk.extensions.avro.schemas.utils.AvroUtils;
 import org.apache.beam.sdk.extensions.protobuf.ProtoByteUtils;
@@ -63,9 +63,7 @@ import org.apache.beam.sdk.values.TupleTag;
 import org.apache.beam.sdk.values.TupleTagList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Sets;
 import org.apache.kafka.common.serialization.ByteArraySerializer;
-import org.checkerframework.checker.initialization.qual.Initialized;
-import org.checkerframework.checker.nullness.qual.NonNull;
-import org.checkerframework.checker.nullness.qual.UnknownKeyFor;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,22 +76,20 @@ public class KafkaWriteSchemaTransformProvider
   public static final Set<String> SUPPORTED_FORMATS =
       Sets.newHashSet(SUPPORTED_FORMATS_STR.split(","));
   public static final TupleTag<Row> ERROR_TAG = new TupleTag<Row>() {};
-  public static final TupleTag<KV<byte[], byte[]>> OUTPUT_TAG =
-      new TupleTag<KV<byte[], byte[]>>() {};
-  public static final TupleTag<KV<byte[], GenericRecord>> RECORD_OUTPUT_TAG =
-      new TupleTag<KV<byte[], GenericRecord>>() {};
+  public static final TupleTag<KV<byte @Nullable [], byte[]>> OUTPUT_TAG =
+      new TupleTag<KV<byte @Nullable [], byte[]>>() {};
+  public static final TupleTag<KV<byte @Nullable [], GenericRecord>> RECORD_OUTPUT_TAG =
+      new TupleTag<KV<byte @Nullable [], GenericRecord>>() {};
   private static final Logger LOG =
       LoggerFactory.getLogger(KafkaWriteSchemaTransformProvider.class);
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized Class<KafkaWriteSchemaTransformConfiguration>
-      configurationClass() {
+  protected Class<KafkaWriteSchemaTransformConfiguration> configurationClass() {
     return KafkaWriteSchemaTransformConfiguration.class;
   }
 
   @Override
-  protected @UnknownKeyFor @NonNull @Initialized SchemaTransform from(
-      KafkaWriteSchemaTransformConfiguration configuration) {
+  protected SchemaTransform from(KafkaWriteSchemaTransformConfiguration configuration) {
     if (!SUPPORTED_FORMATS.contains(configuration.getFormat())) {
       throw new IllegalArgumentException(
           "Format "
@@ -126,20 +122,20 @@ public class KafkaWriteSchemaTransformProvider
       }
     }
 
-    public abstract static class BaseKafkaWriterFn<T> extends DoFn<Row, KV<byte[], T>> {
+    public abstract static class BaseKafkaWriterFn<T> extends DoFn<Row, KV<byte @Nullable [], T>> {
       private final SerializableFunction<Row, T> conversionFn;
       private final Counter errorCounter;
       private Long errorsInBundle = 0L;
       private final boolean handleErrors;
       private final Schema errorSchema;
-      private final TupleTag<KV<byte[], T>> successTag;
+      private final TupleTag<KV<byte @Nullable [], T>> successTag;
 
       public BaseKafkaWriterFn(
           String name,
           SerializableFunction<Row, T> conversionFn,
           Schema errorSchema,
           boolean handleErrors,
-          TupleTag<KV<byte[], T>> successTag) {
+          TupleTag<KV<byte @Nullable [], T>> successTag) {
         this.conversionFn = conversionFn;
         this.errorCounter = Metrics.counter(KafkaWriteSchemaTransformProvider.class, name);
         this.handleErrors = handleErrors;
@@ -149,9 +145,9 @@ public class KafkaWriteSchemaTransformProvider
 
       @ProcessElement
       public void process(@DoFn.Element Row row, MultiOutputReceiver receiver) {
-        KV<byte[], T> output = null;
+        KV<byte @Nullable [], T> output = null;
         try {
-          output = KV.of(new byte[1], conversionFn.apply(row));
+          output = KV.of(null, conversionFn.apply(row));
         } catch (Exception e) {
           if (!handleErrors) {
             throw new RuntimeException(e);
@@ -260,17 +256,20 @@ public class KafkaWriteSchemaTransformProvider
                                 handleErrors))
                         .withOutputTags(RECORD_OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
         HashMap<String, Object> producerConfig = new HashMap<>(configOverrides);
+        KafkaIO.Write<byte[], GenericRecord> kafkaWrite =
+            KafkaIO.<byte[], GenericRecord>write()
+                .withTopic(configuration.getTopic())
+                .withBootstrapServers(configuration.getBootstrapServers())
+                .withProducerConfigUpdates(producerConfig)
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer((Class) KafkaAvroSerializer.class);
+        if (Boolean.TRUE.equals(configuration.getWithGcpAdc())) {
+          kafkaWrite = kafkaWrite.withGCPApplicationDefaultCredentials();
+        }
         outputTuple
             .get(RECORD_OUTPUT_TAG)
-            .setCoder(KvCoder.of(ByteArrayCoder.of(), AvroCoder.of(avroSchema)))
-            .apply(
-                "Map Rows to GenericRecords",
-                KafkaIO.<byte[], GenericRecord>write()
-                    .withTopic(configuration.getTopic())
-                    .withBootstrapServers(configuration.getBootstrapServers())
-                    .withProducerConfigUpdates(producerConfig)
-                    .withKeySerializer(ByteArraySerializer.class)
-                    .withValueSerializer((Class) KafkaAvroSerializer.class));
+            .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), AvroCoder.of(avroSchema)))
+            .apply("Map Rows to GenericRecords", kafkaWrite);
       } else {
         outputTuple =
             input
@@ -282,23 +281,27 @@ public class KafkaWriteSchemaTransformProvider
                                 "Kafka-write-error-counter", toBytesFn, errorSchema, handleErrors))
                         .withOutputTags(OUTPUT_TAG, TupleTagList.of(ERROR_TAG)));
 
+        KafkaIO.Write<byte[], byte[]> kafkaWrite =
+            KafkaIO.<byte[], byte[]>write()
+                .withTopic(configuration.getTopic())
+                .withBootstrapServers(configuration.getBootstrapServers())
+                .withProducerConfigUpdates(
+                    configOverrides == null
+                        ? new HashMap<>()
+                        : new HashMap<String, Object>(configOverrides))
+                .withKeySerializer(ByteArraySerializer.class)
+                .withValueSerializer(ByteArraySerializer.class);
+        if (Boolean.TRUE.equals(configuration.getWithGcpAdc())) {
+          kafkaWrite = kafkaWrite.withGCPApplicationDefaultCredentials();
+        }
         outputTuple
             .get(OUTPUT_TAG)
-            .apply(
-                KafkaIO.<byte[], byte[]>write()
-                    .withTopic(configuration.getTopic())
-                    .withBootstrapServers(configuration.getBootstrapServers())
-                    .withProducerConfigUpdates(
-                        configOverrides == null
-                            ? new HashMap<>()
-                            : new HashMap<String, Object>(configOverrides))
-                    .withKeySerializer(ByteArraySerializer.class)
-                    .withValueSerializer(ByteArraySerializer.class));
+            .setCoder(KvCoder.of(NullableCoder.of(ByteArrayCoder.of()), ByteArrayCoder.of()))
+            .apply(kafkaWrite);
       }
 
       // TODO: include output from KafkaIO Write once updated from PDone
-      PCollection<Row> errorOutput =
-          outputTuple.get(ERROR_TAG).setRowSchema(ErrorHandling.errorSchema(errorSchema));
+      PCollection<Row> errorOutput = outputTuple.get(ERROR_TAG).setRowSchema(errorSchema);
       return PCollectionRowTuple.of(
           handleErrors ? configuration.getErrorHandling().getOutput() : "errors", errorOutput);
     }
@@ -318,19 +321,17 @@ public class KafkaWriteSchemaTransformProvider
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized String identifier() {
+  public String identifier() {
     return getUrn(ExternalTransforms.ManagedTransforms.Urns.KAFKA_WRITE);
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      inputCollectionNames() {
+  public List<String> inputCollectionNames() {
     return Collections.singletonList("input");
   }
 
   @Override
-  public @UnknownKeyFor @NonNull @Initialized List<@UnknownKeyFor @NonNull @Initialized String>
-      outputCollectionNames() {
+  public List<String> outputCollectionNames() {
     return Collections.emptyList();
   }
 
@@ -386,6 +387,13 @@ public class KafkaWriteSchemaTransformProvider
     @Nullable
     public abstract String getSchema();
 
+    @SchemaFieldDescription(
+        "Whether to use Google Application Default Credentials (ADC) for authenticating with a "
+            + "Google Managed Kafka cluster.")
+    @SchemaFieldNumber("8")
+    @Nullable
+    public abstract Boolean getWithGcpAdc();
+
     public static Builder builder() {
       return new AutoValue_KafkaWriteSchemaTransformProvider_KafkaWriteSchemaTransformConfiguration
           .Builder();
@@ -408,6 +416,8 @@ public class KafkaWriteSchemaTransformProvider
       public abstract Builder setMessageName(String messageName);
 
       public abstract Builder setSchema(String schema);
+
+      public abstract Builder setWithGcpAdc(Boolean withGcpAdc);
 
       public abstract KafkaWriteSchemaTransformConfiguration build();
     }

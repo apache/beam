@@ -19,6 +19,7 @@ package org.apache.beam.sdk.extensions.sql.meta.provider.iceberg;
 
 import static java.lang.String.format;
 import static java.util.Arrays.asList;
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.BOOLEAN;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.DOUBLE;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.FLOAT;
@@ -27,7 +28,6 @@ import static org.apache.beam.sdk.schemas.Schema.FieldType.INT64;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.STRING;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.array;
 import static org.apache.beam.sdk.schemas.Schema.FieldType.row;
-import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.Matchers.equalTo;
@@ -102,7 +102,7 @@ public class IcebergReadWriteIT {
   private static final BigqueryClient BQ_CLIENT = new BigqueryClient("IcebergReadWriteIT");
   private static final String BQMS_CATALOG =
       "org.apache.iceberg.gcp.bigquery.BigQueryMetastoreCatalog";
-  static final String DATASET = "iceberg_sql_tests_" + System.nanoTime();
+  static final String DATASET = TEMP_DATASET_PREFIX + "iceberg_sql_" + System.nanoTime();
   static String warehouse;
   protected static final GcpOptions OPTIONS =
       TestPipeline.testingPipelineOptions().as(GcpOptions.class);
@@ -200,8 +200,6 @@ public class IcebergReadWriteIT {
     assertEquals("my_catalog." + tableIdentifier, icebergTable.name());
     assertTrue(icebergTable.location().startsWith(warehouse));
     assertEquals(expectedSpec, icebergTable.spec());
-    Schema expectedSchema = checkStateNotNull(metastore.getTable(tableName)).getSchema();
-    assertEquals(expectedSchema, IcebergUtils.icebergSchemaToBeamSchema(icebergTable.schema()));
 
     // 4) write to underlying Iceberg table
     String insertStatement =

@@ -69,7 +69,7 @@ on:
       - '!sdks/java/io/thrift/**'
       - '!sdks/java/io/tika/**'
 
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - 'model/**'
@@ -121,18 +121,16 @@ on:
       - '!sdks/java/io/splunk/**'
       - '!sdks/java/io/thrift/**'
       - '!sdks/java/io/tika/**'
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '30 2/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -155,35 +153,28 @@ env:
 
 jobs:
   beam_PreCommit_Java:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     runs-on: [self-hosted, ubuntu-24.04, main]
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Java]
-        job_phrase: [Run Java PreCommit]
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java PreCommit'
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
           python-version: default
-          disable-cache: true
       - name: run Java PreCommit script
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
@@ -192,6 +183,7 @@ jobs:
             -PdisableSpotlessCheck=true \
             -PdisableCheckStyle=true \
             -PenableJacocoReport \
+            -Pwith-kafka-streams-runner \
       - name: Archive JUnit Test Results
         uses: actions/upload-artifact@v7
         if: ${{ !success() }}
@@ -202,8 +194,9 @@ jobs:
         uses: EnricoMi/publish-unit-test-result-action@v2
         if: always()
         with:
-          commit: '${{ env.prsha || env.GITHUB_SHA }}'
-          comment_mode: ${{ github.event_name == 'issue_comment'  && 'always' || 'off' }}
+          commit: '${{ env.GITHUB_SHA }}'
+          comment_mode: 'off'
+          check_run: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           files: '**/build/test-results/**/*.xml'
           large_files: true
       - name: Archive SpotBugs Results
@@ -214,7 +207,7 @@ jobs:
           path: '**/build/reports/spotbugs/*.html'
       - name: Publish SpotBugs Results
         uses: jwgmeligmeyling/spotbugs-github-action@v1.2
-        if: always()
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
         with:
           name: Publish SpotBugs
           path: '**/build/reports/spotbugs/*.html'
@@ -224,6 +217,6 @@ jobs:
           name: Jacoco Results
           path: '**/build/jacoco/report/**'
       - name: Upload coverage reports to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v7
         with:
           flags: java

@@ -143,6 +143,69 @@ func TestCPUCountHint_Payload(t *testing.T) {
 	}
 }
 
+func TestCPUCountHint_String(t *testing.T) {
+	tests := []struct {
+		value uint64
+		want  string
+	}{
+		{0, "cpu_count=0"},
+		{1, "cpu_count=1"},
+		{4, "cpu_count=4"},
+		{128, "cpu_count=128"},
+	}
+
+	for _, test := range tests {
+		h := CPUCountHint{value: test.value}
+		if got, want := h.String(), test.want; got != want {
+			t.Errorf("%v.String() = %v, want %v", h, got, want)
+		}
+	}
+}
+
+func TestParseCPUCount(t *testing.T) {
+	tests := []struct {
+		value   string
+		payload string
+	}{
+		{"0", "0"},
+		{"1", "1"},
+		{"2", "2"},
+		{"4", "4"},
+		{"11", "11"},
+		{"2003", "2003"},
+		{"12000000", "12000000"},
+		{"18446744073709551615", "18446744073709551615"},
+	}
+
+	for _, test := range tests {
+		h := ParseCPUCount(test.value)
+		if got, want := h.Payload(), []byte(test.payload); !bytes.Equal(got, want) {
+			t.Errorf("%v.Payload() = %v, want %v", h, string(got), string(want))
+		}
+	}
+}
+
+func TestParseCPUCount_panic(t *testing.T) {
+	tests := []string{
+		"a bad cpu string",
+		"-1",
+		"1.5",
+		"",
+		"18446744073709551616",
+	}
+
+	for _, test := range tests {
+		t.Run(test, func(t *testing.T) {
+			defer func() {
+				if r := recover(); r == nil {
+					t.Errorf("want ParseCPUCount(%q) to panic", test)
+				}
+			}()
+			ParseCPUCount(test)
+		})
+	}
+}
+
 func TestMaxActiveBundlesPerWorkerHint_MergeWith(t *testing.T) {
 	low := maxActiveBundlesPerWorkerHint{value: 2}
 	high := maxActiveBundlesPerWorkerHint{value: 4}
@@ -340,5 +403,50 @@ func TestHints_NilHints(t *testing.T) {
 	}
 	if got, want := hs1.MergeWithOuter(hs), hs; !got.Equal(want) {
 		t.Errorf("nil equal test: (nil).Equal(hs) = %v, want %v", got, want)
+	}
+}
+
+func TestHints_OptionStrings(t *testing.T) {
+	tests := []struct {
+		name                string
+		hints               Hints
+		wantOpts, wantOmits []string
+	}{
+		{
+			name: "empty",
+		}, {
+			name:     "minRAM",
+			hints:    NewHints(ParseMinRAM("2GB")),
+			wantOpts: []string{"min_ram=2000000000B"},
+		}, {
+			name:  "allStandard",
+			hints: NewHints(MinRAMBytes(2e9), Accelerator("type:jeans;count1;"), CPUCount(4), MaxActiveBundlesPerWorker(2)),
+			wantOpts: []string{
+				"accelerator=type:jeans;count1;",
+				"cpu_count=4",
+				"max_active_bundles_per_worker=2",
+				"min_ram=2000000000B",
+			},
+		}, {
+			name:      "customOmitted",
+			hints:     NewHints(CPUCount(8), customHint{}),
+			wantOpts:  []string{"cpu_count=8"},
+			wantOmits: []string{"top:secret:custom:urn"},
+		}, {
+			name:      "onlyCustom",
+			hints:     NewHints(customHint{}),
+			wantOmits: []string{"top:secret:custom:urn"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			gotOpts, gotOmits := test.hints.OptionStrings()
+			if !reflect.DeepEqual(gotOpts, test.wantOpts) {
+				t.Errorf("OptionStrings() opts = %v, want %v", gotOpts, test.wantOpts)
+			}
+			if !reflect.DeepEqual(gotOmits, test.wantOmits) {
+				t.Errorf("OptionStrings() omitted = %v, want %v", gotOmits, test.wantOmits)
+			}
+		})
 	}
 }

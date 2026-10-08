@@ -72,6 +72,11 @@ public class MongoDBResourceManagerTest {
   }
 
   @Test
+  public void testDriverInfoHasExpectedName() {
+    assertThat(MongoDBResourceManager.DRIVER_INFO.getDriverNames()).contains("Apache Beam");
+  }
+
+  @Test
   public void testCreateResourceManagerBuilderReturnsMongoDBResourceManager() {
     assertThat(
             MongoDBResourceManager.builder(TEST_ID)

@@ -17,45 +17,77 @@
  */
 package org.apache.beam.sdk.io.iceberg.catalog;
 
+import static org.apache.beam.sdk.managed.Managed.ICEBERG;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.startsWith;
+import static org.junit.Assert.assertFalse;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
+import org.apache.beam.sdk.io.iceberg.LakehouseTestCatalog;
+import org.apache.beam.sdk.managed.Managed;
+import org.apache.beam.sdk.transforms.Create;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
+import org.apache.iceberg.BaseTable;
+import org.apache.iceberg.DataFile;
+import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.catalog.Catalog;
+import org.apache.iceberg.catalog.Namespace;
+import org.apache.iceberg.catalog.SupportsNamespaces;
+import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.data.Record;
 import org.apache.iceberg.rest.RESTCatalog;
 import org.junit.After;
 import org.junit.BeforeClass;
+import org.junit.Test;
 
-/** Tests for {@link org.apache.iceberg.rest.RESTCatalog} using BigLake Metastore. */
+/**
+ * Tests for {@link org.apache.iceberg.rest.RESTCatalog} using a multiple-bucket Lakehouse catalog
+ * (see {@link LakehouseTestCatalog}).
+ */
 public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
   private static Map<String, String> catalogProps;
 
-  // Using a special bucket for this test class because
-  // BigLake does not support using subfolders as a warehouse (yet)
-  private static final String BIGLAKE_WAREHOUSE = "gs://managed-iceberg-biglake-its";
-
   @BeforeClass
   public static void setup() {
-    warehouse = BIGLAKE_WAREHOUSE;
-    catalogProps =
-        ImmutableMap.<String, String>builder()
-            .put("type", "rest")
-            .put("uri", "https://biglake.googleapis.com/iceberg/v1/restcatalog")
-            .put("warehouse", BIGLAKE_WAREHOUSE)
-            .put("header.x-goog-user-project", OPTIONS.getProject())
-            .put("rest-metrics-reporting-enabled", "false")
-            .put("io-impl", "org.apache.iceberg.gcp.gcs.GCSFileIO")
-            .put("rest.auth.type", "org.apache.iceberg.gcp.auth.GoogleAuthManager")
-            .build();
+    // The catalog decides where tables go (its default location); the base class only uses
+    // `warehouse` to sweep leftover files, so point it at that location.
+    warehouse = LakehouseTestCatalog.defaultLocation();
+    catalogProps = LakehouseTestCatalog.catalogProperties();
   }
 
   @After
   public void after() {
     // making sure the cleanup path is directed at the correct warehouse
-    warehouse = BIGLAKE_WAREHOUSE;
+    warehouse = LakehouseTestCatalog.defaultLocation();
   }
 
   @Override
   public String type() {
-    return "biglake";
+    return "lakehouse";
+  }
+
+  @Override
+  public String bigQueryTableSpec(String tableId) {
+    // BigQuery surfaces Lakehouse runtime catalog (Iceberg REST) tables via 4-part
+    // project.catalog.namespace.table identifiers. Requires the caller to hold biglake.* read
+    // permissions (e.g. roles/biglake.viewer) in addition to the usual BigQuery roles.
+    TableIdentifier identifier = TableIdentifier.parse(tableId);
+    return LakehouseTestCatalog.bigQueryTableSpec(
+        identifier.namespace().toString(), identifier.name());
+  }
+
+  @Override
+  public void catalogCleanup(List<Namespace> namespaces) throws IOException {
+    List<String> names = new ArrayList<>();
+    for (Namespace namespace : namespaces) {
+      names.add(namespace.toString());
+    }
+    LakehouseTestCatalog.dropNamespacesAndFiles(catalog, names);
   }
 
   @Override
@@ -71,5 +103,54 @@ public class RESTCatalogBLMSIT extends IcebergCatalogBaseIT {
         .put("table", tableId)
         .put("catalog_properties", catalogProps)
         .build();
+  }
+
+  /**
+   * A multiple-bucket catalog may place resources under any of its restricted locations, not just
+   * its default one. Lakehouse pins a table under its namespace's location, so the namespace is
+   * created in a second bucket; Beam only receives the table through the catalog and must write
+   * wherever it was placed.
+   */
+  @Test
+  public void testWriteReadTableInAdditionalLocation() throws IOException {
+    String altNamespace = namespace() + "_alt";
+    String altTableId = altNamespace + ".test_table";
+    String namespaceLocation = LakehouseTestCatalog.additionalLocation() + "/" + altNamespace;
+    assertFalse(
+        "Test needs two distinct buckets",
+        LakehouseTestCatalog.bucketOf(namespaceLocation)
+            .equals(LakehouseTestCatalog.bucketOf(LakehouseTestCatalog.defaultLocation())));
+    namespacesToCleanup.add(altNamespace);
+    ((SupportsNamespaces) catalog)
+        .createNamespace(
+            Namespace.of(altNamespace), ImmutableMap.of("location", namespaceLocation));
+    Table table = catalog.createTable(TableIdentifier.parse(altTableId), ICEBERG_SCHEMA);
+    assertThat(table.location(), startsWith(namespaceLocation));
+
+    pipeline
+        .apply(Create.of(inputRows))
+        .setRowSchema(BEAM_SCHEMA)
+        .apply(Managed.write(ICEBERG).withConfig(managedIcebergConfig(altTableId)));
+    pipeline.run().waitUntilFinish();
+
+    table.refresh();
+    List<Record> returnedRecords = readRecords(table);
+    assertThat(
+        returnedRecords, containsInAnyOrder(inputRows.stream().map(RECORD_FUNC::apply).toArray()));
+
+    // Both the data files Beam wrote and the metadata the catalog committed live in the
+    // additional location, not in the catalog's default bucket.
+    List<String> dataFileLocations = new ArrayList<>();
+    for (Snapshot snapshot : table.snapshots()) {
+      for (DataFile dataFile : snapshot.addedDataFiles(table.io())) {
+        dataFileLocations.add(dataFile.location());
+      }
+    }
+    assertFalse("No data files were written", dataFileLocations.isEmpty());
+    for (String location : dataFileLocations) {
+      assertThat(location, startsWith(LakehouseTestCatalog.additionalLocation()));
+    }
+    String metadataLocation = ((BaseTable) table).operations().current().metadataFileLocation();
+    assertThat(metadataLocation, startsWith(LakehouseTestCatalog.additionalLocation()));
   }
 }

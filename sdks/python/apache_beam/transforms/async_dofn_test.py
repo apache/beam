@@ -16,10 +16,12 @@
 #
 
 import logging
+import math
 import multiprocessing
 import random
 import time
 import unittest
+from concurrent.futures import Future
 from concurrent.futures import ThreadPoolExecutor
 from threading import Lock
 
@@ -27,6 +29,7 @@ from parameterized import parameterized_class
 
 import apache_beam as beam
 import apache_beam.transforms.async_dofn as async_lib
+from apache_beam.transforms.window import IntervalWindow
 
 
 class BasicDofn(beam.DoFn):
@@ -87,6 +90,18 @@ class FakeTimer:
 
   def set(self, time):
     self.time = time
+
+
+class FakeEncodedBagState(FakeBagState):
+  def __init__(self, items, coder):
+    super().__init__([coder.encode(item) for item in items])
+    self.coder = coder
+
+  def add(self, item):
+    super().add(self.coder.encode(item))
+
+  def read(self):
+    return [self.coder.decode(item) for item in super().read()]
 
 
 @parameterized_class([
@@ -219,6 +234,210 @@ class AsyncTest(unittest.TestCase):
     self.check_output(result, [msg1])
     self.assertEqual(fake_bag_state_key1.items, [])
     self.assertEqual(fake_bag_state_key2.items, [])
+
+  def test_equal_values_in_different_keys(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    first_state = FakeBagState([])
+    second_state = FakeBagState([])
+    timer = FakeTimer(0)
+    first = ('key1', 7)
+    second = ('key2', 7)
+    async_dofn.process(first, to_process=first_state, timer=timer)
+    async_dofn.process(second, to_process=second_state, timer=timer)
+    self.wait_for_empty(async_dofn)
+
+    self.check_output(
+        async_dofn.commit_finished_items(second_state, timer), [second])
+    self.assertEqual(second_state.items, [])
+    self.assertEqual(first_state.items, [first])
+    self.check_output(
+        async_dofn.commit_finished_items(first_state, timer), [first])
+    self.assertEqual(first_state.items, [])
+    self.assertEqual(dofn.getProcessed(), 2)
+
+  def test_custom_ids_are_scoped_to_key(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(
+        dofn, id_fn=lambda value: value['id'], use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    first_state = FakeBagState([])
+    second_state = FakeBagState([])
+    timer = FakeTimer(0)
+    first = (1, {'id': 7, 'value': 'first'})
+    second = (2, {'id': 7, 'value': 'second'})
+    async_dofn.process(first, to_process=first_state, timer=timer)
+    async_dofn.process(second, to_process=second_state, timer=timer)
+    self.wait_for_empty(async_dofn)
+
+    self.check_output(
+        async_dofn.commit_finished_items(second_state, timer), [second])
+    self.check_output(
+        async_dofn.commit_finished_items(first_state, timer), [first])
+    self.assertEqual(first_state.items, [])
+    self.assertEqual(second_state.items, [])
+    self.assertEqual(dofn.getProcessed(), 2)
+
+  def test_nan_key_survives_state_roundtrip(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    state = FakeEncodedBagState([], async_dofn.TO_PROCESS.coder)
+    timer = FakeTimer(0)
+    async_dofn.process((float('nan'), 7), to_process=state, timer=timer)
+    self.wait_for_empty(async_dofn)
+
+    result = async_dofn.commit_finished_items(state, timer)
+    self.assertEqual(len(result), 1)
+    self.assertTrue(math.isnan(result[0][0]))
+    self.assertEqual(result[0][1], 7)
+    self.assertEqual(state.read(), [])
+    self.assertEqual(dofn.getProcessed(), 1)
+    self.assertEqual(
+        async_lib.AsyncWrapper._processing_elements[async_dofn._uuid], {})
+
+  def test_numeric_keys_remain_distinct_after_state_roundtrip(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    coder = async_dofn.TO_PROCESS.coder
+    elements = [(key, 7) for key in (-0.0, 0.0, 1, 1.0, True)]
+    states = [FakeEncodedBagState([], coder) for _ in elements]
+    timer = FakeTimer(0)
+    for element, state in zip(elements, states):
+      async_dofn.process(element, to_process=state, timer=timer)
+    self.wait_for_empty(async_dofn)
+
+    for element, state in reversed(list(zip(elements, states))):
+      result = async_dofn.commit_finished_items(state, timer)
+      self.assertEqual(len(result), 1)
+      # Python equality hides the distinctions between these encoded keys.
+      self.assertEqual(coder.encode(result[0]), coder.encode(element))
+      self.assertEqual(state.read(), [])
+    self.assertEqual(dofn.getProcessed(), len(elements))
+    self.assertEqual(
+        async_lib.AsyncWrapper._processing_elements[async_dofn._uuid], {})
+
+  def test_cancellation_uses_encoded_key_scope(self):
+    for key, other_key in ((float('nan'), 1.0), (-0.0, 0.0), (1, 1.0)):
+      with self.subTest(key=key, other_key=other_key):
+        async_dofn = async_lib.AsyncWrapper(
+            BasicDofn(), use_asyncio=self.use_asyncio)
+        async_dofn.setup()
+        first = (key, 'first')
+        orphan = (key, 'orphan')
+        other = (other_key, 'other')
+        first_future, orphan_future, other_future = Future(), Future(), Future()
+        first_future.set_result([first])
+        processing = async_lib.AsyncWrapper._processing_elements[
+            async_dofn._uuid]
+        for element, future in ((first, first_future), (orphan, orphan_future),
+                                (other, other_future)):
+          processing[async_dofn._element_id(element)] = (element, future)
+        coder = async_dofn.TO_PROCESS.coder
+        state = FakeEncodedBagState([first], coder)
+        timer = FakeTimer(0)
+
+        result = async_dofn.commit_finished_items(state, timer)
+        self.assertEqual([coder.encode(item) for item in result],
+                         [coder.encode(first)])
+        self.assertEqual(state.read(), [])
+        self.assertTrue(orphan_future.cancelled())
+        self.assertFalse(other_future.cancelled())
+        self.assertEqual(list(processing.values()), [(other, other_future)])
+
+        other_future.set_result([other])
+        other_state = FakeEncodedBagState([other], coder)
+        self.assertEqual(
+            async_dofn.commit_finished_items(other_state, timer), [other])
+        self.assertEqual(other_state.read(), [])
+        self.assertEqual(processing, {})
+
+  def _check_ids_across_windows(self, first, second, id_fn=None):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(
+        dofn, id_fn=id_fn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    first_window = IntervalWindow(0, 10)
+    second_window = IntervalWindow(10, 20)
+    first_state = FakeBagState([])
+    second_state = FakeBagState([])
+    timer = FakeTimer(0)
+    async_dofn.process(
+        first, to_process=first_state, timer=timer, window=first_window)
+    async_dofn.process(
+        second, to_process=second_state, timer=timer, window=second_window)
+    self.wait_for_empty(async_dofn)
+
+    self.check_output(
+        async_dofn.timer_callback(second_state, timer, second_window), [second])
+    self.assertEqual(second_state.items, [])
+    self.assertEqual(first_state.items, [first])
+    self.check_output(
+        async_dofn.timer_callback(first_state, timer, first_window), [first])
+    self.assertEqual(first_state.items, [])
+    self.assertEqual(dofn.getProcessed(), 2)
+
+  def test_equal_values_in_different_windows(self):
+    self._check_ids_across_windows((1, 7), (1, 7))
+
+  def test_custom_ids_are_scoped_to_window(self):
+    first = (1, {'id': 7, 'value': 'first'})
+    second = (1, {'id': 7, 'value': 'second'})
+    self._check_ids_across_windows(
+        first, second, id_fn=lambda value: value['id'])
+
+  def test_cancellation_preserves_other_window_work(self):
+    for completed in (False, True):
+      with self.subTest(completed=completed):
+        async_dofn = async_lib.AsyncWrapper(
+            BasicDofn(), use_asyncio=self.use_asyncio)
+        first_window = IntervalWindow(0, 10)
+        second_window = IntervalWindow(10, 20)
+        first, orphan, second = (1, 'first'), (1, 'orphan'), (1, 'second')
+        first_future, orphan_future, second_future = Future(), Future(), Future()
+        first_future.set_result([first])
+        if completed:
+          second_future.set_result([second])
+        processing = async_lib.AsyncWrapper._processing_elements[
+            async_dofn._uuid]
+        for element, window, future in (
+            (first, first_window, first_future),
+            (orphan, first_window, orphan_future),
+            (second, second_window, second_future)):
+          element_id = async_dofn._element_id(element, window)
+          processing[element_id] = (element, future)
+        timer = FakeTimer(0)
+        first_state, second_state = FakeBagState([first]), FakeBagState([second])
+
+        self.check_output(
+            async_dofn.timer_callback(first_state, timer, first_window),
+            [first])
+        self.assertTrue(orphan_future.cancelled())
+        self.assertEqual(list(processing.values()), [(second, second_future)])
+        self.assertFalse(second_future.cancelled())
+        if not completed:
+          second_future.set_result([second])
+        self.check_output(
+            async_dofn.timer_callback(second_state, timer, second_window),
+            [second])
+        self.assertEqual(second_state.items, [])
+
+  def test_timer_reschedules_work_in_its_window(self):
+    dofn = BasicDofn()
+    async_dofn = async_lib.AsyncWrapper(dofn, use_asyncio=self.use_asyncio)
+    async_dofn.setup()
+    window = IntervalWindow(10, 20)
+    element = (1, 'retry')
+    state, timer = FakeBagState([element]), FakeTimer(0)
+
+    self.check_output(async_dofn.timer_callback(state, timer, window), [])
+    self.wait_for_empty(async_dofn)
+    self.check_output(
+        async_dofn.timer_callback(state, timer, window), [element])
+    self.assertEqual(state.items, [])
+    self.assertEqual(dofn.getProcessed(), 1)
 
   def test_long_item(self):
     # Test that everything still works with a long running time for the dofn.
@@ -565,7 +784,7 @@ class AsyncTest(unittest.TestCase):
     # Verify the failed future was popped from local processing_elements
     with async_lib.AsyncWrapper._lock:
       self.assertNotIn(
-          async_dofn._id_fn(msg[1]),
+          async_dofn._element_id(msg),
           async_lib.AsyncWrapper._processing_elements[async_dofn._uuid],
       )
 

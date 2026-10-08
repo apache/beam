@@ -25,6 +25,7 @@ export class Pr {
   public stopReviewerNotifications: boolean;
   public remindAfterTestsPass: string[];
   public committerAssigned: boolean;
+  public reviewersAssignedAt: number;
 
   constructor(propertyDictionary) {
     this.commentedAboutFailingChecks = false;
@@ -33,6 +34,7 @@ export class Pr {
     this.stopReviewerNotifications = false;
     this.remindAfterTestsPass = []; // List of handles
     this.committerAssigned = false;
+    this.reviewersAssignedAt = 0;
 
     if (!propertyDictionary) {
       return;
@@ -58,6 +60,9 @@ export class Pr {
       }
       if ("committerAssigned" in propertyDictionary) {
         this.committerAssigned = propertyDictionary["committerAssigned"];
+      }
+      if ("reviewersAssignedAt" in propertyDictionary) {
+        this.reviewersAssignedAt = propertyDictionary["reviewersAssignedAt"];
       }
     }
   }

@@ -33,16 +33,16 @@ import java.util.Random;
 import java.util.TreeSet;
 import java.util.stream.IntStream;
 import org.apache.beam.sdk.io.range.OffsetRange;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ArrayListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableMap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ListMultimap;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Lists;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for {@link PCollectionViews}. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 public class PCollectionViewsTest {
   @Test
   public void testEmpty() {

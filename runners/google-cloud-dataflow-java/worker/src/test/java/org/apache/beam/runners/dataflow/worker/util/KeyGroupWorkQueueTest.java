@@ -77,7 +77,7 @@ public class KeyGroupWorkQueueTest {
             10000000,
             new ThreadFactoryBuilder().setNameFormat("Test-%d").setDaemon(true).build(),
             fairQueue,
-            /*useKeyGroupWorkQueue=*/ true);
+            /* useKeyGroupWorkQueue= */ true);
   }
 
   private static final Work.KeyGroup TEST_KEY_GROUP = Work.KeyGroup.create(1, 2);
@@ -486,6 +486,27 @@ public class KeyGroupWorkQueueTest {
     assertTrue(queue.isEmpty());
     polledNotExist = queue.pollWork("compA", keyGroupNotExist);
     assertNull(polledNotExist);
+    assertTrue(queue.isEmpty());
+  }
+
+  @Test
+  public void testOffer_multiKeyBatchingDisabled_notInsertedInKeyGroupQueue() {
+    KeyGroupWorkQueue queue = new KeyGroupWorkQueue(fairQueue);
+    QueuedWork workDisabled = createQueuedWork("compA", 100);
+    workDisabled.getWork().work().setMultiKeyBatchingDisabled(true);
+    QueuedWork workEnabled = createQueuedWork("compA", 200);
+
+    queue.offer(workDisabled);
+    queue.offer(workEnabled);
+    assertEquals(2, queue.size());
+
+    QueuedWork polledWork = queue.pollWork("compA", TEST_KEY_GROUP);
+    assertNotNull(polledWork);
+    assertEquals(workEnabled, polledWork);
+    assertEquals(1, queue.size());
+
+    assertNull(queue.pollWork("compA", TEST_KEY_GROUP));
+    assertEquals(workDisabled, queue.poll());
     assertTrue(queue.isEmpty());
   }
 

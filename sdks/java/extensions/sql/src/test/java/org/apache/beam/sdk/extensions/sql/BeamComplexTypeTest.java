@@ -37,6 +37,7 @@ import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.FixedString;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.schemas.logicaltypes.Timestamp;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableBytes;
 import org.apache.beam.sdk.schemas.logicaltypes.VariableString;
 import org.apache.beam.sdk.testing.PAssert;
@@ -796,5 +797,36 @@ public class BeamComplexTypeTest {
     PAssert.that(outputRow).containsInAnyOrder(inputRow);
     assertEquals(inputRow.getSchema(), outputRow.getSchema());
     pipeline.run().waitUntilFinish(Duration.standardMinutes(1));
+  }
+
+  @Test
+  public void testSqlTimestampLogicalType() {
+    // Calcite TIMESTAMP is millis-based; SQL projection of Timestamp.MICROS uses
+    // FieldType.DATETIME.
+    Schema inputSchema =
+        Schema.builder()
+            .addField("ts", FieldType.logicalType(Timestamp.MICROS))
+            .addNullableField("nullable_ts", FieldType.logicalType(Timestamp.MICROS))
+            .build();
+
+    java.time.Instant ts = java.time.Instant.parse("2025-07-31T20:17:40.123Z");
+    Row inputRow = Row.withSchema(inputSchema).addValues(ts, null).build();
+
+    PCollection<Row> outputRow =
+        pipeline
+            .apply(Create.of(inputRow))
+            .setRowSchema(inputSchema)
+            .apply(SqlTransform.query("SELECT ts, nullable_ts FROM PCOLLECTION"));
+
+    Schema outputSchema =
+        Schema.builder()
+            .addDateTimeField("ts")
+            .addNullableField("nullable_ts", FieldType.DATETIME)
+            .build();
+    Row expectedRow =
+        Row.withSchema(outputSchema).addValues(new Instant(ts.toEpochMilli()), null).build();
+
+    PAssert.that(outputRow).containsInAnyOrder(expectedRow);
+    pipeline.run().waitUntilFinish(Duration.standardMinutes(2));
   }
 }

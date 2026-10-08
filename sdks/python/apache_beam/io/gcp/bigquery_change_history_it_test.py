@@ -61,8 +61,8 @@ class BigQueryChangeHistoryIntegrationBase(unittest.TestCase):
     cls.args = cls.test_pipeline.get_full_options_as_args()
     cls.bq_wrapper = BigQueryWrapper()
     suffix = secrets.token_hex(4)
-    cls.dataset = f'beam_ch_src_{suffix}'
-    cls.temp_dataset = f'beam_ch_tmp_{suffix}'
+    cls.dataset = f'{bigquery_tools._TEMP_DATASET_PREFIX}ch_src_{suffix}'
+    cls.temp_dataset = f'{bigquery_tools._TEMP_DATASET_PREFIX}ch_tmp_{suffix}'
     cls.bq_wrapper.get_or_create_dataset(cls.project, cls.dataset)
     ds = cls.bq_wrapper.client.datasets.Get(
         bigquery.BigqueryDatasetsGetRequest(

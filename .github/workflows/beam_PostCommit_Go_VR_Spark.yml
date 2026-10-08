@@ -18,11 +18,11 @@ name: PostCommit Go VR Spark
 on:
   schedule:
     - cron: '30 3/6 * * *'
-  pull_request_target:
+  pull_request:
     paths: ['release/trigger_all_tests.json', '.github/trigger_files/beam_PostCommit_Go_VR_Spark.json']
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -40,7 +40,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -52,26 +52,20 @@ jobs:
   beam_PostCommit_Go_VR_Spark:
     if: |
       github.event_name == 'workflow_dispatch' ||
-      github.event_name == 'pull_request_target' ||
-      (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event.comment.body == 'Run Go Spark ValidatesRunner'
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 100
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     strategy:
       matrix:
         job_name: ["beam_PostCommit_Go_VR_Spark"]
-        job_phrase: ["Run Go Spark ValidatesRunner"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: run Go Spark ValidatesRunner script

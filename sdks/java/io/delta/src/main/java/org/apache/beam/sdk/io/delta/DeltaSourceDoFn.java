@@ -44,10 +44,15 @@ import io.delta.kernel.types.ShortType;
 import io.delta.kernel.types.StringType;
 import io.delta.kernel.types.StructField;
 import io.delta.kernel.types.StructType;
+import io.delta.kernel.types.TimestampNTZType;
 import io.delta.kernel.types.TimestampType;
 import io.delta.kernel.utils.CloseableIterator;
 import io.delta.kernel.utils.FileStatus;
 import java.math.BigDecimal;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -250,10 +255,18 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
       return row.getBinary(index);
     } else if (type instanceof TimestampType) {
       long microSeconds = row.getLong(index);
-      return new org.joda.time.Instant(microSeconds / 1000L);
+      return Instant.ofEpochSecond(
+          Math.floorDiv(microSeconds, 1_000_000L),
+          Math.floorMod(microSeconds, 1_000_000L) * 1_000L);
+    } else if (type instanceof TimestampNTZType) {
+      long microSeconds = row.getLong(index);
+      return LocalDateTime.ofEpochSecond(
+          Math.floorDiv(microSeconds, 1_000_000L),
+          (int) (Math.floorMod(microSeconds, 1_000_000L) * 1_000L),
+          ZoneOffset.UTC);
     } else if (type instanceof DateType) {
       int daysSinceEpoch = row.getInt(index);
-      return new org.joda.time.Instant(daysSinceEpoch * 86400000L);
+      return LocalDate.ofEpochDay(daysSinceEpoch);
     } else if (type instanceof ArrayType) {
       ArrayValue arrayValue = row.getArray(index);
       int size = arrayValue.getSize();
@@ -312,11 +325,18 @@ class DeltaSourceDoFn extends DoFn<DeltaReadTask, Row> {
       return vector.getBinary(index);
     } else if (type instanceof TimestampType) {
       long microSeconds = vector.getLong(index);
-      return new org.joda.time.Instant(microSeconds / 1000L);
+      return Instant.ofEpochSecond(
+          Math.floorDiv(microSeconds, 1_000_000L),
+          Math.floorMod(microSeconds, 1_000_000L) * 1_000L);
+    } else if (type instanceof TimestampNTZType) {
+      long microSeconds = vector.getLong(index);
+      return LocalDateTime.ofEpochSecond(
+          Math.floorDiv(microSeconds, 1_000_000L),
+          (int) (Math.floorMod(microSeconds, 1_000_000L) * 1_000L),
+          ZoneOffset.UTC);
     } else if (type instanceof DateType) {
-      // Convert days since epoch to milliseconds since epoch.
       int daysSinceEpoch = vector.getInt(index);
-      return new org.joda.time.Instant(daysSinceEpoch * 24L * 60L * 60L * 1000L);
+      return LocalDate.ofEpochDay(daysSinceEpoch);
     } else if (type instanceof ArrayType) {
       ArrayValue arrayValue = vector.getArray(index);
       int size = arrayValue.getSize();
