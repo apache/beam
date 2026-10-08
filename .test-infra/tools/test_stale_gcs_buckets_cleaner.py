@@ -31,16 +31,57 @@ STALE_BUCKET = "apache-beam-temp-bucket-123e4567-e89b-42d3-a456-426614174000"
 FRESH_BUCKET = "apache-beam-temp-bucket-123e4567-e89b-42d3-a456-426614174001"
 
 
-def bucket(name, created):
-    value = mock.Mock()
-    value.name = name
-    value.time_created = created
-    return value
+class FakeBlob:
+    def __init__(self, bucket, name, generation):
+        self.bucket = bucket
+        self.name = name
+        self.generation = generation
+
+    def delete(self, if_generation_match=None):
+        if if_generation_match != self.generation:
+            raise ValueError("blob generation precondition is required")
+        self.bucket.blobs.remove(self)
+
+
+class FakeBucket:
+    def __init__(self, name, created, blob_count=0):
+        self.name = name
+        self.time_created = created
+        self.blobs = [FakeBlob(self, f"blob-{i}", i + 1)
+                      for i in range(blob_count)]
+        self.deleted = False
+        self.delete_error = None
+
+    def list_blobs(self, versions=False):
+        if not versions:
+            raise ValueError("all object generations must be listed")
+        return iter(list(self.blobs))
+
+    def delete(self):
+        if self.delete_error:
+            raise self.delete_error
+        if self.blobs:
+            raise ValueError("bucket is not empty")
+        self.deleted = True
+
+
+class FakeClient:
+    def __init__(self):
+        self.buckets = []
+
+    def list_buckets(self, project, prefix):
+        if project != "apache-beam-testing" or prefix != "apache-beam-temp-bucket-":
+            raise ValueError("unexpected bucket selection")
+        return iter(self.buckets)
+
+
+def bucket(name, created, blob_count=0):
+    return FakeBucket(name, created, blob_count)
 
 
 class StaleGcsBucketsCleanerTest(unittest.TestCase):
     def setUp(self):
-        self.client = mock.Mock()
+        self.client = FakeClient()
 
     def test_deletes_only_stale_test_buckets(self):
         stale = bucket(
@@ -51,79 +92,88 @@ class StaleGcsBucketsCleanerTest(unittest.TestCase):
         missing_created = bucket(
             "apache-beam-temp-bucket-123e4567-e89b-42d3-a456-426614174002",
             None)
-        self.client.list_buckets.return_value = [
+        self.client.buckets = [
             stale, fresh, unrelated, missing_created]
 
         deleted = cleaner.clean_stale_gcs_buckets(
             self.client, now=NOW, dry_run=False)
 
         self.assertEqual(deleted, [stale.name])
-        stale.delete.assert_called_once_with(force=True)
-        fresh.delete.assert_not_called()
-        unrelated.delete.assert_not_called()
-        missing_created.delete.assert_not_called()
-        self.client.list_buckets.assert_called_once_with(
-            project="apache-beam-testing", prefix="apache-beam-temp-bucket-")
+        self.assertTrue(stale.deleted)
+        self.assertFalse(fresh.deleted)
+        self.assertFalse(unrelated.deleted)
+        self.assertFalse(missing_created.deleted)
 
     def test_preserves_bucket_at_age_threshold(self):
         value = bucket(
             STALE_BUCKET,
             NOW - datetime.timedelta(hours=24))
-        self.client.list_buckets.return_value = [value]
+        self.client.buckets = [value]
 
         deleted = cleaner.clean_stale_gcs_buckets(
             self.client, now=NOW, dry_run=False)
 
         self.assertEqual(deleted, [])
-        value.delete.assert_not_called()
+        self.assertFalse(value.deleted)
 
     def test_dry_run_does_not_delete_bucket(self):
         value = bucket(
             STALE_BUCKET, NOW - datetime.timedelta(days=2))
-        self.client.list_buckets.return_value = [value]
+        self.client.buckets = [value]
 
         selected = cleaner.clean_stale_gcs_buckets(self.client, now=NOW)
 
         self.assertEqual(selected, [value.name])
-        value.delete.assert_not_called()
+        self.assertFalse(value.deleted)
 
     def test_naive_creation_time_is_treated_as_utc(self):
         value = bucket(
             STALE_BUCKET,
             datetime.datetime(2026, 9, 29, 11))
-        self.client.list_buckets.return_value = [value]
+        self.client.buckets = [value]
 
         deleted = cleaner.clean_stale_gcs_buckets(
             self.client, now=NOW, dry_run=False)
 
         self.assertEqual(deleted, [value.name])
-        value.delete.assert_called_once_with(force=True)
+        self.assertTrue(value.deleted)
 
     def test_continues_after_delete_failure_and_reports_all_failures(self):
         failed = bucket(
             STALE_BUCKET, NOW - datetime.timedelta(days=2))
         deleted = bucket(
             FRESH_BUCKET, NOW - datetime.timedelta(days=2))
-        failed.delete.side_effect = RuntimeError("permission denied")
-        self.client.list_buckets.return_value = [failed, deleted]
+        failed.delete_error = RuntimeError("permission denied")
+        self.client.buckets = [failed, deleted]
 
         with self.assertRaisesRegex(
-            RuntimeError, "Failed to delete 1 stale GCS bucket"):
+            RuntimeError, "Bucket failure count: 1"):
             cleaner.clean_stale_gcs_buckets(
                 self.client, now=NOW, dry_run=False)
 
-        failed.delete.assert_called_once_with(force=True)
-        deleted.delete.assert_called_once_with(force=True)
+        self.assertFalse(failed.deleted)
+        self.assertTrue(deleted.deleted)
+
+    def test_deletes_bucket_with_more_than_256_objects(self):
+        value = bucket(STALE_BUCKET, NOW - datetime.timedelta(days=2), 300)
+        self.client.buckets = [value]
+
+        selected = cleaner.clean_stale_gcs_buckets(
+            self.client, now=NOW, dry_run=False)
+
+        self.assertEqual(selected, [value.name])
+        self.assertTrue(value.deleted)
+        self.assertEqual(value.blobs, [])
 
     def test_preserves_prefixed_bucket_without_uuid_name(self):
         value = bucket(
             "apache-beam-temp-bucket-manual", NOW - datetime.timedelta(days=7))
-        self.client.list_buckets.return_value = [value]
+        self.client.buckets = [value]
 
         deleted = cleaner.clean_stale_gcs_buckets(self.client, now=NOW)
 
         self.assertEqual(deleted, [])
-        value.delete.assert_not_called()
+        self.assertFalse(value.deleted)
 
     @mock.patch("stale_gcs_buckets_cleaner.clean_stale_gcs_buckets")
     @mock.patch("stale_gcs_buckets_cleaner.storage.Client")

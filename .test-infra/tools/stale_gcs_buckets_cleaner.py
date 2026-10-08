@@ -77,17 +77,17 @@ def clean_stale_gcs_buckets(
 
         print(f"Deleting stale test bucket gs://{bucket.name}")
         try:
-            # Tests can leave objects behind when they fail before teardown.
-            bucket.delete(force=True)
+            # Bucket.delete(force=True) refuses to empty more than 256 objects.
+            # Delete each listed generation, then delete the empty bucket.
+            for blob in bucket.list_blobs(versions=True):
+                blob.delete(if_generation_match=blob.generation)
+            bucket.delete()
         except Exception as error:
             failures.append(bucket.name)
             print(f"Failed to delete gs://{bucket.name}: {error}")
 
     if failures:
-        noun = "bucket" if len(failures) == 1 else "buckets"
-        raise RuntimeError(
-            f"Failed to delete {len(failures)} stale GCS {noun}: "
-            f"{', '.join(failures)}")
+        raise RuntimeError(f"Bucket failure count: {len(failures)}")
 
     return selected
 
