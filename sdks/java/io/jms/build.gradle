@@ -37,11 +37,11 @@ dependencies {
   // (affects expansion service shadow jar)
   compileOnly "com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25"
   implementation "jakarta.jms:jakarta.jms-api:3.1.0"
-  testImplementation library.java.activemq6_amqp
-  testImplementation library.java.activemq6_broker
-  testImplementation library.java.activemq6_jaas
-  testImplementation library.java.activemq6_kahadb_store
-  testImplementation library.java.activemq6_client
+  testImplementation library.java.activemq_amqp
+  testImplementation library.java.activemq_broker
+  testImplementation library.java.activemq_jaas
+  testImplementation library.java.activemq_kahadb_store
+  testImplementation library.java.activemq_client
   testImplementation library.java.hamcrest
   testImplementation library.java.junit
   testImplementation library.java.mockito_core

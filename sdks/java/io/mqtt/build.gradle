@@ -24,11 +24,13 @@ applyJavaNature( automaticModuleName: 'org.apache.beam.sdk.io.mqtt')
 // that 6.2.5 would otherwise be forced onto this Java 11 module via the shared
 // org.apache.activemq coordinates. MQTT IO only needs ActiveMQ as an embedded
 // test broker, so pin it back to the Java 11-compatible 5.x line.
+def activemq5_version = '5.19.5'
 configurations.all {
   resolutionStrategy.dependencySubstitution {
-    substitute module('org.apache.activemq:activemq-broker') using module(library.java.activemq_broker)
-    substitute module('org.apache.activemq:activemq-client') using module(library.java.activemq_client)
-    substitute module('org.apache.activemq:activemq-kahadb-store') using module(library.java.activemq_kahadb_store)
+    substitute module('org.apache.activemq:activemq-broker') using module("org.apache.activemq:activemq-broker:${activemq5_version}")
+    substitute module('org.apache.activemq:activemq-client') using module("org.apache.activemq:activemq-client:${activemq5_version}")
+    substitute module('org.apache.activemq:activemq-kahadb-store') using module("org.apache.activemq:activemq-kahadb-store:${activemq5_version}")
+    substitute module('org.apache.activemq:activemq-mqtt') using module("org.apache.activemq:activemq-mqtt:${activemq5_version}")
   }
 }
 

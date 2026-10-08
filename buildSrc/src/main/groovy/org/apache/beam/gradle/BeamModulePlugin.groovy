@@ -608,8 +608,7 @@ class BeamModulePlugin implements Plugin<Project> {
     //
     // There are a few versions are determined by the BOMs by running scripts/tools/bomupgrader.py
     // marked as [bomupgrader]. See the documentation of that script for detail.
-    def activemq_version = "5.19.5"
-    def activemq6_version = "6.2.5"
+    def activemq_version = "6.2.5"
     def autovalue_version = "1.9"
     def autoservice_version = "1.0.1"
     def aws_java_sdk2_version = "2.20.162"
@@ -690,11 +689,6 @@ class BeamModulePlugin implements Plugin<Project> {
         activemq_junit                              : "org.apache.activemq.tooling:activemq-junit:$activemq_version",
         activemq_kahadb_store                       : "org.apache.activemq:activemq-kahadb-store:$activemq_version",
         activemq_mqtt                               : "org.apache.activemq:activemq-mqtt:$activemq_version",
-        activemq6_amqp                              : "org.apache.activemq:activemq-amqp:$activemq6_version",
-        activemq6_broker                            : "org.apache.activemq:activemq-broker:$activemq6_version",
-        activemq6_client                            : "org.apache.activemq:activemq-client:$activemq6_version",
-        activemq6_jaas                              : "org.apache.activemq:activemq-jaas:$activemq6_version",
-        activemq6_kahadb_store                      : "org.apache.activemq:activemq-kahadb-store:$activemq6_version",
         aircompressor                               : "io.airlift:aircompressor:2.0.3",
         args4j                                      : "args4j:args4j:2.33",
         auto_value_annotations                      : "com.google.auto.value:auto-value-annotations:$autovalue_version",
