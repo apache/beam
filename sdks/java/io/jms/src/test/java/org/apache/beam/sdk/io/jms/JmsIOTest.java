@@ -45,6 +45,16 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import jakarta.jms.BytesMessage;
+import jakarta.jms.Connection;
+import jakarta.jms.ConnectionFactory;
+import jakarta.jms.JMSException;
+import jakarta.jms.Message;
+import jakarta.jms.MessageConsumer;
+import jakarta.jms.MessageProducer;
+import jakarta.jms.QueueBrowser;
+import jakarta.jms.Session;
+import jakarta.jms.TextMessage;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Proxy;
@@ -61,16 +71,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
-import javax.jms.BytesMessage;
-import javax.jms.Connection;
-import javax.jms.ConnectionFactory;
-import javax.jms.JMSException;
-import javax.jms.Message;
-import javax.jms.MessageConsumer;
-import javax.jms.MessageProducer;
-import javax.jms.QueueBrowser;
-import javax.jms.Session;
-import javax.jms.TextMessage;
 import org.apache.activemq.ActiveMQConnectionFactory;
 import org.apache.activemq.command.ActiveMQMessage;
 import org.apache.activemq.util.Callback;
@@ -568,8 +568,8 @@ public class JmsIOTest {
     assertEquals(1, jmsMark.getMessages().size());
 
     // consume two more messages after checkpoint made
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     // the messages are still pending in the queue (no ACK yet)
     assertEquals(10, count(QUEUE));
@@ -596,8 +596,8 @@ public class JmsIOTest {
     assertNotNull(jmsMark.getMessages());
     assertEquals(3, jmsMark.getMessages().size());
 
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     assertEquals(10, count(QUEUE));
     mark.finalizeCheckpoint();
@@ -621,8 +621,8 @@ public class JmsIOTest {
     assertNotNull(jmsMark.getMessages());
     assertEquals(1, jmsMark.getMessages().size());
 
-    reader.advance();
-    reader.advance();
+    assertTrue(advanceWithRetry(reader));
+    assertTrue(advanceWithRetry(reader));
 
     assertEquals(10, count(QUEUE));
     mark.finalizeCheckpoint();
