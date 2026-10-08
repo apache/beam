@@ -635,6 +635,8 @@ public class UnboundedSourceWrapperTest {
       ProcessingTimeService timerService = Mockito.mock(ProcessingTimeService.class);
       Mockito.when(timerService.getCurrentProcessingTime()).thenReturn(Long.MAX_VALUE);
       Mockito.when(mock.getProcessingTimeService()).thenReturn(timerService);
+      Mockito.when(mock.getMetricGroup())
+          .thenReturn(UnregisteredMetricGroups.createUnregisteredOperatorMetricGroup());
 
       sourceWrapper.setRuntimeContext(mock);
       sourceWrapper.open(new Configuration());

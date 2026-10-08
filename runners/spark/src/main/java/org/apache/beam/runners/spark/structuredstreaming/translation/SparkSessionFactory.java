@@ -125,14 +125,16 @@ public class SparkSessionFactory {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
-    boolean noUsableSession =
-        !isUsable(SparkSession.getActiveSession()) && !isUsable(SparkSession.getDefaultSession());
+    SparkSession existingActive =
+        isUsable(SparkSession.getActiveSession()) ? SparkSession.getActiveSession().get() : null;
+    SparkSession existingDefault =
+        isUsable(SparkSession.getDefaultSession()) ? SparkSession.getDefaultSession().get() : null;
     SparkSession session = sessionBuilder(options.getSparkMaster(), options).getOrCreate();
     Integer count = OWNED_SESSIONS.get(session);
     if (count != null) {
       OWNED_SESSIONS.put(session, count + 1);
       LOG.info("Pipeline options will not be applied to the shared SparkSession");
-    } else if (noUsableSession) {
+    } else if (session != existingActive && session != existingDefault) {
       OWNED_SESSIONS.put(session, 1);
     }
     return session;
@@ -154,6 +156,8 @@ public class SparkSessionFactory {
     OWNED_SESSIONS.remove(session);
     LOG.info("Stopping SparkSession created by the runner");
     session.stop();
+    SparkSession.clearActiveSession();
+    SparkSession.clearDefaultSession();
   }
 
   private static boolean isUsable(Option<SparkSession> session) {

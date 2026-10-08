@@ -18,10 +18,10 @@
 package org.apache.beam.runners.prism;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkArgument;
-import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.util.Arrays;
 import org.apache.beam.runners.portability.PortableRunner;
 import org.apache.beam.sdk.Pipeline;
@@ -46,6 +46,7 @@ import org.slf4j.LoggerFactory;
 public class PrismRunner extends PipelineRunner<PipelineResult> {
 
   private static final Logger LOG = LoggerFactory.getLogger(PrismRunner.class);
+  private static final int MAX_START_ATTEMPTS = 5;
 
   private final PrismPipelineOptions prismPipelineOptions;
 
@@ -82,19 +83,37 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
         prismPipelineOptions.getDefaultEnvironmentType(),
         prismPipelineOptions.getJobEndpoint());
 
-    try {
-      PrismExecutor executor = startPrism();
-      PortableRunner delegate = PortableRunner.fromOptions(prismPipelineOptions);
-      return new PrismPipelineResult(delegate.run(pipeline), executor::stop);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
+    for (int attempt = 1; ; attempt++) {
+      PrismExecutor executor;
+      try {
+        executor = startPrism();
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+      try {
+        PortableRunner delegate = PortableRunner.fromOptions(prismPipelineOptions);
+        return new PrismPipelineResult(delegate.run(pipeline), executor::stop);
+      } catch (RuntimeException e) {
+        boolean alive = executor.isAlive();
+        executor.stop();
+        if (attempt < MAX_START_ATTEMPTS
+            && (!alive
+                || (e.getMessage() != null && e.getMessage().contains("JobService/Prepare")))) {
+          LOG.warn(
+              "Prism job submission failed on attempt {} (alive={}), retrying on a new port...",
+              attempt,
+              alive,
+              e);
+          continue;
+        }
+        throw e;
+      }
     }
   }
 
   PrismExecutor startPrism() throws IOException {
     PrismLocator locator = new PrismLocator(prismPipelineOptions);
-    int port = findAvailablePort();
-    String portFlag = String.format(PrismExecutor.JOB_PORT_FLAG_TEMPLATE, port);
+    String command = locator.resolve();
     String serveHttpFlag =
         String.format(
             PrismExecutor.SERVE_HTTP_FLAG_TEMPLATE, prismPipelineOptions.getEnableWebUI());
@@ -104,18 +123,52 @@ public class PrismRunner extends PipelineRunner<PipelineResult> {
     String logLevelFlag =
         String.format(
             PrismExecutor.LOG_LEVEL_FLAG_TEMPLATE, prismPipelineOptions.getPrismLogLevel());
-    String endpoint = "localhost:" + port;
-    prismPipelineOptions.setJobEndpoint(endpoint);
-    String command = locator.resolve();
-    PrismExecutor executor =
-        PrismExecutor.builder()
-            .setCommand(command)
-            .setArguments(
-                Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag, logLevelFlag))
-            .build();
-    executor.execute();
-    checkState(executor.isAlive());
-    return executor;
+
+    for (int attempt = 1; ; attempt++) {
+      int port = findAvailablePort();
+      String portFlag = String.format(PrismExecutor.JOB_PORT_FLAG_TEMPLATE, port);
+      String endpoint = "localhost:" + port;
+      prismPipelineOptions.setJobEndpoint(endpoint);
+      PrismExecutor executor =
+          PrismExecutor.builder()
+              .setCommand(command)
+              .setArguments(
+                  Arrays.asList(portFlag, serveHttpFlag, idleShutdownTimeoutFlag, logLevelFlag))
+              .build();
+      executor.execute();
+      if (waitForPort(executor, port)) {
+        return executor;
+      }
+      executor.stop();
+      String message =
+          String.format(
+              "Prism failed to start listening on port %d (attempt %d/%d)",
+              port, attempt, MAX_START_ATTEMPTS);
+      LOG.warn("{}", message);
+      if (attempt >= MAX_START_ATTEMPTS) {
+        throw new IOException(message);
+      }
+    }
+  }
+
+  private static boolean waitForPort(PrismExecutor executor, int port) {
+    long deadlineMillis = System.currentTimeMillis() + 10_000L;
+    while (System.currentTimeMillis() < deadlineMillis) {
+      if (!executor.isAlive()) {
+        return false;
+      }
+      try (Socket socket = new Socket("localhost", port)) {
+        return executor.isAlive();
+      } catch (IOException ignored) {
+        try {
+          Thread.sleep(10L);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          return false;
+        }
+      }
+    }
+    return executor.isAlive();
   }
 
   private static void assignDefaultsIfNeeded(PrismPipelineOptions prismPipelineOptions) {

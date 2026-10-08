@@ -309,54 +309,112 @@ public class BigqueryClient {
     Random rnd = new Random(System.currentTimeMillis());
     String temporaryDatasetId =
         String.format("_dataflow_temporary_dataset_%s_%s", System.nanoTime(), rnd.nextInt(1000000));
-    String temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
-    TableReference tempTableReference =
-        new TableReference()
-            .setProjectId(projectId)
-            .setDatasetId(temporaryDatasetId)
-            .setTableId(temporaryTableId);
 
     createNewDataset(projectId, temporaryDatasetId, null, location);
-    createNewTable(
-        projectId,
-        temporaryDatasetId,
-        new Table().setTableReference(tempTableReference).setLocation(location));
+    try {
+      Sleeper sleeper = Sleeper.DEFAULT;
+      BackOff insertBackoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+      IOException lastException = null;
+      Job insertedJob = null;
+      do {
+        if (lastException != null) {
+          LOG.warn("Retrying query job insert ({}) after exception", query, lastException);
+        }
+        try {
+          String temporaryTableId = "dataflow_temporary_table_" + rnd.nextInt(1000000);
+          TableReference tempTableReference =
+              new TableReference()
+                  .setProjectId(projectId)
+                  .setDatasetId(temporaryDatasetId)
+                  .setTableId(temporaryTableId);
+          createNewTable(
+              projectId,
+              temporaryDatasetId,
+              new Table().setTableReference(tempTableReference).setLocation(location));
 
-    JobConfigurationQuery jcQuery =
-        new JobConfigurationQuery()
-            .setFlattenResults(false)
-            .setAllowLargeResults(true)
-            .setDestinationTable(tempTableReference)
-            .setUseLegacySql(!useStandardSql)
-            .setQuery(query);
-    JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
+          JobConfigurationQuery jcQuery =
+              new JobConfigurationQuery()
+                  .setFlattenResults(false)
+                  .setAllowLargeResults(true)
+                  .setDestinationTable(tempTableReference)
+                  .setUseLegacySql(!useStandardSql)
+                  .setQuery(query);
+          JobConfiguration jc = new JobConfiguration().setQuery(jcQuery);
+          Job job = new Job().setConfiguration(jc);
 
-    Job job = new Job().setConfiguration(jc);
+          insertedJob = bqClient.jobs().insert(projectId, job).execute();
+          if (insertedJob != null) {
+            break;
+          } else {
+            lastException =
+                new IOException("Expected valid response from jobs.insert, but received null.");
+          }
+        } catch (IOException e) {
+          lastException = e;
+        }
+      } while (BackOffUtils.next(sleeper, insertBackoff));
 
-    Job insertedJob = bqClient.jobs().insert(projectId, job).execute();
+      if (insertedJob == null) {
+        throw new RuntimeException(
+            String.format(
+                "Unable to insert BigQuery job after retrying %d times using query (%s)",
+                MAX_QUERY_RETRIES, query),
+            lastException);
+      }
 
-    GetQueryResultsResponse qResponse;
-    do {
-      qResponse =
-          bqClient
-              .jobs()
-              .getQueryResults(projectId, insertedJob.getJobReference().getJobId())
-              .setLocation(location)
-              .execute();
+      GetQueryResultsResponse qResponse = null;
+      do {
+        BackOff pollBackoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+        lastException = null;
+        qResponse = null;
+        do {
+          if (lastException != null) {
+            LOG.warn(
+                "Retrying getQueryResults ({}) after exception",
+                insertedJob.getJobReference().getJobId(),
+                lastException);
+          }
+          try {
+            qResponse =
+                bqClient
+                    .jobs()
+                    .getQueryResults(projectId, insertedJob.getJobReference().getJobId())
+                    .setLocation(location)
+                    .execute();
+            if (qResponse != null) {
+              break;
+            } else {
+              lastException =
+                  new IOException(
+                      "Expected valid response from jobs.getQueryResults, but received null.");
+            }
+          } catch (IOException e) {
+            lastException = e;
+          }
+        } while (BackOffUtils.next(sleeper, pollBackoff));
 
-    } while (!qResponse.getJobComplete());
+        if (qResponse == null) {
+          throw new RuntimeException(
+              String.format(
+                  "Unable to get BigQuery query results after retrying %d times for job (%s)",
+                  MAX_QUERY_RETRIES, insertedJob.getJobReference().getJobId()),
+              lastException);
+        }
+      } while (!qResponse.getJobComplete());
 
-    final TableSchema schema = qResponse.getSchema();
-    final List<TableRow> rows = qResponse.getRows();
-    if (rows == null) {
-      return Collections.EMPTY_LIST;
+      final TableSchema schema = qResponse.getSchema();
+      final List<TableRow> rows = qResponse.getRows();
+      if (rows == null) {
+        return Collections.EMPTY_LIST;
+      }
+      return !typed
+          ? rows
+          : rows.stream()
+              .map(r -> getTypedTableRow(schema.getFields(), r))
+              .collect(Collectors.toList());
+    } finally {
+      deleteDataset(projectId, temporaryDatasetId);
     }
-    deleteDataset(projectId, temporaryDatasetId);
-    return !typed
-        ? rows
-        : rows.stream()
-            .map(r -> getTypedTableRow(schema.getFields(), r))
-            .collect(Collectors.toList());
   }
 
   @Nonnull
@@ -612,15 +670,42 @@ public class BigqueryClient {
   public void updateTableSchema(
       String projectId, String datasetId, String tableId, TableSchema newSchema)
       throws IOException {
-    this.bqClient
-        .tables()
-        .patch(projectId, datasetId, tableId, new Table().setSchema(newSchema))
-        .execute();
-    LOG.info(
-        "Successfully updated the schema of table {}:{}.{}. New schema:\n{}",
-        projectId,
-        datasetId,
-        tableId,
-        newSchema.toPrettyString());
+    Sleeper sleeper = Sleeper.DEFAULT;
+    BackOff backoff = BackOffAdapter.toGcpBackOff(BACKOFF_FACTORY.backoff());
+    IOException lastException = null;
+    do {
+      if (lastException != null) {
+        LOG.warn("Retrying tables.patch ({}) after exception", tableId, lastException);
+      }
+      try {
+        this.bqClient
+            .tables()
+            .patch(projectId, datasetId, tableId, new Table().setSchema(newSchema))
+            .execute();
+        LOG.info(
+            "Successfully updated the schema of table {}:{}.{}. New schema:\n{}",
+            projectId,
+            datasetId,
+            tableId,
+            newSchema.toPrettyString());
+        return;
+      } catch (IOException e) {
+        lastException = e;
+      }
+      try {
+        if (!BackOffUtils.next(sleeper, backoff)) {
+          break;
+        }
+      } catch (InterruptedException ie) {
+        Thread.currentThread().interrupt();
+        throw new IOException("Interrupted while backing off for tables.patch", ie);
+      }
+    } while (true);
+
+    throw new RuntimeException(
+        String.format(
+            "Unable to get BigQuery response after retrying %d times for tables.patch (%s)",
+            MAX_QUERY_RETRIES, tableId),
+        lastException);
   }
 }

@@ -177,8 +177,13 @@ public final class SparkStructuredStreamingRunner
                 ctxRef.set(ctx);
                 if (!cancelRequested.get()) {
                   ctx.evaluate();
+                } else {
+                  cancelSparkJobs.run();
                 }
               } finally {
+                if (cancelRequested.get()) {
+                  cancelSparkJobs.run();
+                }
                 if (releaseSession) {
                   SparkSessionFactory.release(sparkSession);
                 }
