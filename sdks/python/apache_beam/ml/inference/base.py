@@ -1950,7 +1950,7 @@ class _SharedModelWrapper():
 
   def all_models(self):
     if self.use_model_manager:
-      return self.models.all_models()[self.model_tag]
+      return self.models.all_models(self.model_tag)
     return self.models
 
   def force_reset(self):
@@ -2106,7 +2106,7 @@ class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):
       finally:
         # Always release the model so that it can be reloaded.
         if self.use_model_manager:
-          self._model.release_model(self._model_tag, unique_tag)
+          self._model.release_model(self._cur_tag, unique_tag)
     except BaseException as e:
       if self._metrics_collector:
         self._metrics_collector.failed_batches_counter.inc()
