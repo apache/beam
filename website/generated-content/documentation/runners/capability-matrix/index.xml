@@ -25,6 +25,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -55,6 +56,13 @@ Dataflow has a native drain operation, support for event time timer loops drain 
 &lt;/b>
 &lt;br>
 Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting the pipeline down after its completion.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+The drain API is not implemented.
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
@@ -113,6 +121,13 @@ Flink supports taking a &amp;#34;savepoint&amp;#34; of the pipeline and shutting
 &lt;/b>
 &lt;br>
 Flink has a native savepoint capability.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+PCollections are materialized as Paimon tables, but there is no checkpoint/savepoint API.
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -174,6 +189,13 @@ Dataflow performs different shuffling algorithms for batch and streaming. Datafl
 &lt;/b>
 &lt;br>
 Flink may perform different shuffling algorithms for batch and streaming. Flink guarantees key-ordered delivery in streaming, though not in batch.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Single-node execution, no explicit key-ordered delivery guarantee.
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
@@ -242,6 +264,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -270,6 +293,13 @@ back to collapsed details
 &lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Bounded Splittable DoFns are expanded (pair-with-restriction, split-and-size, truncate, process) and executed with residual handling.
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -330,6 +360,13 @@ back to collapsed details
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+SDF side inputs are modeled in the expansion but not delivered to the harness.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
 &lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
@@ -384,6 +421,13 @@ back to collapsed details
 &lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Residual roots returned by the SDF are processed as new work items with output-watermark holds.
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -444,6 +488,13 @@ back to collapsed details
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Runner-initiated work splitting is not implemented yet.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
 &lt;p>No : &lt;/p>
 &lt;/b>
 &lt;br>
@@ -496,6 +547,12 @@ back to collapsed details
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
 &lt;p>No : &lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -566,6 +623,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -577,6 +635,12 @@ back to collapsed details
 &lt;tbody>
 &lt;tr>
 &lt;th class="table-left-header">Discarding&lt;/th>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -641,6 +705,12 @@ Spark streaming natively discards elements after firing.
 &lt;/b>
 &lt;br>
 Requires that the accumulated pane fits in memory, after being passed through the combiner (if relevant)
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -721,6 +791,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -749,6 +820,13 @@ back to collapsed details
 &lt;p>Yes : &lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Unbounded sources are not yet supported.
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
@@ -804,6 +882,12 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only portable Flink Runner supports this.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -866,6 +950,12 @@ back to collapsed details
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
 &lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
@@ -923,6 +1013,12 @@ back to collapsed details
 &lt;/td>
 &lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
 &lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
 &lt;p> : &lt;/p>
 &lt;/b>
 &lt;br>
@@ -975,6 +1071,12 @@ back to collapsed details
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : Only portable Flink Runner supports this with checkpointing enabled.&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -1045,6 +1147,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -1076,6 +1179,13 @@ Supported with per-element transformation.
 &lt;/b>
 &lt;br>
 ParDo itself, as per-element transformation with UDFs, is fully supported by Flink for both batch and streaming.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+ParDo execution is supported
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1138,6 +1248,13 @@ Stateless ParDo runs in the SDK harness over the Fn API, including multiple outp
 &lt;br>
 Uses Flink&amp;#39;s keyBy for key grouping. When grouping by window in streaming (creating the panes) the Flink runner uses the Beam code. This guarantees support for all windowing and triggering mechanisms.
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Uses Apache DataFusion to run GroupByKey operation.
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
@@ -1180,6 +1297,12 @@ Shuffles through a Kafka repartition topic keyed by the encoded Beam key.
 &lt;/tr>
 &lt;tr>
 &lt;th class="table-left-header">Flatten&lt;/th>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1262,6 +1385,13 @@ Uses a combiner for pre-aggregation for batch and streaming.
 &lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
+CombinePerKey and CombineGlobally expand into combine sub-transforms that run in the SDK harness.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 Using Spark&amp;#39;s &amp;lt;tt&amp;gt;combineByKey&amp;lt;/tt&amp;gt; and &amp;lt;tt&amp;gt;aggregate&amp;lt;/tt&amp;gt; functions.
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
@@ -1324,6 +1454,13 @@ Currently composite transformations are inlined during execution. The structure 
 &lt;p>Partially : supported via inlining&lt;/p>
 &lt;/b>
 &lt;br>
+Composite transforms are expanded and inlined by the SDK before the pipeline reaches the runner.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : supported via inlining&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1377,6 +1514,13 @@ Batch mode supports a distributed implementation, but streaming mode may force s
 &lt;/b>
 &lt;br>
 Batch mode supports a distributed implementation, but streaming mode may force some size restrictions. Neither mode is able to push lookups directly up into key-based sources.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Side inputs are modeled in fusion and watermarking, but side-input data is not delivered to the SDK harness (only bag user state is served).
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1440,6 +1584,13 @@ Support includes autotuning features (https://cloud.google.com/dataflow/service/
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : bounded sources only&lt;/p>
+&lt;/b>
+&lt;br>
+Bounded sources run in the SDK harness (e.g. TextIO). Unbounded sources support is not implemented yet
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : fully supported&lt;/p>
@@ -1501,6 +1652,13 @@ StringSet metrics are not supported. All other metric types are supported.
 &lt;/b>
 &lt;br>
 Only attempted values are supported. No committed values for metrics.
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Metrics are not collected or reported
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1564,6 +1722,13 @@ State is supported for non-merging windows. The MapState, SetState, and Multimap
 &lt;/b>
 &lt;br>
 State is supported for non-merging windows. SetState and MapState are not yet supported.
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : bag/value state and timers&lt;/p>
+&lt;/b>
+&lt;br>
+BagState and bag-backed ValueState are supported, together with event-time and processing-time timers. SetState, MapState, and ordered-list state are not yet supported.
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1633,6 +1798,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -1662,6 +1828,13 @@ Fully supported in streaming mode. In batch mode, intermediate trigger firings a
 &lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+The trigger is read from the windowing strategy.
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1726,6 +1899,13 @@ Fully supported in streaming mode. In batch mode, currently watermark progress j
 &lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
+AfterWatermark and AfterSynchronizedProcessingTime drive end-of-window and late firings.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1782,6 +1962,13 @@ Fully supported in streaming mode. In batch mode, from the perspective of trigge
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+AfterProcessingTime fires against the processing-time clock.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
 &lt;p>Yes : This is Spark streaming&amp;#39;s native model&lt;/p>
 &lt;/b>
 &lt;br>
@@ -1834,6 +2021,12 @@ Fully supported in streaming mode. In batch mode, elements are processed in the 
 &lt;/b>
 &lt;br>
 Prism will double fire on count triggers
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -1903,6 +2096,13 @@ Prism will double fire on count triggers
 &lt;p>Yes : fully supported&lt;/p>
 &lt;/b>
 &lt;br>
+AfterAll, AfterAny, AfterEach, OrFinally are implemented.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -1943,6 +2143,12 @@ Prism will double fire on count triggers
 &lt;/b>
 &lt;br>
 Fully supported in streaming mode. In batch mode no data is ever late.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -2016,6 +2222,13 @@ Dataflow supports timers in non-merging windows.
 &lt;br>
 The Flink Runner supports timers in non-merging windows.
 &lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : fully supported&lt;/p>
+&lt;/b>
+&lt;br>
+Supports timers and delivered to the SDK harness.
+&lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
 &lt;p>Partially : fully supported in batch mode&lt;/p>
@@ -2084,6 +2297,7 @@ back to collapsed details
 &lt;th>Google Cloud Dataflow&lt;/th>
 &lt;th>Prism Local Runner&lt;/th>
 &lt;th>Apache Flink&lt;/th>
+&lt;th>FlareDB&lt;/th>
 &lt;th>Apache Spark (RDD/DStream based)&lt;/th>
 &lt;th>Apache Spark Structured Streaming (Dataset based)&lt;/th>
 &lt;th>Hazelcast Jet&lt;/th>
@@ -2110,6 +2324,12 @@ back to collapsed details
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : default&lt;/p>
 &lt;/b>
 &lt;br>
 &lt;/td>
@@ -2175,6 +2395,13 @@ back to collapsed details
 &lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
+Uses the interval-window, GroupByKey aggregates per fixed window.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -2233,6 +2460,13 @@ Windowing runs through Beam&amp;#39;s ReduceFnRunner over Kafka Streams state an
 &lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
+Uses the interval-window coder, GroupByKey aggregates per sliding window.
+&lt;/td>
+&lt;td style='background-color:#fff;border-color:#f6f6f6'>
+&lt;b>
+&lt;p>Yes : supported&lt;/p>
+&lt;/b>
+&lt;br>
 &lt;/td>
 &lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
 &lt;b>
@@ -2284,6 +2518,13 @@ Windowing runs through Beam&amp;#39;s ReduceFnRunner over Kafka Streams state an
 &lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+The session-window is not supported yet.
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
@@ -2343,6 +2584,13 @@ Sessions are merging windows, which the windowing implementation does not handle
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Only the global and interval windows are supported.
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
@@ -2401,6 +2649,13 @@ Only the standard WindowFns, which travel as URNs the runner interprets directly
 &lt;/b>
 &lt;br>
 &lt;/td>
+&lt;td style='background-color:#e1e0e0;border-color:#bcbcbc'>
+&lt;b>
+&lt;p>No : not implemented&lt;/p>
+&lt;/b>
+&lt;br>
+Window merging is not supported.
+&lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
 &lt;p>Yes : supported&lt;/p>
@@ -2457,6 +2712,13 @@ Only the standard WindowFns, which travel as URNs the runner interprets directly
 &lt;p>Yes : supported&lt;/p>
 &lt;/b>
 &lt;br>
+&lt;/td>
+&lt;td style='background-color:#f9f9f9;border-color:#d8d8d8'>
+&lt;b>
+&lt;p>Partially : default only&lt;/p>
+&lt;/b>
+&lt;br>
+GroupByKey emits with the window&amp;#39;s max timestamp, custom OutputTimeFns (timestamp combiners) are not supported.
 &lt;/td>
 &lt;td style='background-color:#fff;border-color:#f6f6f6'>
 &lt;b>
