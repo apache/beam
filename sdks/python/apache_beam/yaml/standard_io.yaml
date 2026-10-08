@@ -276,7 +276,7 @@
       config:
         gradle_target: 'sdks:java:io:messaging-expansion-service:shadowJar'
         classpath:
-          - 'com.ibm.mq:com.ibm.mq.allclient:9.3.0.25'
+          - 'com.ibm.mq:com.ibm.mq.jakarta.client:9.3.0.25'
           - 'org.json:json:20251224'
 
 
