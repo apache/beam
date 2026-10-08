@@ -18,6 +18,7 @@
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -118,6 +119,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   private final BufferingElementsHandlerFactory bufferingElementsHandlerFactory;
   /** The maximum number of buffers for data of not yet acknowledged checkpoints. */
   final int numCheckpointBuffers;
+  /** Minimum timestamp for each checkpoint buffer. */
+  private final long[] minTimestampPerBuffer;
   /** The current active state id which, on checkpoint, is linked to a checkpoint id. */
   int currentStateIndex;
   /** The current handler used for buffering. */
@@ -176,6 +179,8 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
           }
         };
     this.numCheckpointBuffers = initializeState(maxConcurrentCheckpoints);
+    this.minTimestampPerBuffer = new long[numCheckpointBuffers];
+    Arrays.fill(this.minTimestampPerBuffer, Long.MAX_VALUE);
     this.currentBufferingElementsHandler =
         bufferingElementsHandlerFactory.get(rotateAndGetStateIndex());
     this.keyedStateBackend = keyedStateBackend;
@@ -217,8 +222,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   @Override
   public void processElement(WindowedValue<InputT> elem) {
-    minBufferedElementTimestamp =
-        Math.min(elem.getTimestamp().getMillis(), minBufferedElementTimestamp);
+    final long elemTimestamp = elem.getTimestamp().getMillis();
+    minTimestampPerBuffer[currentStateIndex] =
+        Math.min(minTimestampPerBuffer[currentStateIndex], elemTimestamp);
+    minBufferedElementTimestamp = Math.min(elemTimestamp, minBufferedElementTimestamp);
     try (Locker lock = locker != null ? locker.get() : null) {
       if (keySelector != null) {
         keyedStateBackend.setCurrentKey(keySelector.apply(elem.getValue()));
@@ -238,8 +245,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
       TimeDomain timeDomain,
       CausedByDrain causedByDrain) {
 
-    minBufferedElementTimestamp =
-        Math.min(outputTimestamp.getMillis(), minBufferedElementTimestamp);
+    final long outputTimestampInMillis = outputTimestamp.getMillis();
+    minTimestampPerBuffer[currentStateIndex] =
+        Math.min(minTimestampPerBuffer[currentStateIndex], outputTimestampInMillis);
+    minBufferedElementTimestamp = Math.min(outputTimestampInMillis, minBufferedElementTimestamp);
     try (Locker lock = locker != null ? locker.get() : null) {
       if (keySelector != null) {
         keyedStateBackend.setCurrentKey(key);
@@ -280,8 +289,9 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
   public void checkpointCompleted(long checkpointId) throws Exception {
     List<CheckpointIdentifier> allToAck = gatherToBeAcknowledgedCheckpoints(checkpointId);
     for (CheckpointIdentifier toBeAcked : allToAck) {
+      final int toBeAckedId = toBeAcked.internalId;
       BufferingElementsHandler bufferingElementsHandler =
-          bufferingElementsHandlerFactory.get(toBeAcked.internalId);
+          bufferingElementsHandlerFactory.get(toBeAckedId);
       try (Locker lock = locker != null ? locker.get() : null) {
         final Iterator<BufferedElement> iterator =
             bufferingElementsHandler.getElements().iterator();
@@ -297,14 +307,10 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
           underlying.finishBundle();
         }
         bufferingElementsHandler.clear();
+        minTimestampPerBuffer[toBeAckedId] = Long.MAX_VALUE;
       }
     }
-    minBufferedElementTimestamp =
-        currentBufferingElementsHandler
-            .getElements()
-            .mapToLong(e -> e.getTimestamp().getMillis())
-            .min()
-            .orElse(Long.MAX_VALUE);
+    minBufferedElementTimestamp = Arrays.stream(minTimestampPerBuffer).min().orElse(Long.MAX_VALUE);
   }
 
   public long getOutputWatermarkHold() {

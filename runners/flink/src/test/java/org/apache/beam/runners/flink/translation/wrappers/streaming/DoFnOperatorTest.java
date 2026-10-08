@@ -2265,26 +2265,24 @@ public class DoFnOperatorTest {
             WindowedValues.getFullCoder(StringUtf8Coder.of(), GlobalWindow.Coder.INSTANCE),
             new SerializablePipelineOptions(options));
 
-    Supplier<DoFnOperator<String, String, String>> doFnOperatorSupplier =
-        () ->
-            new DoFnOperator<>(
-                doFn,
-                "stepName",
-                windowedValueCoder,
-                Collections.emptyMap(),
-                outputTag,
-                Collections.emptyList(),
-                outputManagerFactory,
-                WindowingStrategy.globalDefault(),
-                new HashMap<>(), /* side-input mapping */
-                Collections.emptyList(), /* side inputs */
-                options,
-                null,
-                null,
-                DoFnSchemaInformation.create(),
-                Collections.emptyMap());
+    DoFnOperator<String, String, String> doFnOperator =
+        new DoFnOperator<>(
+            doFn,
+            "stepName",
+            windowedValueCoder,
+            Collections.emptyMap(),
+            outputTag,
+            Collections.emptyList(),
+            outputManagerFactory,
+            WindowingStrategy.globalDefault(),
+            new HashMap<>(), /* side-input mapping */
+            Collections.emptyList(), /* side inputs */
+            options,
+            null,
+            null,
+            DoFnSchemaInformation.create(),
+            Collections.emptyMap());
 
-    DoFnOperator<String, String, String> doFnOperator = doFnOperatorSupplier.get();
     OneInputStreamOperatorTestHarness<WindowedValue<String>, WindowedValue<String>> testHarness =
         new OneInputStreamOperatorTestHarness<>(doFnOperator);
 
@@ -2313,6 +2311,17 @@ public class DoFnOperatorTest {
         "B@20 has been checked and the buffer is empty; output watermark must advance to input watermark",
         doFnOperator.getCurrentOutputWatermark(),
         is(100L));
+
+    assertThat(
+        testHarness.getOutput(),
+        contains(
+            new Watermark(10),
+            new StreamRecord<>(WindowedValues.timestampedValueInGlobalWindow("A", new Instant(10))),
+            new Watermark(20),
+            new StreamRecord<>(WindowedValues.timestampedValueInGlobalWindow("B", new Instant(20))),
+            new Watermark(100)));
+
+    testHarness.close();
   }
 
   @Test(expected = IllegalStateException.class)

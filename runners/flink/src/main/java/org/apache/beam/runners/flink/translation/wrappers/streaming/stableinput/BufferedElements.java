@@ -53,11 +53,6 @@ class BufferedElements {
     }
 
     @Override
-    public Instant getTimestamp() {
-      return this.element.getTimestamp();
-    }
-
-    @Override
     public boolean equals(@Nullable Object o) {
       if (this == o) {
         return true;
@@ -118,11 +113,6 @@ class BufferedElements {
           outputTimestamp,
           timeDomain,
           CausedByDrain.NORMAL);
-    }
-
-    @Override
-    public Instant getTimestamp() {
-      return outputTimestamp;
     }
 
     @Override
