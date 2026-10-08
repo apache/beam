@@ -62,7 +62,7 @@ jobs:
       fail-fast: false
       matrix:
         job_name: [beam_PreCommit_Python_Coverage]
-        python_version: ['3.10']
+        python_version: ['3.11']
     timeout-minutes: 180
     if: |
       github.event_name == 'push' ||
@@ -89,7 +89,7 @@ jobs:
           TC_SLEEP_TIME: "1"
         uses: ./.github/actions/gradle-command-self-hosted-action
         with:
-          gradle-command: :sdks:python:test-suites:tox:py310:preCommitPyCoverage
+          gradle-command: :sdks:python:test-suites:tox:py311:preCommitPyCoverage
       - uses: codecov/codecov-action@v7
         with:
           flags: python

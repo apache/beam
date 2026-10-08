@@ -496,7 +496,6 @@ tasks.register("playgroundPreCommit") {
 
 tasks.register("pythonPreCommit") {
   dependsOn(":sdks:python:test-suites:tox:pycommon:preCommitPyCommon")
-  dependsOn(":sdks:python:test-suites:tox:py310:preCommitPy310")
   dependsOn(":sdks:python:test-suites:tox:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:tox:py312:preCommitPy312")
   dependsOn(":sdks:python:test-suites:tox:py313:preCommitPy313")
@@ -513,7 +512,6 @@ tasks.register("pythonDocsPreCommit") {
 }
 
 tasks.register("pythonDockerBuildPreCommit") {
-  dependsOn(":sdks:python:container:py310:docker")
   dependsOn(":sdks:python:container:py311:docker")
   dependsOn(":sdks:python:container:py312:docker")
   dependsOn(":sdks:python:container:py313:docker")
@@ -793,23 +791,12 @@ tasks.register("validateChanges") {
   }
 }
 
-tasks.register("python310PostCommit") {
-  dependsOn(":sdks:python:test-suites:dataflow:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:direct:py310:postCommitIT")
-  dependsOn(":sdks:python:test-suites:portable:py310:postCommitPy310")
-  dependsOn(":sdks:python:test-suites:direct:py310:hdfsIntegrationTest")
-  dependsOn(":sdks:python:test-suites:direct:py310:azureIntegrationTest")
-  // TODO: https://github.com/apache/beam/issues/22651
-  // The default container uses Python 3.10. The goal here is to
-  // duild Docker images for TensorRT tests during run time for python versions
-  // other than 3.10 and add these tests in other python postcommit suites.
-  dependsOn(":sdks:python:test-suites:dataflow:py310:inferencePostCommitIT")
-}
 
 tasks.register("python311PostCommit") {
   dependsOn(":sdks:python:test-suites:dataflow:py311:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py311:postCommitIT")
   dependsOn(":sdks:python:test-suites:direct:py311:hdfsIntegrationTest")
+  dependsOn(":sdks:python:test-suites:direct:py311:azureIntegrationTest")
   dependsOn(":sdks:python:test-suites:portable:py311:postCommitPy311")
 }
 
@@ -836,12 +823,12 @@ tasks.register("python314PostCommit") {
 }
 
 tasks.register("portablePythonPreCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py310:preCommitPy310")
+  dependsOn(":sdks:python:test-suites:portable:py311:preCommitPy311")
   dependsOn(":sdks:python:test-suites:portable:py314:preCommitPy314")
 }
 
 tasks.register("pythonSparkPostCommit") {
-  dependsOn(":sdks:python:test-suites:portable:py310:sparkValidatesRunner")
+  dependsOn(":sdks:python:test-suites:portable:py311:sparkValidatesRunner")
   dependsOn(":sdks:python:test-suites:portable:py314:sparkValidatesRunner")
 }
 
@@ -865,15 +852,15 @@ tasks.register("javaExamplesDataflowPrecommit") {
 
 tasks.register("whitespacePreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py310:archiveFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py310:unpackFilesToLint")
-  dependsOn(":sdks:python:test-suites:tox:py310:whitespacelint")
+  dependsOn(":sdks:python:test-suites:tox:py311:archiveFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py311:unpackFilesToLint")
+  dependsOn(":sdks:python:test-suites:tox:py311:whitespacelint")
 }
 
 tasks.register("typescriptPreCommit") {
   // TODO(https://github.com/apache/beam/issues/20209): Find a better way to specify the tasks without hardcoding py version.
-  dependsOn(":sdks:python:test-suites:tox:py310:eslint")
-  dependsOn(":sdks:python:test-suites:tox:py310:jest")
+  dependsOn(":sdks:python:test-suites:tox:py311:eslint")
+  dependsOn(":sdks:python:test-suites:tox:py311:jest")
 }
 
 tasks.register("pushAllRunnersDockerImages") {
