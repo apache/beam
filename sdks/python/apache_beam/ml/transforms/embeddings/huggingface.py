@@ -99,10 +99,10 @@ class _SentenceTransformerModelHandler(ModelHandler):
   def load_model(self):
     model_class = self._model_class
     # Checking callable() instead of None also covers artifacts written by
-    # older Beam versions, which stored a reference to the SentenceTransformer
-    # class. jsonpickle restores such a reference as a non-callable placeholder
-    # if sentence-transformers was not installed when the artifacts were read
-    # (for example, during job submission).
+    # Beam 2.77.0 and earlier, which stored a reference to the
+    # SentenceTransformer class. jsonpickle restores such a reference as a
+    # non-callable placeholder if sentence-transformers was not installed when
+    # the artifacts were read (for example, during job submission).
     if not callable(model_class):
       model_class = _import_sentence_transformer()
     model = model_class(self.model_name, **(self._load_model_args or {}))

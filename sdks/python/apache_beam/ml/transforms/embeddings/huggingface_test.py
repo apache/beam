@@ -459,8 +459,8 @@ class SentenceTransformerJobSubmissionTest(unittest.TestCase):
     model_handler = huggingface.SentenceTransformerEmbeddings(
         model_name=DEFAULT_MODEL_NAME,
         columns=[test_query_column]).get_model_handler()
-    # Older Beam versions stored a reference to the SentenceTransformer class
-    # in the artifacts. This is how jsonpickle restores the reference if
+    # Beam 2.77.0 and earlier stored a reference to the SentenceTransformer
+    # class in the artifacts. This is how jsonpickle restores the reference if
     # sentence-transformers is not installed when reading the artifacts.
     with test_utils.block_imports('sentence_transformers'):
       model_handler._model_class = jsonpickle.decode(
