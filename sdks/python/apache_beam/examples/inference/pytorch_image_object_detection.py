@@ -431,7 +431,8 @@ def run(
       model_params={},
       state_dict_path=known_args.model_state_dict_path,
       device=device,
-      inference_batch_size=batch_size,
+      min_batch_size=batch_size,
+      max_batch_size=batch_size,
       inference_fn=_torchvision_detection_inference_fn,
   )
 

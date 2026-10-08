@@ -116,8 +116,7 @@ class S3TestUtils {
   }
 
   static S3FileSystemConfiguration s3ConfigWithMultipleSSEOptions(String scheme) {
-    return s3ConfigWithSSEKMSKeyId(scheme)
-        .toBuilder()
+    return s3ConfigWithSSEKMSKeyId(scheme).toBuilder()
         .setSSECustomerKey(
             SSECustomerKey.builder()
                 .key("86glyTlCNZgccSxW8JxMa6ZdjdK3N141glAysPUZ3AA=")

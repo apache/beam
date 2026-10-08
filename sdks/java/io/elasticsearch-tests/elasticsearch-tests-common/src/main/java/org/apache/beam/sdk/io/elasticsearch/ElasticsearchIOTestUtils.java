@@ -289,6 +289,7 @@ class ElasticsearchIOTestUtils {
       RestClient restClient, String index, String type, int backendVersion) throws IOException {
     return refreshIndexAndGetCurrentNumDocs(restClient, index, type, backendVersion, null);
   }
+
   /**
    * Forces a refresh of the given index to make recently inserted documents available for search.
    *
@@ -566,7 +567,7 @@ class ElasticsearchIOTestUtils {
    * Small server that always returns a specified HTTP error code. This is useful to simulate server
    * errors in tests.
    */
-  static class AlwaysFailServer implements AutoCloseable {
+  static final class AlwaysFailServer implements AutoCloseable {
     private final HttpServer server;
     private final int port;
 

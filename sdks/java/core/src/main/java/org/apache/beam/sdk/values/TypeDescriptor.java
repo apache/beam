@@ -17,6 +17,7 @@
  */
 package org.apache.beam.sdk.values;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -46,6 +47,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  *
  * @param <T> the type represented by this {@link TypeDescriptor}
  */
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public abstract class TypeDescriptor<T> implements Serializable {
 
   // This class is just a wrapper for TypeToken

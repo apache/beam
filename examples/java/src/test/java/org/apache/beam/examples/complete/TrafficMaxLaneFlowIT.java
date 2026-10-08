@@ -17,6 +17,7 @@
  */
 package org.apache.beam.examples.complete;
 
+import static org.apache.beam.sdk.io.gcp.testing.BigtableUtils.TEMP_DATASET_PREFIX;
 import static org.junit.Assert.assertEquals;
 
 import com.google.api.client.util.BackOff;
@@ -44,7 +45,7 @@ public class TrafficMaxLaneFlowIT {
 
   private TrafficMaxLaneFlowOptions options;
   private final String timestamp = Long.toString(System.currentTimeMillis());
-  private final String outputDatasetId = "traffic_max_lane_flow_" + timestamp;
+  private final String outputDatasetId = TEMP_DATASET_PREFIX + "traffic_max_lane_flow_" + timestamp;
   private final String outputTable = "traffic_max_lane_flow_table";
   private String projectId;
   private BigqueryClient bqClient;

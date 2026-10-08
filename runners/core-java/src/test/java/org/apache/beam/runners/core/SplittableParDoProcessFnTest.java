@@ -775,6 +775,10 @@ public class SplittableParDoProcessFnTest {
       // The residual range should be [3, 10), so size is 7.
       assertEquals(1, backlogs.size());
       assertEquals(7.0, backlogs.get(0), 0.001);
+
+      assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
+      assertEquals(2, backlogs.size());
+      assertEquals(0.0, backlogs.get(1), 0.001);
     }
   }
 
@@ -800,6 +804,34 @@ public class SplittableParDoProcessFnTest {
       // The residual range should be [3, 10), so size is 7.
       assertEquals(1, backlogs.size());
       assertEquals(7.0, backlogs.get(0), 0.001);
+
+      assertTrue(tester.advanceProcessingTimeBy(Duration.standardSeconds(1)));
+      assertEquals(2, backlogs.size());
+      assertEquals(0.0, backlogs.get(1), 0.001);
+    }
+  }
+
+  @Test
+  public void testReportsZeroBacklogWhenDone() throws Exception {
+    DoFn<Integer, String> fn = new GetSizeFn();
+    Instant base = Instant.now();
+    final List<Double> backlogs = new ArrayList<>();
+
+    try (ProcessFnTester<Integer, String, OffsetRange, Long, Void> tester =
+        new ProcessFnTester<>(
+            base,
+            fn,
+            BigEndianIntegerCoder.of(),
+            SerializableCoder.of(OffsetRange.class),
+            VoidCoder.of(),
+            MAX_OUTPUTS_PER_BUNDLE,
+            MAX_BUNDLE_DURATION)) {
+      tester.processFn.setBacklogBytesCallback(backlogs::add);
+
+      // OffsetRange(0, 2) completes immediately without resume.
+      tester.startElement(42, new OffsetRange(0, 2));
+      assertEquals(1, backlogs.size());
+      assertEquals(0.0, backlogs.get(0), 0.001);
     }
   }
 

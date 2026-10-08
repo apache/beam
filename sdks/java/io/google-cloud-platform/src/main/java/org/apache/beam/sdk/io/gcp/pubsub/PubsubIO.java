@@ -1236,14 +1236,12 @@ public class PubsubIO {
       }
 
       ValueProvider<PubsubTopic> topicProvider = getTopicProvider();
-      @Nullable
-      ValueProvider<TopicPath> topicPath =
+      @Nullable ValueProvider<TopicPath> topicPath =
           topicProvider == null
               ? null
               : NestedValueProvider.of(topicProvider, new TopicPathTranslator());
       ValueProvider<PubsubSubscription> subscriptionProvider = getSubscriptionProvider();
-      @Nullable
-      ValueProvider<SubscriptionPath> subscriptionPath =
+      @Nullable ValueProvider<SubscriptionPath> subscriptionPath =
           subscriptionProvider == null
               ? null
               : NestedValueProvider.of(subscriptionProvider, new SubscriptionPathTranslator());

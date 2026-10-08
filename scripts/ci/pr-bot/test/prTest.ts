@@ -42,4 +42,17 @@ describe("Pr", function () {
       assert.equal("", testPr.getLabelForReviewer("testReviewer4"));
     });
   });
+
+  describe("reviewersAssignedAt", function () {
+    it("should default to 0 when not provided", function () {
+      let testPr = new Pr({});
+      assert.equal(testPr.reviewersAssignedAt, 0);
+    });
+
+    it("should retain reviewersAssignedAt when provided in dictionary", function () {
+      let timestamp = 1700000000000;
+      let testPr = new Pr({ reviewersAssignedAt: timestamp });
+      assert.equal(testPr.reviewersAssignedAt, timestamp);
+    });
+  });
 });

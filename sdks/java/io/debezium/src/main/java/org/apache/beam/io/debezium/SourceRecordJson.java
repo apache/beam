@@ -17,6 +17,7 @@
  */
 package org.apache.beam.io.debezium;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -60,6 +61,12 @@ import org.checkerframework.checker.nullness.qual.Nullable;
  * </pre>
  */
 @SuppressWarnings({"nullness"})
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class SourceRecordJson {
   private final @Nullable Struct value;
   private final @Nullable Event event;

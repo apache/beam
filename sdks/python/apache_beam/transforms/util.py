@@ -82,9 +82,9 @@ from apache_beam.typehints.sharded_key_type import ShardedKeyType
 from apache_beam.utils import shared
 from apache_beam.utils import windowed_value
 from apache_beam.utils.annotations import deprecated
-from apache_beam.utils.secret import Secret
-from apache_beam.utils.secret import GcpSecret
 from apache_beam.utils.secret import GcpHsmGeneratedSecret
+from apache_beam.utils.secret import GcpSecret
+from apache_beam.utils.secret import Secret
 from apache_beam.utils.sharded_key import ShardedKey
 from apache_beam.utils.timestamp import Timestamp
 
@@ -1204,7 +1204,7 @@ class _SortAndBatchElementsDoFn(DoFn):
       # Check if adding this element would exceed limits
       would_exceed_count = len(batch) >= self._max_batch_size
       would_exceed_weight = (
-          batch_weight + element_size >= self._max_batch_weight and batch)
+          batch_weight + element_size > self._max_batch_weight and batch)
 
       if would_exceed_count or would_exceed_weight:
         # Emit current batch
@@ -1301,7 +1301,7 @@ class _WindowAwareSortAndBatchElementsDoFn(DoFn):
 
       would_exceed_count = len(batch) >= self._max_batch_size
       would_exceed_weight = (
-          batch_weight + element_size >= self._max_batch_weight and batch)
+          batch_weight + element_size > self._max_batch_weight and batch)
 
       if would_exceed_count or would_exceed_weight:
         yield windowed_value.WindowedValue(batch, win.max_timestamp(), (win, ))
@@ -1978,7 +1978,12 @@ class LogElements(PTransform):
     def format_timestamp(self, timestamp):
       if self.use_epoch_time:
         return timestamp.seconds()
-      return timestamp.to_rfc3339()
+      try:
+        return timestamp.to_rfc3339()
+      except OverflowError:
+        # MIN_TIMESTAMP and the global window bounds are outside the datetime
+        # range.
+        return str(timestamp)
 
     def process(
         self,

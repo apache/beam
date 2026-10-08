@@ -281,7 +281,9 @@ public class AvroIOTest implements Serializable {
       AVROIO_WRITE,
       AVROIO_SINK_WITH_CLASS,
       AVROIO_SINK_WITH_SCHEMA,
-      /** @deprecated Test code for the deprecated {AvroIO.RecordFormatter}. */
+      /**
+       * @deprecated Test code for the deprecated {AvroIO.RecordFormatter}.
+       */
       @Deprecated
       AVROIO_SINK_WITH_FORMATTER
     }

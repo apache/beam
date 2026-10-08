@@ -154,7 +154,8 @@ public class StateBackedIterableTest {
       protected void reportElementSize(long elementByteSize) {
         total += elementByteSize;
       }
-    };
+    }
+    ;
 
     @Test
     public void testByteObservingStateBackedIterable() throws Exception {

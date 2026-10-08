@@ -21,9 +21,7 @@ import java.util.TreeMap
 plugins {
   base
   // Apply one top level rat plugin to perform any required license enforcement analysis
-  id("org.nosphere.apache.rat") version "0.8.1"
-  // Enable gradle-based release management
-  id("net.researchgate.release") version "2.8.1"
+  id("org.nosphere.apache.rat") version "0.11.0"
   id("org.apache.beam.module")
   id("org.sonarqube") version "3.0"
 }
@@ -48,6 +46,7 @@ tasks.rat {
     "**/test.avsc",
     "**/logical-types.avsc",
     "**/user.avsc",
+    "**/*.avro",
     "**/test/resources/**/*.txt",
     "**/test/resources/**/*.csv",
     "**/test/**/.placeholder",
@@ -201,6 +200,9 @@ tasks.rat {
     "sdks/java/container/license_scripts/manual_licenses",
     "sdks/python/container/license_scripts/manual_licenses",
 
+    // Ignore third-party notices bundled in resources
+    "**/resources/NOTICES",
+
     // Ignore autogenrated proto files.
     "sdks/typescript/src/apache_beam/proto/**/*.ts",
 
@@ -319,11 +321,9 @@ tasks.register("javaPreCommit") {
   dependsOn(":sdks:java:io:contextualtextio:build")
   dependsOn(":sdks:java:io:expansion-service:build")
   dependsOn(":sdks:java:io:file-based-io-tests:build")
-  dependsOn(":sdks:java:io:kafka:jmh:build")
   dependsOn(":sdks:java:io:sparkreceiver:3:build")
   dependsOn(":sdks:java:io:synthetic:build")
   dependsOn(":sdks:java:io:xml:build")
-  dependsOn(":sdks:java:javadoc:allJavadoc")
   dependsOn(":sdks:java:managed:build")
   dependsOn("sdks:java:ml:inference:remote:build")
   dependsOn("sdks:java:ml:inference:openai:build")
@@ -361,6 +361,7 @@ tasks.register("javaioPreCommit") {
   dependsOn(":sdks:java:io:jdbc:build")
   dependsOn(":sdks:java:io:jms:build")
   dependsOn(":sdks:java:io:kafka:build")
+  dependsOn(":sdks:java:io:kafka:jmh:build")
   dependsOn(":sdks:java:io:kafka:upgrade:build")
   dependsOn(":sdks:java:extensions:kafka-factories:build")
   dependsOn(":sdks:java:io:kudu:build")
@@ -396,6 +397,7 @@ tasks.register("sqlPreCommit") {
   dependsOn(":sdks:java:extensions:sql:expansion-service:build")
   dependsOn(":sdks:java:extensions:sql:hcatalog:build")
   dependsOn(":sdks:java:extensions:sql:iceberg:build")
+  dependsOn(":sdks:java:extensions:sql:delta:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:build")
   dependsOn(":sdks:java:extensions:sql:jdbc:preCommit")
   dependsOn(":sdks:java:extensions:sql:perf-tests:build")
@@ -978,20 +980,6 @@ project.tasks.register("generateExternalTransformsConfig") {
 // Generates the Managed IO Beam web page
 project.tasks.register("generateManagedIOPage") {
   dependsOn(":sdks:python:generateManagedIOPage")
-}
-
-// Configure the release plugin to do only local work; the release manager determines what, if
-// anything, to push. On failure, the release manager can reset the branch without pushing.
-release {
-  revertOnFail = false
-  tagTemplate = "v${version}"
-  // workaround from https://github.com/researchgate/gradle-release/issues/281#issuecomment-466876492
-  release {
-    with (propertyMissing("git") as net.researchgate.release.GitAdapter.GitConfig) {
-      requireBranch = "release-.*|master"
-      pushToRemote = ""
-    }
-  }
 }
 
 // Reports linkage errors across multiple Apache Beam artifact ids.

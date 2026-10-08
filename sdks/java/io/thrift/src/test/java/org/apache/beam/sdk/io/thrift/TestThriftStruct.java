@@ -106,7 +106,9 @@ public class TestThriftStruct
     TEST_BOOL((short) 8, "testBool"),
     TEST_LIST((short) 9, "testList"),
     TEST_STRING_SET_TYPEDEF((short) 10, "testStringSetTypedef"),
-    /** @see TestThriftEnum */
+    /**
+     * @see TestThriftEnum
+     */
     TEST_ENUM((short) 11, "testEnum"),
     TEST_NESTED((short) 12, "testNested"),
     TEST_UNION((short) 13, "testUnion");
@@ -705,13 +707,17 @@ public class TestThriftStruct
     }
   }
 
-  /** @see TestThriftEnum */
+  /**
+   * @see TestThriftEnum
+   */
   @org.apache.thrift.annotation.Nullable
   public TestThriftEnum getTestEnum() {
     return this.testEnum;
   }
 
-  /** @see TestThriftEnum */
+  /**
+   * @see TestThriftEnum
+   */
   public void setTestEnum(@org.apache.thrift.annotation.Nullable TestThriftEnum testEnum) {
     this.testEnum = testEnum;
   }

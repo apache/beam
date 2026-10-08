@@ -41,6 +41,8 @@ dependencies {
     testImplementation library.java.truth
 }
 
+project.evaluationDependsOn(":runners:prism")
+
 tasks.test {
     var prismBuildTask = dependsOn(':runners:prism:build')
     systemProperty 'prism.buildTarget', prismBuildTask.project.property('buildTarget').toString()

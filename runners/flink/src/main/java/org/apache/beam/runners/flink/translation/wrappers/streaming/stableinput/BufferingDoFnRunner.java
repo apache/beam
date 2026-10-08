@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.flink.translation.wrappers.streaming.stableinput;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -56,6 +57,12 @@ import org.joda.time.Instant;
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
   "nullness" // TODO(https://github.com/apache/beam/issues/20497)
 })
+@SuppressFBWarnings(
+    value = "CT_CONSTRUCTOR_THROW",
+    justification =
+        "Pre-existing finding, not triaged yet."
+            + " Making the class final or moving the throwing code"
+            + " into a static factory method may fix it.")
 public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, OutputT> {
 
   public static <InputT, OutputT> BufferingDoFnRunner<InputT, OutputT> create(
@@ -113,31 +120,42 @@ public class BufferingDoFnRunner<InputT, OutputT> implements DoFnRunner<InputT, 
 
   /** The underlying DoFnRunner that any buffered data will be handed over to eventually. */
   private final DoFnRunner<InputT, OutputT> underlying;
+
   /** A union list state which contains all to-be-acknowledged snapshot ids. */
   private final ListState<CheckpointIdentifier> notYetAcknowledgedSnapshots;
+
   /** A factory for constructing new BufferingElementsHandler scoped by an internal id. */
   private final BufferingElementsHandlerFactory bufferingElementsHandlerFactory;
+
   /** The maximum number of buffers for data of not yet acknowledged checkpoints. */
   final int numCheckpointBuffers;
+
   /** Minimum timestamp for each checkpoint buffer. */
   private final long[] minTimestampPerBuffer;
+
   /** The current active state id which, on checkpoint, is linked to a checkpoint id. */
   int currentStateIndex;
+
   /** The current handler used for buffering. */
   private BufferingElementsHandler currentBufferingElementsHandler;
+
   /** Minimum timestamp of all buffered elements. */
   private volatile long minBufferedElementTimestamp;
+
   /** The associated keyed state backend. */
   private final @Nullable KeyedStateBackend keyedStateBackend;
+
   /**
    * Locker that must be held (if present) before buffering an element. If non-null, we must
    * manually set a key to the state backend.
    */
   private final @Nullable Supplier<Locker> locker;
+
   /**
    * A selector of key. When non-null, this must be set to the keyed state backend before buffering.
    */
   private final @Nullable Function<InputT, Object> keySelector;
+
   /** Callable to notify about possibility to flush bundle. */
   private final @Nullable Runnable finishBundleCallback;
 

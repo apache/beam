@@ -42,5 +42,6 @@ public interface BundleSplitHandler {
                 "%s does not support splitting.", BundleSplitHandler.class.getSimpleName()));
       }
     };
-  };
+  }
+  ;
 }

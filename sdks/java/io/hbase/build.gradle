@@ -46,6 +46,7 @@ dependencies {
   testImplementation project(path: ":sdks:java:core", configuration: "shadowTest")
   testImplementation library.java.junit
   testImplementation library.java.hamcrest
+  testImplementation library.java.mockito_core
   // shaded-testing-utils has shaded all Hadoop/HBase dependencies
   testImplementation("org.apache.hbase:hbase-shaded-testing-util:$hbase_version")
   testRuntimeOnly project(path: ":runners:direct-java", configuration: "shadow")

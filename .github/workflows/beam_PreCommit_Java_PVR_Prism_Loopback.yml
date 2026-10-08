@@ -29,7 +29,7 @@ on:
       - 'runners/java-fn-execution/**'
       - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
       - '.github/workflows/beam_PreCommit_Java_PVR_Prism_Loopback.yml'
-  pull_request_target:
+  pull_request:
     branches: ['master', 'release-*']
     paths:
       - 'model/**'
@@ -40,18 +40,16 @@ on:
       - 'sdks/java/core/src/test/java/org/apache/beam/sdk/transforms/**'
       - 'release/trigger_all_tests.json'
       - '.github/trigger_files/beam_PreCommit_Java_PVR_Prism_Loopback.json'
-  issue_comment:
-    types: [created]
   schedule:
     - cron: '22 2/6 * * *'
   workflow_dispatch:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.event.pull_request.head.label || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: write
@@ -74,29 +72,23 @@ env:
 
 jobs:
   beam_PreCommit_Java_PVR_Prism_Loopback:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     strategy:
       matrix:
         job_name: ["beam_PreCommit_Java_PVR_Prism_Loopback"]
-        job_phrase: ["Run Java_PVR_Prism_Loopback PreCommit"]
     timeout-minutes: 240
     runs-on: [self-hosted, ubuntu-24.04, main]
     if: |
       github.event_name == 'push' ||
-      github.event_name == 'pull_request_target' ||
+      github.event_name == 'pull_request' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      github.event.comment.body == 'Run Java_PVR_Prism_Loopback PreCommit'
+      github.event_name == 'workflow_dispatch'
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
       - name: run prismLoopbackValidatesRunnerTests script

@@ -79,8 +79,8 @@ public class SqlCreateDatabase extends SqlCreate implements BeamSqlParser.Execut
     Schema schema = pair.left.schema;
 
     List<String> components = Lists.newArrayList(Splitter.on('.').split(databaseName.toString()));
-    @Nullable
-    String catalogName = components.size() > 1 ? components.get(components.size() - 2) : null;
+    @Nullable String catalogName =
+        components.size() > 1 ? components.get(components.size() - 2) : null;
 
     if (!(schema instanceof CatalogManagerSchema)) {
       throw SqlUtil.newContextException(

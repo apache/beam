@@ -16,5 +16,5 @@
  * limitations under the License.
  */
 
-/** Table schema for BigTable. */
+/** Table schema for Bigtable. */
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigtable;

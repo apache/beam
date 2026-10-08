@@ -73,7 +73,12 @@ buildCache {
             password = System.getenv("GRADLE_ENTERPRISE_CACHE_PASSWORD")
         }
         isEnabled = !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
-        isPush = isCi && !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
+        isPush =
+            (isJenkinsBuild ||
+                (isGithubActionsBuild &&
+                    (System.getenv("GITHUB_EVENT_NAME") == "schedule" ||
+                        System.getenv("GITHUB_EVENT_NAME") == "push" ))) &&
+                !System.getenv("GRADLE_ENTERPRISE_CACHE_USERNAME").isNullOrBlank()
     }
 }
 
@@ -397,5 +402,8 @@ include("it:clickhouse")
 findProject(":it:clickhouse")?.name = "clickhouse"
 include("sdks:java:extensions:sql:iceberg")
 findProject(":sdks:java:extensions:sql:iceberg")?.name = "iceberg"
+include("sdks:java:extensions:sql:delta")
+findProject(":sdks:java:extensions:sql:delta")?.name = "delta"
 include("examples:java:iceberg")
 findProject(":examples:java:iceberg")?.name = "iceberg"
+

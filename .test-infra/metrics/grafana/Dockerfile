@@ -16,7 +16,7 @@
 # limitations under the License.
 ################################################################################
 
-FROM grafana/grafana:10.0.3
+FROM grafana/grafana:12.4.12
 
 RUN grafana-cli plugins install marcusolsson-json-datasource
 

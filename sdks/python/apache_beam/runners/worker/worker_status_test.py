@@ -28,6 +28,7 @@ from apache_beam.portability.api import beam_fn_api_pb2_grpc
 from apache_beam.runners.worker import statesampler
 from apache_beam.runners.worker.worker_status import FnApiWorkerStatusHandler
 from apache_beam.runners.worker.worker_status import heap_dump
+from apache_beam.runners.worker.worker_status import memory_stats
 from apache_beam.utils import thread_pool_executor
 from apache_beam.utils.counters import CounterName
 
@@ -230,6 +231,30 @@ class HeapDumpTest(unittest.TestCase):
     result = '%s' % heap_dump()
     self.assertTrue(
         'Unable to import guppy, the heap dump will be skipped' in result)
+
+  @mock.patch('apache_beam.runners.worker.worker_status.hpy', None)
+  def test_heap_dump_includes_memory_stats_without_guppy(self):
+    # Memory stats must be emitted even when guppy is unavailable.
+    result = '%s' % heap_dump()
+    self.assertIn('MEMORY STATS', result)
+
+
+class MemoryStatsTest(unittest.TestCase):
+  def test_memory_stats_sections_present(self):
+    result = memory_stats()
+    self.assertIn('MEMORY STATS', result)
+    self.assertIn('Process memory', result)
+    self.assertIn('Python allocations', result)
+    self.assertIn('glibc malloc', result)
+    # Python allocator introspection is available on every platform.
+    self.assertIn('sys.getallocatedblocks', result)
+
+  @mock.patch('sys.platform', 'darwin')
+  def test_glibc_stats_graceful_on_non_glibc(self):
+    # On non-glibc platforms the native-heap section must degrade gracefully
+    # rather than raise.
+    result = memory_stats()
+    self.assertIn('unavailable', result)
 
 
 if __name__ == '__main__':

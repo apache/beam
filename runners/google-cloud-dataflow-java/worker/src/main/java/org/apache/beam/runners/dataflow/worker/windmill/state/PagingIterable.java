@@ -105,10 +105,10 @@ class PagingIterable<ContinuationT, ResultT> implements Iterable<ResultT> {
         currentPage = valuesAndContPosition.getValues().iterator();
         StateTag.Builder<ContinuationT> nextPageBuilder =
             StateTag.of(
-                    nextPagePos.getKind(),
-                    nextPagePos.getTag(),
-                    nextPagePos.getStateFamily(),
-                    valuesAndContPosition.getContinuationPosition())
+                nextPagePos.getKind(),
+                nextPagePos.getTag(),
+                nextPagePos.getStateFamily(),
+                valuesAndContPosition.getContinuationPosition())
                 .toBuilder();
         if (secondPagePos.getSortedListRange() != null) {
           nextPageBuilder.setSortedListRange(secondPagePos.getSortedListRange());

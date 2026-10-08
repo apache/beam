@@ -22,11 +22,13 @@ import static org.apache.commons.lang3.StringUtils.substringBetween;
 import static org.apache.commons.lang3.math.NumberUtils.toInt;
 
 import com.esotericsoftware.kryo.Kryo;
+import com.esotericsoftware.kryo.Serializer;
 import com.esotericsoftware.kryo.serializers.JavaSerializer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.Map;
 import javax.annotation.Nullable;
 import org.apache.beam.repackaged.core.org.apache.commons.lang3.ArrayUtils;
 import org.apache.beam.runners.core.construction.SerializablePipelineOptions;
@@ -89,6 +91,7 @@ import org.apache.spark.sql.catalyst.InternalRow;
 import org.apache.spark.sql.execution.datasources.v2.DataWritingSparkTaskResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import scala.Option;
 
 public class SparkSessionFactory {
 
@@ -112,15 +115,49 @@ public class SparkSessionFactory {
           "/com.esotericsoftware/kryo-shaded",
           "/com/esotericsoftware/kryo-shaded");
 
-  /**
-   * Gets active {@link SparkSession} or creates one using {@link
-   * SparkStructuredStreamingPipelineOptions}.
-   */
-  public static SparkSession getOrCreateSession(SparkStructuredStreamingPipelineOptions options) {
+  // Builder.getOrCreate adopts an existing session without applying the pipeline's configuration.
+  // A pipeline must not stop a session it did not create, and the next pipeline needs the
+  // previous one stopped to get its own configuration, so sessions created here are counted.
+  private static final Map<SparkSession, Integer> OWNED_SESSIONS = new HashMap<>();
+
+  /** Returns the {@link SparkSession} for a pipeline, paired with {@link #release}. */
+  public static synchronized SparkSession acquire(SparkStructuredStreamingPipelineOptions options) {
     if (options.getUseActiveSparkSession()) {
       return SparkSession.active();
     }
-    return sessionBuilder(options.getSparkMaster(), options).getOrCreate();
+    boolean noUsableSession =
+        !isUsable(SparkSession.getActiveSession()) && !isUsable(SparkSession.getDefaultSession());
+    SparkSession session = sessionBuilder(options.getSparkMaster(), options).getOrCreate();
+    Integer count = OWNED_SESSIONS.get(session);
+    if (count != null) {
+      OWNED_SESSIONS.put(session, count + 1);
+      LOG.info("Pipeline options will not be applied to the shared SparkSession");
+    } else if (noUsableSession) {
+      OWNED_SESSIONS.put(session, 1);
+    }
+    return session;
+  }
+
+  /**
+   * Releases a session from {@link #acquire} and stops it when no longer used. The stop runs under
+   * the lock, a pipeline starting meanwhile creates a new session.
+   */
+  public static synchronized void release(SparkSession session) {
+    Integer count = OWNED_SESSIONS.get(session);
+    if (count == null) {
+      return;
+    }
+    if (count > 1) {
+      OWNED_SESSIONS.put(session, count - 1);
+      return;
+    }
+    OWNED_SESSIONS.remove(session);
+    LOG.info("Stopping SparkSession created by the runner");
+    session.stop();
+  }
+
+  private static boolean isUsable(Option<SparkSession> session) {
+    return session.isDefined() && !session.get().sparkContext().isStopped();
   }
 
   /** Creates Spark session builder with some optimizations for local mode, e.g. in tests. */
@@ -288,11 +325,44 @@ public class SparkSessionFactory {
       kryo.register(CoGbkResultSchema.class);
       kryo.register(TupleTag.class);
       kryo.register(TupleTagList.class);
+
+      // Streaming internals that only exist as of Spark 4, registered by name so this shared
+      // source also compiles against Spark 3. Must stay last so the auto assigned ids of the
+      // registrations above are identical in the Spark 3 and Spark 4 artifacts.
+      registerSparkStreamingInternals(kryo);
+    }
+
+    /**
+     * Registers the internals a Structured Streaming query serializes behind the runner's back, so
+     * streaming pipelines work with {@code spark.kryo.registrationRequired=true}: {@code
+     * StateSchemaMetadata} (broadcast for every {@code transformWithState} query) and {@code
+     * MemoryWriterCommitMessage} (the {@code memory} sink's commit message, nested inside the
+     * already registered {@link DataWritingSparkTaskResult}). A {@link JavaSerializer} covers their
+     * whole Scala object graph without tracking Spark's field layout; neither is on a hot path.
+     */
+    private void registerSparkStreamingInternals(Kryo kryo) {
+      tryToRegister(
+          kryo,
+          "org.apache.spark.sql.execution.streaming.state.StateSchemaMetadata",
+          new JavaSerializer());
+      tryToRegister(
+          kryo,
+          "org.apache.spark.sql.execution.streaming.sources.MemoryWriterCommitMessage",
+          new JavaSerializer());
     }
 
     private void tryToRegister(Kryo kryo, String className) {
+      tryToRegister(kryo, className, null);
+    }
+
+    private void tryToRegister(Kryo kryo, String className, @Nullable Serializer<?> serializer) {
       try {
-        kryo.register(Class.forName(className));
+        Class<?> cls = Class.forName(className);
+        if (serializer == null) {
+          kryo.register(cls);
+        } else {
+          kryo.register(cls, serializer);
+        }
       } catch (ClassNotFoundException e) {
         LOG.info("Class {}} was not found on classpath", className);
       }

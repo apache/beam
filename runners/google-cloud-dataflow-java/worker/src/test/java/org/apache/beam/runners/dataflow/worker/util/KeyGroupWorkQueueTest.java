@@ -77,7 +77,7 @@ public class KeyGroupWorkQueueTest {
             10000000,
             new ThreadFactoryBuilder().setNameFormat("Test-%d").setDaemon(true).build(),
             fairQueue,
-            /*useKeyGroupWorkQueue=*/ true);
+            /* useKeyGroupWorkQueue= */ true);
   }
 
   private static final Work.KeyGroup TEST_KEY_GROUP = Work.KeyGroup.create(1, 2);
