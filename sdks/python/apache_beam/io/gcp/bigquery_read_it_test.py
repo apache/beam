@@ -88,8 +88,6 @@ def datetime_to_utc(element):
 
 
 class BigQueryReadIntegrationTests(unittest.TestCase):
-  BIG_QUERY_DATASET_ID = 'python_read_table_'
-
   @classmethod
   def setUpClass(cls):
     cls.test_pipeline = TestPipeline(is_integration_test=True)
@@ -99,7 +97,9 @@ class BigQueryReadIntegrationTests(unittest.TestCase):
 
     cls.bigquery_client = BigQueryWrapper()
     cls.dataset_id = '%s%d%s' % (
-        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
+        bigquery_tools._TEMP_DATASET_PREFIX,
+        int(time.time()),
+        secrets.token_hex(3))
     cls.bigquery_client.get_or_create_dataset(cls.project, cls.dataset_id)
     _LOGGER.info(
         "Created dataset %s in project %s", cls.dataset_id, cls.project)
@@ -309,7 +309,6 @@ class ReadTests(BigQueryReadIntegrationTests):
 
 
 class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
-  BIG_QUERY_DATASET_ID = 'python_read_table_'
   TABLE_DATA = [{
       'number': 1,
       'string': '你好',
@@ -334,7 +333,9 @@ class ReadUsingStorageApiTests(BigQueryReadIntegrationTests):
   def setUpClass(cls):
     super(ReadUsingStorageApiTests, cls).setUpClass()
     cls.table_name = '%s%d%s' % (
-        cls.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
+        bigquery_tools._TEMP_DATASET_PREFIX,
+        int(time.time()),
+        secrets.token_hex(3))
     cls._create_table(cls.table_name)
 
     table_id = '{}.{}'.format(cls.dataset_id, cls.table_name)

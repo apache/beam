@@ -21,6 +21,7 @@ import org.apache.beam.sdk.Pipeline;
 import org.apache.beam.sdk.PipelineResult.State;
 import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.PTransform;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Duration;
 
 /**
@@ -46,7 +47,7 @@ interface PipelineExecutor {
    * @throws Exception whenever an executor thread throws anything, transfers to the waiting thread
    *     and rethrows it
    */
-  State waitUntilFinish(Duration duration) throws Exception;
+  @Nullable State waitUntilFinish(Duration duration) throws Exception;
 
   /** Gets the current state of the {@link Pipeline}. */
   State getPipelineState();

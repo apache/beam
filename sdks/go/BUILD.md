@@ -33,7 +33,7 @@ In short, the goals are to make both worlds work well.
 
 ## Go Modules
 
-Beam publishes a single Go Module for SDK developement and usage, in the `sdks` directory.
+Beam publishes a single Go Module for SDK development and usage, in the `sdks` directory.
 This puts all Go code necessary for user pipeline development and for execution
 under the same module.
 This includes container bootloader code in the Java and Python SDK directories.

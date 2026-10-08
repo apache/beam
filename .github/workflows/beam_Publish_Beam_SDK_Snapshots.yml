@@ -20,7 +20,7 @@ on:
     - cron: '0 */4 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -54,21 +54,17 @@ jobs:
       fail-fast: false
       matrix:
         job_name: ["beam_Publish_Beam_SDK_Snapshots"]
-        job_phrase: ["N/A"]
         container_task:
           - "go:container:docker"
           - "java:container:pushAll"
-          - "python:container:py310:docker"
           - "python:container:py311:docker"
           - "python:container:py312:docker"
           - "python:container:py313:docker"
           - "python:container:py314:docker"
-          - "python:container:distroless:py310:docker"
           - "python:container:distroless:py311:docker"
           - "python:container:distroless:py312:docker"
           - "python:container:distroless:py313:docker"
           - "python:container:distroless:py314:docker"
-          - "python:container:ml:py310:docker"
           - "python:container:ml:py311:docker"
           - "python:container:ml:py312:docker"
           - "python:container:ml:py313:docker"
@@ -78,13 +74,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.container_task }})
       - name: Find Beam Version
         # We extract the Beam version here and tag the containers with it. Version will be in the form "2.xx.y.dev".
         # This is needed to run pipelines that use the default environment at HEAD, for example, when a
@@ -109,7 +101,7 @@ jobs:
         if: github.ref == 'refs/heads/master'
         run: echo "LATEST_TAG=,latest" >> $GITHUB_ENV
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: Authenticate on GCP
         uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093
         with:

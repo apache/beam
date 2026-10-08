@@ -146,7 +146,8 @@ public class Join {
   /** Perform a right outer join. */
   public static <LhsT, RhsT> Impl<LhsT, RhsT> rightOuterJoin(PCollection<RhsT> rhs) {
     return new Impl<>(JoinType.RIGHT_OUTER, rhs);
-  };
+  }
+  ;
 
   /** Perform an inner join, broadcasting the right side. */
   public static <LhsT, RhsT> Impl<LhsT, RhsT> innerBroadcastJoin(PCollection<RhsT> rhs) {

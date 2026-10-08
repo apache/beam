@@ -26,6 +26,7 @@ import org.apache.beam.sdk.schemas.Schema;
 import org.apache.beam.sdk.schemas.Schema.FieldType;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
 import org.apache.beam.sdk.schemas.logicaltypes.SqlTypes;
+import org.apache.beam.sdk.testing.BeamParallelJunit4Runner;
 import org.apache.beam.sdk.testing.NeedsRunner;
 import org.apache.beam.sdk.testing.PAssert;
 import org.apache.beam.sdk.testing.TestPipeline;
@@ -42,10 +43,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.experimental.categories.Category;
 import org.junit.runner.RunWith;
-import org.junit.runners.JUnit4;
 
 /** Tests for the {@link Convert} class. */
-@RunWith(JUnit4.class)
+@RunWith(BeamParallelJunit4Runner.class)
 @Category(UsesSchema.class)
 public class ConvertTest {
   @Rule public final transient TestPipeline pipeline = TestPipeline.create();

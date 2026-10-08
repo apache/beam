@@ -20,7 +20,7 @@ on:
     - cron: '0 */6 * * *'
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -48,18 +48,16 @@ env:
 
 jobs:
   beam_Python_ValidatesContainer_Dataflow_ARM:
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
+    name: ${{ matrix.job_name }} (${{ matrix.python_version }})
     strategy:
       fail-fast: false
       matrix:
         job_name: [beam_Python_ValidatesContainer_Dataflow_ARM]
-        job_phrase: [Run Python ValidatesContainer Dataflow ARM]
-        python_version: ['3.10','3.11','3.12','3.13','3.14']
+        python_version: ['3.11','3.12','3.13','3.14']
     if: |
       github.event_name == 'push' ||
       (github.event_name == 'schedule' && github.repository == 'apache/beam') ||
-      github.event_name == 'workflow_dispatch' ||
-      startsWith(github.event.comment.body, 'Run Python ValidatesContainer Dataflow ARM')
+      github.event_name == 'workflow_dispatch'
 
     runs-on: ubuntu-22.04
     # Python 3.14 multiarch container builds compile many deps from source on arm64.
@@ -69,13 +67,9 @@ jobs:
         with:
           persist-credentials: false
       - name: Free Disk Space (Ubuntu)
-        uses: jlumbroso/free-disk-space@v1.3.1
+        uses: jlumbroso/free-disk-space@v2.0.0
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }} ${{ matrix.python_version }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }} ${{ matrix.python_version }})
       - name: Setup environment
         uses: ./.github/actions/setup-environment-action
         with:
@@ -88,7 +82,7 @@ jobs:
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069
       - name: GCloud Docker credential helper
         run: |
           gcloud auth configure-docker us.gcr.io

@@ -116,7 +116,7 @@ Navigate to [`.github/workflows/beam_Python_CostBenchmarks_Dataflow.yml`](../../
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.wordcount.wordcount \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             '-PloadTest.args=${{ env.beam_Inference_Python_Benchmarks_Dataflow_test_arguments_1 }} --job_name=benchmark-tests-wordcount-python-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/wordcount/result_wordcount-${{env.NOW_UTC}}.txt' \
 ```
 

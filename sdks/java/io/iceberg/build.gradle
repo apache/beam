@@ -46,9 +46,11 @@ dependencies {
     implementation library.java.vendored_guava_32_1_2_jre
     implementation project(path: ":sdks:java:core", configuration: "shadow")
     implementation project(path: ":model:pipeline", configuration: "shadow")
+    implementation project(path: ":sdks:java:extensions:sorter")
     implementation library.java.avro
     implementation library.java.slf4j_api
     implementation library.java.joda_time
+    implementation library.java.jackson_databind
     implementation "org.apache.parquet:parquet-column:$parquet_version"
     implementation "org.apache.parquet:parquet-hadoop:$parquet_version"
     implementation "org.apache.parquet:parquet-common:$parquet_version"
@@ -107,6 +109,11 @@ dependencies {
     testImplementation project(path: ":runners:direct-java", configuration: "shadow")
     testRuntimeOnly project(path: ":runners:google-cloud-dataflow-java")
     testRuntimeOnly project(path: ":sdks:java:harness")
+    testImplementation(project(path: ":sdks:java:io:delta", configuration: "testRuntimeMigration")) {
+        exclude group: "org.apache.hadoop", module: "hadoop-aws"
+        exclude group: "org.testcontainers"
+        exclude group: "org.slf4j", module: "slf4j-simple"
+    }
     hadoopVersions.each {kv ->
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-client:$kv.value"
         "hadoopVersion$kv.key" "org.apache.hadoop:hadoop-minicluster:$kv.value"
@@ -128,6 +135,9 @@ configurations.all {
   resolutionStrategy.force 'org.apache.hadoop:hadoop-client:3.3.6'
   resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs:3.3.6'
   resolutionStrategy.force 'org.apache.hadoop:hadoop-hdfs-client:3.3.6'
+  // Delta Kernel (test only) needs the shaded client jars; keep them on the same Hadoop line.
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client-api:3.3.6'
+  resolutionStrategy.force 'org.apache.hadoop:hadoop-client-runtime:3.3.6'
 }
 
 hadoopVersions.each {kv ->
@@ -169,10 +179,15 @@ task integrationTest(type: Test) {
         "--project=${gcpProject}",
         "--tempLocation=${gcpTempLocation}",
     ])
-    // Warehouse (= catalog) used by the BigLake REST catalog tests; overridable for runs
-    // against a non-default project's catalog.
-    systemProperty "beam.iceberg.biglake.warehouse",
-        project.findProperty('biglakeWarehouse') ?: 'gs://managed-iceberg-biglake-its'
+    // Multiple-bucket Lakehouse REST catalog used by RESTCatalogBLMSIT and AddFilesIT (see
+    // LakehouseTestCatalog). Locations: the catalog's default location first, then a restricted
+    // location in another bucket. Override for runs against another project's catalog:
+    //   -PlakehouseWarehouse=bl://projects/PROJECT/catalogs/CATALOG
+    //   -PlakehouseLocations=gs://default-bucket/path,gs://other-bucket/path
+    systemProperty "beam.iceberg.lakehouse.warehouse",
+        project.findProperty('lakehouseWarehouse') ?: 'bl://projects/apache-beam-testing/catalogs/beam-lakehouse-it'
+    systemProperty "beam.iceberg.lakehouse.locations",
+        project.findProperty('lakehouseLocations') ?: 'gs://beam-lakehouse-it,gs://beam-lakehouse-it-added-path'
     // Connection + storage root for BigQueryManagedTableCrossEngineIT.
     if (project.findProperty('bqImtConnection') != null) {
         systemProperty "beam.bq.imt.connection", project.findProperty('bqImtConnection')
@@ -198,9 +213,11 @@ task integrationTest(type: Test) {
 task dataflowIntegrationTest(type: Test) {
     group = "Verification"
     evaluationDependsOn(":runners:google-cloud-dataflow-java")
+    dependsOn ":runners:google-cloud-dataflow-java:worker:shadowJar"
     dependsOn ":runners:google-cloud-dataflow-java:buildAndPushDockerJavaContainer"
     finalizedBy ":runners:google-cloud-dataflow-java:cleanUpDockerJavaImages"
     def dockerJavaImageName = project.project(':runners:google-cloud-dataflow-java').ext.dockerJavaImageName
+    def dataflowLegacyWorkerJar = project.project(":runners:google-cloud-dataflow-java:worker").shadowJar.archivePath
 
     def args = [
             "--runner=DataflowRunner",
@@ -209,6 +226,7 @@ task dataflowIntegrationTest(type: Test) {
             "--tempLocation=${gcpTempLocation}",
             "--tempRoot=${gcpTempLocation}",
             "--sdkContainerImage=${dockerJavaImageName}",
+            "--dataflowWorkerJar=${dataflowLegacyWorkerJar}",
             "--experiments=use_runner_v2,use_staged_dataflow_worker_jar"
     ]
     if (project.hasProperty('enableManagedTransforms')) {
@@ -227,6 +245,12 @@ task dataflowIntegrationTest(type: Test) {
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testWriteRead'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testReadWriteStreaming'
         includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.BigQueryMetastoreCatalogIT.testStreamToPartitionedDynamicDestinations'
+        // CDC sink. The native-ValueKind round trip tests run on legacy worker.
+        // The change-type-column tests run on Runner v2.
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSource'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.catalog.LakehouseCatalogCdcWriteIT.changelogOfSinkWrittenTableRoundTripsThroughTheSourceWithChangeTypeColumn'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTable'
+        includeTestsMatching 'org.apache.beam.sdk.io.iceberg.cdc.sink.DeltaLakeToIcebergCdcIT.changeFeedAppliesToIcebergTableWithChangeTypeColumn'
     }
 
     doLast {

@@ -43,11 +43,10 @@ RUN curl https://pyenv.run | bash && \
     echo ''eval "$(pyenv init -)"'' >> /root/.bashrc && \
     source /root/.bashrc && \
     pyenv install 3.9.4 && \
-    pyenv install 3.10.7 && \
     pyenv install 3.11.3 && \
     pyenv install 3.12.3 && \
     pyenv install 3.13.9 && \
-    pyenv global 3.10.7 3.11.3 3.12.3 3.13.9
+    pyenv global 3.11.3 3.12.3 3.13.9
 
 # Install a Go version >= 1.16 so we can bootstrap higher
 # Go versions

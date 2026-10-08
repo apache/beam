@@ -17,6 +17,7 @@
  */
 package org.apache.beam.runners.direct;
 
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.Collection;
@@ -51,6 +52,7 @@ import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.annotations.Vi
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.Iterables;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.util.concurrent.MoreExecutors;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.joda.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,9 +75,8 @@ import org.slf4j.LoggerFactory;
  */
 @SuppressWarnings({
   "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "keyfor",
-  "nullness"
-}) // TODO(https://github.com/apache/beam/issues/20497)
+  "keyfor"
+})
 class EvaluationContext {
   private static final Logger LOG = LoggerFactory.getLogger(EvaluationContext.class);
 
@@ -97,7 +98,9 @@ class EvaluationContext {
   private final ConcurrentMap<StepAndKey, CopyOnAccessInMemoryStateInternals>
       applicationStateInternals;
 
-  private final SideInputContainer sideInputContainer;
+  // Set once in create() after construction completes, because SideInputContainer.create needs a
+  // fully-initialized EvaluationContext (it holds the context to schedule callbacks later).
+  private @MonotonicNonNull SideInputContainer sideInputContainer;
 
   private final DirectMetrics metrics;
 
@@ -109,7 +112,11 @@ class EvaluationContext {
       DirectGraph graph,
       Set<PValue> keyedPValues,
       ExecutorService executorService) {
-    return new EvaluationContext(clock, bundleFactory, graph, keyedPValues, executorService);
+    EvaluationContext evaluationContext =
+        new EvaluationContext(clock, bundleFactory, graph, keyedPValues, executorService);
+    evaluationContext.sideInputContainer =
+        SideInputContainer.create(evaluationContext, graph.getViews());
+    return evaluationContext;
   }
 
   private EvaluationContext(
@@ -124,7 +131,6 @@ class EvaluationContext {
     this.keyedPValues = keyedPValues;
 
     this.watermarkManager = WatermarkManager.create(clock, graph, AppliedPTransform::getFullName);
-    this.sideInputContainer = SideInputContainer.create(this, graph.getViews());
 
     this.applicationStateInternals = new ConcurrentHashMap<>();
     this.metrics = new DirectMetrics(executorService);
@@ -222,7 +228,9 @@ class EvaluationContext {
       Iterable<? extends UncommittedBundle<?>> bundles) {
     ImmutableList.Builder<CommittedBundle<?>> completed = ImmutableList.builder();
     for (UncommittedBundle<?> inProgress : bundles) {
-      AppliedPTransform<?, ?, ?> producing = graph.getProducer(inProgress.getPCollection());
+      // Bundles committed here are transform outputs, which always target a PCollection.
+      AppliedPTransform<?, ?, ?> producing =
+          graph.getProducer(checkStateNotNull(inProgress.getPCollection()));
       TransformWatermarks watermarks = watermarkManager.getWatermarks(producing);
       CommittedBundle<?> committed =
           inProgress.commit(watermarks.getSynchronizedProcessingOutputTime());
@@ -283,7 +291,7 @@ class EvaluationContext {
    */
   public <ElemT, ViewT> PCollectionViewWriter<ElemT, ViewT> createPCollectionViewWriter(
       PCollection<Iterable<ElemT>> input, final PCollectionView<ViewT> output) {
-    return values -> sideInputContainer.write(output, values);
+    return values -> checkStateNotNull(sideInputContainer).write(output, values);
   }
 
   /**
@@ -371,7 +379,7 @@ class EvaluationContext {
    */
   public ReadyCheckingSideInputReader createSideInputReader(
       final List<PCollectionView<?>> sideInputs) {
-    return sideInputContainer.createReaderForViews(sideInputs);
+    return checkStateNotNull(sideInputContainer).createReaderForViews(sideInputs);
   }
 
   /** Returns the metrics container for this pipeline. */

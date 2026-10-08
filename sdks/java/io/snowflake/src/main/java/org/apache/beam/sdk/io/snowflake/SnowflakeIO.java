@@ -231,8 +231,7 @@ public class SnowflakeIO {
    */
   @FunctionalInterface
   public interface UserDataMapper<T> extends Serializable {
-    @Nullable
-    Object[] mapRow(T element);
+    @Nullable Object[] mapRow(T element);
   }
 
   /**

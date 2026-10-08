@@ -29,7 +29,11 @@ creating the sources or sinks respectively).
 Also, for programming convenience, instances of TableReference and TableSchema
 have a string representation that can be used for the corresponding arguments:
 
-  - TableReference can be a PROJECT:DATASET.TABLE or DATASET.TABLE string.
+  - TableReference can be a PROJECT:DATASET.TABLE, PROJECT.DATASET.TABLE,
+    DATASET.TABLE or, for Lakehouse runtime catalog tables,
+    PROJECT.CATALOG.NAMESPACE.TABLE, which maps to a composite
+    CATALOG.NAMESPACE dataset id. A Lakehouse reference must include the
+    project id.
   - TableSchema can be a NAME:TYPE{,NAME:TYPE}* string
     (e.g. 'month:STRING,event_count:INTEGER').
 
@@ -789,6 +793,10 @@ class _CustomBigQuerySource(BoundedSource):
         table_ref.projectId = self._get_project()
       table = bq.get_table(
           table_ref.projectId, table_ref.datasetId, table_ref.tableId)
+      if table.numBytes is None:
+        # Some tables don't report storage statistics, e.g. Lakehouse runtime
+        # catalog tables.
+        return None
       return int(table.numBytes)
     elif self.query is not None and self.query.is_accessible():
       project = self._get_project()
@@ -1111,7 +1119,23 @@ class _CustomBigQueryStorageSource(BoundedSource):
         if table_reference.projectId else self._get_parent_project())
     table = bq.get_table(
         project, table_reference.datasetId, table_reference.tableId)
+    # None for tables that don't report storage statistics, e.g. Lakehouse
+    # runtime catalog tables.
     return table.numBytes
+
+  def _get_stream_count(self, bq, desired_bundle_size):
+    """Number of streams to request; 0 lets the Storage Read API decide."""
+    table_size = self._get_table_size(bq, self.table_reference)
+    if table_size is None:
+      # A table that reports no size, e.g. a Lakehouse runtime catalog table,
+      # cannot be split by size.
+      return 0
+    stream_count = 0
+    if desired_bundle_size > 0:
+      stream_count = min(
+          int(table_size / desired_bundle_size),
+          _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
+    return max(stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
 
   def _get_bq_metadata(self):
     if not self.bq_io_metadata:
@@ -1125,7 +1149,6 @@ class _CustomBigQueryStorageSource(BoundedSource):
       return
     location = bq.get_query_location(
         self._get_parent_project(), self.query.get(), self.use_legacy_sql)
-    _LOGGER.warning("### Labels: %s", str(self.bigquery_dataset_labels))
     bq.create_temporary_dataset(
         self._get_parent_project(),
         location,
@@ -1256,14 +1279,7 @@ class _CustomBigQueryStorageSource(BoundedSource):
         requested_session.read_options.row_restriction = self.row_restriction
 
       storage_client = bq_storage.BigQueryReadClient()
-      stream_count = 0
-      if desired_bundle_size > 0:
-        table_size = self._get_table_size(bq, self.table_reference)
-        stream_count = min(
-            int(table_size / desired_bundle_size),
-            _CustomBigQueryStorageSource.MAX_SPLIT_COUNT)
-      stream_count = max(
-          stream_count, _CustomBigQueryStorageSource.MIN_SPLIT_COUNT)
+      stream_count = self._get_stream_count(bq, desired_bundle_size)
 
       parent = 'projects/{}'.format(self.table_reference.projectId)
       read_session = storage_client.create_read_session(
@@ -2241,10 +2257,11 @@ bigquery_v2_messages.TableSchema`. or a `ValueProvider` that has a JSON string,
       max_insert_payload_size: The maximum byte size for a BigQuery legacy
         streaming insert payload.
       use_cdc_writes: Configure the usage of CDC writes on BigQuery.
-        The argument can be used by passing True and the Beam Rows will be
-        sent as they are to the BigQuery sink which expects a 'record'
-        and 'row_mutation_info' properties.
-        Used for STORAGE_WRITE_API, working on 'at least once' mode.
+        When True, requires ``method=STORAGE_WRITE_API`` and
+        ``use_at_least_once=True``. Each input element must contain ``record``
+        and ``row_mutation_info`` properties. The latter must contain the
+        required string properties ``mutation_type`` (``UPSERT`` or
+        ``DELETE``) and ``change_sequence_number``.
       primary_key: When using CDC write on BigQuery and
         CREATE_IF_NEEDED mode for the underlying tables a list of column names
         is required to be configured as the primary key. Used for
@@ -2952,10 +2969,13 @@ class ReadFromBigQuery(PTransform):
     table (str, callable, ValueProvider): The ID of the table, or a callable
       that returns it. If dataset argument is :data:`None` then the table
       argument must contain the entire table reference specified as:
-      ``'DATASET.TABLE'`` or ``'PROJECT:DATASET.TABLE'``. If it's a callable,
-      it must receive one argument representing an element to be written to
-      BigQuery, and return a TableReference, or a string table name as specified
-      above.
+      ``'DATASET.TABLE'``, ``'PROJECT:DATASET.TABLE'``,
+      ``'PROJECT.DATASET.TABLE'`` or, for Lakehouse runtime catalog tables,
+      ``'PROJECT.CATALOG.NAMESPACE.TABLE'``. A Lakehouse reference must
+      include the project id.
+      If it's a callable, it must receive one argument representing an element
+      to be written to BigQuery, and return a TableReference, or a string table
+      name as specified above.
     dataset (str): The ID of the dataset containing this table or
       :data:`None` if the table reference is specified entirely by the table
       argument.

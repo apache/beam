@@ -185,7 +185,7 @@ bigquery_io_json_file_loads_write:
 
 bigtable_io_read:
   test_description: |
-    BigTableIO read test 100 GB.
+    BigtableIO read test 100 GB.
   project: apache-beam-testing
   metrics_dataset: performance_tests
   metrics_table: io_performance_metrics
@@ -197,7 +197,7 @@ bigtable_io_read:
 
 bigtable_io_write:
   test_description: |
-    BigTableIO write test 100 GB.
+    BigtableIO write test 100 GB.
   project: apache-beam-testing
   metrics_dataset: performance_tests
   metrics_table: io_performance_metrics

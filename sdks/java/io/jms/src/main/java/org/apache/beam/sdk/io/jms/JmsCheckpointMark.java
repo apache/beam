@@ -107,20 +107,17 @@ class JmsCheckpointMark implements UnboundedSource.CheckpointMark, Serializable 
   }
 
   @VisibleForTesting
-  @Nullable
-  List<Message> getMessages() {
+  @Nullable List<Message> getMessages() {
     return messages;
   }
 
   @VisibleForTesting
-  @Nullable
-  Session getSession() {
+  @Nullable Session getSession() {
     return session;
   }
 
   @VisibleForTesting
-  @Nullable
-  MessageConsumer getConsumer() {
+  @Nullable MessageConsumer getConsumer() {
     return consumer;
   }
 

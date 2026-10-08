@@ -21,6 +21,7 @@ import com.google.auto.value.AutoValue;
 import javax.annotation.Nullable;
 import org.apache.beam.sdk.schemas.AutoValueSchema;
 import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
+import org.checkerframework.dataflow.qual.Pure;
 
 /**
  * Configuration for reading from BigQuery.
@@ -31,9 +32,6 @@ import org.apache.beam.sdk.schemas.annotations.DefaultSchema;
  * provide no backwards compatibility guarantees, and it should not be implemented outside the Beam
  * repository.
  */
-@SuppressWarnings({
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-})
 @DefaultSchema(AutoValueSchema.class)
 @AutoValue
 public abstract class BigQueryExportReadSchemaTransformConfiguration {
@@ -44,6 +42,7 @@ public abstract class BigQueryExportReadSchemaTransformConfiguration {
   }
 
   /** Configures the BigQuery read job with the SQL query. */
+  @Pure
   @Nullable
   public abstract String getQuery();
 
@@ -51,14 +50,17 @@ public abstract class BigQueryExportReadSchemaTransformConfiguration {
    * Specifies a table for a BigQuery read job. See {@link BigQueryIO.TypedRead#from(String)} for
    * more details on the expected format.
    */
+  @Pure
   @Nullable
   public abstract String getTableSpec();
 
   /** BigQuery geographic location where the query job will be executed. */
+  @Pure
   @Nullable
   public abstract String getQueryLocation();
 
   /** Enables BigQuery's Standard SQL dialect when reading from a query. */
+  @Pure
   @Nullable
   public abstract Boolean getUseStandardSql();
 

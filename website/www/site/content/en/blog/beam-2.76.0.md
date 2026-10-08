@@ -63,7 +63,6 @@ For more information on changes in 2.76.0, check out the [detailed release notes
 * (Python) Added `Watch`, a transform that polls a growing set of outputs for each input element, deduplicates outputs across poll rounds, and stops per a user-supplied termination condition
   ([#21521](https://github.com/apache/beam/issues/21521)).
 * (Python) Added support to analyze core dumps created after python worker segmentation faults with `pystack` (or `gdb` if installed) using the `--profiler_agent=coredump` pipeline option. ([#39484](https://github.com/apache/beam/issues/39484)).
-* (Python) Added `Sample.Any`, the Python equivalent of Java's `Sample.any`, which returns up to n arbitrary elements from a PCollection ([#18552](https://github.com/apache/beam/issues/18552)).
 
 ### Breaking Changes
 
@@ -78,9 +77,6 @@ For more information on changes in 2.76.0, check out the [detailed release notes
   Use pipeline option `--updateCompatibilityVersion=2.75.0` (or any older version) to keep the old behavior ([#39344](https://github.com/apache/beam/issues/39344)).
 * `DoFn.process` returning a `str`, `bytes`, or `dict` (instead of an iterable wrapping one) now raises a `TypeError` rather than silently iterating per-character/byte/key (Python) ([#18712](https://github.com/apache/beam/issues/18712)).
 * (Java) Added `DRAINING` and `DRAINED` states to `PipelineResult`, including runner state mappings and Dataflow update handling ([#39020](https://github.com/apache/beam/issues/39020)).
-* (Python) Typehints of dataclass fields are honored during type inferences. To restore the behavior of fallback-to-any,
-  use pipeline option `--exclude_infer_dataclass_field_type` ([#38797](https://github.com/apache/beam/issues/38797)).
-  However fixing forward is recommended.
 * (Java) IcebergIO and projects that use it must now be built with Java 17 or later as a result of Iceberg 1.11.0 upgrade ([#38925](https://github.com/apache/beam/issues/38925)).
 
 ### Bugfixes

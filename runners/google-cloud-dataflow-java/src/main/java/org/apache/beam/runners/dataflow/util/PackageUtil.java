@@ -382,8 +382,10 @@ public class PackageUtil implements Closeable {
 
     /** The file to stage. */
     public abstract String getSource();
+
     /** The SHA-256 hash of the source file. */
     public abstract String getSha256();
+
     /** Staged target for this file. */
     public abstract String getDestination();
   }
@@ -423,9 +425,7 @@ public class PackageUtil implements Closeable {
       switch (dest) {
         case "dataflow-worker.jar":
         case "windmill_main":
-          target =
-              Environments.createStagingFileName(
-                  file, Files.asByteSource(file).hash(Hashing.sha256()));
+          target = Environments.createStagingFileName(file, Environments.getFileHash(file));
           LOG.info("Staging custom {} as {}", dest, target);
           break;
         default:

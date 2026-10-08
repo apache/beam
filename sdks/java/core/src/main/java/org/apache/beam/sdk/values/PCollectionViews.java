@@ -19,6 +19,7 @@ package org.apache.beam.sdk.values;
 
 import static org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.base.Preconditions.checkState;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -473,6 +474,12 @@ public class PCollectionViews {
    * <p>{@link SingletonViewFn} is meant to be removed in the future and replaced with this class.
    */
   @Internal
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class SingletonViewFn2<T> extends ViewFn<IterableView<T>, T>
       implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
@@ -574,6 +581,12 @@ public class PCollectionViews {
    * @deprecated See {@link SingletonViewFn2}.
    */
   @Deprecated
+  @SuppressFBWarnings(
+      value = "CT_CONSTRUCTOR_THROW",
+      justification =
+          "Pre-existing finding, not triaged yet."
+              + " Making the class final or moving the throwing code"
+              + " into a static factory method may fix it.")
   public static class SingletonViewFn<T> extends ViewFn<MultimapView<Void, T>, T>
       implements HasDefaultValue<T>, IsSingletonView<T> {
     private byte @Nullable [] encodedDefaultValue;
@@ -768,6 +781,7 @@ public class PCollectionViews {
      */
     private static class ListOverMultimapView<T> extends AbstractList<T> implements RandomAccess {
       private final MultimapView<Long, ValueOrMetadata<T, OffsetRange>> primitiveView;
+
       /**
        * A mapping from non over-lapping ranges to the number of elements at each position within
        * that range. Ranges not specified in the mapping implicitly have 0 elements at those

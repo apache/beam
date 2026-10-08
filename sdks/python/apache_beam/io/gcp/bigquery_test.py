@@ -754,6 +754,58 @@ class TestReadFromBigQuery(unittest.TestCase):
         Lineage.query(p.result.metrics(), Lineage.SOURCE),
         set(["bigquery:project.dataset.table"]))
 
+  @parameterized.expand([
+      # Tables without storage statistics (e.g. Lakehouse runtime catalog
+      # tables) let the Storage Read API pick the stream count.
+      param(num_bytes=None, expected_max_stream_count=0),
+      param(
+          num_bytes=5,
+          expected_max_stream_count=beam_bq._CustomBigQueryStorageSource.
+          MIN_SPLIT_COUNT),
+  ])
+  def test_direct_read_split_stream_count(
+      self, num_bytes, expected_max_stream_count):
+    class DummyTable:
+      numBytes = num_bytes
+
+    with mock.patch.object(BigQueryWrapper, '_bigquery_client'), \
+        mock.patch.object(BigQueryWrapper, 'get_table',
+                          return_value=DummyTable()), \
+        mock.patch.object(bq_storage.BigQueryReadClient,
+                          'create_read_session') as mock_create_session:
+      mock_create_session.return_value = mock.Mock(streams=[])
+      source = beam_bq._CustomBigQueryStorageSource(
+          method=ReadFromBigQuery.Method.DIRECT_READ,
+          table='project.catalog.namespace.table',
+          pipeline_options=PipelineOptions(['--project=project']))
+      self.assertEqual(source.estimate_size(), num_bytes)
+      self.assertEqual(list(source.split(desired_bundle_size=1 << 20)), [])
+
+    _, kwargs = mock_create_session.call_args
+    self.assertEqual(kwargs['max_stream_count'], expected_max_stream_count)
+    self.assertEqual(
+        kwargs['read_session'].table,
+        'projects/project/datasets/catalog.namespace/tables/table')
+
+  @parameterized.expand([
+      # A table without storage statistics has an unknown size, not a size
+      # of zero.
+      param(num_bytes=None, expected_size=None),
+      param(num_bytes=5, expected_size=5),
+  ])
+  def test_export_estimate_size(self, num_bytes, expected_size):
+    class DummyTable:
+      numBytes = num_bytes
+
+    with mock.patch.object(BigQueryWrapper, '_bigquery_client'), \
+        mock.patch.object(BigQueryWrapper, 'get_table',
+                          return_value=DummyTable()):
+      source = beam_bq._CustomBigQuerySource(
+          method=ReadFromBigQuery.Method.EXPORT,
+          table='project.catalog.namespace.table',
+          pipeline_options=PipelineOptions(['--project=project']))
+      self.assertEqual(source.estimate_size(), expected_size)
+
   def test_read_all_lineage(self):
     # TODO(https://github.com/apache/beam/issues/34549): This test relies on
     # lineage metrics which Prism doesn't seem to handle correctly. Defaulting
@@ -2953,15 +3005,15 @@ class PubSubBigQueryIT(unittest.TestCase):
 
 @unittest.skipIf(HttpError is None, 'GCP dependencies are not installed')
 class BigQueryFileLoadsIntegrationTests(unittest.TestCase):
-  BIG_QUERY_DATASET_ID = 'python_bq_file_loads_'
-
   def setUp(self):
     self.test_pipeline = TestPipeline(is_integration_test=True)
     self.runner_name = type(self.test_pipeline.runner).__name__
     self.project = self.test_pipeline.get_option('project')
 
     self.dataset_id = '%s%d%s' % (
-        self.BIG_QUERY_DATASET_ID, int(time.time()), secrets.token_hex(3))
+        bigquery_tools._TEMP_DATASET_PREFIX,
+        int(time.time()),
+        secrets.token_hex(3))
     self.bigquery_client = bigquery_tools.BigQueryWrapper()
     self.bigquery_client.get_or_create_dataset(self.project, self.dataset_id)
     self.output_table = '%s.output_table' % (self.dataset_id)

@@ -18,6 +18,7 @@
 package org.apache.beam.sdk.extensions.sql.meta.provider.bigquery;
 
 import static org.apache.beam.sdk.extensions.sql.impl.planner.BeamRuleSets.getRuleSets;
+import static org.apache.beam.sdk.util.Preconditions.checkStateNotNull;
 import static org.junit.Assert.assertNotEquals;
 
 import com.google.cloud.Timestamp;
@@ -49,6 +50,7 @@ import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.plan.RelOptRule
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSet;
 import org.apache.beam.vendor.calcite.v1_40_0.org.apache.calcite.tools.RuleSets;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.MonotonicNonNull;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -88,17 +90,13 @@ public class BigQueryIOPushDownIT {
   private static final String SELECT_STATEMENT =
       "SELECT `by` as author, type, title, score from HACKER_NEWS where (type='story' or type='job') and score>2";
 
-  //  https://github.com/typetools/checker-framework/issues/1525
-  @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static SQLBigQueryPerfTestOptions options;
+  private static @MonotonicNonNull SQLBigQueryPerfTestOptions options;
 
-  @SuppressWarnings("initialization.static.fields.uninitialized")
-  private static InfluxDBSettings settings;
+  private static @MonotonicNonNull InfluxDBSettings settings;
 
   @Rule public TestPipeline pipeline = TestPipeline.create();
 
-  @SuppressWarnings("initialization.fields.uninitialized")
-  private BeamSqlEnv sqlEnv;
+  private @MonotonicNonNull BeamSqlEnv sqlEnv;
 
   @BeforeClass
   public static void setUp() {
@@ -118,6 +116,7 @@ public class BigQueryIOPushDownIT {
 
   @Test
   public void readUsingDirectReadMethodPushDown() {
+    BeamSqlEnv sqlEnv = checkStateNotNull(this.sqlEnv);
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DIRECT_READ));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
@@ -163,6 +162,7 @@ public class BigQueryIOPushDownIT {
 
   @Test
   public void readUsingDefaultMethod() {
+    BeamSqlEnv sqlEnv = checkStateNotNull(this.sqlEnv);
     sqlEnv.executeDdl(String.format(CREATE_TABLE_STATEMENT, Method.DEFAULT));
 
     BeamRelNode beamRelNode = sqlEnv.parseQuery(SELECT_STATEMENT);
@@ -183,7 +183,9 @@ public class BigQueryIOPushDownIT {
     Set<Function<MetricsReader, NamedTestResult>> readSuppliers = getReadSuppliers(uuid, timestamp);
     IOITMetrics readMetrics =
         new IOITMetrics(readSuppliers, readResult, NAMESPACE, uuid, timestamp);
-    readMetrics.publishToInflux(settings.copyWithMeasurement(settings.measurement + postfix));
+    InfluxDBSettings currentSettings = checkStateNotNull(settings);
+    readMetrics.publishToInflux(
+        currentSettings.copyWithMeasurement(currentSettings.measurement + postfix));
   }
 
   private Set<Function<MetricsReader, NamedTestResult>> getReadSuppliers(

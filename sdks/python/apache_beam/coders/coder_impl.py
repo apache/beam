@@ -61,6 +61,7 @@ from apache_beam.coders import observable
 from apache_beam.coders.avro_record import AvroRecord
 from apache_beam.internal import cloudpickle_pickler
 from apache_beam.internal.cloudpickle import cloudpickle
+from apache_beam.typehints.schemas import _SCHEMA_OPTION_STATIC_ENCODING
 from apache_beam.typehints.schemas import named_tuple_from_schema
 from apache_beam.utils import proto_utils
 from apache_beam.utils import windowed_value
@@ -1955,31 +1956,35 @@ class RowCoderImpl(StreamCoderImpl):
         for i in self.encoding_positions)
     self.has_nullable_fields = any(
         field.type.nullable for field in self.schema.fields)
+    self.static_encoding = any(
+        opt.name == _SCHEMA_OPTION_STATIC_ENCODING and
+        opt.value.atomic_value.boolean for opt in self.schema.options)
 
   def encode_to_stream(self, value, out, nested):
-    out.write_var_int64(self.num_fields)
     attrs = [getattr(value, name) for name in self.field_names]
 
-    if self.has_nullable_fields:
-      any_nulls = False
-      for attr in attrs:
-        if attr is None:
-          any_nulls = True
-          break
-      if any_nulls:
-        out.write_var_int64((self.num_fields + 7) // 8)
-        # Pack the bits, little-endian, in consecutive bytes.
-        running = 0
-        for i, attr in enumerate(attrs):
-          if i and i % 8 == 0:
-            out.write_byte(running)
-            running = 0
-          running |= (attr is None) << (i % 8)
-        out.write_byte(running)
+    if not self.static_encoding:
+      out.write_var_int64(self.num_fields)
+      if self.has_nullable_fields:
+        any_nulls = False
+        for attr in attrs:
+          if attr is None:
+            any_nulls = True
+            break
+        if any_nulls:
+          out.write_var_int64((self.num_fields + 7) // 8)
+          # Pack the bits, little-endian, in consecutive bytes.
+          running = 0
+          for i, attr in enumerate(attrs):
+            if i and i % 8 == 0:
+              out.write_byte(running)
+              running = 0
+            running |= (attr is None) << (i % 8)
+          out.write_byte(running)
+        else:
+          out.write_byte(0)
       else:
         out.write_byte(0)
-    else:
-      out.write_byte(0)
 
     for i in range(self.num_fields):
       if not self.encoding_positions_are_trivial:
@@ -2021,13 +2026,14 @@ class RowCoderImpl(StreamCoderImpl):
       has_null_bits = np.zeros((n, ), dtype=np.uint8)
 
     for k in range(n):
-      out.write_var_int64(self.num_fields)
-      if has_null_bits[k]:
-        out.write_byte(null_bits_len)
-        for i in range(null_bits_len):
-          out.write_byte(null_bits[k, i])
-      else:
-        out.write_byte(0)
+      if not self.static_encoding:
+        out.write_var_int64(self.num_fields)
+        if has_null_bits[k]:
+          out.write_byte(null_bits_len)
+          for i in range(null_bits_len):
+            out.write_byte(null_bits[k, i])
+        else:
+          out.write_byte(0)
       for i in range(self.num_fields):
         if not self.encoding_positions_are_trivial:
           i = self.encoding_positions_argsort[i]
@@ -2040,11 +2046,15 @@ class RowCoderImpl(StreamCoderImpl):
           cython.cast(RowColumnEncoder, attrs[i]).encode_to_stream(k, out)
 
   def decode_from_stream(self, in_stream, nested):
-    nvals = in_stream.read_var_int64()
-    null_mask_len = in_stream.read_var_int64()
-    if null_mask_len:
-      # pylint: disable=unused-variable
-      null_mask_c = null_mask_py = in_stream.read(null_mask_len)
+    if self.static_encoding:
+      nvals = self.num_fields
+      null_mask_len = 0
+    else:
+      nvals = in_stream.read_var_int64()
+      null_mask_len = in_stream.read_var_int64()
+      if null_mask_len:
+        # pylint: disable=unused-variable
+        null_mask_c = null_mask_py = in_stream.read(null_mask_len)
 
     # Note that if this coder's schema has *fewer* attributes than the encoded
     # value, we just need to ignore the additional values, which will occur
@@ -2078,11 +2088,15 @@ class RowCoderImpl(StreamCoderImpl):
     for k in range(n):
       if in_stream.size() == 0:
         break
-      nvals = in_stream.read_var_int64()
-      null_mask_len = in_stream.read_var_int64()
-      if null_mask_len:
-        # pylint: disable=unused-variable
-        null_mask_c = null_mask = in_stream.read(null_mask_len)
+      if self.static_encoding:
+        nvals = self.num_fields
+        null_mask_len = 0
+      else:
+        nvals = in_stream.read_var_int64()
+        null_mask_len = in_stream.read_var_int64()
+        if null_mask_len:
+          # pylint: disable=unused-variable
+          null_mask_c = null_mask = in_stream.read(null_mask_len)
 
       for i in range(min(self.num_fields, nvals)):
         if not self.encoding_positions_are_trivial:

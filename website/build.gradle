@@ -153,25 +153,36 @@ task downloadPerformanceLooks(type: Exec) {
   onlyIf { gcpCredsHost != null }
 
   doFirst {
-    commandLine 'docker', 'exec',
+    // The website container is started as the host uid, which has no
+    // /etc/passwd entry. gcloud storage calls pwd.getpwuid and crashes,
+    // so the build publishes without the plots. Root is required only to
+    // add that uid. gcloud then runs as the repo owner.
+    commandLine 'docker', 'exec', '-u', '0',
       "${-> setupDockerContainer.containerId()}", '/bin/bash', '-lc',
       """
       set -u
 
       SRC="gs://public_looker_explores_us_a3853f40"
       OUT_DIR="${performanceLooksOutDir}"
+      HOST_UID="\$(stat -c '%u' /opt/website)"
+      HOST_GID="\$(stat -c '%g' /opt/website)"
+
+      if ! getent passwd "\$HOST_UID" >/dev/null 2>&1; then
+        echo "beamweb:x:\${HOST_UID}:\${HOST_GID}:beamweb:/tmp:/bin/bash" >> /etc/passwd
+      fi
 
       export HOME=/tmp
       export CLOUDSDK_CONFIG=/tmp/gcloud
       export GOOGLE_APPLICATION_CREDENTIALS="${gcpCredsInContainer}"
 
-      gcloud auth activate-service-account --key-file="\$GOOGLE_APPLICATION_CREDENTIALS" --no-user-output-enabled
-
       mkdir -p "\$OUT_DIR"
+      # mkdir above runs as root. The leaf directory must be writable by the host uid.
+      chown "\$HOST_UID:\$HOST_GID" "\$OUT_DIR"
 
       echo "[performance_looks] Syncing looks..."
 
-      if gcloud storage rsync -r "\$SRC" "\$OUT_DIR"; then
+      if gosu "\$HOST_UID:\$HOST_GID" gcloud auth activate-service-account --key-file="\$GOOGLE_APPLICATION_CREDENTIALS" --no-user-output-enabled \
+        && gosu "\$HOST_UID:\$HOST_GID" gcloud storage rsync -r "\$SRC" "\$OUT_DIR"; then
         echo "[performance_looks] Download completed successfully"
       else
         echo "[performance_looks][WARNING] Failed to sync looks from GCS"

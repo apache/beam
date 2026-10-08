@@ -39,6 +39,7 @@ import org.joda.time.Instant;
 public class TestUnboundedTable extends TestTable {
   /** rows flow out from this table with the specified watermark instant. */
   private final List<Pair<Duration, List<Row>>> timestampedRows = new ArrayList<>();
+
   /** specify the index of column in the row which stands for the event time field. */
   private int timestampField;
 

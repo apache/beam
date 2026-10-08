@@ -65,7 +65,8 @@ class ResolveChanges extends DoFn<KV<CdcRowDescriptor, CoGbkResult>, Row> {
             .keep(
                 CdcOutputUtils.readSchemaWithRowMetadata(
                         scanConfig.getMetadataColumns(), scanConfig.getProjectedSchema())
-                    .columns().stream()
+                    .columns()
+                    .stream()
                     .map(Types.NestedField::name)
                     .collect(Collectors.toList()));
     this.outputSchema =

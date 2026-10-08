@@ -134,8 +134,7 @@ public abstract class TriggerStateMachine implements Serializable {
      * Returns the first unfinished sub-trigger, or {@code null} if all sub-triggers of the current
      * trigger are finished.
      */
-    @Nullable
-    ExecutableTriggerStateMachine firstUnfinishedSubTrigger();
+    @Nullable ExecutableTriggerStateMachine firstUnfinishedSubTrigger();
 
     /**
      * Clears all keyed state for triggers in the current sub-tree and unsets all the associated

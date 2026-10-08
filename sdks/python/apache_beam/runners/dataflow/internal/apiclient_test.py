@@ -1119,7 +1119,7 @@ class UtilTest(unittest.TestCase):
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_interpreter_version_check_fails_py38(self):
+  def test_interpreter_version_check_fails_py310(self):
     pipeline_options = PipelineOptions([])
     self.assertRaises(
         Exception,
@@ -1128,12 +1128,12 @@ class UtilTest(unittest.TestCase):
 
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.sys.version_info',
-      (3, 10, 10))
+      (3, 11, 4))
   @mock.patch(
       'apache_beam.runners.dataflow.internal.apiclient.'
       'beam_version.__version__',
       '2.2.0')
-  def test_interpreter_version_check_passes_py310(self):
+  def test_interpreter_version_check_passes_py311(self):
     pipeline_options = PipelineOptions([])
     apiclient._verify_interpreter_version_is_supported(pipeline_options)
 

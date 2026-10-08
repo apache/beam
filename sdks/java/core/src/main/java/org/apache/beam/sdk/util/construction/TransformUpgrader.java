@@ -275,9 +275,7 @@ public class TransformUpgrader implements AutoCloseable {
             .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
     RunnerApi.Components expandedComponents =
-        response
-            .getComponents()
-            .toBuilder()
+        response.getComponents().toBuilder()
             .putAllEnvironments(
                 External.ExpandableTransform.resolveArtifacts(
                     newEnvironmentsWithDependencies, transformServiceEndpoint))

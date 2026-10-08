@@ -31,15 +31,8 @@ Currently, we have both GitHub-hosted and self-hosted runners for running the Gi
   * Ubuntu 24.04 self-hosted runner: `[self-hosted, ubuntu-24.04, main]` (also `small`, `highmem`, or `highmem22` pool labels as needed)
   * Windows Server 2019 self-hosted runner: `[self-hosted, windows-server-2019]`
   * MacOS GitHub-hosted runner: `macos-latest`
-* Every workflow that tests the source code, needs to have the workflow trigger `pull_request_target` instead of `pull_request`.
+* Every workflow that tests the source code needs to have the workflow trigger `pull_request`.
 * The workflow must have set read permissions for all the available scopes and jobs: `permissions: read-all`. It must be set at the top of the `jobs` directive.
-* For those workflows that have the `pull_request_target` trigger, in the checkout step must be added a ref to `${{ github.event.pull_request.head.sha }}`
-``` yaml
-    - name: Checkout code
-      uses: actions/checkout@v#
-      with:
-        ref: ${{ github.event.pull_request.head.sha }}
-```
 * If your workflow runs successfully in a GitHub-hosted runner but not in the self-hosted runner, it might need a new installation step.
 ```yaml
   - name: Setup Node
@@ -55,7 +48,7 @@ Currently, we have both GitHub-hosted and self-hosted runners for running the Gi
 ```yaml
 name: GitHub Actions Example
 on:
-  pull_request_target:
+  pull_request:
     branches: ['master']
 permissions: read-all
 jobs:
@@ -64,8 +57,6 @@ jobs:
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
-        with:
-          ref: ${{ github.event.pull_request.head.sha }}
       - run: echo "This job is now running on a ubuntu server hosted by Apache Beam!"
       - name: Setup Node
           uses: actions/setup-node@v3
@@ -85,7 +76,6 @@ jobs:
 * A **detailed review** for changes in the workflows is needed due to important **security concerns**.
 * **DO NOT** Approve and Run changes in the workflows in the PR Conversation tab, under "Workflow(s) awaiting approval".
 * For approving the updates in the workflows, you should go to the Repository Actions and filter All Workflows by `action_required`. The search will display the workflows that need to be reviewed before running. **Please make sure reviewing the file that is referenced by the workflow.**
-* Seed job will be emulated using the `Approve and Run` built-in feature of GitHub Actions, since the workflows will use the `pull_request_target` directive; no modifications would be allowed either for new or existent jobs unless a committer explicitly approves the job from GitHub Actions UI.
 
 #### Issue Management
 Phrases self-assign, close, or manage labels on an issue:

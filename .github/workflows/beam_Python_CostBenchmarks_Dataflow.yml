@@ -20,7 +20,7 @@ on:
     - cron: '30 18 * * 6' # Run at 6:30 pm UTC on Saturdays
   workflow_dispatch:
 
-#Setting explicit permissions for the action to avoid the default permissions which are `write-all` in case of pull_request_target event
+# Setting explicit permissions for the action
 permissions:
   actions: write
   pull-requests: read
@@ -38,7 +38,7 @@ permissions:
 
 # This allows a subsequently queued workflow run to interrupt previous runs
 concurrency:
-  group: '${{ github.workflow }} @ ${{ github.event.issue.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.comment.id || github.event.sender.login }}'
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.number || github.sha || github.head_ref || github.ref }}-${{ github.event.schedule || github.event.sender.login }}'
   cancel-in-progress: true
 
 env:
@@ -55,25 +55,20 @@ jobs:
       (github.event_name == 'schedule' && github.repository == 'apache/beam')
     runs-on: [self-hosted, ubuntu-24.04, main]
     timeout-minutes: 900
-    name: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
+    name: ${{ matrix.job_name }}
     strategy:
       matrix:
         job_name: ["beam_Python_CostBenchmark_Dataflow"]
-        job_phrase: ["Run Python Dataflow Cost Benchmarks"]
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Setup repository
         uses: ./.github/actions/setup-action
-        with:
-          comment_phrase: ${{ matrix.job_phrase }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          github_job: ${{ matrix.job_name }} (${{ matrix.job_phrase }})
       - name: Setup Python environment
         uses: ./.github/actions/setup-environment-action
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Prepare test arguments
         uses: ./.github/actions/test-arguments-action
         with:
@@ -93,7 +88,7 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.wordcount.wordcount \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -PloadTest.requirementsTxtFile=apache_beam/testing/benchmarks/wordcount/requirements.txt \
             '-PloadTest.args=${{ env.beam_Python_Cost_Benchmarks_Dataflow_test_arguments_1 }} --job_name=benchmark-tests-wordcount-python-${{env.NOW_UTC}} --output_file=gs://temp-storage-for-end-to-end-tests/wordcount/result_wordcount-${{env.NOW_UTC}}.txt' \
       - name: Run Tensorflow MNIST Image Classification on Dataflow
@@ -104,6 +99,6 @@ jobs:
           arguments: |
             -PloadTest.mainClass=apache_beam.testing.benchmarks.inference.tensorflow_mnist_classification_cost_benchmark \
             -Prunner=DataflowRunner \
-            -PpythonVersion=3.10 \
+            -PpythonVersion=3.11 \
             -PloadTest.requirementsTxtFile=apache_beam/ml/inference/tensorflow_tests_requirements.txt \
             '-PloadTest.args=${{ env.beam_Python_Cost_Benchmarks_Dataflow_test_arguments_2 }} --job_name=benchmark-tests-tf-mnist-classification-python-${{env.NOW_UTC}} --input_file=gs://apache-beam-ml/testing/inputs/it_mnist_data.csv --output_file=gs://temp-storage-for-end-to-end-tests/inference/result_tf_mnist-${{env.NOW_UTC}}.txt --model=gs://apache-beam-ml/models/tensorflow/mnist/' \

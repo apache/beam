@@ -107,4 +107,58 @@ public abstract class MockProducer implements MessageProducer {
       }
     }
   }
+
+  public static class MockDelayedProducer extends MockProducer {
+    private final long delayMs;
+
+    public MockDelayedProducer(PublishResultHandler handler, long delayMs) {
+      super(handler);
+      this.delayMs = delayMs;
+    }
+
+    public MockDelayedProducer(PublishResultHandler handler) {
+      this(handler, 100);
+    }
+
+    @Override
+    public void publishSingleMessage(
+        Record msg,
+        Destination topicOrQueue,
+        boolean useCorrelationKeyLatency,
+        DeliveryMode deliveryMode) {
+      new Thread(
+              () -> {
+                try {
+                  Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                  Thread.currentThread().interrupt();
+                }
+                if (useCorrelationKeyLatency) {
+                  handler.responseReceivedEx(
+                      Solace.PublishResult.builder()
+                          .setPublished(true)
+                          .setMessageId(msg.getMessageId())
+                          .build());
+                } else {
+                  handler.responseReceivedEx(msg.getMessageId());
+                }
+              })
+          .start();
+    }
+  }
+
+  public static class MockExceptionProducer extends MockProducer {
+    public MockExceptionProducer(PublishResultHandler handler) {
+      super(handler);
+    }
+
+    @Override
+    public void publishSingleMessage(
+        Record msg,
+        Destination topicOrQueue,
+        boolean useCorrelationKeyLatency,
+        DeliveryMode deliveryMode) {
+      throw new RuntimeException("Simulated synchronous publish failure");
+    }
+  }
 }

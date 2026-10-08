@@ -33,14 +33,14 @@ import org.apache.beam.sdk.runners.AppliedPTransform;
 import org.apache.beam.sdk.transforms.windowing.BoundedWindow;
 import org.apache.beam.sdk.values.WindowedValue;
 import org.apache.beam.vendor.guava.v32_1_2_jre.com.google.common.collect.ImmutableList;
+import org.checkerframework.checker.nullness.qual.Nullable;
 import org.joda.time.Instant;
 
 /** An immutable {@link TransformResult}. */
 @AutoValue
 @AutoValue.CopyAnnotations
 @SuppressWarnings({
-  "rawtypes", // TODO(https://github.com/apache/beam/issues/20447)
-  "nullness" // TODO(https://github.com/apache/beam/issues/20497)
+  "rawtypes" // TODO(https://github.com/apache/beam/issues/20447)
 })
 abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
 
@@ -73,7 +73,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
     private final ImmutableList.Builder<UncommittedBundle<?>> bundlesBuilder;
     private final ImmutableList.Builder<WindowedValue<InputT>> unprocessedElementsBuilder;
     private MetricUpdates metricUpdates;
-    private CopyOnAccessInMemoryStateInternals state;
+    private @Nullable CopyOnAccessInMemoryStateInternals state;
     private TimerUpdate timerUpdate;
     private List<Finalization> finalizations;
     private final Set<OutputType> producedOutputs;
@@ -85,7 +85,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       this.bundlesBuilder = ImmutableList.builder();
       this.producedOutputs = EnumSet.noneOf(OutputType.class);
       this.unprocessedElementsBuilder = ImmutableList.builder();
-      this.timerUpdate = TimerUpdate.builder(null).build();
+      this.timerUpdate = TimerUpdate.empty();
       this.metricUpdates = MetricUpdates.EMPTY;
       this.finalizations = Collections.EMPTY_LIST;
     }
@@ -108,7 +108,7 @@ abstract class StepTransformResult<InputT> implements TransformResult<InputT> {
       return this;
     }
 
-    public Builder<InputT> withState(CopyOnAccessInMemoryStateInternals state) {
+    public Builder<InputT> withState(@Nullable CopyOnAccessInMemoryStateInternals state) {
       this.state = state;
       return this;
     }

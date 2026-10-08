@@ -24,6 +24,7 @@ import unittest
 
 import grpc
 
+from apache_beam.runners.worker.worker_id_interceptor import DataStreamIdInterceptor
 from apache_beam.runners.worker.worker_id_interceptor import WorkerIdInterceptor
 
 
@@ -62,7 +63,52 @@ class WorkerIdInterceptorTest(unittest.TestCase):
     with self.assertRaises(RuntimeError):
       WorkerIdInterceptor().intercept_stream_stream(
           continuation,
-          _ClientCallDetails(None, None, {'worker_id': '1'}, None), [])
+          _ClientCallDetails(None, None, [('worker_id', '1')], None), [])
+
+
+class DataStreamIdInterceptorTest(unittest.TestCase):
+  def test_data_stream_id_insertion(self):
+    data_stream_id_key = 'data_stream_id'
+    headers_holder = {}
+
+    def continuation(client_details, request_iterator):
+      headers_holder.update({
+          data_stream_id_key: dict(
+              client_details.metadata).get(data_stream_id_key)
+      })
+
+    DataStreamIdInterceptor('stream_123').intercept_stream_stream(
+        continuation, _ClientCallDetails(None, None, None, None), [])
+    self.assertEqual(
+        headers_holder[data_stream_id_key],
+        'stream_123',
+        'data_stream_id not set')
+
+  def test_no_data_stream_id_when_empty(self):
+    headers_holder = {}
+
+    def continuation(client_details, request_iterator):
+      headers_holder['metadata'] = client_details.metadata
+
+    DataStreamIdInterceptor('').intercept_stream_stream(
+        continuation, _ClientCallDetails(None, None, None, None), [])
+    self.assertIsNone(headers_holder['metadata'])
+
+  def test_failure_when_data_stream_id_exists(self):
+    data_stream_id_key = 'data_stream_id'
+    headers_holder = {}
+
+    def continuation(client_details, request_iterator):
+      headers_holder.update({
+          data_stream_id_key: dict(
+              client_details.metadata).get(data_stream_id_key)
+      })
+
+    with self.assertRaises(RuntimeError):
+      DataStreamIdInterceptor('stream_123').intercept_stream_stream(
+          continuation,
+          _ClientCallDetails(
+              None, None, [('data_stream_id', 'existing')], None), [])
 
 
 if __name__ == '__main__':

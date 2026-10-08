@@ -110,9 +110,10 @@ public class StorageApiConvertMessages<DestinationT, ElementT>
     // This code currently assumes that the input is in the global window.
     Preconditions.checkState(input.getWindowingStrategy().getWindowFn() instanceof GlobalWindows);
 
-    @SuppressWarnings({
-      "nullness" // TODO(https://github.com/apache/beam/issues/20497)
-    })
+    // ConvertMessagesDoFn requires DestinationT to be @NonNull, but this transform (and its
+    // callers, up to BigQueryIO.Write) leave DestinationT unbounded.
+    // TODO(https://github.com/apache/beam/issues/20497)
+    @SuppressWarnings("nullness")
     ConvertMessagesDoFn<DestinationT, ElementT> convertMessagesDoFn =
         new ConvertMessagesDoFn<>(
             dynamicDestinations,
