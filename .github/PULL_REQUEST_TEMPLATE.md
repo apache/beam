@@ -1,8 +1,5 @@
 <!--
 
-Thank you for your contribution!
-
-
 Thank you for your contribution! Follow this checklist to help us incorporate your contribution quickly and easily:
 
  - [ ] If this contribution is large, please file an Apache [Individual Contributor License Agreement](https://www.apache.org/licenses/icla.pdf).
