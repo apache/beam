@@ -1955,7 +1955,7 @@ class _SharedModelWrapper():
 
   def force_reset(self):
     if self.use_model_manager:
-      self.models.force_reset()
+      self.models._force_reset()
 
 
 class _RunInferenceDoFn(beam.DoFn, Generic[ExampleT, PredictionT]):

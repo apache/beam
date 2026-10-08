@@ -2508,6 +2508,8 @@ class ModelManagerTest(unittest.TestCase):
       mm.release_model(tag, instance)
       wrapper = base._SharedModelWrapper(mm, tag, lambda: 'fake_model_instance')
       self.assertEqual(wrapper.all_models(), ['fake_model_instance'])
+      wrapper.force_reset()
+      self.assertEqual(wrapper.all_models(), [])
     finally:
       mm.shutdown()
 
