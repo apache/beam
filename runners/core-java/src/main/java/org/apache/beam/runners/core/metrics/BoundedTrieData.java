@@ -282,7 +282,7 @@ public final class BoundedTrieData implements Serializable {
   }
 
   @Override
-  public final boolean equals(@Nullable Object other) {
+  public boolean equals(@Nullable Object other) {
     if (this == other) {
       return true;
     }
@@ -294,12 +294,12 @@ public final class BoundedTrieData implements Serializable {
   }
 
   @Override
-  public final int hashCode() {
+  public int hashCode() {
     return this.asTrie().hashCode();
   }
 
   @Override
-  public final String toString() {
+  public String toString() {
     return "BoundedTrieData(" + this.asTrie() + ")";
   }
 
