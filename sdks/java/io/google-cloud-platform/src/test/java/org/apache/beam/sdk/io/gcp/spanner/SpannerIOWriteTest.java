@@ -320,6 +320,57 @@ public class SpannerIOWriteTest implements Serializable {
   }
 
   @Test
+  public void runBatchQueryTestWithExcludeTxnFromChangeStreams() {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withExcludeTxnFromChangeStreams(true);
+    assertTrue(write.getSpannerConfig().getExcludeTxnFromChangeStreams().get());
+
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    mutations.apply(write);
+    pipeline.run();
+
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(mutation)),
+            any(ReadQueryUpdateTransactionOption.class),
+            argThat(
+                opts -> {
+                  Options options = OptionsImposter.fromTransactionOptions(opts);
+                  return Boolean.TRUE.equals(
+                      OptionsImposter.withExcludeTxnFromChangeStreams(options));
+                }));
+  }
+
+  @Test
+  public void runBatchQueryTestWithTransactionTag() {
+    SpannerIO.Write write =
+        SpannerIO.write()
+            .withSpannerConfig(SPANNER_CONFIG)
+            .withServiceFactory(serviceFactory)
+            .withTransactionTag("txBy=testJobId");
+    assertEquals("txBy=testJobId", write.getSpannerConfig().getTransactionTag().get());
+
+    Mutation mutation = buildUpsertMutation(2L);
+    PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));
+    mutations.apply(write);
+    pipeline.run();
+
+    verify(serviceFactory.mockDatabaseClient(), times(1))
+        .writeAtLeastOnceWithOptions(
+            mutationsInNoOrder(buildMutationBatch(mutation)),
+            any(ReadQueryUpdateTransactionOption.class),
+            argThat(
+                opts -> {
+                  Options options = OptionsImposter.fromTransactionOptions(opts);
+                  return "txBy=testJobId".equals(OptionsImposter.tag(options));
+                }));
+  }
+
+  @Test
   public void singleMutationPipeline() throws Exception {
     Mutation mutation = buildUpsertMutation(2L);
     PCollection<Mutation> mutations = pipeline.apply(Create.of(mutation));

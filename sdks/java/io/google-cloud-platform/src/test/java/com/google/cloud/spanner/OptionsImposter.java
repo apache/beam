@@ -28,4 +28,12 @@ public class OptionsImposter {
   public static Duration maxCommitDelay(Options options) {
     return options.maxCommitDelay();
   }
+
+  public static Boolean withExcludeTxnFromChangeStreams(Options options) {
+    return options.withExcludeTxnFromChangeStreams();
+  }
+
+  public static String tag(Options options) {
+    return options.tag();
+  }
 }
