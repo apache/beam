@@ -1,0 +1,13 @@
+{
+  "commentedAboutFailingChecks": false,
+  "reviewersAssignedForLabels": {
+    "python": "jrmccluskey",
+    "java": "kennknowles",
+    "yaml": "derrickaw"
+  },
+  "nextAction": "Reviewers",
+  "stopReviewerNotifications": false,
+  "remindAfterTestsPass": [],
+  "committerAssigned": false,
+  "reviewersAssignedAt": 1791542606595
+}
