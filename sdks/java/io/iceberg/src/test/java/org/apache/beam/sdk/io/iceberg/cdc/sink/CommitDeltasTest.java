@@ -56,6 +56,7 @@ import org.apache.beam.sdk.io.iceberg.IcebergCatalogConfig;
 import org.apache.beam.sdk.io.iceberg.SerializableDataFile;
 import org.apache.beam.sdk.io.iceberg.SerializableDeleteFile;
 import org.apache.beam.sdk.io.iceberg.SnapshotInfo;
+import org.apache.beam.sdk.metrics.DistributionResult;
 import org.apache.beam.sdk.metrics.MetricNameFilter;
 import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.Metrics;
@@ -300,6 +301,19 @@ public class CommitDeltasTest {
       total += c.getCommitted();
     }
     return total;
+  }
+
+  /** The named {@link CommitDeltas} distribution committed by the pipeline. */
+  private static DistributionResult distribution(PipelineResult result, String name) {
+    return Iterables.getOnlyElement(
+            result
+                .metrics()
+                .queryMetrics(
+                    MetricsFilter.builder()
+                        .addNameFilter(MetricNameFilter.named(CommitDeltas.class, name))
+                        .build())
+                .getDistributions())
+        .getCommitted();
   }
 
   /**
@@ -1243,7 +1257,7 @@ public class CommitDeltasTest {
   // Commit volume metrics.
   // ---------------------------------------------------------------------------------------------
 
-  /** A commit records its volume metrics: file/record counts, bytes, snapshots created. */
+  /** A commit records its volume metrics: records and bytes per committed file. */
   @Test
   public void recordsCommitVolumeMetrics() {
     TestTable tt = v2Table();
@@ -1283,12 +1297,18 @@ public class CommitDeltasTest {
     result.waitUntilFinish();
 
     assertThat(counter(result, "snapshotsCreated"), equalTo(1L));
-    assertThat(counter(result, "committedDataFiles"), equalTo(2L));
-    assertThat(counter(result, "committedDeleteFiles"), equalTo(2L));
-    // 2 data files carry 1 record each (id=1, id=2).
-    assertThat(counter(result, "committedRecords"), equalTo(2L));
-    assertThat(counter(result, "committedEqualityDeleteRecords"), equalTo(2L));
-    assertThat(counter(result, "committedBytes"), greaterThan(0L));
+    // One commit with 2 data files and 2 equality-delete files, each carrying 1 record (rows
+    // id=1, id=2; deletes for id=1, id=3).
+    assertThat(
+        distribution(result, "committedDataFileRecordCount"),
+        equalTo(DistributionResult.create(2, 2, 1, 1)));
+    assertThat(
+        distribution(result, "committedEqualityDeleteRecordCount"),
+        equalTo(DistributionResult.create(2, 2, 1, 1)));
+    for (String bytes : List.of("committedDataFileByteSize", "committedEqualityDeleteByteSize")) {
+      assertThat(distribution(result, bytes).getCount(), equalTo(2L));
+      assertThat(distribution(result, bytes).getMin(), greaterThan(0L));
+    }
   }
 
   // ---------------------------------------------------------------------------------------------
