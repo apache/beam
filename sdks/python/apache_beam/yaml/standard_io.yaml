@@ -734,6 +734,29 @@
       config:
         gradle_target: 'sdks:java:io:expansion-service:shadowJar'
 
+#Splunk
+- type: renaming
+  transforms:
+    'WriteToSplunk': 'WriteToSplunk'
+  config:
+    mappings:
+      'WriteToSplunk':
+        'url': 'url'
+        'token': 'token'
+        'batch_count': 'batch_count'
+        'parallelism': 'parallelism'
+        'disable_certificate_validation': 'disable_certificate_validation'
+        'root_ca_certificate_path': 'root_ca_certificate_path'
+        'enable_batch_logs': 'enable_batch_logs'
+        'enable_gzip_http_compression': 'enable_gzip_http_compression'
+        'error_handling': 'error_handling'
+    underlying_provider:
+      type: beamJar
+      transforms:
+        'WriteToSplunk': 'beam:schematransform:org.apache.beam:splunk_write:v1'
+      config:
+        gradle_target: 'sdks:java:io:expansion-service:shadowJar'
+
 #MongoDB
 - type: renaming
   transforms:

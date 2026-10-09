@@ -64,6 +64,7 @@
 
 ## I/Os
 
+* Added a SchemaTransform for SplunkIO writes, available in Beam YAML as `WriteToSplunk` (Java/YAML) ([#40470](https://github.com/apache/beam/issues/40470)).
 * Support for X source added (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## New Features / Improvements
@@ -99,6 +100,7 @@
 * (Python) Fixed stateful DoFns with side inputs sometimes taking the timer key coder from a side input instead of the main input, which could make the worker fail to decode timer keys with `Unknown type tag` ([#40374](https://github.com/apache/beam/issues/40374)).
 * (Python) `Duration` built from float seconds now rounds to the nearest microsecond instead of truncating, which could lose a microsecond ([#40263](https://github.com/apache/beam/issues/40263)).
 * (Python) `ReadFromText` with `escapechar` no longer skips a delimiter that directly follows an escaped delimiter, which merged two records into one ([#40459](https://github.com/apache/beam/issues/40459)).
+* (Java) SplunkIO write errors no longer lose their status code, status message and payload when encoded. The schema inferred for `SplunkWriteError` had no fields, so `SplunkIO.Write` now uses a dedicated `SplunkWriteErrorCoder` for its output ([#40470](https://github.com/apache/beam/issues/40470)).
 * Fixed X (Java/Python) ([#X](https://github.com/apache/beam/issues/X)).
 
 ## Security Fixes
