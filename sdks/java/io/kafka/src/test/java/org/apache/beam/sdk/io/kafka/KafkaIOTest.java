@@ -42,6 +42,15 @@ import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.testutil.MockSchemaRegistry;
 import io.confluent.kafka.serializers.AbstractKafkaAvroSerDeConfig;
 import io.confluent.kafka.serializers.KafkaAvroSerializer;
+import io.opentelemetry.api.OpenTelemetry;
+import io.opentelemetry.api.trace.Span;
+import io.opentelemetry.api.trace.SpanBuilder;
+import io.opentelemetry.api.trace.SpanContext;
+import io.opentelemetry.api.trace.SpanKind;
+import io.opentelemetry.api.trace.TraceFlags;
+import io.opentelemetry.api.trace.TraceState;
+import io.opentelemetry.api.trace.Tracer;
+import io.opentelemetry.context.Context;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.nio.ByteBuffer;
@@ -88,7 +97,9 @@ import org.apache.beam.sdk.metrics.MetricResult;
 import org.apache.beam.sdk.metrics.MetricsFilter;
 import org.apache.beam.sdk.metrics.SinkMetrics;
 import org.apache.beam.sdk.metrics.SourceMetrics;
+import org.apache.beam.sdk.options.PipelineOptions;
 import org.apache.beam.sdk.options.PipelineOptionsFactory;
+import org.apache.beam.sdk.options.SdkHarnessOptions;
 import org.apache.beam.sdk.options.StreamingOptions;
 import org.apache.beam.sdk.schemas.NoSuchSchemaException;
 import org.apache.beam.sdk.schemas.Schema;
@@ -142,6 +153,7 @@ import org.apache.kafka.common.errors.SerializationException;
 import org.apache.kafka.common.header.Header;
 import org.apache.kafka.common.header.Headers;
 import org.apache.kafka.common.header.internals.RecordHeader;
+import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.apache.kafka.common.serialization.Deserializer;
@@ -164,6 +176,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -2542,6 +2556,117 @@ public class KafkaIOTest {
     assertEquals(2, schema.getFieldCount());
     assertEquals(Schema.Field.of("key", Schema.FieldType.STRING), schema.getField(0));
     assertEquals(Schema.Field.nullable("value", Schema.FieldType.BYTES), schema.getField(1));
+  }
+
+  @Test
+  public void testOpenTelemetryHeaderConsumer() {
+    String traceId = "0af7651916cd43dd8448eb211c80319c";
+    String parentSpanId = "b7ad6b7169203331";
+    String childSpanId = "1111111111111111";
+    String traceparent = "00-" + traceId + "-" + parentSpanId + "-01";
+
+    OpenTelemetry mockOpenTelemetry = Mockito.mock(OpenTelemetry.class);
+    Tracer mockTracer = Mockito.mock(Tracer.class);
+    SpanBuilder mockSpanBuilder = Mockito.mock(SpanBuilder.class, Mockito.RETURNS_SELF);
+    Span mockSpan = Mockito.mock(Span.class);
+    SpanContext childSpanContext =
+        SpanContext.create(traceId, childSpanId, TraceFlags.getSampled(), TraceState.getDefault());
+    Mockito.when(mockSpan.getSpanContext()).thenReturn(childSpanContext);
+    Mockito.when(mockSpan.storeInContext(Mockito.any())).thenCallRealMethod();
+    Mockito.when(mockSpan.makeCurrent()).thenCallRealMethod();
+    Mockito.when(mockOpenTelemetry.getTracer("KafkaIO")).thenReturn(mockTracer);
+    Mockito.when(mockTracer.spanBuilder("KafkaIO.Read")).thenReturn(mockSpanBuilder);
+    Mockito.when(mockSpanBuilder.startSpan()).thenReturn(mockSpan);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(SdkHarnessOptions.class).setOpenTelemetry(mockOpenTelemetry);
+
+    KafkaIO.OpenTelemetryHeaderConsumer<String, String> consumer =
+        new KafkaIO.OpenTelemetryHeaderConsumer<>();
+    consumer.setup(options);
+
+    RecordHeaders headers = new RecordHeaders();
+    headers.add("traceparent", traceparent.getBytes(StandardCharsets.UTF_8));
+    KafkaRecord<String, String> record =
+        new KafkaRecord<>(
+            "topic", 0, 0L, 0L, KafkaTimestampType.CREATE_TIME, headers, "key", "value");
+
+    List<KafkaRecord<String, String>> outputs = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    DoFn.OutputReceiver<KafkaRecord<String, String>> receiver =
+        Mockito.mock(DoFn.OutputReceiver.class);
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(childSpanId, Span.current().getSpanContext().getSpanId());
+              outputs.add(invocation.getArgument(0));
+              return null;
+            })
+        .when(receiver)
+        .output(Mockito.any());
+    consumer.processElement(record, receiver);
+
+    assertEquals(1, outputs.size());
+    Mockito.verify(mockTracer).spanBuilder("KafkaIO.Read");
+    Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.CONSUMER);
+    ArgumentCaptor<Context> parentContextCaptor = ArgumentCaptor.forClass(Context.class);
+    Mockito.verify(mockSpanBuilder).setParent(parentContextCaptor.capture());
+    assertEquals(
+        parentSpanId,
+        Span.fromContext(parentContextCaptor.getValue()).getSpanContext().getSpanId());
+    Mockito.verify(mockSpan).end();
+  }
+
+  @Test
+  public void testOpenTelemetryHeaderPropagator() {
+    String traceId = "0af7651916cd43dd8448eb211c80319c";
+    String producerSpanId = "2222222222222222";
+
+    OpenTelemetry mockOpenTelemetry = Mockito.mock(OpenTelemetry.class);
+    Tracer mockTracer = Mockito.mock(Tracer.class);
+    SpanBuilder mockSpanBuilder = Mockito.mock(SpanBuilder.class, Mockito.RETURNS_SELF);
+    Span mockSpan = Mockito.mock(Span.class);
+    SpanContext producerSpanContext =
+        SpanContext.create(
+            traceId, producerSpanId, TraceFlags.getSampled(), TraceState.getDefault());
+    Mockito.when(mockSpan.getSpanContext()).thenReturn(producerSpanContext);
+    Mockito.when(mockSpan.storeInContext(Mockito.any())).thenCallRealMethod();
+    Mockito.when(mockSpan.makeCurrent()).thenCallRealMethod();
+    Mockito.when(mockOpenTelemetry.getTracer("KafkaIO")).thenReturn(mockTracer);
+    Mockito.when(mockTracer.spanBuilder("KafkaIO.Write")).thenReturn(mockSpanBuilder);
+    Mockito.when(mockSpanBuilder.startSpan()).thenReturn(mockSpan);
+
+    PipelineOptions options = PipelineOptionsFactory.create();
+    options.as(SdkHarnessOptions.class).setOpenTelemetry(mockOpenTelemetry);
+
+    KafkaIO.OpenTelemetryHeaderPropagator<String, String> propagator =
+        new KafkaIO.OpenTelemetryHeaderPropagator<>();
+    propagator.setup(options);
+
+    ProducerRecord<String, String> record = new ProducerRecord<>("topic", "key", "value");
+    List<ProducerRecord<String, String>> outputs = new ArrayList<>();
+    @SuppressWarnings("unchecked")
+    DoFn.OutputReceiver<ProducerRecord<String, String>> receiver =
+        Mockito.mock(DoFn.OutputReceiver.class);
+    Mockito.doAnswer(
+            invocation -> {
+              assertEquals(producerSpanId, Span.current().getSpanContext().getSpanId());
+              outputs.add(invocation.getArgument(0));
+              return null;
+            })
+        .when(receiver)
+        .output(Mockito.any());
+    propagator.processElement(record, receiver);
+
+    assertEquals(1, outputs.size());
+    ProducerRecord<String, String> propagated = outputs.get(0);
+    Header traceparentHeader = propagated.headers().lastHeader("traceparent");
+    assertNotNull(traceparentHeader);
+    assertEquals(
+        "00-" + traceId + "-" + producerSpanId + "-01",
+        new String(traceparentHeader.value(), StandardCharsets.UTF_8));
+    Mockito.verify(mockTracer).spanBuilder("KafkaIO.Write");
+    Mockito.verify(mockSpanBuilder).setSpanKind(SpanKind.PRODUCER);
+    Mockito.verify(mockSpan).end();
   }
 
   private static void verifyProducerRecords(
