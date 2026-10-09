@@ -33,6 +33,19 @@ go version
 
 If you are unfamiliar with Go, see the [Get Started With Go Tutorial](https://go.dev/doc/tutorial/getting-started).
 
+## Initialize the SDK
+
+Before creating a pipeline, parse the command-line flags and call
+`beam.Init()`:
+
+```go
+flag.Parse()
+beam.Init()
+```
+
+Call `beam.Init()` before constructing the pipeline. This step initializes the
+Beam Go SDK runtime required by the runners.
+
 ## Run wordcount
 
 The Apache Beam
