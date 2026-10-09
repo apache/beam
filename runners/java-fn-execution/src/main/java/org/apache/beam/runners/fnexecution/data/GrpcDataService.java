@@ -113,6 +113,9 @@ public class GrpcDataService extends BeamFnDataGrpc.BeamFnDataImplBase
       // incoming messages are sent to the single multiplexer instance.
       return connectedClient.get().getInboundObserver();
     } catch (InterruptedException | ExecutionException e) {
+      if (e instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
       throw new RuntimeException(e);
     }
   }

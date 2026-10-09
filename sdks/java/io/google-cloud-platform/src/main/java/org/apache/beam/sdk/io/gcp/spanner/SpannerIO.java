@@ -3000,7 +3000,7 @@ public class SpannerIO {
             try {
               sleeper.sleep(sleepTimeMsecs);
             } catch (InterruptedException e) {
-              // ignore.
+              Thread.currentThread().interrupt();
             }
           } else {
             // Some other failure: pass up the stack.

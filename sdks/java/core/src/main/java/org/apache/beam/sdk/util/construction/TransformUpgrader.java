@@ -398,7 +398,7 @@ public class TransformUpgrader implements AutoCloseable {
         // Some systems don't free the port for future use immediately.
         Thread.sleep(100);
       } catch (InterruptedException exn) {
-        // ignore
+        Thread.currentThread().interrupt();
       }
     }
   }

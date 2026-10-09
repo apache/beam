@@ -468,6 +468,9 @@ class DynamicDestinationsHelpers {
             try (DatasetService datasetService = bqServices.getDatasetService(bqOptions)) {
               return datasetService.getTable(tableReference);
             } catch (InterruptedException | IOException e) {
+              if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+              }
               LOG.info("Failed to get BigQuery table {}", tableReference);
             }
           } catch (Exception e) {
@@ -475,6 +478,7 @@ class DynamicDestinationsHelpers {
           }
         } while (nextBackOff(Sleeper.DEFAULT, backoff));
       } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
         throw new RuntimeException(e);
       }
       return null;
