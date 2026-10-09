@@ -1609,6 +1609,41 @@ public class SpannerIO {
     }
 
     /**
+     * Specifies whether transactions should be excluded from being recorded in change streams with
+     * the DDL option {@code allow_txn_exclusion=true}. This does not exclude the transaction from
+     * being recorded in the change streams with the DDL option {@code allow_txn_exclusion} being
+     * false or unset.
+     */
+    public Write withExcludeTxnFromChangeStreams(boolean excludeTxnFromChangeStreams) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExcludeTxnFromChangeStreams(excludeTxnFromChangeStreams));
+    }
+
+    /**
+     * Specifies whether transactions should be excluded from being recorded in change streams with
+     * the DDL option {@code allow_txn_exclusion=true}. This does not exclude the transaction from
+     * being recorded in the change streams with the DDL option {@code allow_txn_exclusion} being
+     * false or unset.
+     */
+    public Write withExcludeTxnFromChangeStreams(
+        ValueProvider<Boolean> excludeTxnFromChangeStreams) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withExcludeTxnFromChangeStreams(excludeTxnFromChangeStreams));
+    }
+
+    /** Specifies the transaction tag to use for write transactions. */
+    public Write withTransactionTag(String transactionTag) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withTransactionTag(transactionTag));
+    }
+
+    /** Specifies the transaction tag to use for write transactions. */
+    public Write withTransactionTag(ValueProvider<String> transactionTag) {
+      SpannerConfig config = getSpannerConfig();
+      return withSpannerConfig(config.withTransactionTag(transactionTag));
+    }
+
+    /**
      * Specifies the maximum cumulative backoff time when retrying after DEADLINE_EXCEEDED errors.
      * Default is 15 mins.
      *
@@ -2937,6 +2972,14 @@ public class SpannerIO {
                   ? Options.maxCommitDelay(
                       java.time.Duration.ofMillis(
                           spannerConfig.getMaxCommitDelay().get().getMillis()))
+                  : null,
+              spannerConfig.getExcludeTxnFromChangeStreams() != null
+                      && Boolean.TRUE.equals(spannerConfig.getExcludeTxnFromChangeStreams().get())
+                  ? Options.excludeTxnFromChangeStreams()
+                  : null,
+              spannerConfig.getTransactionTag() != null
+                      && !Strings.isNullOrEmpty(spannerConfig.getTransactionTag().get())
+                  ? Options.tag(spannerConfig.getTransactionTag().get())
                   : null)
           .filter(Objects::nonNull)
           .toArray(Options.TransactionOption[]::new);
