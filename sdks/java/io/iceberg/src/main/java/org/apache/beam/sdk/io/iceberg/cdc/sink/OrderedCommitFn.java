@@ -379,17 +379,16 @@ class OrderedCommitFn extends DoFn<KV<String, WindowedCommit>, KV<String, Snapsh
       if (specId != currentSpecId) {
         metrics.specMismatchedWindows.inc();
         LOG.warn(
-            "CDC sink '{}' committed window-end {} ms for table '{}' with equality deletes in "
-                + "a window mixing partition specs (pinned spec id {}, saw spec id {}): the "
-                + "partition spec evolved mid-run. An equality delete applies only to data "
-                + "files of its own (spec id, partition), so deletes may not reach rows "
-                + "written under the other spec. Run rewrite_data_files so that data is correctly "
-                + "repartitioned, then drain and restart the pipeline to converge on one spec.",
+            "CDC sink '{}' committed window-end {} ms for table '{}' with files from partition "
+                + "specs {} and {}, so some equality deletes may miss rows. Cancel the pipeline, "
+                + "run rewrite_data_files on the table, then restart from the last committed "
+                + "change (snapshot summary key {}).",
             sinkId,
             wc.getWindowEndMs(),
             dest,
             currentSpecId,
-            specId);
+            specId,
+            CommitToken.MAX_COMMITTED_SEQ_PREFIX + sinkId);
         break;
       }
     }
